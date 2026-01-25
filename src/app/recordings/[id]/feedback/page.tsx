@@ -79,14 +79,23 @@ export default function AdminFeedbackPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.general_notes?.trim() || !formData.custom_instructions?.trim()) {
+    // Type-safe validation with explicit checks
+    const generalNotes = formData.general_notes?.trim() || "";
+    const customInstructions = formData.custom_instructions?.trim() || "";
+    
+    if (!generalNotes || !customInstructions) {
       toast.error("General notes and custom instructions are required");
       return;
     }
 
     setSaving(true);
     try {
-      await submitAdminFeedback(formData);
+      // Ensure all required fields are present
+      await submitAdminFeedback({
+        ...formData,
+        general_notes: generalNotes,
+        custom_instructions: customInstructions,
+      });
       toast.success("Feedback saved successfully!");
       setTimeout(() => {
         router.push("/admin");
