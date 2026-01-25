@@ -34,14 +34,19 @@ export default function AdminFeedbackPage() {
   useEffect(() => {
     if (!userId) {
       toast.error("User ID is required");
-      // Preserve current URL for redirect after login
+      // Preserve current URL for redirect after login (including all query params)
       const currentUrl = window.location.pathname + window.location.search;
-      router.push(`/login?redirectTo=${encodeURIComponent(currentUrl)}`);
+      const loginUrl = `/login?redirectTo=${encodeURIComponent(currentUrl)}`;
+      console.log("[Feedback Page] Redirecting to login, preserving URL:", currentUrl);
+      router.push(loginUrl);
       return;
     }
 
-    loadData();
-  }, [userId, recordingId]);
+    // Only load data if we have both IDs
+    if (recordingId && userId) {
+      loadData();
+    }
+  }, [userId, recordingId, router]);
 
   const loadData = async () => {
     setLoading(true);

@@ -40,10 +40,12 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
       } else if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
         setIsAdmin(false);
         toast.error("Please log in to access admin dashboard");
-        // Preserve current URL for redirect after login
+        // Preserve current URL for redirect after login (including all query params)
         const currentUrl = window.location.pathname + window.location.search;
+        const loginUrl = `/login?redirectTo=${encodeURIComponent(currentUrl)}`;
+        console.log("[AdminAuthGuard] Redirecting to login, preserving URL:", currentUrl);
         setTimeout(() => {
-          router.push(`/login?redirectTo=${encodeURIComponent(currentUrl)}`);
+          router.push(loginUrl);
         }, 2000);
       } else {
         // Other error - might be network issue, allow access but show warning

@@ -72,11 +72,16 @@ export default function LoginForm() {
       const searchParams = new URLSearchParams(window.location.search);
       const redirectTo = searchParams.get("redirectTo");
       
+      console.log("[LoginForm] Login successful, redirectTo:", redirectTo);
+      
       // Small delay then redirect
       setTimeout(() => {
         if (redirectTo) {
-          // Redirect to the original destination (e.g., feedback page from email)
-          router.push(redirectTo);
+          // Decode and redirect to the original destination (e.g., feedback page from email)
+          // redirectTo is already a full path with query params, so use it directly
+          const decodedRedirect = decodeURIComponent(redirectTo);
+          console.log("[LoginForm] Redirecting to:", decodedRedirect);
+          router.push(decodedRedirect);
         } else {
           // Default redirect to dashboard
           router.push("/dashboard");

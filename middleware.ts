@@ -112,13 +112,28 @@ export async function middleware(req: NextRequest) {
   // This allows /recordings/[recordingId]/feedback to be accessible
   // The AdminAuthGuard component will check admin status on the page
   if (pathname.includes("/recordings/") && pathname.includes("/feedback")) {
+    // If not logged in, redirect to login with full URL (including query params)
+    if (!session) {
+      const loginUrl = new URL("/login", req.url);
+      // Preserve full URL including query parameters
+      const fullPath = pathname + (url.search ? url.search : "");
+      loginUrl.searchParams.set("redirectTo", fullPath);
+      
+      const redirect = NextResponse.redirect(loginUrl);
+      const redirectCsp = getCspDirectives();
+      redirect.headers.set("Content-Security-Policy", redirectCsp);
+      redirect.headers.set("X-Content-Security-Policy", redirectCsp);
+      return redirect;
+    }
     // Allow access - AdminAuthGuard will verify admin role
     return res;
   }
 
   if (isProtected(pathname) && !session) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirectTo", pathname);
+    // Preserve full URL including query parameters
+    const fullPath = pathname + (url.search ? url.search : "");
+    loginUrl.searchParams.set("redirectTo", fullPath);
 
     const redirect = NextResponse.redirect(loginUrl);
     const redirectCsp = getCspDirectives();
