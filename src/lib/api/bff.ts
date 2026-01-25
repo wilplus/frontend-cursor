@@ -22,7 +22,12 @@ function unauthorizedResponse(): NextResponse<ApiError> {
  */
 export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
   path: string,
-  init?: RequestInit & { method?: string; body?: RequestBody | null }
+  init?: { 
+    method?: string; 
+    headers?: HeadersInit; 
+    body?: RequestBody | null; 
+    signal?: AbortSignal;
+  }
 ): Promise<NextResponse<ResponseBody | ApiError>> {
   const supabase = createServerSupabaseClient();
   
