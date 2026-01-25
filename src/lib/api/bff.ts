@@ -34,20 +34,54 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
 ): Promise<NextResponse<ResponseBody | ApiError>> {
   const supabase = createServerSupabaseClient();
   
-  // Try getSession first, then getUser if that fails
+  // Try getSession first - Supabase SSR should auto-refresh if needed
   let session = null;
   try {
+    // getSession() will automatically refresh if the refresh token is available
     const sessionResult = await supabase.auth.getSession();
     session = sessionResult.data?.session;
     
-    // If no session, try getUser (doesn't trigger cookie modifications)
+    // If no session, try getUser() which might work even without a valid session
+    // This can help if the refresh token is still valid but session expired
     if (!session) {
-      const userResult = await supabase.auth.getUser();
-      if (userResult.data?.user) {
-        // User exists but no session - might need to refresh
-        console.warn("[BFF] User exists but no session found. Session may have expired.");
-      } else {
-        console.warn("[BFF] No user found. User is not authenticated.");
+      console.warn("[BFF] No session found, checking if user exists...");
+      try {
+        const userResult = await supabase.auth.getUser();
+        if (userResult.data?.user) {
+          // User exists, try to get session again (might trigger refresh)
+          const retrySessionResult = await supabase.auth.getSession();
+          session = retrySessionResult.data?.session;
+          
+          if (session) {
+            console.log("[BFF] Session obtained after getUser()");
+          } else {
+            console.warn("[BFF] User exists but no session available. Refresh token may be expired.");
+          }
+        } else {
+          console.warn("[BFF] No user found. User is not authenticated.");
+        }
+      } catch (getUserError) {
+        console.error("[BFF] Error getting user:", getUserError);
+      }
+    } else {
+      // Check if session is about to expire (within 5 minutes)
+      const expiresAt = session.expires_at;
+      if (expiresAt) {
+        const expiresIn = expiresAt - Math.floor(Date.now() / 1000);
+        if (expiresIn < 300 && expiresIn > 0) { // Less than 5 minutes but not expired yet
+          console.log("[BFF] Session expiring soon, attempting refresh...");
+          // getSession() should auto-refresh, but we can try explicit refresh
+          try {
+            const refreshResult = await supabase.auth.refreshSession();
+            if (refreshResult.data?.session) {
+              session = refreshResult.data.session;
+              console.log("[BFF] Session refreshed proactively");
+            }
+          } catch (refreshError) {
+            // If refresh fails, use existing session (it's still valid)
+            console.warn("[BFF] Proactive refresh failed, using existing session:", refreshError);
+          }
+        }
       }
     }
   } catch (error) {

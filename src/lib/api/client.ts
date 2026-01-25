@@ -194,6 +194,7 @@ export async function submitAdminFeedback(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+    credentials: "include", // Important: include cookies for session
   });
   return handleResponse<AdminFeedbackResponse>(res);
 }

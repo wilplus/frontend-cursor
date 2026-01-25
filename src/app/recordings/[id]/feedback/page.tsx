@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import AdminAuthGuard from "@/components/admin/AdminAuthGuard";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AdminFeedbackPage() {
   const params = useParams();
@@ -69,9 +70,18 @@ export default function AdminFeedbackPage() {
       // Load recording details if available
       try {
         const recording = await fetchRecording(recordingId);
+        console.log("[Feedback Page] Recording data loaded:", {
+          hasAnalysis: !!recording.analysis?.report,
+          hasMetrics: !!recording.metrics,
+          hasPerformanceScore: !!recording.performance_score,
+        });
         setRecordingData(recording);
-      } catch (err) {
-        console.warn("Could not load recording details:", err);
+      } catch (err: any) {
+        console.error("Could not load recording details:", err);
+        // Don't show error toast - just log it, page can still be used for feedback
+        if (err.message?.includes("401") || err.message?.includes("Session expired")) {
+          toast.error("Session expired. Please refresh the page and try again.");
+        }
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -95,6 +105,23 @@ export default function AdminFeedbackPage() {
 
     setSaving(true);
     try {
+      // Refresh session server-side before submitting to ensure cookies are updated
+      try {
+        const refreshRes = await fetch("/api/auth/confirm-session", {
+          method: "POST",
+          credentials: "include", // Important: include cookies
+        });
+        
+        if (!refreshRes.ok) {
+          console.warn("[Feedback] Session refresh failed, but continuing with submission");
+        } else {
+          console.log("[Feedback] Session confirmed/refreshed server-side");
+        }
+      } catch (refreshErr) {
+        console.warn("[Feedback] Error refreshing session:", refreshErr);
+        // Continue anyway - the BFF will handle it
+      }
+
       // Ensure all required fields are present
       await submitAdminFeedback({
         ...formData,
@@ -107,7 +134,22 @@ export default function AdminFeedbackPage() {
       }, 1500);
     } catch (error: any) {
       console.error("Failed to save feedback:", error);
-      toast.error(error.message || "Failed to save feedback");
+      
+      // Handle session expiration specifically
+      if (error.message?.includes("Session expired") || 
+          error.message?.includes("401") || 
+          error.message?.includes("UNAUTHORIZED")) {
+        toast.error("Your session has expired. Redirecting to login...", {
+          duration: 5000,
+        });
+        // Redirect to login after a delay
+        setTimeout(() => {
+          const currentUrl = window.location.pathname + window.location.search;
+          router.push(`/login?redirectTo=${encodeURIComponent(currentUrl)}`);
+        }, 2000);
+      } else {
+        toast.error(error.message || "Failed to save feedback");
+      }
     } finally {
       setSaving(false);
     }
@@ -145,33 +187,158 @@ export default function AdminFeedbackPage() {
             </div>
           </div>
 
-          {/* Recording Context */}
+          {/* Recording Analysis - Full Report for Admin Review */}
           {recordingData && (
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Recording Context</h2>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Recording ID</p>
-                  <p className="text-sm font-mono">{recordingId}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">User ID</p>
-                  <p className="text-sm font-mono">{userId}</p>
-                </div>
-                {recordingData.transcription_text && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Transcription</p>
-                    <p className="text-sm line-clamp-4">{recordingData.transcription_text}</p>
+            <div className="space-y-4">
+              {/* Full AI Analysis Report */}
+              {recordingData.analysis?.report && (
+                <Card className="p-6 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <h2 className="text-xl font-semibold mb-3 text-blue-900 dark:text-blue-100">
+                    AI Analysis Report
+                  </h2>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-200">
+                      {recordingData.analysis.report}
+                    </p>
                   </div>
-                )}
-                {recordingData.analysis?.report && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Current Analysis</p>
-                    <p className="text-sm line-clamp-4">{recordingData.analysis.report}</p>
+                  {recordingData.analysis.trend_sentence && (
+                    <div className="mt-4 pt-4 border-t border-blue-300 dark:border-blue-700">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Trend Analysis</p>
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        {recordingData.analysis.trend_sentence}
+                      </p>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* Recording Metrics */}
+              {recordingData.metrics && (
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Performance Metrics</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Words/Min</p>
+                      <p className="text-lg font-semibold">{Math.round(recordingData.metrics.wpm || 0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Filler Words</p>
+                      <p className="text-lg font-semibold">{recordingData.metrics.filler_count || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Duration</p>
+                      <p className="text-lg font-semibold">
+                        {Math.round(recordingData.metrics.duration_seconds || 0)}s
+                      </p>
+                    </div>
+                    {recordingData.metrics.pacing_score !== undefined && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Pacing Score</p>
+                        <p className="text-lg font-semibold">
+                          {(recordingData.metrics.pacing_score * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </Card>
+                  {recordingData.metrics.filler_breakdown && 
+                   Object.keys(recordingData.metrics.filler_breakdown).length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Filler Word Breakdown</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(recordingData.metrics.filler_breakdown).map(([word, count]) => (
+                          <span
+                            key={word}
+                            className="px-2 py-1 bg-muted rounded text-xs"
+                          >
+                            {word}: {count as number}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* Performance Score */}
+              {recordingData.performance_score && (
+                <Card className="p-6 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                  <h3 className="text-lg font-semibold mb-4 text-green-900 dark:text-green-100">
+                    Performance Score
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Overall Performance</p>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                        {(recordingData.performance_score.performance * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Final KPI</p>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                        {(recordingData.performance_score.final_kpi * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                  {recordingData.performance_score.bonuses && 
+                   Object.values(recordingData.performance_score.bonuses).some((v: any) => v && typeof v === 'number' && v > 0) && (
+                    <div className="pt-4 border-t border-green-300 dark:border-green-700">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Bonuses Applied</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(recordingData.performance_score.bonuses).map(([key, value]) => {
+                          const numValue = typeof value === 'number' ? value : 0;
+                          return numValue > 0 ? (
+                            <span key={key} className="px-2 py-1 bg-green-200 dark:bg-green-800 rounded text-xs">
+                              {key}: +{(numValue * 100).toFixed(1)}%
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {/* Transcription */}
+              {recordingData.transcription_text && (
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Full Transcription</h3>
+                  <div className="bg-muted p-4 rounded-md max-h-64 overflow-y-auto">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {recordingData.transcription_text}
+                    </p>
+                  </div>
+                </Card>
+              )}
+
+              {/* Recording Metadata */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Recording Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Recording ID</p>
+                    <p className="text-sm font-mono break-all">{recordingId}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">User ID</p>
+                    <p className="text-sm font-mono break-all">{userId}</p>
+                  </div>
+                  {recordingData.session_id && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Session ID</p>
+                      <p className="text-sm font-mono break-all">{recordingData.session_id}</p>
+                    </div>
+                  )}
+                  {recordingData.created_at && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Created At</p>
+                      <p className="text-sm">
+                        {new Date(recordingData.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
           )}
 
           {/* Feedback Form */}
