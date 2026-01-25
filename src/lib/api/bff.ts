@@ -20,7 +20,7 @@ function unauthorizedResponse(): NextResponse<ApiError> {
 /**
  * Generic helper for JSON proxying (non-multipart).
  */
-export async function proxyJson<RequestBody = any, ResponseBody = unknown>(
+export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
   path: string,
   init?: { 
     method?: string; 
