@@ -19,8 +19,12 @@ export default function ResetPasswordForm() {
     setLoading(true);
 
     try {
+      // Use the correct redirect URL for password reset
+      // This will redirect to update-password page after email confirmation
+      const redirectUrl = `${window.location.origin}/auth/callback?next=/update-password`;
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {

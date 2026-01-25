@@ -4,9 +4,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 export async function GET(req: NextRequest) {
   const requestUrl = new URL(req.url);
   const code = requestUrl.searchParams.get("code");
+  const type = requestUrl.searchParams.get("type"); // Supabase adds ?type=recovery for password reset
   const next = requestUrl.searchParams.get("next") || "/dashboard";
 
-  const response = NextResponse.redirect(new URL(next, req.url));
+  // If it's a password recovery, redirect to update password page
+  const redirectPath = type === "recovery" ? "/update-password" : next;
+  const response = NextResponse.redirect(new URL(redirectPath, req.url));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

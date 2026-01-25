@@ -4,7 +4,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings"];
 const ADMIN_ROUTES = ["/admin"]; // Admin routes require admin role (backend will verify)
 const ADMIN_FEEDBACK_ROUTES = ["/recordings"]; // Admin feedback routes (backend will verify admin role)
-const AUTH_ROUTES = ["/login", "/signup", "/reset-password"];
+const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
 
 function getCspDirectives(): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
