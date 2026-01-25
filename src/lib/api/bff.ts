@@ -20,7 +20,10 @@ function unauthorizedResponse(): NextResponse<ApiError> {
 /**
  * Generic helper for JSON proxying (non-multipart).
  */
-export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
+// Helper type to avoid BodyInit conflict
+type ProxyJsonBody = unknown;
+
+export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unknown>(
   path: string,
   init?: { 
     method?: string; 
@@ -69,7 +72,8 @@ export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
   let bodyString: string | undefined = undefined;
   if (init?.body != null) {
     headers.set("Content-Type", "application/json");
-    bodyString = JSON.stringify(init.body);
+    // Type assertion needed because TypeScript infers body as BodyInit | RequestBody
+    bodyString = JSON.stringify(init.body as any);
   }
 
   const fetchInit: RequestInit = {
@@ -99,7 +103,7 @@ export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
           { status: resp.status }
         );
       }
-      return NextResponse.json(null, { status: resp.status });
+      return NextResponse.json(null as ResponseBody, { status: resp.status });
     }
     
     let json;
@@ -228,7 +232,7 @@ export async function proxyMultipart<ResponseBody = unknown>(
           { status: resp.status }
         );
       }
-      return NextResponse.json(null, { status: resp.status });
+      return NextResponse.json(null as ResponseBody, { status: resp.status });
     }
     
     // Handle 502 Bad Gateway (backend not responding)

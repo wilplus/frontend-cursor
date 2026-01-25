@@ -79,7 +79,7 @@ export default function AdminFeedbackPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.general_notes.trim() || !formData.custom_instructions.trim()) {
+    if (!formData.general_notes?.trim() || !formData.custom_instructions?.trim()) {
       toast.error("General notes and custom instructions are required");
       return;
     }
@@ -168,7 +168,7 @@ export default function AdminFeedbackPage() {
                   General Notes <span className="text-destructive">*</span>
                 </label>
                 <textarea
-                  value={formData.general_notes}
+                  value={formData.general_notes || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, general_notes: e.target.value })
                   }
@@ -187,7 +187,7 @@ export default function AdminFeedbackPage() {
                   Custom Instructions for AI Analysis <span className="text-destructive">*</span>
                 </label>
                 <textarea
-                  value={formData.custom_instructions}
+                  value={formData.custom_instructions || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, custom_instructions: e.target.value })
                   }

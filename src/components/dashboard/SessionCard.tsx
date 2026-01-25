@@ -143,7 +143,7 @@ export default function SessionCard() {
   // If somehow we end up in pre_questions state, redirect to questionnaire
   if (state === "pre_questions") {
     // This shouldn't happen with new flow, but handle gracefully
-    const currentState = get();
+    const currentState = useSessionStore.getState();
     if (!currentState.questionnaireSubmitted) {
       // No questionnaire submitted yet - show questionnaire
       return (

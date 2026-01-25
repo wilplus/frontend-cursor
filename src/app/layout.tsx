@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-const inter = Inter({ 
-  subsets: ["latin"],
-  display: "swap",
-  fallback: ["system-ui", "arial"],
-});
+// Use system fonts instead of Google Fonts to avoid build-time network dependency
+// Inter font will be loaded at runtime if available
 
 export const metadata: Metadata = {
   title: "Willab",
@@ -21,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         {children}
         <Toaster position="top-center" />
       </body>

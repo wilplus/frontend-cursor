@@ -6,11 +6,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log("[API /admin/feedback] Request body:", body);
     
-    // proxyJson stringifies the body internally (see bff.ts line 72)
-    // @ts-ignore - TypeScript inference issue with generic RequestBody type
+    // proxyJson stringifies the body internally
     return proxyJson("/admin/feedback", { 
       method: "POST", 
-      body
+      body: body as any
     });
   } catch (error) {
     console.error("Error in admin/feedback route:", error);

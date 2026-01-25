@@ -38,7 +38,7 @@ export default function RecordingsDebug() {
         } else {
           console.log("[RecordingsDebug] Session found:", {
             userId: session.user.id,
-            expiresAt: new Date(session.expires_at * 1000).toISOString(),
+            expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : "N/A",
           });
         }
       } catch (err) {
@@ -159,7 +159,7 @@ export default function RecordingsDebug() {
           userId: data.session.user.id,
           email: data.session.user.email,
           expiresAt: data.session.expires_at,
-          expiresAtDate: new Date(data.session.expires_at * 1000).toISOString(),
+          expiresAtDate: data.session.expires_at ? new Date(data.session.expires_at * 1000).toISOString() : "N/A",
         });
       } else {
         toast.error("No session after refresh. Please log in again.");
