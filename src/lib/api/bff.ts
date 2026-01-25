@@ -20,7 +20,7 @@ function unauthorizedResponse(): NextResponse<ApiError> {
 /**
  * Generic helper for JSON proxying (non-multipart).
  */
-export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
+export async function proxyJson<RequestBody = any, ResponseBody = unknown>(
   path: string,
   init?: { 
     method?: string; 
@@ -64,14 +64,18 @@ export async function proxyJson<RequestBody = unknown, ResponseBody = unknown>(
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${session.access_token}`);
   headers.set("Accept", "application/json");
+  
+  // Handle body - stringify if it exists and is not null
+  let bodyString: string | undefined = undefined;
   if (init?.body != null) {
     headers.set("Content-Type", "application/json");
+    bodyString = JSON.stringify(init.body);
   }
 
   const fetchInit: RequestInit = {
     method,
     headers,
-    body: init?.body != null ? JSON.stringify(init.body) : undefined,
+    body: bodyString,
   };
 
   try {

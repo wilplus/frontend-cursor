@@ -6,6 +6,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log("[API /admin/feedback] Request body:", body);
     
+    // @ts-expect-error - TypeScript inference issue with generic body type
     return proxyJson("/admin/feedback", { 
       method: "POST", 
       body
