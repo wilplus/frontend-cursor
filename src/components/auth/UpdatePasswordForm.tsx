@@ -19,11 +19,37 @@ export default function UpdatePasswordForm() {
 
   useEffect(() => {
     // Check if user has a valid session (from password reset link)
+    // Add a small delay to ensure cookies are set from the callback
     const checkSession = async () => {
+      // Wait a bit for cookies to be set from the redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // First, try to get the session
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        // If no session, wait a bit more and try again (cookies might still be setting)
+        if (!session) {
+          console.log("[UpdatePassword] No session found, waiting and retrying...");
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const retryResult = await supabase.auth.getSession();
+          session = retryResult.data?.session || null;
+        }
+        
+        // If still no session, try to refresh it
+        if (!session) {
+          console.log("[UpdatePassword] Still no session, trying to refresh...");
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (refreshError) {
+            console.error("[UpdatePassword] Refresh error:", refreshError);
+          }
+          
+          session = refreshData?.session || null;
+        }
         
         if (!session) {
+          console.error("[UpdatePassword] No session available after all attempts");
           toast.error("Invalid or expired reset link. Please request a new one.");
           setTimeout(() => {
             router.push("/reset-password");
@@ -31,10 +57,11 @@ export default function UpdatePasswordForm() {
           return;
         }
 
+        console.log("[UpdatePassword] Session found, user:", session.user.email);
         setCheckingSession(false);
       } catch (error) {
         console.error("Error checking session:", error);
-        toast.error("Error verifying reset link");
+        toast.error("Error verifying reset link. Please try requesting a new one.");
         setTimeout(() => {
           router.push("/reset-password");
         }, 2000);

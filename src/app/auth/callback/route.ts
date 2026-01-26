@@ -41,7 +41,14 @@ export async function GET(req: NextRequest) {
   );
 
   if (code) {
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error("[Auth Callback] Error exchanging code:", error);
+      // Redirect to reset-password with error message
+      const errorUrl = new URL("/reset-password?error=expired", req.url);
+      return NextResponse.redirect(errorUrl);
+    }
+    console.log("[Auth Callback] Successfully exchanged code for session");
   } else {
     // If no code, just refresh the session to ensure cookies are set
     await supabase.auth.getSession();
