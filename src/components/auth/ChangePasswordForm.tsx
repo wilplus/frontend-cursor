@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -15,6 +15,39 @@ export default function ChangePasswordForm() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+
+  // Only show the form when we have a session, so "Update password" never hits "Auth session missing!"
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      for (let i = 0; i < 8; i++) {
+        if (cancelled) return;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setSessionReady(true);
+            return;
+          }
+        } catch (_) {
+          // retry
+        }
+        if (i < 7) await new Promise((r) => setTimeout(r, 300));
+      }
+      if (!cancelled) {
+        toast.error("Please log in to change your password.");
+        router.replace("/login");
+      }
+    };
+    check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) setSessionReady(true);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +70,15 @@ export default function ChangePasswordForm() {
       });
 
       if (error) {
+        const isSessionError =
+          error.message?.includes("session") ||
+          error.message?.includes("Auth session missing") ||
+          error.message?.toLowerCase().includes("jwt");
+        if (isSessionError) {
+          toast.error("Your session expired. Please log in again.");
+          router.replace("/login");
+          return;
+        }
         toast.error(error.message || "Failed to update password");
         return;
       }
@@ -48,10 +90,17 @@ export default function ChangePasswordForm() {
     } catch (err: unknown) {
       console.error("[ChangePassword] Error:", err);
       const message = err instanceof Error ? err.message : String(err);
+      const isSessionMissing =
+        message.includes("Auth session missing") || message.includes("session");
       const isNetwork =
         message === "Load failed" ||
         message === "Failed to fetch" ||
         message.includes("network");
+      if (isSessionMissing) {
+        toast.error("Your session expired. Please log in again.");
+        router.replace("/login");
+        return;
+      }
       if (isNetwork) {
         toast.error("Network error. Check your connection and try again.");
       } else {
@@ -61,6 +110,14 @@ export default function ChangePasswordForm() {
       setLoading(false);
     }
   };
+
+  if (!sessionReady) {
+    return (
+      <Card className="p-6 text-center">
+        <p className="text-sm text-muted-foreground">Checking session...</p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-6">

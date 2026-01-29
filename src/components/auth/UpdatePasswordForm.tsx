@@ -67,44 +67,25 @@ export default function UpdatePasswordForm() {
       }
     });
 
-    // Also check immediately for tokens in URL
+    // Supabase: "Call initialize() when checking for an auth redirect (password recovery, etc.)"
+    // so the client can restore session from the URL.
     const handlePasswordReset = async () => {
       try {
-        // Log the full URL for debugging
-        console.log("[UpdatePassword] Full URL:", window.location.href);
-        console.log("[UpdatePassword] Hash:", window.location.hash);
-        console.log("[UpdatePassword] Search:", window.location.search);
-        
-        // Extract tokens using helper function
+        await supabase.auth.initialize();
+        if (cancelled) return;
+
         const tokens = extractTokensFromUrl();
         const { accessToken, refreshToken, code, type } = tokens;
-        
-        console.log("[UpdatePassword] Token detection:", {
-          hasHashTokens: !!(accessToken && refreshToken),
-          hasCode: !!code,
-          type,
-          fullHash: window.location.hash,
-        });
 
-        // If we have a code in the URL, the exchange MUST happen server-side (PKCE code verifier
-        // is in cookies). Redirect to /auth/callback so the route handler can exchange and redirect back.
+        // Code in URL → server must exchange (PKCE in cookies). Redirect once.
         if (code && !accessToken) {
           const callbackUrl = `/auth/callback?code=${encodeURIComponent(code)}${type ? `&type=${encodeURIComponent(type)}` : ''}`;
-          console.log("[UpdatePassword] Code in URL - redirecting to callback for server-side exchange:", callbackUrl);
           window.location.replace(callbackUrl);
           return;
         }
 
-        // If we have tokens in hash, set the session
-        // Don't require type=recovery - tokens might be valid even without it
+        // Hash tokens → set session so we can call updateUser()
         if (accessToken && refreshToken) {
-          console.log("[UpdatePassword] Hash tokens found, setting session");
-          console.log("[UpdatePassword] Token preview:", {
-            accessTokenLength: accessToken.length,
-            refreshTokenLength: refreshToken.length,
-            type: type,
-          });
-          
           try {
             const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
@@ -126,21 +107,15 @@ export default function UpdatePasswordForm() {
             }
             
             if (data.session) {
-              console.log("[UpdatePassword] ✅ Session set successfully, user:", data.session.user.email);
               setCheckingSession(false);
-              // Clean up the URL
               window.history.replaceState({}, '', '/update-password');
               return;
-            } else {
-              console.error("[UpdatePassword] setSession succeeded but no session in response");
-              console.error("[UpdatePassword] Response data:", data);
-              toast.error("Session was not created. Please try requesting a new reset link.");
-              setTimeout(() => router.push("/reset-password"), 2000);
-              return;
             }
-          } catch (setSessionError: any) {
-            console.error("[UpdatePassword] Exception setting session:", setSessionError);
-            const errorMsg = setSessionError?.message || "Unknown error";
+            toast.error("Session was not created. Please try requesting a new reset link.");
+            setTimeout(() => router.push("/reset-password"), 2000);
+            return;
+          } catch (setSessionError: unknown) {
+            const errorMsg = setSessionError instanceof Error ? setSessionError.message : "Unknown error";
             toast.error(`Failed to set session: ${errorMsg}. Please try requesting a new reset link.`);
             setTimeout(() => router.push("/reset-password"), 2000);
             return;
@@ -249,25 +224,40 @@ export default function UpdatePasswordForm() {
       });
 
       if (error) {
+        const isSessionError =
+          error.message?.includes("session") ||
+          error.message?.includes("Auth session missing") ||
+          error.message?.toLowerCase().includes("jwt");
+        if (isSessionError) {
+          toast.error("Your reset link session expired. Please request a new link and try again.");
+          setTimeout(() => router.push("/reset-password"), 2000);
+          return;
+        }
         toast.error(error.message || "Failed to update password");
         return;
       }
 
-      toast.success("Password updated successfully!");
-      
-      // Redirect to login after a short delay
+      toast.success("Password updated successfully! Please sign in with your new password.");
+
+      // Do not keep the user logged in from the recovery flow: sign out, then redirect to login.
+      await supabase.auth.signOut();
       setTimeout(() => {
         router.push("/login");
       }, 1500);
     } catch (err: unknown) {
       console.error("[UpdatePassword] Error updating password:", err);
       const message = err instanceof Error ? err.message : String(err);
+      const isSessionMissing =
+        message.includes("Auth session missing") || message.toLowerCase().includes("session");
       const isNetworkError =
         message === "Load failed" ||
         message === "Failed to fetch" ||
         message.includes("NetworkError") ||
         message.includes("network");
-      if (isNetworkError) {
+      if (isSessionMissing) {
+        toast.error("Your reset link session expired. Please request a new link and try again.");
+        setTimeout(() => router.push("/reset-password"), 2000);
+      } else if (isNetworkError) {
         toast.error(
           "Network error. Check your connection and try again. If the problem continues, try again in a few minutes."
         );
