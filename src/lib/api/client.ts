@@ -17,6 +17,26 @@ import type {
   ApiError,
 } from "./types";
 
+/** Get auth headers (Bearer token) and credentials for API requests. Sends token so BFF can use it when cookies fail. */
+async function getAuthFetchOptions(
+  extraHeaders: Record<string, string> = {}
+): Promise<{ headers: Record<string, string>; credentials: RequestCredentials }> {
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (typeof window !== "undefined") {
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return { headers, credentials: "include" };
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let error: ApiError;
@@ -51,7 +71,8 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
-  const res = await fetch("/api/session/status");
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch("/api/session/status", { headers, credentials });
   return handleResponse<SessionStatusResponse>(res);
 }
 
@@ -66,14 +87,13 @@ export async function startSession(
     const body: import("./types").SessionStartRequest = questionnaire
       ? { questionnaire }
       : {};
-    
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch("/api/session/start", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
+      credentials,
     });
     
     clearTimeout(timeoutId);
@@ -88,10 +108,12 @@ export async function startSession(
 }
 
 export async function abandonSession(sessionId: string): Promise<void> {
+  const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
   const res = await fetch("/api/session/abandon", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ session_id: sessionId }),
+    credentials,
   });
   if (!res.ok) {
     const error: ApiError = await res.json();
@@ -102,10 +124,12 @@ export async function abandonSession(sessionId: string): Promise<void> {
 export async function submitPreAnswers(
   data: SubmitPreAnswersRequest
 ): Promise<SubmitPreAnswersResponse> {
+  const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
   const res = await fetch("/api/pre-answers", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(data),
+    credentials,
   });
   return handleResponse<SubmitPreAnswersResponse>(res);
 }
@@ -115,10 +139,13 @@ export async function uploadRecording(
   abortController?: AbortController
 ): Promise<UploadRecordingResponse> {
   try {
+    const { headers, credentials } = await getAuthFetchOptions();
     const res = await fetch("/api/recording/upload", {
       method: "POST",
+      headers,
       body: formData,
       signal: abortController?.signal,
+      credentials,
     });
     
     // Log response for debugging
@@ -138,10 +165,12 @@ export async function uploadRecording(
 export async function submitPostAnswers(
   data: SubmitPostAnswersRequest
 ): Promise<SubmitPostAnswersResponse> {
+  const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
   const res = await fetch("/api/post-answers", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(data),
+    credentials,
   });
   return handleResponse<SubmitPostAnswersResponse>(res);
 }
@@ -149,14 +178,16 @@ export async function submitPostAnswers(
 export async function fetchRecording(
   id: string
 ): Promise<GetRecordingResponse> {
-  const res = await fetch(`/api/recordings/${id}`);
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/recordings/${id}`, { headers, credentials });
   return handleResponse<GetRecordingResponse>(res);
 }
 
 export async function fetchSignedAudioUrl(
   id: string
 ): Promise<GetSignedAudioUrlResponse> {
-  const res = await fetch(`/api/recordings/${id}/audio-url`);
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/recordings/${id}/audio-url`, { headers, credentials });
   return handleResponse<GetSignedAudioUrlResponse>(res);
 }
 
@@ -165,24 +196,14 @@ export async function fetchUserRecordings(
   offset: number = 0
 ): Promise<ListRecordingsResponse> {
   const url = `/api/user/recordings?limit=${limit}&offset=${offset}`;
-  console.log(`[fetchUserRecordings] Fetching: ${url}`);
-  
-  const res = await fetch(url);
-  
-  console.log(`[fetchUserRecordings] Response status: ${res.status} ${res.statusText}`);
-  console.log(`[fetchUserRecordings] Response headers:`, Object.fromEntries(res.headers.entries()));
-  
-  // Clone the response to read it without consuming it
-  const clonedRes = res.clone();
-  const text = await clonedRes.text();
-  console.log(`[fetchUserRecordings] Raw response body:`, text);
-  
-  // Now parse the original response
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(url, { headers, credentials });
   return handleResponse<ListRecordingsResponse>(res);
 }
 
 export async function fetchUserProfile(): Promise<UserProfileResponse> {
-  const res = await fetch("/api/user/profile");
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch("/api/user/profile", { headers, credentials });
   return handleResponse<UserProfileResponse>(res);
 }
 
@@ -190,11 +211,12 @@ export async function fetchUserProfile(): Promise<UserProfileResponse> {
 export async function submitAdminFeedback(
   data: AdminFeedbackRequest
 ): Promise<AdminFeedbackResponse> {
+  const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
   const res = await fetch("/api/admin/feedback", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(data),
-    credentials: "include", // Important: include cookies for session
+    credentials,
   });
   return handleResponse<AdminFeedbackResponse>(res);
 }
@@ -202,7 +224,8 @@ export async function submitAdminFeedback(
 export async function getUserAdminContext(
   userId: string
 ): Promise<UserAdminContext> {
-  const res = await fetch(`/api/admin/user/${userId}/context`);
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/admin/user/${userId}/context`, { headers, credentials });
   return handleResponse<UserAdminContext>(res);
 }
 
@@ -218,6 +241,7 @@ export async function fetchAdminRecordings(
   if (needsFeedback !== undefined) {
     params.append("needs_feedback", needsFeedback.toString());
   }
-  const res = await fetch(`/api/admin/recordings?${params}`);
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/admin/recordings?${params}`, { headers, credentials });
   return handleResponse<AdminRecordingsListResponse>(res);
 }

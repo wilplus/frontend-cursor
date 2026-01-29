@@ -79,23 +79,29 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
   },
   req?: NextRequest
 ): Promise<NextResponse<ResponseBody | ApiError>> {
-  // Use request-scoped session when req is provided (so refreshed cookies are on the response)
-  let session: Session | null = null;
+  let accessToken: string | null = null;
   let cookieResponse: NextResponse | null = null;
 
+  // Prefer Authorization header from client (avoids cookie issues)
   if (req) {
-    const result = await getSessionForRequest(req);
-    session = result.session;
-    cookieResponse = result.cookieResponse;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      accessToken = authHeader.slice(7).trim();
+    }
+    if (!accessToken) {
+      const result = await getSessionForRequest(req);
+      accessToken = result.session?.access_token ?? null;
+      cookieResponse = result.cookieResponse;
+    }
   } else {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = createServerSupabaseClient();
     const sessionResult = await supabase.auth.getSession();
-    session = sessionResult.data?.session ?? null;
+    accessToken = sessionResult.data?.session?.access_token ?? null;
   }
 
-  if (!session) {
-    console.error("[BFF] No session available for request to:", path);
+  if (!accessToken) {
+    console.error("[BFF] No session/token available for request to:", path);
     return unauthorizedResponse();
   }
 
@@ -103,7 +109,7 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
   const method = init?.method ?? "GET";
 
   const headers = new Headers(init?.headers);
-  headers.set("Authorization", `Bearer ${session.access_token}`);
+  headers.set("Authorization", `Bearer ${accessToken}`);
   headers.set("Accept", "application/json");
   
   // Handle body - stringify if it exists and is not null
@@ -228,28 +234,34 @@ export async function proxyMultipart<ResponseBody = unknown>(
   method: "POST" | "PUT" = "POST",
   req?: NextRequest
 ): Promise<NextResponse<ResponseBody | ApiError>> {
-  let session: Session | null = null;
+  let accessToken: string | null = null;
   let cookieResponse: NextResponse | null = null;
 
   if (req) {
-    const result = await getSessionForRequest(req);
-    session = result.session;
-    cookieResponse = result.cookieResponse;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      accessToken = authHeader.slice(7).trim();
+    }
+    if (!accessToken) {
+      const result = await getSessionForRequest(req);
+      accessToken = result.session?.access_token ?? null;
+      cookieResponse = result.cookieResponse;
+    }
   } else {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
     const supabase = createServerSupabaseClient();
     const sessionResult = await supabase.auth.getSession();
-    session = sessionResult.data?.session ?? null;
+    accessToken = sessionResult.data?.session?.access_token ?? null;
   }
 
-  if (!session) {
+  if (!accessToken) {
     return unauthorizedResponse();
   }
 
   const url = `${BACKEND_BASE_URL}${path}`;
 
   const headers = new Headers();
-  headers.set("Authorization", `Bearer ${session.access_token}`);
+  headers.set("Authorization", `Bearer ${accessToken}`);
   // Let the runtime set multipart boundary; do not override Content-Type.
 
   try {
