@@ -53,18 +53,14 @@ export default function UpdatePasswordForm() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    // Set up auth state change listener to detect when session is set
+    let cancelled = false;
+    // Set up auth state change listener so the form appears as soon as session is ready (no button click)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[UpdatePassword] Auth state changed:", event, session ? "has session" : "no session");
-      
-      // Accept any session - don't require PASSWORD_RECOVERY event
-      // Sometimes Supabase fires SIGNED_IN instead
+      if (cancelled) return;
       if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        console.log("[UpdatePassword] ✅ Session detected via auth state change, user:", session.user.email);
         setCheckingSession(false);
-        // Clean up URL if it has hash/query params
         if (window.location.hash || window.location.search) {
           window.history.replaceState({}, '', '/update-password');
         }
@@ -184,46 +180,29 @@ export default function UpdatePasswordForm() {
           }
         }
         
-        // Fallback: try to get existing session (might have been set by callback route)
-        console.log("[UpdatePassword] No reset tokens found, checking existing session");
-        
-        // Wait a moment for any async session setting to complete
-        // Also wait for auth state change listener to potentially fire
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Check session again after waiting
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (session) {
-          console.log("[UpdatePassword] ✅ Existing session found after wait, user:", session.user.email);
-          setCheckingSession(false);
-          return;
+        // Fallback: session was set by callback (cookies). Poll getSession so form appears automatically.
+        const maxAttempts = 6;
+        const delayMs = 400;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (cancelled) return;
+          if (attempt > 0) await new Promise((r) => setTimeout(r, delayMs));
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (cancelled) return;
+            if (session) {
+              setCheckingSession(false);
+              if (window.location.hash || window.location.search) {
+                window.history.replaceState({}, '', '/update-password');
+              }
+              return;
+            }
+          } catch (_) {
+            // Auth session missing / not ready yet; retry
+          }
         }
-        
-        // No session available - show helpful error with diagnostic info
-        console.error("[UpdatePassword] ❌ No session available after all attempts");
-        console.error("[UpdatePassword] Diagnostic info:", {
-          hash: window.location.hash || "(empty - this is likely the problem!)",
-          search: window.location.search || "(empty)",
-          fullUrl: window.location.href,
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          hasCode: !!code,
-        });
-        
-        // Show more helpful error message
-        const errorMessage = window.location.hash 
-          ? "The reset link appears to be invalid or expired. Please request a new one."
-          : "The reset link did not include authentication tokens. This usually means:\n" +
-            "1. The link has expired (links expire after 1 hour)\n" +
-            "2. The redirect URL doesn't match your Supabase configuration\n" +
-            "3. You need to request a new reset link";
-        
-        toast.error(errorMessage, { duration: 8000 });
-        
-        setTimeout(() => {
-          router.push("/reset-password");
-        }, 4000);
+        if (cancelled) return;
+        toast.error("Verification is taking longer than usual. Please wait a moment or request a new reset link.");
+        setTimeout(() => router.push("/reset-password"), 4000);
       } catch (error: unknown) {
         console.error("Error handling password reset:", error);
         const msg = error instanceof Error ? error.message : String(error);
@@ -240,16 +219,14 @@ export default function UpdatePasswordForm() {
       }
     };
 
-    // Small delay to ensure URL is fully loaded
-    const timer = setTimeout(() => {
-      handlePasswordReset();
-    }, 100);
+    // Run as soon as the component mounts so the form appears without clicking anything
+    handlePasswordReset();
 
     return () => {
-      clearTimeout(timer);
+      cancelled = true;
       subscription.unsubscribe();
     };
-  }, [supabase, router, searchParams, checkingSession]);
+  }, [supabase, router, searchParams]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
