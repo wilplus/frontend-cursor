@@ -13,7 +13,7 @@ export default function UpdatePasswordPage() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Willab</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter your new password below
+            Set your new password below. You are not signed in yet — after saving, you’ll sign in with your new password.
           </p>
         </div>
         <Suspense fallback={

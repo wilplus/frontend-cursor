@@ -237,9 +237,9 @@ export default function UpdatePasswordForm() {
         return;
       }
 
-      toast.success("Password updated successfully! Please sign in with your new password.");
+      toast.success("Password updated. Redirecting you to sign in with your new password.");
 
-      // Do not keep the user logged in from the recovery flow: sign out, then redirect to login.
+      // Reset flow only: sign out so they are not logged in; they must sign in with the new password.
       await supabase.auth.signOut();
       setTimeout(() => {
         router.push("/login");
@@ -279,7 +279,10 @@ export default function UpdatePasswordForm() {
 
   return (
     <Card className="p-6">
-      <h2 className="mb-4 text-lg font-semibold">Enter your new password</h2>
+      <h2 className="mb-4 text-lg font-semibold">Set new password</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        You’ll sign in with this password on the next page.
+      </p>
       <form onSubmit={handleUpdate} className="space-y-4">
         <div>
           <label className="mb-2 block text-sm font-medium">New Password</label>
