@@ -1,8 +1,9 @@
 import "server-only";
 
-import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { ApiError } from "./types";
+import type { Session } from "@supabase/supabase-js";
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -18,82 +19,85 @@ function unauthorizedResponse(): NextResponse<ApiError> {
 }
 
 /**
+ * Get session using request cookies and write any refreshed cookies to a response.
+ * Caller must merge cookieResponse's cookies onto the final response so the client gets refreshed tokens.
+ */
+async function getSessionForRequest(req: NextRequest): Promise<{
+  session: Session | null;
+  cookieResponse: NextResponse;
+}> {
+  const cookieResponse = NextResponse.next();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieResponse.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieResponse.cookies.set({ name, value: "", ...options });
+        },
+      },
+    }
+  );
+
+  // getUser() validates the JWT and refreshes the session if needed; refreshed tokens are written to cookieResponse
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { session: null, cookieResponse };
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  return { session, cookieResponse };
+}
+
+/** Copy cookies from one response to another (e.g. so routes that transform body can keep session cookies). */
+export function copyCookies(from: NextResponse, to: NextResponse): void {
+  from.cookies.getAll().forEach((cookie) => {
+    to.cookies.set(cookie.name, cookie.value, { path: "/" });
+  });
+}
+
+/**
  * Generic helper for JSON proxying (non-multipart).
+ * Uses request-scoped session so refreshed cookies are written to the response.
  */
 // Helper type to avoid BodyInit conflict
 type ProxyJsonBody = unknown;
 
 export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unknown>(
   path: string,
-  init?: { 
-    method?: string; 
-    headers?: HeadersInit; 
-    body?: RequestBody | null; 
+  init?: {
+    method?: string;
+    headers?: HeadersInit;
+    body?: RequestBody | null;
     signal?: AbortSignal;
-  }
+  },
+  req?: NextRequest
 ): Promise<NextResponse<ResponseBody | ApiError>> {
-  const supabase = createServerSupabaseClient();
-  
-  // Try getSession first - Supabase SSR should auto-refresh if needed
-  let session = null;
-  try {
-    // getSession() will automatically refresh if the refresh token is available
+  // Use request-scoped session when req is provided (so refreshed cookies are on the response)
+  let session: Session | null = null;
+  let cookieResponse: NextResponse | null = null;
+
+  if (req) {
+    const result = await getSessionForRequest(req);
+    session = result.session;
+    cookieResponse = result.cookieResponse;
+  } else {
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
+    const supabase = createServerSupabaseClient();
     const sessionResult = await supabase.auth.getSession();
-    session = sessionResult.data?.session;
-    
-    // If no session, try getUser() which might work even without a valid session
-    // This can help if the refresh token is still valid but session expired
-    if (!session) {
-      console.warn("[BFF] No session found, checking if user exists...");
-      try {
-        const userResult = await supabase.auth.getUser();
-        if (userResult.data?.user) {
-          // User exists, try to get session again (might trigger refresh)
-          const retrySessionResult = await supabase.auth.getSession();
-          session = retrySessionResult.data?.session;
-          
-          if (session) {
-            console.log("[BFF] Session obtained after getUser()");
-          } else {
-            console.warn("[BFF] User exists but no session available. Refresh token may be expired.");
-          }
-        } else {
-          console.warn("[BFF] No user found. User is not authenticated.");
-        }
-      } catch (getUserError) {
-        console.error("[BFF] Error getting user:", getUserError);
-      }
-    } else {
-      // Check if session is about to expire (within 5 minutes)
-      const expiresAt = session.expires_at;
-      if (expiresAt) {
-        const expiresIn = expiresAt - Math.floor(Date.now() / 1000);
-        if (expiresIn < 300 && expiresIn > 0) { // Less than 5 minutes but not expired yet
-          console.log("[BFF] Session expiring soon, attempting refresh...");
-          // getSession() should auto-refresh, but we can try explicit refresh
-          try {
-            const refreshResult = await supabase.auth.refreshSession();
-            if (refreshResult.data?.session) {
-              session = refreshResult.data.session;
-              console.log("[BFF] Session refreshed proactively");
-            }
-          } catch (refreshError) {
-            // If refresh fails, use existing session (it's still valid)
-            console.warn("[BFF] Proactive refresh failed, using existing session:", refreshError);
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error("[BFF] Error getting session:", error);
+    session = sessionResult.data?.session ?? null;
   }
 
   if (!session) {
     console.error("[BFF] No session available for request to:", path);
     return unauthorizedResponse();
   }
-  
-  console.log("[BFF] Session found, user ID:", session.user.id);
 
   const url = `${BACKEND_BASE_URL}${path}`;
   const method = init?.method ?? "GET";
@@ -132,27 +136,32 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
     // Handle empty responses
     if (!text) {
       if (!resp.ok) {
-        return NextResponse.json(
+        const out = NextResponse.json(
           { code: `HTTP_${resp.status}`, error: resp.statusText || "Request failed" },
           { status: resp.status }
         );
+        if (cookieResponse) copyCookies(cookieResponse, out);
+        return out;
       }
-      return NextResponse.json(null as ResponseBody, { status: resp.status });
+      const out = NextResponse.json(null as ResponseBody, { status: resp.status });
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
-    
+
     let json;
     try {
       json = JSON.parse(text);
     } catch (parseError) {
-      // If response isn't JSON, return error with the raw text
       console.error("Failed to parse JSON response. Raw text:", text);
-      return NextResponse.json(
-        { 
-          code: "INVALID_RESPONSE", 
-          error: `Backend returned invalid JSON: ${text.substring(0, 200)}` 
+      const out = NextResponse.json(
+        {
+          code: "INVALID_RESPONSE",
+          error: `Backend returned invalid JSON: ${text.substring(0, 200)}`,
         },
         { status: 500 }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
 
     // Handle 502 Bad Gateway (backend not responding)
@@ -160,8 +169,8 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
       console.error("[BFF] Backend returned 502 - Application failed to respond");
       console.error("[BFF] Backend URL:", url);
       console.error("[BFF] Check if Flask backend is running and accessible at:", BACKEND_BASE_URL);
-      
-      return NextResponse.json(
+
+      const out = NextResponse.json(
         {
           code: "BACKEND_UNAVAILABLE",
           error: `Backend server is not responding. Please check:
@@ -171,50 +180,67 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
         },
         { status: 502 }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
 
-    // If backend returned an error, preserve it
     if (!resp.ok && json) {
       console.error("Backend error response:", json);
     }
 
-    return NextResponse.json(json, { status: resp.status });
+    const out = NextResponse.json(json, { status: resp.status });
+    if (cookieResponse) copyCookies(cookieResponse, out);
+    return out;
   } catch (fetchError) {
-    // Network errors or fetch failures
     console.error("BFF fetch error:", fetchError);
-    
+
     if (fetchError instanceof Error && fetchError.name === "AbortError") {
-      return NextResponse.json(
+      const out = NextResponse.json(
         {
           code: "TIMEOUT",
           error: "Backend request timed out after 30 seconds",
         },
         { status: 504 }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
-    
-    return NextResponse.json(
+
+    const out = NextResponse.json(
       {
         code: "FETCH_ERROR",
         error: fetchError instanceof Error ? fetchError.message : "Failed to reach backend",
       },
       { status: 500 }
     );
+    if (cookieResponse) copyCookies(cookieResponse, out);
+    return out;
   }
 }
 
 /**
  * Helper for multipart upload proxying.
+ * Pass req so session is request-scoped and refreshed cookies are returned.
  */
 export async function proxyMultipart<ResponseBody = unknown>(
   path: string,
   formData: FormData,
-  method: "POST" | "PUT" = "POST"
+  method: "POST" | "PUT" = "POST",
+  req?: NextRequest
 ): Promise<NextResponse<ResponseBody | ApiError>> {
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  let session: Session | null = null;
+  let cookieResponse: NextResponse | null = null;
+
+  if (req) {
+    const result = await getSessionForRequest(req);
+    session = result.session;
+    cookieResponse = result.cookieResponse;
+  } else {
+    const { createServerSupabaseClient } = await import("@/lib/supabase/server");
+    const supabase = createServerSupabaseClient();
+    const sessionResult = await supabase.auth.getSession();
+    session = sessionResult.data?.session ?? null;
+  }
 
   if (!session) {
     return unauthorizedResponse();
@@ -261,21 +287,21 @@ export async function proxyMultipart<ResponseBody = unknown>(
     // Handle empty responses
     if (!text) {
       if (!resp.ok) {
-        return NextResponse.json(
+        const out = NextResponse.json(
           { code: `HTTP_${resp.status}`, error: resp.statusText || "Request failed" },
           { status: resp.status }
         );
+        if (cookieResponse) copyCookies(cookieResponse, out);
+        return out;
       }
-      return NextResponse.json(null as ResponseBody, { status: resp.status });
+      const out = NextResponse.json(null as ResponseBody, { status: resp.status });
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
-    
-    // Handle 502 Bad Gateway (backend not responding)
+
     if (resp.status === 502) {
-      console.error("[BFF proxyMultipart] Backend returned 502 - Application failed to respond");
-      console.error("[BFF proxyMultipart] Backend URL:", url);
-      console.error("[BFF proxyMultipart] Check if Flask backend is running and accessible at:", BACKEND_BASE_URL);
-      
-      return NextResponse.json(
+      console.error("[BFF proxyMultipart] Backend returned 502");
+      const out = NextResponse.json(
         {
           code: "BACKEND_UNAVAILABLE",
           error: `Backend server is not responding. Please check:
@@ -285,91 +311,64 @@ export async function proxyMultipart<ResponseBody = unknown>(
         },
         { status: 502 }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
 
-    // Check if response is HTML (404/500 error page) before trying to parse JSON
     if (text.includes("<!doctype html>") || text.includes("<html") || text.includes("<title>")) {
-      console.error("Backend returned HTML instead of JSON");
-      console.error("Response status:", resp.status);
-      console.error("Response URL:", url);
-      console.error("Response path:", path);
-      
-      if (resp.status === 404) {
-        return NextResponse.json(
-          {
-            code: "NOT_FOUND",
-            error: `Flask backend route not found: ${path}. The endpoint doesn't exist on your Flask server. Check your Flask routes.`,
-          },
-          { status: 404 }
-        );
-      }
-      
-      return NextResponse.json(
-        {
-          code: "HTML_ERROR_RESPONSE",
-          error: `Backend returned HTML error page (status ${resp.status}) instead of JSON. This usually means the route doesn't exist or there's a server configuration issue.`,
-        },
-        { status: resp.status || 500 }
+      const status = resp.status === 404 ? 404 : resp.status || 500;
+      const out = NextResponse.json(
+        status === 404
+          ? { code: "NOT_FOUND", error: `Flask backend route not found: ${path}.` }
+          : { code: "HTML_ERROR_RESPONSE", error: `Backend returned HTML (status ${resp.status}).` },
+        { status }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
-    
+
     let json;
     try {
       json = JSON.parse(text);
     } catch (parseError) {
-      // If response isn't JSON, return error with the raw text
-      console.error("Failed to parse JSON response. Raw text:", text.substring(0, 500));
-      return NextResponse.json(
-        { 
-          code: "INVALID_RESPONSE", 
-          error: `Backend returned invalid JSON: ${text.substring(0, 200)}` 
-        },
+      const out = NextResponse.json(
+        { code: "INVALID_RESPONSE", error: `Backend returned invalid JSON: ${text.substring(0, 200)}` },
         { status: 500 }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
 
-    // If backend returned an error, preserve it
     if (!resp.ok) {
       console.error("Backend error response:", json);
-      console.error("Response status:", resp.status);
-      console.error("Response URL:", url);
-      
-      // Include the full error details
-      if (json) {
-        return NextResponse.json(json, { status: resp.status });
-      }
-      
-      // If no JSON, return generic error
-      return NextResponse.json(
-        {
-          code: `HTTP_${resp.status}`,
-          error: resp.statusText || "Request failed",
-        },
-        { status: resp.status }
-      );
+      const out = json
+        ? NextResponse.json(json, { status: resp.status })
+        : NextResponse.json({ code: `HTTP_${resp.status}`, error: resp.statusText || "Request failed" }, { status: resp.status });
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
 
-    return NextResponse.json(json, { status: resp.status });
+    const out = NextResponse.json(json, { status: resp.status });
+    if (cookieResponse) copyCookies(cookieResponse, out);
+    return out;
   } catch (fetchError) {
     console.error("BFF multipart fetch error:", fetchError);
-    
+
     if (fetchError instanceof Error && fetchError.name === "AbortError") {
-      return NextResponse.json(
-        {
-          code: "TIMEOUT",
-          error: "Backend request timed out after 60 seconds",
-        },
+      const out = NextResponse.json(
+        { code: "TIMEOUT", error: "Backend request timed out after 60 seconds" },
         { status: 504 }
       );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
     }
-    
-    return NextResponse.json(
-      {
-        code: "FETCH_ERROR",
-        error: fetchError instanceof Error ? fetchError.message : "Failed to reach backend",
-      },
+
+    const out = NextResponse.json(
+      { code: "FETCH_ERROR", error: fetchError instanceof Error ? fetchError.message : "Failed to reach backend" },
       { status: 500 }
     );
+    if (cookieResponse) copyCookies(cookieResponse, out);
+    return out;
   }
 }
 

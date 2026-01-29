@@ -11,5 +11,5 @@ export async function GET(
   
   console.log(`[API /admin/user/${userId}/context] Fetching admin context`);
   
-  return proxyJson<UserAdminContext>(path);
+  return proxyJson<UserAdminContext>(path, undefined, req);
 }

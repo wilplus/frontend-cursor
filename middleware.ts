@@ -96,11 +96,12 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  // Get session - Supabase SSR will automatically refresh if needed
-  // This reads cookies and ensures they're properly set
+  // Use getUser() so Supabase refreshes the session if needed and sets new cookies on the response.
+  // getSession() can return cached; getUser() validates/refreshes.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
+  const session = user ? { user } : null;
 
   // Admin routes: Allow access but backend will verify admin role
   if (ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {

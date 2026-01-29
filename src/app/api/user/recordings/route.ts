@@ -1,33 +1,21 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { proxyJson } from "@/lib/api/bff";
-import type { ListRecordingsResponse, RecordingListItemLite } from "@/lib/api/types";
+import { proxyJson, copyCookies } from "@/lib/api/bff";
+import type { ListRecordingsResponse } from "@/lib/api/types";
 
 export async function GET(req: NextRequest) {
   const search = req.nextUrl.searchParams.toString();
   const path = `/user/recordings${search ? `?${search}` : ""}`;
-  
-  // Log the request for debugging
-  console.log(`[API /user/recordings] Proxying to Flask: ${path}`);
-  
-  const response = await proxyJson(path);
-  
-  // Log the response status
-  console.log(`[API /user/recordings] Response status: ${response.status}`);
-  
-  // If response is not OK, return it as-is
+
+  const response = await proxyJson(path, undefined, req);
+
   if (!response.ok) {
     return response;
   }
-  
-  // Transform the backend response to match frontend contract
+
   try {
     const backendData = await response.json();
-    
-    // Backend returns { recordings: [...], total, limit, offset }
-    // Frontend expects { items: [...], total, limit, offset }
-    // where items are RecordingListItemLite { id, created_at, duration }
-    
+
     const transformedData: ListRecordingsResponse = {
       items: (backendData.recordings || []).map((rec: any) => ({
         id: rec.id,
@@ -38,13 +26,12 @@ export async function GET(req: NextRequest) {
       offset: backendData.offset || 0,
       total: backendData.total,
     };
-    
-    console.log(`[API /user/recordings] Transformed ${transformedData.items.length} recordings`);
-    
-    return NextResponse.json(transformedData);
+
+    const out = NextResponse.json(transformedData);
+    copyCookies(response, out);
+    return out;
   } catch (error) {
     console.error("[API /user/recordings] Error transforming response:", error);
-    // If transformation fails, return original response
     return response;
   }
 }

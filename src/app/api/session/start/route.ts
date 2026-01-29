@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    return proxyJson("/session/start", { method: "POST", body });
+    return proxyJson("/session/start", { method: "POST", body }, req);
   } catch (error) {
     console.error("Error in session/start route:", error);
-    return proxyJson("/session/start", { method: "POST", body: null });
+    return proxyJson("/session/start", { method: "POST", body: null }, req);
   }
 }
 

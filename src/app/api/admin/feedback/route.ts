@@ -7,12 +7,9 @@ export async function POST(req: NextRequest) {
     console.log("[API /admin/feedback] Request body:", body);
     
     // proxyJson stringifies the body internally
-    return proxyJson("/admin/feedback", { 
-      method: "POST", 
-      body: body as any
-    });
+    return proxyJson("/admin/feedback", { method: "POST", body: body as any }, req);
   } catch (error) {
     console.error("Error in admin/feedback route:", error);
-    return proxyJson("/admin/feedback", { method: "POST", body: null });
+    return proxyJson("/admin/feedback", { method: "POST", body: null }, req);
   }
 }

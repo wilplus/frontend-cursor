@@ -8,5 +8,5 @@ export async function GET(req: NextRequest) {
   
   console.log(`[API /admin/recordings] Fetching: ${path}`);
   
-  return proxyJson<AdminRecordingsListResponse>(path);
+  return proxyJson<AdminRecordingsListResponse>(path, undefined, req);
 }

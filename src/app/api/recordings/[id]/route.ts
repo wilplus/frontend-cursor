@@ -7,9 +7,8 @@ interface Params {
   params: { id: string };
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
   const recordingId = params.id;
-  const response = await proxyJson<GetRecordingResponse>(`/recordings/${recordingId}`);
-  return response;
+  return proxyJson<GetRecordingResponse>(`/recordings/${recordingId}`, undefined, req);
 }
 
