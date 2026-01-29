@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,11 +45,13 @@ export default function SessionCard() {
   } = useSessionStore();
 
   const [showAbandonDialog, setShowAbandonDialog] = useState(false);
+  const authReady = useAuthReady();
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Wait for Supabase session before calling API (avoids race where getAuthFetchOptions runs before session is restored)
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    if (authReady) initialize();
+  }, [authReady, initialize]);
 
   // Handle abort on navigation/unmount
   useEffect(() => {

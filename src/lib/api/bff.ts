@@ -83,15 +83,24 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
   let cookieResponse: NextResponse | null = null;
 
   // Prefer Authorization header from client (avoids cookie issues)
+  let usedHeaderToken = false;
   if (req) {
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
-      accessToken = authHeader.slice(7).trim();
+      const token = authHeader.slice(7).trim();
+      if (token && token !== "undefined" && token !== "null") {
+        accessToken = token;
+        usedHeaderToken = true;
+        console.log("[BFF] Request to", path, "– using Authorization header, token length:", accessToken.length);
+      }
     }
     if (!accessToken) {
+      console.log("[BFF] Request to", path, "– no valid Auth header, attempting cookie session...");
       const result = await getSessionForRequest(req);
       accessToken = result.session?.access_token ?? null;
       cookieResponse = result.cookieResponse;
+      if (accessToken) console.log("[BFF] Cookie session found.");
+      else console.log("[BFF] Cookie session failed: no session.");
     }
   } else {
     const { createServerSupabaseClient } = await import("@/lib/supabase/server");
@@ -111,12 +120,10 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
   headers.set("Accept", "application/json");
-  
-  // Handle body - stringify if it exists and is not null
+
   let bodyString: string | undefined = undefined;
   if (init?.body != null) {
     headers.set("Content-Type", "application/json");
-    // Type assertion needed because TypeScript infers body as BodyInit | RequestBody
     bodyString = JSON.stringify(init.body as any);
   }
 
@@ -127,16 +134,42 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
   };
 
   try {
-    // Add timeout to prevent hanging
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-    
-    const resp = await fetch(url, {
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    let resp = await fetch(url, {
       ...fetchInit,
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
+
+    // Fix B: If we used header token and Flask returned 401, try cookie refresh and retry once
+    if (usedHeaderToken && req && resp.status === 401) {
+      console.log("[BFF] Header token got 401 from Flask. Attempting cookie refresh and retry...");
+      const result = await getSessionForRequest(req);
+      const refreshedToken = result.session?.access_token ?? null;
+      if (refreshedToken) {
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), 30000);
+        resp = await fetch(url, {
+          method,
+          headers: new Headers({
+            Accept: "application/json",
+            Authorization: `Bearer ${refreshedToken}`,
+            ...(init?.body != null ? { "Content-Type": "application/json" } : {}),
+          }),
+          body: bodyString,
+          signal: retryController.signal,
+        });
+        clearTimeout(retryTimeoutId);
+        console.log("[BFF] Retry with refreshed token – status:", resp.status);
+        if (cookieResponse == null) cookieResponse = result.cookieResponse;
+      }
+    } else if (resp.status === 401) {
+      console.log("[BFF] Flask response status: 401 for", path);
+    }
+
     const text = await resp.text();
     
     // Handle empty responses

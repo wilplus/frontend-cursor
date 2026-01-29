@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthReady } from "@/hooks/useAuthReady";
 import { fetchUserRecordings } from "@/lib/api/client";
 import { fetchRecordingDetail } from "@/lib/api/client-recordings";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export default function HistorySection() {
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const authReady = useAuthReady();
 
   const loadRecordings = useCallback(async (currentOffset: number) => {
     if (currentOffset === 0) {
@@ -110,8 +112,8 @@ export default function HistorySection() {
   }, []);
 
   useEffect(() => {
-    loadRecordings(0);
-  }, [loadRecordings]);
+    if (authReady) loadRecordings(0);
+  }, [authReady, loadRecordings]);
 
   const handleLoadMore = () => {
     loadRecordings(offset);
