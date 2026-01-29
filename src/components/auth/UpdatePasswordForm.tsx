@@ -224,9 +224,16 @@ export default function UpdatePasswordForm() {
         setTimeout(() => {
           router.push("/reset-password");
         }, 4000);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error handling password reset:", error);
-        toast.error("Error verifying reset link. Please try requesting a new one.");
+        const msg = error instanceof Error ? error.message : String(error);
+        const isNetwork = msg === "Load failed" || msg === "Failed to fetch" || msg.includes("network");
+        if (isNetwork) {
+          toast.error("Network error. Check your connection and refresh the page.");
+        } else {
+          toast.error("Error verifying reset link. Please try requesting a new one.");
+        }
+        setCheckingSession(false);
         setTimeout(() => {
           router.push("/reset-password");
         }, 2000);
@@ -275,141 +282,37 @@ export default function UpdatePasswordForm() {
       setTimeout(() => {
         router.push("/login");
       }, 1500);
-    } catch (err) {
-      console.error(err);
-      toast.error("An unexpected error occurred");
+    } catch (err: unknown) {
+      console.error("[UpdatePassword] Error updating password:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      const isNetworkError =
+        message === "Load failed" ||
+        message === "Failed to fetch" ||
+        message.includes("NetworkError") ||
+        message.includes("network");
+      if (isNetworkError) {
+        toast.error(
+          "Network error. Check your connection and try again. If the problem continues, try again in a few minutes."
+        );
+      } else {
+        toast.error(message || "An unexpected error occurred");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualToken, setManualToken] = useState("");
-
-  const handleManualToken = async () => {
-    if (!manualToken.trim()) {
-      toast.error("Please paste the full URL from the reset email");
-      return;
-    }
-
-    try {
-      // Try to extract tokens from the pasted URL
-      const url = new URL(manualToken);
-      const hash = url.hash;
-      
-      if (!hash || hash.length < 2) {
-        toast.error("The URL doesn't contain authentication tokens. Please check the full URL from your email.");
-        return;
-      }
-
-      const hashParams = new URLSearchParams(hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-
-      if (!accessToken || !refreshToken) {
-        toast.error("Could not find tokens in the URL. Make sure you copied the complete URL from the email.");
-        return;
-      }
-
-      console.log("[UpdatePassword] Setting session from manual token entry");
-      const { data, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      if (error) {
-        toast.error(`Invalid tokens: ${error.message}`);
-        return;
-      }
-
-      if (data.session) {
-        toast.success("Session set successfully!");
-        setCheckingSession(false);
-        setShowManualEntry(false);
-        window.history.replaceState({}, '', '/update-password');
-      }
-    } catch (err: any) {
-      toast.error(`Invalid URL: ${err.message}`);
-    }
-  };
-
   if (checkingSession) {
-    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-    const currentHash = typeof window !== 'undefined' ? window.location.hash : '';
-    const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
-    
     return (
-      <Card className="p-6 text-center space-y-4">
-        <p className="text-sm text-muted-foreground">Verifying reset link...</p>
-        <div className="text-xs text-muted-foreground bg-muted p-3 rounded break-all text-left">
-          <p className="font-semibold mb-2">Debug Information:</p>
-          <p className="font-mono text-[10px]">URL: {currentUrl}</p>
-          <p className="font-mono text-[10px] mt-1">Hash: {currentHash || '(empty - this is the problem!)'}</p>
-          <p className="font-mono text-[10px] mt-1">Search: {currentSearch || '(empty)'}</p>
-        </div>
-        
-        {!showManualEntry ? (
-          <>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>If hash is empty, the reset link may have expired or the redirect URL is incorrect.</p>
-              <p>Check that your Supabase redirect URL matches exactly.</p>
-            </div>
-            <div className="flex gap-2 justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log("[UpdatePassword] Manual refresh triggered");
-                  window.location.reload();
-                }}
-              >
-                Retry Verification
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowManualEntry(true)}
-              >
-                Enter Link Manually
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div className="space-y-3 text-left">
-            <p className="text-xs text-muted-foreground">
-              Paste the complete URL from your password reset email:
-            </p>
-            <Input
-              type="text"
-              placeholder="https://app.willonski.com/auth/callback#access_token=..."
-              value={manualToken}
-              onChange={(e) => setManualToken(e.target.value)}
-              className="text-xs font-mono"
-            />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleManualToken}
-                className="flex-1"
-              >
-                Verify Link
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowManualEntry(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
+      <Card className="p-6 text-center">
+        <p className="text-sm text-muted-foreground">Verifying your link...</p>
       </Card>
     );
   }
 
   return (
     <Card className="p-6">
+      <h2 className="mb-4 text-lg font-semibold">Enter your new password</h2>
       <form onSubmit={handleUpdate} className="space-y-4">
         <div>
           <label className="mb-2 block text-sm font-medium">New Password</label>
