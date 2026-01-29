@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -46,6 +47,12 @@ export default function DashboardHeader() {
               {userEmail}
             </span>
           )}
+          <Link
+            href="/change-password"
+            className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+          >
+            Change password
+          </Link>
           <Button
             variant="outline"
             size="sm"

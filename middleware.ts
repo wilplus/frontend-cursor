@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings"];
+const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/change-password"];
 const ADMIN_ROUTES = ["/admin"]; // Admin routes require admin role (backend will verify)
 const ADMIN_FEEDBACK_ROUTES = ["/recordings"]; // Admin feedback routes (backend will verify admin role)
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
