@@ -44,7 +44,9 @@ export async function GET(req: NextRequest) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
         console.error("[Auth Callback] Error exchanging code:", error);
-        const errorUrl = new URL("/reset-password?error=expired", req.url);
+        const isPkceError = error.message?.includes("PKCE") || error.message?.includes("code verifier");
+        const errorParam = isPkceError ? "error=pkce" : "error=expired";
+        const errorUrl = new URL(`/reset-password?${errorParam}`, req.url);
         return NextResponse.redirect(errorUrl);
       }
       console.log("[Auth Callback] Successfully exchanged code for session");

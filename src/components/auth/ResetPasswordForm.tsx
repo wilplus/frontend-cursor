@@ -20,6 +20,11 @@ export default function ResetPasswordForm() {
     if (params.get("error") === "expired") {
       toast.error("The reset link has expired. Please request a new one.");
     }
+    if (params.get("error") === "pkce") {
+      toast.error(
+        "Use the same browser where you requested the reset link. Then request a new link and click it in that browser."
+      );
+    }
   }, []);
 
   const handleReset = async (e: React.FormEvent) => {
@@ -27,12 +32,14 @@ export default function ResetPasswordForm() {
     setLoading(true);
 
     try {
-      // Go directly to update-password - it's already whitelisted and can handle hash fragments
-      // This simplifies the flow and avoids redirect chain issues
-      const redirectUrl = `${window.location.origin}/update-password`;
+      // Must use /auth/callback so the code exchange runs SERVER-SIDE.
+      // PKCE code verifier is stored in cookies when user requests reset; only the server
+      // receives those cookies when the user clicks the link, so exchangeCodeForSession
+      // must run in the callback route handler, not in the client.
+      const redirectUrl = `${window.location.origin}/auth/callback`;
       
       console.log("[ResetPassword] Sending reset email with redirect:", redirectUrl);
-      console.log("[ResetPassword] This URL must be whitelisted in Supabase:", redirectUrl);
+      console.log("[ResetPassword] Callback will exchange code server-side (PKCE) then redirect to /update-password");
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,

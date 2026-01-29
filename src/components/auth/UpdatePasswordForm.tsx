@@ -90,6 +90,15 @@ export default function UpdatePasswordForm() {
           fullHash: window.location.hash,
         });
 
+        // If we have a code in the URL, the exchange MUST happen server-side (PKCE code verifier
+        // is in cookies). Redirect to /auth/callback so the route handler can exchange and redirect back.
+        if (code && !accessToken) {
+          const callbackUrl = `/auth/callback?code=${encodeURIComponent(code)}${type ? `&type=${encodeURIComponent(type)}` : ''}`;
+          console.log("[UpdatePassword] Code in URL - redirecting to callback for server-side exchange:", callbackUrl);
+          window.location.replace(callbackUrl);
+          return;
+        }
+
         // If we have tokens in hash, set the session
         // Don't require type=recovery - tokens might be valid even without it
         if (accessToken && refreshToken) {
