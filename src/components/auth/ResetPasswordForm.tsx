@@ -32,14 +32,10 @@ export default function ResetPasswordForm() {
     setLoading(true);
 
     try {
-      // Must use /auth/callback so the code exchange runs SERVER-SIDE.
-      // PKCE code verifier is stored in cookies when user requests reset; only the server
-      // receives those cookies when the user clicks the link, so exchangeCodeForSession
-      // must run in the callback route handler, not in the client.
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      
-      console.log("[ResetPassword] Sending reset email with redirect:", redirectUrl);
-      console.log("[ResetPassword] Callback will exchange code server-side (PKCE) then redirect to /update-password");
+      // Use /update-password directly so the user lands on the "set new password" page.
+      // Supabase will append tokens in the URL hash for recovery flows (access_token/refresh_token),
+      // which our /update-password page can consume.
+      const redirectUrl = `${window.location.origin}/update-password`;
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
