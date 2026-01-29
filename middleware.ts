@@ -68,6 +68,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // If user landed on dashboard with auth callback params (e.g. Supabase redirect URL was set to /dashboard), send to callback then update-password
+  if (pathname === "/dashboard" && (searchParams.has("code") || searchParams.get("type") === "recovery")) {
+    const callbackUrl = new URL("/auth/callback", req.url);
+    searchParams.forEach((value, key) => callbackUrl.searchParams.set(key, value));
+    const redirect = NextResponse.redirect(callbackUrl);
+    const redirectCsp = getCspDirectives();
+    redirect.headers.set("Content-Security-Policy", redirectCsp);
+    redirect.headers.set("X-Content-Security-Policy", redirectCsp);
+    return redirect;
+  }
+
   let res = NextResponse.next({
     request: {
       headers: req.headers,

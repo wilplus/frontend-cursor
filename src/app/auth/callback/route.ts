@@ -7,10 +7,15 @@ export async function GET(req: NextRequest) {
   const type = requestUrl.searchParams.get("type"); // Supabase adds ?type=recovery for password reset
   const next = requestUrl.searchParams.get("next");
 
-  // For password recovery, Supabase sends tokens in hash fragments
-  // Server-side can't read hash, so we return HTML that preserves it
-  // Also handle if next param indicates password reset
-  if (type === "recovery" || next === "/update-password") {
+  // Password recovery: always send user to /update-password (not dashboard).
+  // Supabase may send type=recovery; some setups send only code. Treat callback with code but no type (or type not magiclink/signup) as recovery.
+  const isRecovery =
+    type === "recovery" ||
+    next === "/update-password" ||
+    (!!code && !type) ||
+    (!!code && type !== "magiclink" && type !== "signup");
+
+  if (isRecovery) {
     // If we have a code in query params, exchange it first
     if (code) {
       const redirectUrl = new URL("/update-password", req.url);
