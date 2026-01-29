@@ -27,9 +27,12 @@ export default function ResetPasswordForm() {
     setLoading(true);
 
     try {
-      // Use the correct redirect URL for password reset
-      // This will redirect to update-password page after email confirmation
-      const redirectUrl = `${window.location.origin}/auth/callback?next=/update-password`;
+      // Go directly to update-password - it's already whitelisted and can handle hash fragments
+      // This simplifies the flow and avoids redirect chain issues
+      const redirectUrl = `${window.location.origin}/update-password`;
+      
+      console.log("[ResetPassword] Sending reset email with redirect:", redirectUrl);
+      console.log("[ResetPassword] This URL must be whitelisted in Supabase:", redirectUrl);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
