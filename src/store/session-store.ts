@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import type {
   UUID,
-  PreRecordingQuestion,
+  PreQuestion,
+  CommandOption,
+  ThemeCode,
   PostRecordingQuestion,
   PreRecordingAnswerInput,
   PostRecordingAnswerInput,
@@ -22,6 +24,7 @@ export type SessionState =
   | "idle"
   | "pre_questionnaire"
   | "pre_questions"
+  | "command_select"
   | "recording_ready"
   | "recording"
   | "recorded"
@@ -34,6 +37,8 @@ type PreRecordingQuestionnaireInput = {
   mood: "positive" | "negative";
   readiness: number;
   inspiration_needed: boolean;
+  theme_code?: ThemeCode;
+  mode?: "guided" | "open";
 };
 
 interface SessionStore {
@@ -48,10 +53,16 @@ interface SessionStore {
   cursor: number | null; // Calculated difficulty cursor (0.0-1.0)
   mode: "guided" | "open" | null; // Structure mode
 
-  // Pre-questions
-  preQuestions: PreRecordingQuestion[];
+  // Pre-questions (v1: single typed question)
+  preQuestions: PreQuestion[];
   preAnswers: Record<UUID, string>; // question_id -> answer_text
   preAnswersSubmitted: boolean;
+
+  // Command options (v1: A/B/C) and selection
+  commandOptions: CommandOption[];
+  selectedCommandOptionId: "A" | "B" | "C" | null;
+  selectedPromptTextSnapshot: string | null;
+  themeChosenCode: ThemeCode | null;
 
   // Recording
   audioBlob: Blob | null;
@@ -80,6 +91,7 @@ interface SessionStore {
   startNewSession: () => Promise<void>;
   updatePreAnswer: (questionId: UUID, answer: string) => void;
   submitPreAnswers: () => Promise<void>;
+  selectCommandOption: (optionId: "A" | "B" | "C", promptTextSnapshot: string) => void;
   setRecordingReady: () => void;
   setRecordingStart: (startMs: number) => void;
   setRecordingEnd: (endMs: number, blob: Blob) => void;
@@ -92,9 +104,42 @@ interface SessionStore {
 }
 
 const DRAFT_STORAGE_PREFIX = "willab:draft:";
+const COMMAND_SELECT_PREFIX = "willab:command_select:";
 
 function getDraftKey(type: "pre" | "post", id: UUID): string {
   return `${DRAFT_STORAGE_PREFIX}${type}_answers:${id}`;
+}
+
+function getCommandSelectKey(sessionId: UUID): string {
+  return `${COMMAND_SELECT_PREFIX}${sessionId}`;
+}
+
+function loadCommandSelection(sessionId: UUID): { optionId: "A" | "B" | "C"; promptTextSnapshot: string } | null {
+  try {
+    const stored = localStorage.getItem(getCommandSelectKey(sessionId));
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as { optionId: string; promptTextSnapshot: string };
+    if (parsed.optionId !== "A" && parsed.optionId !== "B" && parsed.optionId !== "C") return null;
+    return { optionId: parsed.optionId, promptTextSnapshot: parsed.promptTextSnapshot ?? "" };
+  } catch {
+    return null;
+  }
+}
+
+function saveCommandSelection(sessionId: UUID, optionId: "A" | "B" | "C", promptTextSnapshot: string): void {
+  try {
+    localStorage.setItem(getCommandSelectKey(sessionId), JSON.stringify({ optionId, promptTextSnapshot }));
+  } catch {
+    // ignore
+  }
+}
+
+function clearCommandSelection(sessionId: UUID): void {
+  try {
+    localStorage.removeItem(getCommandSelectKey(sessionId));
+  } catch {
+    // ignore
+  }
 }
 
 function loadDraft(type: "pre" | "post", id: UUID): Record<UUID, string> | null {
@@ -137,6 +182,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   preQuestions: [],
   preAnswers: {},
   preAnswersSubmitted: false,
+  commandOptions: [],
+  selectedCommandOptionId: null,
+  selectedPromptTextSnapshot: null,
+  themeChosenCode: null,
   audioBlob: null,
   durationSeconds: null,
   recordingStartMs: null,
@@ -159,51 +208,70 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       }
 
       const sessionId = status.session_id!;
-      const currentState = get();
 
-      // Hydrate state based on session status
-      // With new questionnaire flow: questionnaire → generated prompt → recording
-      // pre_questions_completed in backend means the questionnaire was submitted
+      // Resume: re-fetch plan idempotently so we have pre_questions + command_options
+      let preQuestions: PreQuestion[] = [];
+      let commandOptions: CommandOption[] = [];
+      let themeChosenCode: ThemeCode | null = null;
+      try {
+        const plan = await startSession({ session_id: sessionId });
+        preQuestions = Array.isArray(plan.pre_questions) ? plan.pre_questions : [];
+        commandOptions = Array.isArray(plan.command_options) ? plan.command_options : [];
+        themeChosenCode = plan.theme_chosen_code ?? null;
+      } catch (err) {
+        console.error("Resume: failed to fetch session plan:", err);
+        set({
+          error: err instanceof Error ? err.message : "Failed to load session",
+          state: "idle",
+          loading: false,
+        });
+        return;
+      }
+
+      // Hydrate state based on session status (v1: pre_question → command_select → recording)
       if (!status.pre_questions_completed) {
-        // Questionnaire not yet submitted - should not happen on refresh if session exists
-        // But if it does, check if we have questionnaire data
-        if (currentState.questionnaireSubmitted) {
-          // Questionnaire was submitted but backend doesn't know yet - go to recording
+        set({
+          state: "pre_questions",
+          sessionId,
+          preQuestions,
+          commandOptions,
+          themeChosenCode,
+          preAnswersSubmitted: false,
+          loading: false,
+        });
+      } else if (!status.recording_completed) {
+        const saved = loadCommandSelection(sessionId);
+        if (saved) {
           set({
             state: "recording_ready",
             sessionId,
+            preQuestions,
+            commandOptions,
+            themeChosenCode,
             preAnswersSubmitted: true,
+            selectedCommandOptionId: saved.optionId,
+            selectedPromptTextSnapshot: saved.promptTextSnapshot,
             loading: false,
           });
         } else {
-          // No questionnaire - this shouldn't happen with new flow, but handle gracefully
           set({
-            state: "pre_questionnaire", // Show questionnaire
+            state: "command_select",
             sessionId,
+            preQuestions,
+            commandOptions,
+            themeChosenCode,
+            preAnswersSubmitted: true,
             loading: false,
           });
         }
-      } else if (!status.recording_completed) {
-        set({
-          state: "recording_ready",
-          sessionId,
-          preAnswersSubmitted: true,
-          loading: false,
-        });
       } else if (!status.post_questions_completed && status.recording_id) {
-        // Need to fetch post-questions - try fetching from recording
         try {
           const recording = await fetchRecording(status.recording_id);
-          console.log("Fetched recording for post-questions on init:", recording);
-          
-          // Extract post-questions from recording if available
-          // Backend should return questions in the recording response
-          // For now, set empty array - backend needs to provide questions
           set({
             state: "post_questions",
             sessionId,
             recordingId: status.recording_id,
-            postQuestions: [], // Will be populated by backend or shown as error
+            postQuestions: [], // Post questions come from upload response; on resume backend may need to provide them via GET recording
             preAnswersSubmitted: true,
             loading: false,
           });
@@ -219,7 +287,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           });
         }
       } else if (status.recording_id) {
-        // Completed - fetch full recording data
         const recording = await fetchRecording(status.recording_id);
         set({
           state: "completed",
@@ -254,45 +321,30 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   submitQuestionnaire: async (questionnaire: PreRecordingQuestionnaireInput) => {
     set({ loading: true, error: null, questionnaire, questionnaireSubmitted: true });
-    
+
     try {
-      console.log("Submitting questionnaire and starting session...", questionnaire);
-      const response = await startSession(questionnaire);
-      console.log("Session started:", response);
-      
-      // Validate response structure
-      if (!response.session_id) {
-        throw new Error("Invalid response: missing session_id");
-      }
-      
-      // Backend uses questionnaire to calculate cursor, select command, and generate question(s)
-      // The pre_questions array now contains the AI-generated prompt(s) based on the selected command
-      const generatedQuestions = Array.isArray(response.pre_questions) ? response.pre_questions : [];
-      
-      if (generatedQuestions.length === 0) {
-        console.warn("No generated questions returned from backend");
-      }
-      
-      // Store the generated question(s) - these are the prompts the user will record about
+      const response = await startSession({ questionnaire });
+      if (!response.session_id) throw new Error("Invalid response: missing session_id");
+
+      const preQuestionsList = Array.isArray(response.pre_questions) ? response.pre_questions : [];
+      const commandOptionsList = Array.isArray(response.command_options) ? response.command_options : [];
+
       set({
-        state: "recording_ready", // Go straight to recording after questionnaire
+        state: "pre_questions", // v1: show single typed pre-question before command select
         sessionId: response.session_id,
         cursor: response.cursor ?? null,
-        mode: response.mode ?? null,
-        preQuestions: generatedQuestions, // These are the AI-generated prompts, not old text questions
+        mode: response.mode ?? response.structure ?? null,
+        preQuestions: preQuestionsList,
+        commandOptions: commandOptionsList,
+        themeChosenCode: response.theme_chosen_code ?? null,
         preAnswers: {},
-        preAnswersSubmitted: true, // Mark as submitted - we skip showing them as a form
+        preAnswersSubmitted: false,
+        selectedCommandOptionId: null,
+        selectedPromptTextSnapshot: null,
         loading: false,
       });
-      
-      // Log cursor and mode for debugging/analytics
-      if (response.cursor !== undefined || response.mode) {
-        console.log("[Session] Cursor:", response.cursor, "Mode:", response.mode);
-        console.log("[Session] Generated questions:", generatedQuestions);
-      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to start session";
-      console.error("Failed to start session:", err);
       set({
         error: errorMessage,
         loading: false,
@@ -303,56 +355,41 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   startNewSession: async () => {
-    // If questionnaire not submitted, show questionnaire first
-    const { questionnaireSubmitted } = get();
+    const { questionnaireSubmitted, questionnaire } = get();
     if (!questionnaireSubmitted) {
       set({ state: "pre_questionnaire" });
       return;
     }
-    
-    // Otherwise, start session with existing questionnaire
-    const { questionnaire } = get();
     if (questionnaire) {
       await get().submitQuestionnaire(questionnaire);
-    } else {
-      // No questionnaire, start normally
-      set({ loading: true, error: null });
-      try {
-        console.log("Starting new session...");
-        const response = await startSession();
-        console.log("Session started:", response);
-        
-        if (!response.session_id) {
-          throw new Error("Invalid response: missing session_id");
-        }
-        if (!Array.isArray(response.pre_questions)) {
-          console.warn("pre_questions is not an array:", response.pre_questions);
-        }
-        
-        set({
-          state: "pre_questions",
-          sessionId: response.session_id,
-          cursor: response.cursor ?? null,
-          mode: response.mode ?? null,
-          preQuestions: Array.isArray(response.pre_questions) ? response.pre_questions : [],
-          preAnswers: {},
-          preAnswersSubmitted: false,
-          loading: false,
-        });
-        
-        // Log cursor and mode for debugging/analytics
-        if (response.cursor !== undefined || response.mode) {
-          console.log("[Session] Cursor:", response.cursor, "Mode:", response.mode);
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to start session";
-        console.error("Failed to start session:", err);
-        set({
-          error: errorMessage,
-          loading: false,
-          state: "idle",
-        });
-      }
+      return;
+    }
+    set({ loading: true, error: null });
+    try {
+      const response = await startSession({});
+      if (!response.session_id) throw new Error("Invalid response: missing session_id");
+      const preQuestionsList = Array.isArray(response.pre_questions) ? response.pre_questions : [];
+      const commandOptionsList = Array.isArray(response.command_options) ? response.command_options : [];
+      set({
+        state: "pre_questions",
+        sessionId: response.session_id,
+        cursor: response.cursor ?? null,
+        mode: response.mode ?? response.structure ?? null,
+        preQuestions: preQuestionsList,
+        commandOptions: commandOptionsList,
+        themeChosenCode: response.theme_chosen_code ?? null,
+        preAnswers: {},
+        preAnswersSubmitted: false,
+        selectedCommandOptionId: null,
+        selectedPromptTextSnapshot: null,
+        loading: false,
+      });
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : "Failed to start session",
+        loading: false,
+        state: "idle",
+      });
     }
   },
 
@@ -374,12 +411,18 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
     const answers: PreRecordingAnswerInput[] = preQuestions.map((q) => ({
       question_id: q.id,
-      answer_text: preAnswers[q.id] || "",
+      answer_text: (preAnswers[q.id] ?? "").trim(),
     }));
 
-    // Validate all answers have at least 10 chars
-    if (answers.some((a) => a.answer_text.length < 10)) {
-      set({ error: "All answers must be at least 10 characters" });
+    // Require non-empty for all; text_short can require min length
+    const hasEmpty = answers.some((a) => !a.answer_text);
+    if (hasEmpty) {
+      set({ error: "Please answer the question before continuing." });
+      return;
+    }
+    const q0 = preQuestions[0];
+    if (q0 && "question_type" in q0 && q0.question_type === "text_short" && answers[0].answer_text.length < 10) {
+      set({ error: "Short text answers must be at least 10 characters." });
       return;
     }
 
@@ -388,7 +431,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       await submitPreAnswers({ session_id: sessionId, answers });
       clearDraft("pre", sessionId);
       set({
-        state: "recording_ready",
+        state: "command_select",
         preAnswersSubmitted: true,
         loading: false,
       });
@@ -398,6 +441,17 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         loading: false,
       });
     }
+  },
+
+  selectCommandOption: (optionId: "A" | "B" | "C", promptTextSnapshot: string) => {
+    const { sessionId } = get();
+    if (!sessionId) return;
+    saveCommandSelection(sessionId, optionId, promptTextSnapshot);
+    set({
+      selectedCommandOptionId: optionId,
+      selectedPromptTextSnapshot: promptTextSnapshot,
+      state: "recording_ready",
+    });
   },
 
   setRecordingReady: () => {
@@ -440,22 +494,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   uploadRecordingBlob: async (abortController?: AbortController) => {
-    const { sessionId, audioBlob, durationSeconds } = get();
+    const { sessionId, audioBlob, durationSeconds, selectedCommandOptionId } = get();
     if (!sessionId || !audioBlob || durationSeconds === null) {
-      console.error("Missing required data for upload:", { sessionId, hasBlob: !!audioBlob, durationSeconds });
       set({ error: "Missing recording data", loading: false });
+      return;
+    }
+    if (!selectedCommandOptionId) {
+      set({ error: "Please select a command option (A, B, or C) before uploading." });
       return;
     }
 
     set({ state: "uploading_processing", loading: true, error: null });
 
     try {
-      console.log("Starting upload:", { sessionId, blobSize: audioBlob.size, durationSeconds });
-      
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
       formData.append("session_id", sessionId);
       formData.append("duration_seconds", durationSeconds.toString());
+      formData.append("command_option_id", selectedCommandOptionId);
 
       const response = await uploadRecording(formData, abortController);
       console.log("Upload successful:", response);
@@ -633,8 +689,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     try {
       await abandonSession(sessionId);
 
-      // Clear all drafts
       clearDraft("pre", sessionId);
+      clearCommandSelection(sessionId);
       if (get().recordingId) {
         clearDraft("post", get().recordingId!);
       }
@@ -645,6 +701,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         recordingId: null,
         preQuestions: [],
         preAnswers: {},
+        commandOptions: [],
+        selectedCommandOptionId: null,
+        selectedPromptTextSnapshot: null,
+        themeChosenCode: null,
         postQuestions: [],
         postAnswers: {},
         audioBlob: null,
@@ -672,6 +732,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       preQuestions: [],
       preAnswers: {},
       preAnswersSubmitted: false,
+      commandOptions: [],
+      selectedCommandOptionId: null,
+      selectedPromptTextSnapshot: null,
+      themeChosenCode: null,
       audioBlob: null,
       durationSeconds: null,
       recordingStartMs: null,

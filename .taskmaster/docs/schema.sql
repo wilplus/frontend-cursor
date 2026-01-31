@@ -188,6 +188,14 @@ BEGIN
   ) THEN
     ALTER TABLE public.recordings ADD COLUMN transcription TEXT;
   END IF;
+
+  -- command_option_id (v1: required form field on upload; value "A" | "B" | "C")
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'recordings' AND column_name = 'command_option_id'
+  ) THEN
+    ALTER TABLE public.recordings ADD COLUMN command_option_id TEXT;
+  END IF;
 END $$;
 
 -- ============================================================================

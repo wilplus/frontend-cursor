@@ -5,12 +5,34 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
+import type { ThemeCode } from "@/lib/api/types";
+
+const THEME_LABELS: Record<ThemeCode, string> = {
+  presence_grounding: "Presence & grounding",
+  clarity_simplicity: "Clarity & simplicity",
+  pacing_rhythm: "Pacing & rhythm",
+  energy_conviction: "Energy & conviction",
+  confidence_comfort: "Confidence & comfort",
+  structure_organization: "Structure & organization",
+  story_narrative: "Story & narrative",
+};
+
+const THEME_CODES: ThemeCode[] = [
+  "presence_grounding",
+  "clarity_simplicity",
+  "pacing_rhythm",
+  "energy_conviction",
+  "confidence_comfort",
+  "structure_organization",
+  "story_narrative",
+];
 
 export default function PreRecordingQuestionnaire() {
   const { submitQuestionnaire, loading } = useSessionStore();
   const [mood, setMood] = useState<"positive" | "negative" | null>(null);
   const [readiness, setReadiness] = useState<number | null>(null);
   const [inspirationNeeded, setInspirationNeeded] = useState<boolean | null>(null);
+  const [themeCode, setThemeCode] = useState<ThemeCode | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +46,7 @@ export default function PreRecordingQuestionnaire() {
       mood,
       readiness,
       inspiration_needed: inspirationNeeded,
+      ...(themeCode ? { theme_code: themeCode } : {}),
     });
   };
 
@@ -117,6 +140,28 @@ export default function PreRecordingQuestionnaire() {
                 Selected: {readiness}/10
               </p>
             )}
+          </div>
+
+          {/* Optional: Theme override */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">
+              Theme (optional)
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Leave unset to use the recommended theme, or pick one to override.
+            </p>
+            <select
+              value={themeCode ?? ""}
+              onChange={(e) => setThemeCode(e.target.value ? (e.target.value as ThemeCode) : null)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Use recommended</option>
+              {THEME_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {THEME_LABELS[code]}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Question 3: Structure */}

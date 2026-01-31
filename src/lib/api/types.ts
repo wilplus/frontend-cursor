@@ -13,6 +13,32 @@ export interface PreRecordingQuestion {
   created_at?: ISODateString;
 }
 
+// v1 planned-session types
+export type Mode = "guided" | "open";
+export type ThemeCode =
+  | "presence_grounding"
+  | "clarity_simplicity"
+  | "pacing_rhythm"
+  | "energy_conviction"
+  | "confidence_comfort"
+  | "structure_organization"
+  | "story_narrative";
+export type PreQuestionType = "scale_1_5" | "binary_yes_no" | "binary_choice" | "text_short";
+
+export interface PreQuestion extends PreRecordingQuestion {
+  code: string;
+  question_type: PreQuestionType;
+}
+
+export interface CommandOption {
+  option_id: "A" | "B" | "C";
+  intent: string;
+  tier: number;
+  mode: Mode;
+  prompt_text_snapshot: string;
+  is_primary: boolean;
+}
+
 export type PostQuestionType = "scale" | "binary" | "free_text";
 export type PostQuestionSetId = number; // 1-20
 
@@ -149,18 +175,26 @@ export interface PreRecordingQuestionnaireInput {
   mood: "positive" | "negative"; // 🙂 or 🙁
   readiness: number; // 1-10 (body and mind readiness)
   inspiration_needed: boolean; // Maps to structure: true="guided", false="open"
+  theme_code?: ThemeCode;
+  mode?: Mode;
 }
 
 export interface SessionStartRequest {
+  session_id?: UUID; // Resume: return same plan idempotently
   questionnaire?: PreRecordingQuestionnaireInput;
 }
 
 export interface SessionStartResponse {
   session_id: UUID;
-  pre_questions: PreRecordingQuestion[];
-  cursor?: number; // Calculated difficulty cursor (0.0-1.0)
-  mode?: "guided" | "open"; // Structure mode (from inspiration_needed)
-  structure?: "guided" | "open"; // Alias for mode (for clarity)
+  cursor?: number;
+  mode?: Mode;
+  structure?: Mode; // rollout compat
+  theme_recommended_code?: ThemeCode;
+  theme_recommended_reason?: string;
+  theme_chosen_code: ThemeCode;
+  theme_chosen_source: "system" | "user" | "admin";
+  pre_questions: PreQuestion[]; // v1: length 1
+  command_options: CommandOption[]; // v1: length 3
 }
 
 export interface SubmitPreAnswersRequest {

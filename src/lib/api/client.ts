@@ -1,5 +1,6 @@
 import type {
   SessionStatusResponse,
+  SessionStartRequest,
   SessionStartResponse,
   SubmitPreAnswersRequest,
   SubmitPreAnswersResponse,
@@ -77,16 +78,13 @@ export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
 }
 
 export async function startSession(
-  questionnaire?: import("./types").PreRecordingQuestionnaireInput
+  request: SessionStartRequest = {}
 ): Promise<SessionStartResponse> {
-  // Add timeout to prevent hanging
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const body: import("./types").SessionStartRequest = questionnaire
-      ? { questionnaire }
-      : {};
+    const body: SessionStartRequest = request;
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch("/api/session/start", {
       method: "POST",
@@ -95,7 +93,7 @@ export async function startSession(
       signal: controller.signal,
       credentials,
     });
-    
+
     clearTimeout(timeoutId);
     return handleResponse<SessionStartResponse>(res);
   } catch (err) {

@@ -28,14 +28,17 @@ export default function SessionCard() {
     state,
     sessionId,
     preQuestions,
-    preAnswers,
     preAnswersSubmitted,
+    commandOptions,
+    selectedCommandOptionId,
+    selectedPromptTextSnapshot,
     postQuestions,
     postAnswers,
     postAnswersSubmitted,
     completedRecording,
     initialize,
     startNewSession,
+    selectCommandOption,
     setRecordingReady,
     setRecordingStart,
     uploadRecordingBlob,
@@ -142,56 +145,102 @@ export default function SessionCard() {
     );
   }
 
-  // Old pre_questions state removed - questionnaire replaces it
-  // If somehow we end up in pre_questions state, redirect to questionnaire
   if (state === "pre_questions") {
-    // This shouldn't happen with new flow, but handle gracefully
-    const currentState = useSessionStore.getState();
-    if (!currentState.questionnaireSubmitted) {
-      // No questionnaire submitted yet - show questionnaire
-      return (
-        <div className="space-y-4">
-          <PreRecordingQuestionnaire />
-        </div>
-      );
-    } else {
-      // Questionnaire was submitted but state is wrong - go to recording
-      return (
-        <div className="space-y-4">
-          <Card className="p-6">
-            <div className="text-center space-y-4">
-              <h3 className="text-lg font-semibold">Ready to Record</h3>
-              <p className="text-sm text-muted-foreground">
-                Click below to start recording.
-              </p>
-              <Button 
-                onClick={() => {
-                  setRecordingStart(Date.now());
-                }}
-              >
-                Start Recording
-              </Button>
-            </div>
-          </Card>
-        </div>
-      );
-    }
+    return (
+      <div className="space-y-4">
+        {sessionId && (
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setShowAbandonDialog(true)}>
+              Abandon Session
+            </Button>
+          </div>
+        )}
+        <PreQuestionsForm questions={preQuestions} />
+        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently abandon your current session. All progress will be lost.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleAbandon}>Abandon Session</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
   }
 
-  if (state === "recording_ready") {
-    // Show the AI-generated prompt(s) from the questionnaire
-    const generatedPrompt = preQuestions.length > 0 ? preQuestions[0] : null;
-    
+  if (state === "command_select") {
     return (
       <>
         <div className="space-y-4">
           {sessionId && (
             <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAbandonDialog(true)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowAbandonDialog(true)}>
+                Abandon Session
+              </Button>
+            </div>
+          )}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-2">Choose your recording prompt</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Select one option (A, B, or C). You will record your response to that prompt.
+            </p>
+            <div className="space-y-3">
+              {commandOptions.map((opt) => (
+                <button
+                  key={opt.option_id}
+                  type="button"
+                  onClick={() => selectCommandOption(opt.option_id, opt.prompt_text_snapshot)}
+                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                    selectedCommandOptionId === opt.option_id
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <span className="font-medium text-primary">Option {opt.option_id}</span>
+                  {opt.is_primary && (
+                    <span className="ml-2 text-xs text-muted-foreground">(recommended)</span>
+                  )}
+                  <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {opt.prompt_text_snapshot}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently abandon your current session. All progress will be lost.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleAbandon}>Abandon Session</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  if (state === "recording_ready") {
+    const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
+
+    return (
+      <>
+        <div className="space-y-4">
+          {sessionId && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowAbandonDialog(true)}>
                 Abandon Session
               </Button>
             </div>
@@ -200,28 +249,19 @@ export default function SessionCard() {
             <div className="space-y-4">
               <div className="text-center">
                 <h3 className="text-lg font-semibold">Ready to Record</h3>
-                {generatedPrompt && (
+                {promptText && (
                   <div className="mt-4 p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">
-                      Your recording prompt:
-                    </p>
-                    <p className="text-base leading-relaxed">
-                      {generatedPrompt.question_text}
-                    </p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Your recording prompt:</p>
+                    <p className="text-base leading-relaxed">{promptText}</p>
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground mt-4">
-                  {generatedPrompt 
-                    ? "Click below to start recording your response."
-                    : "Click below to start recording."}
+                  {promptText ? "Click below to start recording your response." : "Click below to start recording."}
                 </p>
               </div>
-              <Button 
+              <Button
                 className="w-full"
-                onClick={() => {
-                  // Transition to recording state and show AudioRecorder
-                  setRecordingStart(Date.now());
-                }}
+                onClick={() => setRecordingStart(Date.now())}
               >
                 Start Recording
               </Button>
@@ -233,17 +273,12 @@ export default function SessionCard() {
             <AlertDialogHeader>
               <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently abandon your current session. All progress
-                will be lost.
+                This will permanently abandon your current session. All progress will be lost.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>
-                Abandon Session
-              </AlertDialogAction>
+              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleAbandon}>Abandon Session</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
