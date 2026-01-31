@@ -108,11 +108,15 @@ export async function middleware(req: NextRequest) {
   );
 
   // Use getUser() so Supabase refreshes the session if needed and sets new cookies on the response.
-  // getSession() can return cached; getUser() validates/refreshes.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const session = user ? { user } : null;
+  // If refresh token is invalid (e.g. "Refresh Token Not Found"), treat as no session so user can log in again.
+  let session: { user: unknown } | null = null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    session = user ? { user } : null;
+  } catch {
+    // Invalid/expired refresh token: treat as unauthenticated (user will be redirected to login)
+    session = null;
+  }
 
   // Admin routes: Allow access but backend will verify admin role
   if (ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {

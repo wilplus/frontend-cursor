@@ -21,6 +21,9 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
+      // Clear any stale session/refresh token so we don't get "Refresh Token Not Found" after login
+      await supabase.auth.signOut();
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -72,9 +75,9 @@ export default function LoginForm() {
       const searchParams = new URLSearchParams(window.location.search);
       const redirectTo = searchParams.get("redirectTo");
       
-      console.log("[LoginForm] Login successful, redirectTo:", redirectTo);
+      // Brief delay so cookies are committed before navigation
+      await new Promise((r) => setTimeout(r, 200));
       
-      // Small delay then redirect
       setTimeout(() => {
         if (redirectTo) {
           // Decode and redirect to the original destination (e.g., feedback page from email)

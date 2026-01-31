@@ -129,21 +129,25 @@ function PreQuestionField({
       <div>
         <label className="block text-sm font-medium mb-2">{question.question_text}</label>
         <div className="flex gap-2 flex-wrap">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onValueChange(String(n))}
-              disabled={loading}
-              className={`min-w-[2.5rem] py-2 px-3 rounded-md border-2 transition-all ${
-                value === String(n)
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border hover:border-primary/50"
-              }`}
-            >
-              {n}
-            </button>
-          ))}
+          {[1, 2, 3, 4, 5].map((n) => {
+            const selected = value === String(n);
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onValueChange(String(n))}
+                disabled={loading}
+                className={`min-w-[2.5rem] py-3 px-4 rounded-lg border-2 transition-all ${
+                  selected
+                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <span className={selected ? "font-semibold text-primary" : ""}>{n}</span>
+                {selected && <div className="mt-0.5 text-xs text-primary font-semibold">✓ Selected</div>}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -154,21 +158,25 @@ function PreQuestionField({
       <div>
         <label className="block text-sm font-medium mb-2">{question.question_text}</label>
         <div className="flex gap-4">
-          {(["Yes", "No"] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onValueChange(opt)}
-              disabled={loading}
-              className={`flex-1 py-3 rounded-lg border-2 transition-all ${
-                value === opt
-                  ? "border-primary bg-primary/20 ring-2 ring-primary/30"
-                  : "border-border hover:border-primary/50"
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
+          {(["Yes", "No"] as const).map((opt) => {
+            const selected = value === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onValueChange(opt)}
+                disabled={loading}
+                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                  selected
+                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <p className={`text-sm font-medium ${selected ? "text-primary" : ""}`}>{opt}</p>
+                {selected && <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -179,21 +187,25 @@ function PreQuestionField({
       <div>
         <label className="block text-sm font-medium mb-2">{question.question_text}</label>
         <div className="flex gap-4">
-          {(["Personal", "Neutral"] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onValueChange(opt)}
-              disabled={loading}
-              className={`flex-1 py-3 rounded-lg border-2 transition-all ${
-                value === opt
-                  ? "border-primary bg-primary/20 ring-2 ring-primary/30"
-                  : "border-border hover:border-primary/50"
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
+          {(["Personal", "Neutral"] as const).map((opt) => {
+            const selected = value === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onValueChange(opt)}
+                disabled={loading}
+                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                  selected
+                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <p className={`text-sm font-medium ${selected ? "text-primary" : ""}`}>{opt}</p>
+                {selected && <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>}
+              </button>
+            );
+          })}
         </div>
       </div>
     );

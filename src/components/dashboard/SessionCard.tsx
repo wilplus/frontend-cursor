@@ -175,6 +175,7 @@ export default function SessionCard() {
   }
 
   if (state === "command_select") {
+    const hasOptions = commandOptions && commandOptions.length > 0;
     return (
       <>
         <div className="space-y-4">
@@ -190,28 +191,47 @@ export default function SessionCard() {
             <p className="text-sm text-muted-foreground mb-4">
               Select one option (A, B, or C). You will record your response to that prompt.
             </p>
-            <div className="space-y-3">
-              {commandOptions.map((opt) => (
-                <button
-                  key={opt.option_id}
-                  type="button"
-                  onClick={() => selectCommandOption(opt.option_id, opt.prompt_text_snapshot)}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                    selectedCommandOptionId === opt.option_id
-                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <span className="font-medium text-primary">Option {opt.option_id}</span>
-                  {opt.is_primary && (
-                    <span className="ml-2 text-xs text-muted-foreground">(recommended)</span>
-                  )}
-                  <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {opt.prompt_text_snapshot}
-                  </p>
-                </button>
-              ))}
-            </div>
+            {hasOptions ? (
+              <div className="space-y-3">
+                {commandOptions.map((opt) => {
+                  const promptText = (opt.prompt_text_snapshot ?? "").trim();
+                  const displayText = promptText || opt.intent || `Option ${opt.option_id} — no prompt text yet`;
+                  const selected = selectedCommandOptionId === opt.option_id;
+                  return (
+                    <button
+                      key={opt.option_id}
+                      type="button"
+                      onClick={() => selectCommandOption(opt.option_id, promptText || displayText)}
+                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                        selected
+                          ? "border-primary bg-primary/20 shadow-md ring-2 ring-primary/30"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <span className={`font-medium ${selected ? "text-primary" : ""}`}>
+                        Option {opt.option_id}
+                      </span>
+                      {opt.is_primary && (
+                        <span className="ml-2 text-xs text-muted-foreground">(recommended)</span>
+                      )}
+                      {selected && <span className="ml-2 text-xs text-primary font-semibold">✓ Selected</span>}
+                      <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                        {displayText}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-6 text-center rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  No options available yet.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  The backend may not have returned command options for this session. Try refreshing or starting a new session.
+                </p>
+              </div>
+            )}
           </Card>
         </div>
         <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
