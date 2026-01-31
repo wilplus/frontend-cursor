@@ -35,3 +35,24 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Logs
+logs
+*.log
+dev-debug.log
+# Dependency directories
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Task Master: canonical tasks live in .taskmaster/tasks/tasks.json (tracked)
+# Root-level tasks.json / tasks/ kept ignored for legacy/alternate usage
+tasks.json
+tasks/ 

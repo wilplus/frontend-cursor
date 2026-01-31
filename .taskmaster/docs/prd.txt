@@ -1,0 +1,11 @@
+# Willab – Product requirements (PRD)
+
+Use this file to describe what to build next. Then run:
+
+  npx task-master parse-prd .taskmaster/docs/prd.txt
+
+to generate tasks into .taskmaster/tasks/tasks.json.
+
+---
+
+(Add your requirements above this line.)
