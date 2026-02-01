@@ -92,6 +92,9 @@ interface SessionStore {
   updatePreAnswer: (questionId: UUID, answer: string) => void;
   submitPreAnswers: () => Promise<void>;
   selectCommandOption: (optionId: "A" | "B" | "C", promptTextSnapshot: string) => void;
+  goBackToPreQuestionnaire: () => void;
+  goBackToPreQuestions: () => void;
+  goBackToCommandSelect: () => void;
   setRecordingReady: () => void;
   setRecordingStart: (startMs: number) => void;
   setRecordingEnd: (endMs: number, blob: Blob) => void;
@@ -451,6 +454,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       selectedCommandOptionId: optionId,
       selectedPromptTextSnapshot: promptTextSnapshot,
       state: "recording_ready",
+    });
+  },
+
+  goBackToPreQuestionnaire: () => {
+    set({ state: "pre_questionnaire" });
+  },
+
+  goBackToPreQuestions: () => {
+    set({ state: "pre_questions" });
+  },
+
+  goBackToCommandSelect: () => {
+    set({
+      state: "command_select",
+      audioBlob: null,
+      durationSeconds: null,
+      recordingStartMs: null,
+      recordingEndMs: null,
     });
   },
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import FlowBackButton from "@/components/ui/flow-back-button";
 import { Card } from "@/components/ui/card";
 import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
@@ -28,7 +29,7 @@ const THEME_CODES: ThemeCode[] = [
 ];
 
 export default function PreRecordingQuestionnaire() {
-  const { submitQuestionnaire, loading } = useSessionStore();
+  const { submitQuestionnaire, abandonCurrentSession, loading } = useSessionStore();
   const [mood, setMood] = useState<"positive" | "negative" | null>(null);
   const [readiness, setReadiness] = useState<number | null>(null);
   const [inspirationNeeded, setInspirationNeeded] = useState<boolean | null>(null);
@@ -199,13 +200,16 @@ export default function PreRecordingQuestionnaire() {
             </div>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading || mood === null || readiness === null || inspirationNeeded === null}
-          >
-            {loading ? "Starting session..." : "Continue"}
-          </Button>
+          <div className="flex gap-2">
+            <FlowBackButton onClick={() => abandonCurrentSession()} />
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={loading || mood === null || readiness === null || inspirationNeeded === null}
+            >
+              {loading ? "Starting session..." : "Continue"}
+            </Button>
+          </div>
         </form>
       </div>
     </Card>

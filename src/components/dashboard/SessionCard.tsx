@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
+import FlowBackButton from "@/components/ui/flow-back-button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import PreRecordingQuestionnaire from "@/components/session/PreRecordingQuestionnaire";
@@ -26,6 +27,8 @@ export default function SessionCard() {
     initialize,
     startNewSession,
     selectCommandOption,
+    goBackToPreQuestions,
+    goBackToCommandSelect,
     setRecordingReady,
     setRecordingStart,
     uploadRecordingBlob,
@@ -187,6 +190,10 @@ export default function SessionCard() {
                 </p>
               </div>
             )}
+            <div className="mt-6 flex gap-2">
+              <FlowBackButton onClick={() => goBackToPreQuestions()} />
+              <div className="flex-1" />
+            </div>
           </Card>
         </div>
       </>
@@ -207,6 +214,8 @@ export default function SessionCard() {
           <AudioRecorder
             onRecordingComplete={handleRecordingComplete}
             onRecordingStart={state === "recording_ready" ? () => setRecordingStart(Date.now()) : undefined}
+            onBack={() => goBackToCommandSelect()}
+            onStartAgain={() => setRecordingReady()}
           />
         </div>
       </>
@@ -294,31 +303,35 @@ export default function SessionCard() {
                   ) : null}
                 </div>
               )}
-              <Button
-                onClick={async () => {
-                  const store = useSessionStore.getState();
-                  if (store.audioBlob && store.durationSeconds !== null) {
-                    const controller = new AbortController();
-                    abortControllerRef.current = controller;
-                    try {
-                      await uploadRecordingBlob(controller);
-                    } catch (err) {
-                      if (err instanceof Error && err.name === "AbortError") {
-                        toast.info("Upload cancelled");
-                      } else {
-                        const errorMsg = err instanceof Error ? err.message : "Upload failed";
-                        toast.error(errorMsg);
-                        console.error("Upload error details:", err);
+              <div className="flex gap-2">
+                <FlowBackButton onClick={() => setRecordingReady()} />
+                <Button
+                  onClick={async () => {
+                    const store = useSessionStore.getState();
+                    if (store.audioBlob && store.durationSeconds !== null) {
+                      const controller = new AbortController();
+                      abortControllerRef.current = controller;
+                      try {
+                        await uploadRecordingBlob(controller);
+                      } catch (err) {
+                        if (err instanceof Error && err.name === "AbortError") {
+                          toast.info("Upload cancelled");
+                        } else {
+                          const errorMsg = err instanceof Error ? err.message : "Upload failed";
+                          toast.error(errorMsg);
+                          console.error("Upload error details:", err);
+                        }
+                      } finally {
+                        abortControllerRef.current = null;
                       }
-                    } finally {
-                      abortControllerRef.current = null;
                     }
-                  }
-                }}
-                disabled={loading}
-              >
-                {loading ? "Uploading..." : "Submit Recording"}
-              </Button>
+                  }}
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  {loading ? "Uploading..." : "Submit Recording"}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

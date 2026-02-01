@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
+import FlowBackButton from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ export default function PreQuestionsForm({
   questions,
   submittedAnswers = {},
 }: PreQuestionsFormProps) {
-  const { preAnswers, updatePreAnswer, submitPreAnswers, loading, error } =
+  const { preAnswers, updatePreAnswer, submitPreAnswers, goBackToPreQuestionnaire, loading, error } =
     useSessionStore();
 
   const isReadOnly = Object.keys(submittedAnswers).length > 0;
@@ -91,9 +92,12 @@ export default function PreQuestionsForm({
           onValueChange={(value) => updatePreAnswer(question.id, value)}
         />
         {!isReadOnly && (
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Submitting..." : "Continue"}
-          </Button>
+          <div className="flex gap-2">
+            <FlowBackButton onClick={() => goBackToPreQuestionnaire()} />
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? "Submitting..." : "Continue"}
+            </Button>
+          </div>
         )}
       </form>
     </Card>

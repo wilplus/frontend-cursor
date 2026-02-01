@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { flowBackButtonClass } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -40,12 +41,16 @@ function formatTime(seconds: number): string {
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob, durationSeconds: number) => void;
   onRecordingStart?: () => void;
+  onBack?: () => void;
+  onStartAgain?: () => void;
   onCancel?: () => void;
 }
 
 export default function AudioRecorder({
   onRecordingComplete,
   onRecordingStart,
+  onBack,
+  onStartAgain,
   onCancel,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
@@ -63,6 +68,7 @@ export default function AudioRecorder({
   const startTimeRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const startAgainRequestedRef = useRef(false);
 
   // Detect MIME support on mount
   useEffect(() => {
@@ -112,7 +118,10 @@ export default function AudioRecorder({
       };
 
       recorder.onstop = () => {
-        if (chunksRef.current.length > 0 && startTimeRef.current) {
+        if (startAgainRequestedRef.current) {
+          startAgainRequestedRef.current = false;
+          onStartAgain?.();
+        } else if (chunksRef.current.length > 0 && startTimeRef.current) {
           const blob = new Blob(chunksRef.current, { type: mimeType });
           const endTime = Date.now();
           const durationSeconds = Math.max(
@@ -170,6 +179,21 @@ export default function AudioRecorder({
       }
     }
   }, [isRecording]);
+
+  const handleStartAgain = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      startAgainRequestedRef.current = true;
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setElapsedSeconds(0);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    } else {
+      onStartAgain?.();
+    }
+  }, [isRecording, onStartAgain]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -355,6 +379,11 @@ export default function AudioRecorder({
       </div>
 
       <div className="flex gap-2">
+        {onBack && (
+          <button type="button" onClick={onBack} className={flowBackButtonClass}>
+            Back
+          </button>
+        )}
         {!isRecording ? (
           <>
             <Button onClick={startRecording} className="flex-1">
@@ -367,9 +396,16 @@ export default function AudioRecorder({
             )}
           </>
         ) : (
-          <Button onClick={stopRecording} className="flex-1" variant="outline">
-            Stop Recording
-          </Button>
+          <>
+            <Button onClick={stopRecording} className="flex-1">
+              Finish your recording
+            </Button>
+            {onStartAgain && (
+              <button type="button" onClick={handleStartAgain} className={flowBackButtonClass}>
+                Start again
+              </button>
+            )}
+          </>
         )}
       </div>
     </Card>
