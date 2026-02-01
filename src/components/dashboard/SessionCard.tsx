@@ -307,6 +307,7 @@ export default function SessionCard() {
   }
 
   if (state === "recording") {
+    const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
     return (
       <>
         <div className="space-y-4">
@@ -320,6 +321,12 @@ export default function SessionCard() {
                 Abandon Session
               </Button>
             </div>
+          )}
+          {promptText && (
+            <Card className="p-4 bg-primary/5 border-primary/20">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Your prompt — speak to this:</p>
+              <p className="text-base leading-relaxed whitespace-pre-wrap">{promptText}</p>
+            </Card>
           )}
           <AudioRecorder
             onRecordingComplete={handleRecordingComplete}
