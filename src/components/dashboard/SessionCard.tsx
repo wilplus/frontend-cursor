@@ -231,10 +231,10 @@ export default function SessionCard() {
       <>
         <div className="space-y-4">
           {promptText && (
-            <Card className="p-4 bg-primary/5 border-primary/20">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Your prompt — speak to this:</p>
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Your recording prompt:</p>
               <p className="text-base leading-relaxed whitespace-pre-wrap">{promptText}</p>
-            </Card>
+            </div>
           )}
           <AudioRecorder
             onRecordingComplete={handleRecordingComplete}
