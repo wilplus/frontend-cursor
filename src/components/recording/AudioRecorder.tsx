@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
+const MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 
 // MIME type candidates in priority order
@@ -116,7 +117,13 @@ export default function AudioRecorder({
             1,
             Math.round((endTime - startTimeRef.current) / 1000)
           );
-          onRecordingComplete(blob, durationSeconds);
+          if (durationSeconds < MIN_DURATION_SECONDS) {
+            toast.error("Session must be at least 1 minute. Please record again.");
+            chunksRef.current = [];
+            startTimeRef.current = null;
+          } else {
+            onRecordingComplete(blob, durationSeconds);
+          }
         }
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((track) => track.stop());
@@ -175,7 +182,7 @@ export default function AudioRecorder({
       await new Promise<void>((resolve, reject) => {
         audio.addEventListener("loadedmetadata", () => {
           const duration = Math.round(audio.duration);
-          if (duration > 0 && duration <= MAX_DURATION_SECONDS) {
+          if (duration >= MIN_DURATION_SECONDS && duration <= MAX_DURATION_SECONDS) {
             setFileDuration(duration);
             setManualDuration(duration.toString());
           } else {
@@ -212,13 +219,18 @@ export default function AudioRecorder({
       duration = fileDuration;
     } else {
       const parsed = parseInt(manualDuration, 10);
-      if (isNaN(parsed) || parsed <= 0 || parsed > MAX_DURATION_SECONDS) {
+      if (isNaN(parsed) || parsed < MIN_DURATION_SECONDS || parsed > MAX_DURATION_SECONDS) {
         toast.error(
-          `Duration must be between 1 and ${MAX_DURATION_SECONDS} seconds`
+          `Duration must be between ${MIN_DURATION_SECONDS} seconds (1 min) and ${MAX_DURATION_SECONDS} seconds`
         );
         return;
       }
       duration = parsed;
+    }
+
+    if (duration < MIN_DURATION_SECONDS) {
+      toast.error("Session must be at least 1 minute.");
+      return;
     }
 
     // Convert File to Blob
@@ -257,7 +269,7 @@ export default function AudioRecorder({
 
         <div>
           <label className="block text-sm font-medium mb-2">
-            Audio File (max {MAX_DURATION_SECONDS}s)
+            Audio File (min 1 min, max 5 min)
           </label>
           <Input
             type="file"
@@ -285,14 +297,14 @@ export default function AudioRecorder({
                 </label>
                 <Input
                   type="number"
-                  min="1"
+                  min={MIN_DURATION_SECONDS}
                   max={MAX_DURATION_SECONDS}
                   value={manualDuration}
                   onChange={(e) => setManualDuration(e.target.value)}
-                  placeholder="Enter duration in seconds"
+                  placeholder="Enter duration in seconds (min 60)"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Must be between 1 and {MAX_DURATION_SECONDS} seconds
+                  Min 1 min, max 5 min
                 </p>
               </div>
             )}
@@ -323,8 +335,7 @@ export default function AudioRecorder({
       <div>
         <h3 className="text-lg font-semibold mb-2">Record Audio</h3>
         <p className="text-sm text-muted-foreground">
-          Click start to begin recording. Maximum duration:{" "}
-          {formatTime(MAX_DURATION_SECONDS)}
+          Click start to begin recording. Min 1 min, max 5 min.
         </p>
       </div>
 

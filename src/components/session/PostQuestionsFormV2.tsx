@@ -163,8 +163,8 @@ export default function PostQuestionsFormV2({
                         onClick={() => handleScaleClick(q1.id, num)}
                         className={`flex-1 aspect-square rounded-md border-2 transition-all ${
                           isSelected
-                            ? "border-primary bg-primary text-primary-foreground scale-110"
-                            : "border-border hover:border-primary/50"
+                            ? "border-orange-500 bg-orange-500/10 scale-110 ring-2 ring-orange-500/30"
+                            : "border-border hover:border-orange-500/50"
                         }`}
                         disabled={loading}
                       >
@@ -196,8 +196,8 @@ export default function PostQuestionsFormV2({
                   onClick={() => handleBinaryClick(q2.id, "YES")}
                   className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                     postAnswers[q2.id] === "YES"
-                      ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                      : "border-border hover:border-primary/50"
+                      ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                      : "border-border hover:border-orange-500/50"
                   }`}
                   disabled={loading}
                 >
@@ -208,8 +208,8 @@ export default function PostQuestionsFormV2({
                   onClick={() => handleBinaryClick(q2.id, "NO")}
                   className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                     postAnswers[q2.id] === "NO"
-                      ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                      : "border-border hover:border-primary/50"
+                      ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                      : "border-border hover:border-orange-500/50"
                   }`}
                   disabled={loading}
                 >

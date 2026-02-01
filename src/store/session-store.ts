@@ -499,6 +499,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       set({ error: "Missing recording data", loading: false });
       return;
     }
+    if (durationSeconds < 60) {
+      set({ error: "Session must be at least 1 minute. Please record again.", loading: false });
+      return;
+    }
     if (!selectedCommandOptionId) {
       set({ error: "Please select a command option (A, B, or C) before uploading." });
       return;

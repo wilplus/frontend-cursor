@@ -139,12 +139,11 @@ function PreQuestionField({
                 disabled={loading}
                 className={`min-w-[2.5rem] py-3 px-4 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
-                <span className={selected ? "font-semibold text-primary" : ""}>{n}</span>
-                {selected && <div className="mt-0.5 text-xs text-primary font-semibold">✓ Selected</div>}
+                <span className={selected ? "font-semibold text-orange-600 dark:text-orange-400" : ""}>{n}</span>
               </button>
             );
           })}
@@ -168,12 +167,11 @@ function PreQuestionField({
                 disabled={loading}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
-                <p className={`text-sm font-medium ${selected ? "text-primary" : ""}`}>{opt}</p>
-                {selected && <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>}
+                <p className={`text-sm font-medium ${selected ? "text-orange-600 dark:text-orange-400" : ""}`}>{opt}</p>
               </button>
             );
           })}
@@ -197,12 +195,11 @@ function PreQuestionField({
                 disabled={loading}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
-                <p className={`text-sm font-medium ${selected ? "text-primary" : ""}`}>{opt}</p>
-                {selected && <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>}
+                <p className={`text-sm font-medium ${selected ? "text-orange-600 dark:text-orange-400" : ""}`}>{opt}</p>
               </button>
             );
           })}

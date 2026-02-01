@@ -72,38 +72,32 @@ export default function PreRecordingQuestionnaire() {
                 onClick={() => setMood("positive")}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   mood === "positive"
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
                 <span className={`text-4xl ${mood === "positive" ? "scale-125" : ""} transition-transform`}>
                   🙂
                 </span>
-                <p className={`text-sm mt-2 font-medium ${mood === "positive" ? "text-primary" : ""}`}>
+                <p className={`text-sm mt-2 font-medium ${mood === "positive" ? "text-orange-600 dark:text-orange-400" : ""}`}>
                   Good
                 </p>
-                {mood === "positive" && (
-                  <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>
-                )}
               </button>
               <button
                 type="button"
                 onClick={() => setMood("negative")}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   mood === "negative"
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
                 <span className={`text-4xl ${mood === "negative" ? "scale-125" : ""} transition-transform`}>
                   🙁
                 </span>
-                <p className={`text-sm mt-2 font-medium ${mood === "negative" ? "text-primary" : ""}`}>
+                <p className={`text-sm mt-2 font-medium ${mood === "negative" ? "text-orange-600 dark:text-orange-400" : ""}`}>
                   Not great
                 </p>
-                {mood === "negative" && (
-                  <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>
-                )}
               </button>
             </div>
           </div>
@@ -123,10 +117,10 @@ export default function PreRecordingQuestionnaire() {
                     onClick={() => setReadiness(num)}
                     className={`flex-1 aspect-square rounded-md border-2 transition-all ${
                       readiness === num
-                        ? "border-primary bg-primary text-primary-foreground scale-110"
+                        ? "border-orange-500 bg-orange-500/10 scale-110 ring-2 ring-orange-500/30"
                         : readiness !== null && readiness > num
-                        ? "border-primary/50 bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                        ? "border-orange-500/50 bg-orange-500/5"
+                        : "border-border hover:border-orange-500/50"
                     }`}
                   >
                     {num}
@@ -137,7 +131,7 @@ export default function PreRecordingQuestionnaire() {
             </div>
             {readiness !== null && (
               <p className="text-xs text-muted-foreground text-center">
-                Selected: {readiness}/10
+                {readiness}/10
               </p>
             )}
           </div>
@@ -175,38 +169,32 @@ export default function PreRecordingQuestionnaire() {
                 onClick={() => setInspirationNeeded(true)}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   inspirationNeeded === true
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
                 <span className={`text-4xl ${inspirationNeeded === true ? "scale-125" : ""} transition-transform`}>
                   📋
                 </span>
-                <p className={`text-sm mt-2 font-medium ${inspirationNeeded === true ? "text-primary" : ""}`}>
+                <p className={`text-sm mt-2 font-medium ${inspirationNeeded === true ? "text-orange-600 dark:text-orange-400" : ""}`}>
                   YES – guide me
                 </p>
-                {inspirationNeeded === true && (
-                  <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>
-                )}
               </button>
               <button
                 type="button"
                 onClick={() => setInspirationNeeded(false)}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   inspirationNeeded === false
-                    ? "border-primary bg-primary/20 shadow-md scale-105 ring-2 ring-primary/30"
-                    : "border-border hover:border-primary/50"
+                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    : "border-border hover:border-orange-500/50"
                 }`}
               >
                 <span className={`text-4xl ${inspirationNeeded === false ? "scale-125" : ""} transition-transform`}>
                   🎯
                 </span>
-                <p className={`text-sm mt-2 font-medium ${inspirationNeeded === false ? "text-primary" : ""}`}>
+                <p className={`text-sm mt-2 font-medium ${inspirationNeeded === false ? "text-orange-600 dark:text-orange-400" : ""}`}>
                   NO – I'll choose
                 </p>
-                {inspirationNeeded === false && (
-                  <div className="mt-1 text-xs text-primary font-semibold">✓ Selected</div>
-                )}
               </button>
             </div>
           </div>

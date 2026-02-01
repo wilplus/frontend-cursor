@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   AreaChart,
@@ -16,8 +16,10 @@ import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import { TrendingUp } from "lucide-react";
 
-const CHART_LIMIT = 7;
+const CHART_LIMIT = 5;
 const ORANGE = "#f97316"; // tailwind orange-500
+
+type TooltipAnchor = { left: number; top: number; bottom: number };
 
 export type ChartDataPoint = {
   id: string;
@@ -58,57 +60,54 @@ function CustomDot(props: {
   cx?: number;
   cy?: number;
   index?: number;
-  selectedIndex: number | null;
   hoveredIndex: number | null;
-  onMouseEnter: () => void;
+  onMouseEnter: (index: number, e: React.MouseEvent<SVGGElement>) => void;
   onMouseLeave: () => void;
-  onClick: () => void;
 }) {
-  const {
-    cx = 0,
-    cy = 0,
-    index = 0,
-    selectedIndex,
-    hoveredIndex,
-    onMouseEnter,
-    onMouseLeave,
-    onClick,
-  } = props;
-  const isActive = selectedIndex === index || hoveredIndex === index;
+  const { cx = 0, cy = 0, index = 0, hoveredIndex, onMouseEnter, onMouseLeave } = props;
+  const isActive = hoveredIndex === index;
   const r = isActive ? 8 : 6;
 
   return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={r}
-      fill={ORANGE}
-      stroke="white"
-      strokeWidth={3}
-      className="cursor-pointer"
-      onMouseEnter={onMouseEnter}
+    <g
+      onMouseEnter={(e) => onMouseEnter(index, e)}
       onMouseLeave={onMouseLeave}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    />
+      style={{ cursor: "pointer" }}
+    >
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill={ORANGE}
+        stroke="white"
+        strokeWidth={3}
+      />
+    </g>
   );
 }
 
-function CustomTooltipContent({
+function TooltipPopover({
   point,
-  onClose,
+  anchor,
+  onMouseEnter,
+  onMouseLeave,
 }: {
-  point: ChartDataPoint | null;
-  onClose: () => void;
+  point: ChartDataPoint;
+  anchor: TooltipAnchor;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
 }) {
-  if (!point) return null;
   return (
     <div
-      className="rounded-lg border bg-white/80 p-3 text-sm shadow-lg backdrop-blur-md dark:bg-gray-900/80"
-      role="dialog"
+      className="pointer-events-auto fixed z-50 rounded-lg border bg-white/90 p-3 text-sm shadow-lg backdrop-blur-md dark:bg-gray-900/90"
+      style={{
+        left: Math.min(anchor.left, typeof window !== "undefined" ? window.innerWidth - 220 : anchor.left),
+        top: anchor.bottom + 6,
+      }}
+      role="tooltip"
       aria-label="Recording details"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="flex flex-col gap-1">
         <span className="font-semibold text-foreground">{point.performance_score}%</span>
@@ -126,12 +125,15 @@ function CustomTooltipContent({
   );
 }
 
+const HOVER_HIDE_DELAY_MS = 120;
+
 export default function KPILineChart() {
   const authReady = useAuthReady();
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltipAnchor, setTooltipAnchor] = useState<TooltipAnchor | null>(null);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -148,11 +150,48 @@ export default function KPILineChart() {
     if (authReady) load();
   }, [authReady, load]);
 
-  const selectedPoint = selectedIndex != null ? data[selectedIndex] ?? null : null;
+  const clearHideTimeout = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
 
-  const handleDotClick = (index: number) => {
-    setSelectedIndex((prev) => (prev === index ? null : index));
-  };
+  const scheduleHide = useCallback(() => {
+    clearHideTimeout();
+    hideTimeoutRef.current = setTimeout(() => {
+      setHoveredIndex(null);
+      setTooltipAnchor(null);
+      hideTimeoutRef.current = null;
+    }, HOVER_HIDE_DELAY_MS);
+  }, [clearHideTimeout]);
+
+  const handleDotMouseEnter = useCallback(
+    (index: number, e: React.MouseEvent<SVGGElement>) => {
+      clearHideTimeout();
+      const rect = (e.currentTarget as SVGGElement).getBoundingClientRect();
+      setTooltipAnchor({ left: rect.left, top: rect.top, bottom: rect.bottom });
+      setHoveredIndex(index);
+    },
+    [clearHideTimeout]
+  );
+
+  const handleDotMouseLeave = useCallback(() => {
+    scheduleHide();
+  }, [scheduleHide]);
+
+  const handleTooltipMouseEnter = useCallback(() => {
+    clearHideTimeout();
+  }, [clearHideTimeout]);
+
+  const handleTooltipMouseLeave = useCallback(() => {
+    setHoveredIndex(null);
+    setTooltipAnchor(null);
+  }, []);
+
+  useEffect(() => () => clearHideTimeout(), [clearHideTimeout]);
+
+  const hoveredPoint = hoveredIndex != null ? data[hoveredIndex] ?? null : null;
 
   if (loading) {
     return (
@@ -162,10 +201,13 @@ export default function KPILineChart() {
           <h3 className="text-lg font-semibold">Performance Trend</h3>
         </div>
         <div
-          className="animate-pulse rounded-md bg-muted/50"
+          className="flex flex-col items-center justify-center gap-3 rounded-md bg-muted/30 py-12"
           style={{ height: 280 }}
           aria-label="Loading chart"
-        />
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading performance trend…</p>
+        </div>
       </Card>
     );
   }
@@ -249,11 +291,9 @@ export default function KPILineChart() {
                     cx={dotProps.cx}
                     cy={dotProps.cy}
                     index={i}
-                    selectedIndex={selectedIndex}
                     hoveredIndex={hoveredIndex}
-                    onMouseEnter={() => setHoveredIndex(i)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                    onClick={() => handleDotClick(i)}
+                    onMouseEnter={handleDotMouseEnter}
+                    onMouseLeave={handleDotMouseLeave}
                   />
                 );
               }}
@@ -262,14 +302,14 @@ export default function KPILineChart() {
             />
           </AreaChart>
         </ResponsiveContainer>
-        {/* Click-to-show tooltip panel (frosted glass) - shown below chart when a dot is selected */}
-        {selectedPoint && (
-          <div className="absolute bottom-0 left-0 right-0 flex justify-center pt-2">
-            <CustomTooltipContent
-              point={selectedPoint}
-              onClose={() => setSelectedIndex(null)}
-            />
-          </div>
+        {/* Hover tooltip next to dot - show when hovering dot or tooltip, hide when mouse leaves both */}
+        {hoveredPoint && tooltipAnchor && (
+          <TooltipPopover
+            point={hoveredPoint}
+            anchor={tooltipAnchor}
+            onMouseEnter={handleTooltipMouseEnter}
+            onMouseLeave={handleTooltipMouseLeave}
+          />
         )}
       </div>
     </Card>

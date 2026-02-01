@@ -22,10 +22,7 @@ export default function SessionCard() {
     commandOptions,
     selectedCommandOptionId,
     selectedPromptTextSnapshot,
-    postQuestions,
-    postAnswers,
-    postAnswersSubmitted,
-    completedRecording,
+    durationSeconds,
     initialize,
     startNewSession,
     selectCommandOption,
@@ -34,6 +31,10 @@ export default function SessionCard() {
     uploadRecordingBlob,
     loading,
     error,
+    postQuestions,
+    postAnswers,
+    postAnswersSubmitted,
+    completedRecording,
   } = useSessionStore();
 
   const authReady = useAuthReady();
@@ -158,17 +159,16 @@ export default function SessionCard() {
                       onClick={() => selectCommandOption(opt.option_id, promptText || displayText)}
                       className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                         selected
-                          ? "border-primary bg-primary/20 shadow-md ring-2 ring-primary/30"
-                          : "border-border hover:border-primary/50"
+                          ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                          : "border-border hover:border-orange-500/50"
                       }`}
                     >
-                      <span className={`font-medium ${selected ? "text-primary" : ""}`}>
+                      <span className={`font-medium ${selected ? "text-orange-600 dark:text-orange-400" : ""}`}>
                         Option {opt.option_id}
                       </span>
                       {opt.is_primary && (
                         <span className="ml-2 text-xs text-muted-foreground">(recommended)</span>
                       )}
-                      {selected && <span className="ml-2 text-xs text-primary font-semibold">✓ Selected</span>}
                       <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
                         {displayText}
                       </p>
@@ -249,15 +249,22 @@ export default function SessionCard() {
   }
 
   if (state === "recorded") {
+    const tooShort = durationSeconds !== null && durationSeconds < 60;
     return (
       <>
         <div className="space-y-4">
           <Card className="p-6">
             <div className="text-center space-y-4">
               <h3 className="text-lg font-semibold">Recording Complete</h3>
-              <p className="text-sm text-muted-foreground">
-                Click below to submit your recording.
-              </p>
+              {tooShort ? (
+                <p className="text-sm text-destructive font-medium">
+                  Recording is too short. Session must be at least 1 minute. Please record again.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Click below to submit your recording.
+                </p>
+              )}
               {error && (
                 <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md text-left">
                   <p className="font-medium">Error:</p>
@@ -285,31 +292,37 @@ export default function SessionCard() {
                   ) : null}
                 </div>
               )}
-              <Button
-                onClick={async () => {
-                  const store = useSessionStore.getState();
-                  if (store.audioBlob && store.durationSeconds !== null) {
-                    const controller = new AbortController();
-                    abortControllerRef.current = controller;
-                    try {
-                      await uploadRecordingBlob(controller);
-                    } catch (err) {
-                      if (err instanceof Error && err.name === "AbortError") {
-                        toast.info("Upload cancelled");
-                      } else {
-                        const errorMsg = err instanceof Error ? err.message : "Upload failed";
-                        toast.error(errorMsg);
-                        console.error("Upload error details:", err);
+              {tooShort ? (
+                <Button onClick={() => setRecordingReady()} variant="outline" className="w-full">
+                  Record again
+                </Button>
+              ) : (
+                <Button
+                  onClick={async () => {
+                    const store = useSessionStore.getState();
+                    if (store.audioBlob && store.durationSeconds !== null) {
+                      const controller = new AbortController();
+                      abortControllerRef.current = controller;
+                      try {
+                        await uploadRecordingBlob(controller);
+                      } catch (err) {
+                        if (err instanceof Error && err.name === "AbortError") {
+                          toast.info("Upload cancelled");
+                        } else {
+                          const errorMsg = err instanceof Error ? err.message : "Upload failed";
+                          toast.error(errorMsg);
+                          console.error("Upload error details:", err);
+                        }
+                      } finally {
+                        abortControllerRef.current = null;
                       }
-                    } finally {
-                      abortControllerRef.current = null;
                     }
-                  }
-                }}
-                disabled={loading}
-              >
-                {loading ? "Uploading..." : "Submit Recording"}
-              </Button>
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? "Uploading..." : "Submit Recording"}
+                </Button>
+              )}
             </div>
           </Card>
         </div>
