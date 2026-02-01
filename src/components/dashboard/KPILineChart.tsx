@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import { TrendingUp } from "lucide-react";
 
-const CHART_LIMIT = 5;
+const CHART_LIMIT = 7;
 const ORANGE = "#f97316"; // tailwind orange-500
 
 type TooltipAnchor = { left: number; top: number; bottom: number };
@@ -27,33 +27,38 @@ export type ChartDataPoint = {
   performance_score: number;
 };
 
-function loadChartData(): Promise<ChartDataPoint[]> {
-  return fetchUserRecordings(CHART_LIMIT, 0).then(async (res) => {
-    const items = res?.items ?? [];
-    const details = await Promise.all(
-      items.map((item) =>
-        fetchRecording(item.id).then(
-          (detail) => {
-            const kpi = detail?.performance_score?.final_kpi;
-            if (kpi != null && typeof kpi === "number") {
-              return {
-                id: item.id,
-                created_at: item.created_at,
-                performance_score: Math.round(kpi * 100),
-              } as ChartDataPoint;
-            }
-            return null;
-          },
-          () => null
-        )
+/** Fetch list only (fast). Used to show chart shell immediately. */
+async function fetchChartList(): Promise<{ id: string; created_at: string }[]> {
+  const res = await fetchUserRecordings(CHART_LIMIT, 0);
+  const items = res?.items ?? [];
+  return [...items].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
+
+/** Fetch scores for list items in parallel. Run after chart is visible. */
+async function fetchChartScores(
+  items: { id: string; created_at: string }[]
+): Promise<ChartDataPoint[]> {
+  const details = await Promise.all(
+    items.map((item) =>
+      fetchRecording(item.id).then(
+        (detail) => {
+          const kpi = detail?.performance_score?.final_kpi;
+          if (kpi != null && typeof kpi === "number") {
+            return {
+              id: item.id,
+              created_at: item.created_at,
+              performance_score: Math.round(kpi * 100),
+            } as ChartDataPoint;
+          }
+          return null;
+        },
+        () => null
       )
-    );
-    const withScores = details.filter((d): d is ChartDataPoint => d != null);
-    withScores.sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    return withScores;
-  });
+    )
+  );
+  return details.filter((d): d is ChartDataPoint => d != null);
 }
 
 function CustomDot(props: {
@@ -131,18 +136,34 @@ export default function KPILineChart() {
   const authReady = useAuthReady();
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingScores, setLoadingScores] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tooltipAnchor, setTooltipAnchor] = useState<TooltipAnchor | null>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const result = await loadChartData();
-      setData(result);
+      const items = await fetchChartList();
+      if (items.length === 0) {
+        setData([]);
+        setLoading(false);
+        return;
+      }
+      const placeholder: ChartDataPoint[] = items.map((i) => ({
+        id: i.id,
+        created_at: i.created_at,
+        performance_score: 0,
+      }));
+      setData(placeholder);
+      setLoading(false);
+      setLoadingScores(true);
+      const withScores = await fetchChartScores(items);
+      setData(withScores);
     } catch {
       setData([]);
     } finally {
       setLoading(false);
+      setLoadingScores(false);
     }
   }, []);
 
@@ -237,6 +258,13 @@ export default function KPILineChart() {
         <h3 className="text-lg font-semibold">Performance Trend</h3>
       </div>
       <div className="relative" style={{ height: 280 }}>
+        {loadingScores && (
+          <div className="absolute left-0 right-0 top-2 z-10 flex justify-center">
+            <span className="rounded bg-muted/90 px-2 py-1 text-xs text-muted-foreground backdrop-blur-sm">
+              Loading scores…
+            </span>
+          </div>
+        )}
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart
             data={data}

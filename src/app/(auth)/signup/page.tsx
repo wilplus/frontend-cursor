@@ -12,7 +12,7 @@ export default function SignupPage() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Willab</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Create your account
+            🎙️ public speaking homework tool
           </p>
         </div>
         <SignupForm />
