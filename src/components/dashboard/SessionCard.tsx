@@ -1,20 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import PreRecordingQuestionnaire from "@/components/session/PreRecordingQuestionnaire";
 import PreQuestionsForm from "@/components/session/PreQuestionsForm";
@@ -42,12 +32,10 @@ export default function SessionCard() {
     setRecordingReady,
     setRecordingStart,
     uploadRecordingBlob,
-    abandonCurrentSession,
     loading,
     error,
   } = useSessionStore();
 
-  const [showAbandonDialog, setShowAbandonDialog] = useState(false);
   const authReady = useAuthReady();
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -89,12 +77,6 @@ export default function SessionCard() {
     } finally {
       abortControllerRef.current = null;
     }
-  };
-
-  const handleAbandon = async () => {
-    await abandonCurrentSession();
-    setShowAbandonDialog(false);
-    toast.success("Session abandoned");
   };
 
   // Render based on state
@@ -148,28 +130,7 @@ export default function SessionCard() {
   if (state === "pre_questions") {
     return (
       <div className="space-y-4">
-        {sessionId && (
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => setShowAbandonDialog(true)}>
-              Abandon Session
-            </Button>
-          </div>
-        )}
         <PreQuestionsForm questions={preQuestions} />
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>Abandon Session</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     );
   }
@@ -179,13 +140,6 @@ export default function SessionCard() {
     return (
       <>
         <div className="space-y-4">
-          {sessionId && (
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowAbandonDialog(true)}>
-                Abandon Session
-              </Button>
-            </div>
-          )}
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-2">Choose your recording prompt</h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -234,20 +188,6 @@ export default function SessionCard() {
             )}
           </Card>
         </div>
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>Abandon Session</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     );
   }
@@ -258,13 +198,6 @@ export default function SessionCard() {
     return (
       <>
         <div className="space-y-4">
-          {sessionId && (
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowAbandonDialog(true)}>
-                Abandon Session
-              </Button>
-            </div>
-          )}
           <Card className="p-6">
             <div className="space-y-4">
               <div className="text-center">
@@ -288,20 +221,6 @@ export default function SessionCard() {
             </div>
           </Card>
         </div>
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>Abandon Session</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     );
   }
@@ -311,17 +230,6 @@ export default function SessionCard() {
     return (
       <>
         <div className="space-y-4">
-          {sessionId && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAbandonDialog(true)}
-              >
-                Abandon Session
-              </Button>
-            </div>
-          )}
           {promptText && (
             <Card className="p-4 bg-primary/5 border-primary/20">
               <p className="text-xs font-medium text-muted-foreground mb-1">Your prompt — speak to this:</p>
@@ -336,25 +244,6 @@ export default function SessionCard() {
             }}
           />
         </div>
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress
-                will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>
-                Abandon Session
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     );
   }
@@ -363,17 +252,6 @@ export default function SessionCard() {
     return (
       <>
         <div className="space-y-4">
-          {sessionId && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAbandonDialog(true)}
-              >
-                Abandon Session
-              </Button>
-            </div>
-          )}
           <Card className="p-6">
             <div className="text-center space-y-4">
               <h3 className="text-lg font-semibold">Recording Complete</h3>
@@ -435,25 +313,6 @@ export default function SessionCard() {
             </div>
           </Card>
         </div>
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress
-                will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>
-                Abandon Session
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     );
   }
@@ -487,41 +346,11 @@ export default function SessionCard() {
     return (
       <>
         <div className="space-y-4">
-          {sessionId && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAbandonDialog(true)}
-              >
-                Abandon Session
-              </Button>
-            </div>
-          )}
           <PostQuestionsFormV2
             questions={postQuestions}
             submittedAnswers={postAnswersSubmitted ? postAnswers : undefined}
           />
         </div>
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress
-                will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>
-                Abandon Session
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     );
   }
@@ -544,38 +373,8 @@ export default function SessionCard() {
     return (
       <>
         <div className="space-y-4">
-          {sessionId && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAbandonDialog(true)}
-              >
-                Abandon Session
-              </Button>
-            </div>
-          )}
           <CompletedCard recording={completedRecording} />
         </div>
-        <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently abandon your current session. All progress
-                will be lost.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbandon}>
-                Abandon Session
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     );
   }
@@ -605,31 +404,10 @@ export default function SessionCard() {
   }
 
   return (
-    <>
-      <Card className="p-6">
-        <div className="text-center text-muted-foreground">
-          <p>Loading session...</p>
-        </div>
-      </Card>
-      <AlertDialog open={showAbandonDialog} onOpenChange={setShowAbandonDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Abandon Session?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently abandon your current session. All progress
-              will be lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowAbandonDialog(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleAbandon}>
-              Abandon Session
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <Card className="p-6">
+      <div className="text-center text-muted-foreground">
+        <p>Loading session...</p>
+      </div>
+    </Card>
   );
 }
