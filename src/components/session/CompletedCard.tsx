@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fetchSignedAudioUrl } from "@/lib/api/client";
+import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
 import type { GetRecordingResponse } from "@/lib/api/types";
 
@@ -12,6 +14,8 @@ interface CompletedCardProps {
 }
 
 export default function CompletedCard({ recording }: CompletedCardProps) {
+  const router = useRouter();
+  const reset = useSessionStore((s) => s.reset);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -19,6 +23,11 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   const isDev = process.env.NEXT_PUBLIC_ENV === "development";
+
+  const handleFinishLesson = () => {
+    reset();
+    router.push("/dashboard");
+  };
 
   useEffect(() => {
     // Check if recording has audio_url directly (from backend response)
@@ -65,11 +74,12 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
     }
   }, [recording.recording_id, isDev]);
 
-  const { metrics, analysis, transcription_text, answers } = recording;
+  const { metrics, analysis, transcription_text } = recording;
 
   return (
     <Card className="p-6 space-y-6">
       <div>
+        <p className="text-lg font-semibold text-primary mb-1">Good job!</p>
         <h3 className="text-lg font-semibold mb-2">Session Completed</h3>
         <p className="text-sm text-muted-foreground">
           Your recording has been analyzed. Review your results below.
@@ -203,37 +213,13 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
         </div>
       )}
 
-      {/* Answers Summary */}
-      <div className="border-t pt-4 space-y-4">
-        {answers.pre.length > 0 && (
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Pre-Recording Answers</h4>
-            <div className="space-y-2">
-              {answers.pre.map((answer) => (
-                <div key={answer.id} className="text-sm">
-                  <p className="text-muted-foreground mb-1">
-                    {answer.answer_text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {answers.post.length > 0 && (
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Post-Recording Answers</h4>
-            <div className="space-y-2">
-              {answers.post.map((answer) => (
-                <div key={answer.id} className="text-sm">
-                  <p className="text-muted-foreground mb-1">
-                    {answer.answer_text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="border-t pt-6">
+        <Button
+          className="w-full"
+          onClick={handleFinishLesson}
+        >
+          Finish the lesson and go back to your dashboard
+        </Button>
       </div>
     </Card>
   );
