@@ -139,7 +139,7 @@ function PreQuestionField({
                 disabled={loading}
                 className={`min-w-[2.5rem] py-3 px-4 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >
@@ -167,7 +167,7 @@ function PreQuestionField({
                 disabled={loading}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >
@@ -195,7 +195,7 @@ function PreQuestionField({
                 disabled={loading}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >

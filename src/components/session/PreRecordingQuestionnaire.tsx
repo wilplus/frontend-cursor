@@ -72,7 +72,7 @@ export default function PreRecordingQuestionnaire() {
                 onClick={() => setMood("positive")}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   mood === "positive"
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >
@@ -88,7 +88,7 @@ export default function PreRecordingQuestionnaire() {
                 onClick={() => setMood("negative")}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   mood === "negative"
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >
@@ -117,9 +117,9 @@ export default function PreRecordingQuestionnaire() {
                     onClick={() => setReadiness(num)}
                     className={`flex-1 aspect-square rounded-md border-2 transition-all ${
                       readiness === num
-                        ? "border-orange-500 bg-orange-500/10 scale-110 ring-2 ring-orange-500/30"
+                        ? "border-orange-500 scale-110 ring-2 ring-orange-500/30"
                         : readiness !== null && readiness > num
-                        ? "border-orange-500/50 bg-orange-500/5"
+                        ? "border-orange-500/50"
                         : "border-border hover:border-orange-500/50"
                     }`}
                   >
@@ -169,7 +169,7 @@ export default function PreRecordingQuestionnaire() {
                 onClick={() => setInspirationNeeded(true)}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   inspirationNeeded === true
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >
@@ -185,7 +185,7 @@ export default function PreRecordingQuestionnaire() {
                 onClick={() => setInspirationNeeded(false)}
                 className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                   inspirationNeeded === false
-                    ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                     : "border-border hover:border-orange-500/50"
                 }`}
               >

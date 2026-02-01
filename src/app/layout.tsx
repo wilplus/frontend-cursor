@@ -8,6 +8,9 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "Willab",
   description: "Communication coaching through interview practice",
+  icons: {
+    icon: "/icon",
+  },
 };
 
 export default function RootLayout({

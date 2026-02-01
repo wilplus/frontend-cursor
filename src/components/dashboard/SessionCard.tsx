@@ -29,6 +29,7 @@ export default function SessionCard() {
     setRecordingReady,
     setRecordingStart,
     uploadRecordingBlob,
+    abandonCurrentSession,
     loading,
     error,
     postQuestions,
@@ -159,7 +160,7 @@ export default function SessionCard() {
                       onClick={() => selectCommandOption(opt.option_id, promptText || displayText)}
                       className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
                         selected
-                          ? "border-orange-500 bg-orange-500/10 shadow-md scale-105 ring-2 ring-orange-500/30"
+                          ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                           : "border-border hover:border-orange-500/50"
                       }`}
                     >
@@ -236,13 +237,7 @@ export default function SessionCard() {
               <p className="text-base leading-relaxed whitespace-pre-wrap">{promptText}</p>
             </div>
           )}
-          <AudioRecorder
-            onRecordingComplete={handleRecordingComplete}
-            onCancel={() => {
-              // Return to recording_ready without auto-starting
-              setRecordingReady();
-            }}
-          />
+          <AudioRecorder onRecordingComplete={handleRecordingComplete} />
         </div>
       </>
     );
@@ -257,8 +252,8 @@ export default function SessionCard() {
             <div className="text-center space-y-4">
               <h3 className="text-lg font-semibold">Recording Complete</h3>
               {tooShort ? (
-                <p className="text-sm text-destructive font-medium">
-                  Recording is too short. Session must be at least 1 minute. Please record again.
+                <p className="text-sm text-muted-foreground">
+                  Your recording is under 1 minute. Resume to add more, or start over with a new session.
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -293,9 +288,20 @@ export default function SessionCard() {
                 </div>
               )}
               {tooShort ? (
-                <Button onClick={() => setRecordingReady()} variant="outline" className="w-full">
-                  Record again
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <Button onClick={() => setRecordingReady()} className="w-full sm:w-auto">
+                    Resume recording
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      await abandonCurrentSession();
+                    }}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    Start all over again
+                  </Button>
+                </div>
               ) : (
                 <Button
                   onClick={async () => {
