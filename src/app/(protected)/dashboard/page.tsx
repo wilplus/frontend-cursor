@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import SessionCard from "@/components/dashboard/SessionCard";
-import KPILineChart from "@/components/dashboard/KPILineChart";
-import HistorySection from "@/components/dashboard/HistorySection";
+import DashboardFirstStep from "@/components/dashboard/DashboardFirstStep";
 
 export const metadata: Metadata = {
   title: "Dashboard | Willab",
@@ -14,8 +13,7 @@ export default function DashboardPage() {
       <DashboardHeader />
       <main className="mx-auto max-w-4xl px-4 py-8 space-y-8">
         <SessionCard />
-        <KPILineChart />
-        <HistorySection />
+        <DashboardFirstStep />
       </main>
     </div>
   );

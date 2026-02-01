@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { fetchUserRecordings, fetchRecording } from "@/lib/api/client";
 import { Card } from "@/components/ui/card";
+import { format } from "date-fns";
 import type { GetRecordingResponse } from "@/lib/api/types";
 
 const CHART_LIMIT = 21;
-const PADDING = { top: 12, right: 12, bottom: 28, left: 36 };
+const PADDING = { top: 12, right: 12, bottom: 44, left: 36 };
 
-type DataPoint = { created_at: string; score: number };
+type DataPoint = { id: string; created_at: string; score: number };
 
 function smoothPath(points: { x: number; y: number }[]): string {
   if (points.length < 2) return "";
@@ -36,6 +38,7 @@ export default function KPILineChart() {
   const authReady = useAuthReady();
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +51,7 @@ export default function KPILineChart() {
           const kpi = detail.performance_score?.final_kpi;
           if (kpi != null && typeof kpi === "number") {
             withScores.push({
+              id: item.id,
               created_at: item.created_at,
               score: Math.round(kpi * 100),
             });
@@ -80,7 +84,7 @@ export default function KPILineChart() {
     );
   }
 
-  if (data.length < 2) {
+  if (data.length < 1) {
     return (
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Performance over time</h3>
@@ -104,66 +108,114 @@ export default function KPILineChart() {
 
   const points = data.map((d, i) => ({ x: xScale(i), y: yScale(d.score) }));
   const pathD = smoothPath(points);
-  const lastPoint = points[points.length - 1];
+
+  // X-axis date tick indices (first, ~1/3, ~2/3, last)
+  const n = data.length;
+  const dateTickIndices =
+    n <= 4
+      ? data.map((_, i) => i)
+      : [0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1].filter((v, i, a) => a.indexOf(v) === i);
+
+  const hoveredPoint = hoveredIndex != null ? data[hoveredIndex] : null;
 
   return (
     <Card className="p-6">
       <h3 className="text-lg font-semibold mb-4">Performance over time</h3>
       <p className="text-sm text-muted-foreground mb-4">
-        Performance score % by session (oldest → newest)
+        Performance score % by session (oldest → newest). Hover a dot for details.
       </p>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-[180px]"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {/* Y axis labels */}
-        {[0, 25, 50, 75, 100].map((s) => {
-          const y = yScale(s);
-          return (
-            <text
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full h-[180px]"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {/* Y axis labels */}
+          {[0, 25, 50, 75, 100].map((s) => {
+            const y = yScale(s);
+            return (
+              <text
+                key={s}
+                x={PADDING.left - 6}
+                y={y + 4}
+                textAnchor="end"
+                className="fill-muted-foreground text-[10px]"
+              >
+                {s}%
+              </text>
+            );
+          })}
+          {/* X axis date labels */}
+          {dateTickIndices.map((i) => {
+            const x = xScale(i);
+            const label = format(new Date(data[i].created_at), "MMM d");
+            return (
+              <text
+                key={i}
+                x={x}
+                y={height - 8}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[10px]"
+              >
+                {label}
+              </text>
+            );
+          })}
+          {/* Grid lines */}
+          {[0, 25, 50, 75, 100].map((s) => (
+            <line
               key={s}
-              x={PADDING.left - 6}
-              y={y + 4}
-              textAnchor="end"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {s}%
-            </text>
-          );
-        })}
-        {/* Grid lines */}
-        {[0, 25, 50, 75, 100].map((s) => (
-          <line
-            key={s}
-            x1={PADDING.left}
-            y1={yScale(s)}
-            x2={width - PADDING.right}
-            y2={yScale(s)}
+              x1={PADDING.left}
+              y1={yScale(s)}
+              x2={width - PADDING.right}
+              y2={yScale(s)}
+              stroke="currentColor"
+              strokeOpacity={0.08}
+              strokeDasharray="2 2"
+            />
+          ))}
+          {/* Smooth line */}
+          <path
+            d={pathD}
+            fill="none"
             stroke="currentColor"
-            strokeOpacity={0.08}
-            strokeDasharray="2 2"
+            strokeOpacity={0.4}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-        ))}
-        {/* Smooth line */}
-        <path
-          d={pathD}
-          fill="none"
-          stroke="currentColor"
-          strokeOpacity={0.4}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Entry point (latest) - orange CTA style */}
-        <circle
-          cx={lastPoint.x}
-          cy={lastPoint.y}
-          r={6}
-          className="fill-orange-500 stroke-white dark:stroke-background"
-          strokeWidth={2}
-        />
-      </svg>
+          {/* Orange dot per recording */}
+          {points.map((pt, i) => (
+            <circle
+              key={data[i].id}
+              cx={pt.x}
+              cy={pt.y}
+              r={6}
+              className="fill-orange-500 stroke-white dark:stroke-background cursor-pointer"
+              strokeWidth={2}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            />
+          ))}
+        </svg>
+        {/* Hover tooltip area below chart */}
+        {hoveredPoint && (
+          <div className="mt-3 p-3 rounded-lg bg-muted/80 border text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="font-medium">Score: {hoveredPoint.score}%</span>
+              <span className="text-muted-foreground">
+                {format(new Date(hoveredPoint.created_at), "MMM d, yyyy")}
+              </span>
+              <Link
+                href={`/recordings/${hoveredPoint.id}`}
+                className="text-orange-500 hover:underline font-medium"
+              >
+                Go to recording →
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
