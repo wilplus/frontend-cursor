@@ -81,9 +81,6 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
       <div>
         <p className="text-lg font-semibold text-primary mb-1">Good job!</p>
         <h3 className="text-lg font-semibold mb-2">Session Completed</h3>
-        <p className="text-sm text-muted-foreground">
-          Your recording has been analyzed. Review your results below.
-        </p>
       </div>
 
       {/* Report */}
@@ -91,9 +88,6 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
         <div>
           <h4 className="text-sm font-semibold mb-2">Report</h4>
           <p className="text-sm leading-relaxed">{analysis.report}</p>
-          <p className="text-sm text-muted-foreground italic mt-3">
-            I&apos;ll analyse your progress and adjust the learning to your needs.
-          </p>
         </div>
       )}
 
