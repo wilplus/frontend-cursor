@@ -22,8 +22,6 @@ export default function HistorySection() {
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [showDebug, setShowDebug] = useState(false);
   const authReady = useAuthReady();
 
   const loadRecordings = useCallback(async (currentOffset: number) => {
@@ -37,21 +35,6 @@ export default function HistorySection() {
     try {
       console.log(`[HistorySection] Fetching recordings: offset=${currentOffset}, limit=${LIMIT}`);
       const response = await fetchUserRecordings(LIMIT, currentOffset);
-      
-      console.log(`[HistorySection] Received response:`, {
-        itemsCount: response?.items?.length || 0,
-        total: response?.total,
-        limit: response?.limit,
-        offset: response?.offset,
-        fullResponse: response,
-      });
-      
-      // Store debug info
-      setDebugInfo({
-        response,
-        timestamp: new Date().toISOString(),
-        url: `/api/user/recordings?limit=${LIMIT}&offset=${currentOffset}`,
-      });
       
       // Ensure items is always an array
       const items = response?.items || [];
@@ -155,55 +138,11 @@ export default function HistorySection() {
   if (!recordings || recordings.length === 0) {
     return (
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">History</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-          >
-            {showDebug ? "Hide" : "Show"} Debug Info
-          </Button>
-        </div>
-        
-        {showDebug && debugInfo && (
-          <div className="mb-4 p-4 bg-muted rounded-md text-xs font-mono overflow-auto max-h-96 space-y-4">
-            <div>
-              <p className="font-semibold mb-2">API Response Debug:</p>
-              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugInfo, null, 2)}</pre>
-            </div>
-            <div className="border-t pt-2">
-              <p className="font-semibold mb-2">Debugging Steps:</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Open Browser DevTools (F12)</li>
-                <li>Go to Console tab - look for [fetchUserRecordings] logs</li>
-                <li>Go to Network tab - find the /api/user/recordings request</li>
-                <li>Click on it and check the Response tab</li>
-                <li>Check your Flask backend logs for errors</li>
-              </ol>
-            </div>
-          </div>
-        )}
-        
-        <div className="text-center py-8 space-y-4">
+        <h3 className="text-lg font-semibold mb-4">History</h3>
+        <div className="text-center py-8">
           <p className="text-sm text-muted-foreground">
             No recordings yet. Start your first session to see it here.
           </p>
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <p>💡 Check the browser console (F12) for detailed logs.</p>
-            <p>💡 Check the Network tab to see the API response.</p>
-            <p>💡 Verify your Flask backend is returning recordings at <code>/user/recordings</code></p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              console.log("[HistorySection] Manual refresh triggered");
-              loadRecordings(0);
-            }}
-          >
-            Refresh
-          </Button>
         </div>
       </Card>
     );
