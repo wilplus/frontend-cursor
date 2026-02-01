@@ -193,40 +193,7 @@ export default function SessionCard() {
     );
   }
 
-  if (state === "recording_ready") {
-    const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
-
-    return (
-      <>
-        <div className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold">Ready to Record</h3>
-                {promptText && (
-                  <div className="mt-4 p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Your recording prompt:</p>
-                    <p className="text-base leading-relaxed">{promptText}</p>
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground mt-4">
-                  {promptText ? "Click below to start recording your response." : "Click below to start recording."}
-                </p>
-              </div>
-              <Button
-                className="w-full"
-                onClick={() => setRecordingStart(Date.now())}
-              >
-                Start Recording
-              </Button>
-            </div>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  if (state === "recording") {
+  if (state === "recording_ready" || state === "recording") {
     const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
     return (
       <>
@@ -237,7 +204,10 @@ export default function SessionCard() {
               <p className="text-base leading-relaxed whitespace-pre-wrap">{promptText}</p>
             </div>
           )}
-          <AudioRecorder onRecordingComplete={handleRecordingComplete} />
+          <AudioRecorder
+            onRecordingComplete={handleRecordingComplete}
+            onRecordingStart={state === "recording_ready" ? () => setRecordingStart(Date.now()) : undefined}
+          />
         </div>
       </>
     );
@@ -245,21 +215,58 @@ export default function SessionCard() {
 
   if (state === "recorded") {
     const tooShort = durationSeconds !== null && durationSeconds < 60;
+    const formatTime = (s: number) =>
+      `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+
+    if (tooShort) {
+      return (
+        <>
+          <div className="space-y-4">
+            <Card className="p-6 space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Record Audio</h3>
+                <p className="text-sm text-muted-foreground">
+                  Click start to begin recording. Min 1 min, max 5 min.
+                </p>
+              </div>
+              <div className="text-center py-4">
+                <div className="text-4xl font-mono font-bold">
+                  {formatTime(durationSeconds ?? 0)}
+                </div>
+              </div>
+              <div className="flex rounded-lg overflow-hidden border border-orange-500">
+                <button
+                  type="button"
+                  onClick={() => setRecordingReady()}
+                  className="flex-1 bg-orange-500 py-3 text-sm font-medium text-white hover:bg-orange-600 transition-colors"
+                >
+                  Resume recording
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await abandonCurrentSession();
+                  }}
+                  className="flex-1 bg-orange-600 py-3 text-sm font-medium text-white hover:bg-orange-700 transition-colors border-l border-orange-500"
+                >
+                  Start again
+                </button>
+              </div>
+            </Card>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
         <div className="space-y-4">
           <Card className="p-6">
             <div className="text-center space-y-4">
               <h3 className="text-lg font-semibold">Recording Complete</h3>
-              {tooShort ? (
-                <p className="text-sm text-muted-foreground">
-                  Your recording is under 1 minute. Resume to add more, or start over with a new session.
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Click below to submit your recording.
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Click below to submit your recording.
+              </p>
               {error && (
                 <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md text-left">
                   <p className="font-medium">Error:</p>
@@ -287,48 +294,31 @@ export default function SessionCard() {
                   ) : null}
                 </div>
               )}
-              {tooShort ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                  <Button onClick={() => setRecordingReady()} className="w-full sm:w-auto">
-                    Resume recording
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      await abandonCurrentSession();
-                    }}
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                  >
-                    Start all over again
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={async () => {
-                    const store = useSessionStore.getState();
-                    if (store.audioBlob && store.durationSeconds !== null) {
-                      const controller = new AbortController();
-                      abortControllerRef.current = controller;
-                      try {
-                        await uploadRecordingBlob(controller);
-                      } catch (err) {
-                        if (err instanceof Error && err.name === "AbortError") {
-                          toast.info("Upload cancelled");
-                        } else {
-                          const errorMsg = err instanceof Error ? err.message : "Upload failed";
-                          toast.error(errorMsg);
-                          console.error("Upload error details:", err);
-                        }
-                      } finally {
-                        abortControllerRef.current = null;
+              <Button
+                onClick={async () => {
+                  const store = useSessionStore.getState();
+                  if (store.audioBlob && store.durationSeconds !== null) {
+                    const controller = new AbortController();
+                    abortControllerRef.current = controller;
+                    try {
+                      await uploadRecordingBlob(controller);
+                    } catch (err) {
+                      if (err instanceof Error && err.name === "AbortError") {
+                        toast.info("Upload cancelled");
+                      } else {
+                        const errorMsg = err instanceof Error ? err.message : "Upload failed";
+                        toast.error(errorMsg);
+                        console.error("Upload error details:", err);
                       }
+                    } finally {
+                      abortControllerRef.current = null;
                     }
-                  }}
-                  disabled={loading}
-                >
-                  {loading ? "Uploading..." : "Submit Recording"}
-                </Button>
-              )}
+                  }
+                }}
+                disabled={loading}
+              >
+                {loading ? "Uploading..." : "Submit Recording"}
+              </Button>
             </div>
           </Card>
         </div>

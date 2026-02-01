@@ -39,11 +39,13 @@ function formatTime(seconds: number): string {
 
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob, durationSeconds: number) => void;
+  onRecordingStart?: () => void;
   onCancel?: () => void;
 }
 
 export default function AudioRecorder({
   onRecordingComplete,
+  onRecordingStart,
   onCancel,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
@@ -138,6 +140,7 @@ export default function AudioRecorder({
       recorder.start();
       setIsRecording(true);
       setElapsedSeconds(0);
+      onRecordingStart?.();
 
       // Timer interval
       timerIntervalRef.current = setInterval(() => {
