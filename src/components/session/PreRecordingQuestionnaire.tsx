@@ -54,9 +54,9 @@ export default function PreRecordingQuestionnaire() {
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold mb-2">Before recording, check in</h3>
+          <h3 className="text-lg font-semibold mb-2">Check in before the recording</h3>
           <p className="text-sm text-muted-foreground">
-            Answer 3 quick questions to personalize your session
+            A few quick questions to tailor your session
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export default function PreRecordingQuestionnaire() {
           {/* Question 1: Mood */}
           <div className="space-y-3">
             <label className="text-sm font-medium">
-              1) How do you feel right now?
+              1) Do you feel more like:
             </label>
             <div className="flex gap-4">
               <button
@@ -148,14 +148,14 @@ export default function PreRecordingQuestionnaire() {
               Theme (optional)
             </label>
             <p className="text-xs text-muted-foreground">
-              Leave unset to use the recommended theme, or pick one to override.
+              Use the recommended theme or pick one to override.
             </p>
             <select
               value={themeCode ?? ""}
               onChange={(e) => setThemeCode(e.target.value ? (e.target.value as ThemeCode) : null)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="">Use recommended</option>
+              <option value="">Default</option>
               {THEME_CODES.map((code) => (
                 <option key={code} value={code}>
                   {THEME_LABELS[code]}

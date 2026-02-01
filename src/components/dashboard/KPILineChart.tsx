@@ -6,9 +6,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { fetchUserRecordings, fetchRecording } from "@/lib/api/client";
 import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
-import type { GetRecordingResponse } from "@/lib/api/types";
-
-const CHART_LIMIT = 21;
+const CHART_LIMIT = 7;
 const PADDING = { top: 12, right: 12, bottom: 44, left: 36 };
 
 type DataPoint = { id: string; created_at: string; score: number };
@@ -44,22 +42,25 @@ export default function KPILineChart() {
     try {
       const res = await fetchUserRecordings(CHART_LIMIT, 0);
       const items = res?.items || [];
-      const withScores: DataPoint[] = [];
-      for (const item of items) {
-        try {
-          const detail: GetRecordingResponse = await fetchRecording(item.id);
-          const kpi = detail.performance_score?.final_kpi;
-          if (kpi != null && typeof kpi === "number") {
-            withScores.push({
-              id: item.id,
-              created_at: item.created_at,
-              score: Math.round(kpi * 100),
-            });
-          }
-        } catch {
-          // skip recordings without score or failed fetch
-        }
-      }
+      const details = await Promise.all(
+        items.map((item) =>
+          fetchRecording(item.id).then(
+            (detail) => {
+              const kpi = detail?.performance_score?.final_kpi;
+              if (kpi != null && typeof kpi === "number") {
+                return {
+                  id: item.id,
+                  created_at: item.created_at,
+                  score: Math.round(kpi * 100),
+                } as DataPoint;
+              }
+              return null;
+            },
+            () => null
+          )
+        )
+      );
+      const withScores = details.filter((d): d is DataPoint => d != null);
       withScores.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       setData(withScores);
     } catch {
