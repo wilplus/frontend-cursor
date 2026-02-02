@@ -137,7 +137,7 @@ export default function PreRecordingQuestionnaire() {
         />
 
         <p className="text-muted-foreground text-sm text-center mb-4">
-          1.{currentStep + 1} of 1.{TOTAL_STEPS}
+          Question {currentStep + 1} of {TOTAL_STEPS}
         </p>
 
         <form onSubmit={(e) => { e.preventDefault(); goNext(); }} onKeyDown={handleKeyDown} className="space-y-6">
