@@ -333,7 +333,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const commandOptionsList = Array.isArray(response.command_options) ? response.command_options : [];
 
       set({
-        state: "pre_questions", // v1: show single typed pre-question before command select
+        state: "command_select", // Skip pre_questions; command is chosen by system (auto-select in UI)
         sessionId: response.session_id,
         cursor: response.cursor ?? null,
         mode: response.mode ?? response.structure ?? null,
@@ -341,7 +341,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         commandOptions: commandOptionsList,
         themeChosenCode: response.theme_chosen_code ?? null,
         preAnswers: {},
-        preAnswersSubmitted: false,
+        preAnswersSubmitted: true, // Skip pre_questions step
         selectedCommandOptionId: null,
         selectedPromptTextSnapshot: null,
         loading: false,
@@ -374,7 +374,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const preQuestionsList = Array.isArray(response.pre_questions) ? response.pre_questions : [];
       const commandOptionsList = Array.isArray(response.command_options) ? response.command_options : [];
       set({
-        state: "pre_questions",
+        state: "command_select",
         sessionId: response.session_id,
         cursor: response.cursor ?? null,
         mode: response.mode ?? response.structure ?? null,
@@ -382,7 +382,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         commandOptions: commandOptionsList,
         themeChosenCode: response.theme_chosen_code ?? null,
         preAnswers: {},
-        preAnswersSubmitted: false,
+        preAnswersSubmitted: true,
         selectedCommandOptionId: null,
         selectedPromptTextSnapshot: null,
         loading: false,

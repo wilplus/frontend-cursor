@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
+import { ProgressPillBar } from "@/components/ui/progress-pill-bar";
 import { Card } from "@/components/ui/card";
 import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
@@ -105,43 +106,22 @@ export default function PreRecordingQuestionnaire() {
       <div className="space-y-6">
         <h3 className="text-lg font-semibold">Check in before the recording</h3>
 
-        {/* Progress pills */}
-        <div
-          className="flex gap-1.5 sm:gap-2"
-          role="progressbar"
-          aria-valuenow={currentStep + 1}
-          aria-valuemin={1}
-          aria-valuemax={TOTAL_STEPS}
+        <ProgressPillBar
+          total={TOTAL_STEPS}
+          currentIndex={currentStep}
           aria-label={`Step ${currentStep + 1} of ${TOTAL_STEPS}`}
-        >
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
-            const completed = i < currentStep;
-            const current = i === currentStep;
-            return (
-              <div
-                key={i}
-                className={`h-2.5 sm:h-3 flex-1 rounded-full transition-all duration-300 ${
-                  completed
-                    ? "bg-neutral-700 dark:bg-neutral-600"
-                    : current
-                      ? "bg-neutral-400 dark:bg-neutral-500"
-                      : "bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600"
-                }`}
-              />
-            );
-          })}
-        </div>
+        />
 
-        <p className="text-sm text-muted-foreground">
-          Question {currentStep + 1} of {TOTAL_STEPS}
+        <p className="text-muted-foreground text-sm text-center mb-4">
+          1.{currentStep + 1} of 1.{TOTAL_STEPS}
         </p>
 
         <form onSubmit={(e) => { e.preventDefault(); goNext(); }} onKeyDown={handleKeyDown} className="space-y-6">
-          <div className="min-h-[180px] sm:min-h-[200px]">
+          <div className="relative min-h-[200px] overflow-hidden flex flex-col justify-center">
             {/* Step 0: Mood */}
             {currentStep === 0 && (
-              <div key="mood" className="animate-question-in space-y-3">
-                <label className="block text-base font-semibold text-foreground">
+              <div key="0" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
                   Do you feel more like:
                 </label>
                 <div className="flex gap-4">
@@ -183,9 +163,9 @@ export default function PreRecordingQuestionnaire() {
 
             {/* Step 1: Readiness */}
             {currentStep === 1 && (
-              <div key="readiness" className="animate-question-in space-y-3">
-                <label className="block text-base font-semibold text-foreground">
-                  How ready is your body and mind to speak?
+              <div key="1" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
+                  How ready is your body and mind to present?
                 </label>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground w-full sm:w-auto">Not ready</span>
@@ -217,18 +197,18 @@ export default function PreRecordingQuestionnaire() {
               </div>
             )}
 
-            {/* Step 2: Theme (optional) */}
+            {/* Step 2: Theme */}
             {currentStep === 2 && (
-              <div key="theme" className="animate-question-in space-y-3">
-                <label className="block text-base font-semibold text-foreground">
-                  Theme (optional)
+              <div key="2" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
+                  Theme
                 </label>
                 <select
                   value={themeCode ?? ""}
                   onChange={(e) => setThemeCode(e.target.value ? (e.target.value as ThemeCode) : null)}
-                  className="w-full rounded-lg border-2 border-input bg-background px-3 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full px-4 py-4 bg-card border border-input rounded-xl text-foreground text-lg text-center focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="">Default</option>
+                  <option value="">Choose a theme for me</option>
                   {THEME_CODES.map((code) => (
                     <option key={code} value={code}>
                       {THEME_LABELS[code]}
@@ -238,11 +218,11 @@ export default function PreRecordingQuestionnaire() {
               </div>
             )}
 
-            {/* Step 3: Structure */}
+            {/* Step 3: Guided */}
             {currentStep === 3 && (
-              <div key="structure" className="animate-question-in space-y-3">
-                <label className="block text-base font-semibold text-foreground">
-                  Do you want structure for this recording?
+              <div key="3" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
+                  Do you want to be guided?
                 </label>
                 <div className="flex gap-4">
                   <button
@@ -283,10 +263,15 @@ export default function PreRecordingQuestionnaire() {
           </div>
 
           <div className="space-y-3">
+            {canAdvance && (
+              <p className="animate-fade-in text-muted-foreground text-sm text-center mt-3">
+                Press <span className="font-medium">Enter ↵</span> or click to continue
+              </p>
+            )}
             <Button
               type="submit"
               disabled={loading || !canAdvance}
-              className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
+              className="w-full rounded-xl bg-primary py-6 text-base font-semibold text-white hover:opacity-90"
             >
               {currentStep === 3
                 ? (loading ? "Starting session..." : "Continue")

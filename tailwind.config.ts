@@ -17,12 +17,20 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "question-in": "question-fade-in 0.25s ease-out forwards",
+        "fade-in": "fade-in 0.4s ease-out forwards",
       },
       colors: {
         background: "hsl(var(--background))",
+        primary: "hsl(var(--primary))",
+        "step-completed": "hsl(var(--step-completed))",
+        "step-pending": "hsl(var(--step-pending))",
         foreground: "hsl(var(--foreground))",
         card: {
           DEFAULT: "hsl(var(--card))",

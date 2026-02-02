@@ -5,6 +5,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
+import { ProgressPillBar } from "@/components/ui/progress-pill-bar";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import PreRecordingQuestionnaire from "@/components/session/PreRecordingQuestionnaire";
@@ -14,6 +15,15 @@ import PostQuestionsFormV2 from "@/components/session/PostQuestionsFormV2";
 import CompletedCard from "@/components/session/CompletedCard";
 import { toast } from "sonner";
 import { Play, RefreshCw } from "lucide-react";
+
+const FLOW_STEPS = 3; // 1 Pre questions, 2 Command & recording, 3 Post questions
+
+function getFlowStepIndex(state: string): number {
+  if (state === "pre_questionnaire") return 0;
+  if (["command_select", "recording_ready", "recording", "recorded", "uploading_processing"].includes(state)) return 1;
+  if (["post_questions", "finalizing", "completed"].includes(state)) return 2;
+  return 0;
+}
 
 export default function SessionCard() {
   const {
@@ -58,6 +68,14 @@ export default function SessionCard() {
       }
     };
   }, []);
+
+  // Auto-select command when in command_select (command chosen by system; skip command select UI)
+  useEffect(() => {
+    if (state !== "command_select" || !commandOptions?.length) return;
+    const primary = commandOptions.find((o) => o.is_primary) ?? commandOptions[0];
+    const promptText = (primary.prompt_text_snapshot ?? "").trim() || primary.intent ?? "";
+    selectCommandOption(primary.option_id, promptText);
+  }, [state, commandOptions, selectCommandOption]);
 
   const handleStartSession = async () => {
     await startNewSession();
@@ -125,85 +143,58 @@ export default function SessionCard() {
     );
   }
 
+  // Flow steps: 1 Pre questions, 2 Command & recording, 3 Post questions
+  const flowStepIndex = getFlowStepIndex(state);
+  const FlowWrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="space-y-4">
+      <ProgressPillBar
+        total={FLOW_STEPS}
+        currentIndex={flowStepIndex}
+        aria-label={`Step ${flowStepIndex + 1} of ${FLOW_STEPS}`}
+      />
+      <p className="text-muted-foreground text-sm text-center mb-4">
+        {flowStepIndex === 0 && "Pre questions"}
+        {flowStepIndex === 1 && "Command & recording"}
+        {flowStepIndex === 2 && "Post questions"}
+      </p>
+      {children}
+    </div>
+  );
+
   if (state === "pre_questionnaire") {
     return (
-      <div className="space-y-4">
+      <FlowWrapper>
         <PreRecordingQuestionnaire />
-      </div>
+      </FlowWrapper>
     );
   }
 
   if (state === "pre_questions") {
     return (
-      <div className="space-y-4">
+      <FlowWrapper>
         <PreQuestionsForm questions={preQuestions} />
-      </div>
+      </FlowWrapper>
     );
   }
 
+  // command_select: command chosen by system; auto-select runs in useEffect, show brief loading
   if (state === "command_select") {
-    const hasOptions = commandOptions && commandOptions.length > 0;
     return (
-      <>
-        <div className="space-y-4">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-2">Choose your recording prompt</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Select one option (A, B, or C). You will record your response to that prompt.
-            </p>
-            {hasOptions ? (
-              <div className="space-y-3">
-                {commandOptions.map((opt) => {
-                  const promptText = (opt.prompt_text_snapshot ?? "").trim();
-                  const displayText = promptText || opt.intent || `Option ${opt.option_id} — no prompt text yet`;
-                  const selected = selectedCommandOptionId === opt.option_id;
-                  return (
-                    <button
-                      key={opt.option_id}
-                      type="button"
-                      onClick={() => selectCommandOption(opt.option_id, promptText || displayText)}
-                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                        selected
-                          ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                          : "border-border hover:border-orange-500/50"
-                      }`}
-                    >
-                      <span className={`font-medium ${selected ? "text-orange-600 dark:text-orange-400" : ""}`}>
-                        Option {opt.option_id}
-                      </span>
-                      {opt.is_primary && (
-                        <span className="ml-2 text-xs text-muted-foreground">(recommended)</span>
-                      )}
-                      <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                        {displayText}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-6 text-center rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground">
-                  No options available yet.
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  The backend may not have returned command options for this session. Try refreshing or starting a new session.
-                </p>
-              </div>
-            )}
-            <div className="mt-6">
-              <FlowBackLink onClick={() => goBackToPreQuestions()} />
-            </div>
-          </Card>
-        </div>
-      </>
+      <FlowWrapper>
+        <Card className="p-6">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto mb-4" />
+            <p className="text-muted-foreground">Preparing your recording...</p>
+          </div>
+        </Card>
+      </FlowWrapper>
     );
   }
 
   if (state === "recording_ready" || state === "recording") {
     const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
     return (
-      <>
+      <FlowWrapper>
         <div className="space-y-4">
           {promptText && (
             <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
@@ -229,7 +220,7 @@ export default function SessionCard() {
             <FlowBackLink onClick={() => goBackToCommandSelect()} />
           </div>
         </div>
-      </>
+      </FlowWrapper>
     );
   }
 
@@ -245,7 +236,7 @@ export default function SessionCard() {
 
     if (tooShort) {
       return (
-        <>
+        <FlowWrapper>
           <div className="space-y-4">
             {promptText && (
               <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
@@ -302,12 +293,12 @@ export default function SessionCard() {
               </div>
             </Card>
           </div>
-        </>
+        </FlowWrapper>
       );
     }
 
     return (
-      <>
+      <FlowWrapper>
         <div className="space-y-4">
           <Card className="p-6">
             <div className="text-center space-y-4">
@@ -374,13 +365,14 @@ export default function SessionCard() {
             </div>
           </Card>
         </div>
-      </>
+      </FlowWrapper>
     );
   }
 
   if (state === "uploading_processing") {
     return (
-      <Card className="p-6">
+      <FlowWrapper>
+        <Card className="p-6">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
           <h3 className="text-lg font-semibold">Uploading Recording</h3>
@@ -400,25 +392,27 @@ export default function SessionCard() {
           )}
         </div>
       </Card>
+      </FlowWrapper>
     );
   }
 
   if (state === "post_questions") {
     return (
-      <>
+      <FlowWrapper>
         <div className="space-y-4">
           <PostQuestionsFormV2
             questions={postQuestions}
             submittedAnswers={postAnswersSubmitted ? postAnswers : undefined}
           />
         </div>
-      </>
+      </FlowWrapper>
     );
   }
 
   if (state === "finalizing") {
     return (
-      <Card className="p-6">
+      <FlowWrapper>
+        <Card className="p-6">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
           <h3 className="text-lg font-semibold">Finalizing Session</h3>
@@ -427,16 +421,17 @@ export default function SessionCard() {
           </p>
         </div>
       </Card>
+      </FlowWrapper>
     );
   }
 
   if (state === "completed" && completedRecording) {
     return (
-      <>
+      <FlowWrapper>
         <div className="space-y-4">
           <CompletedCard recording={completedRecording} />
         </div>
-      </>
+      </FlowWrapper>
     );
   }
 

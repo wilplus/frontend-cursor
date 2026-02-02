@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
+import { ProgressPillBar } from "@/components/ui/progress-pill-bar";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -133,35 +134,20 @@ export default function PreQuestionsForm({
         </div>
       )}
 
-      {/* Progress pills: completed = dark grey, current = grey, future = white + grey stroke */}
-      <div className="flex gap-1.5 sm:gap-2 mb-4" role="progressbar" aria-valuenow={currentIndex + 1} aria-valuemin={1} aria-valuemax={total} aria-label={`Question ${currentIndex + 1} of ${total}`}>
-        {sorted.map((_, i) => {
-          const completed = i < currentIndex;
-          const current = i === currentIndex;
-          const future = i > currentIndex;
-          return (
-            <div
-              key={i}
-              className={`h-2.5 sm:h-3 flex-1 rounded-full transition-all duration-300 ${
-                completed
-                  ? "bg-neutral-700 dark:bg-neutral-600"
-                  : current
-                    ? "bg-neutral-400 dark:bg-neutral-500"
-                    : "bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600"
-              }`}
-            />
-          );
-        })}
-      </div>
+      <ProgressPillBar
+        total={total}
+        currentIndex={currentIndex}
+        aria-label={`Question ${currentIndex + 1} of ${total}`}
+      />
 
-      <p className="text-sm text-muted-foreground mb-4">
+      <p className="text-muted-foreground text-sm text-center mb-4">
         Question {currentIndex + 1} of {total}
       </p>
 
       <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
-        <div className="min-h-[180px] sm:min-h-[200px]">
+        <div className="min-h-[200px] flex flex-col justify-center">
           {question && (
-            <div key={question.id} className="animate-question-in">
+            <div key={question.id} className="animate-fade-in">
               <PreQuestionField
                 question={question}
                 value={submittedAnswers[question.id] ?? preAnswers[question.id] ?? ""}
@@ -176,11 +162,16 @@ export default function PreQuestionsForm({
 
         {!isReadOnly && (
           <div className="space-y-3">
+            {canAdvance && (
+              <p className="animate-fade-in text-muted-foreground text-sm text-center mt-3">
+                Press <span className="font-medium">Enter ↵</span> or click to continue
+              </p>
+            )}
             <Button
               type="button"
               onClick={goNext}
               disabled={loading || !canAdvance}
-              className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
+              className="w-full rounded-xl bg-primary py-6 text-base font-semibold text-white hover:opacity-90"
             >
               {isLast ? (loading ? "Submitting..." : "Continue") : "Next"}
             </Button>
@@ -221,7 +212,7 @@ function PreQuestionField({
   if (type === "scale_1_5") {
     return (
       <div>
-        <label className="block text-base font-semibold text-foreground mb-3">
+        <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
           {question.question_text}
         </label>
         <div className="flex gap-2 flex-wrap">
@@ -251,7 +242,7 @@ function PreQuestionField({
   if (type === "binary_yes_no") {
     return (
       <div>
-        <label className="block text-base font-semibold text-foreground mb-3">
+        <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
           {question.question_text}
         </label>
         <div className="flex gap-4">
@@ -281,7 +272,7 @@ function PreQuestionField({
   if (type === "binary_choice") {
     return (
       <div>
-        <label className="block text-base font-semibold text-foreground mb-3">
+        <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
           {question.question_text}
         </label>
         <div className="flex gap-4">
@@ -311,7 +302,7 @@ function PreQuestionField({
   // text_short (default)
   return (
     <div>
-      <label className="block text-base font-semibold text-foreground mb-3">
+      <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
         {question.question_text}
       </label>
       <Input
@@ -320,7 +311,8 @@ function PreQuestionField({
         onChange={(e) => onValueChange(e.target.value)}
         placeholder="Type your answer..."
         disabled={loading}
-        className="rounded-lg border-2 border-input focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+        autoFocus
+        className="w-full px-4 py-4 bg-card border border-input rounded-xl text-foreground text-lg text-center focus:outline-none focus:ring-2 focus:ring-ring"
       />
     </div>
   );

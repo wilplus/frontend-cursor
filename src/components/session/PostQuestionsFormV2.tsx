@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
+import { ProgressPillBar } from "@/components/ui/progress-pill-bar";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -154,44 +155,23 @@ export default function PostQuestionsFormV2({
         </div>
       )}
 
-      {/* Progress pills */}
-      <div
-        className="flex gap-1.5 sm:gap-2 mb-4"
-        role="progressbar"
-        aria-valuenow={currentIndex + 1}
-        aria-valuemin={1}
-        aria-valuemax={total}
-        aria-label={`Question ${currentIndex + 1} of ${total}`}
-      >
-        {sorted.map((_, i) => {
-          const completed = i < currentIndex;
-          const current = i === currentIndex;
-          return (
-            <div
-              key={i}
-              className={`h-2.5 sm:h-3 flex-1 rounded-full transition-all duration-300 ${
-                completed
-                  ? "bg-neutral-700 dark:bg-neutral-600"
-                  : current
-                    ? "bg-neutral-400 dark:bg-neutral-500"
-                    : "bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600"
-              }`}
-            />
-          );
-        })}
-      </div>
+      <ProgressPillBar
+        total={total}
+        currentIndex={currentIndex}
+        aria-label={`Reflection ${currentIndex + 1} of ${total}`}
+      />
 
-      <p className="text-sm text-muted-foreground mb-4">
-        Question {currentIndex + 1} of {total}
+      <p className="text-muted-foreground text-sm text-center mb-4">
+        Reflection {currentIndex + 1} of {total}
       </p>
 
       <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
-        <div className="min-h-[180px] sm:min-h-[200px]">
+        <div className="min-h-[250px] flex flex-col justify-center">
           {question && (
-            <div key={question.id} className="animate-question-in">
+            <div key={question.id} className="animate-fade-in">
               {question.question_type === "scale" && (
                 <div>
-                  <label className="block text-base font-semibold text-foreground mb-3">
+                  <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
                     {question.question_text}
                   </label>
                   {isReadOnly ? (
@@ -229,7 +209,7 @@ export default function PostQuestionsFormV2({
 
               {question.question_type === "binary" && (
                 <div>
-                  <label className="block text-base font-semibold text-foreground mb-3">
+                  <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
                     {question.question_text}
                   </label>
                   {isReadOnly ? (
@@ -269,7 +249,7 @@ export default function PostQuestionsFormV2({
 
               {question.question_type === "free_text" && (
                 <div>
-                  <label className="block text-base font-semibold text-foreground mb-3">
+                  <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
                     {question.question_text}
                     {isOptional && (
                       <span className="ml-2 text-sm font-normal text-muted-foreground">(optional)</span>
@@ -286,7 +266,8 @@ export default function PostQuestionsFormV2({
                       onChange={(e) => updatePostAnswer(question.id, e.target.value)}
                       placeholder="Write anything you want (optional)..."
                       disabled={loading}
-                      className="min-h-[100px] rounded-lg border-2 border-input focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                      autoFocus
+                      className="w-full min-h-[100px] px-4 py-4 bg-card border border-input rounded-xl text-foreground text-lg text-center focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   )}
                 </div>
@@ -297,13 +278,18 @@ export default function PostQuestionsFormV2({
 
         {!isReadOnly && (
           <div className="space-y-3">
+            {canAdvance && (
+              <p className="animate-fade-in text-muted-foreground text-sm text-center mt-3">
+                Press <span className="font-medium">Enter ↵</span> or click to continue
+              </p>
+            )}
             <Button
               type="button"
               onClick={goNext}
               disabled={loading || !canAdvance}
-              className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
+              className="w-full rounded-xl bg-primary py-6 text-base font-semibold text-white hover:opacity-90"
             >
-              {isLast ? (loading ? "Submitting..." : "Submit Reflection") : "Next"}
+              {isLast ? (loading ? "Submitting..." : "Complete Quest") : "Next"}
             </Button>
             <FlowBackLink onClick={goBack}>back</FlowBackLink>
           </div>
