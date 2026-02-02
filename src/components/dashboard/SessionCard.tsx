@@ -152,11 +152,6 @@ export default function SessionCard() {
         currentIndex={flowStepIndex}
         aria-label={`Step ${flowStepIndex + 1} of ${FLOW_STEPS}`}
       />
-      <p className="text-muted-foreground text-sm text-center mb-4">
-        {flowStepIndex === 0 && "Pre questions"}
-        {flowStepIndex === 1 && "Command & recording"}
-        {flowStepIndex === 2 && "Post questions"}
-      </p>
       {children}
     </div>
   );

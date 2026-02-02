@@ -110,6 +110,20 @@ export default function PostQuestionsFormV2({
     [canAdvance, goNext]
   );
 
+  // Enter from anywhere (e.g. after clicking a choice) advances or submits
+  useEffect(() => {
+    if (isReadOnly || !questions?.length) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || !canAdvance || loading) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      e.preventDefault();
+      goNext();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [canAdvance, goNext, isReadOnly, loading, questions?.length]);
+
   const handleScaleClick = (questionId: string, value: number) => {
     updatePostAnswer(questionId, value.toString());
   };
@@ -117,6 +131,17 @@ export default function PostQuestionsFormV2({
   const handleBinaryClick = (questionId: string, value: "YES" | "NO") => {
     updatePostAnswer(questionId, value);
   };
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <div className="flex flex-col items-center justify-center gap-3 py-12" aria-label="Submitting">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Submitting…</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (!questions || questions.length === 0) {
     return (
@@ -143,10 +168,7 @@ export default function PostQuestionsFormV2({
   return (
     <Card className="p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-1">Take a moment to reflect</h3>
-        <p className="text-sm text-muted-foreground">
-          Answer these questions about your solo speaking experience
-        </p>
+        <h3 className="text-lg font-semibold">Take a moment to reflect</h3>
       </div>
 
       {error && (
