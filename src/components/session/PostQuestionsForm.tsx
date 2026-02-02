@@ -58,11 +58,11 @@ export default function PostQuestionsForm({
     e.preventDefault();
 
     const allAnswered = questions.every(
-      (q) => (postAnswers[q.id] || "").trim().length >= 10
+      (q) => (postAnswers[q.id] ?? "").trim().length > 0
     );
 
     if (!allAnswered) {
-      toast.error("All answers must be at least 10 characters");
+      toast.error("Please answer the questions before continuing.");
       return;
     }
 
@@ -95,8 +95,7 @@ export default function PostQuestionsForm({
     <Card className="p-6">
       <h3 className="text-lg font-semibold mb-4">Post-Recording Questions</h3>
       <p className="text-sm text-muted-foreground mb-6">
-        Please answer these questions after recording (minimum 10 characters
-        each).
+        Please answer these questions after recording.
       </p>
 
       {error && (
@@ -109,7 +108,6 @@ export default function PostQuestionsForm({
         {questions.map((question) => {
           const answer =
             submittedAnswers[question.id] || postAnswers[question.id] || "";
-          const isInvalid = !isReadOnly && answer.length > 0 && answer.length < 10;
 
           return (
             <div key={question.id}>
@@ -126,28 +124,15 @@ export default function PostQuestionsForm({
                   {answer || "(No answer provided)"}
                 </div>
               ) : (
-                <>
-                  <Input
-                    value={answer}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      updatePostAnswer(question.id, value);
-                    }}
-                    placeholder="Type your answer here..."
-                    disabled={loading}
-                    className={isInvalid ? "border-destructive" : ""}
-                  />
-                  {isInvalid && (
-                    <p className="text-xs text-destructive mt-1">
-                      Answer must be at least 10 characters
-                    </p>
-                  )}
-                  {answer.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {answer.length} characters
-                    </p>
-                  )}
-                </>
+                <Input
+                  value={answer}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updatePostAnswer(question.id, value);
+                  }}
+                  placeholder="Type your answer here..."
+                  disabled={loading}
+                />
               )}
             </div>
           );

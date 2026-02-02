@@ -212,8 +212,7 @@ function PreQuestionField({
     );
   }
 
-  // text_short (default)
-  const isInvalid = value.length > 0 && value.length < 10;
+  // text_short (default) — any length allowed
   return (
     <div>
       <label className="block text-sm font-medium mb-2">{question.question_text}</label>
@@ -222,11 +221,7 @@ function PreQuestionField({
         onChange={(e) => onValueChange(e.target.value)}
         placeholder="Type your answer..."
         disabled={loading}
-        className={isInvalid ? "border-destructive" : ""}
       />
-      {isInvalid && (
-        <p className="text-xs text-destructive mt-1">At least 10 characters for short text.</p>
-      )}
     </div>
   );
 }

@@ -417,15 +417,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       answer_text: (preAnswers[q.id] ?? "").trim(),
     }));
 
-    // Require non-empty for all; text_short can require min length
     const hasEmpty = answers.some((a) => !a.answer_text);
     if (hasEmpty) {
       set({ error: "Please answer the question before continuing." });
-      return;
-    }
-    const q0 = preQuestions[0];
-    if (q0 && "question_type" in q0 && q0.question_type === "text_short" && answers[0].answer_text.length < 10) {
-      set({ error: "Short text answers must be at least 10 characters." });
       return;
     }
 
