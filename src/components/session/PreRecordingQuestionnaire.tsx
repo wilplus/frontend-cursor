@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Card } from "@/components/ui/card";
@@ -29,7 +30,13 @@ const THEME_CODES: ThemeCode[] = [
 ];
 
 export default function PreRecordingQuestionnaire() {
+  const router = useRouter();
   const { submitQuestionnaire, abandonCurrentSession, loading } = useSessionStore();
+
+  const handleBackToDashboard = () => {
+    abandonCurrentSession();
+    router.push("/dashboard");
+  };
   const [mood, setMood] = useState<"positive" | "negative" | null>(null);
   const [readiness, setReadiness] = useState<number | null>(null);
   const [inspirationNeeded, setInspirationNeeded] = useState<boolean | null>(null);
@@ -202,7 +209,7 @@ export default function PreRecordingQuestionnaire() {
             >
               {loading ? "Starting session..." : "Continue"}
             </Button>
-            <FlowBackLink onClick={() => abandonCurrentSession()} />
+            <FlowBackLink onClick={handleBackToDashboard} />
           </div>
         </form>
       </div>
