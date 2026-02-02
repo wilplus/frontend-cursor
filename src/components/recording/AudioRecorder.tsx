@@ -383,11 +383,11 @@ export default function AudioRecorder({
         </p>
       </div>
 
-      <div className="flex flex-col items-center gap-3">
+      <div className="space-y-3">
         {!isRecording ? (
           <Button
             onClick={startRecording}
-            className="w-full max-w-sm rounded-full py-6 text-base font-semibold"
+            className="w-full rounded-full py-6 text-base font-semibold"
           >
             <Mic className="mr-2 h-5 w-5" aria-hidden />
             Start Recording
@@ -395,32 +395,40 @@ export default function AudioRecorder({
         ) : (
           <Button
             onClick={stopRecording}
-            className="w-full max-w-sm rounded-full bg-red-500 py-6 text-base font-semibold hover:bg-red-600"
+            className="w-full rounded-full bg-red-500 py-6 text-base font-semibold hover:bg-red-600"
           >
             <Square className="mr-2 h-5 w-5 fill-current" aria-hidden />
             Stop Recording
           </Button>
         )}
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-2 lowercase transition-colors"
-          >
-            back
-          </button>
+        {onCancel && !isRecording && (
+          <div className="flex justify-center">
+            <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+              Cancel
+            </Button>
+          </div>
         )}
-        {!isRecording && onCancel && (
-          <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        {onBack && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+            >
+              back
+            </button>
+          </div>
         )}
         {isRecording && onStartAgain && (
-          <button
-            type="button"
-            onClick={handleStartAgain}
-            className="text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-2 lowercase transition-colors"
-          >
-            start again
-          </button>
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={handleStartAgain}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+            >
+              start again
+            </button>
+          </div>
         )}
       </div>
     </Card>
