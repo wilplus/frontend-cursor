@@ -121,7 +121,7 @@ function TooltipPopover({
         </span>
         <Link
           href={`/recordings/${point.id}`}
-          className="mt-1 font-medium text-orange-500 hover:underline"
+          className="mt-1 font-medium text-primary hover:underline"
         >
           Go to recording →
         </Link>
@@ -218,7 +218,7 @@ export default function KPILineChart() {
     return (
       <Card className="p-6">
         <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-orange-500" aria-hidden />
+          <TrendingUp className="h-5 w-5 text-primary" aria-hidden />
           <h3 className="text-lg font-semibold">Performance Trend</h3>
         </div>
         <div
@@ -226,7 +226,7 @@ export default function KPILineChart() {
           style={{ height: 280 }}
           aria-label="Loading chart"
         >
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-sm text-muted-foreground">Loading performance trend…</p>
         </div>
       </Card>
@@ -237,7 +237,7 @@ export default function KPILineChart() {
     return (
       <Card className="p-6">
         <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-orange-500" aria-hidden />
+          <TrendingUp className="h-5 w-5 text-primary" aria-hidden />
           <h3 className="text-lg font-semibold">Performance Trend</h3>
         </div>
         <div
@@ -254,7 +254,7 @@ export default function KPILineChart() {
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center gap-2">
-        <TrendingUp className="h-5 w-5 text-orange-500" aria-hidden />
+        <TrendingUp className="h-5 w-5 text-primary" aria-hidden />
         <h3 className="text-lg font-semibold">Performance Trend</h3>
       </div>
       <div className="relative" style={{ height: 280 }}>

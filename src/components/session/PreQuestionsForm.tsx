@@ -109,6 +109,20 @@ export default function PreQuestionsForm({
     [canAdvance, goNext]
   );
 
+  // Enter from anywhere (e.g. after clicking a choice) advances to next question
+  useEffect(() => {
+    if (isReadOnly || !questions?.length) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || !canAdvance || loading) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      e.preventDefault();
+      goNext();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [canAdvance, goNext, isReadOnly, loading, questions?.length]);
+
   if (!questions || questions.length === 0) {
     return (
       <Card className="p-6">
@@ -224,13 +238,13 @@ function PreQuestionField({
                 type="button"
                 onClick={() => onValueChange(String(n))}
                 disabled={loading}
-                className={`min-w-[2.5rem] py-3 px-4 rounded-lg border-2 transition-all ${
+                className={`min-w-[2.5rem] py-3 px-3 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                    : "border-border hover:border-orange-500/50"
+                    ? "border-primary shadow-md ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
-                <span className={selected ? "font-semibold text-orange-600 dark:text-orange-400" : ""}>{n}</span>
+                <span className={selected ? "font-semibold text-primary" : ""}>{n}</span>
               </button>
             );
           })}
@@ -245,7 +259,7 @@ function PreQuestionField({
         <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
           {question.question_text}
         </label>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           {(["Yes", "No"] as const).map((opt) => {
             const selected = value === opt;
             return (
@@ -254,13 +268,13 @@ function PreQuestionField({
                 type="button"
                 onClick={() => onValueChange(opt)}
                 disabled={loading}
-                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                    : "border-border hover:border-orange-500/50"
+                    ? "border-primary shadow-md ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
-                <p className={`text-sm font-medium ${selected ? "text-orange-600 dark:text-orange-400" : ""}`}>{opt}</p>
+                <p className={`text-sm font-medium truncate ${selected ? "text-primary" : ""}`}>{opt}</p>
               </button>
             );
           })}
@@ -275,7 +289,7 @@ function PreQuestionField({
         <label className="block text-lg sm:text-xl font-bold text-foreground mb-4 text-center">
           {question.question_text}
         </label>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           {(["Personal", "Neutral"] as const).map((opt) => {
             const selected = value === opt;
             return (
@@ -284,13 +298,13 @@ function PreQuestionField({
                 type="button"
                 onClick={() => onValueChange(opt)}
                 disabled={loading}
-                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                   selected
-                    ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                    : "border-border hover:border-orange-500/50"
+                    ? "border-primary shadow-md ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
-                <p className={`text-sm font-medium ${selected ? "text-orange-600 dark:text-orange-400" : ""}`}>{opt}</p>
+                <p className={`text-sm font-medium truncate ${selected ? "text-primary" : ""}`}>{opt}</p>
               </button>
             );
           })}

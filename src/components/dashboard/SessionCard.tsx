@@ -5,7 +5,7 @@ import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
-import { ProgressPillBar } from "@/components/ui/progress-pill-bar";
+import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import PreRecordingQuestionnaire from "@/components/session/PreRecordingQuestionnaire";
@@ -147,7 +147,7 @@ export default function SessionCard() {
   const flowStepIndex = getFlowStepIndex(state);
   const FlowWrapper = ({ children }: { children: React.ReactNode }) => (
     <div className="space-y-4">
-      <ProgressPillBar
+      <ProgressStepBullets
         total={FLOW_STEPS}
         currentIndex={flowStepIndex}
         aria-label={`Step ${flowStepIndex + 1} of ${FLOW_STEPS}`}
@@ -197,7 +197,7 @@ export default function SessionCard() {
       <FlowWrapper>
         <div className="space-y-4">
           {promptText && (
-            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
               <p className="text-sm font-medium text-muted-foreground mb-1">Your Command:</p>
               <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
                 &ldquo;{promptText}&rdquo;
@@ -207,18 +207,8 @@ export default function SessionCard() {
           <AudioRecorder
             onRecordingComplete={handleRecordingComplete}
             onRecordingStart={state === "recording_ready" ? () => setRecordingStart(Date.now()) : undefined}
-            onStartAgain={() => setRecordingReady()}
+            stopAndSend
           />
-          <div className="space-y-3">
-            <Button
-              disabled
-              className="w-full max-w-md mx-auto rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 dark:bg-orange-900/50 dark:text-orange-100"
-              aria-disabled
-            >
-              Send Recording
-            </Button>
-            <FlowBackLink onClick={() => goBackToCommandSelect()} />
-          </div>
         </div>
       </FlowWrapper>
     );
@@ -239,7 +229,7 @@ export default function SessionCard() {
         <FlowWrapper>
           <div className="space-y-4">
             {promptText && (
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
                 <p className="text-sm font-medium text-muted-foreground mb-1">Your Command:</p>
                 <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
                   &ldquo;{promptText}&rdquo;
@@ -255,7 +245,7 @@ export default function SessionCard() {
               <div className="space-y-2">
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-orange-500 transition-all duration-300"
+                    className="h-full rounded-full bg-primary transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -275,7 +265,7 @@ export default function SessionCard() {
                   <Button
                     type="button"
                     onClick={() => setRecordingReady()}
-                    className="rounded-lg bg-orange-500 hover:bg-orange-600"
+                    className="rounded-lg bg-primary hover:bg-primary/90"
                   >
                     <Play className="mr-2 h-4 w-4" aria-hidden />
                     Resume
@@ -284,7 +274,7 @@ export default function SessionCard() {
                     type="button"
                     variant="outline"
                     onClick={async () => abandonCurrentSession()}
-                    className="rounded-lg border-orange-200 bg-background hover:bg-muted dark:border-orange-800"
+                    className="rounded-lg border-primary/30 bg-background hover:bg-muted"
                   >
                     <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
                     Start Over
@@ -302,66 +292,57 @@ export default function SessionCard() {
         <div className="space-y-4">
           <Card className="p-6">
             <div className="text-center space-y-4">
-              <h3 className="text-lg font-semibold">Recording Complete</h3>
-              <p className="text-sm text-muted-foreground">
-                Click below to submit your recording.
-              </p>
-              {error && (
-                <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md text-left">
-                  <p className="font-medium">Error:</p>
-                  <p className="text-xs mt-1 break-words">{error}</p>
-                  {error.includes("502") || error.includes("not responding") ? (
-                    <div className="mt-2 text-xs">
-                      <p className="font-medium">Backend Connection Issue:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Is your Flask backend running?</li>
-                        <li>Is NEXT_PUBLIC_API_URL set correctly in your .env file?</li>
-                        <li>Can you reach the backend URL directly in your browser?</li>
-                        <li>Check your backend logs for errors</li>
-                      </ul>
-                    </div>
-                  ) : error.includes("500") ? (
-                    <div className="mt-2 text-xs">
-                      <p>This is a backend error. Common causes:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Missing column in recordings table</li>
-                        <li>Database constraint violation</li>
-                        <li>File size too large</li>
-                      </ul>
-                      <p className="mt-2">Check your Flask backend logs for the exact error.</p>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-              <div className="space-y-3">
-                <Button
-                  onClick={async () => {
-                    const store = useSessionStore.getState();
-                    if (store.audioBlob && store.durationSeconds !== null) {
+              {error ? (
+                <>
+                  <h3 className="text-lg font-semibold">Upload failed</h3>
+                  <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md text-left">
+                    <p className="font-medium">Error:</p>
+                    <p className="text-xs mt-1 break-words">{error}</p>
+                    {error.includes("502") || error.includes("not responding") ? (
+                      <div className="mt-2 text-xs">
+                        <p className="font-medium">Backend Connection Issue:</p>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          <li>Is your Flask backend running?</li>
+                          <li>Is NEXT_PUBLIC_API_URL set correctly in your .env file?</li>
+                          <li>Can you reach the backend URL directly in your browser?</li>
+                          <li>Check your backend logs for errors</li>
+                        </ul>
+                      </div>
+                    ) : error.includes("500") ? (
+                      <div className="mt-2 text-xs">
+                        <p>This is a backend error. Common causes:</p>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          <li>Missing column in recordings table</li>
+                          <li>Database constraint violation</li>
+                          <li>File size too large</li>
+                        </ul>
+                        <p className="mt-2">Check your Flask backend logs for the exact error.</p>
+                      </div>
+                    ) : null}
+                  </div>
+                  <Button
+                    onClick={() => {
                       const controller = new AbortController();
                       abortControllerRef.current = controller;
-                      try {
-                        await uploadRecordingBlob(controller);
-                      } catch (err) {
-                        if (err instanceof Error && err.name === "AbortError") {
-                          toast.info("Upload cancelled");
-                        } else {
-                          const errorMsg = err instanceof Error ? err.message : "Upload failed";
-                          toast.error(errorMsg);
-                          console.error("Upload error details:", err);
-                        }
-                      } finally {
+                      uploadRecordingBlob(controller).finally(() => {
                         abortControllerRef.current = null;
-                      }
-                    }
-                  }}
-                  disabled={loading}
-                  className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
-                >
-                  {loading ? "Sending..." : "Send Recording"}
-                </Button>
-                <FlowBackLink onClick={() => setRecordingReady()} />
-              </div>
+                      });
+                    }}
+                    disabled={loading}
+                    className="rounded-lg bg-primary text-white hover:bg-primary/90"
+                  >
+                    {loading ? "Sending…" : "Retry send"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold">Sending recording</h3>
+                  <div className="flex flex-col items-center justify-center gap-3 py-8" aria-label="Sending">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <p className="text-sm text-muted-foreground">Please wait…</p>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
         </div>
@@ -374,7 +355,7 @@ export default function SessionCard() {
       <FlowWrapper>
         <Card className="p-6">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent mx-auto" />
           <h3 className="text-lg font-semibold">Uploading Recording</h3>
           <p className="text-sm text-muted-foreground">
             Please wait while we process your recording...
@@ -414,7 +395,7 @@ export default function SessionCard() {
       <FlowWrapper>
         <Card className="p-6">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent mx-auto" />
           <h3 className="text-lg font-semibold">Finalizing Session</h3>
           <p className="text-sm text-muted-foreground">
             Processing your answers...

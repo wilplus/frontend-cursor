@@ -45,6 +45,8 @@ interface AudioRecorderProps {
   onBack?: () => void;
   onStartAgain?: () => void;
   onCancel?: () => void;
+  /** When true: single "Stop & Send" orange button, no back/start again links, timer orange */
+  stopAndSend?: boolean;
 }
 
 export default function AudioRecorder({
@@ -53,6 +55,7 @@ export default function AudioRecorder({
   onBack,
   onStartAgain,
   onCancel,
+  stopAndSend = false,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -472,7 +475,7 @@ export default function AudioRecorder({
     <Card className="p-6 space-y-4">
       <div className="text-center">
         <div
-          className={`text-4xl font-mono font-bold ${isRecording ? "text-red-600 dark:text-red-400" : "text-foreground"}`}
+          className={`text-4xl font-mono font-bold ${isRecording ? "text-primary" : "text-foreground"}`}
         >
           {formatTime(elapsedSeconds)}
         </div>
@@ -481,7 +484,7 @@ export default function AudioRecorder({
       <div className="space-y-2">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-orange-500 transition-all duration-300"
+            className="h-full rounded-full bg-primary transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -510,10 +513,10 @@ export default function AudioRecorder({
             </Button>
             <Button
               onClick={stopRecording}
-              className="flex-1 rounded-full bg-red-500 py-5 text-base font-semibold hover:bg-red-600"
+              className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
-              Stop
+              {stopAndSend ? "Stop & Send" : "Stop"}
             </Button>
           </div>
         ) : (
@@ -528,22 +531,22 @@ export default function AudioRecorder({
             </Button>
             <Button
               onClick={stopRecording}
-              className="flex-1 rounded-full bg-red-500 py-5 text-base font-semibold hover:bg-red-600"
+              className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
-              Stop
+              {stopAndSend ? "Stop & Send" : "Stop"}
             </Button>
           </div>
         )}
-        {onCancel && !isRecording && (
+        {!stopAndSend && onCancel && !isRecording && (
           <div className="flex justify-center">
             <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
               Cancel
             </Button>
           </div>
         )}
-        {onBack && <FlowBackLink onClick={onBack} />}
-        {isRecording && onStartAgain && (
+        {!stopAndSend && onBack && <FlowBackLink onClick={onBack} />}
+        {!stopAndSend && isRecording && onStartAgain && (
           <FlowBackLink onClick={handleStartAgain}>start again</FlowBackLink>
         )}
       </div>

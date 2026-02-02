@@ -191,8 +191,8 @@ export default function PostQuestionsFormV2({
                               onClick={() => handleScaleClick(question.id, num)}
                               className={`flex-1 aspect-square min-w-[2.5rem] rounded-lg border-2 transition-all ${
                                 isSelected
-                                  ? "border-orange-500 scale-110 ring-2 ring-orange-500/30"
-                                  : "border-border hover:border-orange-500/50"
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-border hover:border-primary/50"
                               }`}
                               disabled={loading}
                             >
@@ -217,30 +217,30 @@ export default function PostQuestionsFormV2({
                       {submittedAnswers[question.id] || postAnswers[question.id] || "(No answer)"}
                     </div>
                   ) : (
-                    <div className="flex gap-4">
+                    <div className="flex gap-3">
                       <button
                         type="button"
                         onClick={() => handleBinaryClick(question.id, "YES")}
-                        className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                        className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                           postAnswers[question.id] === "YES"
-                            ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                            : "border-border hover:border-orange-500/50"
+                            ? "border-primary shadow-md ring-2 ring-primary/30"
+                            : "border-border hover:border-primary/50"
                         }`}
                         disabled={loading}
                       >
-                        <span className="text-lg font-medium">YES</span>
+                        <span className="text-sm font-medium truncate">YES</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleBinaryClick(question.id, "NO")}
-                        className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                        className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                           postAnswers[question.id] === "NO"
-                            ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                            : "border-border hover:border-orange-500/50"
+                            ? "border-primary shadow-md ring-2 ring-primary/30"
+                            : "border-border hover:border-primary/50"
                         }`}
                         disabled={loading}
                       >
-                        <span className="text-lg font-medium">NO</span>
+                        <span className="text-sm font-medium truncate">NO</span>
                       </button>
                     </div>
                   )}

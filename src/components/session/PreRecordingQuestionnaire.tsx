@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
@@ -101,6 +101,30 @@ export default function PreRecordingQuestionnaire() {
     [canAdvance, goNext]
   );
 
+  // Enter key from anywhere (e.g. after clicking a choice) advances to next step
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || !canAdvance || loading) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      e.preventDefault();
+      goNext();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [canAdvance, loading, goNext]);
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <div className="flex flex-col items-center justify-center gap-3 py-12" aria-label="Starting session">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Starting session…</p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6">
       <div className="space-y-6">
@@ -124,36 +148,32 @@ export default function PreRecordingQuestionnaire() {
                 <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
                   Do you feel more like:
                 </label>
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setMood("positive")}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                       mood === "positive"
-                        ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                        : "border-border hover:border-orange-500/50"
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className={`text-4xl block ${mood === "positive" ? "scale-125" : ""} transition-transform`}>
-                      🙂
-                    </span>
-                    <p className={`text-sm mt-2 font-medium ${mood === "positive" ? "text-orange-600 dark:text-orange-400" : ""}`}>
+                    <span className="text-2xl block">🙂</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${mood === "positive" ? "text-primary" : ""}`}>
                       Good
                     </p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setMood("negative")}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                       mood === "negative"
-                        ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                        : "border-border hover:border-orange-500/50"
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className={`text-4xl block ${mood === "negative" ? "scale-125" : ""} transition-transform`}>
-                      🙁
-                    </span>
-                    <p className={`text-sm mt-2 font-medium ${mood === "negative" ? "text-orange-600 dark:text-orange-400" : ""}`}>
+                    <span className="text-2xl block">🙁</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${mood === "negative" ? "text-primary" : ""}`}>
                       Not great
                     </p>
                   </button>
@@ -177,10 +197,10 @@ export default function PreRecordingQuestionnaire() {
                         onClick={() => setReadiness(num)}
                         className={`flex-1 aspect-square min-w-[2rem] rounded-lg border-2 transition-all ${
                           readiness === num
-                            ? "border-orange-500 scale-110 ring-2 ring-orange-500/30"
+                            ? "border-primary ring-2 ring-primary/30"
                             : readiness !== null && readiness > num
-                              ? "border-orange-500/50"
-                              : "border-border hover:border-orange-500/50"
+                              ? "border-primary/50"
+                              : "border-border hover:border-primary/50"
                         }`}
                       >
                         {num}
@@ -224,36 +244,32 @@ export default function PreRecordingQuestionnaire() {
                 <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
                   Do you want to be guided?
                 </label>
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setInspirationNeeded(true)}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                       inspirationNeeded === true
-                        ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                        : "border-border hover:border-orange-500/50"
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className={`text-4xl block ${inspirationNeeded === true ? "scale-125" : ""} transition-transform`}>
-                      📋
-                    </span>
-                    <p className={`text-sm mt-2 font-medium ${inspirationNeeded === true ? "text-orange-600 dark:text-orange-400" : ""}`}>
+                    <span className="text-2xl block">📋</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${inspirationNeeded === true ? "text-primary" : ""}`}>
                       YES – guide me
                     </p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setInspirationNeeded(false)}
-                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
                       inspirationNeeded === false
-                        ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                        : "border-border hover:border-orange-500/50"
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className={`text-4xl block ${inspirationNeeded === false ? "scale-125" : ""} transition-transform`}>
-                      🎯
-                    </span>
-                    <p className={`text-sm mt-2 font-medium ${inspirationNeeded === false ? "text-orange-600 dark:text-orange-400" : ""}`}>
+                    <span className="text-2xl block">🎯</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${inspirationNeeded === false ? "text-primary" : ""}`}>
                       NO – I'll choose
                     </p>
                   </button>
