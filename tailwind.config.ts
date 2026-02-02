@@ -9,6 +9,18 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      minHeight: {
+        "question-box": "min(180px, 40vw)",
+      },
+      keyframes: {
+        "question-fade-in": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "question-in": "question-fade-in 0.25s ease-out forwards",
+      },
       colors: {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

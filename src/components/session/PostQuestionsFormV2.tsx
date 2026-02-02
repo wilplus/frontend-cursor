@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
@@ -20,58 +20,94 @@ export default function PostQuestionsFormV2({
 }: PostQuestionsFormV2Props) {
   const { postAnswers, updatePostAnswer, submitPostAnswers, abandonCurrentSession, loading, error } =
     useSessionStore();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   const isReadOnly = Object.keys(submittedAnswers).length > 0;
+  const sorted = (questions ?? []).slice().sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const total = sorted.length;
+  const question = total > 0 ? sorted[currentIndex] : null;
+  const isFirst = currentIndex === 0;
+  const isLast = currentIndex === total - 1;
+  const currentAnswer = question ? (postAnswers[question.id] ?? "").trim() : "";
+  const isOptional = question?.order_index === 2;
+  const canAdvance = isOptional || currentAnswer.length > 0;
 
-  // Hydrate from backend truth first, then localStorage drafts
   useEffect(() => {
-    if (isReadOnly) {
-      return;
-    }
-
+    if (isReadOnly) return;
     const store = useSessionStore.getState();
-    if (store.recordingId && Object.keys(postAnswers).length === 0) {
-      const drafts = localStorage.getItem(
-        `willab:draft:post_answers:${store.recordingId}`
-      );
-      if (drafts) {
-        try {
-          const parsed = JSON.parse(drafts);
-          Object.entries(parsed).forEach(([qId, answer]) => {
-            if (!submittedAnswers[qId] && typeof answer === "string" && !postAnswers[qId]) {
-              updatePostAnswer(qId, answer);
-            }
-          });
-        } catch {
-          // Ignore parse errors
+    if (!store.recordingId || Object.keys(postAnswers).length > 0) return;
+    const drafts = localStorage.getItem(`willab:draft:post_answers:${store.recordingId}`);
+    if (!drafts) return;
+    try {
+      const parsed = JSON.parse(drafts) as Record<string, string>;
+      Object.entries(parsed).forEach(([qId, answer]) => {
+        if (!submittedAnswers[qId] && typeof answer === "string" && !postAnswers[qId]) {
+          updatePostAnswer(qId, answer);
         }
-      }
+      });
+    } catch {
+      // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (isReadOnly || !question) return;
+    if (question.question_type === "free_text") {
+      inputRef.current?.focus();
+    }
+  }, [currentIndex, question?.id, isReadOnly, question?.question_type]);
 
-    // Validate: Q1 and Q2 must be answered (scale/binary), Q3 is optional
-    const q1 = questions[0];
-    const q2 = questions[1];
-
+  const doSubmit = useCallback(async () => {
+    const q1 = sorted[0];
+    const q2 = sorted[1];
     const q1Answered = q1 && (postAnswers[q1.id] || "").trim().length > 0;
     const q2Answered = q2 && (postAnswers[q2.id] || "").trim().length > 0;
-
     if (!q1Answered) {
       toast.error("Please answer the first question (select a number 1-5)");
       return;
     }
-    
     if (!q2Answered) {
       toast.error("Please answer the second question (select YES or NO)");
       return;
     }
-
     await submitPostAnswers();
-  };
+  }, [sorted, postAnswers, submitPostAnswers]);
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      doSubmit();
+    },
+    [doSubmit]
+  );
+
+  const goNext = useCallback(() => {
+    if (!canAdvance && question && !isOptional) return;
+    if (isLast) {
+      doSubmit();
+    } else {
+      setCurrentIndex((i) => Math.min(i + 1, total - 1));
+    }
+  }, [canAdvance, isLast, total, question, isOptional, doSubmit]);
+
+  const goBack = useCallback(() => {
+    if (isFirst) {
+      abandonCurrentSession();
+    } else {
+      setCurrentIndex((i) => Math.max(i - 1, 0));
+    }
+  }, [isFirst, abandonCurrentSession]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      if (canAdvance) goNext();
+    },
+    [canAdvance, goNext]
+  );
 
   const handleScaleClick = (questionId: string, value: number) => {
     updatePostAnswer(questionId, value.toString());
@@ -86,48 +122,27 @@ export default function PostQuestionsFormV2({
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Post-Recording Reflection</h3>
         <div className="text-center py-8 space-y-4">
-          <p className="text-sm text-muted-foreground mb-4">
-            Questions are not available yet.
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">Questions are not available yet.</p>
           <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 rounded-md">
             <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
               <strong>Backend Issue:</strong> Post-recording questions were not returned.
             </p>
             <p className="text-xs text-yellow-700 dark:text-yellow-300">
               The backend should return 3 questions (scale, binary, free_text) in the upload response.
-              Check your Flask backend logs and ensure the <code>/recordings/upload</code> endpoint returns <code>post_questions</code> array.
             </p>
           </div>
           {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
-              {error}
-            </div>
+            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">{error}</div>
           )}
         </div>
       </Card>
     );
   }
 
-  // Ensure we have exactly 3 questions
-  const [q1, q2, q3] = questions.slice(0, 3);
-  
-  // Log questions for debugging
-  useEffect(() => {
-    console.log("[PostQuestionsFormV2] Questions received:", questions);
-    if (questions && questions.length > 0) {
-      questions.forEach((q, idx) => {
-        console.log(`[PostQuestionsFormV2] Q${idx + 1}: ID=${q.id}, Type=${q.question_type}, Order=${q.order_index}`);
-      });
-    }
-    console.log("[PostQuestionsFormV2] Q1:", q1);
-    console.log("[PostQuestionsFormV2] Q2:", q2);
-    console.log("[PostQuestionsFormV2] Q3:", q3);
-  }, [questions, q1, q2, q3]);
-
   return (
     <Card className="p-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Take a moment to reflect</h3>
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-1">Take a moment to reflect</h3>
         <p className="text-sm text-muted-foreground">
           Answer these questions about your solo speaking experience
         </p>
@@ -139,116 +154,158 @@ export default function PostQuestionsFormV2({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Question 1: Scale (1-5) - Solo awareness */}
-        {q1 && q1.question_type === "scale" && (
-          <div>
-            <label className="block text-sm font-medium mb-3">
-              1) {q1.question_text}
-            </label>
-            {isReadOnly ? (
-              <div className="p-3 bg-muted rounded-md text-sm">
-                {submittedAnswers[q1.id] || postAnswers[q1.id] || "(No answer)"}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Low</span>
-                <div className="flex-1 flex gap-1">
-                  {[1, 2, 3, 4, 5].map((num) => {
-                    const currentValue = postAnswers[q1.id];
-                    const isSelected = currentValue === num.toString();
-                    return (
+      {/* Progress pills */}
+      <div
+        className="flex gap-1.5 sm:gap-2 mb-4"
+        role="progressbar"
+        aria-valuenow={currentIndex + 1}
+        aria-valuemin={1}
+        aria-valuemax={total}
+        aria-label={`Question ${currentIndex + 1} of ${total}`}
+      >
+        {sorted.map((_, i) => {
+          const completed = i < currentIndex;
+          const current = i === currentIndex;
+          return (
+            <div
+              key={i}
+              className={`h-2.5 sm:h-3 flex-1 rounded-full transition-all duration-300 ${
+                completed
+                  ? "bg-neutral-700 dark:bg-neutral-600"
+                  : current
+                    ? "bg-neutral-400 dark:bg-neutral-500"
+                    : "bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600"
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      <p className="text-sm text-muted-foreground mb-4">
+        Question {currentIndex + 1} of {total}
+      </p>
+
+      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
+        <div className="min-h-[180px] sm:min-h-[200px]">
+          {question && (
+            <div key={question.id} className="animate-question-in">
+              {question.question_type === "scale" && (
+                <div>
+                  <label className="block text-base font-semibold text-foreground mb-3">
+                    {question.question_text}
+                  </label>
+                  {isReadOnly ? (
+                    <div className="p-3 bg-muted rounded-md text-sm">
+                      {submittedAnswers[question.id] || postAnswers[question.id] || "(No answer)"}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Low</span>
+                      <div className="flex-1 flex gap-1 min-w-0">
+                        {[1, 2, 3, 4, 5].map((num) => {
+                          const isSelected = postAnswers[question.id] === num.toString();
+                          return (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => handleScaleClick(question.id, num)}
+                              className={`flex-1 aspect-square min-w-[2.5rem] rounded-lg border-2 transition-all ${
+                                isSelected
+                                  ? "border-orange-500 scale-110 ring-2 ring-orange-500/30"
+                                  : "border-border hover:border-orange-500/50"
+                              }`}
+                              disabled={loading}
+                            >
+                              {num}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span className="text-xs text-muted-foreground">High</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {question.question_type === "binary" && (
+                <div>
+                  <label className="block text-base font-semibold text-foreground mb-3">
+                    {question.question_text}
+                  </label>
+                  {isReadOnly ? (
+                    <div className="p-3 bg-muted rounded-md text-sm">
+                      {submittedAnswers[question.id] || postAnswers[question.id] || "(No answer)"}
+                    </div>
+                  ) : (
+                    <div className="flex gap-4">
                       <button
-                        key={num}
                         type="button"
-                        onClick={() => handleScaleClick(q1.id, num)}
-                        className={`flex-1 aspect-square rounded-md border-2 transition-all ${
-                          isSelected
-                            ? "border-orange-500 scale-110 ring-2 ring-orange-500/30"
+                        onClick={() => handleBinaryClick(question.id, "YES")}
+                        className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                          postAnswers[question.id] === "YES"
+                            ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
                             : "border-border hover:border-orange-500/50"
                         }`}
                         disabled={loading}
                       >
-                        {num}
+                        <span className="text-lg font-medium">YES</span>
                       </button>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        onClick={() => handleBinaryClick(question.id, "NO")}
+                        className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                          postAnswers[question.id] === "NO"
+                            ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
+                            : "border-border hover:border-orange-500/50"
+                        }`}
+                        disabled={loading}
+                      >
+                        <span className="text-lg font-medium">NO</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <span className="text-xs text-muted-foreground">High</span>
-              </div>
-            )}
-          </div>
-        )}
+              )}
 
-        {/* Question 2: Binary (YES/NO) - Solo self-observation */}
-        {q2 && q2.question_type === "binary" && (
-          <div>
-            <label className="block text-sm font-medium mb-3">
-              2) {q2.question_text}
-            </label>
-            {isReadOnly ? (
-              <div className="p-3 bg-muted rounded-md text-sm">
-                {submittedAnswers[q2.id] || postAnswers[q2.id] || "(No answer)"}
-              </div>
-            ) : (
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleBinaryClick(q2.id, "YES")}
-                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                    postAnswers[q2.id] === "YES"
-                      ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                      : "border-border hover:border-orange-500/50"
-                  }`}
-                  disabled={loading}
-                >
-                  <span className="text-lg font-medium">YES</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleBinaryClick(q2.id, "NO")}
-                  className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                    postAnswers[q2.id] === "NO"
-                      ? "border-orange-500 shadow-md scale-105 ring-2 ring-orange-500/30"
-                      : "border-border hover:border-orange-500/50"
-                  }`}
-                  disabled={loading}
-                >
-                  <span className="text-lg font-medium">NO</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Question 3: Free text (optional) - Solo reflection */}
-        {q3 && q3.question_type === "free_text" && (
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              3) {q3.question_text}
-            </label>
-            {isReadOnly ? (
-              <div className="p-3 bg-muted rounded-md text-sm whitespace-pre-wrap">
-                {submittedAnswers[q3.id] || postAnswers[q3.id] || "(No answer provided)"}
-              </div>
-            ) : (
-              <Input
-                value={postAnswers[q3.id] || ""}
-                onChange={(e) => updatePostAnswer(q3.id, e.target.value)}
-                placeholder="Write anything you want (optional)..."
-                disabled={loading}
-                className="min-h-[100px]"
-              />
-            )}
-          </div>
-        )}
+              {question.question_type === "free_text" && (
+                <div>
+                  <label className="block text-base font-semibold text-foreground mb-3">
+                    {question.question_text}
+                    {isOptional && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">(optional)</span>
+                    )}
+                  </label>
+                  {isReadOnly ? (
+                    <div className="p-3 bg-muted rounded-md text-sm whitespace-pre-wrap">
+                      {submittedAnswers[question.id] || postAnswers[question.id] || "(No answer provided)"}
+                    </div>
+                  ) : (
+                    <Input
+                      ref={inputRef as React.RefObject<HTMLInputElement>}
+                      value={postAnswers[question.id] || ""}
+                      onChange={(e) => updatePostAnswer(question.id, e.target.value)}
+                      placeholder="Write anything you want (optional)..."
+                      disabled={loading}
+                      className="min-h-[100px] rounded-lg border-2 border-input focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {!isReadOnly && (
           <div className="space-y-3">
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Submitting..." : "Submit Reflection"}
+            <Button
+              type="button"
+              onClick={goNext}
+              disabled={loading || !canAdvance}
+              className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
+            >
+              {isLast ? (loading ? "Submitting..." : "Submit Reflection") : "Next"}
             </Button>
-            <FlowBackLink onClick={() => abandonCurrentSession()} />
+            <FlowBackLink onClick={goBack}>back</FlowBackLink>
           </div>
         )}
       </form>

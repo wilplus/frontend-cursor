@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
@@ -24,8 +24,17 @@ export default function PreQuestionsForm({
 }: PreQuestionsFormProps) {
   const { preAnswers, updatePreAnswer, submitPreAnswers, goBackToPreQuestionnaire, loading, error } =
     useSessionStore();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isReadOnly = Object.keys(submittedAnswers).length > 0;
+  const sorted = (questions ?? []).slice().sort((a, b) => getOrderIndex(a) - getOrderIndex(b));
+  const total = sorted.length;
+  const question = total > 0 ? sorted[currentIndex] : null;
+  const isFirst = currentIndex === 0;
+  const isLast = currentIndex === total - 1;
+  const currentAnswer = question ? (preAnswers[question.id] ?? "").trim() : "";
+  const canAdvance = currentAnswer.length > 0;
 
   useEffect(() => {
     if (isReadOnly) return;
@@ -46,15 +55,58 @@ export default function PreQuestionsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const allAnswered = questions.every((q) => (preAnswers[q.id] ?? "").trim().length > 0);
+  // Auto-focus text input when question changes
+  useEffect(() => {
+    if (isReadOnly || !question) return;
+    const type: PreQuestionType = question.question_type ?? "text_short";
+    if (type === "text_short") {
+      inputRef.current?.focus();
+    }
+  }, [currentIndex, question?.id, isReadOnly, question?.question_type]);
+
+  const doSubmit = useCallback(async () => {
+    const allAnswered = sorted.every((q) => (preAnswers[q.id] ?? "").trim().length > 0);
     if (!allAnswered) {
       toast.error("Please answer the question before continuing.");
       return;
     }
     await submitPreAnswers();
-  };
+  }, [sorted, preAnswers, submitPreAnswers]);
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      doSubmit();
+    },
+    [doSubmit]
+  );
+
+  const goNext = useCallback(() => {
+    if (!canAdvance && question) return;
+    if (isLast) {
+      doSubmit();
+    } else {
+      setCurrentIndex((i) => Math.min(i + 1, total - 1));
+    }
+  }, [canAdvance, isLast, total, question, doSubmit]);
+
+  const goBack = useCallback(() => {
+    if (isFirst) {
+      goBackToPreQuestionnaire();
+    } else {
+      setCurrentIndex((i) => Math.max(i - 1, 0));
+    }
+  }, [isFirst, goBackToPreQuestionnaire]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (canAdvance) goNext();
+      }
+    },
+    [canAdvance, goNext]
+  );
 
   if (!questions || questions.length === 0) {
     return (
@@ -72,9 +124,6 @@ export default function PreQuestionsForm({
     );
   }
 
-  const sorted = [...questions].sort((a, b) => getOrderIndex(a) - getOrderIndex(b));
-  const question = sorted[0];
-
   return (
     <Card className="p-6">
       <h3 className="text-lg font-semibold mb-4">Pre-recording question</h3>
@@ -83,20 +132,59 @@ export default function PreQuestionsForm({
           {error}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <PreQuestionField
-          question={question}
-          value={submittedAnswers[question.id] ?? preAnswers[question.id] ?? ""}
-          readOnly={isReadOnly}
-          loading={loading}
-          onValueChange={(value) => updatePreAnswer(question.id, value)}
-        />
+
+      {/* Progress pills: completed = dark grey, current = grey, future = white + grey stroke */}
+      <div className="flex gap-1.5 sm:gap-2 mb-4" role="progressbar" aria-valuenow={currentIndex + 1} aria-valuemin={1} aria-valuemax={total} aria-label={`Question ${currentIndex + 1} of ${total}`}>
+        {sorted.map((_, i) => {
+          const completed = i < currentIndex;
+          const current = i === currentIndex;
+          const future = i > currentIndex;
+          return (
+            <div
+              key={i}
+              className={`h-2.5 sm:h-3 flex-1 rounded-full transition-all duration-300 ${
+                completed
+                  ? "bg-neutral-700 dark:bg-neutral-600"
+                  : current
+                    ? "bg-neutral-400 dark:bg-neutral-500"
+                    : "bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600"
+              }`}
+            />
+          );
+        })}
+      </div>
+
+      <p className="text-sm text-muted-foreground mb-4">
+        Question {currentIndex + 1} of {total}
+      </p>
+
+      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
+        <div className="min-h-[180px] sm:min-h-[200px]">
+          {question && (
+            <div key={question.id} className="animate-question-in">
+              <PreQuestionField
+                question={question}
+                value={submittedAnswers[question.id] ?? preAnswers[question.id] ?? ""}
+                readOnly={isReadOnly}
+                loading={loading}
+                onValueChange={(value) => updatePreAnswer(question.id, value)}
+                inputRef={inputRef}
+              />
+            </div>
+          )}
+        </div>
+
         {!isReadOnly && (
           <div className="space-y-3">
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Submitting..." : "Continue"}
+            <Button
+              type="button"
+              onClick={goNext}
+              disabled={loading || !canAdvance}
+              className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
+            >
+              {isLast ? (loading ? "Submitting..." : "Continue") : "Next"}
             </Button>
-            <FlowBackLink onClick={() => goBackToPreQuestionnaire()} />
+            <FlowBackLink onClick={goBack}>back</FlowBackLink>
           </div>
         )}
       </form>
@@ -110,12 +198,14 @@ function PreQuestionField({
   readOnly,
   loading,
   onValueChange,
+  inputRef,
 }: {
   question: PreQuestion;
   value: string;
   readOnly: boolean;
   loading: boolean;
   onValueChange: (v: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
   const type: PreQuestionType = question.question_type ?? "text_short";
 
@@ -131,7 +221,9 @@ function PreQuestionField({
   if (type === "scale_1_5") {
     return (
       <div>
-        <label className="block text-sm font-medium mb-2">{question.question_text}</label>
+        <label className="block text-base font-semibold text-foreground mb-3">
+          {question.question_text}
+        </label>
         <div className="flex gap-2 flex-wrap">
           {[1, 2, 3, 4, 5].map((n) => {
             const selected = value === String(n);
@@ -159,7 +251,9 @@ function PreQuestionField({
   if (type === "binary_yes_no") {
     return (
       <div>
-        <label className="block text-sm font-medium mb-2">{question.question_text}</label>
+        <label className="block text-base font-semibold text-foreground mb-3">
+          {question.question_text}
+        </label>
         <div className="flex gap-4">
           {(["Yes", "No"] as const).map((opt) => {
             const selected = value === opt;
@@ -187,7 +281,9 @@ function PreQuestionField({
   if (type === "binary_choice") {
     return (
       <div>
-        <label className="block text-sm font-medium mb-2">{question.question_text}</label>
+        <label className="block text-base font-semibold text-foreground mb-3">
+          {question.question_text}
+        </label>
         <div className="flex gap-4">
           {(["Personal", "Neutral"] as const).map((opt) => {
             const selected = value === opt;
@@ -212,15 +308,19 @@ function PreQuestionField({
     );
   }
 
-  // text_short (default) — any length allowed
+  // text_short (default)
   return (
     <div>
-      <label className="block text-sm font-medium mb-2">{question.question_text}</label>
+      <label className="block text-base font-semibold text-foreground mb-3">
+        {question.question_text}
+      </label>
       <Input
+        ref={inputRef}
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
         placeholder="Type your answer..."
         disabled={loading}
+        className="rounded-lg border-2 border-input focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
       />
     </div>
   );
