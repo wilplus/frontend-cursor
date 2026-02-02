@@ -60,11 +60,11 @@ export default function ResetPasswordForm() {
     return (
       <Card className="p-6 text-center">
         <p className="mb-4 text-sm text-muted-foreground">
-          Check your email for a password reset link. It will expire in 1 hour.
+          Check your email for a password reset link from Supabase. It will expire in 1 hour.
         </p>
         <Link
           href="/login"
-          className="text-sm text-orange-500 hover:underline"
+          className="text-sm text-primary hover:underline"
         >
           Back to login
         </Link>
@@ -74,6 +74,9 @@ export default function ResetPasswordForm() {
 
   return (
     <Card className="p-6">
+      <p className="mb-4 text-sm text-muted-foreground">
+        You will receive an email from our provider Supabase with a link to reset your password.
+      </p>
       <form onSubmit={handleReset} className="space-y-4">
         <div>
           <label className="mb-2 block text-sm font-medium">Email</label>
@@ -96,7 +99,7 @@ export default function ResetPasswordForm() {
       </form>
 
       <div className="mt-4 text-center text-sm">
-        <Link href="/login" className="text-orange-500 hover:underline">
+        <Link href="/login" className="text-primary hover:underline">
           Back to login
         </Link>
       </div>

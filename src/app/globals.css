@@ -61,3 +61,12 @@ body {
   @apply bg-background text-foreground;
 }
 
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+  .max-w-4xl {
+    max-width: min(36rem, 100vw - 2rem);
+  }
+}
+

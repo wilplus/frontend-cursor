@@ -135,6 +135,7 @@ export interface UserAdminContext {
     created_at: ISODateString;
   }>;
   updated_at: ISODateString | null;
+  user_email?: string | null;
 }
 
 export interface RecordingForAdmin {

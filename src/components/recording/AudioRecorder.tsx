@@ -491,6 +491,7 @@ export default function AudioRecorder({
         <p className="text-sm text-muted-foreground">
           {formatTime(remainingSeconds)} remaining to reach minimum
         </p>
+        <p className="text-xs text-muted-foreground">Max recording: 5 minutes</p>
       </div>
 
       <div className="space-y-3">

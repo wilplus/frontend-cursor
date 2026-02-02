@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getUserAdminContext, fetchAdminRecordings } from "@/lib/api/client";
+import { getUserAdminContext, fetchAdminRecordings, updateUserAdminEmail, getAuthUserEmail } from "@/lib/api/client";
 import type { UserAdminContext, RecordingForAdmin } from "@/lib/api/types";
 import { toast } from "sonner";
-import { ArrowLeft, Edit, FileText } from "lucide-react";
+import { ArrowLeft, Edit, FileText, Mail } from "lucide-react";
 import Link from "next/link";
 
 export default function UserContextPage() {
@@ -19,9 +19,15 @@ export default function UserContextPage() {
   const [context, setContext] = useState<UserAdminContext | null>(null);
   const [userRecordings, setUserRecordings] = useState<RecordingForAdmin[]>([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
+  const [emailAssigning, setEmailAssigning] = useState(false);
+  const emailAssignAttempted = useRef(false);
 
   useEffect(() => {
     loadData();
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) emailAssignAttempted.current = false;
   }, [userId]);
 
   const loadData = async () => {
@@ -29,7 +35,7 @@ export default function UserContextPage() {
     try {
       const contextData = await getUserAdminContext(userId);
       setContext(contextData);
-      
+
       // Load user's recordings
       setRecordingsLoading(true);
       try {
@@ -50,6 +56,34 @@ export default function UserContextPage() {
       setLoading(false);
     }
   };
+
+  // Automatically assign email from Supabase Auth once when page has context
+  useEffect(() => {
+    if (!context || !userId || emailAssignAttempted.current) return;
+    emailAssignAttempted.current = true;
+    let cancelled = false;
+    (async () => {
+      setEmailAssigning(true);
+      try {
+        const { email } = await getAuthUserEmail(userId);
+        if (cancelled || !email?.trim()) {
+          setEmailAssigning(false);
+          return;
+        }
+        const updated = await updateUserAdminEmail(userId, email);
+        if (!cancelled) setContext(updated);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to assign email from Auth:", err);
+        }
+      } finally {
+        if (!cancelled) setEmailAssigning(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, context]);
 
   if (loading) {
     return (
@@ -89,6 +123,23 @@ export default function UserContextPage() {
             </p>
           </div>
         </div>
+
+        {/* User email (assigned automatically from Supabase Auth) */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            User email
+          </h2>
+          {emailAssigning ? (
+            <p className="text-sm text-muted-foreground">Assigning email from Auth…</p>
+          ) : context?.user_email ? (
+            <p className="text-sm">
+              <span className="font-mono">{context.user_email}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No email (or service role not configured)</p>
+          )}
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Admin Feedback */}

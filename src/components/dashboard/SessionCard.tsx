@@ -368,9 +368,15 @@ export default function SessionCard() {
   }
 
   if (state === "post_questions") {
+    const uploadInProgress = !recordingId && !error;
     return (
       <FlowWrapper>
         <div className="space-y-4">
+          {uploadInProgress && (
+            <p className="text-center text-xs text-muted-foreground">
+              Uploading recording in background…
+            </p>
+          )}
           {error && !recordingId && (
             <Card className="p-4 border-destructive/50 bg-destructive/5">
               <p className="text-sm text-destructive font-medium mb-2">{error}</p>

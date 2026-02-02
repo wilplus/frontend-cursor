@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
@@ -22,6 +22,7 @@ export default function PostQuestionsFormV2({
   const { postAnswers, postCurrentIndex, setPostCurrentIndex, updatePostAnswer, submitPostAnswers, abandonCurrentSession, loading, error } =
     useSessionStore();
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const [freeTextLocal, setFreeTextLocal] = useState("");
 
   const isReadOnly = Object.keys(submittedAnswers).length > 0;
   const sorted = (questions ?? []).slice().sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -32,7 +33,9 @@ export default function PostQuestionsFormV2({
   const isLast = currentIndex === total - 1;
   const currentAnswer = question ? (postAnswers[question.id] ?? "").trim() : "";
   const isOptional = question?.order_index === 2;
-  const canAdvance = isOptional || currentAnswer.length > 0;
+  const freeTextFilled =
+    question?.question_type === "free_text" ? (freeTextLocal || "").trim().length > 0 : false;
+  const canAdvance = isOptional || currentAnswer.length > 0 || freeTextFilled;
 
   useEffect(() => {
     if (isReadOnly) return;
@@ -57,9 +60,18 @@ export default function PostQuestionsFormV2({
   useEffect(() => {
     if (isReadOnly || !question) return;
     if (question.question_type === "free_text") {
+      const stored = postAnswers[question.id] ?? "";
+      setFreeTextLocal(stored);
       inputRef.current?.focus();
     }
-  }, [currentIndex, question?.id, isReadOnly, question?.question_type]);
+  }, [currentIndex, question?.id, question?.question_type, isReadOnly, postAnswers]);
+
+  const syncFreeTextToStore = useCallback(
+    (questionId: string, value: string) => {
+      updatePostAnswer(questionId, value);
+    },
+    [updatePostAnswer]
+  );
 
   const doSubmit = useCallback(async () => {
     const q1 = sorted[0];
@@ -87,12 +99,15 @@ export default function PostQuestionsFormV2({
 
   const goNext = useCallback(() => {
     if (!canAdvance && question && !isOptional) return;
+    if (question?.question_type === "free_text") {
+      syncFreeTextToStore(question.id, freeTextLocal);
+    }
     if (isLast) {
       doSubmit();
     } else {
       setPostCurrentIndex(Math.min(currentIndex + 1, total - 1));
     }
-  }, [canAdvance, isLast, total, currentIndex, question, isOptional, doSubmit, setPostCurrentIndex]);
+  }, [canAdvance, isLast, total, currentIndex, question, isOptional, doSubmit, setPostCurrentIndex, freeTextLocal, syncFreeTextToStore]);
 
   const goBack = useCallback(() => {
     if (isFirst) {
@@ -285,8 +300,9 @@ export default function PostQuestionsFormV2({
                   ) : (
                     <Input
                       ref={inputRef as React.RefObject<HTMLInputElement>}
-                      value={postAnswers[question.id] || ""}
-                      onChange={(e) => updatePostAnswer(question.id, e.target.value)}
+                      value={freeTextLocal}
+                      onChange={(e) => setFreeTextLocal(e.target.value)}
+                      onBlur={() => syncFreeTextToStore(question.id, freeTextLocal)}
                       placeholder="Write anything you want (optional)..."
                       disabled={loading}
                       autoFocus

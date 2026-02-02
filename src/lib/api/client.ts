@@ -227,6 +227,30 @@ export async function getUserAdminContext(
   return handleResponse<UserAdminContext>(res);
 }
 
+export async function updateUserAdminEmail(
+  userId: string,
+  user_email: string
+): Promise<UserAdminContext> {
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/admin/user/${userId}/context`, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json" },
+    credentials,
+    body: JSON.stringify({ user_email: user_email.trim() || null }),
+  });
+  return handleResponse<UserAdminContext>(res);
+}
+
+export async function getAuthUserEmail(userId: string): Promise<{ email: string | null }> {
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/admin/user/${userId}/auth-email`, { headers, credentials });
+  if (!res.ok && res.status !== 503) {
+    throw new Error(res.statusText || "Failed to get user email");
+  }
+  const data = (await res.json()) as { email?: string | null };
+  return { email: data.email ?? null };
+}
+
 export async function fetchAdminRecordings(
   limit: number = 20,
   offset: number = 0,
