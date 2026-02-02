@@ -73,7 +73,7 @@ export default function SessionCard() {
   useEffect(() => {
     if (state !== "command_select" || !commandOptions?.length) return;
     const primary = commandOptions.find((o) => o.is_primary) ?? commandOptions[0];
-    const promptText = (primary.prompt_text_snapshot ?? "").trim() || primary.intent ?? "";
+    const promptText = (primary.prompt_text_snapshot ?? "").trim() || (primary.intent ?? "");
     selectCommandOption(primary.option_id, promptText);
   }, [state, commandOptions, selectCommandOption]);
 
