@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { flowBackButtonClass } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 
 const MIN_DURATION_SECONDS = 60; // 1 minute
@@ -356,56 +356,71 @@ export default function AudioRecorder({
     );
   }
 
+  // Progress toward minimum (60s): 0–100%
+  const progressPercent = Math.min(100, (elapsedSeconds / MIN_DURATION_SECONDS) * 100);
+  const remainingSeconds = Math.max(0, MIN_DURATION_SECONDS - elapsedSeconds);
+
   // MediaRecorder mode
   return (
     <Card className="p-6 space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold mb-2">Record Audio</h3>
+      <div className="text-center">
+        <div
+          className={`text-4xl font-mono font-bold ${isRecording ? "text-red-600 dark:text-red-400" : "text-foreground"}`}
+        >
+          {formatTime(elapsedSeconds)}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-orange-500 transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
         <p className="text-sm text-muted-foreground">
-          Click start to begin recording. Min 1 min, max 5 min.
+          {formatTime(remainingSeconds)} remaining to reach minimum
         </p>
       </div>
 
-      <div className="text-center py-4">
-        <div className="text-4xl font-mono font-bold">
-          {formatTime(elapsedSeconds)}
-        </div>
-        {isRecording && (
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-sm text-muted-foreground">Recording...</span>
-          </div>
+      <div className="flex flex-col items-center gap-3">
+        {!isRecording ? (
+          <Button
+            onClick={startRecording}
+            className="w-full max-w-sm rounded-full py-6 text-base font-semibold"
+          >
+            <Mic className="mr-2 h-5 w-5" aria-hidden />
+            Start Recording
+          </Button>
+        ) : (
+          <Button
+            onClick={stopRecording}
+            className="w-full max-w-sm rounded-full bg-red-500 py-6 text-base font-semibold hover:bg-red-600"
+          >
+            <Square className="mr-2 h-5 w-5 fill-current" aria-hidden />
+            Stop Recording
+          </Button>
         )}
-      </div>
-
-      <div className="flex gap-2">
         {onBack && (
-          <button type="button" onClick={onBack} className={flowBackButtonClass}>
-            Back
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-2 lowercase transition-colors"
+          >
+            back
           </button>
         )}
-        {!isRecording ? (
-          <>
-            <Button onClick={startRecording} className="flex-1">
-              Start Recording
-            </Button>
-            {onCancel && (
-              <Button variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
-          </>
-        ) : (
-          <>
-            <Button onClick={stopRecording} className="flex-1">
-              Finish your recording
-            </Button>
-            {onStartAgain && (
-              <button type="button" onClick={handleStartAgain} className={flowBackButtonClass}>
-                Start again
-              </button>
-            )}
-          </>
+        {!isRecording && onCancel && (
+          <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        )}
+        {isRecording && onStartAgain && (
+          <button
+            type="button"
+            onClick={handleStartAgain}
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline underline-offset-2 lowercase transition-colors"
+          >
+            start again
+          </button>
         )}
       </div>
     </Card>

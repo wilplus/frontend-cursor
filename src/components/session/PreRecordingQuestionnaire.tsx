@@ -56,9 +56,6 @@ export default function PreRecordingQuestionnaire() {
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-2">Check in before the recording</h3>
-          <p className="text-sm text-muted-foreground">
-            A few quick questions to tailor your session
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -142,9 +139,6 @@ export default function PreRecordingQuestionnaire() {
             <label className="text-sm font-medium">
               Theme (optional)
             </label>
-            <p className="text-xs text-muted-foreground">
-              Use the recommended theme or pick one to override.
-            </p>
             <select
               value={themeCode ?? ""}
               onChange={(e) => setThemeCode(e.target.value ? (e.target.value as ThemeCode) : null)}

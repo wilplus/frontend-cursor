@@ -13,6 +13,7 @@ import PostQuestionsForm from "@/components/session/PostQuestionsForm";
 import PostQuestionsFormV2 from "@/components/session/PostQuestionsFormV2";
 import CompletedCard from "@/components/session/CompletedCard";
 import { toast } from "sonner";
+import { Play, RefreshCw } from "lucide-react";
 
 export default function SessionCard() {
   const {
@@ -206,9 +207,11 @@ export default function SessionCard() {
       <>
         <div className="space-y-4">
           {promptText && (
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Your recording prompt:</p>
-              <p className="text-base leading-relaxed whitespace-pre-wrap">{promptText}</p>
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Your Command:</p>
+              <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+                &ldquo;{promptText}&rdquo;
+              </p>
             </div>
           )}
           <AudioRecorder
@@ -226,40 +229,68 @@ export default function SessionCard() {
     const tooShort = durationSeconds !== null && durationSeconds < 60;
     const formatTime = (s: number) =>
       `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+    const MIN_DURATION_SECONDS = 60;
+    const recordedSec = durationSeconds ?? 0;
+    const remainingSec = Math.max(0, MIN_DURATION_SECONDS - recordedSec);
+    const progressPercent = Math.min(100, (recordedSec / MIN_DURATION_SECONDS) * 100);
+    const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
 
     if (tooShort) {
       return (
         <>
           <div className="space-y-4">
-            <Card className="p-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Record Audio</h3>
-                <p className="text-sm text-muted-foreground">
-                  Click start to begin recording. Min 1 min, max 5 min.
+            {promptText && (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Your Command:</p>
+                <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+                  &ldquo;{promptText}&rdquo;
                 </p>
               </div>
-              <div className="text-center py-4">
-                <div className="text-4xl font-mono font-bold">
-                  {formatTime(durationSeconds ?? 0)}
+            )}
+            <Card className="p-6 space-y-4">
+              <div className="text-center">
+                <div className="text-4xl font-mono font-bold text-foreground">
+                  {formatTime(recordedSec)}
                 </div>
               </div>
-              <div className="flex rounded-lg overflow-hidden border border-orange-500">
-                <button
-                  type="button"
-                  onClick={() => setRecordingReady()}
-                  className="flex-1 bg-orange-500 py-3 text-sm font-medium text-white hover:bg-orange-600 transition-colors"
-                >
-                  Resume recording
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await abandonCurrentSession();
-                  }}
-                  className="flex-1 bg-orange-600 py-3 text-sm font-medium text-white hover:bg-orange-700 transition-colors border-l border-orange-500"
-                >
-                  Start again
-                </button>
+              <div className="space-y-2">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-orange-500 transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {formatTime(remainingSec)} remaining to reach minimum
+                </p>
+              </div>
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30"
+                role="alert"
+              >
+                <p className="font-semibold text-foreground">Recording stopped before 1 minute</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You need at least 1 minute of recording. Resume to continue or start over.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setRecordingReady()}
+                    className="rounded-lg bg-orange-500 hover:bg-orange-600"
+                  >
+                    <Play className="mr-2 h-4 w-4" aria-hidden />
+                    Resume
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => abandonCurrentSession()}
+                    className="rounded-lg border-orange-200 bg-background hover:bg-muted dark:border-orange-800"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                    Start Over
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
