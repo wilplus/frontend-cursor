@@ -74,6 +74,7 @@ interface SessionStore {
   postQuestions: PostRecordingQuestion[];
   postAnswers: Record<UUID, string>; // question_id -> answer_text
   postAnswersSubmitted: boolean;
+  postCurrentIndex: number; // which question is shown (0-based), survives migration from default to real questions
 
   // Completed recording data
   completedRecording: GetRecordingResponse | null;
@@ -81,7 +82,10 @@ interface SessionStore {
   // Loading/error
   loading: boolean;
   error: string | null;
-  
+
+  // Background upload: promise so submitPostAnswers can wait for it
+  uploadPromise: Promise<void> | null;
+
   // Emergency reset (for stuck states)
   forceResetLoading: () => void;
 
@@ -98,7 +102,9 @@ interface SessionStore {
   setRecordingReady: () => void;
   setRecordingStart: (startMs: number) => void;
   setRecordingEnd: (endMs: number, blob: Blob) => void;
-  uploadRecordingBlob: (abortController?: AbortController) => Promise<void>;
+  uploadRecordingBlob: (abortController?: AbortController, options?: { background?: boolean }) => Promise<void>;
+  transitionToPostQuestionsWithDefaults: () => void;
+  setPostCurrentIndex: (index: number) => void;
   updatePostAnswer: (questionId: UUID, answer: string) => void;
   submitPostAnswers: () => Promise<void>;
   finalizeSession: () => Promise<void>;
@@ -108,6 +114,17 @@ interface SessionStore {
 
 const DRAFT_STORAGE_PREFIX = "willab:draft:";
 const COMMAND_SELECT_PREFIX = "willab:command_select:";
+
+// Temp question IDs used when showing post questions before upload completes (migrated by order_index when upload returns)
+const TEMP_POST_Q1 = "00000000-0000-0000-0000-000000000001" as UUID;
+const TEMP_POST_Q2 = "00000000-0000-0000-0000-000000000002" as UUID;
+const TEMP_POST_Q3 = "00000000-0000-0000-0000-000000000003" as UUID;
+
+const DEFAULT_POST_QUESTIONS: PostRecordingQuestion[] = [
+  { id: TEMP_POST_Q1, question_text: "How did your solo go? (1–5)", question_type: "scale", order_index: 0 },
+  { id: TEMP_POST_Q2, question_text: "Would you recommend this to a friend? (YES/NO)", question_type: "binary", order_index: 1 },
+  { id: TEMP_POST_Q3, question_text: "Any comments? (optional)", question_type: "free_text", order_index: 2 },
+];
 
 function getDraftKey(type: "pre" | "post", id: UUID): string {
   return `${DRAFT_STORAGE_PREFIX}${type}_answers:${id}`;
@@ -196,9 +213,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   postQuestions: [],
   postAnswers: {},
   postAnswersSubmitted: false,
+  postCurrentIndex: 0,
   completedRecording: null,
   loading: false,
   error: null,
+  uploadPromise: null,
 
   initialize: async () => {
     set({ loading: true, error: null });
@@ -508,7 +527,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     });
   },
 
-  uploadRecordingBlob: async (abortController?: AbortController) => {
+  transitionToPostQuestionsWithDefaults: () => {
+    set({
+      state: "post_questions",
+      postQuestions: DEFAULT_POST_QUESTIONS,
+      recordingId: null,
+      postAnswers: {},
+      postAnswersSubmitted: false,
+      postCurrentIndex: 0,
+      loading: false,
+      error: null,
+    });
+  },
+
+  setPostCurrentIndex: (index: number) => {
+    set({ postCurrentIndex: Math.max(0, index) });
+  },
+
+  uploadRecordingBlob: async (abortController?: AbortController, options?: { background?: boolean }) => {
     const { sessionId, audioBlob, durationSeconds, selectedCommandOptionId } = get();
     if (!sessionId || !audioBlob || durationSeconds === null) {
       set({ error: "Missing recording data", loading: false });
@@ -523,99 +559,126 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       return;
     }
 
-    set({ state: "uploading_processing", loading: true, error: null });
+    const background = options?.background === true;
 
-    try {
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
-      formData.append("session_id", sessionId);
-      formData.append("duration_seconds", durationSeconds.toString());
-      formData.append("command_option_id", selectedCommandOptionId);
+    const runUpload = async (): Promise<void> => {
+      if (background) {
+        set({ error: null, loading: true });
+      } else {
+        set({ state: "uploading_processing", loading: true, error: null });
+      }
+      try {
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "recording.webm");
+        formData.append("session_id", sessionId);
+        formData.append("duration_seconds", durationSeconds.toString());
+        formData.append("command_option_id", selectedCommandOptionId);
 
-      const response = await uploadRecording(formData, abortController);
-      console.log("Upload successful:", response);
-      console.log("Post questions received:", response.post_questions);
-      console.log("Post questions count:", response.post_questions?.length || 0);
-      
-      // Verify question IDs are UUIDs (for debugging)
-      if (response.post_questions && response.post_questions.length > 0) {
-        response.post_questions.forEach((q, idx) => {
-          console.log(`[Post Question ${idx + 1}] ID: ${q.id}, Type: ${q.question_type}, Order: ${q.order_index}`);
-          // Verify ID is a valid UUID format (basic check)
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (!uuidRegex.test(q.id)) {
-            console.warn(`[Post Question ${idx + 1}] Warning: Question ID doesn't look like a UUID: ${q.id}`);
+        const response = await uploadRecording(formData, abortController);
+        console.log("Upload successful:", response);
+        if (response.post_questions?.length) {
+          response.post_questions.forEach((q, idx) => {
+            console.log(`[Post Question ${idx + 1}] ID: ${q.id}, Type: ${q.question_type}, Order: ${q.order_index}`);
+          });
+        }
+
+        const realQuestions = response.post_questions && response.post_questions.length > 0
+          ? response.post_questions
+          : DEFAULT_POST_QUESTIONS;
+
+        if (background) {
+          const { postAnswers } = get();
+          const migrated: Record<UUID, string> = {};
+          DEFAULT_POST_QUESTIONS.forEach((def, i) => {
+            const real = realQuestions[i];
+            if (real && postAnswers[def.id] !== undefined) {
+              migrated[real.id] = postAnswers[def.id];
+            }
+          });
+          set({
+            recordingId: response.recording_id,
+            postQuestions: realQuestions,
+            postAnswers: migrated,
+            loading: false,
+            error: null,
+            uploadPromise: null,
+          });
+        } else {
+          set({
+            state: "post_questions",
+            recordingId: response.recording_id,
+            postQuestions: realQuestions,
+            postAnswers: {},
+            postAnswersSubmitted: false,
+            postCurrentIndex: 0,
+            loading: false,
+          });
+        }
+      } catch (err) {
+        console.error("Upload error:", err);
+        if (err instanceof Error && err.name === "AbortError") {
+          set({
+            error: "Upload cancelled",
+            state: background ? "post_questions" : "recorded",
+            loading: false,
+            uploadPromise: null,
+          });
+          return;
+        }
+        let errorMessage = "Upload failed";
+        if (err instanceof Error) {
+          errorMessage = err.message;
+          if (err.message.includes("500") || err.message.includes("Internal Server Error")) {
+            errorMessage = `Backend error (500): ${err.message}. Check your Flask backend logs for details.`;
           }
-        });
-      }
-
-      // Check if post_questions are missing or empty
-      if (!response.post_questions || response.post_questions.length === 0) {
-        console.warn("No post-questions in upload response. Backend should return post_questions array.");
-        // Try to fetch from recording endpoint as fallback
-        try {
-          const recording = await fetchRecording(response.recording_id);
-          console.log("Fetched recording for post-questions:", recording);
-          // If recording has post questions in answers, extract them
-          // Otherwise, we'll show an error message
-        } catch (fetchErr) {
-          console.error("Failed to fetch recording for post-questions:", fetchErr);
         }
-      }
-
-      set({
-        state: "post_questions",
-        recordingId: response.recording_id,
-        postQuestions: response.post_questions || [],
-        postAnswers: {},
-        postAnswersSubmitted: false,
-        loading: false,
-      });
-    } catch (err) {
-      console.error("Upload error:", err);
-      
-      if (err instanceof Error && err.name === "AbortError") {
         set({
-          error: "Upload cancelled",
-          state: "recorded",
+          error: errorMessage,
+          state: background ? "post_questions" : "recorded",
           loading: false,
+          uploadPromise: null,
         });
-        return;
-      }
-      
-      // Extract detailed error message
-      let errorMessage = "Upload failed";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-        // Check if it's a backend error with details
-        if (err.message.includes("500") || err.message.includes("Internal Server Error")) {
-          errorMessage = `Backend error (500): ${err.message}. Check your Flask backend logs for details.`;
+      } finally {
+        if (background) {
+          set({ uploadPromise: null, loading: false });
         }
       }
-      
-      set({
-        error: errorMessage,
-        state: "recorded",
-        loading: false,
-      });
+    };
+
+    const promise = runUpload();
+    if (background) {
+      set({ uploadPromise: promise });
     }
+    await promise;
   },
 
   updatePostAnswer: (questionId: UUID, answer: string) => {
-    const { recordingId, postAnswers } = get();
-    if (!recordingId) return;
+    const { recordingId, sessionId, postAnswers } = get();
+    const draftKey = recordingId ?? sessionId;
+    if (!draftKey) return;
 
-    // Only update if the value actually changed to prevent unnecessary re-renders
     if (postAnswers[questionId] === answer) return;
 
     const updated = { ...postAnswers, [questionId]: answer };
     set({ postAnswers: updated });
-    saveDraft("post", recordingId, updated);
+    saveDraft("post", draftKey, updated);
   },
 
   submitPostAnswers: async () => {
-    const { sessionId, recordingId, postQuestions, postAnswers } = get();
-    if (!sessionId || !recordingId) return;
+    let { sessionId, recordingId, postQuestions, postAnswers, uploadPromise } = get();
+    if (!sessionId) return;
+    if (!recordingId && uploadPromise) {
+      await uploadPromise;
+      const next = get();
+      recordingId = next.recordingId;
+      postQuestions = next.postQuestions;
+      postAnswers = next.postAnswers;
+      if (!recordingId) {
+        set({ error: "Upload failed. Please try again or refresh." });
+        return;
+      }
+    }
+    if (!recordingId) return;
 
     // Validate: Q1 (scale) and Q2 (binary) must be answered, Q3 (free_text) is optional
     const q1 = postQuestions[0];
@@ -726,6 +789,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         themeChosenCode: null,
         postQuestions: [],
         postAnswers: {},
+        postCurrentIndex: 0,
         audioBlob: null,
         durationSeconds: null,
         completedRecording: null,
@@ -762,6 +826,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       postQuestions: [],
       postAnswers: {},
       postAnswersSubmitted: false,
+      postCurrentIndex: 0,
       completedRecording: null,
       loading: false,
       error: null,

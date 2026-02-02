@@ -42,6 +42,8 @@ export default function SessionCard() {
     goBackToCommandSelect,
     setRecordingReady,
     setRecordingStart,
+    setRecordingEnd,
+    transitionToPostQuestionsWithDefaults,
     uploadRecordingBlob,
     abandonCurrentSession,
     loading,
@@ -50,6 +52,7 @@ export default function SessionCard() {
     postAnswers,
     postAnswersSubmitted,
     completedRecording,
+    recordingId,
   } = useSessionStore();
 
   const authReady = useAuthReady();
@@ -81,26 +84,18 @@ export default function SessionCard() {
     await startNewSession();
   };
 
-  const handleRecordingComplete = async (blob: Blob, durationSeconds: number) => {
-    // Store the blob and duration in Zustand first
+  const handleRecordingComplete = (blob: Blob, durationSeconds: number) => {
     const store = useSessionStore.getState();
     store.setRecordingEnd(Date.now(), blob);
 
-    // Then upload
+    // Show post questions immediately; upload continues in background
+    store.transitionToPostQuestionsWithDefaults();
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
-
-    try {
-      await uploadRecordingBlob(controller);
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        toast.info("Upload cancelled");
-      } else {
-        toast.error("Upload failed");
-      }
-    } finally {
+    uploadRecordingBlob(controller, { background: true }).finally(() => {
       abortControllerRef.current = null;
-    }
+    });
   };
 
   // Render based on state
@@ -376,6 +371,26 @@ export default function SessionCard() {
     return (
       <FlowWrapper>
         <div className="space-y-4">
+          {error && !recordingId && (
+            <Card className="p-4 border-destructive/50 bg-destructive/5">
+              <p className="text-sm text-destructive font-medium mb-2">{error}</p>
+              <Button
+                onClick={() => {
+                  const ctrl = new AbortController();
+                  abortControllerRef.current = ctrl;
+                  uploadRecordingBlob(ctrl, { background: true }).finally(() => {
+                    abortControllerRef.current = null;
+                  });
+                }}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+                className="border-destructive text-destructive hover:bg-destructive/10"
+              >
+                {loading ? "Retrying…" : "Retry upload"}
+              </Button>
+            </Card>
+          )}
           <PostQuestionsFormV2
             questions={postQuestions}
             submittedAnswers={postAnswersSubmitted ? postAnswers : undefined}
@@ -403,11 +418,9 @@ export default function SessionCard() {
 
   if (state === "completed" && completedRecording) {
     return (
-      <FlowWrapper>
-        <div className="space-y-4">
-          <CompletedCard recording={completedRecording} />
-        </div>
-      </FlowWrapper>
+      <div className="space-y-4">
+        <CompletedCard recording={completedRecording} />
+      </div>
     );
   }
 

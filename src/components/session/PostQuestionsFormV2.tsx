@@ -19,14 +19,14 @@ export default function PostQuestionsFormV2({
   questions,
   submittedAnswers = {},
 }: PostQuestionsFormV2Props) {
-  const { postAnswers, updatePostAnswer, submitPostAnswers, abandonCurrentSession, loading, error } =
+  const { postAnswers, postCurrentIndex, setPostCurrentIndex, updatePostAnswer, submitPostAnswers, abandonCurrentSession, loading, error } =
     useSessionStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   const isReadOnly = Object.keys(submittedAnswers).length > 0;
   const sorted = (questions ?? []).slice().sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
   const total = sorted.length;
+  const currentIndex = total > 0 ? Math.min(postCurrentIndex, total - 1) : 0;
   const question = total > 0 ? sorted[currentIndex] : null;
   const isFirst = currentIndex === 0;
   const isLast = currentIndex === total - 1;
@@ -37,8 +37,9 @@ export default function PostQuestionsFormV2({
   useEffect(() => {
     if (isReadOnly) return;
     const store = useSessionStore.getState();
-    if (!store.recordingId || Object.keys(postAnswers).length > 0) return;
-    const drafts = localStorage.getItem(`willab:draft:post_answers:${store.recordingId}`);
+    const draftKey = store.recordingId ?? store.sessionId;
+    if (!draftKey || Object.keys(postAnswers).length > 0) return;
+    const drafts = localStorage.getItem(`willab:draft:post_answers:${draftKey}`);
     if (!drafts) return;
     try {
       const parsed = JSON.parse(drafts) as Record<string, string>;
@@ -89,17 +90,17 @@ export default function PostQuestionsFormV2({
     if (isLast) {
       doSubmit();
     } else {
-      setCurrentIndex((i) => Math.min(i + 1, total - 1));
+      setPostCurrentIndex(Math.min(currentIndex + 1, total - 1));
     }
-  }, [canAdvance, isLast, total, question, isOptional, doSubmit]);
+  }, [canAdvance, isLast, total, currentIndex, question, isOptional, doSubmit, setPostCurrentIndex]);
 
   const goBack = useCallback(() => {
     if (isFirst) {
       abandonCurrentSession();
     } else {
-      setCurrentIndex((i) => Math.max(i - 1, 0));
+      setPostCurrentIndex(Math.max(currentIndex - 1, 0));
     }
-  }, [isFirst, abandonCurrentSession]);
+  }, [isFirst, currentIndex, abandonCurrentSession, setPostCurrentIndex]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
