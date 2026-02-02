@@ -216,9 +216,18 @@ export default function SessionCard() {
           <AudioRecorder
             onRecordingComplete={handleRecordingComplete}
             onRecordingStart={state === "recording_ready" ? () => setRecordingStart(Date.now()) : undefined}
-            onBack={() => goBackToCommandSelect()}
             onStartAgain={() => setRecordingReady()}
           />
+          <div className="space-y-3">
+            <Button
+              disabled
+              className="w-full max-w-md mx-auto rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 dark:bg-orange-900/50 dark:text-orange-100"
+              aria-disabled
+            >
+              Send Recording
+            </Button>
+            <FlowBackLink onClick={() => goBackToCommandSelect()} />
+          </div>
         </div>
       </>
     );
@@ -356,9 +365,9 @@ export default function SessionCard() {
                     }
                   }}
                   disabled={loading}
-                  className="w-full"
+                  className="w-full rounded-lg bg-orange-200 py-6 text-base font-semibold text-orange-900 hover:bg-orange-300 dark:bg-orange-900/50 dark:text-orange-100 dark:hover:bg-orange-800/50"
                 >
-                  {loading ? "Uploading..." : "Submit Recording"}
+                  {loading ? "Sending..." : "Send Recording"}
                 </Button>
                 <FlowBackLink onClick={() => setRecordingReady()} />
               </div>

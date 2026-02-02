@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Mic, Square } from "lucide-react";
+import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 
 const MIN_DURATION_SECONDS = 60; // 1 minute
@@ -57,6 +57,7 @@ export default function AudioRecorder({
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isFileUploadMode, setIsFileUploadMode] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -70,6 +71,11 @@ export default function AudioRecorder({
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const startAgainRequestedRef = useRef(false);
+  const pauseRequestedRef = useRef(false);
+  const setIsPausedRef = useRef(setIsPaused);
+  const setIsRecordingRef = useRef(setIsRecording);
+  setIsPausedRef.current = setIsPaused;
+  setIsRecordingRef.current = setIsRecording;
 
   // Detect MIME support on mount
   useEffect(() => {
@@ -98,6 +104,49 @@ export default function AudioRecorder({
     };
   }, []);
 
+  const attachOnStop = useCallback(
+    (rec: MediaRecorder, mime: string) => {
+      rec.onstop = () => {
+        if (pauseRequestedRef.current) {
+          pauseRequestedRef.current = false;
+          setIsPausedRef.current(true);
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          return;
+        }
+        if (startAgainRequestedRef.current) {
+          startAgainRequestedRef.current = false;
+          onStartAgain?.();
+        } else if (chunksRef.current.length > 0 && startTimeRef.current) {
+          const blob = new Blob(chunksRef.current, { type: mime });
+          const endTime = Date.now();
+          const durationSeconds = Math.max(
+            1,
+            Math.round((endTime - startTimeRef.current) / 1000)
+          );
+          setIsRecordingRef.current(false);
+          if (durationSeconds < MIN_DURATION_SECONDS) {
+            toast.error("Session must be at least 1 minute. Please record again.");
+            chunksRef.current = [];
+            startTimeRef.current = null;
+          } else {
+            onRecordingComplete(blob, durationSeconds);
+          }
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
+      };
+    },
+    [onRecordingComplete, onStartAgain]
+  );
+
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -118,49 +167,27 @@ export default function AudioRecorder({
         }
       };
 
-      recorder.onstop = () => {
-        if (startAgainRequestedRef.current) {
-          startAgainRequestedRef.current = false;
-          onStartAgain?.();
-        } else if (chunksRef.current.length > 0 && startTimeRef.current) {
-          const blob = new Blob(chunksRef.current, { type: mimeType });
-          const endTime = Date.now();
-          const durationSeconds = Math.max(
-            1,
-            Math.round((endTime - startTimeRef.current) / 1000)
-          );
-          if (durationSeconds < MIN_DURATION_SECONDS) {
-            toast.error("Session must be at least 1 minute. Please record again.");
-            chunksRef.current = [];
-            startTimeRef.current = null;
-          } else {
-            onRecordingComplete(blob, durationSeconds);
-          }
-        }
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-        }
-        if (timerIntervalRef.current) {
-          clearInterval(timerIntervalRef.current);
-          timerIntervalRef.current = null;
-        }
-      };
+      attachOnStop(recorder, mimeType);
 
       startTimeRef.current = Date.now();
       recorder.start();
       setIsRecording(true);
+      setIsPaused(false);
       setElapsedSeconds(0);
       onRecordingStart?.();
 
-      // Timer interval
       timerIntervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
           const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
           setElapsedSeconds(elapsed);
-
-          // Auto-stop at max duration
           if (elapsed >= MAX_DURATION_SECONDS) {
-            stopRecording();
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+            setIsPaused(false);
+            if (timerIntervalRef.current) {
+              clearInterval(timerIntervalRef.current);
+              timerIntervalRef.current = null;
+            }
           }
         }
       }, 100);
@@ -168,24 +195,103 @@ export default function AudioRecorder({
       console.error("Failed to start recording:", err);
       toast.error("Failed to access microphone");
     }
-  }, [mimeType, onRecordingComplete]);
+  }, [mimeType, onRecordingStart, attachOnStop]);
 
   const stopRecording = useCallback(() => {
+    if (isPaused) {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (chunksRef.current.length > 0 && mimeType) {
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const durationSeconds = elapsedSeconds;
+        if (durationSeconds >= MIN_DURATION_SECONDS) {
+          onRecordingComplete(blob, durationSeconds);
+        } else {
+          toast.error("Session must be at least 1 minute. Please record again.");
+        }
+      }
+      chunksRef.current = [];
+      startTimeRef.current = null;
+      setIsRecording(false);
+      setIsPaused(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
       }
     }
-  }, [isRecording]);
+  }, [isRecording, isPaused, mimeType, elapsedSeconds, onRecordingComplete]);
+
+  const pauseRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording && !isPaused) {
+      pauseRequestedRef.current = true;
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+  }, [isRecording, isPaused]);
+
+  const resumeRecording = useCallback(() => {
+    const stream = streamRef.current;
+    if (!stream || !mimeType) return;
+    const recorder = new MediaRecorder(stream, { mimeType });
+    mediaRecorderRef.current = recorder;
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    attachOnStop(recorder, mimeType);
+    startTimeRef.current = Date.now() - elapsedSeconds * 1000;
+    recorder.start();
+    setIsPaused(false);
+    timerIntervalRef.current = setInterval(() => {
+      if (startTimeRef.current) {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        setElapsedSeconds(elapsed);
+        if (elapsed >= MAX_DURATION_SECONDS) {
+          mediaRecorderRef.current?.stop();
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+        }
+      }
+    }, 100);
+  }, [mimeType, elapsedSeconds, attachOnStop]);
 
   const handleStartAgain = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (isPaused) {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      chunksRef.current = [];
+      startTimeRef.current = null;
+      setIsRecording(false);
+      setIsPaused(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      onStartAgain?.();
+    } else if (mediaRecorderRef.current && isRecording) {
       startAgainRequestedRef.current = true;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
       setElapsedSeconds(0);
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
@@ -194,7 +300,7 @@ export default function AudioRecorder({
     } else {
       onStartAgain?.();
     }
-  }, [isRecording, onStartAgain]);
+  }, [isRecording, isPaused, onStartAgain]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -393,14 +499,41 @@ export default function AudioRecorder({
             <Mic className="mr-2 h-5 w-5" aria-hidden />
             Start Recording
           </Button>
+        ) : isPaused ? (
+          <div className="flex gap-2">
+            <Button
+              onClick={resumeRecording}
+              className="flex-1 rounded-full py-5 text-base font-semibold"
+            >
+              <Play className="mr-2 h-5 w-5 fill-current" aria-hidden />
+              Resume
+            </Button>
+            <Button
+              onClick={stopRecording}
+              className="flex-1 rounded-full bg-red-500 py-5 text-base font-semibold hover:bg-red-600"
+            >
+              <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
+              Stop
+            </Button>
+          </div>
         ) : (
-          <Button
-            onClick={stopRecording}
-            className="w-full rounded-full bg-red-500 py-6 text-base font-semibold hover:bg-red-600"
-          >
-            <Square className="mr-2 h-5 w-5 fill-current" aria-hidden />
-            Stop Recording
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={pauseRecording}
+              variant="outline"
+              className="flex-1 rounded-full py-5 text-base font-semibold bg-muted/50 border-input text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Pause className="mr-2 h-4 w-4" aria-hidden />
+              Pause
+            </Button>
+            <Button
+              onClick={stopRecording}
+              className="flex-1 rounded-full bg-red-500 py-5 text-base font-semibold hover:bg-red-600"
+            >
+              <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
+              Stop
+            </Button>
+          </div>
         )}
         {onCancel && !isRecording && (
           <div className="flex justify-center">
