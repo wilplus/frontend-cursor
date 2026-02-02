@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
-import FlowBackButton from "@/components/ui/flow-back-button";
+import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import PreRecordingQuestionnaire from "@/components/session/PreRecordingQuestionnaire";
@@ -191,9 +191,8 @@ export default function SessionCard() {
                 </p>
               </div>
             )}
-            <div className="mt-6 flex gap-2">
-              <FlowBackButton onClick={() => goBackToPreQuestions()} />
-              <div className="flex-1" />
+            <div className="mt-6">
+              <FlowBackLink onClick={() => goBackToPreQuestions()} />
             </div>
           </Card>
         </div>
@@ -334,8 +333,7 @@ export default function SessionCard() {
                   ) : null}
                 </div>
               )}
-              <div className="flex gap-2">
-                <FlowBackButton onClick={() => setRecordingReady()} />
+              <div className="space-y-3">
                 <Button
                   onClick={async () => {
                     const store = useSessionStore.getState();
@@ -358,10 +356,11 @@ export default function SessionCard() {
                     }
                   }}
                   disabled={loading}
-                  className="flex-1"
+                  className="w-full"
                 >
                   {loading ? "Uploading..." : "Submit Recording"}
                 </Button>
+                <FlowBackLink onClick={() => setRecordingReady()} />
               </div>
             </div>
           </Card>

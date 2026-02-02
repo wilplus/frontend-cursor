@@ -33,4 +33,36 @@ const FlowBackButton = React.forwardRef<HTMLButtonElement, FlowBackButtonProps>(
 
 FlowBackButton.displayName = "FlowBackButton";
 
+/**
+ * Small "back" text link placed below the primary CTA in flow steps.
+ * Muted grey, no border/background; centered in a row.
+ */
+export const flowBackLinkClass =
+  "text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded";
+
+export interface FlowBackLinkProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children?: React.ReactNode;
+}
+
+const FlowBackLink = React.forwardRef<HTMLButtonElement, FlowBackLinkProps>(
+  ({ className, children = "back", ...props }, ref) => {
+    return (
+      <div className="flex justify-center">
+        <button
+          type="button"
+          ref={ref}
+          className={cn(flowBackLinkClass, className)}
+          {...props}
+        >
+          {children}
+        </button>
+      </div>
+    );
+  }
+);
+
+FlowBackLink.displayName = "FlowBackLink";
+
+export { FlowBackLink };
 export default FlowBackButton;

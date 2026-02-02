@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
-import FlowBackButton from "@/components/ui/flow-back-button";
+import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -244,11 +244,11 @@ export default function PostQuestionsFormV2({
         )}
 
         {!isReadOnly && (
-          <div className="flex gap-2">
-            <FlowBackButton onClick={() => abandonCurrentSession()} />
-            <Button type="submit" disabled={loading} className="flex-1">
+          <div className="space-y-3">
+            <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Submitting..." : "Submit Reflection"}
             </Button>
+            <FlowBackLink onClick={() => abandonCurrentSession()} />
           </div>
         )}
       </form>

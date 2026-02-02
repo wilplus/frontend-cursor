@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import FlowBackButton from "@/components/ui/flow-back-button";
+import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Card } from "@/components/ui/card";
 import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
@@ -194,15 +194,15 @@ export default function PreRecordingQuestionnaire() {
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <FlowBackButton onClick={() => abandonCurrentSession()} />
+          <div className="space-y-3">
             <Button
               type="submit"
-              className="flex-1"
+              className="w-full"
               disabled={loading || mood === null || readiness === null || inspirationNeeded === null}
             >
               {loading ? "Starting session..." : "Continue"}
             </Button>
+            <FlowBackLink onClick={() => abandonCurrentSession()} />
           </div>
         </form>
       </div>

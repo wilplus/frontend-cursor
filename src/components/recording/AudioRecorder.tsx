@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Mic, Square } from "lucide-react";
@@ -408,27 +409,9 @@ export default function AudioRecorder({
             </Button>
           </div>
         )}
-        {onBack && (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={onBack}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-            >
-              back
-            </button>
-          </div>
-        )}
+        {onBack && <FlowBackLink onClick={onBack} />}
         {isRecording && onStartAgain && (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={handleStartAgain}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-            >
-              start again
-            </button>
-          </div>
+          <FlowBackLink onClick={handleStartAgain}>start again</FlowBackLink>
         )}
       </div>
     </Card>
