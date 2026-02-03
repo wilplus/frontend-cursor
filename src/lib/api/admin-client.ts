@@ -40,7 +40,12 @@ async function adminFetch<T>(
 
 export interface StudentListItem {
   user_id: string;
+  /** When present, shown as primary label on the students list */
   email?: string | null;
+  user_email?: string | null;
+  sessions_count?: number;
+  last_session_at?: string | null;
+  avg_performance?: number | null;
 }
 
 export interface StudentProfile {
@@ -87,12 +92,29 @@ export interface Exercise {
   created_at?: string;
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  prompt_text?: string | null;
+  min_task_score?: number;
+  max_task_score?: number;
+  is_active?: boolean;
+  created_at?: string;
+}
+
 export interface PostQuestion {
   id: string;
   code?: string | null;
   text: string;
   answer_type: string;
   is_active?: boolean;
+  order_index?: number;
+}
+
+export interface MetricLabel {
+  code: string;
+  left_label: string;
+  right_label: string;
 }
 
 export const adminApi = {
@@ -126,8 +148,34 @@ export const adminApi = {
     adminFetch<{ status: string }>(`/exercises/${id}`, { method: "DELETE" }),
 
   getTasks: () =>
-    adminFetch<{ tasks: unknown[] }>("/tasks").then((r) => r.tasks ?? []),
+    adminFetch<{ tasks: Task[] }>("/tasks").then((r) => r.tasks ?? []),
+
+  createTask: (data: Partial<Task>) =>
+    adminFetch<{ task: Task }>("/tasks", { method: "POST", body: data }),
+
+  updateTask: (id: string, data: Partial<Task>) =>
+    adminFetch<{ task: Task }>(`/tasks/${id}`, { method: "PUT", body: data }),
+
+  deleteTask: (id: string) =>
+    adminFetch<{ status: string }>(`/tasks/${id}`, { method: "DELETE" }),
 
   getPostQuestions: () =>
     adminFetch<{ questions: PostQuestion[] }>("/post-recording-questions").then((r) => r.questions ?? []),
+
+  createPostQuestion: (data: Partial<PostQuestion>) =>
+    adminFetch<{ question: PostQuestion }>("/post-recording-questions", { method: "POST", body: data }),
+
+  updatePostQuestion: (id: string, data: Partial<PostQuestion>) =>
+    adminFetch<{ question: PostQuestion }>(`/post-recording-questions/${id}`, { method: "PUT", body: data }),
+
+  deletePostQuestion: (id: string) =>
+    adminFetch<{ status: string }>(`/post-recording-questions/${id}`, { method: "DELETE" }),
+
+  getMetricLabels: () =>
+    adminFetch<{ metrics?: MetricLabel[]; metric_labels?: MetricLabel[] }>("/metrics").then(
+      (r) => r.metrics ?? r.metric_labels ?? []
+    ),
+
+  putMetricLabels: (metrics: MetricLabel[]) =>
+    adminFetch<{ status: string }>("/metrics", { method: "PUT", body: { metrics } }),
 };

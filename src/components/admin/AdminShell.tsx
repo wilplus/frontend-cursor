@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, BookOpen, ListVideo } from "lucide-react";
+import { Users, BookOpen, ListVideo, ClipboardList, HelpCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const nav = [
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/exercises", label: "Exercises", icon: BookOpen },
+  { href: "/admin/tasks", label: "Tasks", icon: ClipboardList },
+  { href: "/admin/questions", label: "Questions", icon: HelpCircle },
+  { href: "/admin/metrics", label: "Metrics", icon: BarChart3 },
   { href: "/admin/recordings", label: "Recordings", icon: ListVideo },
 ];
 
