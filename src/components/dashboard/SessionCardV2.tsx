@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStoreV2Flow } from "@/store/session-store-v2-flow";
 import { Button } from "@/components/ui/button";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
+import { ProgressPillBar } from "@/components/ui/progress-pill-bar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FlowBackLink } from "@/components/ui/flow-back-button";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { Play, RefreshCw } from "lucide-react";
 
 const FLOW_STEPS = 6; // universal → exercise → task → intent → recording → post/done
+const UNIVERSAL_STEPS = 3;
 
 function getFlowStepIndex(state: string): number {
   if (state === "universal_questions") return 0;
@@ -20,6 +23,238 @@ function getFlowStepIndex(state: string): number {
   if (["recording_ready", "recording", "recorded", "uploading_processing"].includes(state)) return 4;
   if (["post_questions", "finalizing", "completed"].includes(state)) return 5;
   return 0;
+}
+
+/** V2 universal questions — same UI as v1 PreRecordingQuestionnaire (3 steps). Maps to task_score: Good=1, Not great=0; readiness 1–10; guide me=0, I'll choose=1. */
+function UniversalQuestionsV2({
+  loading,
+  error,
+  setUniversalAnswer,
+  submitUniversalAnswers,
+  onBackStep,
+}: {
+  loading: boolean;
+  error: string | null;
+  setUniversalAnswer: (field: "mood" | "readiness" | "mode_preference", value: number) => void;
+  submitUniversalAnswers: () => Promise<void>;
+  onBackStep: () => Promise<void>;
+}) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [mood, setMood] = useState<"positive" | "negative" | null>(null);
+  const [readiness, setReadiness] = useState<number | null>(null);
+  const [inspirationNeeded, setInspirationNeeded] = useState<boolean | null>(null);
+
+  const goBack = useCallback(() => {
+    if (currentStep === 0) {
+      onBackStep();
+    } else {
+      setCurrentStep((s) => Math.max(0, s - 1));
+    }
+  }, [currentStep, onBackStep]);
+
+  const canAdvance =
+    (currentStep === 0 && mood !== null) ||
+    (currentStep === 1 && readiness !== null) ||
+    (currentStep === 2 && inspirationNeeded !== null);
+
+  const goNext = useCallback(() => {
+    if (currentStep === 2) {
+      setUniversalAnswer("mood", mood === "positive" ? 1 : 0);
+      setUniversalAnswer("readiness", readiness ?? 5);
+      setUniversalAnswer("mode_preference", inspirationNeeded ? 0 : 1);
+      submitUniversalAnswers();
+    } else {
+      setCurrentStep((s) => Math.min(UNIVERSAL_STEPS - 1, s + 1));
+    }
+  }, [currentStep, mood, readiness, inspirationNeeded, setUniversalAnswer, submitUniversalAnswers]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (canAdvance) goNext();
+      }
+    },
+    [canAdvance, goNext]
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || !canAdvance || loading) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      e.preventDefault();
+      goNext();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [canAdvance, loading, goNext]);
+
+  if (loading) {
+    return (
+      <Card className="p-6">
+        <div className="flex flex-col items-center justify-center gap-3 py-12" aria-label="Starting session">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Starting session…</p>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6">
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold">Check in before the recording</h3>
+
+        <ProgressPillBar
+          total={UNIVERSAL_STEPS}
+          currentIndex={currentStep}
+          aria-label={`Step ${currentStep + 1} of ${UNIVERSAL_STEPS}`}
+        />
+
+        <p className="text-muted-foreground text-sm text-center mb-4">
+          Question {currentStep + 1} of {UNIVERSAL_STEPS}
+        </p>
+
+        <form onSubmit={(e) => { e.preventDefault(); goNext(); }} onKeyDown={handleKeyDown} className="space-y-6">
+          <div className="relative min-h-[200px] overflow-hidden flex flex-col justify-center">
+            {/* Step 0: Mood — Good = 1, Not great = 0 for task_score */}
+            {currentStep === 0 && (
+              <div key="0" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
+                  Do you feel more like:
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setMood("positive"); setUniversalAnswer("mood", 1); }}
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
+                      mood === "positive"
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-2xl block">🙂</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${mood === "positive" ? "text-primary" : ""}`}>
+                      Good
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMood("negative"); setUniversalAnswer("mood", 0); }}
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
+                      mood === "negative"
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-2xl block">🙁</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${mood === "negative" ? "text-primary" : ""}`}>
+                      Not great
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 1: Readiness 1–10 → task_score uses readiness/10 */}
+            {currentStep === 1 && (
+              <div key="1" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
+                  How ready is your body and mind to present?
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground w-full sm:w-auto">Not ready</span>
+                  <div className="flex-1 flex gap-1 min-w-0">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => { setReadiness(num); setUniversalAnswer("readiness", num); }}
+                        className={`flex-1 aspect-square min-w-[2rem] rounded-lg border-2 transition-all ${
+                          readiness === num
+                            ? "border-primary ring-2 ring-primary/30"
+                            : readiness !== null && readiness > num
+                              ? "border-primary/50"
+                              : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground w-full sm:w-auto">Very ready</span>
+                </div>
+                {readiness !== null && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    {readiness}/10
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Step 2: Guided — Yes guide me = 0, No I'll choose = 1 for task_score */}
+            {currentStep === 2 && (
+              <div key="2" className="animate-fade-in absolute inset-0 w-full space-y-3 pr-1 flex flex-col justify-center">
+                <label className="block text-lg sm:text-xl font-bold text-foreground text-center">
+                  Do you want to be guided?
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setInspirationNeeded(true); setUniversalAnswer("mode_preference", 0); }}
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
+                      inspirationNeeded === true
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-2xl block">📋</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${inspirationNeeded === true ? "text-primary" : ""}`}>
+                      YES – guide me
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setInspirationNeeded(false); setUniversalAnswer("mode_preference", 1); }}
+                    className={`flex-1 min-w-0 py-3 px-3 rounded-lg border-2 transition-all ${
+                      inspirationNeeded === false
+                        ? "border-primary shadow-md ring-2 ring-primary/30"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-2xl block">🎯</span>
+                    <p className={`text-xs mt-1 font-medium truncate ${inspirationNeeded === false ? "text-primary" : ""}`}>
+                      NO – I'll choose
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            {canAdvance && (
+              <p className="animate-fade-in text-muted-foreground text-sm text-center mt-3">
+                Press <span className="font-medium">Enter ↵</span> or click to continue
+              </p>
+            )}
+            <Button
+              type="submit"
+              disabled={loading || !canAdvance}
+              className="w-full rounded-xl bg-primary py-6 text-base font-semibold text-white hover:opacity-90"
+            >
+              {currentStep === 2
+                ? (loading ? "Starting session..." : "Continue")
+                : "Next"}
+            </Button>
+            <FlowBackLink onClick={goBack}>back</FlowBackLink>
+          </div>
+        </form>
+      </div>
+    </Card>
+  );
 }
 
 export default function SessionCardV2() {
@@ -131,80 +366,15 @@ export default function SessionCardV2() {
   }
 
   if (state === "universal_questions") {
-    const mood = universalAnswers?.mood;
-    const readiness = universalAnswers?.readiness ?? 5;
-    const modePref = universalAnswers?.mode_preference ?? 0;
-    const moodQ = universalQuestions.find((q) => q.code === "mood");
-    const readinessQ = universalQuestions.find((q) => q.code === "readiness");
-    const modeQ = universalQuestions.find((q) => q.code === "mode_preference");
-    const q1Label = moodQ?.text ?? "Do you feel more like: Good or Not great?";
-    const q2Label = readinessQ?.text ?? "How ready is your body and mind to present? (1-10)";
-    const q3Label = modeQ?.text ?? "Do you want to be guided?";
     return (
       <FlowWrapper>
-        <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Quick check-in</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">{q1Label}</label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={mood === 1 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUniversalAnswer("mood", 1)}
-                >
-                  Good
-                </Button>
-                <Button
-                  type="button"
-                  variant={mood === 0 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUniversalAnswer("mood", 0)}
-                >
-                  Not great
-                </Button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">{q2Label}</label>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                value={readiness}
-                onChange={(e) => setUniversalAnswer("readiness", Number(e.target.value))}
-                className="w-full"
-              />
-              <span className="text-sm text-muted-foreground ml-2">{readiness}</span>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">{q3Label}</label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={modePref === 0 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUniversalAnswer("mode_preference", 0)}
-                >
-                  Yes, guide me
-                </Button>
-                <Button
-                  type="button"
-                  variant={modePref === 1 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUniversalAnswer("mode_preference", 1)}
-                >
-                  No, I will choose
-                </Button>
-              </div>
-            </div>
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={() => submitUniversalAnswers()} disabled={loading}>
-            {loading ? "Submitting…" : "Continue"}
-          </Button>
-        </Card>
+        <UniversalQuestionsV2
+          loading={loading}
+          error={error}
+          setUniversalAnswer={setUniversalAnswer}
+          submitUniversalAnswers={submitUniversalAnswers}
+          onBackStep={abandonCurrentSession}
+        />
       </FlowWrapper>
     );
   }
