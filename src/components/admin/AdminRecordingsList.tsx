@@ -32,6 +32,7 @@ export default function AdminRecordingsList({
   const router = useRouter();
   const [recordings, setRecordings] = useState<RecordingForAdmin[]>(initialRecordings);
   const [userEmailByUserId, setUserEmailByUserId] = useState<Record<string, string>>({});
+  const [emailsEnrichmentDone, setEmailsEnrichmentDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchForFetch, setSearchForFetch] = useState("");
@@ -63,12 +64,17 @@ export default function AdminRecordingsList({
       if (loadId !== loadIdRef.current) return;
       setRecordings(response.recordings);
       setTotal(response.total ?? 0);
+      setEmailsEnrichmentDone(false);
 
       // Enrich with user emails for all recordings (existing + new) so emails show even if API doesn't return them
       const userIdsNeedingEmail = [...new Set(response.recordings.map((r) => r.user_id))].filter(
         (uid) => !response.recordings.find((r) => r.user_id === uid && r.user_email?.trim())
       );
-      if (loadId !== loadIdRef.current || userIdsNeedingEmail.length === 0) return;
+      if (loadId !== loadIdRef.current) return;
+      if (userIdsNeedingEmail.length === 0) {
+        setEmailsEnrichmentDone(true);
+        return;
+      }
       const next: Record<string, string> = {};
       await Promise.all(
         userIdsNeedingEmail.map(async (userId) => {
@@ -80,13 +86,14 @@ export default function AdminRecordingsList({
               const { email: authEmail } = await getAuthUserEmail(userId);
               if (authEmail?.trim()) next[userId] = authEmail.trim();
             }
-          } catch {
-            // ignore per-user failures
+          } catch (e) {
+            console.warn("[AdminRecordingsList] Could not load email for user", userId.slice(0, 8), e);
           }
         })
       );
       if (loadId !== loadIdRef.current) return;
       setUserEmailByUserId((prev) => ({ ...prev, ...next }));
+      setEmailsEnrichmentDone(true);
     } catch (error) {
       if (loadId !== loadIdRef.current) return;
       console.error("Failed to load recordings:", error);
@@ -163,6 +170,12 @@ export default function AdminRecordingsList({
         <div className="space-y-3">
           {filteredRecordings.map((recording) => {
             const displayEmail = getDisplayEmail(recording, userEmailByUserId);
+            const emailLabel =
+              displayEmail
+                ? displayEmail
+                : !emailsEnrichmentDone
+                  ? "Loading…"
+                  : "—";
             return (
             <Card
               key={recording.recording_id}
@@ -174,9 +187,10 @@ export default function AdminRecordingsList({
                   <div className="flex items-center gap-2 mb-2">
                     <p className="font-medium">
                       User {recording.user_id.slice(0, 8)}
-                      {displayEmail && (
-                        <span className="text-muted-foreground font-normal"> · {displayEmail}</span>
-                      )}
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        · {emailLabel}
+                      </span>
                     </p>
                     {recording.has_feedback && (
                       <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
@@ -191,7 +205,7 @@ export default function AdminRecordingsList({
                   </div>
                   
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2">
-                    {displayEmail && <span>Email: {displayEmail}</span>}
+                    <span>Email: {emailLabel}</span>
                     <span>WPM: {recording.metrics?.wpm || "N/A"}</span>
                     <span>
                       Fillers: {typeof recording.metrics?.filler_count === "number" 
