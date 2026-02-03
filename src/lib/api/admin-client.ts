@@ -53,6 +53,7 @@ export interface StudentProfile {
   user_id: string;
   email: string | null;
   overrides: {
+    show_exercise_step?: boolean;
     intended_emotion_prompt?: string;
     keywords_prompt?: string;
     emotion_check_question_text?: string;
