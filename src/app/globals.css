@@ -4,16 +4,19 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 99%;
+    --foreground: 220 20% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --destructive: 0 84.2% 60.2%;
+    --card-foreground: 220 20% 10%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 24 100% 97%;
+    --accent-foreground: 24 95% 40%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --input: 220 13% 91%;
+    --ring: 24 95% 53%;
+    --border: 220 13% 91%;
     --primary: 24 95% 53%;
     --step-completed: 142 76% 36%;
     --step-pending: 210 40% 96.1%;
@@ -39,7 +42,7 @@
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -48,7 +51,36 @@
 }
 
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out forwards;
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+@keyframes fade-in-short {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-short {
+  animation: fade-in-short 0.2s ease-out forwards;
+}
+
+/* Admin panel: spec palette (orange primary, etc.) — applied via .admin-panel wrapper */
+.admin-panel {
+  --primary: 24 95% 53%;
+  --background: 0 0% 99%;
+  --foreground: 220 20% 10%;
+  --card: 0 0% 100%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 10% 46%;
+  --accent: 24 100% 97%;
+  --accent-foreground: 24 95% 40%;
+  --border: 220 13% 91%;
+  --destructive: 0 84% 60%;
 }
 
 html,
