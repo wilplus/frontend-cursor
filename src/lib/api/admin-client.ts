@@ -33,7 +33,8 @@ async function adminFetch<T>(
   const res = await fetch(url, init);
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
-    throw new Error(err.error || err.code || `HTTP ${res.status}`);
+    const msg = err.error || err.code || `HTTP ${res.status} for ${path}`;
+    throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }

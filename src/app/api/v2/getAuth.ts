@@ -2,11 +2,13 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const BACKEND_URL =
+const RAW =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.BACKEND_URL ||
   "";
+/** Base URL with no trailing slash so paths like `${url}/v2/admin/tasks` don't get double slashes */
+const BACKEND_URL = RAW.replace(/\/+$/, "");
 
 export function getBackendUrl(): string {
   return BACKEND_URL;
