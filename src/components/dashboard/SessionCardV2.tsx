@@ -116,7 +116,7 @@ function UniversalQuestionsV2({
           Question {currentStep + 1} of {UNIVERSAL_STEPS}
         </p>
 
-        <form onSubmit={(e) => { e.preventDefault(); goNext(); }} onKeyDown={handleKeyDown} className="space-y-6">
+        <form onSubmit={(e) => { e.preventDefault(); if (canAdvance) goNext(); }} onKeyDown={handleKeyDown} className="space-y-6">
           <div className="relative min-h-[200px] overflow-hidden flex flex-col justify-center">
             {/* Step 0: Mood — Good = 1, Not great = 0 for task_score */}
             {currentStep === 0 && (
@@ -235,6 +235,11 @@ function UniversalQuestionsV2({
 
           <div className="space-y-3">
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            {!canAdvance && currentStep === 0 && (
+              <p className="text-muted-foreground text-sm text-center">
+                Select an option above to continue
+              </p>
+            )}
             {canAdvance && (
               <p className="animate-fade-in text-muted-foreground text-sm text-center mt-3">
                 Press <span className="font-medium">Enter ↵</span> or click to continue
@@ -242,8 +247,12 @@ function UniversalQuestionsV2({
             )}
             <Button
               type="submit"
-              disabled={loading || !canAdvance}
-              className="w-full rounded-xl bg-primary py-6 text-base font-semibold text-white hover:opacity-90"
+              disabled={loading}
+              className="w-full rounded-xl bg-primary py-6 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              onClick={(e) => {
+                e.preventDefault();
+                if (canAdvance) goNext();
+              }}
             >
               {currentStep === 2
                 ? (loading ? "Starting session..." : "Continue")
