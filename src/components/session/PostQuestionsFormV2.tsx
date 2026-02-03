@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
@@ -22,7 +22,7 @@ export default function PostQuestionsFormV2({
   const { postAnswers, postCurrentIndex, setPostCurrentIndex, updatePostAnswer, submitPostAnswers, abandonCurrentSession, loading, error } =
     useSessionStore();
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
-  const [freeTextLocal, setFreeTextLocal] = useState("");
+  const freeTextRef = useRef<HTMLTextAreaElement>(null);
 
   const isReadOnly = Object.keys(submittedAnswers).length > 0;
   const sorted = (questions ?? []).slice().sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -33,9 +33,8 @@ export default function PostQuestionsFormV2({
   const isLast = currentIndex === total - 1;
   const currentAnswer = question ? (postAnswers[question.id] ?? "").trim() : "";
   const isOptional = question?.order_index === 2;
-  const freeTextFilled =
-    question?.question_type === "free_text" ? (freeTextLocal || "").trim().length > 0 : false;
-  const canAdvance = isOptional || currentAnswer.length > 0 || freeTextFilled;
+  const freeTextValue = question?.question_type === "free_text" ? (postAnswers[question.id] ?? "").trim() : "";
+  const canAdvance = isOptional || currentAnswer.length > 0 || freeTextValue.length > 0;
 
   useEffect(() => {
     if (isReadOnly) return;
@@ -60,14 +59,13 @@ export default function PostQuestionsFormV2({
   useEffect(() => {
     if (isReadOnly || !question) return;
     if (question.question_type === "free_text") {
-      const stored = postAnswers[question.id] ?? "";
-      setFreeTextLocal(stored);
       inputRef.current?.focus();
     }
-  }, [currentIndex, question?.id, question?.question_type, isReadOnly, postAnswers]);
+  }, [currentIndex, question?.id, question?.question_type, isReadOnly]);
 
-  const syncFreeTextToStore = useCallback(
-    (questionId: string, value: string) => {
+  const syncFreeTextFromRef = useCallback(
+    (questionId: string) => {
+      const value = freeTextRef.current?.value ?? "";
       updatePostAnswer(questionId, value);
     },
     [updatePostAnswer]
@@ -100,14 +98,14 @@ export default function PostQuestionsFormV2({
   const goNext = useCallback(() => {
     if (!canAdvance && question && !isOptional) return;
     if (question?.question_type === "free_text") {
-      syncFreeTextToStore(question.id, freeTextLocal);
+      syncFreeTextFromRef(question.id);
     }
     if (isLast) {
       doSubmit();
     } else {
       setPostCurrentIndex(Math.min(currentIndex + 1, total - 1));
     }
-  }, [canAdvance, isLast, total, currentIndex, question, isOptional, doSubmit, setPostCurrentIndex, freeTextLocal, syncFreeTextToStore]);
+  }, [canAdvance, isLast, total, currentIndex, question, isOptional, doSubmit, setPostCurrentIndex, syncFreeTextFromRef]);
 
   const goBack = useCallback(() => {
     if (isFirst) {
@@ -298,15 +296,16 @@ export default function PostQuestionsFormV2({
                       {submittedAnswers[question.id] || postAnswers[question.id] || "(No answer provided)"}
                     </div>
                   ) : (
-                    <Input
-                      ref={inputRef as React.RefObject<HTMLInputElement>}
-                      value={freeTextLocal}
-                      onChange={(e) => setFreeTextLocal(e.target.value)}
-                      onBlur={() => syncFreeTextToStore(question.id, freeTextLocal)}
+                    <textarea
+                      key={question.id}
+                      ref={freeTextRef}
+                      defaultValue={postAnswers[question.id] ?? ""}
+                      onBlur={() => syncFreeTextFromRef(question.id)}
                       placeholder="Write anything you want (optional)..."
                       disabled={loading}
                       autoFocus
-                      className="w-full min-h-[100px] px-4 py-4 bg-card border border-input rounded-xl text-foreground text-lg text-center focus:outline-none focus:ring-2 focus:ring-ring"
+                      rows={4}
+                      className="w-full min-h-[100px] px-4 py-4 bg-card border border-input rounded-xl text-foreground text-base text-left placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 resize-y"
                     />
                   )}
                 </div>
@@ -319,7 +318,7 @@ export default function PostQuestionsFormV2({
           <div className="space-y-3">
             {canAdvance && (
               <p className="animate-fade-in text-muted-foreground text-sm text-center mt-3">
-                Press <span className="font-medium">Enter ↵</span> or click to continue
+                Press <span className="font-medium">Enter</span> <span className="font-medium">/</span> or click to continue
               </p>
             )}
             <Button

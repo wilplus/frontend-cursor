@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { submitAdminFeedback, getUserAdminContext, fetchRecording } from "@/lib/api/client";
+import { submitAdminFeedback, getUserAdminContext, getAuthUserEmail, fetchRecording } from "@/lib/api/client";
 import type { AdminFeedbackRequest, UserAdminContext } from "@/lib/api/types";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
@@ -23,6 +23,7 @@ export default function AdminFeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [existingContext, setExistingContext] = useState<UserAdminContext | null>(null);
+  const [displayEmail, setDisplayEmail] = useState<string | null>(null);
   const [recordingData, setRecordingData] = useState<any>(null);
   const [formData, setFormData] = useState<AdminFeedbackRequest>({
     user_id: userId || "",
@@ -55,7 +56,16 @@ export default function AdminFeedbackPage() {
       // Load existing admin context
       const context = await getUserAdminContext(userId!);
       setExistingContext(context);
-      
+      setDisplayEmail(context?.user_email?.trim() || null);
+      if (!context?.user_email?.trim()) {
+        try {
+          const { email } = await getAuthUserEmail(userId!);
+          if (email?.trim()) setDisplayEmail(email.trim());
+        } catch {
+          // ignore
+        }
+      }
+
       // Pre-fill form with existing data
       if (context.general_notes) {
         setFormData((prev) => ({ ...prev, general_notes: context.general_notes || "" }));
@@ -184,6 +194,12 @@ export default function AdminFeedbackPage() {
               <p className="text-muted-foreground mt-1">
                 Add feedback to improve AI analysis for this user
               </p>
+              {displayEmail && (
+                <p className="mt-2 text-sm">
+                  <span className="font-medium text-foreground">User email: </span>
+                  <span className="font-mono text-foreground">{displayEmail}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -425,6 +441,12 @@ export default function AdminFeedbackPage() {
               <p className="text-xs text-muted-foreground">
                 You're updating existing feedback. The form above is pre-filled with current values.
               </p>
+              {displayEmail && (
+                <p className="text-sm mt-2">
+                  <span className="font-medium text-foreground">User email: </span>
+                  <span className="font-mono text-foreground">{displayEmail}</span>
+                </p>
+              )}
             </Card>
           )}
         </div>

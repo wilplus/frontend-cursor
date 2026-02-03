@@ -254,7 +254,8 @@ export async function getAuthUserEmail(userId: string): Promise<{ email: string 
 export async function fetchAdminRecordings(
   limit: number = 20,
   offset: number = 0,
-  needsFeedback?: boolean
+  needsFeedback?: boolean,
+  search?: string
 ): Promise<AdminRecordingsListResponse> {
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -262,6 +263,10 @@ export async function fetchAdminRecordings(
   });
   if (needsFeedback !== undefined) {
     params.append("needs_feedback", needsFeedback.toString());
+  }
+  const trimmed = search?.trim();
+  if (trimmed) {
+    params.append("q", trimmed);
   }
   const { headers, credentials } = await getAuthFetchOptions();
   const res = await fetch(`/api/admin/recordings?${params}`, { headers, credentials });
