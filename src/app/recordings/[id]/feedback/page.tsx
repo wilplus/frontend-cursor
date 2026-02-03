@@ -183,6 +183,11 @@ export default function AdminFeedbackPage() {
               <h1 className="text-3xl font-bold">Provide Feedback</h1>
               <p className="text-muted-foreground mt-1">
                 Add feedback to improve AI analysis for this user
+                {existingContext?.user_email && (
+                  <span className="block mt-1 font-medium text-foreground">
+                    User: {existingContext.user_email}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -424,6 +429,11 @@ export default function AdminFeedbackPage() {
               <h3 className="text-sm font-semibold mb-2">Existing Feedback</h3>
               <p className="text-xs text-muted-foreground">
                 You're updating existing feedback. The form above is pre-filled with current values.
+                {existingContext.user_email && (
+                  <span className="block mt-2 font-medium text-foreground">
+                    User: {existingContext.user_email}
+                  </span>
+                )}
               </p>
             </Card>
           )}

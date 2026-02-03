@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchAdminRecordings, getUserAdminContext } from "@/lib/api/client";
+import { fetchAdminRecordings } from "@/lib/api/client";
 import type { RecordingForAdmin } from "@/lib/api/types";
 import { toast } from "sonner";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+
+const SEARCH_DEBOUNCE_MS = 350;
 
 interface AdminRecordingsListProps {
   initialRecordings?: RecordingForAdmin[];
@@ -23,32 +25,43 @@ export default function AdminRecordingsList({
   const [recordings, setRecordings] = useState<RecordingForAdmin[]>(initialRecordings);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchForFetch, setSearchForFetch] = useState("");
   const [filterNeedsFeedback, setFilterNeedsFeedback] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [total, setTotal] = useState(initialTotal);
   const limit = 20;
 
+  // Debounce search and reset to first page when search changes
   useEffect(() => {
-    loadRecordings();
-  }, [currentPage, filterNeedsFeedback]);
+    const t = setTimeout(() => {
+      setSearchForFetch(searchQuery.trim());
+      setCurrentPage(0);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-  const loadRecordings = async () => {
+  const loadRecordings = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetchAdminRecordings(
         limit,
         currentPage * limit,
-        filterNeedsFeedback || undefined
+        filterNeedsFeedback || undefined,
+        searchForFetch || undefined
       );
       setRecordings(response.recordings);
-      setTotal(response.total || 0);
+      setTotal(response.total ?? 0);
     } catch (error) {
       console.error("Failed to load recordings:", error);
       toast.error("Failed to load recordings");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filterNeedsFeedback, searchForFetch]);
+
+  useEffect(() => {
+    loadRecordings();
+  }, [loadRecordings]);
 
   const handleRecordingClick = (recording: RecordingForAdmin) => {
     router.push(`/recordings/${recording.recording_id}/feedback?user_id=${recording.user_id}`);
@@ -120,7 +133,10 @@ export default function AdminRecordingsList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <p className="font-medium">
-                      {recording.user_email || `User ${recording.user_id.slice(0, 8)}`}
+                      User {recording.user_id.slice(0, 8)}
+                      {recording.user_email && (
+                        <span className="text-muted-foreground font-normal"> · {recording.user_email}</span>
+                      )}
                     </p>
                     {recording.has_feedback && (
                       <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
@@ -135,6 +151,9 @@ export default function AdminRecordingsList({
                   </div>
                   
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2">
+                    {recording.user_email && (
+                      <span>Email: {recording.user_email}</span>
+                    )}
                     <span>WPM: {recording.metrics?.wpm || "N/A"}</span>
                     <span>
                       Fillers: {typeof recording.metrics?.filler_count === "number" 
