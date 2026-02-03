@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronLeft, FileText, Send } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
-import { adminApi, type StudentProfile, type Exercise, type PostQuestion } from "@/lib/api/admin-client";
+import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task } from "@/lib/api/admin-client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +41,7 @@ export default function AdminStudentProfilePage() {
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,11 +53,13 @@ export default function AdminStudentProfilePage() {
     Promise.all([
       adminApi.getStudentProfile(id),
       adminApi.getExercises(),
+      adminApi.getTasks(),
       adminApi.getPostQuestions(),
     ])
-      .then(([p, ex, q]) => {
+      .then(([p, ex, t, q]) => {
         setProfile(p);
         setExercises(ex);
+        setTasks(t);
         setPostQuestions(q);
       })
       .catch((e) => toast.error(e.message))
@@ -71,6 +74,7 @@ export default function AdminStudentProfilePage() {
     emotion_check_question_text: "",
     assigned_post_question_ids: [] as string[],
     assigned_next_exercise_id: "",
+    assigned_next_task_ids: [] as string[],
   });
   const [speakerDraft, setSpeakerDraft] = useState({
     main_goal: "",
@@ -92,6 +96,7 @@ export default function AdminStudentProfilePage() {
       emotion_check_question_text: o.emotion_check_question_text ?? "",
       assigned_post_question_ids: o.assigned_post_question_ids ?? [],
       assigned_next_exercise_id: o.assigned_next_exercise_id ?? "",
+      assigned_next_task_ids: o.assigned_next_task_ids ?? [],
     });
     const s = profile.speaker_profile || {};
     setSpeakerDraft({
@@ -113,6 +118,7 @@ export default function AdminStudentProfilePage() {
       keywords_prompt: overridesDraft.keywords_prompt || undefined,
       emotion_check_question_text: overridesDraft.emotion_check_question_text || undefined,
       assigned_next_exercise_id: overridesDraft.assigned_next_exercise_id || undefined,
+      assigned_next_task_ids: overridesDraft.assigned_next_task_ids.length > 0 ? overridesDraft.assigned_next_task_ids : undefined,
     };
     if (overridesDraft.assigned_post_question_ids.length === 3) {
       payload.assigned_post_question_ids = overridesDraft.assigned_post_question_ids;
@@ -154,6 +160,15 @@ export default function AdminStudentProfilePage() {
       ...prev,
       assigned_next_exercise_id: prev.assigned_next_exercise_id === exId ? "" : exId,
     }));
+  };
+
+  const toggleTask = (taskId: string) => {
+    setOverridesDraft((prev) => {
+      const ids = prev.assigned_next_task_ids.includes(taskId)
+        ? prev.assigned_next_task_ids.filter((x) => x !== taskId)
+        : [...prev.assigned_next_task_ids, taskId];
+      return { ...prev, assigned_next_task_ids: ids };
+    });
   };
 
   if (!id) return <p className="text-muted-foreground">Invalid student.</p>;
@@ -199,7 +214,7 @@ export default function AdminStudentProfilePage() {
           <div>
             <p className="mb-2 text-sm font-medium">Next exercise (optional)</p>
             <div className="flex flex-wrap gap-2">
-              {exercises.filter((e) => e.is_active !== false).map((e) => (
+              {exercises.map((e) => (
                 <Chip
                   key={e.id}
                   label={e.title}
@@ -207,8 +222,24 @@ export default function AdminStudentProfilePage() {
                   onToggle={() => toggleExercise(e.id)}
                 />
               ))}
-              {exercises.filter((e) => e.is_active !== false).length === 0 && (
-                <span className="text-sm text-muted-foreground">No active exercises.</span>
+              {exercises.length === 0 && (
+                <span className="text-sm text-muted-foreground">No exercises in library. Add some in Exercises.</span>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium">Tasks (optional)</p>
+            <div className="flex flex-wrap gap-2">
+              {tasks.map((t) => (
+                <Chip
+                  key={t.id}
+                  label={t.title}
+                  selected={overridesDraft.assigned_next_task_ids.includes(t.id)}
+                  onToggle={() => toggleTask(t.id)}
+                />
+              ))}
+              {tasks.length === 0 && (
+                <span className="text-sm text-muted-foreground">No tasks in library. Add some in Tasks.</span>
               )}
             </div>
           </div>
@@ -220,7 +251,7 @@ export default function AdminStudentProfilePage() {
               <p className="mb-2 text-sm text-destructive">Select exactly 3 questions.</p>
             )}
             <div className="flex flex-wrap gap-2">
-              {postQuestions.filter((q) => q.is_active !== false).map((q) => (
+              {postQuestions.map((q) => (
                 <Chip
                   key={q.id}
                   label={q.text.slice(0, 30) + (q.text.length > 30 ? "…" : "")}
@@ -228,6 +259,9 @@ export default function AdminStudentProfilePage() {
                   onToggle={() => togglePostQuestion(q.id)}
                 />
               ))}
+              {postQuestions.length === 0 && (
+                <span className="text-sm text-muted-foreground">No questions in library. Add some in Questions.</span>
+              )}
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Pencil, Trash2, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function AdminExercisesPage() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -21,7 +20,6 @@ export default function AdminExercisesPage() {
     description: "",
     min_task_score: 0,
     max_task_score: 1,
-    is_active: true,
   });
 
   const load = useCallback(() => {
@@ -53,7 +51,6 @@ export default function AdminExercisesPage() {
       description: "",
       min_task_score: 0,
       max_task_score: 1,
-      is_active: true,
     });
     setDialogOpen(true);
   };
@@ -66,7 +63,6 @@ export default function AdminExercisesPage() {
       description: e.description ?? "",
       min_task_score: e.min_task_score ?? 0,
       max_task_score: e.max_task_score ?? 1,
-      is_active: e.is_active ?? true,
     });
     setDialogOpen(true);
   };
@@ -78,7 +74,7 @@ export default function AdminExercisesPage() {
     }
     if (editing) {
       adminApi
-        .updateExercise(editing.id, form)
+        .updateExercise(editing.id, { ...form, is_active: true })
         .then(() => {
           toast.success("Exercise updated");
           setDialogOpen(false);
@@ -87,7 +83,7 @@ export default function AdminExercisesPage() {
         .catch((e) => toast.error(e.message));
     } else {
       adminApi
-        .createExercise(form)
+        .createExercise({ ...form, is_active: true })
         .then(() => {
           toast.success("Exercise created");
           setDialogOpen(false);
@@ -98,11 +94,11 @@ export default function AdminExercisesPage() {
   };
 
   const remove = (id: string) => {
-    if (!confirm("Deactivate this exercise? It will no longer appear in the student flow.")) return;
+    if (!confirm("Remove this exercise from the library? You can still assign it per student until removed.")) return;
     adminApi
       .deleteExercise(id)
       .then(() => {
-        toast.success("Exercise deactivated");
+        toast.success("Exercise removed from library");
         load();
       })
       .catch((e) => toast.error(e.message));
@@ -118,7 +114,7 @@ export default function AdminExercisesPage() {
       </div>
 
       <div className="rounded-lg border border-primary/30 bg-accent/30 px-4 py-3 text-sm text-foreground">
-        Note: If no exercises are active, students will skip the exercise step in their session.
+        Exercise library. Which exercises each student sees is set per student in their profile.
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -149,19 +145,7 @@ export default function AdminExercisesPage() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{e.title}</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      e.is_active !== false
-                        ? "bg-primary text-white"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {e.is_active !== false ? "Active" : "Inactive"}
-                  </span>
-                </div>
+                <span className="font-medium">{e.title}</span>
                 {e.description && (
                   <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{e.description}</p>
                 )}
@@ -170,29 +154,6 @@ export default function AdminExercisesPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Active</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={e.is_active !== false}
-                  onClick={() =>
-                    adminApi
-                      .updateExercise(e.id, { ...e, is_active: e.is_active === false })
-                      .then(() => load())
-                      .catch((err) => toast.error(err.message))
-                  }
-                  className={cn(
-                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    e.is_active !== false ? "bg-primary" : "bg-muted"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition-transform",
-                      e.is_active !== false ? "translate-x-5" : "translate-x-0.5"
-                    )}
-                  />
-                </button>
                 <Button type="button" variant="ghost" size="icon" onClick={() => openEdit(e)}>
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -212,8 +173,8 @@ export default function AdminExercisesPage() {
       </ul>
 
       {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-card p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex min-h-screen min-w-full items-center justify-center overflow-y-auto bg-black/50 py-12 px-4">
+          <div className="my-auto w-full max-w-lg rounded-xl bg-card p-6 shadow-lg">
             <h2 className="text-lg font-semibold">{editing ? "Edit Exercise" : "New Exercise"}</h2>
             <div className="mt-4 space-y-4">
               <div>
@@ -268,15 +229,6 @@ export default function AdminExercisesPage() {
                   />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
-                  className="h-4 w-4 rounded border-input"
-                />
-                Active (show in student flow)
-              </label>
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>

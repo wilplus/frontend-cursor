@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Pencil, Trash2, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const ANSWER_TYPE_LABELS: Record<string, string> = {
   yes_no: "Yes / No",
@@ -28,7 +27,6 @@ export default function AdminQuestionsPage() {
   const [form, setForm] = useState({
     text: "",
     answer_type: "yes_no",
-    is_active: true,
   });
 
   const load = useCallback(() => {
@@ -53,7 +51,6 @@ export default function AdminQuestionsPage() {
     setForm({
       text: "",
       answer_type: "yes_no",
-      is_active: true,
     });
     setDialogOpen(true);
   };
@@ -63,7 +60,6 @@ export default function AdminQuestionsPage() {
     setForm({
       text: item.text ?? "",
       answer_type: item.answer_type ?? "yes_no",
-      is_active: item.is_active ?? true,
     });
     setDialogOpen(true);
   };
@@ -75,7 +71,7 @@ export default function AdminQuestionsPage() {
     }
     if (editing) {
       adminApi
-        .updatePostQuestion(editing.id, form)
+        .updatePostQuestion(editing.id, { ...form, is_active: true })
         .then(() => {
           toast.success("Question updated");
           setDialogOpen(false);
@@ -84,7 +80,7 @@ export default function AdminQuestionsPage() {
         .catch((e) => toast.error(e.message));
     } else {
       adminApi
-        .createPostQuestion(form)
+        .createPostQuestion({ ...form, is_active: true })
         .then(() => {
           toast.success("Question created");
           setDialogOpen(false);
@@ -95,11 +91,11 @@ export default function AdminQuestionsPage() {
   };
 
   const remove = (id: string) => {
-    if (!confirm("Deactivate or remove this question?")) return;
+    if (!confirm("Remove this question from the library? Which questions each student sees is set in their profile.")) return;
     adminApi
       .deletePostQuestion(id)
       .then(() => {
-        toast.success("Question removed");
+        toast.success("Question removed from library");
         load();
       })
       .catch((e) => toast.error(e.message));
@@ -146,17 +142,7 @@ export default function AdminQuestionsPage() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{q.text}</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      q.is_active !== false ? "bg-primary text-white" : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {q.is_active !== false ? "Active" : "Inactive"}
-                  </span>
-                </div>
+                <span className="font-medium">{q.text}</span>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Answer type: {answerTypeLabel(q.answer_type)}
                 </p>
@@ -181,8 +167,8 @@ export default function AdminQuestionsPage() {
       </ul>
 
       {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-card p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex min-h-screen min-w-full items-center justify-center overflow-y-auto bg-black/50 py-12 px-4">
+          <div className="my-auto w-full max-w-lg rounded-xl bg-card p-6 shadow-lg">
             <h2 className="text-lg font-semibold">{editing ? "Edit Question" : "Add Question"}</h2>
             <div className="mt-4 space-y-4">
               <div>
@@ -207,15 +193,6 @@ export default function AdminQuestionsPage() {
                   <option value="text">Free Text</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
-                  className="h-4 w-4 rounded border-input"
-                />
-                Active (available for assignment)
-              </label>
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
