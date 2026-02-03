@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useSessionStore } from "@/store/session-store";
 import { v2Api } from "@/lib/api/client-v2";
+import type { ExerciseV2 } from "@/lib/api/types-v2";
 import { Button } from "@/components/ui/button";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import { Card } from "@/components/ui/card";
@@ -56,6 +57,9 @@ export default function SessionCardV2() {
   const authReady = useAuthReady();
   const abortControllerRef = useRef<AbortController | null>(null);
   const taskScoreSentForSessionRef = useRef<string | null>(null);
+  const [exerciseFromPlan, setExerciseFromPlan] = useState<ExerciseV2 | null>(null);
+  const [exerciseFeedbackDone, setExerciseFeedbackDone] = useState(false);
+  const [exerciseLoading, setExerciseLoading] = useState(false);
 
   useEffect(() => {
     if (authReady) initialize();
@@ -67,7 +71,15 @@ export default function SessionCardV2() {
     };
   }, []);
 
-  // When questionnaire is submitted (state command_select), send task_score inputs to v2 API for calculation
+  // Reset exercise state when leaving command_select or starting new session
+  useEffect(() => {
+    if (state === "idle" || (state !== "command_select" && exerciseFromPlan != null)) {
+      setExerciseFromPlan(null);
+      setExerciseFeedbackDone(false);
+    }
+  }, [state, exerciseFromPlan]);
+
+  // When questionnaire is submitted (state command_select), send task_score to v2 API and get plan (exercise optional)
   useEffect(() => {
     if (state !== "command_select" || !sessionId || !questionnaire) return;
     if (taskScoreSentForSessionRef.current === sessionId) return;
@@ -75,17 +87,24 @@ export default function SessionCardV2() {
     const mood = questionnaire.mood === "positive" ? 1 : 0;
     const readiness = Math.min(10, Math.max(1, Math.round(questionnaire.readiness)));
     const mode_preference = questionnaire.inspiration_needed ? 0 : 1;
-    v2Api.submitUniversalAnswers(sessionId, { mood, readiness, mode_preference }).catch(() => {
-      taskScoreSentForSessionRef.current = null;
-    });
+    v2Api
+      .submitUniversalAnswers(sessionId, { mood, readiness, mode_preference })
+      .then((res) => {
+        setExerciseFromPlan(res.plan.exercise ?? null);
+      })
+      .catch(() => {
+        taskScoreSentForSessionRef.current = null;
+      });
   }, [state, sessionId, questionnaire]);
 
+  // Auto-select command only after exercise step is done (or when there is no exercise)
   useEffect(() => {
     if (state !== "command_select" || !commandOptions?.length) return;
+    if (exerciseFromPlan != null && !exerciseFeedbackDone) return;
     const primary = commandOptions.find((o) => o.is_primary) ?? commandOptions[0];
     const promptText = (primary.prompt_text_snapshot ?? "").trim() || (primary.intent ?? "");
     selectCommandOption(primary.option_id, promptText);
-  }, [state, commandOptions, selectCommandOption]);
+  }, [state, commandOptions, selectCommandOption, exerciseFromPlan, exerciseFeedbackDone]);
 
   const handleStartSession = async () => {
     await startNewSession();
@@ -160,6 +179,64 @@ export default function SessionCardV2() {
   }
 
   if (state === "command_select") {
+    const showExercise = exerciseFromPlan != null && !exerciseFeedbackDone;
+    if (showExercise && exerciseFromPlan) {
+      const ex = exerciseFromPlan;
+      return (
+        <FlowWrapper>
+          <Card className="p-6 space-y-4">
+            <h3 className="text-lg font-semibold">{ex.title}</h3>
+            {ex.description && (
+              <p className="text-sm text-muted-foreground">{ex.description}</p>
+            )}
+            {ex.video_url && (
+              <a
+                href={ex.video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex text-sm text-primary underline hover:no-underline"
+              >
+                Watch video
+              </a>
+            )}
+            <p className="text-sm font-medium text-foreground">Did you find this exercise helpful?</p>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  if (!sessionId) return;
+                  setExerciseLoading(true);
+                  try {
+                    await v2Api.submitExerciseFeedback(sessionId, { exercise_liked: true });
+                    setExerciseFeedbackDone(true);
+                  } finally {
+                    setExerciseLoading(false);
+                  }
+                }}
+                disabled={exerciseLoading}
+              >
+                Yes, liked it
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!sessionId) return;
+                  setExerciseLoading(true);
+                  try {
+                    await v2Api.submitExerciseFeedback(sessionId, { exercise_liked: false });
+                    setExerciseFeedbackDone(true);
+                  } finally {
+                    setExerciseLoading(false);
+                  }
+                }}
+                disabled={exerciseLoading}
+              >
+                Skip / not really
+              </Button>
+            </div>
+          </Card>
+        </FlowWrapper>
+      );
+    }
     return (
       <FlowWrapper>
         <Card className="p-6">
