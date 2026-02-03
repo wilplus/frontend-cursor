@@ -16,11 +16,14 @@ export interface UniversalQuestion {
   position: number;
 }
 
-// —— Universal answers (Q1 mood 0..1, Q2 readiness 1..10 → norm 0..1, Q3 mode 0 | 1) ——
+// —— Universal answers: task_score inputs (backend: (c1+c2+c3)/3, 0..1) ——
+// Q1 mood: Good=1, Not great=0
+// Q2 readiness: 1–10 (backend uses readiness/10 → 0.1..1)
+// Q3 mode_preference: 0 = Yes guide me, 1 = No I will choose
 export interface UniversalAnswersInput {
-  mood: number; // 0..1
-  readiness: number; // 1..10 (frontend can send as-is; backend normalizes)
-  mode_preference: 0 | 1; // 0 = "Guide me", 1 = "I'll choose"
+  mood: 0 | 1; // 1 = Good, 0 = Not great
+  readiness: number; // 1..10
+  mode_preference: 0 | 1; // 0 = Yes guide me, 1 = No I will choose
 }
 
 // —— Exercise (optional step) ——
