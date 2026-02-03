@@ -1,16 +1,24 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchAdminRecordings } from "@/lib/api/client";
+import { fetchAdminRecordings, getUserAdminContext, getAuthUserEmail } from "@/lib/api/client";
 import type { RecordingForAdmin } from "@/lib/api/types";
 import { toast } from "sonner";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 
 const SEARCH_DEBOUNCE_MS = 350;
+
+/** Get display email for a recording: from API or from enriched map (works for existing + new recordings). */
+function getDisplayEmail(
+  recording: RecordingForAdmin,
+  userEmailByUserId: Record<string, string>
+): string | undefined {
+  return recording.user_email?.trim() || userEmailByUserId[recording.user_id] || undefined;
+}
 
 interface AdminRecordingsListProps {
   initialRecordings?: RecordingForAdmin[];
@@ -23,12 +31,14 @@ export default function AdminRecordingsList({
 }: AdminRecordingsListProps) {
   const router = useRouter();
   const [recordings, setRecordings] = useState<RecordingForAdmin[]>(initialRecordings);
+  const [userEmailByUserId, setUserEmailByUserId] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchForFetch, setSearchForFetch] = useState("");
   const [filterNeedsFeedback, setFilterNeedsFeedback] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [total, setTotal] = useState(initialTotal);
+  const loadIdRef = useRef(0);
   const limit = 20;
 
   // Debounce search and reset to first page when search changes
@@ -41,6 +51,7 @@ export default function AdminRecordingsList({
   }, [searchQuery]);
 
   const loadRecordings = useCallback(async () => {
+    const loadId = ++loadIdRef.current;
     setLoading(true);
     try {
       const response = await fetchAdminRecordings(
@@ -49,13 +60,39 @@ export default function AdminRecordingsList({
         filterNeedsFeedback || undefined,
         searchForFetch || undefined
       );
+      if (loadId !== loadIdRef.current) return;
       setRecordings(response.recordings);
       setTotal(response.total ?? 0);
+
+      // Enrich with user emails for all recordings (existing + new) so emails show even if API doesn't return them
+      const userIdsNeedingEmail = [...new Set(response.recordings.map((r) => r.user_id))].filter(
+        (uid) => !response.recordings.find((r) => r.user_id === uid && r.user_email?.trim())
+      );
+      if (loadId !== loadIdRef.current || userIdsNeedingEmail.length === 0) return;
+      const next: Record<string, string> = {};
+      await Promise.all(
+        userIdsNeedingEmail.map(async (userId) => {
+          try {
+            const context = await getUserAdminContext(userId);
+            const email = context?.user_email?.trim();
+            if (email) next[userId] = email;
+            else {
+              const { email: authEmail } = await getAuthUserEmail(userId);
+              if (authEmail?.trim()) next[userId] = authEmail.trim();
+            }
+          } catch {
+            // ignore per-user failures
+          }
+        })
+      );
+      if (loadId !== loadIdRef.current) return;
+      setUserEmailByUserId((prev) => ({ ...prev, ...next }));
     } catch (error) {
+      if (loadId !== loadIdRef.current) return;
       console.error("Failed to load recordings:", error);
       toast.error("Failed to load recordings");
     } finally {
-      setLoading(false);
+      if (loadId === loadIdRef.current) setLoading(false);
     }
   }, [currentPage, filterNeedsFeedback, searchForFetch]);
 
@@ -70,9 +107,10 @@ export default function AdminRecordingsList({
   const filteredRecordings = recordings.filter((recording) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
+    const email = getDisplayEmail(recording, userEmailByUserId);
     return (
       recording.transcription_text?.toLowerCase().includes(query) ||
-      recording.user_email?.toLowerCase().includes(query) ||
+      email?.toLowerCase().includes(query) ||
       recording.recording_id.toLowerCase().includes(query) ||
       recording.user_id.toLowerCase().includes(query)
     );
@@ -123,7 +161,9 @@ export default function AdminRecordingsList({
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredRecordings.map((recording) => (
+          {filteredRecordings.map((recording) => {
+            const displayEmail = getDisplayEmail(recording, userEmailByUserId);
+            return (
             <Card
               key={recording.recording_id}
               className="p-4 hover:border-primary/50 transition-colors cursor-pointer"
@@ -134,8 +174,8 @@ export default function AdminRecordingsList({
                   <div className="flex items-center gap-2 mb-2">
                     <p className="font-medium">
                       User {recording.user_id.slice(0, 8)}
-                      {recording.user_email && (
-                        <span className="text-muted-foreground font-normal"> · {recording.user_email}</span>
+                      {displayEmail && (
+                        <span className="text-muted-foreground font-normal"> · {displayEmail}</span>
                       )}
                     </p>
                     {recording.has_feedback && (
@@ -151,9 +191,7 @@ export default function AdminRecordingsList({
                   </div>
                   
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2">
-                    {recording.user_email && (
-                      <span>Email: {recording.user_email}</span>
-                    )}
+                    {displayEmail && <span>Email: {displayEmail}</span>}
                     <span>WPM: {recording.metrics?.wpm || "N/A"}</span>
                     <span>
                       Fillers: {typeof recording.metrics?.filler_count === "number" 
@@ -195,7 +233,8 @@ export default function AdminRecordingsList({
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
