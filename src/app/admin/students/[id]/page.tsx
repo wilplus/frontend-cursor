@@ -7,7 +7,6 @@ import { ChevronLeft, FileText, Send } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
 import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task } from "@/lib/api/admin-client";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 
 function Chip({
   label,
@@ -25,8 +24,8 @@ function Chip({
       className={`
         rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all
         ${selected
-          ? "border-primary bg-accent text-accent-foreground"
-          : "border-border hover:border-primary/50"
+          ? "border-[hsl(24_95%_53%)] bg-[hsl(24_100%_97%)] text-[hsl(24_95%_40%)]"
+          : "border-border hover:border-[hsl(24_95%_53%_/_.5)]"
         }
       `}
     >
@@ -50,25 +49,28 @@ export default function AdminStudentProfilePage() {
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([
-      adminApi.getStudentProfile(id),
-      adminApi.getExercises(),
-      adminApi.getTasks(),
-      adminApi.getPostQuestions(),
-    ])
+    const fetchProfile = adminApi.getStudentProfile(id);
+    const fetchExercises = adminApi.getExercises().catch(() => [] as Exercise[]);
+    const fetchTasks = adminApi.getTasks().catch(() => [] as Task[]);
+    const fetchQuestions = adminApi.getPostQuestions().catch(() => [] as PostQuestion[]);
+    Promise.all([fetchProfile, fetchExercises, fetchTasks, fetchQuestions])
       .then(([p, ex, t, q]) => {
         setProfile(p);
         setExercises(ex);
         setTasks(t);
         setPostQuestions(q);
       })
-      .catch((e) => toast.error(e.message))
+      .catch((e) => {
+        toast.error(e.message);
+        setProfile(null);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => load(), [load]);
 
   const [overridesDraft, setOverridesDraft] = useState({
+    show_exercise_step: true,
     intended_emotion_prompt: "",
     keywords_prompt: "",
     emotion_check_question_text: "",
@@ -91,6 +93,7 @@ export default function AdminStudentProfilePage() {
     if (!profile) return;
     const o = profile.overrides || {};
     setOverridesDraft({
+      show_exercise_step: o.show_exercise_step !== false,
       intended_emotion_prompt: o.intended_emotion_prompt ?? "",
       keywords_prompt: o.keywords_prompt ?? "",
       emotion_check_question_text: o.emotion_check_question_text ?? "",
@@ -114,6 +117,7 @@ export default function AdminStudentProfilePage() {
   const saveOverrides = () => {
     setSaving(true);
     const payload: Record<string, unknown> = {
+      show_exercise_step: overridesDraft.show_exercise_step,
       intended_emotion_prompt: overridesDraft.intended_emotion_prompt || undefined,
       keywords_prompt: overridesDraft.keywords_prompt || undefined,
       emotion_check_question_text: overridesDraft.emotion_check_question_text || undefined,
@@ -171,7 +175,6 @@ export default function AdminStudentProfilePage() {
     });
   };
 
-  if (!id) return <p className="text-muted-foreground">Invalid student.</p>;
   if (loading || !profile) {
     return <p className="text-muted-foreground">Loading…</p>;
   }
@@ -192,9 +195,13 @@ export default function AdminStudentProfilePage() {
           <h1 className="text-3xl font-bold">
             {profile.email || profile.user_id}
           </h1>
-          <Button onClick={sendAssignment} size="lg" className="gap-2">
+          <button
+            type="button"
+            onClick={sendAssignment}
+            className="inline-flex items-center gap-2 rounded-md bg-[hsl(24_95%_53%)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
             <Send className="h-4 w-4" /> Send Homework
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -202,17 +209,36 @@ export default function AdminStudentProfilePage() {
         title="Homework Configuration"
         description="Assign exercise and post-recording questions for this student."
         action={
-          <Button
+          <button
+            type="button"
             onClick={saveOverrides}
             disabled={saving || postError}
+            className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             Save
-          </Button>
+          </button>
         }
       >
         <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show_exercise_step"
+              checked={overridesDraft.show_exercise_step}
+              onChange={(e) =>
+                setOverridesDraft((p) => ({ ...p, show_exercise_step: e.target.checked }))
+              }
+              className="h-4 w-4 rounded border-input"
+            />
+            <label htmlFor="show_exercise_step" className="text-sm font-medium">
+              Show exercise step for this student
+            </label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            When on, this student sees the exercise step after the 3 universal questions. When off, they skip it. Which exercise (or auto by task score) is set below.
+          </p>
           <div>
-            <p className="mb-2 text-sm font-medium">Next exercise (optional)</p>
+            <p className="mb-2 text-sm font-medium">Next exercise (optional, when step is on)</p>
             <div className="flex flex-wrap gap-2">
               {exercises.map((e) => (
                 <Chip
@@ -223,12 +249,13 @@ export default function AdminStudentProfilePage() {
                 />
               ))}
               {exercises.length === 0 && (
-                <span className="text-sm text-muted-foreground">No exercises in library. Add some in Exercises.</span>
+                <span className="text-sm text-muted-foreground">No exercises in pool. Add them on the Exercises tab.</span>
               )}
             </div>
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium">Tasks (optional)</p>
+            <p className="mb-2 text-sm font-medium">Tasks for this student (multi-select)</p>
+            <p className="mb-2 text-xs text-muted-foreground">Choose which tasks are available for this student. Newly added tasks appear here.</p>
             <div className="flex flex-wrap gap-2">
               {tasks.map((t) => (
                 <Chip
@@ -239,7 +266,7 @@ export default function AdminStudentProfilePage() {
                 />
               ))}
               {tasks.length === 0 && (
-                <span className="text-sm text-muted-foreground">No tasks in library. Add some in Tasks.</span>
+                <span className="text-sm text-muted-foreground">No tasks in pool. Add them on the Tasks tab.</span>
               )}
             </div>
           </div>
@@ -247,6 +274,7 @@ export default function AdminStudentProfilePage() {
             <p className="mb-2 text-sm font-medium">
               Post-Recording Questions ({postCount}/3 selected)
             </p>
+            <p className="mb-2 text-xs text-muted-foreground">All questions from the pool; newly added ones appear here. Select exactly 3.</p>
             {postError && (
               <p className="mb-2 text-sm text-destructive">Select exactly 3 questions.</p>
             )}
@@ -259,10 +287,10 @@ export default function AdminStudentProfilePage() {
                   onToggle={() => togglePostQuestion(q.id)}
                 />
               ))}
-              {postQuestions.length === 0 && (
-                <span className="text-sm text-muted-foreground">No questions in library. Add some in Questions.</span>
-              )}
             </div>
+            {postQuestions.length === 0 && (
+              <span className="text-sm text-muted-foreground">No questions in pool. Add them on the Questions tab.</span>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -305,13 +333,14 @@ export default function AdminStudentProfilePage() {
         title="Speaker Profile"
         description="Goals, motivation, and coach notes."
         action={
-          <Button
-            variant="outline"
+          <button
+            type="button"
             onClick={saveSpeakerProfile}
             disabled={saving}
+            className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             Save
-          </Button>
+          </button>
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
