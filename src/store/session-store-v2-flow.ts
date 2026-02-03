@@ -274,11 +274,16 @@ export const useSessionStoreV2Flow = create<SessionStoreV2>((set, get) => ({
   submitUniversalAnswers: async () => {
     const { sessionId, universalAnswers } = get();
     if (!sessionId || !universalAnswers) return;
-    const mood = Number(universalAnswers.mood);
-    const readiness = Number(universalAnswers.readiness ?? 5);
-    const mode_preference = Number(universalAnswers.mode_preference ?? 0) as 0 | 1;
-    if (Number.isNaN(mood) || mood < 0 || mood > 1) {
-      set({ error: "Please set mood (0–1)." });
+    const mood = universalAnswers.mood === 1 ? 1 : 0;
+    const readinessRaw = Number(universalAnswers.readiness ?? 5);
+    const readiness = Math.min(10, Math.max(1, Math.round(readinessRaw)));
+    const mode_preference = (universalAnswers.mode_preference === 1 ? 1 : 0) as 0 | 1;
+    if (universalAnswers.mood !== 0 && universalAnswers.mood !== 1) {
+      set({ error: "Please answer: Do you feel more like Good or Not great?" });
+      return;
+    }
+    if (Number.isNaN(readinessRaw) || readinessRaw < 1 || readinessRaw > 10) {
+      set({ error: "Please set readiness (1–10)." });
       return;
     }
     set({ loading: true, error: null });

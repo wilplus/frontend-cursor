@@ -131,100 +131,75 @@ export default function SessionCardV2() {
   }
 
   if (state === "universal_questions") {
-    const mood = universalAnswers?.mood ?? 0.5;
+    const mood = universalAnswers?.mood;
     const readiness = universalAnswers?.readiness ?? 5;
     const modePref = universalAnswers?.mode_preference ?? 0;
+    const moodQ = universalQuestions.find((q) => q.code === "mood");
+    const readinessQ = universalQuestions.find((q) => q.code === "readiness");
+    const modeQ = universalQuestions.find((q) => q.code === "mode_preference");
+    const q1Label = moodQ?.text ?? "Do you feel more like: Good or Not great?";
+    const q2Label = readinessQ?.text ?? "How ready is your body and mind to present? (1-10)";
+    const q3Label = modeQ?.text ?? "Do you want to be guided?";
     return (
       <FlowWrapper>
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">Quick check-in</h3>
-          {universalQuestions.length > 0 ? (
-            <>
-              {universalQuestions.find((q) => q.code === "mood") && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Mood (0 = low, 1 = high)</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={mood}
-                    onChange={(e) => setUniversalAnswer("mood", Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <span className="text-sm text-muted-foreground ml-2">{mood.toFixed(1)}</span>
-                </div>
-              )}
-              {universalQuestions.find((q) => q.code === "readiness") && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Readiness (1–10)</label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={readiness}
-                    onChange={(e) => setUniversalAnswer("readiness", Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <span className="text-sm text-muted-foreground ml-2">{readiness}</span>
-                </div>
-              )}
-              {universalQuestions.find((q) => q.code === "mode_preference") && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Mode</label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={modePref === 0 ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setUniversalAnswer("mode_preference", 0)}
-                    >
-                      Guide me
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={modePref === 1 ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setUniversalAnswer("mode_preference", 1)}
-                    >
-                      I'll choose
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">Mood (0–1)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.1}
-                  value={mood}
-                  onChange={(e) => setUniversalAnswer("mood", Number(e.target.value) || 0.5)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Readiness (1–10)</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={readiness}
-                  onChange={(e) => setUniversalAnswer("readiness", Number(e.target.value) || 5)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Mode</label>
-                <div className="flex gap-2">
-                  <Button type="button" variant={modePref === 0 ? "default" : "outline"} size="sm" onClick={() => setUniversalAnswer("mode_preference", 0)}>Guide me</Button>
-                  <Button type="button" variant={modePref === 1 ? "default" : "outline"} size="sm" onClick={() => setUniversalAnswer("mode_preference", 1)}>I'll choose</Button>
-                </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">{q1Label}</label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={mood === 1 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUniversalAnswer("mood", 1)}
+                >
+                  Good
+                </Button>
+                <Button
+                  type="button"
+                  variant={mood === 0 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUniversalAnswer("mood", 0)}
+                >
+                  Not great
+                </Button>
               </div>
             </div>
-          )}
+            <div>
+              <label className="block text-sm font-medium mb-2">{q2Label}</label>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={readiness}
+                onChange={(e) => setUniversalAnswer("readiness", Number(e.target.value))}
+                className="w-full"
+              />
+              <span className="text-sm text-muted-foreground ml-2">{readiness}</span>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">{q3Label}</label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={modePref === 0 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUniversalAnswer("mode_preference", 0)}
+                >
+                  Yes, guide me
+                </Button>
+                <Button
+                  type="button"
+                  variant={modePref === 1 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUniversalAnswer("mode_preference", 1)}
+                >
+                  No, I will choose
+                </Button>
+              </div>
+            </div>
+          </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button onClick={() => submitUniversalAnswers()} disabled={loading}>
             {loading ? "Submitting…" : "Continue"}
