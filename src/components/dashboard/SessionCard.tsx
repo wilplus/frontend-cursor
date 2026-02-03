@@ -38,6 +38,7 @@ export default function SessionCard() {
     initialize,
     startNewSession,
     selectCommandOption,
+    selectDifferentCommand,
     goBackToPreQuestions,
     goBackToCommandSelect,
     setRecordingReady,
@@ -183,15 +184,29 @@ export default function SessionCard() {
 
   if (state === "recording_ready" || state === "recording") {
     const promptText = selectedPromptTextSnapshot ?? preQuestions[0]?.question_text ?? null;
+    const canGetDifferentTask = state === "recording_ready" && commandOptions && commandOptions.length > 1;
     return (
       <FlowWrapper>
         <div className="space-y-4">
           {promptText && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <p className="text-sm font-medium text-muted-foreground mb-1">Your Command:</p>
-              <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-                &ldquo;{promptText}&rdquo;
-              </p>
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Your task:</p>
+                <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+                  &ldquo;{promptText}&rdquo;
+                </p>
+              </div>
+              {canGetDifferentTask && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selectDifferentCommand()}
+                  className="shrink-0 border-primary/50 text-primary hover:bg-primary/10"
+                >
+                  Get a different task
+                </Button>
+              )}
             </div>
           )}
           <AudioRecorder
@@ -220,7 +235,7 @@ export default function SessionCard() {
           <div className="space-y-4">
             {promptText && (
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Your Command:</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Your task:</p>
                 <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
                   &ldquo;{promptText}&rdquo;
                 </p>

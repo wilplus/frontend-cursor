@@ -1,0 +1,13 @@
+---
+description: Use develop branch for testing; commit and push to develop until user says otherwise
+alwaysApply: true
+---
+
+# Test branch workflow
+
+- **Test branch**: `develop` is the separate branch for testing (preview/staging).
+- **Default behavior**: Until the user says otherwise, all git work should target `develop`:
+  - Commit changes on `develop` (checkout develop if needed before committing).
+  - When suggesting push commands, use: `git push origin develop` (or `git push -u origin develop` once).
+- **Production**: `main` is for live; do not commit or push to `main` unless the user explicitly asks to go live or merge to main.
+- If the user says to stop using the test branch or to work on main again, remove or ignore this rule.

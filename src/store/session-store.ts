@@ -96,6 +96,7 @@ interface SessionStore {
   updatePreAnswer: (questionId: UUID, answer: string) => void;
   submitPreAnswers: () => Promise<void>;
   selectCommandOption: (optionId: "A" | "B" | "C", promptTextSnapshot: string) => void;
+  selectDifferentCommand: () => void;
   goBackToPreQuestionnaire: () => void;
   goBackToPreQuestions: () => void;
   goBackToCommandSelect: () => void;
@@ -468,6 +469,16 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       selectedPromptTextSnapshot: promptTextSnapshot,
       state: "recording_ready",
     });
+  },
+
+  selectDifferentCommand: () => {
+    const { commandOptions, selectedCommandOptionId } = get();
+    if (!commandOptions?.length || !selectedCommandOptionId) return;
+    const other = commandOptions.filter((o) => o.option_id !== selectedCommandOptionId);
+    if (other.length === 0) return;
+    const next = other[0];
+    const promptText = (next.prompt_text_snapshot ?? "").trim() || (next.intent ?? "");
+    get().selectCommandOption(next.option_id, promptText);
   },
 
   goBackToPreQuestionnaire: () => {
