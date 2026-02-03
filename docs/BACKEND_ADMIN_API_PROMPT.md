@@ -184,3 +184,34 @@ Base path: **`/v2/admin`**. All request/response bodies are **JSON** unless note
 - [ ] Speaker profile storage (e.g. `v2_speaker_profiles`) exists and is writable by the backend when the admin updates a student’s speaker profile.
 
 Once these are implemented, the existing Next.js admin panel (Students, Exercises, Tasks, Questions, Metrics, Recordings) will work with your backend without frontend changes.
+
+---
+
+## Troubleshooting: Unauthorized and Not found (frontend)
+
+If you see **Unauthorized** or **Not found** in the admin panel:
+
+### Not found (404)
+
+1. **BFF route exists**  
+   In the **frontend** repo, ensure the route file exists:
+   - `src/app/api/v2/admin/tasks/route.ts` (GET, POST)
+   - `src/app/api/v2/admin/tasks/[id]/route.ts` (PUT, DELETE)
+   Restart the dev server; in production, redeploy so the route is included.
+
+2. **Backend route exists**  
+   If the BFF returns 404 with a JSON body, the **backend** (Flask) is missing that path. Implement `GET /v2/admin/tasks` (and POST/PUT/DELETE as needed) on the backend.
+
+### Unauthorized (401)
+
+1. **Logged in**  
+   Use the admin panel only when signed in. Open `/admin` (or `/admin/tasks`) in the same tab/session where you logged in so cookies are sent.
+
+2. **Same origin**  
+   The admin UI calls `/api/v2/admin/tasks` (same origin). It uses `credentials: "include"`, so cookies are sent. If the frontend is on a different domain than the API (e.g. custom domain vs `vercel.app`), ensure cookies are set for the correct domain.
+
+3. **Backend “Missing Authorization header”**  
+   That message comes from the **backend**. It means the request that reached Flask had no `Authorization` header. When using the admin UI, the BFF should add it from your session. If you still see it: sign out, sign in again, then reload the admin page. If you opened the backend URL directly in the browser (e.g. `https://...railway.app/v2/admin/tasks`), that’s expected — only the BFF should call that URL, with the token from the session.
+
+4. **Env**  
+   In the frontend `.env.local`: set `NEXT_PUBLIC_API_URL` or `NEXT_PUBLIC_BACKEND_URL` to your Flask backend base URL (no trailing slash). The BFF uses this to call e.g. `https://your-backend.up.railway.app/v2/admin/tasks`.
