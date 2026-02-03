@@ -172,3 +172,61 @@ export interface ApiErrorV2 {
   code: string;
   error: string;
 }
+
+// —— Admin: students list ——
+export interface StudentSummaryV2 {
+  user_id: UUID;
+  email: string | null;
+  sessions_count?: number;
+  last_session_at?: ISODateString | null;
+}
+
+export interface AdminStudentsListResponseV2 {
+  students: StudentSummaryV2[];
+  total?: number;
+}
+
+// —— Admin: student profile (speaker + overrides + sessions) ——
+export interface SpeakerProfileV2 {
+  main_goal?: string | null;
+  motivation?: string | null;
+  strong_points?: string | null;
+  weak_points?: string | null;
+  charismatic_traits?: string | null;
+  hobbies_interests?: string | null;
+  personality_type?: string | null;
+  coach_notes?: string | null;
+}
+
+export interface StudentOverridesV2 {
+  intended_emotion_prompt?: string | null;
+  keywords_prompt?: string | null;
+  emotion_check_question_text?: string | null;
+  assigned_post_question_ids?: UUID[] | null;
+  assigned_next_exercise_id?: UUID | null;
+  assigned_next_task_ids?: UUID[] | null;
+}
+
+export interface SessionSummaryV2 {
+  id: UUID;
+  created_at: ISODateString;
+  task_title?: string | null;
+  exercise_title?: string | null;
+  task_score?: number | null;
+  performance_score?: number | null;
+  recording_id?: UUID | null;
+  report_id?: UUID | null;
+  report_summary?: string | null;
+  transcript_preview?: string | null;
+}
+
+export interface AdminStudentProfileResponseV2 {
+  user_id: UUID;
+  email: string | null;
+  speaker_profile: SpeakerProfileV2 | null;
+  overrides: StudentOverridesV2 | null;
+  sessions: SessionSummaryV2[];
+  exercises_available: ExerciseV2[];
+  tasks_available: TaskV2[];
+  post_questions_available: PostRecordingQuestionV2[];
+}

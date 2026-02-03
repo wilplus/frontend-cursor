@@ -13,6 +13,10 @@ import type {
   SubmitPostAnswersRequestV2,
   SubmitPostAnswersResponseV2,
   ApiErrorV2,
+  AdminStudentsListResponseV2,
+  AdminStudentProfileResponseV2,
+  SpeakerProfileV2,
+  StudentOverridesV2,
 } from "@/lib/api/types-v2";
 
 async function getAuthFetchOptions(
@@ -160,5 +164,51 @@ export const v2Api = {
       credentials,
     });
     return handleResponse<SubmitPostAnswersResponseV2>(res);
+  },
+
+  // —— Admin ——
+  async getAdminStudents(): Promise<AdminStudentsListResponseV2> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/admin/students`, { headers, credentials });
+    return handleResponse<AdminStudentsListResponseV2>(res);
+  },
+
+  async getAdminStudentProfile(userId: string): Promise<AdminStudentProfileResponseV2> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/admin/students/${userId}`, { headers, credentials });
+    return handleResponse<AdminStudentProfileResponseV2>(res);
+  },
+
+  async putAdminSpeakerProfile(userId: string, body: SpeakerProfileV2): Promise<{ ok: boolean }> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/admin/students/${userId}/speaker-profile`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+      credentials,
+    });
+    return handleResponse<{ ok: boolean }>(res);
+  },
+
+  async putAdminOverrides(userId: string, body: StudentOverridesV2): Promise<{ ok: boolean }> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/admin/students/${userId}/overrides`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+      credentials,
+    });
+    return handleResponse<{ ok: boolean }>(res);
+  },
+
+  async postAdminSendAssignment(userId: string): Promise<{ ok: boolean }> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/admin/students/${userId}/send-assignment`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+      credentials,
+    });
+    return handleResponse<{ ok: boolean }>(res);
   },
 };
