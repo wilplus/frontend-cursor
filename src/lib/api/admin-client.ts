@@ -5,24 +5,31 @@
 
 const getBase = () => (typeof window === "undefined" ? "" : "");
 
+type AdminFetchOptions = {
+  method?: string;
+  body?: unknown;
+  headers?: HeadersInit;
+};
+
 async function adminFetch<T>(
   path: string,
-  options: RequestInit & { method?: string; body?: unknown } = {}
+  options: AdminFetchOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, ...rest } = options;
+  const { method = "GET", body, headers = {} } = options;
   const url = `${getBase()}/api/v2/admin${path}`;
+  const bodySerialized: BodyInit | null =
+    body == null ? null : body instanceof FormData ? body : JSON.stringify(body);
   const init: RequestInit = {
-    ...rest,
     method,
     credentials: "include",
     headers: {
-      ...(rest.headers as Record<string, string>),
-      ...(body != null && typeof body === "object" && !(body instanceof FormData)
+      ...(typeof headers === "object" && headers !== null ? headers : {}),
+      ...(bodySerialized != null && !(body instanceof FormData)
         ? { "Content-Type": "application/json" }
         : {}),
     },
+    ...(bodySerialized != null && { body: bodySerialized }),
   };
-  if (body != null) init.body = body instanceof FormData ? body : JSON.stringify(body);
   const res = await fetch(url, init);
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
