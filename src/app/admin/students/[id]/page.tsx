@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronLeft, FileText, Send } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
-import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task } from "@/lib/api/admin-client";
+import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task, type WarmUpTask } from "@/lib/api/admin-client";
 import { toast } from "sonner";
 
 function Chip({
@@ -34,6 +34,151 @@ function Chip({
   );
 }
 
+function WarmUpTasksSection({
+  userId,
+  tasks,
+  onUpdate,
+  saving,
+  setSaving,
+}: {
+  userId: string;
+  tasks: WarmUpTask[];
+  onUpdate: () => void;
+  saving: boolean;
+  setSaving: (v: boolean) => void;
+}) {
+  const [newText, setNewText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const addTask = () => {
+    if (!newText.trim()) return;
+    setSaving(true);
+    adminApi
+      .createWarmUpTask(userId, { text: newText.trim(), order_index: tasks.length })
+      .then(() => {
+        toast.success("Warm-up task added");
+        setNewText("");
+        onUpdate();
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const startEdit = (task: WarmUpTask) => {
+    setEditingId(task.id);
+    setEditText(task.text);
+  };
+
+  const saveEdit = () => {
+    if (editingId == null) return;
+    setSaving(true);
+    adminApi
+      .updateWarmUpTask(userId, editingId, { text: editText.trim() })
+      .then(() => {
+        toast.success("Warm-up task updated");
+        setEditingId(null);
+        onUpdate();
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const deleteTask = (taskId: string) => {
+    setSaving(true);
+    adminApi
+      .deleteWarmUpTask(userId, taskId)
+      .then(() => {
+        toast.success("Warm-up task deleted");
+        onUpdate();
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <SectionCard
+      title="Warm-up tasks"
+      description="Per-student list for the future homework flow. Admin chooses which one is shown. Student sees one per run."
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <textarea
+            className="min-h-[60px] w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+            placeholder="New warm-up task text…"
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={addTask}
+            disabled={saving || !newText.trim()}
+            className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
+        <ul className="space-y-2">
+          {tasks.map((task) => (
+            <li key={task.id} className="rounded-lg border border-border bg-card p-3">
+              {editingId === task.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={saving}
+                      className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-1 text-sm text-white"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(null)}
+                      className="rounded-md border border-border px-3 py-1 text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-sm flex-1">{task.text}</p>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(task)}
+                      className="rounded border border-border px-2 py-1 text-xs hover:bg-muted"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteTask(task.id)}
+                      disabled={saving}
+                      className="rounded border border-destructive/50 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+        {tasks.length === 0 && (
+          <p className="text-sm text-muted-foreground">No warm-up tasks. Add one above for the future homework flow.</p>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
 export default function AdminStudentProfilePage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
@@ -42,6 +187,7 @@ export default function AdminStudentProfilePage() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
+  const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
@@ -53,12 +199,14 @@ export default function AdminStudentProfilePage() {
     const fetchExercises = adminApi.getExercises().catch(() => [] as Exercise[]);
     const fetchTasks = adminApi.getTasks().catch(() => [] as Task[]);
     const fetchQuestions = adminApi.getPostQuestions().catch(() => [] as PostQuestion[]);
-    Promise.all([fetchProfile, fetchExercises, fetchTasks, fetchQuestions])
-      .then(([p, ex, t, q]) => {
+    const fetchWarmUp = adminApi.getWarmUpTasks(id).catch(() => [] as WarmUpTask[]);
+    Promise.all([fetchProfile, fetchExercises, fetchTasks, fetchQuestions, fetchWarmUp])
+      .then(([p, ex, t, q, w]) => {
         setProfile(p);
         setExercises(ex);
         setTasks(t);
         setPostQuestions(q);
+        setWarmUpTasks(w);
       })
       .catch((e) => {
         toast.error(e.message);
@@ -384,6 +532,14 @@ export default function AdminStudentProfilePage() {
           </div>
         </div>
       </SectionCard>
+
+      <WarmUpTasksSection
+        userId={id}
+        tasks={warmUpTasks}
+        onUpdate={load}
+        saving={saving}
+        setSaving={setSaving}
+      />
 
       <SectionCard title="Session History" description="Recent sessions and reports.">
         <div className="space-y-2">
