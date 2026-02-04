@@ -51,8 +51,17 @@ export const homeworkApi = {
   /** Start homework session; returns warm-up task text. */
   async start(): Promise<HomeworkStartResponse> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    const res = await fetch(`${BASE}/start`, { method: "POST", headers, body: "{}", credentials });
+    const res = await fetch(`${BASE}/session/start`, { method: "POST", headers, body: "{}", credentials });
     return handleResponse<HomeworkStartResponse>(res);
+  },
+
+  /** Get current session status (for resuming). Returns session_id + warm_up_task_text if active. */
+  async getStatus(): Promise<HomeworkStartResponse | null> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/session/status`, { method: "GET", headers, credentials });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error((await res.json().catch(() => ({})) as { error?: string }).error || res.statusText);
+    return res.json();
   },
 
   /** Upload recording_1 (warm-up). Multipart: audio, duration_seconds. */
