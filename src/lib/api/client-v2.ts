@@ -1,5 +1,5 @@
 /**
- * V2 API client — calls Next.js BFF /api/v2/* which proxy to Flask /v2/*.
+ * API client — calls Next.js BFF /api/* (proxied to backend /v2/*).
  */
 import type {
   UniversalQuestion,
@@ -59,7 +59,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-const BASE = "/api/v2";
+const BASE = "/api";
 
 export const v2Api = {
   async fetchUniversalQuestions(): Promise<UniversalQuestion[]> {

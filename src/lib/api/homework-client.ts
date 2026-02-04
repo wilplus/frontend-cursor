@@ -1,5 +1,5 @@
 /**
- * Homework flow API client — calls BFF /api/v2/homework/* (proxied to Flask /v2/homework/*).
+ * Homework flow API client — calls BFF /api/homework/* (proxied to backend /v2/homework/*).
  * Backend may not implement these endpoints yet; 404/501 will surface as errors.
  */
 import type {
@@ -45,7 +45,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-const BASE = "/api/v2/homework";
+const BASE = "/api/homework";
 
 export const homeworkApi = {
   /** Start homework session; returns warm-up task text. */
