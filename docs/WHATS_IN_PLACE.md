@@ -3,7 +3,7 @@
 ## Short answer
 
 - **Admin:** Warm-up tasks, metric questions, students, overrides, exercises, tasks, post-questions, metrics, BFF routes — **in place.**
-- **Student “homework” flow (warm_up + two recordings):** **Frontend in place** at `/dashboard/homework`. Steps: warm-up text + record → task text + metric answers → final task + record → questions (or skip) → report. **Backend** must expose the homework student endpoints (see “What’s needed” below); until then, starting homework will fail with a friendly error.
+- **Student flow (only one):** **Frontend in place** at **`/dashboard`**. Single flow: warm-up text + record_1 → task text + metric answers → final task + record_2 → questions (or skip) → report. **Backend** must expose the homework endpoints (see “What’s needed” below); until then, “Start homework” shows a friendly error.
 
 ---
 
@@ -18,15 +18,13 @@
 
 ---
 
-## Student app (current vs desired)
+## Student app (single flow)
 
-| | Current | What you want |
-|---|--------|----------------|
-| **First screen** | “Start session” → universal questions (mood, readiness, mode). | **Warm-up task text + record button only.** |
-| **Flow** | Universal questions → (optional) exercise → task → intent → **one** recording → post-questions → report. | **Two recordings:** recording_1 (warm-up) → task text + metric answers → recording_2 → questions → report. |
-| **In place?** | Yes (dashboard + v2 dashboard). | **Yes (frontend).** See `/dashboard/homework`. Backend endpoints still needed. |
+There is **one flow only**: warm-up + recording_1 → task + metric answers → final task + recording_2 → questions (or skip) → report.
 
-The homework flow UI is at **`/dashboard/homework`**: warm-up task + record → task text + metric answers → final task + record → questions (or skip) → report. The backend does not yet expose the homework-flow student endpoints; when they are added, the same BFF routes and client will work.
+- **Entry:** **`/dashboard`** — shows “Start homework” and then the steps above.
+- **Frontend:** Done. Backend must expose `/v2/homework/*`; until then, “Start homework” shows a friendly error.
+- **Legacy URLs:** `/dashboard/homework` and `/dashboard/v2` redirect to `/dashboard`.
 
 ---
 
@@ -40,7 +38,7 @@ The homework flow UI is at **`/dashboard/homework`**: warm-up task + record → 
    - Submit recording_2 → get performance_score_2.
    - Get/skip questions → get report (performance_score_end, etc.).
 
-2. **Frontend:** **Done.** At `/dashboard/homework`:
+2. **Frontend:** **Done.** At `/dashboard`:
    - **Step 1:** Start homework → get warm_up_task text; show text + record button; on complete → upload recording_1.
    - **Step 2:** Show **task text**; student answers metric_question_1 and metric_question_2; submit → get final_task text.
    - **Step 3:** Show **final_task** text + record button; on complete → upload recording_2.
