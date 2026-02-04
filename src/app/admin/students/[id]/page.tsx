@@ -3,159 +3,179 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, FileText, Send } from "lucide-react";
+import { ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
+import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
 import { Button } from "@/components/ui/button";
-import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task, type WarmUpTask, type MetricQuestion, type MetricLabel } from "@/lib/api/admin-client";
+import {
+  adminApi,
+  type StudentProfile,
+  type PostQuestion,
+  type Task,
+  type WarmUpTask,
+  type MetricLabel,
+} from "@/lib/api/admin-client";
 import { toast } from "sonner";
 
-function Chip({
-  label,
-  selected,
-  onToggle,
+// —— Editable list row: text + hover Edit/Delete; edit = inline input + Check/X ——
+function EditableListItem({
+  text,
+  onEdit,
+  onDelete,
+  saving,
 }: {
-  label: string;
-  selected: boolean;
-  onToggle: () => void;
+  text: string;
+  onEdit: (newText: string) => void;
+  onDelete: () => void;
+  saving: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+
+  useEffect(() => {
+    setDraft(text);
+  }, [text]);
+
+  const handleSave = () => {
+    const t = draft.trim();
+    if (t) onEdit(t);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="group flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          className="h-7 flex-1 min-w-0 rounded border border-input bg-background px-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+          autoFocus
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded p-1 text-primary hover:bg-primary/10"
+          aria-label="Save"
+        >
+          <Check className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="rounded p-1 text-muted-foreground hover:bg-muted"
+          aria-label="Cancel"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`
-        rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all
-        ${selected
-          ? "border-primary bg-primary/10 text-primary shadow-md ring-2 ring-primary/30"
-          : "border-border hover:border-primary/50"
-        }
-      `}
-    >
-      {label}
-    </button>
+    <div className="group flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
+      <span className="min-w-0 flex-1 text-sm">{text}</span>
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Edit"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={saving}
+          className="rounded p-1 text-destructive hover:bg-destructive/10"
+          aria-label="Delete"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 
-function WarmUpTasksBlock({
-  userId,
-  tasks,
-  onUpdate,
+// —— Metrics row: label only (editable), no delete ——
+function MetricRow({
+  index,
+  code,
+  leftLabel,
+  rightLabel,
+  onSave,
   saving,
-  setSaving,
 }: {
-  userId: string;
-  tasks: WarmUpTask[];
-  onUpdate: () => void;
+  index: number;
+  code: string;
+  leftLabel: string;
+  rightLabel: string;
+  onSave: (left: string, right: string) => void;
   saving: boolean;
-  setSaving: (v: boolean) => void;
 }) {
-  const [newText, setNewText] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [left, setLeft] = useState(leftLabel);
+  const [right, setRight] = useState(rightLabel);
 
-  const addTask = () => {
-    if (!newText.trim()) return;
-    setSaving(true);
-    adminApi
-      .createWarmUpTask(userId, { text: newText.trim(), order_index: tasks.length })
-      .then(() => {
-        toast.success("Warm-up task added");
-        setNewText("");
-        onUpdate();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
+  useEffect(() => {
+    setLeft(leftLabel);
+    setRight(rightLabel);
+  }, [leftLabel, rightLabel]);
+
+  const handleSave = () => {
+    onSave(left.trim(), right.trim());
+    setEditing(false);
   };
 
-  const startEdit = (task: WarmUpTask) => {
-    setEditingId(task.id);
-    setEditText(task.text);
-  };
-
-  const saveEdit = () => {
-    if (editingId == null) return;
-    setSaving(true);
-    adminApi
-      .updateWarmUpTask(userId, editingId, { text: editText.trim() })
-      .then(() => {
-        toast.success("Warm-up task updated");
-        setEditingId(null);
-        onUpdate();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
-  };
-
-  const deleteTask = (taskId: string) => {
-    setSaving(true);
-    adminApi
-      .deleteWarmUpTask(userId, taskId)
-      .then(() => {
-        toast.success("Warm-up task deleted");
-        onUpdate();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
-  };
+  if (editing) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+        <span className="text-sm font-medium text-muted-foreground">{index}. {code}:</span>
+        <input
+          type="text"
+          value={left}
+          onChange={(e) => setLeft(e.target.value)}
+          placeholder="Left label"
+          className="h-7 flex-1 min-w-[80px] rounded border border-input bg-background px-2 text-sm"
+        />
+        <span className="text-muted-foreground">…</span>
+        <input
+          type="text"
+          value={right}
+          onChange={(e) => setRight(e.target.value)}
+          placeholder="Right label"
+          className="h-7 flex-1 min-w-[80px] rounded border border-input bg-background px-2 text-sm"
+        />
+        <button type="button" onClick={handleSave} disabled={saving} className="rounded p-1 text-primary hover:bg-primary/10">
+          <Check className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className="rounded p-1 text-muted-foreground hover:bg-muted">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-medium">Warm-up tasks (add new, delete, edit)</p>
-      <div className="flex flex-wrap gap-2">
-        <textarea
-          className="min-h-[60px] w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          placeholder="New warm-up task text…"
-          value={newText}
-          onChange={(e) => setNewText(e.target.value)}
-        />
-        <Button type="button" onClick={addTask} disabled={saving || !newText.trim()}>
-          Add
-        </Button>
-      </div>
-      <ul className="space-y-2">
-        {tasks.map((task) => (
-          <li key={task.id} className="rounded-xl border border-border bg-card p-3 shadow-sm">
-            {editingId === task.id ? (
-              <div className="space-y-2">
-                <textarea
-                  className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                />
-                <div className="flex gap-2">
-                  <Button type="button" size="sm" onClick={saveEdit} disabled={saving}>
-                    Save
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="text-sm flex-1">{task.text}</p>
-                <div className="flex gap-1">
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => startEdit(task)}>
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 border-destructive/50 text-xs text-destructive hover:bg-destructive/10"
-                    onClick={() => deleteTask(task.id)}
-                    disabled={saving}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-      {tasks.length === 0 && (
-        <p className="text-sm text-muted-foreground">No warm-up tasks. Add one above.</p>
-      )}
+    <div className="group flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
+      <span className="text-sm">
+        {index}. {code}: {leftLabel} … {rightLabel}{" "}
+        <span className="text-muted-foreground">(editable)</span>
+      </span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="Edit"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
     </div>
   );
 }
@@ -165,35 +185,52 @@ export default function AdminStudentProfilePage() {
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
-  const [metricQuestions, setMetricQuestions] = useState<MetricQuestion[]>([]);
   const [metricLabels, setMetricLabels] = useState<MetricLabel[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+
+  const [modalWarmUp, setModalWarmUp] = useState(false);
+  const [modalFocus, setModalFocus] = useState(false);
+  const [modalQuestions, setModalQuestions] = useState(false);
+
+  const [overridesDraft, setOverridesDraft] = useState({
+    assigned_post_question_ids: [] as string[],
+    assigned_next_task_ids: [] as string[],
+  });
+  const [contextDraft, setContextDraft] = useState("");
 
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-    const fetchProfile = adminApi.getStudentProfile(id);
-    const fetchExercises = adminApi.getExercises().catch(() => [] as Exercise[]);
-    const fetchTasks = adminApi.getTasks().catch(() => [] as Task[]);
-    const fetchQuestions = adminApi.getPostQuestions().catch(() => [] as PostQuestion[]);
-    const fetchWarmUp = adminApi.getWarmUpTasks(id).catch(() => [] as WarmUpTask[]);
-    const fetchMetricQ = adminApi.getMetricQuestions().catch(() => [] as MetricQuestion[]);
-    const fetchMetrics = adminApi.getMetricLabels().catch(() => [] as MetricLabel[]);
-    Promise.all([fetchProfile, fetchExercises, fetchTasks, fetchQuestions, fetchWarmUp, fetchMetricQ, fetchMetrics])
-      .then(([p, ex, t, q, w, mq, ml]) => {
+    Promise.all([
+      adminApi.getStudentProfile(id),
+      adminApi.getTasks(),
+      adminApi.getPostQuestions(),
+      adminApi.getWarmUpTasks(id),
+      adminApi.getMetricLabels(),
+    ])
+      .then(([p, t, q, w, ml]) => {
         setProfile(p);
-        setExercises(ex);
         setTasks(t);
         setPostQuestions(q);
         setWarmUpTasks(w);
-        setMetricQuestions(mq);
         setMetricLabels(ml);
+        setOverridesDraft({
+          assigned_post_question_ids: p.overrides?.assigned_post_question_ids ?? [],
+          assigned_next_task_ids: p.overrides?.assigned_next_task_ids ?? [],
+        });
+        const sp = p.speaker_profile || {};
+        const parts = [
+          sp.main_goal,
+          sp.motivation,
+          sp.strong_points,
+          sp.weak_points,
+          sp.coach_notes,
+        ].filter(Boolean);
+        setContextDraft(parts.join("\n\n"));
       })
       .catch((e) => {
         toast.error(e.message);
@@ -204,67 +241,14 @@ export default function AdminStudentProfilePage() {
 
   useEffect(() => load(), [load]);
 
-  const [overridesDraft, setOverridesDraft] = useState({
-    show_exercise_step: true,
-    intended_emotion_prompt: "",
-    keywords_prompt: "",
-    emotion_check_question_text: "",
-    assigned_post_question_ids: [] as string[],
-    assigned_next_exercise_id: "",
-    assigned_next_task_ids: [] as string[],
-  });
-  const [speakerDraft, setSpeakerDraft] = useState({
-    main_goal: "",
-    motivation: "",
-    strong_points: "",
-    weak_points: "",
-    charismatic_traits: "",
-    hobbies_interests: "",
-    personality_type: "",
-    coach_notes: "",
-  });
-
-  useEffect(() => {
-    if (!profile) return;
-    const o = profile.overrides || {};
-    setOverridesDraft({
-      show_exercise_step: o.show_exercise_step !== false,
-      intended_emotion_prompt: o.intended_emotion_prompt ?? "",
-      keywords_prompt: o.keywords_prompt ?? "",
-      emotion_check_question_text: o.emotion_check_question_text ?? "",
-      assigned_post_question_ids: o.assigned_post_question_ids ?? [],
-      assigned_next_exercise_id: o.assigned_next_exercise_id ?? "",
-      assigned_next_task_ids: o.assigned_next_task_ids ?? [],
-    });
-    const s = profile.speaker_profile || {};
-    setSpeakerDraft({
-      main_goal: s.main_goal ?? "",
-      motivation: s.motivation ?? "",
-      strong_points: s.strong_points ?? "",
-      weak_points: s.weak_points ?? "",
-      charismatic_traits: s.charismatic_traits ?? "",
-      hobbies_interests: s.hobbies_interests ?? "",
-      personality_type: s.personality_type ?? "",
-      coach_notes: s.coach_notes ?? "",
-    });
-  }, [profile]);
-
   const saveOverrides = () => {
     setSaving(true);
-    const payload: Record<string, unknown> = {
-      show_exercise_step: overridesDraft.show_exercise_step,
-      intended_emotion_prompt: overridesDraft.intended_emotion_prompt || undefined,
-      keywords_prompt: overridesDraft.keywords_prompt || undefined,
-      emotion_check_question_text: overridesDraft.emotion_check_question_text || undefined,
-      assigned_next_exercise_id: overridesDraft.assigned_next_exercise_id || undefined,
-      assigned_next_task_ids: overridesDraft.assigned_next_task_ids.length > 0 ? overridesDraft.assigned_next_task_ids : undefined,
-    };
-    if (overridesDraft.assigned_post_question_ids.length === 3) {
-      payload.assigned_post_question_ids = overridesDraft.assigned_post_question_ids;
-    }
     adminApi
-      .putOverrides(id, payload)
-      .then(() => toast.success("Overrides saved"))
+      .putOverrides(id, {
+        assigned_next_task_ids: overridesDraft.assigned_next_task_ids.length > 0 ? overridesDraft.assigned_next_task_ids : undefined,
+        assigned_post_question_ids: overridesDraft.assigned_post_question_ids.length === 3 ? overridesDraft.assigned_post_question_ids : undefined,
+      })
+      .then(() => toast.success("Saved"))
       .catch((e) => toast.error(e.message))
       .finally(() => setSaving(false));
   };
@@ -272,59 +256,112 @@ export default function AdminStudentProfilePage() {
   const saveSpeakerProfile = () => {
     setSaving(true);
     adminApi
-      .putSpeakerProfile(id, speakerDraft)
-      .then(() => toast.success("Speaker profile saved"))
+      .putSpeakerProfile(id, { coach_notes: contextDraft })
+      .then(() => toast.success("Profile saved"))
       .catch((e) => toast.error(e.message))
       .finally(() => setSaving(false));
   };
 
   const sendAssignment = () => {
+    adminApi.sendAssignment(id).then(() => toast.success("Homework sent")).catch((e) => toast.error(e.message));
+  };
+
+  // Warm-up: pool = student's list; confirm = keep selected, delete others; create = add to student
+  const warmUpPool: PoolItem[] = warmUpTasks.map((t) => ({ id: t.id, label: t.text }));
+  const handleWarmUpConfirm = (selectedIds: string[]) => {
+    const toDelete = warmUpTasks.filter((t) => !selectedIds.includes(t.id));
+    setModalWarmUp(false);
+    if (toDelete.length === 0) {
+      load(); // refetch so any newly created items from modal appear
+      return;
+    }
+    setSaving(true);
+    Promise.all(toDelete.map((t) => adminApi.deleteWarmUpTask(id, t.id)))
+      .then(() => {
+        load();
+        toast.success("Selection updated");
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
+  };
+  const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
+    const res = await adminApi.createWarmUpTask(id, { text, order_index: warmUpTasks.length });
+    return { id: res.warm_up_task.id, label: res.warm_up_task.text };
+  };
+
+  // Focus tasks: pool = global tasks; confirm = save assigned_next_task_ids
+  const focusPool: PoolItem[] = tasks.map((t) => ({ id: t.id, label: t.title }));
+  const handleFocusConfirm = (selectedIds: string[]) => {
+    setOverridesDraft((prev) => ({ ...prev, assigned_next_task_ids: selectedIds }));
+    setModalFocus(false);
+    toast.success("Selection updated. Click Save to persist.");
+  };
+  const handleFocusCreate = async (text: string): Promise<PoolItem> => {
+    const res = await adminApi.createTask({ title: text });
+    setTasks((prev) => [...prev, res.task]);
+    return { id: res.task.id, label: res.task.title };
+  };
+
+  // Post-recording questions: pool = global; max 3; confirm = save assigned_post_question_ids
+  const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
+  const handleQuestionsConfirm = (selectedIds: string[]) => {
+    if (selectedIds.length !== 3) {
+      toast.error("Select exactly 3 questions.");
+      return;
+    }
+    setOverridesDraft((prev) => ({ ...prev, assigned_post_question_ids: selectedIds }));
+    setModalQuestions(false);
+    toast.success("Selection updated. Click Save to persist.");
+  };
+  const handleQuestionsCreate = async (text: string): Promise<PoolItem> => {
+    const res = await adminApi.createPostQuestion({ text, answer_type: "text" });
+    setPostQuestions((prev) => [...prev, res.question]);
+    return { id: res.question.id, label: res.question.text };
+  };
+
+  const updateWarmUpTask = (taskId: string, newText: string) => {
+    setSaving(true);
     adminApi
-      .sendAssignment(id)
-      .then(() => toast.success("Assignment sent"))
-      .catch((e) => toast.error(e.message));
+      .updateWarmUpTask(id, taskId, { text: newText })
+      .then(() => { load(); toast.success("Updated"); })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
+  };
+  const deleteWarmUpTask = (taskId: string) => {
+    setSaving(true);
+    adminApi
+      .deleteWarmUpTask(id, taskId)
+      .then(() => { load(); toast.success("Deleted"); })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
   };
 
-  const togglePostQuestion = (qId: string) => {
-    setOverridesDraft((prev) => {
-      const ids = prev.assigned_post_question_ids.includes(qId)
-        ? prev.assigned_post_question_ids.filter((x) => x !== qId)
-        : [...prev.assigned_post_question_ids, qId].slice(0, 3);
-      return { ...prev, assigned_post_question_ids: ids };
-    });
-  };
+  const assignedTasks = tasks.filter((t) => overridesDraft.assigned_next_task_ids.includes(t.id));
+  const assignedQuestions = postQuestions.filter((q) => overridesDraft.assigned_post_question_ids.includes(q.id));
 
-  const toggleExercise = (exId: string) => {
-    setOverridesDraft((prev) => ({
-      ...prev,
-      assigned_next_exercise_id: prev.assigned_next_exercise_id === exId ? "" : exId,
-    }));
-  };
+  const postError = overridesDraft.assigned_post_question_ids.length > 0 && overridesDraft.assigned_post_question_ids.length !== 3;
 
-  const toggleTask = (taskId: string) => {
-    setOverridesDraft((prev) => {
-      const ids = prev.assigned_next_task_ids.includes(taskId)
-        ? prev.assigned_next_task_ids.filter((x) => x !== taskId)
-        : [...prev.assigned_next_task_ids, taskId];
-      return { ...prev, assigned_next_task_ids: ids };
-    });
+  const reports = (profile?.sessions ?? [])
+    .filter((s) => s.report_preview?.report_text_preview)
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
+    .slice(0, 10);
+
+  const saveMetricLabel = (code: string, left: string, right: string) => {
+    setSaving(true);
+    const updated = metricLabels.map((m) => (m.code === code ? { ...m, left_label: left, right_label: right } : m));
+    adminApi
+      .putMetricLabels(updated)
+      .then(() => { setMetricLabels(updated); toast.success("Metric updated"); })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
   };
 
   if (loading || !profile) {
     return <p className="text-muted-foreground">Loading…</p>;
   }
 
-  const postCount = overridesDraft.assigned_post_question_ids.length;
-  const postError = postCount > 0 && postCount !== 3;
-
-  const lastReportSession = profile.sessions
-    .filter((s) => s.report_preview?.report_text_preview)
-    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
-  const lastReportText = lastReportSession?.report_preview?.report_text_preview ?? null;
-
   return (
     <div className="space-y-6">
-      {/* Header: back link + student email only (mockup) */}
       <div>
         <Link
           href="/admin/students"
@@ -335,13 +372,13 @@ export default function AdminStudentProfilePage() {
         <h1 className="mt-2 text-3xl font-bold">{profile.email || profile.user_id}</h1>
       </div>
 
-      {/* Homework Configuration — Send Homework + Save in card action (mockup) */}
+      {/* Homework Configuration */}
       <SectionCard
         title="Homework Configuration"
-        description="Assign exercise and post-recording questions for this student."
+        description="Select items from the global pool or create new ones. New items are added to the pool for reuse."
         action={
           <div className="flex items-center gap-2">
-            <Button type="button" onClick={sendAssignment} className="gap-2">
+            <Button type="button" variant="outline" onClick={sendAssignment} className="gap-2">
               <Send className="h-4 w-4" aria-hidden /> Send Homework
             </Button>
             <Button type="button" onClick={saveOverrides} disabled={saving || postError}>
@@ -351,86 +388,120 @@ export default function AdminStudentProfilePage() {
         }
       >
         <div className="space-y-6">
-          {/* 1. List of warm-up tasks (add new, delete, edit) */}
-          <WarmUpTasksBlock userId={id} tasks={warmUpTasks} onUpdate={load} saving={saving} setSaving={setSaving} />
-
-          {/* 2. List of focus tasks (assigned from pool; add/remove via chips) */}
-          <div>
-            <p className="mb-2 text-sm font-medium">Focus tasks</p>
-            <p className="mb-2 text-xs text-muted-foreground">Choose which tasks are available for this student.</p>
-            <div className="flex flex-wrap gap-2">
-              {tasks.map((t) => (
-                <Chip
-                  key={t.id}
-                  label={t.title}
-                  selected={overridesDraft.assigned_next_task_ids.includes(t.id)}
-                  onToggle={() => toggleTask(t.id)}
-                />
+          {/* Warm-up Tasks */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Warm-up Tasks</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setModalWarmUp(true)}>
+                + Add
+              </Button>
+            </div>
+            <ul className="space-y-2">
+              {warmUpTasks.map((t) => (
+                <li key={t.id}>
+                  <EditableListItem
+                    text={t.text}
+                    onEdit={(newText) => updateWarmUpTask(t.id, newText)}
+                    onDelete={() => deleteWarmUpTask(t.id)}
+                    saving={saving}
+                  />
+                </li>
               ))}
-              {tasks.length === 0 && (
-                <span className="text-sm text-muted-foreground">No tasks in pool. Add them on the Tasks tab.</span>
-              )}
-            </div>
+            </ul>
+            {warmUpTasks.length === 0 && (
+              <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to select or create.</p>
+            )}
           </div>
 
-          {/* 3. List of questions (add new, delete, edit = select exactly 3 from pool) */}
-          <div>
-            <p className="mb-2 text-sm font-medium">Post-recording questions ({postCount}/3)</p>
-            <p className="mb-2 text-xs text-muted-foreground">Select exactly 3 from the pool.</p>
-            {postError && <p className="mb-2 text-sm text-destructive">Select exactly 3 questions.</p>}
-            <div className="flex flex-wrap gap-2">
-              {postQuestions.map((q) => (
-                <Chip
-                  key={q.id}
-                  label={q.text.slice(0, 40) + (q.text.length > 40 ? "…" : "")}
-                  selected={overridesDraft.assigned_post_question_ids.includes(q.id)}
-                  onToggle={() => togglePostQuestion(q.id)}
-                />
+          {/* Focus Tasks */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Focus Tasks</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setModalFocus(true)}>
+                + Add
+              </Button>
+            </div>
+            <ul className="space-y-2">
+              {assignedTasks.map((t) => (
+                <li key={t.id}>
+                  <EditableListItem
+                    text={t.title}
+                    onEdit={(newText) => {
+                      setSaving(true);
+                      adminApi.updateTask(t.id, { title: newText }).then(() => load()).catch((e) => toast.error(e.message)).finally(() => setSaving(false));
+                    }}
+                    onDelete={() =>
+                      setOverridesDraft((prev) => ({
+                        ...prev,
+                        assigned_next_task_ids: prev.assigned_next_task_ids.filter((x) => x !== t.id),
+                      }))
+                    }
+                    saving={saving}
+                  />
+                </li>
               ))}
-              {postQuestions.length === 0 && (
-                <span className="text-sm text-muted-foreground">No questions in pool. Add them on the Questions tab.</span>
-              )}
-            </div>
+            </ul>
+            {assignedTasks.length === 0 && (
+              <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to select from pool.</p>
+            )}
           </div>
 
-          {/* 4. Metric question 1 & 2 (editable in Metrics) */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Metric question 1 & 2 (editable)</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-border bg-muted/30 p-3 shadow-sm">
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Metric question 1</label>
-                <p className="text-sm text-foreground">{metricQuestions.find((q) => q.position === 1)?.text || "—"}</p>
-                <Link href="/admin/metrics" className="mt-1 text-xs text-primary hover:underline">Edit in Metrics</Link>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/30 p-3 shadow-sm">
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">Metric question 2</label>
-                <p className="text-sm text-foreground">{metricQuestions.find((q) => q.position === 2)?.text || "—"}</p>
-                <Link href="/admin/metrics" className="mt-1 text-xs text-primary hover:underline">Edit in Metrics</Link>
-              </div>
+          {/* Post-Recording Questions */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Post-Recording Questions ({overridesDraft.assigned_post_question_ids.length}/3)</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
+                + Add
+              </Button>
             </div>
+            {postError && <p className="text-sm text-destructive">Select exactly 3 questions.</p>}
+            <ul className="space-y-2">
+              {assignedQuestions.map((q) => (
+                <li key={q.id}>
+                  <EditableListItem
+                    text={q.text}
+                    onEdit={(newText) => {
+                      setSaving(true);
+                      adminApi.updatePostQuestion(q.id, { text: newText }).then(() => load()).catch((e) => toast.error(e.message)).finally(() => setSaving(false));
+                    }}
+                    onDelete={() =>
+                      setOverridesDraft((prev) => ({
+                        ...prev,
+                        assigned_post_question_ids: prev.assigned_post_question_ids.filter((x) => x !== q.id),
+                      }))
+                    }
+                    saving={saving}
+                  />
+                </li>
+              ))}
+            </ul>
+            {assignedQuestions.length === 0 && (
+              <p className="text-sm text-muted-foreground">No questions. Click + Add to select exactly 3.</p>
+            )}
           </div>
 
-          {/* 5. Metric 3, 4, 5 (editable in Metrics) */}
-          <div>
-            <p className="mb-2 text-sm font-medium">Metric definitions (labels)</p>
+          {/* Metrics (5 fixed) */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Metrics (5 fixed)</p>
             <div className="space-y-2">
-              {metricLabels.length > 0 ? (
-                metricLabels.map((m) => (
-                  <div key={m.code} className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm shadow-sm">
-                    <span className="font-medium text-muted-foreground">{m.code}:</span>
-                    <span>{m.left_label} … {m.right_label}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No metric labels loaded.</p>
-              )}
-              <Link href="/admin/metrics" className="text-xs text-primary hover:underline">Edit in Metrics</Link>
+              {metricLabels.slice(0, 5).map((m, i) => (
+                <MetricRow
+                  key={m.code}
+                  index={i + 1}
+                  code={m.code}
+                  leftLabel={m.left_label}
+                  rightLabel={m.right_label}
+                  onSave={(left, right) => saveMetricLabel(m.code, left, right)}
+                  saving={saving}
+                />
+              ))}
+              {metricLabels.length === 0 && <p className="text-sm text-muted-foreground">No metrics loaded.</p>}
             </div>
           </div>
         </div>
       </SectionCard>
 
-      {/* Speaker Profile (mockup) */}
+      {/* Speaker Profile */}
       <SectionCard
         title="Speaker Profile"
         description="Goals, motivation, and coach notes."
@@ -440,58 +511,72 @@ export default function AdminStudentProfilePage() {
           </Button>
         }
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(
-            [
-              ["main_goal", "Main Goal", 2],
-              ["motivation", "Motivation", 2],
-              ["strong_points", "Strong Points", 2],
-              ["weak_points", "Weak Points", 2],
-              ["charismatic_traits", "Charismatic Traits", 2],
-              ["hobbies_interests", "Hobbies & Interests", 2],
-              ["personality_type", "Personality Type", 1],
-            ] as const
-          ).map(([key, label, rows]) => (
-            <div key={key} className={key === "personality_type" ? "" : "sm:col-span-1"}>
-              <label className="mb-2 block text-sm font-medium">{label}</label>
-              {rows === 1 ? (
-                <input
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-                  value={speakerDraft[key]}
-                  onChange={(e) => setSpeakerDraft((p) => ({ ...p, [key]: e.target.value }))}
-                />
-              ) : (
-                <textarea
-                  className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-                  rows={2}
-                  value={speakerDraft[key]}
-                  onChange={(e) => setSpeakerDraft((p) => ({ ...p, [key]: e.target.value }))}
-                />
-              )}
-            </div>
-          ))}
-          <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Coach Notes</label>
-            <textarea
-              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-              rows={3}
-              value={speakerDraft.coach_notes}
-              onChange={(e) => setSpeakerDraft((p) => ({ ...p, coach_notes: e.target.value }))}
-            />
-          </div>
-        </div>
+        <label className="block text-sm font-medium mb-2">Context</label>
+        <textarea
+          value={contextDraft}
+          onChange={(e) => setContextDraft(e.target.value)}
+          placeholder="Enter student context, goals, motivation, personality traits, and any notes for coaching..."
+          rows={8}
+          className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        />
       </SectionCard>
 
-      {/* Last Report (mockup) */}
-      <SectionCard title="Last Report" description="Most recent report for this student.">
-        {lastReportText ? (
-          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm">
-            <p className="whitespace-pre-wrap text-sm text-foreground">{lastReportText}</p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No report yet.</p>
-        )}
-      </SectionCard>
+      {/* Reports History */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Reports History</h2>
+        <div className="space-y-3">
+          {reports.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No reports yet.</p>
+          ) : (
+            reports.map((s) => (
+              <div
+                key={s.id}
+                className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
+                </p>
+                <p className="whitespace-pre-wrap text-sm text-foreground">
+                  {s.report_preview?.report_text_preview ?? ""}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      <SelectFromPoolModal
+        open={modalWarmUp}
+        onOpenChange={setModalWarmUp}
+        title="Select Warm-up Tasks"
+        pool={warmUpPool}
+        selectedIds={warmUpTasks.map((t) => t.id)}
+        onConfirm={handleWarmUpConfirm}
+        allowCreate
+        onCreateNew={handleWarmUpCreate}
+      />
+      <SelectFromPoolModal
+        open={modalFocus}
+        onOpenChange={setModalFocus}
+        title="Select Focus Tasks"
+        pool={focusPool}
+        selectedIds={overridesDraft.assigned_next_task_ids}
+        onConfirm={handleFocusConfirm}
+        allowCreate
+        onCreateNew={handleFocusCreate}
+      />
+      <SelectFromPoolModal
+        open={modalQuestions}
+        onOpenChange={setModalQuestions}
+        title="Select Post-Recording Questions"
+        pool={questionsPool}
+        selectedIds={overridesDraft.assigned_post_question_ids}
+        onConfirm={handleQuestionsConfirm}
+        allowCreate
+        onCreateNew={handleQuestionsCreate}
+        maxSelection={3}
+      />
     </div>
   );
 }
