@@ -11,10 +11,14 @@ export interface HomeworkStartResponse {
   warm_up_task_text: string;
 }
 
-// —— After recording_1: task text (context_short + focus_task + metric_question_1 + metric_question_2) ——
+// —— After recording_1: task text + optional metric labels for step 2 ——
 export interface HomeworkRecording1Response {
   performance_score_1: number;
   task_text: string;
+  metric_question_1_text?: string;
+  metric_question_2_text?: string;
+  metric_question_1?: string;
+  metric_question_2?: string;
 }
 
 // —— After metric answers: final task for recording_2 ——
