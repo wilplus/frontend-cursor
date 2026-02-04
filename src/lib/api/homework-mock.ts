@@ -1,0 +1,70 @@
+import "server-only";
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionForRequest, copyCookies } from "@/lib/api/bff";
+
+/** Use mock homework when env is set or when no backend URL (dev without backend). */
+export function useMockHomework(): boolean {
+  return (
+    process.env.MOCK_HOMEWORK_BACKEND === "1" ||
+    !process.env.NEXT_PUBLIC_API_URL?.trim()
+  );
+}
+
+/** Return 401 response with refreshed cookies if no session. */
+export async function requireAuth(
+  req: NextRequest
+): Promise<NextResponse | null> {
+  const { session, cookieResponse } = await getSessionForRequest(req);
+  if (session) return null;
+  const res = NextResponse.json(
+    { code: "UNAUTHORIZED", error: "Session expired" },
+    { status: 401 }
+  );
+  copyCookies(cookieResponse, res);
+  return res;
+}
+
+function uuid(): string {
+  return crypto.randomUUID();
+}
+
+export function mockStartResponse() {
+  return {
+    session_id: uuid(),
+    warm_up_task_text:
+      "Read the following aloud at a comfortable pace. This is a sample warm-up task. Then record your response.",
+  };
+}
+
+export function mockRecording1Response() {
+  return {
+    performance_score_1: 0.8,
+    task_text:
+      "Based on your first recording, here is your task. Answer the two metric questions below, then complete your final recording.",
+  };
+}
+
+export function mockMetricAnswersResponse() {
+  return {
+    final_task_text:
+      "For your final recording, deliver a short summary in under 60 seconds.",
+  };
+}
+
+export function mockRecording2Response() {
+  return {
+    performance_score_2: 0.85,
+  };
+}
+
+export function mockQuestionsResponse() {
+  return { questions: [] };
+}
+
+export function mockPostAnswersResponse() {
+  return {
+    report_text:
+      "Sample report. You completed the homework flow. Connect a real backend for personalized feedback and scores.",
+    performance_score_end: 0.82,
+  };
+}

@@ -32,7 +32,7 @@ The **Next.js BFF** (API routes under `src/app/api/`) receives these requests an
 
 - **Admin:** `GET/POST/PUT/DELETE /v2/admin/students`, `/v2/admin/tasks`, `/v2/admin/post-recording-questions`, `/v2/admin/metrics`, `/v2/admin/students/:id/warm-up-tasks`, etc.
 - **Student:** `/v2/session/start`, `/v2/session/status`, `/v2/session/:id/universal-answers`, `/v2/recordings/upload`, `/v2/session/:id/post-answers`, etc.
-- **Homework (when implemented):** `/v2/homework/start`, `/v2/homework/session/:id/recording-1`, etc.
+- **Homework (student flow):** `POST /v2/homework/start`, then `/v2/homework/session/:id/recording-1`, `metric-answers`, `recording-2`, `questions`, `post-answers`. If not implemented, frontend shows a friendly error. **Mock:** When `NEXT_PUBLIC_API_URL` is unset or `MOCK_HOMEWORK_BACKEND=1`, the BFF returns stub homework responses so the full student flow works without a backend. If these are not implemented yet, the frontend will show “Homework flow is not available yet” and the browser may log 404 for `/api/homework/start`.
 
 Auth is unchanged: the BFF sends `Authorization: Bearer <supabase_access_token>` to your backend. You still validate the JWT and enforce admin for `/v2/admin/*`.
 

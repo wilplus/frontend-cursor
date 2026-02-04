@@ -14,6 +14,9 @@ const TOTAL_STEPS = 5;
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
+// One auto-start per page load (avoids double request in React Strict Mode)
+let autoStartAttempted = false;
+
 export default function HomeworkFlowCard() {
   const authReady = useAuthReady();
   const [step, setStep] = useState<Step | 0>(0);
@@ -32,7 +35,6 @@ export default function HomeworkFlowCard() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const hasAutoStarted = useRef(false);
 
   const handleStart = async () => {
     setLoading(true);
@@ -43,17 +45,29 @@ export default function HomeworkFlowCard() {
       setWarmUpText(res.warm_up_task_text || "Your warm-up task will appear here.");
       setStep(1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start homework");
-      toast.error(e instanceof Error ? e.message : "Failed to start");
+      const msg = e instanceof Error ? e.message : "Failed to start homework";
+      const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
+      if (isBackendUnavailable) {
+        // Show recording step anyway so the UI is visible; backend not implemented yet
+        setSessionId("mock-session");
+        setWarmUpText(
+          "Read the following aloud at a comfortable pace. (Backend not connected — this is a preview.)"
+        );
+        setStep(1);
+        setError(null);
+      } else {
+        setError(msg);
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Show recording step right away: auto-start when auth is ready
+  // Show recording step right away: auto-start when auth is ready (once per page load)
   useEffect(() => {
-    if (!authReady || step !== 0 || hasAutoStarted.current) return;
-    hasAutoStarted.current = true;
+    if (!authReady || step !== 0 || autoStartAttempted) return;
+    autoStartAttempted = true;
     handleStart();
   }, [authReady, step]);
 
@@ -66,6 +80,12 @@ export default function HomeworkFlowCard() {
 
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
+    if (sessionId === "mock-session") {
+      setError(
+        "Recording captured (preview only). Implement POST /v2/homework/start and POST /v2/homework/session/:id/recording-1 on your backend to save and continue."
+      );
+      return;
+    }
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
@@ -158,49 +178,20 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Idle: start button
-  if (step === 0) {
-    return (
-      <Card className="p-6">
-        <div className="text-center space-y-4">
-          <h2 className="text-lg font-semibold">Homework</h2>
-          <p className="text-sm text-muted-foreground">
-            Complete your warm-up, then two practice recordings. You’ll get a personalized report at the end.
-          </p>
-          {error && (
-            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md text-left">
-              {error}
-            </div>
-          )}
-          <Button onClick={handleStart} disabled={loading}>
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Starting…
-              </span>
-            ) : (
-              "Start homework"
-            )}
-          </Button>
-        </div>
-      </Card>
-    );
-  }
-
-  const flowStepIndex = step - 1;
+  const flowStepIndex = step >= 1 ? step - 1 : 0;
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <div className="space-y-4 animate-fade-in">
       <ProgressStepBullets
         total={TOTAL_STEPS}
         currentIndex={flowStepIndex}
-        aria-label={`Step ${step} of ${TOTAL_STEPS}`}
+        aria-label={step >= 1 ? `Step ${step} of ${TOTAL_STEPS}` : `Step 1 of ${TOTAL_STEPS}`}
       />
       {children}
     </div>
   );
 
-  // Step 1: Warm-up text + record
-  if (step === 1) {
+  // Step 1 (or loading): Warm-up text + recorder — show as soon as user is logged in
+  if (step === 0 || step === 1) {
     if (uploadingRecording === 1) {
       return (
         <Wrapper>
@@ -214,18 +205,52 @@ export default function HomeworkFlowCard() {
         </Wrapper>
       );
     }
+    const showRecorder = !!sessionId;
+    const warmUpDisplayText = sessionId
+      ? warmUpText
+      : error
+        ? "Tap Try again above to load your task."
+        : "Loading your warm-up task…";
+
     return (
       <Wrapper>
+        {sessionId === "mock-session" && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+            Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
+          </div>
+        )}
+        {step === 0 && error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
+            <p>{error}</p>
+            <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
+              Try again
+            </Button>
+          </div>
+        )}
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
           <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-            {warmUpText}
+            {!sessionId && loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {warmUpDisplayText}
+              </span>
+            ) : (
+              warmUpDisplayText
+            )}
           </p>
         </div>
-        <AudioRecorder
-          onRecordingComplete={handleRecording1Complete}
-          stopAndSend
-        />
+        {showRecorder ? (
+          <AudioRecorder
+            onRecordingComplete={handleRecording1Complete}
+            stopAndSend
+          />
+        ) : (
+          <Card className="p-6 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Preparing recorder…
+          </Card>
+        )}
       </Wrapper>
     );
   }
