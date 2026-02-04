@@ -3,7 +3,7 @@
 ## Short answer
 
 - **Admin:** Warm-up tasks, metric questions, students, overrides, exercises, tasks, post-questions, metrics, BFF routes — **in place.**
-- **Student “homework” flow (warm_up text + record button, then two recordings):** **Not in place.** The student app still uses the **old** flow (universal questions → exercise → task → **one** recording → post-questions). There is no student screen that shows only the warm-up task text + record button and the two-recording flow.
+- **Student “homework” flow (warm_up + two recordings):** **Frontend in place** at `/dashboard/homework`. Steps: warm-up text + record → task text + metric answers → final task + record → questions (or skip) → report. **Backend** must expose the homework student endpoints (see “What’s needed” below); until then, starting homework will fail with a friendly error.
 
 ---
 
@@ -24,9 +24,9 @@
 |---|--------|----------------|
 | **First screen** | “Start session” → universal questions (mood, readiness, mode). | **Warm-up task text + record button only.** |
 | **Flow** | Universal questions → (optional) exercise → task → intent → **one** recording → post-questions → report. | **Two recordings:** recording_1 (warm-up) → task text + metric answers → recording_2 → questions → report. |
-| **In place?** | Yes (dashboard + v2 dashboard). | **No.** |
+| **In place?** | Yes (dashboard + v2 dashboard). | **Yes (frontend).** See `/dashboard/homework`. Backend endpoints still needed. |
 
-So: the flow where the user **first** sees the warm_up_task text and a record button, and then does the **two-recording** flow with nothing else, is **not** implemented in the frontend (and the backend does not yet expose the homework-flow student endpoints, per the sync doc).
+The homework flow UI is at **`/dashboard/homework`**: warm-up task + record → task text + metric answers → final task + record → questions (or skip) → report. The backend does not yet expose the homework-flow student endpoints; when they are added, the same BFF routes and client will work.
 
 ---
 
@@ -40,11 +40,11 @@ So: the flow where the user **first** sees the warm_up_task text and a record bu
    - Submit recording_2 → get performance_score_2.
    - Get/skip questions → get report (performance_score_end, etc.).
 
-2. **Frontend:** Replace (or add a dedicated path for) the current student flow with:
-   - **Step 1:** Load and show the **warm_up_task** text and a **record** button; on submit → upload recording_1.
-   - **Step 2:** Show **task text** (context_short + focus_task + metric_question_1 + metric_question_2); student answers the two metric questions.
-   - **Step 3:** Show **final_task** text and a **record** button; on submit → upload recording_2.
-   - **Step 4:** Show **questions** (or skip if none).
-   - **Step 5:** Show **report**.
+2. **Frontend:** **Done.** At `/dashboard/homework`:
+   - **Step 1:** Start homework → get warm_up_task text; show text + record button; on complete → upload recording_1.
+   - **Step 2:** Show **task text**; student answers metric_question_1 and metric_question_2; submit → get final_task text.
+   - **Step 3:** Show **final_task** text + record button; on complete → upload recording_2.
+   - **Step 4:** GET questions; if any, show form and submit answers; if none, submit empty answers and get report.
+   - **Step 5:** Show **report** (report_text, performance_score_end) and “Back to dashboard”.
 
-Until both backend and frontend implement the above, the “first screen = warm_up text + record button, then two recordings only” flow is **not** in place.
+BFF routes: `POST /api/v2/homework/start`, `POST .../session/[id]/recording-1`, `POST .../metric-answers`, `POST .../recording-2`, `GET .../questions`, `POST .../post-answers`. Until the **backend** implements the corresponding `/v2/homework/*` endpoints, the flow will show an error when starting or uploading.

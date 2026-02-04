@@ -11,8 +11,11 @@ export const metadata: Metadata = {
 export default function DashboardPage() {
   return (
     <DashboardShell>
-      <div className="mb-4">
-        <Link href="/dashboard/v2" className="text-sm text-primary hover:underline">
+      <div className="mb-4 flex flex-wrap gap-3 text-sm">
+        <Link href="/dashboard/homework" className="text-primary hover:underline font-medium">
+          Homework
+        </Link>
+        <Link href="/dashboard/v2" className="text-muted-foreground hover:text-foreground hover:underline">
           Try v2
         </Link>
       </div>

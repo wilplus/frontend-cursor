@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronLeft, FileText, Send } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
-import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task, type WarmUpTask } from "@/lib/api/admin-client";
+import { Button } from "@/components/ui/button";
+import { adminApi, type StudentProfile, type Exercise, type PostQuestion, type Task, type WarmUpTask, type MetricQuestion, type MetricLabel } from "@/lib/api/admin-client";
 import { toast } from "sonner";
 
 function Chip({
@@ -24,8 +25,8 @@ function Chip({
       className={`
         rounded-lg border-2 px-3 py-2 text-sm font-medium transition-all
         ${selected
-          ? "border-[hsl(24_95%_53%)] bg-[hsl(24_100%_97%)] text-[hsl(24_95%_40%)]"
-          : "border-border hover:border-[hsl(24_95%_53%_/_.5)]"
+          ? "border-primary bg-primary/10 text-primary shadow-md ring-2 ring-primary/30"
+          : "border-border hover:border-primary/50"
         }
       `}
     >
@@ -34,7 +35,7 @@ function Chip({
   );
 }
 
-function WarmUpTasksSection({
+function WarmUpTasksBlock({
   userId,
   tasks,
   onUpdate,
@@ -97,85 +98,65 @@ function WarmUpTasksSection({
   };
 
   return (
-    <SectionCard
-      title="Warm-up tasks"
-      description="Per-student list for the future homework flow. Admin chooses which one is shown. Student sees one per run."
-    >
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <textarea
-            className="min-h-[60px] w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="New warm-up task text…"
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-          />
-          <button
-            type="button"
-            onClick={addTask}
-            disabled={saving || !newText.trim()}
-            className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
-            Add
-          </button>
-        </div>
-        <ul className="space-y-2">
-          {tasks.map((task) => (
-            <li key={task.id} className="rounded-lg border border-border bg-card p-3">
-              {editingId === task.id ? (
-                <div className="space-y-2">
-                  <textarea
-                    className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={saveEdit}
-                      disabled={saving}
-                      className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-1 text-sm text-white"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(null)}
-                      className="rounded-md border border-border px-3 py-1 text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-sm flex-1">{task.text}</p>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(task)}
-                      className="rounded border border-border px-2 py-1 text-xs hover:bg-muted"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteTask(task.id)}
-                      disabled={saving}
-                      className="rounded border border-destructive/50 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-        {tasks.length === 0 && (
-          <p className="text-sm text-muted-foreground">No warm-up tasks. Add one above for the future homework flow.</p>
-        )}
+    <div className="space-y-4">
+      <p className="text-sm font-medium">Warm-up tasks (add new, delete, edit)</p>
+      <div className="flex flex-wrap gap-2">
+        <textarea
+          className="min-h-[60px] w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          placeholder="New warm-up task text…"
+          value={newText}
+          onChange={(e) => setNewText(e.target.value)}
+        />
+        <Button type="button" onClick={addTask} disabled={saving || !newText.trim()}>
+          Add
+        </Button>
       </div>
-    </SectionCard>
+      <ul className="space-y-2">
+        {tasks.map((task) => (
+          <li key={task.id} className="rounded-xl border border-border bg-card p-3 shadow-sm">
+            {editingId === task.id ? (
+              <div className="space-y-2">
+                <textarea
+                  className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={saveEdit} disabled={saving}>
+                    Save
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="text-sm flex-1">{task.text}</p>
+                <div className="flex gap-1">
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => startEdit(task)}>
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-destructive/50 text-xs text-destructive hover:bg-destructive/10"
+                    onClick={() => deleteTask(task.id)}
+                    disabled={saving}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {tasks.length === 0 && (
+        <p className="text-sm text-muted-foreground">No warm-up tasks. Add one above.</p>
+      )}
+    </div>
   );
 }
 
@@ -188,6 +169,8 @@ export default function AdminStudentProfilePage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
+  const [metricQuestions, setMetricQuestions] = useState<MetricQuestion[]>([]);
+  const [metricLabels, setMetricLabels] = useState<MetricLabel[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
@@ -200,13 +183,17 @@ export default function AdminStudentProfilePage() {
     const fetchTasks = adminApi.getTasks().catch(() => [] as Task[]);
     const fetchQuestions = adminApi.getPostQuestions().catch(() => [] as PostQuestion[]);
     const fetchWarmUp = adminApi.getWarmUpTasks(id).catch(() => [] as WarmUpTask[]);
-    Promise.all([fetchProfile, fetchExercises, fetchTasks, fetchQuestions, fetchWarmUp])
-      .then(([p, ex, t, q, w]) => {
+    const fetchMetricQ = adminApi.getMetricQuestions().catch(() => [] as MetricQuestion[]);
+    const fetchMetrics = adminApi.getMetricLabels().catch(() => [] as MetricLabel[]);
+    Promise.all([fetchProfile, fetchExercises, fetchTasks, fetchQuestions, fetchWarmUp, fetchMetricQ, fetchMetrics])
+      .then(([p, ex, t, q, w, mq, ml]) => {
         setProfile(p);
         setExercises(ex);
         setTasks(t);
         setPostQuestions(q);
         setWarmUpTasks(w);
+        setMetricQuestions(mq);
+        setMetricLabels(ml);
       })
       .catch((e) => {
         toast.error(e.message);
@@ -330,8 +317,14 @@ export default function AdminStudentProfilePage() {
   const postCount = overridesDraft.assigned_post_question_ids.length;
   const postError = postCount > 0 && postCount !== 3;
 
+  const lastReportSession = profile.sessions
+    .filter((s) => s.report_preview?.report_text_preview)
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
+  const lastReportText = lastReportSession?.report_preview?.report_text_preview ?? null;
+
   return (
     <div className="space-y-6">
+      {/* Header: back link + student email only (mockup) */}
       <div>
         <Link
           href="/admin/students"
@@ -339,71 +332,32 @@ export default function AdminStudentProfilePage() {
         >
           <ChevronLeft className="h-4 w-4" /> Students
         </Link>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold">
-            {profile.email || profile.user_id}
-          </h1>
-          <button
-            type="button"
-            onClick={sendAssignment}
-            className="inline-flex items-center gap-2 rounded-md bg-[hsl(24_95%_53%)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
-            <Send className="h-4 w-4" /> Send Homework
-          </button>
-        </div>
+        <h1 className="mt-2 text-3xl font-bold">{profile.email || profile.user_id}</h1>
       </div>
 
+      {/* Homework Configuration — Send Homework + Save in card action (mockup) */}
       <SectionCard
         title="Homework Configuration"
         description="Assign exercise and post-recording questions for this student."
         action={
-          <button
-            type="button"
-            onClick={saveOverrides}
-            disabled={saving || postError}
-            className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
-            Save
-          </button>
+          <div className="flex items-center gap-2">
+            <Button type="button" onClick={sendAssignment} className="gap-2">
+              <Send className="h-4 w-4" aria-hidden /> Send Homework
+            </Button>
+            <Button type="button" onClick={saveOverrides} disabled={saving || postError}>
+              Save
+            </Button>
+          </div>
         }
       >
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="show_exercise_step"
-              checked={overridesDraft.show_exercise_step}
-              onChange={(e) =>
-                setOverridesDraft((p) => ({ ...p, show_exercise_step: e.target.checked }))
-              }
-              className="h-4 w-4 rounded border-input"
-            />
-            <label htmlFor="show_exercise_step" className="text-sm font-medium">
-              Show exercise step for this student
-            </label>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            When on, this student sees the exercise step after the 3 universal questions. When off, they skip it. Which exercise (or auto by task score) is set below.
-          </p>
+        <div className="space-y-6">
+          {/* 1. List of warm-up tasks (add new, delete, edit) */}
+          <WarmUpTasksBlock userId={id} tasks={warmUpTasks} onUpdate={load} saving={saving} setSaving={setSaving} />
+
+          {/* 2. List of focus tasks (assigned from pool; add/remove via chips) */}
           <div>
-            <p className="mb-2 text-sm font-medium">Next exercise (optional, when step is on)</p>
-            <div className="flex flex-wrap gap-2">
-              {exercises.map((e) => (
-                <Chip
-                  key={e.id}
-                  label={e.title}
-                  selected={overridesDraft.assigned_next_exercise_id === e.id}
-                  onToggle={() => toggleExercise(e.id)}
-                />
-              ))}
-              {exercises.length === 0 && (
-                <span className="text-sm text-muted-foreground">No exercises in pool. Add them on the Exercises tab.</span>
-              )}
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-medium">Tasks for this student (multi-select)</p>
-            <p className="mb-2 text-xs text-muted-foreground">Choose which tasks are available for this student. Newly added tasks appear here.</p>
+            <p className="mb-2 text-sm font-medium">Focus tasks</p>
+            <p className="mb-2 text-xs text-muted-foreground">Choose which tasks are available for this student.</p>
             <div className="flex flex-wrap gap-2">
               {tasks.map((t) => (
                 <Chip
@@ -418,77 +372,72 @@ export default function AdminStudentProfilePage() {
               )}
             </div>
           </div>
+
+          {/* 3. List of questions (add new, delete, edit = select exactly 3 from pool) */}
           <div>
-            <p className="mb-2 text-sm font-medium">
-              Post-Recording Questions ({postCount}/3 selected)
-            </p>
-            <p className="mb-2 text-xs text-muted-foreground">All questions from the pool; newly added ones appear here. Select exactly 3.</p>
-            {postError && (
-              <p className="mb-2 text-sm text-destructive">Select exactly 3 questions.</p>
-            )}
+            <p className="mb-2 text-sm font-medium">Post-recording questions ({postCount}/3)</p>
+            <p className="mb-2 text-xs text-muted-foreground">Select exactly 3 from the pool.</p>
+            {postError && <p className="mb-2 text-sm text-destructive">Select exactly 3 questions.</p>}
             <div className="flex flex-wrap gap-2">
               {postQuestions.map((q) => (
                 <Chip
                   key={q.id}
-                  label={q.text.slice(0, 30) + (q.text.length > 30 ? "…" : "")}
+                  label={q.text.slice(0, 40) + (q.text.length > 40 ? "…" : "")}
                   selected={overridesDraft.assigned_post_question_ids.includes(q.id)}
                   onToggle={() => togglePostQuestion(q.id)}
                 />
               ))}
-            </div>
-            {postQuestions.length === 0 && (
-              <span className="text-sm text-muted-foreground">No questions in pool. Add them on the Questions tab.</span>
-            )}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Intended emotion prompt</label>
-              <textarea
-                className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-                rows={2}
-                value={overridesDraft.intended_emotion_prompt}
-                onChange={(e) =>
-                  setOverridesDraft((p) => ({ ...p, intended_emotion_prompt: e.target.value }))
-                }
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Keywords prompt</label>
-              <textarea
-                className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-                rows={2}
-                value={overridesDraft.keywords_prompt}
-                onChange={(e) =>
-                  setOverridesDraft((p) => ({ ...p, keywords_prompt: e.target.value }))
-                }
-              />
+              {postQuestions.length === 0 && (
+                <span className="text-sm text-muted-foreground">No questions in pool. Add them on the Questions tab.</span>
+              )}
             </div>
           </div>
+
+          {/* 4. Metric question 1 & 2 (editable in Metrics) */}
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Metric question 1 & 2 (editable)</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border bg-muted/30 p-3 shadow-sm">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Metric question 1</label>
+                <p className="text-sm text-foreground">{metricQuestions.find((q) => q.position === 1)?.text || "—"}</p>
+                <Link href="/admin/metrics" className="mt-1 text-xs text-primary hover:underline">Edit in Metrics</Link>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-3 shadow-sm">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Metric question 2</label>
+                <p className="text-sm text-foreground">{metricQuestions.find((q) => q.position === 2)?.text || "—"}</p>
+                <Link href="/admin/metrics" className="mt-1 text-xs text-primary hover:underline">Edit in Metrics</Link>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Metric 3, 4, 5 (editable in Metrics) */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Emotion check question text</label>
-            <input
-              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-              value={overridesDraft.emotion_check_question_text}
-              onChange={(e) =>
-                setOverridesDraft((p) => ({ ...p, emotion_check_question_text: e.target.value }))
-              }
-            />
+            <p className="mb-2 text-sm font-medium">Metric definitions (labels)</p>
+            <div className="space-y-2">
+              {metricLabels.length > 0 ? (
+                metricLabels.map((m) => (
+                  <div key={m.code} className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm shadow-sm">
+                    <span className="font-medium text-muted-foreground">{m.code}:</span>
+                    <span>{m.left_label} … {m.right_label}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No metric labels loaded.</p>
+              )}
+              <Link href="/admin/metrics" className="text-xs text-primary hover:underline">Edit in Metrics</Link>
+            </div>
           </div>
         </div>
       </SectionCard>
 
+      {/* Speaker Profile (mockup) */}
       <SectionCard
         title="Speaker Profile"
         description="Goals, motivation, and coach notes."
         action={
-          <button
-            type="button"
-            onClick={saveSpeakerProfile}
-            disabled={saving}
-            className="rounded-md bg-[hsl(24_95%_53%)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="button" onClick={saveSpeakerProfile} disabled={saving}>
             Save
-          </button>
+          </Button>
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
@@ -533,74 +482,15 @@ export default function AdminStudentProfilePage() {
         </div>
       </SectionCard>
 
-      <WarmUpTasksSection
-        userId={id}
-        tasks={warmUpTasks}
-        onUpdate={load}
-        saving={saving}
-        setSaving={setSaving}
-      />
-
-      <SectionCard title="Session History" description="Recent sessions and reports.">
-        <div className="space-y-2">
-          {profile.sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
-          ) : (
-            profile.sessions.map((s) => (
-              <div
-                key={s.id}
-                className="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
-              >
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/30"
-                  onClick={() =>
-                    setExpandedSessionId((x) => (x === s.id ? null : s.id))
-                  }
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {s.created_at?.slice(0, 10)}
-                    </span>
-                    {s.task_score != null && (
-                      <span className="rounded-md border border-border px-2 py-0.5 text-xs">
-                        Task: {Math.round((s.task_score ?? 0) * 100)}%
-                      </span>
-                    )}
-                    {s.recording_preview?.performance_score_v2 != null && (
-                      <span className="rounded-md border border-border px-2 py-0.5 text-xs">
-                        Performance: {Math.round((s.recording_preview.performance_score_v2 ?? 0) * 100)}%
-                      </span>
-                    )}
-                  </div>
-                  <FileText
-                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expandedSessionId === s.id ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {expandedSessionId === s.id && (
-                  <div className="animate-fade-in border-t border-border bg-muted/30 p-4">
-                    {s.report_preview?.report_text_preview && (
-                      <div className="mb-3">
-                        <p className="mb-1 text-sm font-medium">Summary</p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {s.report_preview.report_text_preview}
-                        </p>
-                      </div>
-                    )}
-                    {s.recording_preview?.transcription_preview && (
-                      <div>
-                        <p className="mb-1 text-sm font-medium">Transcript Preview</p>
-                        <p className="text-sm text-muted-foreground">
-                          &quot;{s.recording_preview.transcription_preview}…&quot;
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+      {/* Last Report (mockup) */}
+      <SectionCard title="Last Report" description="Most recent report for this student.">
+        {lastReportText ? (
+          <div className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm">
+            <p className="whitespace-pre-wrap text-sm text-foreground">{lastReportText}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No report yet.</p>
+        )}
       </SectionCard>
     </div>
   );
