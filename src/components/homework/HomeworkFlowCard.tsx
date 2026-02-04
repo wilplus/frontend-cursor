@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { homeworkApi } from "@/lib/api/homework-client";
 import type { HomeworkQuestion } from "@/lib/api/types-homework";
@@ -32,6 +32,7 @@ export default function HomeworkFlowCard() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const hasAutoStarted = useRef(false);
 
   const handleStart = async () => {
     setLoading(true);
@@ -48,6 +49,13 @@ export default function HomeworkFlowCard() {
       setLoading(false);
     }
   };
+
+  // Show recording step right away: auto-start when auth is ready
+  useEffect(() => {
+    if (!authReady || step !== 0 || hasAutoStarted.current) return;
+    hasAutoStarted.current = true;
+    handleStart();
+  }, [authReady, step]);
 
   const buildFormData = (blob: Blob, durationSeconds: number): FormData => {
     const formData = new FormData();
