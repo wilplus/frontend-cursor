@@ -22,7 +22,7 @@ function unauthorizedResponse(): NextResponse<ApiError> {
  * Get session using request cookies and write any refreshed cookies to a response.
  * Caller must merge cookieResponse's cookies onto the final response so the client gets refreshed tokens.
  */
-async function getSessionForRequest(req: NextRequest): Promise<{
+export async function getSessionForRequest(req: NextRequest): Promise<{
   session: Session | null;
   cookieResponse: NextResponse;
 }> {

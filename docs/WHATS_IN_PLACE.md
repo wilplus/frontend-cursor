@@ -45,4 +45,4 @@ There is **one flow only**: warm-up + recording_1 → task + metric answers → 
    - **Step 4:** GET questions; if any, show form and submit answers; if none, submit empty answers and get report.
    - **Step 5:** Show **report** (report_text, performance_score_end) and “Back to dashboard”.
 
-BFF routes: `POST /api/homework/start`, `POST .../session/[id]/recording-1`, etc. (proxied to backend `/v2/homework/*`). Until the **backend** implements `/v2/homework/*`, the flow will show an error when starting or uploading.
+BFF routes: `POST /api/homework/start`, `POST .../session/[id]/recording-1`, etc. (proxied to backend `/v2/homework/*`). **Built-in mock:** If `NEXT_PUBLIC_API_URL` is unset or `MOCK_HOMEWORK_BACKEND=1`, the BFF returns stub JSON for all homework endpoints so the full flow runs without a backend.
