@@ -205,19 +205,11 @@ export default function AdminStudentProfilePage() {
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([
-      adminApi.getStudentProfile(id),
-      adminApi.getTasks(),
-      adminApi.getPostQuestions(),
-      adminApi.getWarmUpTasks(id),
-      adminApi.getMetricLabels(),
-    ])
-      .then(([p, t, q, w, ml]) => {
+    // Load profile first; then load pool data (tasks, questions, etc.) so profile opens even if one pool 404s
+    adminApi
+      .getStudentProfile(id)
+      .then((p) => {
         setProfile(p);
-        setTasks(t);
-        setPostQuestions(q);
-        setWarmUpTasks(w);
-        setMetricLabels(ml);
         setOverridesDraft({
           assigned_post_question_ids: p.overrides?.assigned_post_question_ids ?? [],
           assigned_next_task_ids: p.overrides?.assigned_next_task_ids ?? [],
@@ -231,6 +223,25 @@ export default function AdminStudentProfilePage() {
           sp.coach_notes,
         ].filter(Boolean);
         setContextDraft(parts.join("\n\n"));
+        // Load pools in parallel; don't fail the page if one fails (e.g. 404 for /tasks on old deploy)
+        return Promise.allSettled([
+          adminApi.getTasks(),
+          adminApi.getPostQuestions(),
+          adminApi.getWarmUpTasks(id),
+          adminApi.getMetricLabels(),
+        ]);
+      })
+      .then((results) => {
+        if (!results) return;
+        const [tasksRes, questionsRes, warmUpRes, metricsRes] = results;
+        if (tasksRes.status === "fulfilled") setTasks(tasksRes.value);
+        else toast.error(tasksRes.reason?.message ?? "Could not load tasks");
+        if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
+        else toast.error(questionsRes.reason?.message ?? "Could not load questions");
+        if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
+        else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
+        if (metricsRes.status === "fulfilled") setMetricLabels(metricsRes.value);
+        else toast.error(metricsRes.reason?.message ?? "Could not load metrics");
       })
       .catch((e) => {
         toast.error(e.message);
