@@ -14,6 +14,17 @@ const TOTAL_STEPS = 5;
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
+/** Coerce API value to string; backend may send { id, text } instead of a plain string. */
+function toText(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && v !== null && "text" in v) {
+    const t = (v as { text: unknown }).text;
+    return typeof t === "string" ? t : String(t ?? "");
+  }
+  return String(v);
+}
+
 // One auto-start per page load (avoids double request in React Strict Mode)
 let autoStartAttempted = false;
 
@@ -41,13 +52,13 @@ export default function HomeworkFlowCard() {
     setError(null);
     try {
       const res = await homeworkApi.start();
-      const text =
+      const raw =
         res.warm_up_task_text ??
-        (res as { warm_up_task?: string }).warm_up_task ??
-        (res as { task_text?: string }).task_text ??
+        (res as { warm_up_task?: unknown }).warm_up_task ??
+        (res as { task_text?: unknown }).task_text ??
         "";
       setSessionId(res.session_id);
-      setWarmUpText(text || "Your warm-up task will appear here.");
+      setWarmUpText(toText(raw) || "Your warm-up task will appear here.");
       setStep(1);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to start homework";
@@ -97,7 +108,7 @@ export default function HomeworkFlowCard() {
     try {
       const formData = buildFormData(blob, durationSeconds);
       const res = await homeworkApi.uploadRecording1(sessionId, formData, abortRef.current.signal);
-      setTaskText(res.task_text || "");
+      setTaskText(toText(res.task_text));
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -117,7 +128,7 @@ export default function HomeworkFlowCard() {
         metric_answer_1: metricAnswer1.trim(),
         metric_answer_2: metricAnswer2.trim(),
       });
-      setFinalTaskText(res.final_task_text || "");
+      setFinalTaskText(toText(res.final_task_text));
       setStep(3);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to submit");
@@ -138,11 +149,15 @@ export default function HomeworkFlowCard() {
       const { questions: qList } = await homeworkApi.getQuestions(sessionId);
       if (qList.length === 0) {
         const reportRes = await homeworkApi.submitPostAnswers(sessionId, []);
-        setReportText(reportRes.report_text);
+        setReportText(toText(reportRes.report_text));
         setPerformanceScoreEnd(reportRes.performance_score_end);
         setStep(5);
       } else {
-        setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+        const normalized = qList.map((q) => ({
+          ...q,
+          text: toText(q.text),
+        }));
+        setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
         setStep(4);
       }
     } catch (e) {
@@ -164,7 +179,7 @@ export default function HomeworkFlowCard() {
         answer_text: (postAnswers[q.id] ?? "").trim(),
       }));
       const res = await homeworkApi.submitPostAnswers(sessionId, answers);
-      setReportText(res.report_text);
+      setReportText(toText(res.report_text));
       setPerformanceScoreEnd(res.performance_score_end);
       setStep(5);
     } catch (e) {
@@ -339,7 +354,7 @@ export default function HomeworkFlowCard() {
           <div className="space-y-4">
             {questions.map((q) => (
               <div key={q.id}>
-                <label className="block text-sm font-medium mb-1">{q.text}</label>
+                <label className="block text-sm font-medium mb-1">{toText(q.text)}</label>
                 <textarea
                   className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={postAnswers[q.id] ?? ""}
