@@ -55,9 +55,26 @@ All under `GET/POST/PUT/DELETE .../v2/admin/...` with admin auth. Frontend BFF: 
 
 ---
 
+## Homework flow (student) — API contract for backend
+
+The frontend at `/dashboard/homework` is implemented and calls the BFF below. The BFF proxies to Flask **`/v2/homework/*`**. When the backend implements these, the flow will work without frontend changes.
+
+| Method | Backend path | Request | Response |
+|--------|--------------|--------|----------|
+| POST | `/v2/homework/start` | `{}` | `{ session_id, warm_up_task_text }` |
+| POST | `/v2/homework/session/<session_id>/recording-1` | Multipart: `audio` (file), `duration_seconds` | `{ performance_score_1, task_text }` |
+| POST | `/v2/homework/session/<session_id>/metric-answers` | `{ metric_answer_1, metric_answer_2 }` | `{ final_task_text }` |
+| POST | `/v2/homework/session/<session_id>/recording-2` | Multipart: `audio`, `duration_seconds` | `{ performance_score_2 }` |
+| GET | `/v2/homework/session/<session_id>/questions` | — | `{ questions: [ { id, text, order_index? } ] }` |
+| POST | `/v2/homework/session/<session_id>/post-answers` | `{ answers: [ { question_id, answer_text } ] }` | `{ report_text, performance_score_end }` |
+
+Auth: same as other v2 student endpoints (`Authorization: Bearer <supabase_access_token>`). If a route is not implemented, backend may return 404; frontend shows a friendly “Homework flow is not available yet” message.
+
+---
+
 ## What not to implement yet (no backend support)
 
-- **Homework flow student steps:** Get warm-up task, submit recording_1, get AI task with metric_question_1/2, submit metric answers, submit recording_2, get/save report with performance_score_end. DB has columns for future use.
+- **Homework flow backend:** Frontend and BFF are ready; backend must implement `/v2/homework/*` as in the table above.
 - **Report overwrite / context_long edit** in admin.
 - **Student "get task by id"** beyond plan/select-task.
 
@@ -65,6 +82,6 @@ All under `GET/POST/PUT/DELETE .../v2/admin/...` with admin auth. Frontend BFF: 
 
 ## Summary
 
-- **Student:** One flow — session start → universal questions → (optional exercise) → pre-questions + task + intent → one recording → post-answers → report. Use v2 endpoints and response shapes above.
+- **Student:** Two flows — (1) Existing: session start → universal questions → … → one recording → post-answers → report. (2) **Homework:** `/dashboard/homework` → start → warm-up + record_1 → task text + metric answers → final task + record_2 → questions (or skip) → report. Homework uses `/v2/homework/*` when implemented.
 - **Admin:** Use v2 admin endpoints for students, overrides, speaker profile, send-assignment, **warm-up tasks**, exercises, tasks, post-recording questions, **metric questions**, and **metric definitions** (labels). Proxy with admin token; handle 401/403 and error bodies (`code`, `error`).
-- **Sync:** Keep types (StudentProfile, session status, overrides keys, WarmUpTask, MetricQuestion, MetricLabel) aligned with backend; add BFF routes for every admin endpoint used; do not rely on homework-flow student APIs until backend implements them.
+- **Sync:** Keep types aligned with backend; BFF routes for homework are in place; backend implements `/v2/homework/*` when ready.
