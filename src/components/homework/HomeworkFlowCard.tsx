@@ -25,6 +25,17 @@ function toText(v: unknown): string {
   return String(v);
 }
 
+/** Stable string id for keys and state; backend may send id as object. */
+function toId(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && v !== null && "id" in v) {
+    const id = (v as { id: unknown }).id;
+    return typeof id === "string" ? id : String(id ?? "");
+  }
+  return String(v);
+}
+
 // One auto-start per page load (avoids double request in React Strict Mode)
 let autoStartAttempted = false;
 
@@ -37,6 +48,8 @@ export default function HomeworkFlowCard() {
   const [finalTaskText, setFinalTaskText] = useState("");
   const [metricAnswer1, setMetricAnswer1] = useState("");
   const [metricAnswer2, setMetricAnswer2] = useState("");
+  const [metricLabel1, setMetricLabel1] = useState("Metric question 1");
+  const [metricLabel2, setMetricLabel2] = useState("Metric question 2");
   const [questions, setQuestions] = useState<HomeworkQuestion[]>([]);
   const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
   const [reportText, setReportText] = useState("");
@@ -109,6 +122,9 @@ export default function HomeworkFlowCard() {
       const formData = buildFormData(blob, durationSeconds);
       const res = await homeworkApi.uploadRecording1(sessionId, formData, abortRef.current.signal);
       setTaskText(toText(res.task_text));
+      const r = res as { metric_question_1_text?: unknown; metric_question_2_text?: unknown; metric_question_1?: unknown; metric_question_2?: unknown };
+      setMetricLabel1(toText(r.metric_question_1_text ?? r.metric_question_1) || "Metric question 1");
+      setMetricLabel2(toText(r.metric_question_2_text ?? r.metric_question_2) || "Metric question 2");
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -155,6 +171,7 @@ export default function HomeworkFlowCard() {
       } else {
         const normalized = qList.map((q) => ({
           ...q,
+          id: toId(q.id) || crypto.randomUUID(),
           text: toText(q.text),
         }));
         setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
@@ -175,8 +192,8 @@ export default function HomeworkFlowCard() {
     setError(null);
     try {
       const answers = questions.map((q) => ({
-        question_id: q.id,
-        answer_text: (postAnswers[q.id] ?? "").trim(),
+        question_id: toId(q.id),
+        answer_text: (postAnswers[toId(q.id)] ?? "").trim(),
       }));
       const res = await homeworkApi.submitPostAnswers(sessionId, answers);
       setReportText(toText(res.report_text));
@@ -287,7 +304,7 @@ export default function HomeworkFlowCard() {
           <p className="text-sm font-medium">Answer these two questions:</p>
           <div className="space-y-3">
             <label className="block text-sm font-medium">
-              Metric question 1
+              {metricLabel1}
             </label>
             <textarea
               className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -296,7 +313,7 @@ export default function HomeworkFlowCard() {
               onChange={(e) => setMetricAnswer1(e.target.value)}
             />
             <label className="block text-sm font-medium">
-              Metric question 2
+              {metricLabel2}
             </label>
             <textarea
               className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -352,17 +369,20 @@ export default function HomeworkFlowCard() {
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">A few questions</h3>
           <div className="space-y-4">
-            {questions.map((q) => (
-              <div key={q.id}>
-                <label className="block text-sm font-medium mb-1">{toText(q.text)}</label>
-                <textarea
-                  className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={postAnswers[q.id] ?? ""}
-                  onChange={(e) => setPostAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  placeholder="Your answer…"
-                />
-              </div>
-            ))}
+            {questions.map((q) => {
+              const qId = toId(q.id);
+              return (
+                <div key={qId}>
+                  <label className="block text-sm font-medium mb-1">{toText(q.text)}</label>
+                  <textarea
+                    className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={postAnswers[qId] ?? ""}
+                    onChange={(e) => setPostAnswers((prev) => ({ ...prev, [qId]: e.target.value }))}
+                    placeholder="Your answer…"
+                  />
+                </div>
+              );
+            })}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button onClick={handlePostAnswersSubmit} disabled={loading}>
@@ -373,7 +393,7 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 5: Report
+  // Step 5: Report (content from backend; backend should include analysis of both recording 1 and 2)
   if (step === 5) {
     return (
       <Wrapper>

@@ -296,7 +296,11 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createWarmUpTask(id, { text, order_index: warmUpTasks.length });
+    const res = await adminApi.createWarmUpTask(id, {
+      text,
+      order_index: warmUpTasks.length,
+      max_performance_score: 1,
+    });
     return { id: res.warm_up_task.id, label: res.warm_up_task.text };
   };
 
@@ -330,10 +334,10 @@ export default function AdminStudentProfilePage() {
     return { id: res.question.id, label: res.question.text };
   };
 
-  const updateWarmUpTask = (taskId: string, newText: string) => {
+  const updateWarmUpTask = (taskId: string, updates: { text?: string; max_performance_score?: number }) => {
     setSaving(true);
     adminApi
-      .updateWarmUpTask(id, taskId, { text: newText })
+      .updateWarmUpTask(id, taskId, updates)
       .then(() => { load(); toast.success("Updated"); })
       .catch((e) => toast.error(e.message))
       .finally(() => setSaving(false));
@@ -409,13 +413,41 @@ export default function AdminStudentProfilePage() {
             </div>
             <ul className="space-y-2">
               {warmUpTasks.map((t) => (
-                <li key={t.id}>
-                  <EditableListItem
-                    text={t.text}
-                    onEdit={(newText) => updateWarmUpTask(t.id, newText)}
-                    onDelete={() => deleteWarmUpTask(t.id)}
-                    saving={saving}
-                  />
+                <li key={t.id} className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <EditableListItem
+                      text={t.text}
+                      onEdit={(newText) => updateWarmUpTask(t.id, { text: newText })}
+                      onDelete={() => deleteWarmUpTask(t.id)}
+                      saving={saving}
+                    />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">Max score</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={t.max_performance_score ?? 1}
+                      onChange={(e) => {
+                        const v = e.target.valueAsNumber;
+                        if (!Number.isNaN(v) && v >= 0 && v <= 1) {
+                          setWarmUpTasks((prev) =>
+                            prev.map((w) => (w.id === t.id ? { ...w, max_performance_score: v } : w))
+                          );
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const v = e.target.valueAsNumber;
+                        if (!Number.isNaN(v) && v >= 0 && v <= 1 && (t.max_performance_score ?? 1) !== v) {
+                          updateWarmUpTask(t.id, { max_performance_score: v });
+                        }
+                      }}
+                      className="h-7 w-16 rounded border border-input bg-background px-2 text-right text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring"
+                      title="Max performance score (0–1). Shown to students with last score ≤ this."
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

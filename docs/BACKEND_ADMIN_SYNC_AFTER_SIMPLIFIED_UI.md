@@ -49,9 +49,11 @@ The frontend **no longer has** dedicated admin pages for Exercises, Tasks, Quest
 
 ### Warm-up tasks (per student)
 
-- **GET /v2/admin/students/:id/warm-up-tasks** — Response: `{ "warm_up_tasks": [ { "id", "user_id", "text", "order_index?", "created_at?" } ] }`.
-- **POST /v2/admin/students/:id/warm-up-tasks** — Body: `{ "text": string, "order_index"?: number }`. Response: `{ "warm_up_task": { id, user_id, text, order_index?, created_at? } }`.
-- **PUT /v2/admin/students/:id/warm-up-tasks/:task_id** — Body: `{ "text"?: string, "order_index"?: number }`. Response: updated warm_up_task object.
+Each warm-up task has **max_performance_score** (0–1) used by the homework flow to select which warm-up to show (see **WARM_UP_SELECTION_SPEC.md**).
+
+- **GET /v2/admin/students/:id/warm-up-tasks** — Response: `{ "warm_up_tasks": [ { "id", "user_id", "text", "order_index?", "max_performance_score"?: number (0-1), "created_at?" } ] }`.
+- **POST /v2/admin/students/:id/warm-up-tasks** — Body: `{ "text": string, "order_index"?: number, "max_performance_score"?: number (0-1) }`. Response: `{ "warm_up_task": { id, user_id, text, order_index?, max_performance_score?, created_at? } }`.
+- **PUT /v2/admin/students/:id/warm-up-tasks/:task_id** — Body: `{ "text"?: string, "order_index"?: number, "max_performance_score"?: number (0-1) }`. Response: updated warm_up_task object.
 - **DELETE /v2/admin/students/:id/warm-up-tasks/:task_id** — No body. Response: 200 or `{ "status": "ok" }`.
 
 ### Tasks (global pool)
