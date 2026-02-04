@@ -187,15 +187,28 @@ export async function proxyJson<RequestBody = ProxyJsonBody, ResponseBody = unkn
       return out;
     }
 
+    // Backend returned HTML (e.g. 404 page) instead of JSON — return a clean JSON error
+    if (text.includes("<!doctype html>") || text.includes("<html") || text.includes("<title>")) {
+      const status = resp.status === 404 ? 404 : resp.status || 500;
+      const out = NextResponse.json(
+        status === 404
+          ? { code: "NOT_FOUND", error: `Backend route not found: ${path}. The endpoint may not be implemented yet.` }
+          : { code: "HTML_ERROR_RESPONSE", error: `Backend returned HTML (status ${resp.status}).` },
+        { status }
+      );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
+    }
+
     let json;
     try {
       json = JSON.parse(text);
     } catch (parseError) {
-      console.error("Failed to parse JSON response. Raw text:", text);
+      console.error("Failed to parse JSON response. Raw text:", text.substring(0, 200));
       const out = NextResponse.json(
         {
           code: "INVALID_RESPONSE",
-          error: `Backend returned invalid JSON: ${text.substring(0, 200)}`,
+          error: "Backend returned an invalid response.",
         },
         { status: 500 }
       );
