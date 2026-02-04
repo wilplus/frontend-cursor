@@ -1,5 +1,5 @@
 /**
- * Admin API client — calls Next.js BFF /api/v2/admin/* (which proxy to Flask /v2/admin/*).
+ * Admin API client — calls Next.js BFF /api/admin/* (proxied to backend /v2/admin/*).
  * Use only in admin pages; BFF must send admin token.
  */
 
@@ -16,7 +16,7 @@ async function adminFetch<T>(
   options: AdminFetchOptions = {}
 ): Promise<T> {
   const { method = "GET", body, headers = {} } = options;
-  const url = `${getBase()}/api/v2/admin${path}`;
+  const url = `${getBase()}/api/admin${path}`;
   const bodySerialized: BodyInit | null =
     body == null ? null : body instanceof FormData ? body : JSON.stringify(body);
   const init: RequestInit = {

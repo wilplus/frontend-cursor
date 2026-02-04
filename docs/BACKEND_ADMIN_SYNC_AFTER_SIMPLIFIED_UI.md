@@ -4,6 +4,12 @@
 
 ---
 
+## Frontend API paths (no `v2` in URL)
+
+The frontend now calls **`/api/admin/*`**, **`/api/session/*`**, **`/api/homework/*`** (no `v2` in the path). The Next.js BFF proxies these to your backend at **`BASE_URL/v2/admin/*`**, **`BASE_URL/v2/session/*`**, **`BASE_URL/v2/homework/*`**. **You do not need to change your backend routes** — keep serving under `/v2/...` as today.
+
+---
+
 ## What changed on the frontend
 
 The admin UI was simplified to **two routes only**:

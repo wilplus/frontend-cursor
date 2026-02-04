@@ -14,7 +14,7 @@
 - **Exercises, Tasks, Post-recording questions:** CRUD lists and modals.
 - **Metric questions:** Two slots (position 1 and 2) on Metrics page; add, edit, delete.
 - **Metric labels:** Get/put label pairs (e.g. left/right per metric).
-- **BFF:** All admin calls go through `/api/v2/admin/*` with the admin token.
+- **BFF:** All admin calls go through `/api/admin/*` with the admin token (proxied to backend `/v2/admin/*`).
 
 ---
 
@@ -47,4 +47,4 @@ The homework flow UI is at **`/dashboard/homework`**: warm-up task + record → 
    - **Step 4:** GET questions; if any, show form and submit answers; if none, submit empty answers and get report.
    - **Step 5:** Show **report** (report_text, performance_score_end) and “Back to dashboard”.
 
-BFF routes: `POST /api/v2/homework/start`, `POST .../session/[id]/recording-1`, `POST .../metric-answers`, `POST .../recording-2`, `GET .../questions`, `POST .../post-answers`. Until the **backend** implements the corresponding `/v2/homework/*` endpoints, the flow will show an error when starting or uploading.
+BFF routes: `POST /api/homework/start`, `POST .../session/[id]/recording-1`, etc. (proxied to backend `/v2/homework/*`). Until the **backend** implements `/v2/homework/*`, the flow will show an error when starting or uploading.

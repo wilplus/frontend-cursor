@@ -1,6 +1,6 @@
 /**
  * V2 session store — v2 flow only: universal_questions → exercise → task → intent → recording → post_questions → completed.
- * Uses v2Api and /api/v2/* only. Plan/report persisted to localStorage for resume.
+ * Uses v2Api and /api/* only. Plan/report persisted to localStorage for resume.
  */
 import { create } from "zustand";
 import type { UUID } from "@/lib/api/types-v2";

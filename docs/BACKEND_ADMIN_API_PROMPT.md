@@ -6,7 +6,7 @@ Use this prompt in your **backend repo** (e.g. Flask/Supabase) so the backend co
 
 ## Overview
 
-The Next.js app has an admin panel that calls **BFF routes** at `/api/v2/admin/*`. Those BFF routes proxy to your backend at **`BASE_URL/v2/admin/*`** with the current user’s **Supabase access token** in `Authorization: Bearer <token>`. The frontend never talks to the backend directly; it always goes through the BFF.
+The Next.js app has an admin panel that calls **BFF routes** at **`/api/admin/*`** (no `v2` in path). Those BFF routes proxy to your backend at **`BASE_URL/v2/admin/*`** with the current user’s **Supabase access token** in `Authorization: Bearer <token>`. The frontend never talks to the backend directly; it always goes through the BFF.
 
 **Your backend must:**
 
@@ -24,12 +24,12 @@ The Next.js app has an admin panel that calls **BFF routes** at `/api/v2/admin/*
 When you see **404** or **UNAUTHORIZED** in the admin panel or in screenshots, use this flow to see where the request is failing:
 
 1. **Browser** calls the **Next.js BFF** (same origin as the frontend), e.g.  
-   `https://your-frontend.vercel.app/api/v2/admin/tasks`
+   `https://your-frontend.vercel.app/api/admin/tasks`
 2. The **BFF** reads the user’s session (cookies), gets the Supabase access token, then calls your **Flask backend**, e.g.  
    `https://flask-backend-production-ab37.up.railway.app/v2/admin/tasks`  
    with header: `Authorization: Bearer <token>`.
 
-- **404 NOT_FOUND** (e.g. Vercel-style page): the request never reached your BFF route — check that `src/app/api/v2/admin/tasks/route.ts` exists and is deployed.
+- **404 NOT_FOUND** (e.g. Vercel-style page): the request never reached your BFF route — check that `src/app/api/admin/tasks/route.ts` exists and is deployed.
 - **404** from the **API** (JSON body): the BFF is calling the backend, but the backend has no route for that path — implement `GET /v2/admin/tasks` (and related routes) in Flask.
 - **UNAUTHORIZED / "Missing Authorization header"**: that response comes from the **backend**. It means the backend received a request without a valid `Authorization` header. If you’re using the admin UI, the BFF should be sending the token; try signing in again. If you opened the backend URL directly in the browser (e.g. `https://...railway.app/v2/admin/tasks`), that’s expected — only the BFF should call that URL, with the token from the session.
 
@@ -195,8 +195,8 @@ If you see **Unauthorized** or **Not found** in the admin panel:
 
 1. **BFF route exists**  
    In the **frontend** repo, ensure the route file exists:
-   - `src/app/api/v2/admin/tasks/route.ts` (GET, POST)
-   - `src/app/api/v2/admin/tasks/[id]/route.ts` (PUT, DELETE)
+   - `src/app/api/admin/tasks/route.ts` (GET, POST)
+   - `src/app/api/admin/tasks/[id]/route.ts` (PUT, DELETE)
    Restart the dev server; in production, redeploy so the route is included.
 
 2. **Backend route exists**  
@@ -208,7 +208,7 @@ If you see **Unauthorized** or **Not found** in the admin panel:
    Use the admin panel only when signed in. Open `/admin` (or `/admin/tasks`) in the same tab/session where you logged in so cookies are sent.
 
 2. **Same origin**  
-   The admin UI calls `/api/v2/admin/tasks` (same origin). It uses `credentials: "include"`, so cookies are sent. If the frontend is on a different domain than the API (e.g. custom domain vs `vercel.app`), ensure cookies are set for the correct domain.
+   The admin UI calls `/api/admin/tasks` (same origin). It uses `credentials: "include"`, so cookies are sent. If the frontend is on a different domain than the API (e.g. custom domain vs `vercel.app`), ensure cookies are set for the correct domain.
 
 3. **Backend “Missing Authorization header”**  
    That message comes from the **backend**. It means the request that reached Flask had no `Authorization` header. When using the admin UI, the BFF should add it from your session. If you still see it: sign out, sign in again, then reload the admin page. If you opened the backend URL directly in the browser (e.g. `https://...railway.app/v2/admin/tasks`), that’s expected — only the BFF should call that URL, with the token from the session.
