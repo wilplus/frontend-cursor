@@ -35,9 +35,18 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({}),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  return NextResponse.json(data, { status: res.status });
+  // Normalize so frontend always gets warm_up_task_text (backend may send warm_up_task or task_text)
+  const normalized = {
+    ...data,
+    warm_up_task_text:
+      (data.warm_up_task_text as string) ??
+      (data.warm_up_task as string) ??
+      (data.task_text as string) ??
+      "",
+  };
+  return NextResponse.json(normalized, { status: res.status });
 }

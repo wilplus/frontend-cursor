@@ -41,8 +41,13 @@ export default function HomeworkFlowCard() {
     setError(null);
     try {
       const res = await homeworkApi.start();
+      const text =
+        res.warm_up_task_text ??
+        (res as { warm_up_task?: string }).warm_up_task ??
+        (res as { task_text?: string }).task_text ??
+        "";
       setSessionId(res.session_id);
-      setWarmUpText(res.warm_up_task_text || "Your warm-up task will appear here.");
+      setWarmUpText(text || "Your warm-up task will appear here.");
       setStep(1);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to start homework";
