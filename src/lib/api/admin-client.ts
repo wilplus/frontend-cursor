@@ -119,6 +119,23 @@ export interface MetricLabel {
   right_label: string;
 }
 
+/** Warm-up task (per student); for future homework flow. Admin CRUD. */
+export interface WarmUpTask {
+  id: string;
+  user_id: string;
+  text: string;
+  order_index?: number;
+  created_at?: string;
+}
+
+/** Metric question (position 1 or 2); used in task text for future homework flow. */
+export interface MetricQuestion {
+  id: string;
+  position: 1 | 2;
+  text: string;
+  created_at?: string;
+}
+
 export const adminApi = {
   getStudents: (params?: { limit?: number; offset?: number }) =>
     adminFetch<{ students: StudentListItem[]; limit?: number; offset?: number }>(
@@ -136,6 +153,18 @@ export const adminApi = {
 
   sendAssignment: (userId: string) =>
     adminFetch<{ status: string }>(`/students/${userId}/send-assignment`, { method: "POST" }),
+
+  getWarmUpTasks: (userId: string) =>
+    adminFetch<{ warm_up_tasks: WarmUpTask[] }>(`/students/${userId}/warm-up-tasks`).then((r) => r.warm_up_tasks ?? []),
+
+  createWarmUpTask: (userId: string, data: { text: string; order_index?: number }) =>
+    adminFetch<{ warm_up_task: WarmUpTask }>(`/students/${userId}/warm-up-tasks`, { method: "POST", body: data }),
+
+  updateWarmUpTask: (userId: string, taskId: string, data: { text?: string; order_index?: number }) =>
+    adminFetch<{ warm_up_task: WarmUpTask }>(`/students/${userId}/warm-up-tasks/${taskId}`, { method: "PUT", body: data }),
+
+  deleteWarmUpTask: (userId: string, taskId: string) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/warm-up-tasks/${taskId}`, { method: "DELETE" }),
 
   getExercises: () =>
     adminFetch<{ exercises: Exercise[] }>("/exercises").then((r) => r.exercises ?? []),
@@ -180,4 +209,16 @@ export const adminApi = {
 
   putMetricLabels: (metrics: MetricLabel[]) =>
     adminFetch<{ status: string }>("/metrics", { method: "PUT", body: { metrics } }),
+
+  getMetricQuestions: () =>
+    adminFetch<{ questions: MetricQuestion[] }>("/metric-questions").then((r) => r.questions ?? []),
+
+  createMetricQuestion: (data: { position: 1 | 2; text: string }) =>
+    adminFetch<{ question: MetricQuestion }>("/metric-questions", { method: "POST", body: data }),
+
+  updateMetricQuestion: (id: string, data: { position?: 1 | 2; text?: string }) =>
+    adminFetch<{ question: MetricQuestion }>(`/metric-questions/${id}`, { method: "PUT", body: data }),
+
+  deleteMetricQuestion: (id: string) =>
+    adminFetch<Record<string, unknown>>(`/metric-questions/${id}`, { method: "DELETE" }),
 };
