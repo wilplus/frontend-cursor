@@ -86,6 +86,9 @@ export function startChunkPipeline(
   const source = audioContext.createMediaStreamSource(stream);
   const sampleRate = audioContext.sampleRate;
 
+  // Many browsers start AudioContext suspended; resume so the worklet receives audio.
+  audioContext.resume().catch(() => {});
+
   const workletPath = "/pcm-chunk-processor.js";
 
   async function run() {

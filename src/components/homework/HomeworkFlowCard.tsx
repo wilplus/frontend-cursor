@@ -39,6 +39,54 @@ function toId(v: unknown): string {
 // One auto-start per page load (avoids double request in React Strict Mode)
 let autoStartAttempted = false;
 
+/** Isolated form so typing only re-renders this component, not the whole flow (smooth input). */
+function MetricAnswersForm({
+  label1,
+  label2,
+  loading,
+  error,
+  onSubmit,
+}: {
+  label1: string;
+  label2: string;
+  loading: boolean;
+  error: string | null;
+  onSubmit: (answer1: string, answer2: string) => void | Promise<void>;
+}) {
+  const [answer1, setAnswer1] = useState("");
+  const [answer2, setAnswer2] = useState("");
+
+  const handleSubmit = () => {
+    onSubmit(answer1, answer2);
+  };
+
+  return (
+    <Card className="p-6 space-y-4">
+      <p className="text-sm font-medium">Answer these two questions:</p>
+      <div className="space-y-3">
+        <label className="block text-sm font-medium">{label1}</label>
+        <textarea
+          className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          placeholder="Your answer…"
+          value={answer1}
+          onChange={(e) => setAnswer1(e.target.value)}
+        />
+        <label className="block text-sm font-medium">{label2}</label>
+        <textarea
+          className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          placeholder="Your answer…"
+          value={answer2}
+          onChange={(e) => setAnswer2(e.target.value)}
+        />
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Submitting…" : "Continue"}
+      </Button>
+    </Card>
+  );
+}
+
 export default function HomeworkFlowCard() {
   const authReady = useAuthReady();
   const [step, setStep] = useState<Step | 0>(0);
@@ -46,8 +94,6 @@ export default function HomeworkFlowCard() {
   const [warmUpText, setWarmUpText] = useState("");
   const [taskText, setTaskText] = useState("");
   const [finalTaskText, setFinalTaskText] = useState("");
-  const [metricAnswer1, setMetricAnswer1] = useState("");
-  const [metricAnswer2, setMetricAnswer2] = useState("");
   const [metricLabel1, setMetricLabel1] = useState("Metric question 1");
   const [metricLabel2, setMetricLabel2] = useState("Metric question 2");
   const [questions, setQuestions] = useState<HomeworkQuestion[]>([]);
@@ -135,14 +181,14 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  const handleMetricAnswersSubmit = async () => {
+  const handleMetricAnswersSubmit = async (answer1: string, answer2: string) => {
     if (!sessionId) return;
     setLoading(true);
     setError(null);
     try {
       const res = await homeworkApi.submitMetricAnswers(sessionId, {
-        metric_answer_1: metricAnswer1.trim(),
-        metric_answer_2: metricAnswer2.trim(),
+        metric_answer_1: answer1.trim(),
+        metric_answer_2: answer2.trim(),
       });
       setFinalTaskText(toText(res.final_task_text));
       setStep(3);
@@ -302,33 +348,13 @@ export default function HomeworkFlowCard() {
           <p className="text-sm font-medium text-muted-foreground mb-2">Your task (after first recording)</p>
           <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">{taskText}</p>
         </div>
-        <Card className="p-6 space-y-4">
-          <p className="text-sm font-medium">Answer these two questions:</p>
-          <div className="space-y-3">
-            <label className="block text-sm font-medium">
-              {metricLabel1}
-            </label>
-            <textarea
-              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              placeholder="Your answer…"
-              value={metricAnswer1}
-              onChange={(e) => setMetricAnswer1(e.target.value)}
-            />
-            <label className="block text-sm font-medium">
-              {metricLabel2}
-            </label>
-            <textarea
-              className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              placeholder="Your answer…"
-              value={metricAnswer2}
-              onChange={(e) => setMetricAnswer2(e.target.value)}
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={handleMetricAnswersSubmit} disabled={loading}>
-            {loading ? "Submitting…" : "Continue"}
-          </Button>
-        </Card>
+        <MetricAnswersForm
+          label1={metricLabel1}
+          label2={metricLabel2}
+          loading={loading}
+          error={error}
+          onSubmit={handleMetricAnswersSubmit}
+        />
       </Wrapper>
     );
   }

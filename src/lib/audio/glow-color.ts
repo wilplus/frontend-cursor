@@ -28,6 +28,9 @@ export interface GlowHSL {
 /** Neutral (silence or no data): soft grey. */
 const NEUTRAL: GlowHSL = { h: 0, s: 0, l: 35 };
 
+/** "Good" state when scores are fine and no clear direction (e.g. stub or all good). */
+const GOOD: GlowHSL = { h: 140, s: 50, l: 45 };
+
 /** Hue mapping from contract: pacing +/-, intonation -/+, pause. */
 const HUE = {
   pacing_fast: 0, // red
@@ -45,17 +48,37 @@ export function isSilence(voicedRatio: number): boolean {
 /**
  * Pick dominant dimension (lowest score) and map to hue using delta sign.
  * Brightness from overall score (min of the three, or average).
+ * When overall is high and deltas are ~0 (e.g. stub or "all good"), show soft green.
  */
 export function metricsToGlowHSL(frame: SmoothedFrame): GlowHSL {
-  const { pacing_score, pacing_delta, intonation_score, intonation_delta, pause_score, pause_delta } = frame;
-  const overall = Math.min(pacing_score, intonation_score, pause_score);
+  const pacing_score = Number(frame.pacing_score);
+  const pacing_delta = Number(frame.pacing_delta);
+  const intonation_score = Number(frame.intonation_score);
+  const intonation_delta = Number(frame.intonation_delta);
+  const pause_score = Number(frame.pause_score);
+  const pause_delta = Number(frame.pause_delta);
+
+  const overall = Math.min(
+    Number.isFinite(pacing_score) ? pacing_score : 1,
+    Number.isFinite(intonation_score) ? intonation_score : 1,
+    Number.isFinite(pause_score) ? pause_score : 1
+  );
+  if (!Number.isFinite(overall)) return GOOD;
 
   const dims = [
     { name: "pacing" as const, score: pacing_score, delta: pacing_delta },
     { name: "intonation" as const, score: intonation_score, delta: intonation_delta },
     { name: "pause" as const, score: pause_score, delta: pause_delta },
-  ];
+  ].map((d) => ({ ...d, score: Number.isFinite(d.score) ? d.score : 1, delta: Number.isFinite(d.delta) ? d.delta : 0 }));
+
   const worst = dims.reduce((a, b) => (a.score <= b.score ? a : b));
+
+  // High scores and near-zero deltas => "all good" (e.g. stub or healthy speech)
+  const allDeltasNearZero =
+    Math.abs(worst.delta) < 0.05 && overall >= 0.7;
+  if (allDeltasNearZero) {
+    return { ...GOOD, l: 25 + overall * 45 };
+  }
 
   let h: number;
   let s: number;
@@ -71,9 +94,7 @@ export function metricsToGlowHSL(frame: SmoothedFrame): GlowHSL {
     s = 65;
   }
 
-  // Brightness: higher overall score => brighter
-  const l = 25 + overall * 45; // ~25–70
-
+  const l = 25 + overall * 45;
   return { h, s, l };
 }
 
@@ -119,14 +140,17 @@ export function smoothFrames(frames: SmoothedFrame[]): SmoothedFrame {
   };
 }
 
+/** Coerce backend response to frame; use safe defaults for missing/invalid fields. */
 export function responseToFrame(r: ChunkMetricsResponse): SmoothedFrame {
+  const num = (v: unknown, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) ? v : fallback;
   return {
-    pacing_score: r.pacing_score,
-    pacing_delta: r.pacing_delta,
-    intonation_score: r.intonation_score,
-    intonation_delta: r.intonation_delta,
-    pause_score: r.pause_score,
-    pause_delta: r.pause_delta,
+    pacing_score: num(r.pacing_score, 1),
+    pacing_delta: num(r.pacing_delta, 0),
+    intonation_score: num(r.intonation_score, 1),
+    intonation_delta: num(r.intonation_delta, 0),
+    pause_score: num(r.pause_score, 1),
+    pause_delta: num(r.pause_delta, 0),
   };
 }
 
