@@ -6,17 +6,14 @@ import type { RecordingSlot } from "@/lib/audio/chunk-metrics-types";
 import type { ChunkMetricsResponse } from "@/lib/audio/chunk-metrics-types";
 import {
   isSilence,
-  responseToFrame,
-  smoothFrames,
-  metricsToGlowHSL,
+  getPauseScoreFromResponse,
+  smoothPauseScore,
+  pauseScoreToGlowHSL,
   hslToCss,
-  type SmoothedFrame,
 } from "@/lib/audio/glow-color";
 
-const SMOOTHING_WINDOW = 8;
-
 /** Initial color before any chunk (soft green = "ready/listening"). */
-const INITIAL_GLOW_CSS = "hsl(140, 50%, 45%)";
+const INITIAL_GLOW_CSS = "hsl(140, 70%, 45%)";
 
 export type ChunkConnectionStatus = "connecting" | "live" | "delayed" | "error";
 
@@ -28,7 +25,6 @@ export interface UseChunkMetricsResult {
   isActive: boolean;
 }
 
-
 export function useChunkMetrics(
   sessionId: string | null,
   recordingSlot: RecordingSlot | null
@@ -37,7 +33,7 @@ export function useChunkMetrics(
   const [glowColor, setGlowColor] = useState<string>(INITIAL_GLOW_CSS);
 
   const lastAppliedSeqRef = useRef<number>(-1);
-  const bufferRef = useRef<SmoothedFrame[]>([]);
+  const smoothedPauseScoreRef = useRef<number>(1);
   const pipelineRef = useRef<ReturnType<typeof startChunkPipeline> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -46,7 +42,7 @@ export function useChunkMetrics(
       if (!sessionId || !recordingSlot) return;
 
       lastAppliedSeqRef.current = -1;
-      bufferRef.current = [];
+      smoothedPauseScoreRef.current = 1;
       setConnectionStatus("connecting");
       setGlowColor(INITIAL_GLOW_CSS);
 
@@ -60,17 +56,13 @@ export function useChunkMetrics(
 
           const voicedRatio = typeof data.voiced_ratio === "number" ? data.voiced_ratio : 1;
           if (isSilence(voicedRatio)) {
-            // Keep last color or fade to neutral: don't push bad metrics
             return;
           }
 
-          const frame = responseToFrame(data);
-          bufferRef.current.push(frame);
-          if (bufferRef.current.length > SMOOTHING_WINDOW) {
-            bufferRef.current.shift();
-          }
-          const smoothed = smoothFrames(bufferRef.current);
-          const hsl = metricsToGlowHSL(smoothed);
+          const pauseScore = getPauseScoreFromResponse(data);
+          const smoothed = smoothPauseScore(pauseScore, smoothedPauseScoreRef.current);
+          smoothedPauseScoreRef.current = smoothed;
+          const hsl = pauseScoreToGlowHSL(smoothed);
           setGlowColor(hslToCss(hsl));
         },
         onConnectionChange(status) {

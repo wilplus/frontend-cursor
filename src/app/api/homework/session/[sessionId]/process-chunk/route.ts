@@ -4,17 +4,12 @@ import { useMockHomework, requireAuth } from "@/lib/api/homework-mock";
 
 export const dynamic = "force-dynamic";
 
-/** Stub metrics when backend is not used (mock homework mode). */
+/** Stub metrics when backend is not used (mock homework mode). Pause-only. */
 function stubChunkResponse(seq: number) {
   return {
     seq,
     voiced_ratio: 0.9,
-    pacing_score: 0.85,
-    pacing_delta: 0,
-    intonation_score: 0.8,
-    intonation_delta: 0,
-    pause_score: 0.85,
-    pause_delta: 0,
+    pause_score: 0.9,
   };
 }
 
