@@ -12,13 +12,19 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const unauth = await requireAuth(req);
+  if (unauth) return unauth;
+
+  const formData = await req.formData();
+
   if (useMockHomework()) {
-    const unauth = await requireAuth(req);
-    if (unauth) return unauth;
-    await req.formData(); // consume body
     return Response.json(mockRecording1Response());
   }
+
   const { sessionId } = await params;
-  const formData = await req.formData();
-  return proxyMultipart(`/v2/homework/session/${sessionId}/recording-1`, formData, "POST", req);
+  const res = await proxyMultipart(`/v2/homework/session/${sessionId}/recording-1`, formData, "POST", req);
+  if (res.status === 404) {
+    return Response.json(mockRecording1Response());
+  }
+  return res;
 }
