@@ -15,6 +15,9 @@ import {
 
 const SMOOTHING_WINDOW = 8;
 
+/** Initial color before any chunk (soft green = "ready/listening"). */
+const INITIAL_GLOW_CSS = "hsl(140, 50%, 45%)";
+
 export type ChunkConnectionStatus = "connecting" | "live" | "delayed" | "error";
 
 export interface UseChunkMetricsResult {
@@ -25,14 +28,13 @@ export interface UseChunkMetricsResult {
   isActive: boolean;
 }
 
-const NEUTRAL_CSS = "hsl(0, 0%, 35%)";
 
 export function useChunkMetrics(
   sessionId: string | null,
   recordingSlot: RecordingSlot | null
 ): UseChunkMetricsResult {
   const [connectionStatus, setConnectionStatus] = useState<ChunkConnectionStatus>("connecting");
-  const [glowColor, setGlowColor] = useState<string>(NEUTRAL_CSS);
+  const [glowColor, setGlowColor] = useState<string>(INITIAL_GLOW_CSS);
 
   const lastAppliedSeqRef = useRef<number>(-1);
   const bufferRef = useRef<SmoothedFrame[]>([]);
@@ -46,16 +48,18 @@ export function useChunkMetrics(
       lastAppliedSeqRef.current = -1;
       bufferRef.current = [];
       setConnectionStatus("connecting");
-      setGlowColor(NEUTRAL_CSS);
+      setGlowColor(INITIAL_GLOW_CSS);
 
       abortRef.current = new AbortController();
 
       pipelineRef.current = startChunkPipeline(stream, sessionId, recordingSlot, {
         onResponse(data: ChunkMetricsResponse) {
-          if (data.seq <= lastAppliedSeqRef.current) return;
-          lastAppliedSeqRef.current = data.seq;
+          const seq = typeof data.seq === "number" && Number.isFinite(data.seq) ? data.seq : 0;
+          if (seq <= lastAppliedSeqRef.current) return;
+          lastAppliedSeqRef.current = seq;
 
-          if (isSilence(data.voiced_ratio)) {
+          const voicedRatio = typeof data.voiced_ratio === "number" ? data.voiced_ratio : 1;
+          if (isSilence(voicedRatio)) {
             // Keep last color or fade to neutral: don't push bad metrics
             return;
           }
