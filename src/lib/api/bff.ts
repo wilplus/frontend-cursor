@@ -430,3 +430,128 @@ export async function proxyMultipart<ResponseBody = unknown>(
   }
 }
 
+/**
+ * Proxy a request with binary body (e.g. application/octet-stream) to the backend.
+ * Forwards body as-is and selected headers (X-Chunk-Seq, X-Chunk-Start-Ms, X-Recording-Slot).
+ * Used for real-time PCM chunk upload (ambient glow metrics).
+ */
+export async function proxyBinary<ResponseBody = unknown>(
+  path: string,
+  req: NextRequest
+): Promise<NextResponse<ResponseBody | ApiError>> {
+  let accessToken: string | null = null;
+  let cookieResponse: NextResponse | null = null;
+
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    accessToken = authHeader.slice(7).trim();
+  }
+  if (!accessToken) {
+    const result = await getSessionForRequest(req);
+    accessToken = result.session?.access_token ?? null;
+    cookieResponse = result.cookieResponse;
+  }
+
+  if (!accessToken) {
+    return unauthorizedResponse();
+  }
+
+  const body = await req.arrayBuffer();
+  const url = `${BACKEND_BASE_URL}${path}`;
+
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  headers.set("Content-Type", req.headers.get("Content-Type") || "application/octet-stream");
+  headers.set("Accept", "application/json");
+  const seq = req.headers.get("X-Chunk-Seq");
+  if (seq !== null) headers.set("X-Chunk-Seq", seq);
+  const startMs = req.headers.get("X-Chunk-Start-Ms");
+  if (startMs !== null) headers.set("X-Chunk-Start-Ms", startMs);
+  const slot = req.headers.get("X-Recording-Slot");
+  if (slot !== null) headers.set("X-Recording-Slot", slot);
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    const text = await resp.text();
+
+    if (!text) {
+      if (!resp.ok) {
+        const out = NextResponse.json(
+          { code: `HTTP_${resp.status}`, error: resp.statusText || "Request failed" },
+          { status: resp.status }
+        );
+        if (cookieResponse) copyCookies(cookieResponse, out);
+        return out;
+      }
+      const out = NextResponse.json(null as ResponseBody, { status: resp.status });
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
+    }
+
+    if (resp.status === 502) {
+      const out = NextResponse.json(
+        {
+          code: "BACKEND_UNAVAILABLE",
+          error: "Backend server is not responding.",
+        },
+        { status: 502 }
+      );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
+    }
+
+    if (text.includes("<!doctype html>") || text.includes("<html") || text.includes("<title>")) {
+      const status = resp.status === 404 ? 404 : resp.status || 500;
+      const out = NextResponse.json(
+        status === 404
+          ? { code: "NOT_FOUND", error: `Backend route not found: ${path}.` }
+          : { code: "HTML_ERROR_RESPONSE", error: `Backend returned HTML (status ${resp.status}).` },
+        { status }
+      );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
+    }
+
+    let json: ResponseBody;
+    try {
+      json = JSON.parse(text) as ResponseBody;
+    } catch {
+      const out = NextResponse.json(
+        { code: "INVALID_RESPONSE", error: "Backend returned invalid JSON." },
+        { status: 500 }
+      );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
+    }
+
+    const out = NextResponse.json(json, { status: resp.status });
+    if (cookieResponse) copyCookies(cookieResponse, out);
+    return out;
+  } catch (fetchError) {
+    if (fetchError instanceof Error && fetchError.name === "AbortError") {
+      const out = NextResponse.json(
+        { code: "TIMEOUT", error: "Chunk request timed out." },
+        { status: 504 }
+      );
+      if (cookieResponse) copyCookies(cookieResponse, out);
+      return out;
+    }
+    const out = NextResponse.json(
+      { code: "FETCH_ERROR", error: fetchError instanceof Error ? fetchError.message : "Failed to reach backend" },
+      { status: 500 }
+    );
+    if (cookieResponse) copyCookies(cookieResponse, out);
+    return out;
+  }
+}
+
