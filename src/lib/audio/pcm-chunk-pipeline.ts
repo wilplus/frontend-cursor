@@ -7,6 +7,8 @@
 import type { ChunkMetricsResponse, RecordingSlot } from "./chunk-metrics-types";
 
 const CHUNK_MS = 250;
+/** Backend rate limit is 120/min; we send at most 2/sec to stay under. */
+const MIN_SEND_INTERVAL_MS = 500;
 const TARGET_SAMPLE_RATE = 16000;
 const TARGET_SAMPLES = (CHUNK_MS / 1000) * TARGET_SAMPLE_RATE; // 4000
 const BYTES_PER_CHUNK = TARGET_SAMPLES * 2; // 8000 (int16 LE)
@@ -77,6 +79,7 @@ export function startChunkPipeline(
 ): ChunkPipelineHandle {
   let destroyed = false;
   let seq = 0;
+  let lastSendTime = 0;
   let processor: AudioWorkletNode | null = null;
   const { onResponse, onConnectionChange, getAbortSignal } = callbacks;
 
@@ -109,6 +112,10 @@ export function startChunkPipeline(
 
     processor.port.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
       if (destroyed) return;
+      const now = Date.now();
+      if (now - lastSendTime < MIN_SEND_INTERVAL_MS) return;
+      lastSendTime = now;
+
       const float32 = new Float32Array(event.data);
       const pcm16 = resampleTo16k(float32, sampleRate);
       const chunkSeq = seq;
@@ -140,7 +147,7 @@ export function startChunkPipeline(
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           console.warn("[PCM pipeline] Chunk error:", res.status, err);
-          if (res.status >= 500 || res.status === 404) {
+          if (res.status === 429 || res.status >= 500 || res.status === 404) {
             onConnectionChange?.("error");
           }
           return;
