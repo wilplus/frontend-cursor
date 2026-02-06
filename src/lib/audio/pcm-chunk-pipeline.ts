@@ -1,6 +1,6 @@
 /**
  * PCM chunk pipeline: capture 250ms mono at context sample rate (e.g. 48k),
- * resample to 16 kHz, convert to PCM16LE, POST to BFF process-chunk.
+ * resample to 16 kHz, convert to PCM16LE, POST to BFF recording-metrics-chunk.
  * Contract: 4000 samples @ 16 kHz = 8000 bytes per chunk.
  */
 
@@ -128,7 +128,7 @@ export function startChunkPipeline(
       reqHeaders.set("X-Chunk-Start-Ms", String(startMs));
       reqHeaders.set("X-Recording-Slot", recordingSlot);
 
-      const url = `/api/homework/session/${sessionId}/process-chunk?recording_slot=${encodeURIComponent(recordingSlot)}`;
+      const url = `/api/homework/session/${sessionId}/recording-metrics-chunk?recording_slot=${encodeURIComponent(recordingSlot)}`;
       const signal = getAbortSignal?.();
 
       try {
