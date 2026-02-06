@@ -1,8 +1,34 @@
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { proxyBinary } from "@/lib/api/bff";
 import { useMockHomework, requireAuth } from "@/lib/api/homework-mock";
 
 export const dynamic = "force-dynamic";
+
+/** CORS headers so browser allows POST with custom headers (preflight) and credentials. */
+function corsHeaders(req: NextRequest): Record<string, string> {
+  const origin = req.headers.get("Origin");
+  const h: Record<string, string> = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Chunk-Seq, X-Chunk-Start-Ms, X-Recording-Slot, X-Debug",
+    "Access-Control-Allow-Credentials": "true",
+  };
+  if (origin) h["Access-Control-Allow-Origin"] = origin;
+  return h;
+}
+
+function addCors(res: NextResponse, req: NextRequest): NextResponse {
+  Object.entries(corsHeaders(req)).forEach(([k, v]) => res.headers.set(k, v));
+  return res;
+}
+
+export async function OPTIONS(_req: NextRequest) {
+  return addCors(
+    new NextResponse(null, { status: 204, headers: { "Content-Length": "0" } }),
+    _req
+  );
+}
 
 /**
  * Mock: derive voiced_ratio and pause_score from PCM so the glow and red pause-dot work.
@@ -50,11 +76,15 @@ export async function POST(
 
   if (useMockHomework()) {
     const unauth = await requireAuth(req);
-    if (unauth) return unauth;
+    if (unauth) return addCors(unauth, req);
     const body = await req.arrayBuffer();
-    return Response.json(stubChunkResponse(Number.isNaN(seq) ? 0 : seq, body));
+    return addCors(
+      NextResponse.json(stubChunkResponse(Number.isNaN(seq) ? 0 : seq, body)),
+      req
+    );
   }
 
   const path = `/v2/homework/session/${sessionId}/recording-metrics-chunk?recording_slot=${encodeURIComponent(recordingSlot)}`;
-  return proxyBinary(path, req);
+  const res = await proxyBinary(path, req);
+  return addCors(res, req);
 }
