@@ -1,11 +1,50 @@
 # Willab – Product requirements (PRD)
 
-Use this file to describe what to build next. Then run:
-
-  npx task-master parse-prd .taskmaster/docs/prd.txt
-
+Run: npx task-master parse-prd .taskmaster/docs/prd.txt
 to generate tasks into .taskmaster/tasks/tasks.json.
+
+Reference: Project root docs/ (WHATS_IN_PLACE.md, BACKEND_PROMPT_API_PATHS.md, WARM_UP_SELECTION_SPEC.md, HOMEWORK_FLOW_TECHNICAL_MAP.md, BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md) are the source of truth for what is built and what the backend must implement.
 
 ---
 
-(Add your requirements above this line.)
+# Overview
+
+Willab is a Next.js frontend for practice interview sessions. Users sign in with Supabase. Students have a single homework flow at /dashboard. Admins manage students and homework configuration at /admin/students and /admin/students/:id. The BFF (Next.js API routes) proxies to a Flask backend at v2; frontend calls use /api (no v2 in path).
+
+# What is in place (frontend)
+
+Admin panel: Students list and profile. Per-student warm-up tasks (with max_performance_score 0-1 in UI). Focus tasks from global pool. Post-recording questions (exactly 3). Metrics (5 fixed, label edit). Speaker profile (Context textarea). Reports history. Send Homework. All BFF routes under /api/admin and /api/homework.
+
+Student app: One flow only at /dashboard. Step 1: Start session, show warm-up task text and recorder; upload recording_1. Step 2: Show task text and two metric question inputs; submit metric answers. Step 3: Show final task text and recorder; upload recording_2. Step 4: If backend returns questions, show form and submit; else skip to report. Step 5: Show report text and performance_score_end. Flow auto-starts on load. BFF mock available when NEXT_PUBLIC_API_URL unset or MOCK_HOMEWORK_BACKEND=1 so the flow runs without backend.
+
+API paths: Frontend calls /api/homework/session/start, /api/homework/session/:id/recording-1, metric-answers, recording-2, questions, post-answers. BFF proxies to backend /v2/homework/session/start and /v2/homework/session/:id/... Backend URL from NEXT_PUBLIC_API_URL or NEXT_PUBLIC_BACKEND_URL or BACKEND_URL.
+
+# What remains (backend and specs)
+
+Backend homework endpoints: Implement POST /v2/homework/session/start (return session_id and warm_up_task_text; use last report performance_score_end and WARM_UP_SELECTION_SPEC.md to choose warm-up). Implement POST recording-1 (transcribe, extract context, compute performance_score_1, choose focus_task by score, return task_text and optional metric_question_1_text and metric_question_2_text). Implement POST metric-answers (return final_task_text). Implement POST recording-2 (compute performance_score_2). Implement GET questions and POST post-answers (return report_text and performance_score_end). All contracts in BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md and BACKEND_PROMPT_API_PATHS.md.
+
+Warm-up selection: Backend implements the algorithm in docs/WARM_UP_SELECTION_SPEC.md (max_performance_score per warm-up, eligible filter, closest within 3 percent, randomize, first-time easiest, fallback hardest). Admin API warm-up GET/POST/PUT must accept and return max_performance_score (0-1).
+
+Final task LLM: Define exact prompt and constraints for the model that builds final_task_text from context and focus_task and metric answers. Document in a backend or LLM spec; frontend already displays final_task_text.
+
+Report content: Backend generates report to include coaching for both recording_1 and recording_2 and commentary on how the student stuck to the metrics. performance_score_end is the final score.
+
+# Development roadmap
+
+Phase 1 Backend homework flow: Implement all homework student endpoints so the frontend flow works end-to-end with a real backend. Add max_performance_score to warm-up task schema and admin API; implement warm-up selection on session start per WARM_UP_SELECTION_SPEC.md.
+
+Phase 2 Scoring and content: Define and implement performance_score_1 and performance_score_2 formulas. Define final_task LLM prompt and constraints and implement. Ensure report generation uses context, both recordings, reflective answers, and metrics adherence.
+
+Phase 3 Polish: Any admin UX improvements, reporting history enhancements, or student-facing tweaks based on usage.
+
+# Logical dependency chain
+
+Backend homework endpoints and warm-up selection must be implemented first so the student flow is end-to-end. Scoring formulas and final_task LLM spec can follow. Report content spec is a small doc update; implementation is backend.
+
+# Appendix
+
+docs/WHATS_IN_PLACE.md: Short list of what is done and what is needed.
+docs/BACKEND_PROMPT_API_PATHS.md: Frontend vs backend paths; no v2 in frontend URL.
+docs/WARM_UP_SELECTION_SPEC.md: Exact warm-up selection algorithm and examples.
+docs/HOMEWORK_FLOW_TECHNICAL_MAP.md: Technical flow vs in-place items and open questions.
+docs/BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md: Admin API contract (students, warm-up tasks with max_performance_score, tasks, questions, metrics).
