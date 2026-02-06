@@ -33,8 +33,10 @@ export async function POST(
   } catch {
     // keep defaults
   }
-  return proxyJson(`/v2/homework/session/${sessionId}/post-answers`, {
+  const res = await proxyJson(`/v2/homework/session/${sessionId}/post-answers`, {
     method: "POST",
     body,
   }, req);
+  if (res.status === 404) return Response.json(mockPostAnswersResponse());
+  return res;
 }

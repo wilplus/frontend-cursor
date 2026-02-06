@@ -18,5 +18,7 @@ export async function GET(
     return Response.json(mockQuestionsResponse());
   }
   const { sessionId } = await params;
-  return proxyJson(`/v2/homework/session/${sessionId}/questions`, { method: "GET" }, req);
+  const res = await proxyJson(`/v2/homework/session/${sessionId}/questions`, { method: "GET" }, req);
+  if (res.status === 404) return Response.json(mockQuestionsResponse());
+  return res;
 }

@@ -36,8 +36,10 @@ export async function POST(
   } catch {
     // keep defaults
   }
-  return proxyJson(`/v2/homework/session/${sessionId}/metric-answers`, {
+  const res = await proxyJson(`/v2/homework/session/${sessionId}/metric-answers`, {
     method: "POST",
     body,
   }, req);
+  if (res.status === 404) return Response.json(mockMetricAnswersResponse());
+  return res;
 }
