@@ -5,9 +5,9 @@ import { useMockHomework, requireAuth } from "@/lib/api/homework-mock";
 export const dynamic = "force-dynamic";
 
 /**
- * Mock: derive voiced_ratio and pause_score from PCM so the glow changes with silence vs speech.
- * PCM16LE: 8000 bytes = 4000 int16. Low RMS → silence (low pause_score so glow dims); high RMS → speech (high pause_score, bright).
- * We keep voiced_ratio high even for silence in mock so the frontend always updates (otherwise silence gating would freeze the glow).
+ * Mock: derive voiced_ratio and pause_score from PCM so the glow and red pause-dot work.
+ * PCM16LE: 8000 bytes = 4000 int16. Low RMS → silence; high RMS → speech.
+ * For silence we return voiced_ratio < 0.15 so the frontend can show the red "pause detected" dot (after speech).
  */
 function stubChunkResponse(seq: number, body: ArrayBuffer): { seq: number; voiced_ratio: number; pause_score: number } {
   let voiced_ratio = 0.9;
@@ -22,14 +22,14 @@ function stubChunkResponse(seq: number, body: ArrayBuffer): { seq: number; voice
       sumSq += s * s;
     }
     const rms = Math.sqrt(sumSq / n);
-    // Silence: RMS typically < ~800; speech often 2000–15000+ (int16)
-    const SILENCE_RMS = 1000;
+    // Silence: RMS typically < ~1000; speech often 2000–15000+ (int16)
+    const SILENCE_RMS = 1200;
     if (rms < SILENCE_RMS) {
-      voiced_ratio = 0.9; // so frontend still updates (no silence gate in mock)
-      pause_score = 0.35; // "bad pausing" → dim glow
+      voiced_ratio = 0.08; // < 0.15 so frontend treats as pause → red dot (when we've already had speech)
+      pause_score = 0.35;  // dim glow when we do update from a previous speech chunk
     } else {
       voiced_ratio = 0.9;
-      pause_score = Math.min(1, 0.6 + (rms / 25000)); // louder speech → slightly higher score
+      pause_score = Math.min(1, 0.6 + (rms / 25000));
     }
   }
 

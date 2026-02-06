@@ -127,6 +127,7 @@ export function startChunkPipeline(
       reqHeaders.set("X-Chunk-Seq", String(chunkSeq));
       reqHeaders.set("X-Chunk-Start-Ms", String(startMs));
       reqHeaders.set("X-Recording-Slot", recordingSlot);
+      reqHeaders.set("X-Debug", "1");
 
       const url = `/api/homework/session/${sessionId}/recording-metrics-chunk?recording_slot=${encodeURIComponent(recordingSlot)}`;
       const signal = getAbortSignal?.();
