@@ -469,6 +469,8 @@ export async function proxyBinary<ResponseBody = unknown>(
   if (startMs !== null) headers.set("X-Chunk-Start-Ms", startMs);
   const slot = req.headers.get("X-Recording-Slot");
   if (slot !== null) headers.set("X-Recording-Slot", slot);
+  const debug = req.headers.get("X-Debug");
+  if (debug !== null) headers.set("X-Debug", debug);
 
   try {
     const controller = new AbortController();

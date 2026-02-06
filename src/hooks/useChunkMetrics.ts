@@ -61,9 +61,12 @@ export function useChunkMetrics(
           lastAppliedSeqRef.current = seq;
 
           const voicedRatio = typeof data.voiced_ratio === "number" ? data.voiced_ratio : 1;
+          // Backend sends pause_detected: true when pause_why is "ok"; use that for the red dot (backend already validated)
+          if (data.pause_detected === true) {
+            setLastPauseDetectedAt(Date.now());
+          }
           if (isSilence(voicedRatio)) {
-            // Only show red dot for pause *after* we've seen speech (skip initial silence before user talks)
-            if (hadSpeechChunkRef.current) {
+            if (hadSpeechChunkRef.current && !data.pause_detected) {
               setLastPauseDetectedAt(Date.now());
             }
             return;
