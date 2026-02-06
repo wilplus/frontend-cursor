@@ -499,6 +499,7 @@ export default function AudioRecorder({
           <AmbientGlowCircle
             glowColor={chunkMetrics.glowColor}
             connectionStatus={chunkMetrics.connectionStatus}
+            lastPauseDetectedAt={chunkMetrics.lastPauseDetectedAt}
             size={120}
           />
         </div>

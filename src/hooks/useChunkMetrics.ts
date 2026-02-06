@@ -20,6 +20,8 @@ export type ChunkConnectionStatus = "connecting" | "live" | "delayed" | "error";
 export interface UseChunkMetricsResult {
   connectionStatus: ChunkConnectionStatus;
   glowColor: string;
+  /** Timestamp (ms) when a pause was last detected (voiced_ratio < threshold); 0 if none. Used to flash a red dot. */
+  lastPauseDetectedAt: number;
   start: (stream: MediaStream) => void;
   stop: () => void;
   isActive: boolean;
@@ -31,6 +33,7 @@ export function useChunkMetrics(
 ): UseChunkMetricsResult {
   const [connectionStatus, setConnectionStatus] = useState<ChunkConnectionStatus>("connecting");
   const [glowColor, setGlowColor] = useState<string>(INITIAL_GLOW_CSS);
+  const [lastPauseDetectedAt, setLastPauseDetectedAt] = useState<number>(0);
 
   const lastAppliedSeqRef = useRef<number>(-1);
   const smoothedPauseScoreRef = useRef<number>(1);
@@ -45,6 +48,7 @@ export function useChunkMetrics(
       smoothedPauseScoreRef.current = 1;
       setConnectionStatus("connecting");
       setGlowColor(INITIAL_GLOW_CSS);
+      setLastPauseDetectedAt(0);
 
       abortRef.current = new AbortController();
 
@@ -56,6 +60,7 @@ export function useChunkMetrics(
 
           const voicedRatio = typeof data.voiced_ratio === "number" ? data.voiced_ratio : 1;
           if (isSilence(voicedRatio)) {
+            setLastPauseDetectedAt(Date.now());
             return;
           }
 
@@ -88,6 +93,7 @@ export function useChunkMetrics(
   return {
     connectionStatus,
     glowColor,
+    lastPauseDetectedAt,
     start,
     stop,
     isActive,
