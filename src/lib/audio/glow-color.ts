@@ -73,10 +73,9 @@ export function metricsToGlowHSL(frame: SmoothedFrame): GlowHSL {
 
   const worst = dims.reduce((a, b) => (a.score <= b.score ? a : b));
 
-  // High scores and near-zero deltas => "all good" (e.g. stub or healthy speech)
-  const allDeltasNearZero =
-    Math.abs(worst.delta) < 0.05 && overall >= 0.7;
-  if (allDeltasNearZero) {
+  // Green when all three scores are high (min score > 0.85)
+  const minScore = overall;
+  if (minScore > 0.85) {
     return { ...GOOD, l: 25 + overall * 45 };
   }
 
