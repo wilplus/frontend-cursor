@@ -37,6 +37,7 @@ export function useChunkMetrics(
 
   const lastAppliedSeqRef = useRef<number>(-1);
   const smoothedPauseScoreRef = useRef<number>(1);
+  const hadSpeechChunkRef = useRef<boolean>(false);
   const pipelineRef = useRef<ReturnType<typeof startChunkPipeline> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -46,6 +47,7 @@ export function useChunkMetrics(
 
       lastAppliedSeqRef.current = -1;
       smoothedPauseScoreRef.current = 1;
+      hadSpeechChunkRef.current = false;
       setConnectionStatus("connecting");
       setGlowColor(INITIAL_GLOW_CSS);
       setLastPauseDetectedAt(0);
@@ -60,10 +62,14 @@ export function useChunkMetrics(
 
           const voicedRatio = typeof data.voiced_ratio === "number" ? data.voiced_ratio : 1;
           if (isSilence(voicedRatio)) {
-            setLastPauseDetectedAt(Date.now());
+            // Only show red dot for pause *after* we've seen speech (skip initial silence before user talks)
+            if (hadSpeechChunkRef.current) {
+              setLastPauseDetectedAt(Date.now());
+            }
             return;
           }
 
+          hadSpeechChunkRef.current = true;
           const pauseScore = getPauseScoreFromResponse(data);
           const smoothed = smoothPauseScore(pauseScore, smoothedPauseScoreRef.current);
           smoothedPauseScoreRef.current = smoothed;
