@@ -281,6 +281,8 @@ export default function HomeworkFlowCard() {
           <AudioRecorder
             onRecordingComplete={handleRecording1Complete}
             stopAndSend
+            sessionId={sessionId}
+            recordingSlot="recording_1"
           />
         ) : (
           <Card className="p-6 flex items-center justify-center gap-2 text-muted-foreground text-sm">
@@ -357,6 +359,8 @@ export default function HomeworkFlowCard() {
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
+          sessionId={sessionId}
+          recordingSlot="recording_2"
         />
       </Wrapper>
     );
