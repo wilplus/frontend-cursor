@@ -282,12 +282,9 @@ export default function AdminStudentProfilePage() {
 
   const saveOverrides = () => {
     setSaving(true);
-    // Backend accepts assigned_post_question_ids only when there are exactly 3; otherwise returns 400.
     adminApi
       .putOverrides(id, {
-        ...(overridesDraft.assigned_post_question_ids.length === 3 && {
-          assigned_post_question_ids: overridesDraft.assigned_post_question_ids,
-        }),
+        assigned_post_question_ids: overridesDraft.assigned_post_question_ids,
       })
       .then(() => {
         toast.success("Saved");
@@ -376,13 +373,9 @@ export default function AdminStudentProfilePage() {
     }
   };
 
-  // Post-recording questions: pool = global; max 3; confirm = save assigned_post_question_ids
+  // Post-recording questions: pool = global; 0 or any number; confirm = save assigned_post_question_ids
   const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
   const handleQuestionsConfirm = (selectedIds: string[]) => {
-    if (selectedIds.length !== 3) {
-      toast.error("Select exactly 3 questions.");
-      return;
-    }
     setOverridesDraft((prev) => ({ ...prev, assigned_post_question_ids: selectedIds }));
     setModalQuestions(false);
     toast.success("Selection updated. Click Save to persist.");
@@ -403,8 +396,6 @@ export default function AdminStudentProfilePage() {
   };
 
   const assignedQuestions = postQuestions.filter((q) => overridesDraft.assigned_post_question_ids.includes(q.id));
-
-  const postError = overridesDraft.assigned_post_question_ids.length > 0 && overridesDraft.assigned_post_question_ids.length !== 3;
 
   const reports = (profile?.sessions ?? [])
     .filter((s) => s.report_preview?.report_text_preview)
@@ -453,7 +444,7 @@ export default function AdminStudentProfilePage() {
             <Button type="button" variant="outline" onClick={sendAssignment} className="gap-2">
               <Send className="h-4 w-4" aria-hidden /> Send Homework
             </Button>
-            <Button type="button" onClick={saveOverrides} disabled={saving || postError}>
+            <Button type="button" onClick={saveOverrides} disabled={saving}>
               Save
             </Button>
           </div>
@@ -518,15 +509,16 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Post-Recording Questions */}
+          {/* Post-Recording Questions (reflective; 0 or any number) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Post-Recording Questions ({overridesDraft.assigned_post_question_ids.length}/3)</p>
+              <p className="text-sm font-medium">
+                Reflective questions ({assignedQuestions.length} selected)
+              </p>
               <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
                 + Add
               </Button>
             </div>
-            {postError && <p className="text-sm text-destructive">Select exactly 3 questions.</p>}
             <ul className="space-y-2">
               {assignedQuestions.map((q) => (
                 <li key={q.id}>
@@ -548,7 +540,7 @@ export default function AdminStudentProfilePage() {
               ))}
             </ul>
             {assignedQuestions.length === 0 && (
-              <p className="text-sm text-muted-foreground">No questions. Click + Add to select exactly 3.</p>
+              <p className="text-sm text-muted-foreground">No questions. Click + Add to select reflective questions.</p>
             )}
           </div>
 
@@ -638,7 +630,6 @@ export default function AdminStudentProfilePage() {
         onConfirm={handleQuestionsConfirm}
         allowCreate
         onCreateNew={handleQuestionsCreate}
-        maxSelection={3}
       />
     </div>
   );

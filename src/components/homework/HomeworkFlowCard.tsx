@@ -379,12 +379,12 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Questions
+  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5)
   if (step === 4) {
     return (
       <Wrapper>
         <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">A few questions</h3>
+          <h3 className="text-lg font-semibold">Reflective questions</h3>
           <div className="space-y-4">
             {questions.map((q) => {
               const qId = toId(q.id);
