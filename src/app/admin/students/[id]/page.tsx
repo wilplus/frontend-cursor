@@ -386,7 +386,11 @@ export default function AdminStudentProfilePage() {
   };
 
   // Warm-up: pool = global warm-up-task-pool; pre-select by student's pool_task_id (or match by text); confirm = sync pool_task_ids
-  const warmUpPool: PoolItem[] = warmUpPoolTasks.map((p) => ({ id: p.id, label: p.text }));
+  const warmUpPool: PoolItem[] = warmUpPoolTasks.map((p) => ({
+    id: p.id,
+    label: p.text,
+    subLabel: p.max_performance_score != null ? `Max score: ${p.max_performance_score}` : undefined,
+  }));
   const warmUpSelectedIds: string[] = (() => {
     const ordered = [...warmUpTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     return ordered
@@ -407,14 +411,15 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createWarmUpPoolTask({
-      text,
-      order_index: warmUpPoolTasks.length,
-      max_performance_score: 1,
-    });
+    // POST body: minimal { text }; backend can default order_index and max_performance_score
+    const res = await adminApi.createWarmUpPoolTask({ text });
     const task = res.warm_up_task;
     setWarmUpPoolTasks((prev) => [...prev, task]);
-    return { id: task.id, label: task.text };
+    return {
+      id: task.id,
+      label: task.text,
+      subLabel: task.max_performance_score != null ? `Max score: ${task.max_performance_score}` : undefined,
+    };
   };
 
   const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {

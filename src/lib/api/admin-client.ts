@@ -184,7 +184,9 @@ export const adminApi = {
     adminFetch<Record<string, unknown>>(`/students/${userId}/warm-up-tasks/${taskId}`, { method: "DELETE" }),
 
   getWarmUpTaskPool: () =>
-    adminFetch<{ warm_up_task_pool: WarmUpPoolTask[] }>("/warm-up-task-pool").then((r) => r.warm_up_task_pool ?? []),
+    adminFetch<{ warm_up_task_pool?: WarmUpPoolTask[] }>("/warm-up-task-pool").then((r) =>
+      Array.isArray(r.warm_up_task_pool) ? r.warm_up_task_pool : []
+    ),
 
   createWarmUpPoolTask: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
     adminFetch<{ warm_up_task: WarmUpPoolTask }>("/warm-up-task-pool", { method: "POST", body: data }),

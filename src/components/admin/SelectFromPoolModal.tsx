@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 export interface PoolItem {
   id: string;
   label: string;
+  /** Optional secondary line (e.g. "Max score: 0.5") */
+  subLabel?: string;
 }
 
 interface SelectFromPoolModalProps {
@@ -176,7 +178,12 @@ export default function SelectFromPoolModal({
                       onChange={() => toggle(item.id)}
                       className="sr-only"
                     />
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{item.label}</span>
+                      {item.subLabel && (
+                        <span className="block truncate text-xs text-muted-foreground">{item.subLabel}</span>
+                      )}
+                    </span>
                   </label>
                 );
               })

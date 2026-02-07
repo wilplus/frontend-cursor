@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  return NextResponse.json(data);
+  // Backend may return 200 with warm_up_task_pool: [] when table is missing; always treat as array.
+  const pool = Array.isArray(data.warm_up_task_pool) ? data.warm_up_task_pool : [];
+  return NextResponse.json({ warm_up_task_pool: pool });
 }
 
 export async function POST(request: NextRequest) {
