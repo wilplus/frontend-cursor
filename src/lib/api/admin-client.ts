@@ -141,10 +141,10 @@ export interface WarmUpPoolTask {
   created_at?: string;
 }
 
-/** Metric question (position 1 or 2); used in task text for future homework flow. */
+/** Metric question (position 1, 2, or 3); used in task text for future homework flow. */
 export interface MetricQuestion {
   id: string;
-  position: 1 | 2;
+  position: 1 | 2 | 3;
   text: string;
   created_at?: string;
 }
@@ -244,10 +244,10 @@ export const adminApi = {
   getMetricQuestions: () =>
     adminFetch<{ questions: MetricQuestion[] }>("/metric-questions").then((r) => r.questions ?? []),
 
-  createMetricQuestion: (data: { position: 1 | 2; text: string }) =>
+  createMetricQuestion: (data: { position: 1 | 2 | 3; text: string }) =>
     adminFetch<{ question: MetricQuestion }>("/metric-questions", { method: "POST", body: data }),
 
-  updateMetricQuestion: (id: string, data: { position?: 1 | 2; text?: string }) =>
+  updateMetricQuestion: (id: string, data: { position?: 1 | 2 | 3; text?: string }) =>
     adminFetch<{ question: MetricQuestion }>(`/metric-questions/${id}`, { method: "PUT", body: data }),
 
   deleteMetricQuestion: (id: string) =>
