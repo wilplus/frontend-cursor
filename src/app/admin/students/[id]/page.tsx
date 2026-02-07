@@ -454,6 +454,7 @@ export default function AdminStudentProfilePage() {
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
         if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
         else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
+        // Empty focus_tasks (200 + []) is success; only show error when the request actually failed.
         if (focusRes.status === "fulfilled") setFocusTasks(focusRes.value);
         else toast.error(focusRes.reason?.message ?? "Could not load focus tasks");
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
