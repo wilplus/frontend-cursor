@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
 import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
 import { Button } from "@/components/ui/button";
@@ -783,6 +783,12 @@ export default function AdminStudentProfilePage() {
                 </Button>
               </div>
             </div>
+            {warmUpTasksError && (
+              <p className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+                {warmUpTasksError}
+              </p>
+            )}
             <ul className="space-y-2">
               {warmUpTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
@@ -841,6 +847,12 @@ export default function AdminStudentProfilePage() {
                 </Button>
               </div>
             </div>
+            {focusTasksError && (
+              <p className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+                {focusTasksError}
+              </p>
+            )}
             <ul className="space-y-2">
               {[...focusTasks]
                 .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
