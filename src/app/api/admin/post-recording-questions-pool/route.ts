@@ -3,29 +3,19 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
 export const dynamic = "force-dynamic";
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; taskId: string }> }
-) {
+export async function GET(request: NextRequest) {
   const token = await getV2AccessToken(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const backend = getBackendUrl();
   if (!backend) {
-    return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
+    return NextResponse.json({ post_recording_questions_pool: [] });
   }
-  const { id, taskId } = await params;
-  const body = await request.json().catch(() => ({}));
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/students/${id}/warm-up-tasks/${taskId}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+    res = await fetch(`${backend}/v2/admin/post-recording-questions-pool`, {
+      headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
   } catch (e) {
@@ -36,13 +26,13 @@ export async function PUT(
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  return NextResponse.json(data);
+  const post_recording_questions_pool = Array.isArray(data.post_recording_questions_pool)
+    ? data.post_recording_questions_pool
+    : [];
+  return NextResponse.json({ post_recording_questions_pool });
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; taskId: string }> }
-) {
+export async function POST(request: NextRequest) {
   const token = await getV2AccessToken(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,20 +41,21 @@ export async function DELETE(
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
   }
-  const { id, taskId } = await params;
+  const body = await request.json().catch(() => ({}));
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/students/${id}/warm-up-tasks/${taskId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+    res = await fetch(`${backend}/v2/admin/post-recording-questions-pool`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
       cache: "no-store",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Backend unreachable";
     return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
-  }
-  if (res.status === 204) {
-    return new NextResponse(null, { status: 204 });
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
