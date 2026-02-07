@@ -1,0 +1,9 @@
+-- ============================================================================
+-- Focus tasks: pool + per-student list (v2_focus_task_pool, v2_focus_tasks)
+-- Run on DB after base v2 schema. Tables are created by the backend migration.
+-- Backend repo: migrations/v2_focus_tasks.sql
+-- ============================================================================
+-- This file is a reference. Run the migration in the backend repo on your
+-- Supabase/Postgres so that GET/POST/PUT/DELETE /focus-tasks and
+-- GET /focus-task-pool work. Until then, GET returns 200 with focus_tasks: [];
+-- POST/PUT may return 503 asking to run the migration.

@@ -14,8 +14,8 @@ import {
   type PostQuestion,
   type WarmUpTask,
   type WarmUpPoolTask,
-  type FocusQuestion,
-  type FocusQuestionPoolItem,
+  type FocusTask,
+  type FocusTaskPoolItem,
 } from "@/lib/api/admin-client";
 import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
@@ -292,8 +292,8 @@ function PostQuestionEditModal({
   );
 }
 
-// —— Edit/Create focus question modal: text + Max score (0–1); same pattern as warm-up. ——
-function FocusQuestionEditModal({
+// —— Edit/Create focus task modal: text + Max score (0–1); same pattern as warm-up. ——
+function FocusTaskEditModal({
   open,
   onOpenChange,
   task,
@@ -302,7 +302,7 @@ function FocusQuestionEditModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task: FocusQuestion | null;
+  task: FocusTask | null;
   onSave: (data: { text: string; max_performance_score: number }) => Promise<void>;
   saving: boolean;
 }) {
@@ -319,7 +319,7 @@ function FocusQuestionEditModal({
   const handleSave = async () => {
     const trimmedText = text.trim();
     if (!trimmedText) {
-      toast.error("Question text is required.");
+      toast.error("Task text is required.");
       return;
     }
     const clampedScore = Math.min(1, Math.max(0, Number(scoreInput) || 1));
@@ -339,18 +339,18 @@ function FocusQuestionEditModal({
       onClick={() => onOpenChange(false)}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="focus-question-edit-title"
+      aria-labelledby="focus-task-edit-title"
     >
       <div
         className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="focus-question-edit-title" className="text-lg font-semibold mb-4">
+        <h2 id="focus-task-edit-title" className="text-lg font-semibold mb-4">
           {task ? "Edit focus task" : "Add focus task"}
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Question text</label>
+            <label className="block text-sm font-medium mb-1">Task text</label>
             <Input
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -409,11 +409,11 @@ export default function AdminStudentProfilePage() {
   const [postQuestionEdit, setPostQuestionEdit] = useState<PostQuestion | null>(null);
 
   const [modalFocus, setModalFocus] = useState(false);
-  const [focusPoolTasks, setFocusPoolTasks] = useState<FocusQuestionPoolItem[]>([]);
+  const [focusPoolTasks, setFocusPoolTasks] = useState<FocusTaskPoolItem[]>([]);
   const [focusPoolLoading, setFocusPoolLoading] = useState(false);
   const [focusEditOpen, setFocusEditOpen] = useState(false);
-  const [focusEditTask, setFocusEditTask] = useState<FocusQuestion | null>(null);
-  const [focusQuestions, setFocusQuestions] = useState<FocusQuestion[]>([]);
+  const [focusEditTask, setFocusEditTask] = useState<FocusTask | null>(null);
+  const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
 
   const [overridesDraft, setOverridesDraft] = useState({
     assigned_post_question_ids: [] as string[],
@@ -443,7 +443,7 @@ export default function AdminStudentProfilePage() {
         return Promise.allSettled([
           adminApi.getPostQuestions(),
           adminApi.getWarmUpTasks(id),
-          adminApi.getFocusQuestions(id),
+          adminApi.getFocusTasks(id),
           getUserMetricQuestions(),
         ]);
       })
@@ -454,8 +454,8 @@ export default function AdminStudentProfilePage() {
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
         if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
         else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
-        if (focusRes.status === "fulfilled") setFocusQuestions(focusRes.value);
-        else toast.error(focusRes.reason?.message ?? "Could not load focus questions");
+        if (focusRes.status === "fulfilled") setFocusTasks(focusRes.value);
+        else toast.error(focusRes.reason?.message ?? "Could not load focus tasks");
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
         else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
       })
@@ -479,12 +479,12 @@ export default function AdminStudentProfilePage() {
       .finally(() => setWarmUpPoolLoading(false));
   }, [modalWarmUp, id]);
 
-  // Load focus question pool when "Select Focus Questions" modal opens
+  // Load focus task pool when "Manage list" modal opens
   useEffect(() => {
     if (!modalFocus || !id) return;
     setFocusPoolLoading(true);
     adminApi
-      .getFocusQuestionPool()
+      .getFocusTaskPool()
       .then(setFocusPoolTasks)
       .catch((e) => toast.error(e?.message ?? "Could not load pool"))
       .finally(() => setFocusPoolLoading(false));
@@ -620,16 +620,16 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
-  // Focus questions: pool + per-student list (same pattern as warm-up)
+  // Focus tasks: pool + per-student list (same pattern as warm-up)
   const focusPool: PoolItem[] = focusPoolTasks.map((p) => ({
     id: p.id,
     label: p.text,
     subLabel: p.max_performance_score != null ? `Max score: ${p.max_performance_score}` : undefined,
   }));
   const focusSelectedIds: string[] = (() => {
-    const ordered = [...focusQuestions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    const ordered = [...focusTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     return ordered
-      .map((t) => t.pool_question_id ?? focusPoolTasks.find((p) => p.text === t.text)?.id)
+      .map((t) => t.pool_task_id ?? focusPoolTasks.find((p) => p.text === t.text)?.id)
       .filter((x): x is string => Boolean(x));
   })();
   const handleFocusConfirm = (selectedIds: string[]) => {
@@ -637,7 +637,7 @@ export default function AdminStudentProfilePage() {
     const ordered = focusPoolTasks.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
     setSaving(true);
     adminApi
-      .putStudentFocusQuestionsSync(id, { pool_question_ids: ordered })
+      .putStudentFocusTasksSync(id, { pool_task_ids: ordered })
       .then(() => {
         load();
         toast.success("Focus tasks updated");
@@ -646,8 +646,8 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
   const handleFocusCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createFocusQuestionPoolItem({ text, order_index: 0, max_performance_score: 1 });
-    const item = res.focus_question;
+    const res = await adminApi.createFocusTaskPoolItem({ text, order_index: 0, max_performance_score: 1 });
+    const item = res.focus_task;
     setFocusPoolTasks((prev) => [...prev, item]);
     return {
       id: item.id,
@@ -659,15 +659,15 @@ export default function AdminStudentProfilePage() {
     setSaving(true);
     try {
       if (focusEditTask) {
-        await adminApi.updateFocusQuestion(id, focusEditTask.id, {
+        await adminApi.updateFocusTask(id, focusEditTask.id, {
           text: data.text,
           max_performance_score: data.max_performance_score,
         });
         toast.success("Updated");
       } else {
-        await adminApi.createFocusQuestion(id, {
+        await adminApi.createFocusTask(id, {
           text: data.text,
-          order_index: focusQuestions.length,
+          order_index: focusTasks.length,
           max_performance_score: data.max_performance_score,
         });
         toast.success("Added");
@@ -680,10 +680,10 @@ export default function AdminStudentProfilePage() {
       setSaving(false);
     }
   };
-  const deleteFocusQuestion = (questionId: string) => {
+  const deleteFocusTask = (taskId: string) => {
     setSaving(true);
     adminApi
-      .deleteFocusQuestion(id, questionId)
+      .deleteFocusTask(id, taskId)
       .then(() => { load(); toast.success("Deleted"); })
       .catch((e) => toast.error(e.message))
       .finally(() => setSaving(false));
@@ -825,7 +825,7 @@ export default function AdminStudentProfilePage() {
               </div>
             </div>
             <ul className="space-y-2">
-              {[...focusQuestions]
+              {[...focusTasks]
                 .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
                 .map((q) => (
                   <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
@@ -847,7 +847,7 @@ export default function AdminStudentProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteFocusQuestion(q.id)}
+                        onClick={() => deleteFocusTask(q.id)}
                         disabled={saving}
                         className="rounded p-1 text-destructive hover:bg-destructive/10"
                         aria-label="Delete"
@@ -858,7 +858,7 @@ export default function AdminStudentProfilePage() {
                   </li>
                 ))}
             </ul>
-            {focusQuestions.length === 0 && (
+            {focusTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to create one.</p>
             )}
           </div>
@@ -992,7 +992,7 @@ export default function AdminStudentProfilePage() {
         onCreateNew={handleWarmUpCreate}
         poolLoading={warmUpPoolLoading}
       />
-      <FocusQuestionEditModal
+      <FocusTaskEditModal
         open={focusEditOpen}
         onOpenChange={(open) => {
           setFocusEditOpen(open);

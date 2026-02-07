@@ -141,19 +141,19 @@ export interface WarmUpPoolTask {
   created_at?: string;
 }
 
-/** Focus question (per student); when assigned from pool, has pool_question_id. */
-export interface FocusQuestion {
+/** Focus task (per student); when assigned from pool, has pool_task_id. */
+export interface FocusTask {
   id: string;
   user_id: string;
   text: string;
   order_index?: number;
   max_performance_score?: number;
-  pool_question_id?: string | null;
+  pool_task_id?: string | null;
   created_at?: string;
 }
 
-/** Global focus question pool item (no user_id). */
-export interface FocusQuestionPoolItem {
+/** Global focus task pool item (no user_id). */
+export interface FocusTaskPoolItem {
   id: string;
   text: string;
   order_index?: number;
@@ -217,34 +217,34 @@ export const adminApi = {
   deleteWarmUpPoolTask: (poolId: string) =>
     adminFetch<Record<string, unknown>>(`/warm-up-task-pool/${poolId}`, { method: "DELETE" }),
 
-  getFocusQuestions: (userId: string) =>
-    adminFetch<{ focus_questions: FocusQuestion[] }>(`/students/${userId}/focus-questions`).then((r) => r.focus_questions ?? []),
+  getFocusTasks: (userId: string) =>
+    adminFetch<{ focus_tasks: FocusTask[] }>(`/students/${userId}/focus-tasks`).then((r) => r.focus_tasks ?? []),
 
-  putStudentFocusQuestionsSync: (userId: string, body: { pool_question_ids: string[] }) =>
-    adminFetch<{ focus_questions: FocusQuestion[] }>(`/students/${userId}/focus-questions`, { method: "PUT", body }),
+  putStudentFocusTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
+    adminFetch<{ focus_tasks: FocusTask[] }>(`/students/${userId}/focus-tasks`, { method: "PUT", body }),
 
-  createFocusQuestion: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_question: FocusQuestion }>(`/students/${userId}/focus-questions`, { method: "POST", body: data }),
+  createFocusTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<{ focus_task: FocusTask }>(`/students/${userId}/focus-tasks`, { method: "POST", body: data }),
 
-  updateFocusQuestion: (userId: string, questionId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_question: FocusQuestion }>(`/students/${userId}/focus-questions/${questionId}`, { method: "PUT", body: data }),
+  updateFocusTask: (userId: string, taskId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<{ focus_task: FocusTask }>(`/students/${userId}/focus-tasks/${taskId}`, { method: "PUT", body: data }),
 
-  deleteFocusQuestion: (userId: string, questionId: string) =>
-    adminFetch<Record<string, unknown>>(`/students/${userId}/focus-questions/${questionId}`, { method: "DELETE" }),
+  deleteFocusTask: (userId: string, taskId: string) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/focus-tasks/${taskId}`, { method: "DELETE" }),
 
-  getFocusQuestionPool: () =>
-    adminFetch<{ focus_question_pool?: FocusQuestionPoolItem[] }>("/focus-question-pool").then((r) =>
-      Array.isArray(r.focus_question_pool) ? r.focus_question_pool : []
+  getFocusTaskPool: () =>
+    adminFetch<{ focus_task_pool?: FocusTaskPoolItem[] }>("/focus-task-pool").then((r) =>
+      Array.isArray(r.focus_task_pool) ? r.focus_task_pool : []
     ),
 
-  createFocusQuestionPoolItem: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_question: FocusQuestionPoolItem }>("/focus-question-pool", { method: "POST", body: data }),
+  createFocusTaskPoolItem: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<{ focus_task: FocusTaskPoolItem }>("/focus-task-pool", { method: "POST", body: data }),
 
-  updateFocusQuestionPoolItem: (poolId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_question: FocusQuestionPoolItem }>(`/focus-question-pool/${poolId}`, { method: "PUT", body: data }),
+  updateFocusTaskPoolItem: (poolId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<{ focus_task: FocusTaskPoolItem }>(`/focus-task-pool/${poolId}`, { method: "PUT", body: data }),
 
-  deleteFocusQuestionPoolItem: (poolId: string) =>
-    adminFetch<Record<string, unknown>>(`/focus-question-pool/${poolId}`, { method: "DELETE" }),
+  deleteFocusTaskPoolItem: (poolId: string) =>
+    adminFetch<Record<string, unknown>>(`/focus-task-pool/${poolId}`, { method: "DELETE" }),
 
   getExercises: () =>
     adminFetch<{ exercises: Exercise[] }>("/exercises").then((r) => r.exercises ?? []),

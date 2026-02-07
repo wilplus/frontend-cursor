@@ -13,10 +13,10 @@ export async function GET(
   }
   const backend = getBackendUrl();
   if (!backend) {
-    return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
+    return NextResponse.json({ focus_tasks: [] });
   }
   const { id } = await params;
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-questions`, {
+  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
@@ -24,7 +24,8 @@ export async function GET(
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  return NextResponse.json(data);
+  const tasks = Array.isArray(data.focus_tasks) ? data.focus_tasks : [];
+  return NextResponse.json({ focus_tasks: tasks });
 }
 
 export async function POST(
@@ -41,7 +42,7 @@ export async function POST(
   }
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-questions`, {
+  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -57,7 +58,7 @@ export async function POST(
   return NextResponse.json(data);
 }
 
-/** Sync from pool: body { pool_question_ids: string[] }. Replaces student's focus questions with selected pool items. */
+/** Sync from pool: body { pool_task_ids: string[] }. Replaces student's focus tasks with selected pool items. */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -72,7 +73,7 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-questions`, {
+  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
