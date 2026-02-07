@@ -12,10 +12,16 @@ export async function GET(request: NextRequest) {
   if (!backend) {
     return NextResponse.json({ warm_up_task_pool: [] });
   }
-  const res = await fetch(`${backend}/v2/admin/warm-up-task-pool`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/warm-up-task-pool`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
@@ -35,15 +41,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
   }
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/warm-up-task-pool`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/warm-up-task-pool`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });

@@ -17,15 +17,21 @@ export async function PUT(
   }
   const { id, taskId } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/students/${id}/warm-up-tasks/${taskId}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/students/${id}/warm-up-tasks/${taskId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
@@ -46,11 +52,17 @@ export async function DELETE(
     return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
   }
   const { id, taskId } = await params;
-  const res = await fetch(`${backend}/v2/admin/students/${id}/warm-up-tasks/${taskId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/students/${id}/warm-up-tasks/${taskId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   if (res.status === 204) {
     return new NextResponse(null, { status: 204 });
   }
