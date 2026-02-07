@@ -9,6 +9,7 @@ import type {
   HomeworkRecording2Response,
   HomeworkQuestionsResponse,
   HomeworkPostAnswersResponse,
+  TaskBlockV2,
 } from "@/lib/api/types-homework";
 
 async function getAuthFetchOptions(
@@ -62,6 +63,13 @@ export const homeworkApi = {
     if (res.status === 404) return null;
     if (!res.ok) throw new Error((await res.json().catch(() => ({})) as { error?: string }).error || res.statusText);
     return res.json();
+  },
+
+  /** Get task-block for step 2 (e.g. when resuming). Returns task_block with 3 metric questions. */
+  async getTaskBlock(sessionId: string): Promise<{ task_block: TaskBlockV2 }> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/session/${sessionId}/task-block`, { headers, credentials });
+    return handleResponse<{ task_block: TaskBlockV2 }>(res);
   },
 
   /** Upload recording_1 (warm-up). Multipart: audio, duration_seconds. */

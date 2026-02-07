@@ -25,7 +25,14 @@ export async function POST(
     return Response.json(mockMetricAnswersResponse());
   }
   const { sessionId } = await params;
-  let body: { metric_answer_1?: string; metric_answer_2?: string; metric_answer_3?: string } = {};
+  let body: {
+    metric_answer_1?: string;
+    metric_answer_2?: string;
+    metric_answer_3?: string;
+    answer_1?: string;
+    answer_2?: string;
+    answer_3?: string;
+  } = {};
   try {
     if (req.headers.get("content-type")?.includes("application/json")) {
       body = await req.json();
@@ -36,9 +43,9 @@ export async function POST(
   const res = await proxyJson(`/v2/homework/session/${sessionId}/metric-answers`, {
     method: "POST",
     body: {
-      metric_answer_1: body.metric_answer_1 ?? "",
-      metric_answer_2: body.metric_answer_2 ?? "",
-      metric_answer_3: body.metric_answer_3 ?? "",
+      metric_answer_1: body.metric_answer_1 ?? body.answer_1 ?? "",
+      metric_answer_2: body.metric_answer_2 ?? body.answer_2 ?? "",
+      metric_answer_3: body.metric_answer_3 ?? body.answer_3 ?? "",
     },
   }, req);
   if (res.status === 404) return Response.json(mockMetricAnswersResponse());
