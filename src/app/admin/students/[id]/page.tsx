@@ -14,8 +14,9 @@ import {
   type PostQuestion,
   type WarmUpTask,
   type WarmUpPoolTask,
-  type MetricLabel,
+  type MetricQuestion,
 } from "@/lib/api/admin-client";
+import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
 
 // —— Editable list row: text + hover Edit/Delete; edit = inline input + Check/X ——
@@ -100,83 +101,6 @@ function EditableListItem({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-    </div>
-  );
-}
-
-// —— Metrics row: label only (editable), no delete ——
-function MetricRow({
-  index,
-  code,
-  leftLabel,
-  rightLabel,
-  onSave,
-  saving,
-}: {
-  index: number;
-  code: string;
-  leftLabel: string;
-  rightLabel: string;
-  onSave: (left: string, right: string) => void;
-  saving: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [left, setLeft] = useState(leftLabel);
-  const [right, setRight] = useState(rightLabel);
-
-  useEffect(() => {
-    setLeft(leftLabel);
-    setRight(rightLabel);
-  }, [leftLabel, rightLabel]);
-
-  const handleSave = () => {
-    onSave(left.trim(), right.trim());
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-        <span className="text-sm font-medium text-muted-foreground">{index}. {code}:</span>
-        <input
-          type="text"
-          value={left}
-          onChange={(e) => setLeft(e.target.value)}
-          placeholder="Left label"
-          className="h-7 flex-1 min-w-[80px] rounded border border-input bg-background px-2 text-sm"
-        />
-        <span className="text-muted-foreground">…</span>
-        <input
-          type="text"
-          value={right}
-          onChange={(e) => setRight(e.target.value)}
-          placeholder="Right label"
-          className="h-7 flex-1 min-w-[80px] rounded border border-input bg-background px-2 text-sm"
-        />
-        <button type="button" onClick={handleSave} disabled={saving} className="rounded p-1 text-primary hover:bg-primary/10">
-          <Check className="h-4 w-4" />
-        </button>
-        <button type="button" onClick={() => setEditing(false)} className="rounded p-1 text-muted-foreground hover:bg-muted">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
-      <span className="text-sm">
-        {index}. {code}: {leftLabel} … {rightLabel}{" "}
-        <span className="text-muted-foreground">(editable)</span>
-      </span>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:bg-muted hover:text-foreground"
-        aria-label="Edit"
-      >
-        <Pencil className="h-4 w-4" />
-      </button>
     </div>
   );
 }
@@ -280,7 +204,7 @@ export default function AdminStudentProfilePage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
-  const [metricLabels, setMetricLabels] = useState<MetricLabel[]>([]);
+  const [metricQuestions, setMetricQuestions] = useState<MetricQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -319,18 +243,18 @@ export default function AdminStudentProfilePage() {
         return Promise.allSettled([
           adminApi.getPostQuestions(),
           adminApi.getWarmUpTasks(id),
-          adminApi.getMetricLabels(),
+          adminApi.getMetricQuestions(),
         ]);
       })
       .then((results) => {
         if (!results) return;
-        const [questionsRes, warmUpRes, metricsRes] = results;
+        const [questionsRes, warmUpRes, metricQuestionsRes] = results;
         if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
         if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
         else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
-        if (metricsRes.status === "fulfilled") setMetricLabels(metricsRes.value);
-        else toast.error(metricsRes.reason?.message ?? "Could not load metrics");
+        if (metricQuestionsRes.status === "fulfilled") setMetricQuestions(metricQuestionsRes.value);
+        else toast.error(metricQuestionsRes.reason?.message ?? "Could not load metric questions");
       })
       .catch((e) => {
         toast.error(e.message);
@@ -483,14 +407,46 @@ export default function AdminStudentProfilePage() {
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
     .slice(0, 10);
 
-  const saveMetricLabel = (code: string, left: string, right: string) => {
+  const byPosition = (() => {
+    const map: Record<1 | 2 | 3, { id: string; text: string } | undefined> = {
+      1: undefined,
+      2: undefined,
+      3: undefined,
+    };
+    for (const q of metricQuestions) {
+      if (q.position >= 1 && q.position <= 3) {
+        map[q.position as 1 | 2 | 3] = { id: q.id, text: q.text };
+      }
+    }
+    return map;
+  })();
+
+  const saveMetricQuestions = async (data: {
+    metricQuestion1: string;
+    metricQuestion2: string;
+    metricQuestion3: string;
+  }) => {
     setSaving(true);
-    const updated = metricLabels.map((m) => (m.code === code ? { ...m, left_label: left, right_label: right } : m));
-    adminApi
-      .putMetricLabels(updated)
-      .then(() => { setMetricLabels(updated); toast.success("Metric updated"); })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
+    try {
+      const updates: Promise<unknown>[] = [];
+      for (const position of [1, 2, 3] as const) {
+        const text = [data.metricQuestion1, data.metricQuestion2, data.metricQuestion3][position - 1] ?? "";
+        const existing = byPosition[position];
+        if (existing) {
+          updates.push(adminApi.updateMetricQuestion(existing.id, { text }));
+        } else {
+          updates.push(adminApi.createMetricQuestion({ position, text }));
+        }
+      }
+      await Promise.all(updates);
+      const next = await adminApi.getMetricQuestions();
+      setMetricQuestions(next);
+      toast.success("Metric questions saved");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading || !profile) {
@@ -617,24 +573,14 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Metrics (5 fixed) */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Metrics (5 fixed)</p>
-            <div className="space-y-2">
-              {metricLabels.slice(0, 5).map((m, i) => (
-                <MetricRow
-                  key={m.code}
-                  index={i + 1}
-                  code={m.code}
-                  leftLabel={m.left_label}
-                  rightLabel={m.right_label}
-                  onSave={(left, right) => saveMetricLabel(m.code, left, right)}
-                  saving={saving}
-                />
-              ))}
-              {metricLabels.length === 0 && <p className="text-sm text-muted-foreground">No metrics loaded.</p>}
-            </div>
-          </div>
+          {/* Metrics: Pitch Variance (fixed) + 3 custom questions */}
+          <MetricsSection
+            metricQuestion1={byPosition[1]?.text ?? ""}
+            metricQuestion2={byPosition[2]?.text ?? ""}
+            metricQuestion3={byPosition[3]?.text ?? ""}
+            onSave={saveMetricQuestions}
+            saving={saving}
+          />
         </div>
       </SectionCard>
 
