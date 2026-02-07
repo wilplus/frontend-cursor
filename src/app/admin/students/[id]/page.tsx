@@ -14,8 +14,8 @@ import {
   type PostQuestion,
   type WarmUpTask,
   type WarmUpPoolTask,
-  type MetricQuestion,
 } from "@/lib/api/admin-client";
+import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
 
@@ -204,7 +204,11 @@ export default function AdminStudentProfilePage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
-  const [metricQuestions, setMetricQuestions] = useState<MetricQuestion[]>([]);
+  const [userMetricQuestions, setUserMetricQuestions] = useState({
+    metric_question_1: "",
+    metric_question_2: "",
+    metric_question_3: "",
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -243,18 +247,18 @@ export default function AdminStudentProfilePage() {
         return Promise.allSettled([
           adminApi.getPostQuestions(),
           adminApi.getWarmUpTasks(id),
-          adminApi.getMetricQuestions(),
+          getUserMetricQuestions(),
         ]);
       })
       .then((results) => {
         if (!results) return;
-        const [questionsRes, warmUpRes, metricQuestionsRes] = results;
+        const [questionsRes, warmUpRes, userMetricsRes] = results;
         if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
         if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
         else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
-        if (metricQuestionsRes.status === "fulfilled") setMetricQuestions(metricQuestionsRes.value);
-        else toast.error(metricQuestionsRes.reason?.message ?? "Could not load metric questions");
+        if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
+        else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
       })
       .catch((e) => {
         toast.error(e.message);
@@ -407,40 +411,15 @@ export default function AdminStudentProfilePage() {
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
     .slice(0, 10);
 
-  const byPosition = (() => {
-    const map: Record<1 | 2 | 3, { id: string; text: string } | undefined> = {
-      1: undefined,
-      2: undefined,
-      3: undefined,
-    };
-    for (const q of metricQuestions) {
-      if (q.position >= 1 && q.position <= 3) {
-        map[q.position as 1 | 2 | 3] = { id: q.id, text: q.text };
-      }
-    }
-    return map;
-  })();
-
-  const saveMetricQuestions = async (data: {
-    metricQuestion1: string;
-    metricQuestion2: string;
-    metricQuestion3: string;
+  const saveUserMetricQuestions = async (data: {
+    metric_question_1: string;
+    metric_question_2: string;
+    metric_question_3: string;
   }) => {
     setSaving(true);
     try {
-      const updates: Promise<unknown>[] = [];
-      for (const position of [1, 2, 3] as const) {
-        const text = [data.metricQuestion1, data.metricQuestion2, data.metricQuestion3][position - 1] ?? "";
-        const existing = byPosition[position];
-        if (existing) {
-          updates.push(adminApi.updateMetricQuestion(existing.id, { text }));
-        } else {
-          updates.push(adminApi.createMetricQuestion({ position, text }));
-        }
-      }
-      await Promise.all(updates);
-      const next = await adminApi.getMetricQuestions();
-      setMetricQuestions(next);
+      await patchUserMetricQuestions(data);
+      setUserMetricQuestions(data);
       toast.success("Metric questions saved");
     } catch (e) {
       toast.error((e as Error).message);
@@ -573,12 +552,12 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Metrics: Pitch Variance (fixed) + 3 custom questions */}
+          {/* Metrics: 3 custom questions (user metric questions) */}
           <MetricsSection
-            metricQuestion1={byPosition[1]?.text ?? ""}
-            metricQuestion2={byPosition[2]?.text ?? ""}
-            metricQuestion3={byPosition[3]?.text ?? ""}
-            onSave={saveMetricQuestions}
+            metric_question_1={userMetricQuestions.metric_question_1}
+            metric_question_2={userMetricQuestions.metric_question_2}
+            metric_question_3={userMetricQuestions.metric_question_3}
+            onSave={saveUserMetricQuestions}
             saving={saving}
           />
         </div>

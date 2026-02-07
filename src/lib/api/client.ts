@@ -272,3 +272,32 @@ export async function fetchAdminRecordings(
   const res = await fetch(`/api/admin/recordings?${params}`, { headers, credentials });
   return handleResponse<AdminRecordingsListResponse>(res);
 }
+
+/** User metric questions (3 custom questions). */
+export interface UserMetricQuestions {
+  metric_question_1: string;
+  metric_question_2: string;
+  metric_question_3: string;
+}
+
+export async function getUserMetricQuestions(): Promise<UserMetricQuestions> {
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch("/api/user/metric-questions", { headers, credentials });
+  const data = await handleResponse<{ metric_question_1?: string; metric_question_2?: string; metric_question_3?: string }>(res);
+  return {
+    metric_question_1: data.metric_question_1 ?? "",
+    metric_question_2: data.metric_question_2 ?? "",
+    metric_question_3: data.metric_question_3 ?? "",
+  };
+}
+
+export async function patchUserMetricQuestions(body: UserMetricQuestions): Promise<void> {
+  const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+  const res = await fetch("/api/user/metric-questions", {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+    credentials,
+  });
+  await handleResponse<unknown>(res);
+}
