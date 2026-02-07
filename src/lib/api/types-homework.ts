@@ -11,19 +11,43 @@ export interface HomeworkStartResponse {
   warm_up_task_text: string;
 }
 
-// —— After recording_1: task text + optional metric labels for step 2 ——
+// —— Metric question item (id + text, used in task_block) ——
+export interface MetricQuestionItemV2 {
+  id?: string;
+  text: string;
+  order_index?: number;
+}
+
+// —— Task block (after recording_1): context + focus task + 3 metric questions ——
+export interface TaskBlockV2 {
+  context_short?: string;
+  focus_task?: unknown;
+  metric_question_1?: MetricQuestionItemV2 | string;
+  metric_question_2?: MetricQuestionItemV2 | string;
+  metric_question_3?: MetricQuestionItemV2 | string;
+}
+
+// —— After recording_1: task text + optional task_block / metric labels for step 2 ——
 export interface HomeworkRecording1Response {
   performance_score_1: number;
   task_text: string;
+  task_block?: TaskBlockV2;
   metric_question_1_text?: string;
   metric_question_2_text?: string;
-  metric_question_1?: string;
-  metric_question_2?: string;
+  metric_question_3_text?: string;
+  metric_question_1?: MetricQuestionItemV2 | string;
+  metric_question_2?: MetricQuestionItemV2 | string;
+  metric_question_3?: MetricQuestionItemV2 | string;
 }
 
 // —— After metric answers: final task for recording_2 ——
+export interface MetricAnswersResponseV2 {
+  final_task: string;
+}
+
 export interface HomeworkMetricAnswersResponse {
-  final_task_text: string;
+  final_task?: string;
+  final_task_text?: string;
 }
 
 // —— After recording_2 ——
