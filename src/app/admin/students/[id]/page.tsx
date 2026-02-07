@@ -7,6 +7,7 @@ import { ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
 import SectionCard from "@/components/admin/SectionCard";
 import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   adminApi,
   type StudentProfile,
@@ -179,6 +180,98 @@ function MetricRow({
   );
 }
 
+// —— Edit/Create warm-up task modal: text + Max score (0–1); Save sends both. ——
+function WarmUpTaskEditModal({
+  open,
+  onOpenChange,
+  task,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task: WarmUpTask | null;
+  onSave: (data: { text: string; max_performance_score: number }) => Promise<void>;
+  saving: boolean;
+}) {
+  const [text, setText] = useState("");
+  const [scoreInput, setScoreInput] = useState("1");
+
+  useEffect(() => {
+    if (open) {
+      setText(task?.text ?? "");
+      setScoreInput(String(task?.max_performance_score ?? 1));
+    }
+  }, [open, task?.text, task?.max_performance_score]);
+
+  const handleSave = async () => {
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      toast.error("Question text is required.");
+      return;
+    }
+    const clampedScore = Math.min(1, Math.max(0, Number(scoreInput) || 1));
+    try {
+      await onSave({ text: trimmedText, max_performance_score: clampedScore });
+      onOpenChange(false);
+    } catch {
+      // onSave already toasts error
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => onOpenChange(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="warm-up-edit-title"
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="warm-up-edit-title" className="text-lg font-semibold mb-4">
+          {task ? "Edit warm-up task" : "Add warm-up task"}
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Question text</label>
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="e.g. How are you doing today?"
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Max score (0–1)</label>
+            <Input
+              type="number"
+              min={0}
+              max={1}
+              step={0.1}
+              value={scoreInput}
+              onChange={(e) => setScoreInput(e.target.value)}
+              className="w-full"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSave} disabled={saving}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminStudentProfilePage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
@@ -191,6 +284,8 @@ export default function AdminStudentProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const [modalWarmUp, setModalWarmUp] = useState(false);
+  const [warmUpEditOpen, setWarmUpEditOpen] = useState(false);
+  const [warmUpEditTask, setWarmUpEditTask] = useState<WarmUpTask | null>(null);
   const [modalQuestions, setModalQuestions] = useState(false);
 
   const [overridesDraft, setOverridesDraft] = useState({
@@ -303,6 +398,32 @@ export default function AdminStudentProfilePage() {
     return { id: res.warm_up_task.id, label: res.warm_up_task.text };
   };
 
+  const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {
+    setSaving(true);
+    try {
+      if (warmUpEditTask) {
+        await adminApi.updateWarmUpTask(id, warmUpEditTask.id, {
+          text: data.text,
+          max_performance_score: data.max_performance_score,
+        });
+        toast.success("Updated");
+      } else {
+        await adminApi.createWarmUpTask(id, {
+          text: data.text,
+          order_index: warmUpTasks.length,
+          max_performance_score: data.max_performance_score,
+        });
+        toast.success("Added");
+      }
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Post-recording questions: pool = global; max 3; confirm = save assigned_post_question_ids
   const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
   const handleQuestionsConfirm = (selectedIds: string[]) => {
@@ -320,14 +441,6 @@ export default function AdminStudentProfilePage() {
     return { id: res.question.id, label: res.question.text };
   };
 
-  const updateWarmUpTask = (taskId: string, updates: { text?: string; max_performance_score?: number }) => {
-    setSaving(true);
-    adminApi
-      .updateWarmUpTask(id, taskId, updates)
-      .then(() => { load(); toast.success("Updated"); })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
-  };
   const deleteWarmUpTask = (taskId: string) => {
     setSaving(true);
     adminApi
@@ -392,52 +505,57 @@ export default function AdminStudentProfilePage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Warm-up Tasks</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => setModalWarmUp(true)}>
-                + Add
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setWarmUpEditTask(null);
+                    setWarmUpEditOpen(true);
+                  }}
+                >
+                  + Add
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setModalWarmUp(true)}>
+                  Manage list
+                </Button>
+              </div>
             </div>
             <ul className="space-y-2">
               {warmUpTasks.map((t) => (
-                <li key={t.id} className="flex flex-wrap items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <EditableListItem
-                      text={t.text}
-                      onEdit={(newText) => updateWarmUpTask(t.id, { text: newText })}
-                      onDelete={() => deleteWarmUpTask(t.id)}
-                      saving={saving}
-                    />
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <label className="text-xs text-muted-foreground whitespace-nowrap">Max score</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={t.max_performance_score ?? 1}
-                      onChange={(e) => {
-                        const v = e.target.valueAsNumber;
-                        if (!Number.isNaN(v) && v >= 0 && v <= 1) {
-                          setWarmUpTasks((prev) =>
-                            prev.map((w) => (w.id === t.id ? { ...w, max_performance_score: v } : w))
-                          );
-                        }
+                <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                  <span className="min-w-0 flex-1 text-sm">{t.text}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    Max score: {t.max_performance_score ?? 1}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWarmUpEditTask(t);
+                        setWarmUpEditOpen(true);
                       }}
-                      onBlur={(e) => {
-                        const v = e.target.valueAsNumber;
-                        if (!Number.isNaN(v) && v >= 0 && v <= 1 && (t.max_performance_score ?? 1) !== v) {
-                          updateWarmUpTask(t.id, { max_performance_score: v });
-                        }
-                      }}
-                      className="h-7 w-16 rounded border border-input bg-background px-2 text-right text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring"
-                      title="Max performance score (0–1). Shown to students with last score ≤ this."
-                    />
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteWarmUpTask(t.id)}
+                      disabled={saving}
+                      className="rounded p-1 text-destructive hover:bg-destructive/10"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </li>
               ))}
             </ul>
             {warmUpTasks.length === 0 && (
-              <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to select or create.</p>
+              <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one.</p>
             )}
           </div>
 
@@ -541,6 +659,16 @@ export default function AdminStudentProfilePage() {
       </div>
 
       {/* Modals */}
+      <WarmUpTaskEditModal
+        open={warmUpEditOpen}
+        onOpenChange={(open) => {
+          setWarmUpEditOpen(open);
+          if (!open) setWarmUpEditTask(null);
+        }}
+        task={warmUpEditTask}
+        onSave={handleWarmUpEditModalSave}
+        saving={saving}
+      />
       <SelectFromPoolModal
         open={modalWarmUp}
         onOpenChange={setModalWarmUp}
