@@ -295,6 +295,29 @@ export const adminApi = {
       body,
     }),
 
+  /** Create per-student post-recording question. */
+  createPostRecordingQuestion: (
+    userId: string,
+    data: { text: string; order_index?: number; answer_type?: string }
+  ) =>
+    adminFetch<{ post_recording_question: PostQuestion }>(`/students/${userId}/post-recording-questions`, {
+      method: "POST",
+      body: data,
+    }),
+
+  /** Update per-student post-recording question. */
+  updatePostRecordingQuestion: (userId: string, questionId: string, data: Partial<PostQuestion>) =>
+    adminFetch<{ post_recording_question: PostQuestion }>(
+      `/students/${userId}/post-recording-questions/${questionId}`,
+      { method: "PUT", body: data }
+    ),
+
+  /** Delete per-student post-recording question. */
+  deletePostRecordingQuestion: (userId: string, questionId: string) =>
+    adminFetch<{ status?: string }>(`/students/${userId}/post-recording-questions/${questionId}`, {
+      method: "DELETE",
+    }),
+
   createPostQuestion: (data: Partial<PostQuestion>) =>
     adminFetch<{ question: PostQuestion }>("/post-recording-questions-pool", { method: "POST", body: data }),
 
