@@ -13,6 +13,7 @@ import {
   type StudentProfile,
   type PostQuestion,
   type WarmUpTask,
+  type WarmUpPoolTask,
   type MetricLabel,
 } from "@/lib/api/admin-client";
 import { toast } from "sonner";
@@ -284,6 +285,8 @@ export default function AdminStudentProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const [modalWarmUp, setModalWarmUp] = useState(false);
+  const [warmUpPoolTasks, setWarmUpPoolTasks] = useState<WarmUpPoolTask[]>([]);
+  const [warmUpPoolLoading, setWarmUpPoolLoading] = useState(false);
   const [warmUpEditOpen, setWarmUpEditOpen] = useState(false);
   const [warmUpEditTask, setWarmUpEditTask] = useState<WarmUpTask | null>(null);
   const [modalQuestions, setModalQuestions] = useState(false);
@@ -338,6 +341,17 @@ export default function AdminStudentProfilePage() {
 
   useEffect(() => load(), [load]);
 
+  // Load warm-up task pool when "Select Warm-up Tasks" modal opens
+  useEffect(() => {
+    if (!modalWarmUp || !id) return;
+    setWarmUpPoolLoading(true);
+    adminApi
+      .getWarmUpTaskPool()
+      .then(setWarmUpPoolTasks)
+      .catch((e) => toast.error(e?.message ?? "Could not load pool"))
+      .finally(() => setWarmUpPoolLoading(false));
+  }, [modalWarmUp, id]);
+
   const saveOverrides = () => {
     setSaving(true);
     // Backend accepts assigned_post_question_ids only when there are exactly 3; otherwise returns 400.
@@ -371,31 +385,36 @@ export default function AdminStudentProfilePage() {
     adminApi.sendAssignment(id).then(() => toast.success("Homework sent")).catch((e) => toast.error(e.message));
   };
 
-  // Warm-up: pool = student's list; confirm = keep selected, delete others; create = add to student
-  const warmUpPool: PoolItem[] = warmUpTasks.map((t) => ({ id: t.id, label: t.text }));
+  // Warm-up: pool = global warm-up-task-pool; pre-select by student's pool_task_id (or match by text); confirm = sync pool_task_ids
+  const warmUpPool: PoolItem[] = warmUpPoolTasks.map((p) => ({ id: p.id, label: p.text }));
+  const warmUpSelectedIds: string[] = (() => {
+    const ordered = [...warmUpTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    return ordered
+      .map((t) => t.pool_task_id ?? warmUpPoolTasks.find((p) => p.text === t.text)?.id)
+      .filter((x): x is string => Boolean(x));
+  })();
   const handleWarmUpConfirm = (selectedIds: string[]) => {
-    const toDelete = warmUpTasks.filter((t) => !selectedIds.includes(t.id));
     setModalWarmUp(false);
-    if (toDelete.length === 0) {
-      load(); // refetch so any newly created items from modal appear
-      return;
-    }
+    const ordered = warmUpPoolTasks.map((p) => p.id).filter((id) => selectedIds.includes(id));
     setSaving(true);
-    Promise.all(toDelete.map((t) => adminApi.deleteWarmUpTask(id, t.id)))
+    adminApi
+      .putStudentWarmUpTasksSync(id, { pool_task_ids: ordered })
       .then(() => {
         load();
-        toast.success("Selection updated");
+        toast.success("Warm-up tasks updated");
       })
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(e?.message ?? "Failed to save"))
       .finally(() => setSaving(false));
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createWarmUpTask(id, {
+    const res = await adminApi.createWarmUpPoolTask({
       text,
-      order_index: warmUpTasks.length,
+      order_index: warmUpPoolTasks.length,
       max_performance_score: 1,
     });
-    return { id: res.warm_up_task.id, label: res.warm_up_task.text };
+    const task = res.warm_up_task;
+    setWarmUpPoolTasks((prev) => [...prev, task]);
+    return { id: task.id, label: task.text };
   };
 
   const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {
@@ -674,10 +693,11 @@ export default function AdminStudentProfilePage() {
         onOpenChange={setModalWarmUp}
         title="Select Warm-up Tasks"
         pool={warmUpPool}
-        selectedIds={warmUpTasks.map((t) => t.id)}
+        selectedIds={warmUpSelectedIds}
         onConfirm={handleWarmUpConfirm}
         allowCreate
         onCreateNew={handleWarmUpCreate}
+        poolLoading={warmUpPoolLoading}
       />
       <SelectFromPoolModal
         open={modalQuestions}
