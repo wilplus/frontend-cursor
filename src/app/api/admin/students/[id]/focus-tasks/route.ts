@@ -16,10 +16,16 @@ export async function GET(
     return NextResponse.json({ focus_tasks: [] });
   }
   const { id } = await params;
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
@@ -42,15 +48,21 @@ export async function POST(
   }
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
@@ -73,15 +85,21 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Backend unreachable";
+    return NextResponse.json({ error: "Backend unreachable", message: msg }, { status: 502 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
