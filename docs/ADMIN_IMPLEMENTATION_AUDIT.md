@@ -65,6 +65,8 @@ The admin UI uses `adminFetch(path)`, which builds the URL as **`/api/admin${pat
 | `students/[id]/warm-up-tasks/[taskId]/route.ts` | — | — | ✅ | ✅ | |
 | `exercises/route.ts` | ✅ | ✅ | — | — | |
 | `exercises/[id]/route.ts` | — | — | ✅ | ✅ | |
+| `tasks/route.ts` | ✅ | ✅ | — | — | Focus tasks pool (required for student profile) |
+| `tasks/[id]/route.ts` | — | — | ✅ | ✅ | |
 | `post-recording-questions/route.ts` | ✅ | ✅ | — | — | |
 | `post-recording-questions/[id]/route.ts` | — | — | ✅ | ✅ | |
 | `metrics/route.ts` | ✅ | PUT ✅ | — | — | |
@@ -76,11 +78,11 @@ The admin UI uses `adminFetch(path)`, which builds the URL as **`/api/admin${pat
 | `user/[userId]/context/route.ts` | — | — | — | — | (per backend) |
 | `health/route.ts` | ✅ | — | — | — | No auth; for debugging deploy |
 
-There is **no** `/api/admin/tasks` BFF in the repo; Focus tasks were removed. The student profile page does not call any tasks API.
+The **tasks** BFF is required for the Students tab: the student profile calls GET/POST (and PUT/DELETE for individual tasks) when the admin uses "Select Focus Tasks". Implement **`src/app/api/admin/tasks/route.ts`** and **`tasks/[id]/route.ts`** so that the profile does not get 404.
 
 ---
 
-## 4. Why you still get 404 on `/api/admin/tasks` in production
+## 4. If you still get 404 on `/api/admin/tasks`
 
 If the **same repo** is deployed to **app.willonski.com** and you still see:
 
@@ -134,8 +136,8 @@ then the request is **not** being handled by the BFF route in this repo. Possibl
 | Admin API client calling `/api/admin/*` | ✅ Implemented |
 | BFF route for students, overrides, speaker-profile, send-assignment | ✅ Implemented |
 | BFF route for warm-up-tasks (per student) | ✅ Implemented |
-| Focus Tasks / `/api/admin/tasks` | ❌ Removed (not used) |
+| Focus Tasks / `/api/admin/tasks` (BFF required for student profile) | ✅ Implemented |
 | BFF route for post-recording-questions, metrics, metric-questions, exercises | ✅ Implemented |
 | Diagnostic route `/api/admin/health` | ✅ Implemented |
 
-**If you still see 404 for `/api/admin/tasks` or "Focus Tasks" on the live site:** The deployed app is an old build. Push this repo and redeploy (e.g. Vercel: clear cache and redeploy). The current code does not call or show tasks.
+**No "Tasks" tab:** Only the Students tab exists. Focus tasks are managed inside each student profile (Select Focus Tasks modal). The **`/api/admin/tasks`** API and BFF route are still required for that flow.
