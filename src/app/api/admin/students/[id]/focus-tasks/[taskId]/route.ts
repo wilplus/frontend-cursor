@@ -3,28 +3,10 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const token = await getV2AccessToken(request);
-  if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const backend = getBackendUrl();
-  if (!backend) {
-    return NextResponse.json({ focus_question_pool: [] });
-  }
-  const res = await fetch(`${backend}/v2/admin/focus-question-pool`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    return NextResponse.json(data, { status: res.status });
-  }
-  const pool = Array.isArray(data.focus_question_pool) ? data.focus_question_pool : [];
-  return NextResponse.json({ focus_question_pool: pool });
-}
-
-export async function POST(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; taskId: string }> }
+) {
   const token = await getV2AccessToken(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,9 +15,10 @@ export async function POST(request: NextRequest) {
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
   }
+  const { id, taskId } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/focus-question-pool`, {
-    method: "POST",
+  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks/${taskId}`, {
+    method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -43,6 +26,34 @@ export async function POST(request: NextRequest) {
     body: JSON.stringify(body),
     cache: "no-store",
   });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return NextResponse.json(data, { status: res.status });
+  }
+  return NextResponse.json(data);
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; taskId: string }> }
+) {
+  const token = await getV2AccessToken(request);
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const backend = getBackendUrl();
+  if (!backend) {
+    return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
+  }
+  const { id, taskId } = await params;
+  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-tasks/${taskId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 204) {
+    return new NextResponse(null, { status: 204 });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });

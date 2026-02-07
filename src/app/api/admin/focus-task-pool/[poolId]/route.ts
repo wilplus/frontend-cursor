@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; questionId: string }> }
+  { params }: { params: Promise<{ poolId: string }> }
 ) {
   const token = await getV2AccessToken(request);
   if (!token) {
@@ -15,9 +15,9 @@ export async function PUT(
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
   }
-  const { id, questionId } = await params;
+  const { poolId } = await params;
   const body = await request.json().catch(() => ({}));
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-questions/${questionId}`, {
+  const res = await fetch(`${backend}/v2/admin/focus-task-pool/${poolId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -35,7 +35,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; questionId: string }> }
+  { params }: { params: Promise<{ poolId: string }> }
 ) {
   const token = await getV2AccessToken(request);
   if (!token) {
@@ -45,8 +45,8 @@ export async function DELETE(
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not set" }, { status: 503 });
   }
-  const { id, questionId } = await params;
-  const res = await fetch(`${backend}/v2/admin/students/${id}/focus-questions/${questionId}`, {
+  const { poolId } = await params;
+  const res = await fetch(`${backend}/v2/admin/focus-task-pool/${poolId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
