@@ -2,6 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 
+/**
+ * Admin shell: only the "Students" tab is in the nav. Tasks, questions, and metrics
+ * are managed inside each student profile (modals), not as separate tabs.
+ */
 export default function AdminShell({
   children,
   email,

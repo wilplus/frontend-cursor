@@ -1,16 +1,16 @@
 # Admin panel implementation audit
 
-This doc describes what exists in the **frontend repo** for the admin panel, what the UI calls, what the BFF implements, and why you might still see 404 (e.g. on `/api/admin/tasks`).
+This doc describes what exists in the **frontend repo** for the admin panel: what the UI calls and what the BFF implements.
 
 ---
 
 ## 1. How the admin panel is structured
 
-- **Entry:** `/admin` redirects to `/admin/students`. There is **no separate Tasks tab**; tasks are configured per student.
+- **Entry:** `/admin` redirects to `/admin/students`. There is **no Tasks tab**; only Students.
 - **Pages that render UI:**
   - **`/admin/students`** — List of students (from `GET /api/admin/students`).
-  - **`/admin/students/[id]`** — Single student profile: Homework Configuration (warm-up tasks, focus tasks, post questions, metrics), Speaker Profile, Reports. This page calls **all** of the admin APIs below.
-- **Pages that redirect to students:** `/admin/exercises`, `/admin/metrics`, `/admin/questions`, `/admin/recordings` — they immediately redirect to `/admin/students`, so no standalone Exercises/Tasks/Questions/Metrics UI.
+  - **`/admin/students/[id]`** — Single student profile: Homework Configuration (warm-up tasks, post questions, metrics), Speaker Profile, Reports. **Focus tasks and the `/api/admin/tasks` API have been removed**; the UI does not call them.
+- **Pages that redirect to students:** `/admin/exercises`, `/admin/metrics`, `/admin/questions`, `/admin/recordings` — they immediately redirect to `/admin/students`.
 - **Other:** `/admin/user/[userId]`, `/admin/recordings` (feedback list), etc. exist but the main flow is Students → [student] → config.
 
 ---
@@ -34,10 +34,6 @@ The admin UI uses `adminFetch(path)`, which builds the URL as **`/api/admin${pat
 | createExercise(data)      | POST   | `/api/admin/exercises`       |
 | updateExercise(id, data)  | PUT    | `/api/admin/exercises/:id`   |
 | deleteExercise(id)        | DELETE | `/api/admin/exercises/:id`   |
-| **getTasks()**            | **GET**| **`/api/admin/tasks`**       |
-| **createTask(data)**      | **POST**| **`/api/admin/tasks`**      |
-| **updateTask(id, data)**  | **PUT**| **`/api/admin/tasks/:id`**  |
-| **deleteTask(id)**        | **DELETE**| **`/api/admin/tasks/:id`** |
 | getPostQuestions()        | GET    | `/api/admin/post-recording-questions` |
 | createPostQuestion(data)  | POST   | `/api/admin/post-recording-questions` |
 | updatePostQuestion(id, data) | PUT  | `/api/admin/post-recording-questions/:id` |
@@ -64,8 +60,6 @@ The admin UI uses `adminFetch(path)`, which builds the URL as **`/api/admin${pat
 | `students/[id]/warm-up-tasks/[taskId]/route.ts` | — | — | ✅ | ✅ | |
 | `exercises/route.ts` | ✅ | ✅ | — | — | |
 | `exercises/[id]/route.ts` | — | — | ✅ | ✅ | |
-| **`tasks/route.ts`** | **✅** | **✅** | — | — | **Focus tasks pool** |
-| **`tasks/[id]/route.ts`** | — | — | **✅** | **✅** | |
 | `post-recording-questions/route.ts` | ✅ | ✅ | — | — | |
 | `post-recording-questions/[id]/route.ts` | — | — | ✅ | ✅ | |
 | `metrics/route.ts` | ✅ | PUT ✅ | — | — | |
@@ -77,7 +71,7 @@ The admin UI uses `adminFetch(path)`, which builds the URL as **`/api/admin${pat
 | `user/[userId]/context/route.ts` | — | — | — | — | (per backend) |
 | `health/route.ts` | ✅ | — | — | — | No auth; for debugging deploy |
 
-So in the **source code**, the **tasks** BFF is implemented: `src/app/api/admin/tasks/route.ts` (GET, POST) and `src/app/api/admin/tasks/[id]/route.ts` (PUT, DELETE). Every API the student profile page uses has a matching BFF route in the repo.
+There is **no** `/api/admin/tasks` BFF in the repo; Focus tasks were removed. The student profile page does not call any tasks API.
 
 ---
 
@@ -135,8 +129,8 @@ then the request is **not** being handled by the BFF route in this repo. Possibl
 | Admin API client calling `/api/admin/*` | ✅ Implemented |
 | BFF route for students, overrides, speaker-profile, send-assignment | ✅ Implemented |
 | BFF route for warm-up-tasks (per student) | ✅ Implemented |
-| BFF route for **tasks** (GET/POST + [id] PUT/DELETE) | ✅ Implemented in source |
+| Focus Tasks / `/api/admin/tasks` | ❌ Removed (not used) |
 | BFF route for post-recording-questions, metrics, metric-questions, exercises | ✅ Implemented |
-| Diagnostic route `/api/admin/health` and `?ping=1` on tasks | ✅ Implemented |
+| Diagnostic route `/api/admin/health` | ✅ Implemented |
 
-**Why 404 in production:** The running app at `app.willonski.com` is almost certainly **not** serving the version of the app that contains the tasks BFF. Update the deployed branch, clear build cache, and redeploy so that the build includes `src/app/api/admin/tasks/`.
+**If you still see 404 for `/api/admin/tasks` or "Focus Tasks" on the live site:** The deployed app is an old build. Push this repo and redeploy (e.g. Vercel: clear cache and redeploy). The current code does not call or show tasks.
