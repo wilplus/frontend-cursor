@@ -98,6 +98,25 @@ export default function HomeworkFlowCard() {
     handleStart();
   }, [authReady, step]);
 
+  // On step 2, if task_block is missing (e.g. user refreshed), load it from GET task-block
+  useEffect(() => {
+    if (step !== 2 || !sessionId || sessionId === "mock-session" || taskBlock != null) return;
+    let cancelled = false;
+    homeworkApi
+      .getTaskBlock(sessionId)
+      .then((data) => {
+        if (!cancelled && data.task_block) {
+          setTaskBlock(data.task_block);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, sessionId, taskBlock]);
+
   const buildFormData = (blob: Blob, durationSeconds: number): FormData => {
     const formData = new FormData();
     formData.append("audio", blob, "recording.webm");
@@ -120,8 +139,22 @@ export default function HomeworkFlowCard() {
       const formData = buildFormData(blob, durationSeconds);
       const res = await homeworkApi.uploadRecording1(sessionId, formData, abortRef.current.signal);
       setTaskText(toText(res.task_text));
-      const r = res as { task_block?: TaskBlockV2 };
-      setTaskBlock(r.task_block ?? null);
+      const r = res as {
+        task_block?: TaskBlockV2;
+        metric_question_1?: TaskBlockV2["metric_question_1"];
+        metric_question_2?: TaskBlockV2["metric_question_2"];
+        metric_question_3?: TaskBlockV2["metric_question_3"];
+      };
+      const block =
+        r.task_block ??
+        (r.metric_question_1 != null || r.metric_question_2 != null || r.metric_question_3 != null
+          ? {
+              metric_question_1: r.metric_question_1,
+              metric_question_2: r.metric_question_2,
+              metric_question_3: r.metric_question_3,
+            }
+          : null);
+      setTaskBlock(block);
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
