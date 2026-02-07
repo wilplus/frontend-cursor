@@ -11,6 +11,7 @@ import {
   adminApi,
   type StudentProfile,
   type PostQuestion,
+  type Task,
   type WarmUpTask,
   type MetricLabel,
 } from "@/lib/api/admin-client";
@@ -184,6 +185,7 @@ export default function AdminStudentProfilePage() {
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
   const [metricLabels, setMetricLabels] = useState<MetricLabel[]>([]);
@@ -191,23 +193,26 @@ export default function AdminStudentProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const [modalWarmUp, setModalWarmUp] = useState(false);
+  const [modalFocus, setModalFocus] = useState(false);
   const [modalQuestions, setModalQuestions] = useState(false);
 
   const [overridesDraft, setOverridesDraft] = useState({
     assigned_post_question_ids: [] as string[],
+    assigned_next_task_ids: [] as string[],
   });
   const [contextDraft, setContextDraft] = useState("");
 
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-    // Load profile first; then load pool data (tasks, questions, etc.) so profile opens even if one pool 404s
+        // Load profile first; then load pool data (questions, warm-up tasks, metrics)
     adminApi
       .getStudentProfile(id)
       .then((p) => {
         setProfile(p);
         setOverridesDraft({
           assigned_post_question_ids: p.overrides?.assigned_post_question_ids ?? [],
+          assigned_next_task_ids: p.overrides?.assigned_next_task_ids ?? [],
         });
         const sp = p.speaker_profile || {};
         const parts = [
@@ -219,6 +224,7 @@ export default function AdminStudentProfilePage() {
         ].filter(Boolean);
         setContextDraft(parts.join("\n\n"));
         return Promise.allSettled([
+          adminApi.getTasks(),
           adminApi.getPostQuestions(),
           adminApi.getWarmUpTasks(id),
           adminApi.getMetricLabels(),
@@ -226,7 +232,9 @@ export default function AdminStudentProfilePage() {
       })
       .then((results) => {
         if (!results) return;
-        const [questionsRes, warmUpRes, metricsRes] = results;
+        const [tasksRes, questionsRes, warmUpRes, metricsRes] = results;
+        if (tasksRes.status === "fulfilled") setTasks(tasksRes.value);
+        else toast.error(tasksRes.reason?.message ?? "Could not load tasks");
         if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
         if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
@@ -247,6 +255,7 @@ export default function AdminStudentProfilePage() {
     setSaving(true);
     adminApi
       .putOverrides(id, {
+        assigned_next_task_ids: overridesDraft.assigned_next_task_ids.length > 0 ? overridesDraft.assigned_next_task_ids : undefined,
         assigned_post_question_ids: overridesDraft.assigned_post_question_ids.length === 3 ? overridesDraft.assigned_post_question_ids : undefined,
       })
       .then(() => toast.success("Saved"))
@@ -294,6 +303,19 @@ export default function AdminStudentProfilePage() {
     return { id: res.warm_up_task.id, label: res.warm_up_task.text };
   };
 
+  // Focus tasks: pool = global tasks (GET /api/admin/tasks); confirm = save assigned_next_task_ids
+  const focusPool: PoolItem[] = tasks.map((t) => ({ id: t.id, label: t.title }));
+  const handleFocusConfirm = (selectedIds: string[]) => {
+    setOverridesDraft((prev) => ({ ...prev, assigned_next_task_ids: selectedIds }));
+    setModalFocus(false);
+    toast.success("Selection updated. Click Save to persist.");
+  };
+  const handleFocusCreate = async (text: string): Promise<PoolItem> => {
+    const res = await adminApi.createTask({ title: text });
+    setTasks((prev) => [...prev, res.task]);
+    return { id: res.task.id, label: res.task.title };
+  };
+
   // Post-recording questions: pool = global; max 3; confirm = save assigned_post_question_ids
   const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
   const handleQuestionsConfirm = (selectedIds: string[]) => {
@@ -328,6 +350,7 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
+  const assignedTasks = tasks.filter((t) => overridesDraft.assigned_next_task_ids.includes(t.id));
   const assignedQuestions = postQuestions.filter((q) => overridesDraft.assigned_post_question_ids.includes(q.id));
 
   const postError = overridesDraft.assigned_post_question_ids.length > 0 && overridesDraft.assigned_post_question_ids.length !== 3;
@@ -429,6 +452,39 @@ export default function AdminStudentProfilePage() {
             </ul>
             {warmUpTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to select or create.</p>
+            )}
+          </div>
+
+          {/* Focus Tasks (pool from GET /api/admin/tasks) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Focus Tasks</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => setModalFocus(true)}>
+                + Add
+              </Button>
+            </div>
+            <ul className="space-y-2">
+              {assignedTasks.map((t) => (
+                <li key={t.id}>
+                  <EditableListItem
+                    text={t.title}
+                    onEdit={(newText) => {
+                      setSaving(true);
+                      adminApi.updateTask(t.id, { title: newText }).then(() => load()).catch((e) => toast.error(e.message)).finally(() => setSaving(false));
+                    }}
+                    onDelete={() =>
+                      setOverridesDraft((prev) => ({
+                        ...prev,
+                        assigned_next_task_ids: prev.assigned_next_task_ids.filter((x) => x !== t.id),
+                      }))
+                    }
+                    saving={saving}
+                  />
+                </li>
+              ))}
+            </ul>
+            {assignedTasks.length === 0 && (
+              <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to select from pool.</p>
             )}
           </div>
 
@@ -541,6 +597,16 @@ export default function AdminStudentProfilePage() {
         onConfirm={handleWarmUpConfirm}
         allowCreate
         onCreateNew={handleWarmUpCreate}
+      />
+      <SelectFromPoolModal
+        open={modalFocus}
+        onOpenChange={setModalFocus}
+        title="Select Focus Tasks"
+        pool={focusPool}
+        selectedIds={overridesDraft.assigned_next_task_ids}
+        onConfirm={handleFocusConfirm}
+        allowCreate
+        onCreateNew={handleFocusCreate}
       />
       <SelectFromPoolModal
         open={modalQuestions}
