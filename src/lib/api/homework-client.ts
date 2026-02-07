@@ -81,10 +81,10 @@ export const homeworkApi = {
     return handleResponse<HomeworkRecording1Response>(res);
   },
 
-  /** Submit metric question answers; returns final task text. */
+  /** Submit metric question answers (3); returns final task for recording_2. */
   async submitMetricAnswers(
     sessionId: string,
-    body: { metric_answer_1: string; metric_answer_2: string }
+    body: { metric_answer_1: string; metric_answer_2: string; metric_answer_3: string }
   ): Promise<HomeworkMetricAnswersResponse> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/metric-answers`, {

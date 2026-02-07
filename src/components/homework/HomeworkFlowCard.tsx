@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { homeworkApi } from "@/lib/api/homework-client";
-import type { HomeworkQuestion } from "@/lib/api/types-homework";
+import type { HomeworkQuestion, TaskBlockV2 } from "@/lib/api/types-homework";
+import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
@@ -39,54 +40,6 @@ function toId(v: unknown): string {
 // One auto-start per page load (avoids double request in React Strict Mode)
 let autoStartAttempted = false;
 
-/** Isolated form so typing only re-renders this component, not the whole flow (smooth input). */
-function MetricAnswersForm({
-  label1,
-  label2,
-  loading,
-  error,
-  onSubmit,
-}: {
-  label1: string;
-  label2: string;
-  loading: boolean;
-  error: string | null;
-  onSubmit: (answer1: string, answer2: string) => void | Promise<void>;
-}) {
-  const [answer1, setAnswer1] = useState("");
-  const [answer2, setAnswer2] = useState("");
-
-  const handleSubmit = () => {
-    onSubmit(answer1, answer2);
-  };
-
-  return (
-    <Card className="p-6 space-y-4">
-      <p className="text-sm font-medium">Answer these two questions:</p>
-      <div className="space-y-3">
-        <label className="block text-sm font-medium">{label1}</label>
-        <textarea
-          className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          placeholder="Your answer…"
-          value={answer1}
-          onChange={(e) => setAnswer1(e.target.value)}
-        />
-        <label className="block text-sm font-medium">{label2}</label>
-        <textarea
-          className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          placeholder="Your answer…"
-          value={answer2}
-          onChange={(e) => setAnswer2(e.target.value)}
-        />
-      </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Submitting…" : "Continue"}
-      </Button>
-    </Card>
-  );
-}
-
 export default function HomeworkFlowCard() {
   const authReady = useAuthReady();
   const [step, setStep] = useState<Step | 0>(0);
@@ -94,8 +47,7 @@ export default function HomeworkFlowCard() {
   const [warmUpText, setWarmUpText] = useState("");
   const [taskText, setTaskText] = useState("");
   const [finalTaskText, setFinalTaskText] = useState("");
-  const [metricLabel1, setMetricLabel1] = useState("Metric question 1");
-  const [metricLabel2, setMetricLabel2] = useState("Metric question 2");
+  const [taskBlock, setTaskBlock] = useState<TaskBlockV2 | null>(null);
   const [questions, setQuestions] = useState<HomeworkQuestion[]>([]);
   const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
   const [reportText, setReportText] = useState("");
@@ -168,9 +120,8 @@ export default function HomeworkFlowCard() {
       const formData = buildFormData(blob, durationSeconds);
       const res = await homeworkApi.uploadRecording1(sessionId, formData, abortRef.current.signal);
       setTaskText(toText(res.task_text));
-      const r = res as { metric_question_1_text?: unknown; metric_question_2_text?: unknown; metric_question_1?: unknown; metric_question_2?: unknown };
-      setMetricLabel1(toText(r.metric_question_1_text ?? r.metric_question_1) || "Metric question 1");
-      setMetricLabel2(toText(r.metric_question_2_text ?? r.metric_question_2) || "Metric question 2");
+      const r = res as { task_block?: TaskBlockV2 };
+      setTaskBlock(r.task_block ?? null);
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -181,20 +132,23 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  const handleMetricAnswersSubmit = async (answer1: string, answer2: string) => {
+  const handleMetricAnswersSubmit = async (answer_1: string, answer_2: string, answer_3: string) => {
     if (!sessionId) return;
     setLoading(true);
     setError(null);
     try {
       const res = await homeworkApi.submitMetricAnswers(sessionId, {
-        metric_answer_1: answer1.trim(),
-        metric_answer_2: answer2.trim(),
+        metric_answer_1: answer_1,
+        metric_answer_2: answer_2,
+        metric_answer_3: answer_3,
       });
-      setFinalTaskText(toText(res.final_task_text));
+      const finalTask = res.final_task ?? res.final_task_text ?? "";
+      setFinalTaskText(toText(finalTask));
       setStep(3);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to submit");
-      toast.error(e instanceof Error ? e.message : "Failed to submit");
+      const msg = e instanceof Error ? e.message : "Failed to submit";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -340,7 +294,7 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: Task text + metric answers
+  // Step 2: Task text + 3 metric questions
   if (step === 2) {
     return (
       <Wrapper>
@@ -348,12 +302,12 @@ export default function HomeworkFlowCard() {
           <p className="text-sm font-medium text-muted-foreground mb-2">Your task (after first recording)</p>
           <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">{taskText}</p>
         </div>
-        <MetricAnswersForm
-          label1={metricLabel1}
-          label2={metricLabel2}
+        <AnswerMetricQuestionsScreen
+          sessionId={sessionId!}
+          taskBlock={taskBlock}
+          onSubmit={handleMetricAnswersSubmit}
           loading={loading}
           error={error}
-          onSubmit={handleMetricAnswersSubmit}
         />
       </Wrapper>
     );
