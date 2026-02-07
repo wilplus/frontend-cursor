@@ -414,6 +414,8 @@ export default function AdminStudentProfilePage() {
   const [focusEditOpen, setFocusEditOpen] = useState(false);
   const [focusEditTask, setFocusEditTask] = useState<FocusTask | null>(null);
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
+  const [warmUpTasksError, setWarmUpTasksError] = useState<string | null>(null);
+  const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
 
   const [overridesDraft, setOverridesDraft] = useState({
     assigned_post_question_ids: [] as string[],
@@ -423,7 +425,9 @@ export default function AdminStudentProfilePage() {
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
-        // Load profile first; then load pool data (questions, warm-up tasks, metrics)
+    setWarmUpTasksError(null);
+    setFocusTasksError(null);
+    // Load profile first; then load pool data (questions, warm-up tasks, metrics)
     adminApi
       .getStudentProfile(id)
       .then((p) => {
@@ -452,11 +456,23 @@ export default function AdminStudentProfilePage() {
         const [questionsRes, warmUpRes, focusRes, userMetricsRes] = results;
         if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
-        if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
-        else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
+        if (warmUpRes.status === "fulfilled") {
+          setWarmUpTasks(warmUpRes.value);
+          setWarmUpTasksError(null);
+        } else {
+          const msg = warmUpRes.reason?.message ?? "Could not load warm-up tasks";
+          setWarmUpTasksError(msg);
+          toast.error(msg);
+        }
         // Empty focus_tasks (200 + []) is success; only show error when the request actually failed.
-        if (focusRes.status === "fulfilled") setFocusTasks(focusRes.value);
-        else toast.error(focusRes.reason?.message ?? "Could not load focus tasks");
+        if (focusRes.status === "fulfilled") {
+          setFocusTasks(focusRes.value);
+          setFocusTasksError(null);
+        } else {
+          const msg = focusRes.reason?.message ?? "Could not load focus tasks";
+          setFocusTasksError(msg);
+          toast.error(msg);
+        }
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
         else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
       })
