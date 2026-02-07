@@ -9,27 +9,32 @@
 -- same DB your backend uses.
 -- ============================================================================
 
--- Warm-up tasks (per-student)
-ALTER TABLE v2_warm_up_tasks
-ADD COLUMN IF NOT EXISTS max_performance_score INTEGER DEFAULT 10;
-
--- Focus tasks (per-student) — add if your v2_focus_tasks was created without it
-ALTER TABLE v2_focus_tasks
-ADD COLUMN IF NOT EXISTS max_performance_score INTEGER DEFAULT 10;
-
--- Optional: add to pool tables if they exist and are missing the column
-ALTER TABLE v2_warm_up_task_pool
-ADD COLUMN IF NOT EXISTS max_performance_score INTEGER DEFAULT 10;
-
-ALTER TABLE v2_focus_task_pool
-ADD COLUMN IF NOT EXISTS max_performance_score INTEGER DEFAULT 10;
-
--- Main task table (if your app uses it and the column is missing)
-ALTER TABLE v2_tasks
+-- 1) Warm-up tasks (per-student)
+ALTER TABLE public.v2_warm_up_tasks
 ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
 CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
 
--- Reload PostgREST schema cache so it sees the new column
+-- 2) Focus tasks (per-student)
+ALTER TABLE public.v2_focus_tasks
+ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
+CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+
+-- 3) Main task table (if your app uses it)
+ALTER TABLE public.v2_tasks
+ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
+CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+
+-- Optional: pool tables (if they exist and are missing the column)
+ALTER TABLE public.v2_warm_up_task_pool
+ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
+CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+
+ALTER TABLE public.v2_focus_task_pool
+ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
+CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+
+-- CRITICAL: Reload PostgREST schema cache. Wait 5–10 seconds after this
+-- before retrying the admin Save. PGRST204 often means cache was stale.
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================================================
