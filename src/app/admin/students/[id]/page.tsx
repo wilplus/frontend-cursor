@@ -549,6 +549,7 @@ export default function AdminStudentProfilePage() {
       .map((t) => t.pool_task_id ?? warmUpPoolTasks.find((p) => p.text === t.text)?.id)
       .filter((x): x is string => Boolean(x));
   })();
+  // Backend must support PUT /v2/admin/students/:id/warm-up-tasks with body { pool_task_ids } (sync from pool). See docs/BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md.
   const handleWarmUpConfirm = (selectedIds: string[]) => {
     setModalWarmUp(false);
     const ordered = warmUpPoolTasks.map((p) => p.id).filter((id) => selectedIds.includes(id));
