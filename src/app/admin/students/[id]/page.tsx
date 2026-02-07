@@ -346,7 +346,7 @@ function FocusQuestionEditModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="focus-question-edit-title" className="text-lg font-semibold mb-4">
-          {task ? "Edit focus question" : "Add focus question"}
+          {task ? "Edit focus task" : "Add focus task"}
         </h2>
         <div className="space-y-4">
           <div>
@@ -640,7 +640,7 @@ export default function AdminStudentProfilePage() {
       .putStudentFocusQuestionsSync(id, { pool_question_ids: ordered })
       .then(() => {
         load();
-        toast.success("Focus questions updated");
+        toast.success("Focus tasks updated");
       })
       .catch((e) => toast.error(e?.message ?? "Failed to save"))
       .finally(() => setSaving(false));
@@ -803,10 +803,10 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Focus questions: same pattern as warm-up (pool + per-student list, add/edit/delete, no limit) */}
+          {/* Focus tasks: same pattern as warm-up (pool + per-student list, add/edit/delete, no limit) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Focus questions</p>
+              <p className="text-sm font-medium">Focus tasks</p>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -817,16 +817,13 @@ export default function AdminStudentProfilePage() {
                     setFocusEditOpen(true);
                   }}
                 >
-                  Add focus question
+                  + Add
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setModalFocus(true)}>
                   Manage list
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Questions/tasks for this student. Add, edit, delete. No limit.
-            </p>
             <ul className="space-y-2">
               {[...focusQuestions]
                 .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
@@ -862,7 +859,7 @@ export default function AdminStudentProfilePage() {
                 ))}
             </ul>
             {focusQuestions.length === 0 && (
-              <p className="text-sm text-muted-foreground">No focus questions. Click Add focus question or Manage list.</p>
+              <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to create one.</p>
             )}
           </div>
 
@@ -1008,7 +1005,7 @@ export default function AdminStudentProfilePage() {
       <SelectFromPoolModal
         open={modalFocus}
         onOpenChange={setModalFocus}
-        title="Select Focus Questions"
+        title="Select Focus Tasks"
         pool={focusPool}
         selectedIds={focusSelectedIds}
         onConfirm={handleFocusConfirm}
