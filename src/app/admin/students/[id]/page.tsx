@@ -201,7 +201,7 @@ function WarmUpTaskEditModal({
 
 const POST_ANSWER_TYPES = ["text", "scale", "binary"] as const;
 
-// —— Edit post-recording question (pool): text + answer_type ——
+// —— Create/Edit post-recording question (per-student): text + answer_type; same pattern as warm-up/focus. ——
 function PostQuestionEditModal({
   open,
   onOpenChange,
@@ -219,11 +219,11 @@ function PostQuestionEditModal({
   const [answerType, setAnswerType] = useState("text");
 
   useEffect(() => {
-    if (open && question) {
-      setText(question.text);
-      setAnswerType(question.answer_type || "text");
+    if (open) {
+      setText(question?.text ?? "");
+      setAnswerType(question?.answer_type ?? "text");
     }
-  }, [open, question]);
+  }, [open, question?.text, question?.answer_type]);
 
   const handleSave = async () => {
     const trimmedText = text.trim();
@@ -254,7 +254,7 @@ function PostQuestionEditModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="post-question-edit-title" className="text-lg font-semibold mb-4">
-          Edit post-recording question
+          {question ? "Edit post-recording question" : "Add post-recording question"}
         </h2>
         <div className="space-y-4">
           <div>
@@ -407,6 +407,8 @@ export default function AdminStudentProfilePage() {
   const [modalQuestions, setModalQuestions] = useState(false);
   const [postQuestionEditOpen, setPostQuestionEditOpen] = useState(false);
   const [postQuestionEdit, setPostQuestionEdit] = useState<PostQuestion | null>(null);
+  const [postRecordingQuestions, setPostRecordingQuestions] = useState<PostQuestion[]>([]);
+  const [postRecordingQuestionsError, setPostRecordingQuestionsError] = useState<string | null>(null);
 
   const [modalFocus, setModalFocus] = useState(false);
   const [focusPoolTasks, setFocusPoolTasks] = useState<FocusTaskPoolItem[]>([]);
@@ -417,9 +419,6 @@ export default function AdminStudentProfilePage() {
   const [warmUpTasksError, setWarmUpTasksError] = useState<string | null>(null);
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
 
-  const [overridesDraft, setOverridesDraft] = useState({
-    assigned_post_question_ids: [] as string[],
-  });
   const [contextDraft, setContextDraft] = useState("");
 
   const load = useCallback(() => {
@@ -427,6 +426,7 @@ export default function AdminStudentProfilePage() {
     setLoading(true);
     setWarmUpTasksError(null);
     setFocusTasksError(null);
+    setPostRecordingQuestionsError(null);
     // Load profile first; then load pool data (questions, warm-up tasks, metrics)
     adminApi
       .getStudentProfile(id)
@@ -473,8 +473,12 @@ export default function AdminStudentProfilePage() {
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
         else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
         if (studentQuestionsRes.status === "fulfilled") {
-          const list = studentQuestionsRes.value;
-          setOverridesDraft({ assigned_post_question_ids: list.map((q) => q.id) });
+          setPostRecordingQuestions(studentQuestionsRes.value);
+          setPostRecordingQuestionsError(null);
+        } else {
+          const msg = studentQuestionsRes.reason?.message ?? "Could not load post-recording questions";
+          setPostRecordingQuestionsError(msg);
+          toast.error(msg);
         }
       })
       .catch((e) => {
@@ -507,18 +511,6 @@ export default function AdminStudentProfilePage() {
       .catch((e) => toast.error(e?.message ?? "Could not load pool"))
       .finally(() => setFocusPoolLoading(false));
   }, [modalFocus, id]);
-
-  const saveOverrides = () => {
-    setSaving(true);
-    adminApi
-      .putStudentPostRecordingQuestionsSync(id, { pool_question_ids: overridesDraft.assigned_post_question_ids })
-      .then(() => {
-        toast.success("Saved");
-        load();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
-  };
 
   const saveSpeakerProfile = () => {
     setSaving(true);
@@ -618,13 +610,26 @@ export default function AdminStudentProfilePage() {
     setPostQuestions((prev) => [...prev, question]);
     return { id: question.id, label: question.text };
   };
+  const postRecordingSelectedIds: string[] = postRecordingQuestions.map((q) => q.id);
 
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
-    if (!postQuestionEdit) return;
     setSaving(true);
     try {
-      await adminApi.updatePostQuestion(postQuestionEdit.id, { text: data.text, answer_type: data.answer_type });
-      toast.success("Question updated");
+      if (postQuestionEdit) {
+        await adminApi.updatePostRecordingQuestion(id, postQuestionEdit.id, {
+          text: data.text,
+          answer_type: data.answer_type,
+        });
+        toast.success("Question updated");
+      } else {
+        const res = await adminApi.createPostRecordingQuestion(id, {
+          text: data.text,
+          answer_type: data.answer_type,
+        });
+        const created = res.post_recording_question ?? (res as { question?: PostQuestion }).question;
+        if (created) setPostRecordingQuestions((prev) => [...prev, created]);
+        toast.success("Question added");
+      }
       load();
     } catch (e) {
       toast.error((e as Error).message);
@@ -632,6 +637,18 @@ export default function AdminStudentProfilePage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const deletePostRecordingQuestion = (questionId: string) => {
+    setSaving(true);
+    adminApi
+      .deletePostRecordingQuestion(id, questionId)
+      .then(() => {
+        load();
+        toast.success("Deleted");
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
   };
 
   const deleteWarmUpTask = (taskId: string) => {
@@ -712,7 +729,7 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
-  const assignedQuestions = postQuestions.filter((q) => overridesDraft.assigned_post_question_ids.includes(q.id));
+  const assignedQuestions = postRecordingQuestions;
 
   const reports = (profile?.sessions ?? [])
     .filter((s) => s.report_preview?.report_text_preview)
@@ -757,14 +774,9 @@ export default function AdminStudentProfilePage() {
         title="Homework Configuration"
         description="Select items from the global pool or create new ones. New items are added to the pool for reuse."
         action={
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={sendAssignment} className="gap-2">
-              <Send className="h-4 w-4" aria-hidden /> Send Homework
-            </Button>
-            <Button type="button" onClick={saveOverrides} disabled={saving}>
-              Save
-            </Button>
-          </div>
+          <Button type="button" variant="outline" onClick={sendAssignment} className="gap-2">
+            <Send className="h-4 w-4" aria-hidden /> Send Homework
+          </Button>
         }
       >
         <div className="space-y-6">
@@ -898,14 +910,33 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Post-recording questions (mirrors focus_tasks: list + Manage list → Confirm persists) */}
+          {/* Post-recording questions (same pattern as warm-up/focus: + Add, Manage list, Edit, Delete) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Post-recording questions</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
-                Manage list
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPostQuestionEdit(null);
+                    setPostQuestionEditOpen(true);
+                  }}
+                >
+                  + Add
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
+                  Manage list
+                </Button>
+              </div>
             </div>
+            {postRecordingQuestionsError && (
+              <p className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+                {postRecordingQuestionsError}
+              </p>
+            )}
             <ul className="space-y-2">
               {assignedQuestions.map((q) => (
                 <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
@@ -924,20 +955,11 @@ export default function AdminStudentProfilePage() {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                        type="button"
-                        onClick={() => {
-                          setSaving(true);
-                          adminApi
-                            .putStudentPostRecordingQuestionsSync(id, {
-                              pool_question_ids: overridesDraft.assigned_post_question_ids.filter((x) => x !== q.id),
-                            })
-                            .then(() => { load(); toast.success("Removed"); })
-                            .catch((e) => toast.error(e.message))
-                            .finally(() => setSaving(false));
-                        }}
-                        disabled={saving}
+                      type="button"
+                      onClick={() => deletePostRecordingQuestion(q.id)}
+                      disabled={saving}
                       className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label="Remove"
+                      aria-label="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -946,7 +968,7 @@ export default function AdminStudentProfilePage() {
               ))}
             </ul>
             {assignedQuestions.length === 0 && (
-              <p className="text-sm text-muted-foreground">No post-recording questions. Click Manage list to assign.</p>
+              <p className="text-sm text-muted-foreground">No post-recording questions. Click + Add to create one.</p>
             )}
           </div>
 
@@ -1053,7 +1075,7 @@ export default function AdminStudentProfilePage() {
         onOpenChange={setModalQuestions}
         title="Select Post-recording Questions"
         pool={questionsPool}
-        selectedIds={overridesDraft.assigned_post_question_ids}
+        selectedIds={postRecordingSelectedIds}
         onConfirm={handleQuestionsConfirm}
         allowCreate
         onCreateNew={handleQuestionsCreate}
