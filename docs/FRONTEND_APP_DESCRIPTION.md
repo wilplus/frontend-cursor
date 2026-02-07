@@ -135,8 +135,10 @@ Detailed spec (VAD, pause events, 10 s window, benchmarks, troubleshooting): **d
 
 ### Overview
 
+- **Admin nav:** Only the **Students** tab. There is no separate "Tasks", "Exercises", "Questions", or "Metrics" tab. Tasks, questions, and metrics are managed inside each student profile (e.g. "Select Focus Tasks" modal, post-recording questions, metrics).
+- **`/api/admin/tasks`** is an API used by the student profile (Focus Tasks modal), not a tab. The BFF **must** implement **`src/app/api/admin/tasks/route.ts`** (and **`tasks/[id]/route.ts`**) so the student profile can load and create focus tasks; without it, the profile gets 404 when opening or using Focus Tasks.
 - The admin logs in with credentials that exist in the backend's **admin_users** table. All admin API calls use the same Supabase token but the backend returns **403** if the user is not an admin.
-- The frontend calls **`/api/admin/*`** (e.g. `/api/admin/students`, `/api/admin/students/:id`). The BFF proxies these to the backend **`/v2/admin/*`** with the admin's token.
+- The frontend calls **`/api/admin/*`** (e.g. `/api/admin/students`, `/api/admin/students/:id`, `/api/admin/tasks`). The BFF proxies these to the backend **`/v2/admin/*`** with the admin's token.
 
 ### Students list
 

@@ -6,10 +6,11 @@ This doc describes what exists in the **frontend repo** for the admin panel: wha
 
 ## 1. How the admin panel is structured
 
-- **Entry:** `/admin` redirects to `/admin/students`. There is **no Tasks tab**; only Students.
+- **Admin nav:** Only the **Students** tab. No separate "Tasks", "Exercises", "Questions", or "Metrics" tabs. Tasks, questions, and metrics are managed inside each student profile (modals).
+- **Entry:** `/admin` redirects to `/admin/students`.
 - **Pages that render UI:**
   - **`/admin/students`** — List of students (from `GET /api/admin/students`).
-  - **`/admin/students/[id]`** — Single student profile: Homework Configuration (warm-up tasks, post questions, metrics), Speaker Profile, Reports. **Focus tasks and the `/api/admin/tasks` API have been removed**; the UI does not call them.
+  - **`/admin/students/[id]`** — Single student profile: Homework Configuration (warm-up tasks, **focus tasks** (from GET /api/admin/tasks), post questions, metrics), Speaker Profile, Reports. Focus tasks use the **`/api/admin/tasks`** API; the BFF route is **required** for this page.
 - **Pages that redirect to students:** `/admin/exercises`, `/admin/metrics`, `/admin/questions`, `/admin/recordings` — they immediately redirect to `/admin/students`.
 - **Other:** `/admin/user/[userId]`, `/admin/recordings` (feedback list), etc. exist but the main flow is Students → [student] → config.
 
@@ -34,6 +35,10 @@ The admin UI uses `adminFetch(path)`, which builds the URL as **`/api/admin${pat
 | createExercise(data)      | POST   | `/api/admin/exercises`       |
 | updateExercise(id, data)  | PUT    | `/api/admin/exercises/:id`   |
 | deleteExercise(id)        | DELETE | `/api/admin/exercises/:id`   |
+| getTasks()                | GET    | `/api/admin/tasks`           |
+| createTask(data)          | POST   | `/api/admin/tasks`          |
+| updateTask(id, data)      | PUT    | `/api/admin/tasks/:id`      |
+| deleteTask(id)            | DELETE | `/api/admin/tasks/:id`      |
 | getPostQuestions()        | GET    | `/api/admin/post-recording-questions` |
 | createPostQuestion(data)  | POST   | `/api/admin/post-recording-questions` |
 | updatePostQuestion(id, data) | PUT  | `/api/admin/post-recording-questions/:id` |
