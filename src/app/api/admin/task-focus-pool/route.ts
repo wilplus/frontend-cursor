@@ -10,11 +10,11 @@ export async function GET(request: NextRequest) {
   }
   const backend = getBackendUrl();
   if (!backend) {
-    return NextResponse.json({ focus_task_pool: [] });
+    return NextResponse.json({ task_focus_pool: [] });
   }
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/focus-task-pool`, {
+    res = await fetch(`${backend}/v2/admin/task-focus-pool`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  const pool = Array.isArray(data.focus_task_pool) ? data.focus_task_pool : [];
-  return NextResponse.json({ focus_task_pool: pool });
+  const task_focus_pool = Array.isArray(data.task_focus_pool) ? data.task_focus_pool : [];
+  return NextResponse.json({ task_focus_pool });
 }
 
 export async function POST(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/focus-task-pool`, {
+    res = await fetch(`${backend}/v2/admin/task-focus-pool`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

@@ -194,63 +194,63 @@ export const adminApi = {
     adminFetch<{ status: string }>(`/students/${userId}/send-assignment`, { method: "POST" }),
 
   getWarmUpTasks: (userId: string) =>
-    adminFetch<{ warm_up_tasks: WarmUpTask[] }>(`/students/${userId}/warm-up-tasks`).then((r) => r.warm_up_tasks ?? []),
+    adminFetch<{ task_warm_up: WarmUpTask[] }>(`/students/${userId}/task-warm-up`).then((r) => r.task_warm_up ?? []),
 
-  /** Sync student's warm-up tasks from pool. Body: { pool_task_ids: string[] } (order = assignment order). */
+  /** Sync student's warm-up tasks from pool. Body: { pool_task_ids: string[] }. */
   putStudentWarmUpTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
-    adminFetch<{ warm_up_tasks: WarmUpTask[] }>(`/students/${userId}/warm-up-tasks`, { method: "PUT", body }),
+    adminFetch<{ task_warm_up: WarmUpTask[] }>(`/students/${userId}/task-warm-up`, { method: "PUT", body }),
 
   createWarmUpTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ warm_up_task: WarmUpTask }>(`/students/${userId}/warm-up-tasks`, { method: "POST", body: data }),
+    adminFetch<{ task_warm_up: WarmUpTask }>(`/students/${userId}/task-warm-up`, { method: "POST", body: data }),
 
   updateWarmUpTask: (userId: string, taskId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ warm_up_task: WarmUpTask }>(`/students/${userId}/warm-up-tasks/${taskId}`, { method: "PUT", body: data }),
+    adminFetch<{ task_warm_up: WarmUpTask }>(`/students/${userId}/task-warm-up/${taskId}`, { method: "PUT", body: data }),
 
   deleteWarmUpTask: (userId: string, taskId: string) =>
-    adminFetch<Record<string, unknown>>(`/students/${userId}/warm-up-tasks/${taskId}`, { method: "DELETE" }),
+    adminFetch<Record<string, unknown>>(`/students/${userId}/task-warm-up/${taskId}`, { method: "DELETE" }),
 
   getWarmUpTaskPool: () =>
-    adminFetch<{ warm_up_task_pool?: WarmUpPoolTask[] }>("/warm-up-task-pool").then((r) =>
-      Array.isArray(r.warm_up_task_pool) ? r.warm_up_task_pool : []
+    adminFetch<{ task_warm_up_pool?: WarmUpPoolTask[] }>("/task-warm-up-pool").then((r) =>
+      Array.isArray(r.task_warm_up_pool) ? r.task_warm_up_pool : []
     ),
 
   createWarmUpPoolTask: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ warm_up_task: WarmUpPoolTask }>("/warm-up-task-pool", { method: "POST", body: data }),
+    adminFetch<{ task_warm_up: WarmUpPoolTask }>("/task-warm-up-pool", { method: "POST", body: data }),
 
   updateWarmUpPoolTask: (poolId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ warm_up_task: WarmUpPoolTask }>(`/warm-up-task-pool/${poolId}`, { method: "PUT", body: data }),
+    adminFetch<{ task_warm_up: WarmUpPoolTask }>(`/task-warm-up-pool/${poolId}`, { method: "PUT", body: data }),
 
   deleteWarmUpPoolTask: (poolId: string) =>
-    adminFetch<Record<string, unknown>>(`/warm-up-task-pool/${poolId}`, { method: "DELETE" }),
+    adminFetch<Record<string, unknown>>(`/task-warm-up-pool/${poolId}`, { method: "DELETE" }),
 
   getFocusTasks: (userId: string) =>
-    adminFetch<{ focus_tasks: FocusTask[] }>(`/students/${userId}/focus-tasks`).then((r) => r.focus_tasks ?? []),
+    adminFetch<{ task_focus: FocusTask[] }>(`/students/${userId}/task-focus`).then((r) => r.task_focus ?? []),
 
   putStudentFocusTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
-    adminFetch<{ focus_tasks: FocusTask[] }>(`/students/${userId}/focus-tasks`, { method: "PUT", body }),
+    adminFetch<{ task_focus: FocusTask[] }>(`/students/${userId}/task-focus`, { method: "PUT", body }),
 
   createFocusTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_task: FocusTask }>(`/students/${userId}/focus-tasks`, { method: "POST", body: data }),
+    adminFetch<{ task_focus: FocusTask }>(`/students/${userId}/task-focus`, { method: "POST", body: data }),
 
   updateFocusTask: (userId: string, taskId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_task: FocusTask }>(`/students/${userId}/focus-tasks/${taskId}`, { method: "PUT", body: data }),
+    adminFetch<{ task_focus: FocusTask }>(`/students/${userId}/task-focus/${taskId}`, { method: "PUT", body: data }),
 
   deleteFocusTask: (userId: string, taskId: string) =>
-    adminFetch<Record<string, unknown>>(`/students/${userId}/focus-tasks/${taskId}`, { method: "DELETE" }),
+    adminFetch<Record<string, unknown>>(`/students/${userId}/task-focus/${taskId}`, { method: "DELETE" }),
 
   getFocusTaskPool: () =>
-    adminFetch<{ focus_task_pool?: FocusTaskPoolItem[] }>("/focus-task-pool").then((r) =>
-      Array.isArray(r.focus_task_pool) ? r.focus_task_pool : []
+    adminFetch<{ task_focus_pool?: FocusTaskPoolItem[] }>("/task-focus-pool").then((r) =>
+      Array.isArray(r.task_focus_pool) ? r.task_focus_pool : []
     ),
 
   createFocusTaskPoolItem: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_task: FocusTaskPoolItem }>("/focus-task-pool", { method: "POST", body: data }),
+    adminFetch<{ task_focus: FocusTaskPoolItem }>("/task-focus-pool", { method: "POST", body: data }),
 
   updateFocusTaskPoolItem: (poolId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ focus_task: FocusTaskPoolItem }>(`/focus-task-pool/${poolId}`, { method: "PUT", body: data }),
+    adminFetch<{ task_focus: FocusTaskPoolItem }>(`/task-focus-pool/${poolId}`, { method: "PUT", body: data }),
 
   deleteFocusTaskPoolItem: (poolId: string) =>
-    adminFetch<Record<string, unknown>>(`/focus-task-pool/${poolId}`, { method: "DELETE" }),
+    adminFetch<Record<string, unknown>>(`/task-focus-pool/${poolId}`, { method: "DELETE" }),
 
   getExercises: () =>
     adminFetch<{ exercises: Exercise[] }>("/exercises").then((r) => r.exercises ?? []),
@@ -276,17 +276,39 @@ export const adminApi = {
   deleteTask: (id: string) =>
     adminFetch<{ status: string }>(`/tasks/${id}`, { method: "DELETE" }),
 
-  getPostQuestions: () =>
-    adminFetch<{ questions: PostQuestion[] }>("/post-recording-questions").then((r) => r.questions ?? []),
+  /** Pool of post-recording questions (global). */
+  getPostRecordingQuestionsPool: () =>
+    adminFetch<{ post_recording_questions_pool?: PostQuestion[] }>("/post-recording-questions-pool").then((r) =>
+      Array.isArray(r.post_recording_questions_pool) ? r.post_recording_questions_pool : []
+    ),
+
+  /** Per-student post-recording questions list. */
+  getStudentPostRecordingQuestions: (userId: string) =>
+    adminFetch<{ post_recording_questions: PostQuestion[] }>(`/students/${userId}/post-recording-questions`).then(
+      (r) => r.post_recording_questions ?? []
+    ),
+
+  /** Sync from pool. Body: { pool_question_ids: string[] }. */
+  putStudentPostRecordingQuestionsSync: (userId: string, body: { pool_question_ids: string[] }) =>
+    adminFetch<{ post_recording_questions: PostQuestion[] }>(`/students/${userId}/post-recording-questions`, {
+      method: "PUT",
+      body,
+    }),
 
   createPostQuestion: (data: Partial<PostQuestion>) =>
-    adminFetch<{ question: PostQuestion }>("/post-recording-questions", { method: "POST", body: data }),
+    adminFetch<{ question: PostQuestion }>("/post-recording-questions-pool", { method: "POST", body: data }),
 
   updatePostQuestion: (id: string, data: Partial<PostQuestion>) =>
-    adminFetch<{ question: PostQuestion }>(`/post-recording-questions/${id}`, { method: "PUT", body: data }),
+    adminFetch<{ question: PostQuestion }>(`/post-recording-questions-pool/${id}`, { method: "PUT", body: data }),
 
   deletePostQuestion: (id: string) =>
-    adminFetch<{ status: string }>(`/post-recording-questions/${id}`, { method: "DELETE" }),
+    adminFetch<{ status: string }>(`/post-recording-questions-pool/${id}`, { method: "DELETE" }),
+
+  /** @deprecated Use getPostRecordingQuestionsPool. Kept for compatibility. */
+  getPostQuestions: () =>
+    adminFetch<{ post_recording_questions_pool?: PostQuestion[] }>("/post-recording-questions-pool").then((r) =>
+      Array.isArray(r.post_recording_questions_pool) ? r.post_recording_questions_pool : []
+    ),
 
   getMetricLabels: () =>
     adminFetch<{ metrics?: MetricLabel[]; metric_labels?: MetricLabel[] }>("/metrics").then(

@@ -432,9 +432,6 @@ export default function AdminStudentProfilePage() {
       .getStudentProfile(id)
       .then((p) => {
         setProfile(p);
-        setOverridesDraft({
-          assigned_post_question_ids: p.overrides?.assigned_post_question_ids ?? [],
-        });
         const sp = p.speaker_profile || {};
         const parts = [
           sp.main_goal,
@@ -445,17 +442,18 @@ export default function AdminStudentProfilePage() {
         ].filter(Boolean);
         setContextDraft(parts.join("\n\n"));
         return Promise.allSettled([
-          adminApi.getPostQuestions(),
+          adminApi.getPostRecordingQuestionsPool(),
           adminApi.getWarmUpTasks(id),
           adminApi.getFocusTasks(id),
           getUserMetricQuestions(),
+          adminApi.getStudentPostRecordingQuestions(id),
         ]);
       })
       .then((results) => {
         if (!results) return;
-        const [questionsRes, warmUpRes, focusRes, userMetricsRes] = results;
-        if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
-        else toast.error(questionsRes.reason?.message ?? "Could not load questions");
+        const [poolRes, warmUpRes, focusRes, userMetricsRes, studentQuestionsRes] = results;
+        if (poolRes.status === "fulfilled") setPostQuestions(poolRes.value);
+        else toast.error(poolRes.reason?.message ?? "Could not load questions pool");
         if (warmUpRes.status === "fulfilled") {
           setWarmUpTasks(warmUpRes.value);
           setWarmUpTasksError(null);
@@ -464,7 +462,6 @@ export default function AdminStudentProfilePage() {
           setWarmUpTasksError(msg);
           toast.error(msg);
         }
-        // Empty focus_tasks (200 + []) is success; only show error when the request actually failed.
         if (focusRes.status === "fulfilled") {
           setFocusTasks(focusRes.value);
           setFocusTasksError(null);
@@ -475,6 +472,10 @@ export default function AdminStudentProfilePage() {
         }
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
         else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
+        if (studentQuestionsRes.status === "fulfilled") {
+          const list = studentQuestionsRes.value;
+          setOverridesDraft({ assigned_post_question_ids: list.map((q) => q.id) });
+        }
       })
       .catch((e) => {
         toast.error(e.message);
@@ -510,9 +511,7 @@ export default function AdminStudentProfilePage() {
   const saveOverrides = () => {
     setSaving(true);
     adminApi
-      .putOverrides(id, {
-        assigned_post_question_ids: overridesDraft.assigned_post_question_ids,
-      })
+      .putStudentPostRecordingQuestionsSync(id, { pool_question_ids: overridesDraft.assigned_post_question_ids })
       .then(() => {
         toast.success("Saved");
         load();
@@ -564,7 +563,7 @@ export default function AdminStudentProfilePage() {
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
     const res = await adminApi.createWarmUpPoolTask({ text });
-    const task = res.warm_up_task;
+    const task = res.task_warm_up;
     setWarmUpPoolTasks((prev) => [...prev, task]);
     return {
       id: task.id,
@@ -599,13 +598,13 @@ export default function AdminStudentProfilePage() {
     }
   };
 
-  // Post-recording questions (mirrors focus_tasks): Confirm persists via putOverrides, then refetch.
+  // Post-recording questions (per-student list + pool); sync via putStudentPostRecordingQuestionsSync.
   const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
   const handleQuestionsConfirm = (selectedIds: string[]) => {
     setModalQuestions(false);
     setSaving(true);
     adminApi
-      .putOverrides(id, { assigned_post_question_ids: selectedIds })
+      .putStudentPostRecordingQuestionsSync(id, { pool_question_ids: selectedIds })
       .then(() => {
         load();
         toast.success("Post-recording questions updated");
@@ -615,8 +614,9 @@ export default function AdminStudentProfilePage() {
   };
   const handleQuestionsCreate = async (text: string): Promise<PoolItem> => {
     const res = await adminApi.createPostQuestion({ text, answer_type: "text" });
-    setPostQuestions((prev) => [...prev, res.question]);
-    return { id: res.question.id, label: res.question.text };
+    const question = res.question;
+    setPostQuestions((prev) => [...prev, question]);
+    return { id: question.id, label: question.text };
   };
 
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
@@ -670,7 +670,7 @@ export default function AdminStudentProfilePage() {
   };
   const handleFocusCreate = async (text: string): Promise<PoolItem> => {
     const res = await adminApi.createFocusTaskPoolItem({ text, order_index: 0, max_performance_score: 1 });
-    const item = res.focus_task;
+    const item = res.task_focus;
     setFocusPoolTasks((prev) => [...prev, item]);
     return {
       id: item.id,
@@ -928,8 +928,8 @@ export default function AdminStudentProfilePage() {
                         onClick={() => {
                           setSaving(true);
                           adminApi
-                            .putOverrides(id, {
-                              assigned_post_question_ids: overridesDraft.assigned_post_question_ids.filter((x) => x !== q.id),
+                            .putStudentPostRecordingQuestionsSync(id, {
+                              pool_question_ids: overridesDraft.assigned_post_question_ids.filter((x) => x !== q.id),
                             })
                             .then(() => { load(); toast.success("Removed"); })
                             .catch((e) => toast.error(e.message))
