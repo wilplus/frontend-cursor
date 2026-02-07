@@ -14,6 +14,8 @@ import {
   type PostQuestion,
   type WarmUpTask,
   type WarmUpPoolTask,
+  type FocusQuestion,
+  type FocusQuestionPoolItem,
 } from "@/lib/api/admin-client";
 import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
@@ -197,6 +199,191 @@ function WarmUpTaskEditModal({
   );
 }
 
+const POST_ANSWER_TYPES = ["text", "scale", "binary"] as const;
+
+// —— Edit post-recording question (pool): text + answer_type ——
+function PostQuestionEditModal({
+  open,
+  onOpenChange,
+  question,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  question: PostQuestion | null;
+  onSave: (data: { text: string; answer_type: string }) => Promise<void>;
+  saving: boolean;
+}) {
+  const [text, setText] = useState("");
+  const [answerType, setAnswerType] = useState("text");
+
+  useEffect(() => {
+    if (open && question) {
+      setText(question.text);
+      setAnswerType(question.answer_type || "text");
+    }
+  }, [open, question]);
+
+  const handleSave = async () => {
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      toast.error("Question text is required.");
+      return;
+    }
+    try {
+      await onSave({ text: trimmedText, answer_type: answerType });
+      onOpenChange(false);
+    } catch {
+      // onSave already toasts error
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => onOpenChange(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="post-question-edit-title"
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="post-question-edit-title" className="text-lg font-semibold mb-4">
+          Edit post-recording question
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Question text</label>
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="e.g. How did this session feel?"
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Answer type</label>
+            <select
+              value={answerType}
+              onChange={(e) => setAnswerType(e.target.value)}
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {POST_ANSWER_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSave} disabled={saving}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// —— Edit/Create focus question modal: text + Max score (0–1); same pattern as warm-up. ——
+function FocusQuestionEditModal({
+  open,
+  onOpenChange,
+  task,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task: FocusQuestion | null;
+  onSave: (data: { text: string; max_performance_score: number }) => Promise<void>;
+  saving: boolean;
+}) {
+  const [text, setText] = useState("");
+  const [scoreInput, setScoreInput] = useState("1");
+
+  useEffect(() => {
+    if (open) {
+      setText(task?.text ?? "");
+      setScoreInput(String(task?.max_performance_score ?? 1));
+    }
+  }, [open, task?.text, task?.max_performance_score]);
+
+  const handleSave = async () => {
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      toast.error("Question text is required.");
+      return;
+    }
+    const clampedScore = Math.min(1, Math.max(0, Number(scoreInput) || 1));
+    try {
+      await onSave({ text: trimmedText, max_performance_score: clampedScore });
+      onOpenChange(false);
+    } catch {
+      // onSave already toasts error
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => onOpenChange(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="focus-question-edit-title"
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="focus-question-edit-title" className="text-lg font-semibold mb-4">
+          {task ? "Edit focus question" : "Add focus question"}
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Question text</label>
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="e.g. What do you want to improve in this session?"
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Max score (0–1)</label>
+            <Input
+              type="number"
+              min={0}
+              max={1}
+              step={0.1}
+              value={scoreInput}
+              onChange={(e) => setScoreInput(e.target.value)}
+              className="w-full"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSave} disabled={saving}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminStudentProfilePage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
@@ -218,6 +405,15 @@ export default function AdminStudentProfilePage() {
   const [warmUpEditOpen, setWarmUpEditOpen] = useState(false);
   const [warmUpEditTask, setWarmUpEditTask] = useState<WarmUpTask | null>(null);
   const [modalQuestions, setModalQuestions] = useState(false);
+  const [postQuestionEditOpen, setPostQuestionEditOpen] = useState(false);
+  const [postQuestionEdit, setPostQuestionEdit] = useState<PostQuestion | null>(null);
+
+  const [modalFocus, setModalFocus] = useState(false);
+  const [focusPoolTasks, setFocusPoolTasks] = useState<FocusQuestionPoolItem[]>([]);
+  const [focusPoolLoading, setFocusPoolLoading] = useState(false);
+  const [focusEditOpen, setFocusEditOpen] = useState(false);
+  const [focusEditTask, setFocusEditTask] = useState<FocusQuestion | null>(null);
+  const [focusQuestions, setFocusQuestions] = useState<FocusQuestion[]>([]);
 
   const [overridesDraft, setOverridesDraft] = useState({
     assigned_post_question_ids: [] as string[],
@@ -247,16 +443,19 @@ export default function AdminStudentProfilePage() {
         return Promise.allSettled([
           adminApi.getPostQuestions(),
           adminApi.getWarmUpTasks(id),
+          adminApi.getFocusQuestions(id),
           getUserMetricQuestions(),
         ]);
       })
       .then((results) => {
         if (!results) return;
-        const [questionsRes, warmUpRes, userMetricsRes] = results;
+        const [questionsRes, warmUpRes, focusRes, userMetricsRes] = results;
         if (questionsRes.status === "fulfilled") setPostQuestions(questionsRes.value);
         else toast.error(questionsRes.reason?.message ?? "Could not load questions");
         if (warmUpRes.status === "fulfilled") setWarmUpTasks(warmUpRes.value);
         else toast.error(warmUpRes.reason?.message ?? "Could not load warm-up tasks");
+        if (focusRes.status === "fulfilled") setFocusQuestions(focusRes.value);
+        else toast.error(focusRes.reason?.message ?? "Could not load focus questions");
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
         else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
       })
@@ -279,6 +478,17 @@ export default function AdminStudentProfilePage() {
       .catch((e) => toast.error(e?.message ?? "Could not load pool"))
       .finally(() => setWarmUpPoolLoading(false));
   }, [modalWarmUp, id]);
+
+  // Load focus question pool when "Select Focus Questions" modal opens
+  useEffect(() => {
+    if (!modalFocus || !id) return;
+    setFocusPoolLoading(true);
+    adminApi
+      .getFocusQuestionPool()
+      .then(setFocusPoolTasks)
+      .catch((e) => toast.error(e?.message ?? "Could not load pool"))
+      .finally(() => setFocusPoolLoading(false));
+  }, [modalFocus, id]);
 
   const saveOverrides = () => {
     setSaving(true);
@@ -386,10 +596,94 @@ export default function AdminStudentProfilePage() {
     return { id: res.question.id, label: res.question.text };
   };
 
+  const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
+    if (!postQuestionEdit) return;
+    setSaving(true);
+    try {
+      await adminApi.updatePostQuestion(postQuestionEdit.id, { text: data.text, answer_type: data.answer_type });
+      toast.success("Question updated");
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const deleteWarmUpTask = (taskId: string) => {
     setSaving(true);
     adminApi
       .deleteWarmUpTask(id, taskId)
+      .then(() => { load(); toast.success("Deleted"); })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  // Focus questions: pool + per-student list (same pattern as warm-up)
+  const focusPool: PoolItem[] = focusPoolTasks.map((p) => ({
+    id: p.id,
+    label: p.text,
+    subLabel: p.max_performance_score != null ? `Max score: ${p.max_performance_score}` : undefined,
+  }));
+  const focusSelectedIds: string[] = (() => {
+    const ordered = [...focusQuestions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    return ordered
+      .map((t) => t.pool_question_id ?? focusPoolTasks.find((p) => p.text === t.text)?.id)
+      .filter((x): x is string => Boolean(x));
+  })();
+  const handleFocusConfirm = (selectedIds: string[]) => {
+    setModalFocus(false);
+    const ordered = focusPoolTasks.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
+    setSaving(true);
+    adminApi
+      .putStudentFocusQuestionsSync(id, { pool_question_ids: ordered })
+      .then(() => {
+        load();
+        toast.success("Focus questions updated");
+      })
+      .catch((e) => toast.error(e?.message ?? "Failed to save"))
+      .finally(() => setSaving(false));
+  };
+  const handleFocusCreate = async (text: string): Promise<PoolItem> => {
+    const res = await adminApi.createFocusQuestionPoolItem({ text, order_index: 0, max_performance_score: 1 });
+    const item = res.focus_question;
+    setFocusPoolTasks((prev) => [...prev, item]);
+    return {
+      id: item.id,
+      label: item.text,
+      subLabel: item.max_performance_score != null ? `Max score: ${item.max_performance_score}` : undefined,
+    };
+  };
+  const handleFocusEditModalSave = async (data: { text: string; max_performance_score: number }) => {
+    setSaving(true);
+    try {
+      if (focusEditTask) {
+        await adminApi.updateFocusQuestion(id, focusEditTask.id, {
+          text: data.text,
+          max_performance_score: data.max_performance_score,
+        });
+        toast.success("Updated");
+      } else {
+        await adminApi.createFocusQuestion(id, {
+          text: data.text,
+          order_index: focusQuestions.length,
+          max_performance_score: data.max_performance_score,
+        });
+        toast.success("Added");
+      }
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
+  const deleteFocusQuestion = (questionId: string) => {
+    setSaving(true);
+    adminApi
+      .deleteFocusQuestion(id, questionId)
       .then(() => { load(); toast.success("Deleted"); })
       .catch((e) => toast.error(e.message))
       .finally(() => setSaving(false));
@@ -509,38 +803,118 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Post-Recording Questions (reflective; 0 or any number) */}
+          {/* Focus questions: same pattern as warm-up (pool + per-student list, add/edit/delete, no limit) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Focus questions</p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFocusEditTask(null);
+                    setFocusEditOpen(true);
+                  }}
+                >
+                  Add focus question
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setModalFocus(true)}>
+                  Manage list
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Questions/tasks for this student. Add, edit, delete. No limit.
+            </p>
+            <ul className="space-y-2">
+              {[...focusQuestions]
+                .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+                .map((q) => (
+                  <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                    <span className="min-w-0 flex-1 text-sm">{q.text}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      Max score: {q.max_performance_score ?? 1}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFocusEditTask(q);
+                          setFocusEditOpen(true);
+                        }}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteFocusQuestion(q.id)}
+                        disabled={saving}
+                        className="rounded p-1 text-destructive hover:bg-destructive/10"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+            {focusQuestions.length === 0 && (
+              <p className="text-sm text-muted-foreground">No focus questions. Click Add focus question or Manage list.</p>
+            )}
+          </div>
+
+          {/* Post-Recording Questions: list with Add (pool + create), Edit (modal), Remove (unassign). No limit. */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">
-                Reflective questions ({assignedQuestions.length} selected)
+                Post-Recording Questions ({assignedQuestions.length} assigned)
               </p>
               <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
-                + Add
+                Add post-recording question
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Optional. Add, edit, or remove questions for this student. No limit.
+            </p>
             <ul className="space-y-2">
               {assignedQuestions.map((q) => (
-                <li key={q.id}>
-                  <EditableListItem
-                    text={q.text}
-                    onEdit={(newText) => {
-                      setSaving(true);
-                      adminApi.updatePostQuestion(q.id, { text: newText }).then(() => load()).catch((e) => toast.error(e.message)).finally(() => setSaving(false));
-                    }}
-                    onDelete={() =>
-                      setOverridesDraft((prev) => ({
-                        ...prev,
-                        assigned_post_question_ids: prev.assigned_post_question_ids.filter((x) => x !== q.id),
-                      }))
-                    }
-                    saving={saving}
-                  />
+                <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                  <span className="min-w-0 flex-1 text-sm">{q.text}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{q.answer_type || "text"}</span>
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPostQuestionEdit(q);
+                        setPostQuestionEditOpen(true);
+                      }}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOverridesDraft((prev) => ({
+                          ...prev,
+                          assigned_post_question_ids: prev.assigned_post_question_ids.filter((x) => x !== q.id),
+                        }))
+                      }
+                      className="rounded p-1 text-destructive hover:bg-destructive/10"
+                      aria-label="Remove"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
             {assignedQuestions.length === 0 && (
-              <p className="text-sm text-muted-foreground">No questions. Click + Add to select reflective questions.</p>
+              <p className="text-sm text-muted-foreground">No questions. Click Add post-recording question to create or choose from the pool.</p>
             )}
           </div>
 
@@ -621,15 +995,46 @@ export default function AdminStudentProfilePage() {
         onCreateNew={handleWarmUpCreate}
         poolLoading={warmUpPoolLoading}
       />
+      <FocusQuestionEditModal
+        open={focusEditOpen}
+        onOpenChange={(open) => {
+          setFocusEditOpen(open);
+          if (!open) setFocusEditTask(null);
+        }}
+        task={focusEditTask}
+        onSave={handleFocusEditModalSave}
+        saving={saving}
+      />
+      <SelectFromPoolModal
+        open={modalFocus}
+        onOpenChange={setModalFocus}
+        title="Select Focus Questions"
+        pool={focusPool}
+        selectedIds={focusSelectedIds}
+        onConfirm={handleFocusConfirm}
+        allowCreate
+        onCreateNew={handleFocusCreate}
+        poolLoading={focusPoolLoading}
+      />
       <SelectFromPoolModal
         open={modalQuestions}
         onOpenChange={setModalQuestions}
-        title="Select Post-Recording Questions"
+        title="Add post-recording question"
         pool={questionsPool}
         selectedIds={overridesDraft.assigned_post_question_ids}
         onConfirm={handleQuestionsConfirm}
         allowCreate
         onCreateNew={handleQuestionsCreate}
+      />
+      <PostQuestionEditModal
+        open={postQuestionEditOpen}
+        onOpenChange={(open) => {
+          setPostQuestionEditOpen(open);
+          if (!open) setPostQuestionEdit(null);
+        }}
+        question={postQuestionEdit}
+        onSave={handlePostQuestionEditSave}
+        saving={saving}
       />
     </div>
   );
