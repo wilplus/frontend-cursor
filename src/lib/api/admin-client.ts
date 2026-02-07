@@ -119,13 +119,24 @@ export interface MetricLabel {
   right_label: string;
 }
 
-/** Warm-up task (per student); for homework flow. Selection uses max_performance_score (see WARM_UP_SELECTION_SPEC.md). */
+/** Warm-up task (per student); for homework flow. When assigned from pool, has pool_task_id. */
 export interface WarmUpTask {
   id: string;
   user_id: string;
   text: string;
   order_index?: number;
   /** 0-1; used to select warm-up by student's last performance_score_end. */
+  max_performance_score?: number;
+  /** When assigned from pool, references v2_warm_up_task_pool.id. */
+  pool_task_id?: string | null;
+  created_at?: string;
+}
+
+/** Global warm-up task pool item (no user_id). */
+export interface WarmUpPoolTask {
+  id: string;
+  text: string;
+  order_index?: number;
   max_performance_score?: number;
   created_at?: string;
 }
@@ -159,6 +170,10 @@ export const adminApi = {
   getWarmUpTasks: (userId: string) =>
     adminFetch<{ warm_up_tasks: WarmUpTask[] }>(`/students/${userId}/warm-up-tasks`).then((r) => r.warm_up_tasks ?? []),
 
+  /** Sync student's warm-up tasks from pool. Body: { pool_task_ids: string[] } (order = assignment order). */
+  putStudentWarmUpTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
+    adminFetch<{ warm_up_tasks: WarmUpTask[] }>(`/students/${userId}/warm-up-tasks`, { method: "PUT", body }),
+
   createWarmUpTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
     adminFetch<{ warm_up_task: WarmUpTask }>(`/students/${userId}/warm-up-tasks`, { method: "POST", body: data }),
 
@@ -167,6 +182,18 @@ export const adminApi = {
 
   deleteWarmUpTask: (userId: string, taskId: string) =>
     adminFetch<Record<string, unknown>>(`/students/${userId}/warm-up-tasks/${taskId}`, { method: "DELETE" }),
+
+  getWarmUpTaskPool: () =>
+    adminFetch<{ warm_up_task_pool: WarmUpPoolTask[] }>("/warm-up-task-pool").then((r) => r.warm_up_task_pool ?? []),
+
+  createWarmUpPoolTask: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<{ warm_up_task: WarmUpPoolTask }>("/warm-up-task-pool", { method: "POST", body: data }),
+
+  updateWarmUpPoolTask: (poolId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<{ warm_up_task: WarmUpPoolTask }>(`/warm-up-task-pool/${poolId}`, { method: "PUT", body: data }),
+
+  deleteWarmUpPoolTask: (poolId: string) =>
+    adminFetch<Record<string, unknown>>(`/warm-up-task-pool/${poolId}`, { method: "DELETE" }),
 
   getExercises: () =>
     adminFetch<{ exercises: Exercise[] }>("/exercises").then((r) => r.exercises ?? []),

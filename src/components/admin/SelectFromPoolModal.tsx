@@ -22,6 +22,8 @@ interface SelectFromPoolModalProps {
   /** Create new item; return the new PoolItem to show in list and add to selection. */
   onCreateNew?: (text: string) => Promise<PoolItem | void>;
   maxSelection?: number;
+  /** When true and pool is empty, show "Loading..." instead of "No items in pool yet". */
+  poolLoading?: boolean;
 }
 
 export default function SelectFromPoolModal({
@@ -34,6 +36,7 @@ export default function SelectFromPoolModal({
   allowCreate = false,
   onCreateNew,
   maxSelection,
+  poolLoading = false,
 }: SelectFromPoolModalProps) {
   const [search, setSearch] = useState("");
   const [newItemText, setNewItemText] = useState("");
@@ -139,7 +142,7 @@ export default function SelectFromPoolModal({
           <div className="max-h-[280px] overflow-y-auto space-y-1 rounded-md border border-border bg-muted/30 p-2">
             {filtered.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                {search.trim() ? "No items match your search." : "No items in pool yet."}
+                {search.trim() ? "No items match your search." : poolLoading ? "Loading…" : "No items in pool yet."}
               </p>
             ) : (
               filtered.map((item) => {
