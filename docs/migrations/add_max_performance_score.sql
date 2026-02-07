@@ -1,58 +1,64 @@
 -- ============================================================================
--- Add missing column: max_performance_score
+-- max_performance_score: add column (0..1 scale, NUMERIC(3,2))
 -- ============================================================================
--- Error seen: "Could not find the 'max_performance_score' column of
--- 'v2_warm_up_tasks' in the schema cache" (PGRST204 → 503).
--- The table existed but was created before this column was added.
+-- Admin UI uses 0–1 ("Max score (0–1)" in warm-up/focus modals).
+-- Run in the Supabase project your backend uses. Then wait ~10s and retry admin.
 --
--- Run this in Supabase SQL Editor (or your Postgres client) against the
--- same DB your backend uses.
+-- ADD COLUMN IF NOT EXISTS does not change an existing column. If the column
+-- already exists with the wrong type (e.g. integer), you must ALTER COLUMN
+-- ... TYPE separately (see "If column exists as integer" below).
 -- ============================================================================
 
--- 1) Warm-up tasks (per-student)
-ALTER TABLE public.v2_warm_up_tasks
-ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
-CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+-- Add columns if missing (no inline CHECK so PostgREST sees the column first)
+alter table public.v2_warm_up_tasks
+  add column if not exists max_performance_score numeric(3,2) not null default 1.00;
 
--- 2) Focus tasks (per-student)
-ALTER TABLE public.v2_focus_tasks
-ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
-CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+alter table public.v2_focus_tasks
+  add column if not exists max_performance_score numeric(3,2) not null default 1.00;
 
--- 3) Main task table (if your app uses it)
-ALTER TABLE public.v2_tasks
-ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
-CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+alter table public.v2_warm_up_task_pool
+  add column if not exists max_performance_score numeric(3,2) not null default 1.00;
 
--- Optional: pool tables (if they exist and are missing the column)
-ALTER TABLE public.v2_warm_up_task_pool
-ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
-CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+alter table public.v2_focus_task_pool
+  add column if not exists max_performance_score numeric(3,2) not null default 1.00;
 
-ALTER TABLE public.v2_focus_task_pool
-ADD COLUMN IF NOT EXISTS max_performance_score DECIMAL(3,2) DEFAULT 1.00
-CHECK (max_performance_score >= 0 AND max_performance_score <= 1);
+-- Optional: main task table (if your app uses it)
+-- alter table public.v2_tasks
+--   add column if not exists max_performance_score numeric(3,2) not null default 1.00;
 
--- CRITICAL: Reload PostgREST schema cache. Wait 5–10 seconds after this
--- before retrying the admin Save. PGRST204 often means cache was stale.
-NOTIFY pgrst, 'reload schema';
+-- Reload PostgREST schema cache (fixes PGRST204 "schema cache")
+notify pgrst, 'reload schema';
 
 -- ============================================================================
--- Verify (run separately if you want to check):
+-- Diagnostics (run if you still get PGRST204 or 503)
 -- ============================================================================
--- SELECT column_name, data_type, column_default
--- FROM information_schema.columns
--- WHERE table_name = 'v2_warm_up_tasks'
---   AND column_name = 'max_performance_score';
+-- 1) Does the column exist, and which DB am I in?
+-- select
+--   exists (
+--     select 1 from information_schema.columns
+--     where table_schema = 'public'
+--       and table_name = 'v2_warm_up_tasks'
+--       and column_name = 'max_performance_score'
+--   ) as has_column,
+--   (select current_database()) as db;
 --
--- SELECT column_name, data_type
--- FROM information_schema.columns
--- WHERE table_name = 'v2_focus_tasks'
--- ORDER BY ordinal_position;
+-- 2) What type does the column have? (if integer, ADD COLUMN did nothing)
+-- select column_name, data_type, column_default
+-- from information_schema.columns
+-- where table_schema = 'public'
+--   and table_name = 'v2_warm_up_tasks'
+--   and column_name = 'max_performance_score';
 --
--- For v2_tasks:
--- SELECT column_name, data_type, column_default
--- FROM information_schema.columns
--- WHERE table_schema = 'public' AND table_name = 'v2_tasks'
---   AND column_name = 'max_performance_score';
+-- If has_column = true but API still returns PGRST204 → backend is using a
+-- different Supabase project. If data_type = 'integer' → run ALTER COLUMN below.
+-- ============================================================================
+
+-- ============================================================================
+-- If column already existed as integer (ADD COLUMN IF NOT EXISTS did nothing)
+-- ============================================================================
+-- alter table public.v2_warm_up_tasks
+--   alter column max_performance_score type numeric(3,2)
+--     using (case when max_performance_score > 1 then max_performance_score / 10.0 else max_performance_score end),
+--   alter column max_performance_score set default 1.00;
+-- notify pgrst, 'reload schema';
 -- ============================================================================

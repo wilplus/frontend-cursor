@@ -537,7 +537,7 @@ export default function AdminStudentProfilePage() {
     adminApi.sendAssignment(id).then(() => toast.success("Homework sent")).catch((e) => toast.error(e.message));
   };
 
-  // Warm-up: pool = global warm-up-task-pool; pre-select by student's pool_task_id (or match by text); confirm = sync pool_task_ids
+  // Warm-up (mirrors focus_tasks): pool + per-student list, Confirm = PUT sync pool_task_ids.
   const warmUpPool: PoolItem[] = warmUpPoolTasks.map((p) => ({
     id: p.id,
     label: p.text,
@@ -549,7 +549,6 @@ export default function AdminStudentProfilePage() {
       .map((t) => t.pool_task_id ?? warmUpPoolTasks.find((p) => p.text === t.text)?.id)
       .filter((x): x is string => Boolean(x));
   })();
-  // Backend must support PUT /v2/admin/students/:id/warm-up-tasks with body { pool_task_ids } (sync from pool). See docs/BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md.
   const handleWarmUpConfirm = (selectedIds: string[]) => {
     setModalWarmUp(false);
     const ordered = warmUpPoolTasks.map((p) => p.id).filter((id) => selectedIds.includes(id));
@@ -564,7 +563,6 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
-    // POST body: minimal { text }; backend can default order_index and max_performance_score
     const res = await adminApi.createWarmUpPoolTask({ text });
     const task = res.warm_up_task;
     setWarmUpPoolTasks((prev) => [...prev, task]);
@@ -601,12 +599,19 @@ export default function AdminStudentProfilePage() {
     }
   };
 
-  // Post-recording questions: pool = global; 0 or any number; confirm = save assigned_post_question_ids
+  // Post-recording questions (mirrors focus_tasks): Confirm persists via putOverrides, then refetch.
   const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
   const handleQuestionsConfirm = (selectedIds: string[]) => {
-    setOverridesDraft((prev) => ({ ...prev, assigned_post_question_ids: selectedIds }));
     setModalQuestions(false);
-    toast.success("Selection updated. Click Save to persist.");
+    setSaving(true);
+    adminApi
+      .putOverrides(id, { assigned_post_question_ids: selectedIds })
+      .then(() => {
+        load();
+        toast.success("Post-recording questions updated");
+      })
+      .catch((e) => toast.error(e?.message ?? "Failed to save"))
+      .finally(() => setSaving(false));
   };
   const handleQuestionsCreate = async (text: string): Promise<PoolItem> => {
     const res = await adminApi.createPostQuestion({ text, answer_type: "text" });
@@ -638,7 +643,7 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
-  // Focus tasks: pool + per-student list (same pattern as warm-up)
+  // Focus tasks (canonical). Warm-up and post-recording mirror this pattern.
   const focusPool: PoolItem[] = focusPoolTasks.map((p) => ({
     id: p.id,
     label: p.text,
@@ -827,7 +832,7 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Focus tasks: same pattern as warm-up (pool + per-student list, add/edit/delete, no limit) */}
+          {/* Focus tasks */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Focus tasks</p>
@@ -893,19 +898,14 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Post-Recording Questions: list with Add (pool + create), Edit (modal), Remove (unassign). No limit. */}
+          {/* Post-recording questions (mirrors focus_tasks: list + Manage list → Confirm persists) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">
-                Post-Recording Questions ({assignedQuestions.length} assigned)
-              </p>
+              <p className="text-sm font-medium">Post-recording questions</p>
               <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
-                Add post-recording question
+                Manage list
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Optional. Add, edit, or remove questions for this student. No limit.
-            </p>
             <ul className="space-y-2">
               {assignedQuestions.map((q) => (
                 <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
@@ -924,13 +924,18 @@ export default function AdminStudentProfilePage() {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      type="button"
-                      onClick={() =>
-                        setOverridesDraft((prev) => ({
-                          ...prev,
-                          assigned_post_question_ids: prev.assigned_post_question_ids.filter((x) => x !== q.id),
-                        }))
-                      }
+                        type="button"
+                        onClick={() => {
+                          setSaving(true);
+                          adminApi
+                            .putOverrides(id, {
+                              assigned_post_question_ids: overridesDraft.assigned_post_question_ids.filter((x) => x !== q.id),
+                            })
+                            .then(() => { load(); toast.success("Removed"); })
+                            .catch((e) => toast.error(e.message))
+                            .finally(() => setSaving(false));
+                        }}
+                        disabled={saving}
                       className="rounded p-1 text-destructive hover:bg-destructive/10"
                       aria-label="Remove"
                     >
@@ -941,7 +946,7 @@ export default function AdminStudentProfilePage() {
               ))}
             </ul>
             {assignedQuestions.length === 0 && (
-              <p className="text-sm text-muted-foreground">No questions. Click Add post-recording question to create or choose from the pool.</p>
+              <p className="text-sm text-muted-foreground">No post-recording questions. Click Manage list to assign.</p>
             )}
           </div>
 
@@ -1046,7 +1051,7 @@ export default function AdminStudentProfilePage() {
       <SelectFromPoolModal
         open={modalQuestions}
         onOpenChange={setModalQuestions}
-        title="Add post-recording question"
+        title="Select Post-recording Questions"
         pool={questionsPool}
         selectedIds={overridesDraft.assigned_post_question_ids}
         onConfirm={handleQuestionsConfirm}
