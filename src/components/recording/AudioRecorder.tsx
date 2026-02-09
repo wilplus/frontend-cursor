@@ -9,7 +9,6 @@ import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useChunkMetrics } from "@/hooks/useChunkMetrics";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
-import { AmbientGlowCircle } from "@/components/recording/AmbientGlowCircle";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 import type { RecordingSlot } from "@/lib/audio/chunk-metrics-types";
 
@@ -109,6 +108,30 @@ export default function AudioRecorder({
     }
   }, []);
 
+  // Mic preview and real-time wheel: show on first screen and again after stop (no click needed)
+  useEffect(() => {
+    if (isRecording) return;
+    let cancelled = false;
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        if (streamRef.current) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        realtimeStrengthPace.start(stream);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isRecording, realtimeStrengthPace.start]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -163,6 +186,7 @@ export default function AudioRecorder({
         }
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
         }
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
@@ -175,8 +199,8 @@ export default function AudioRecorder({
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      const stream = streamRef.current ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
+      if (!streamRef.current) streamRef.current = stream;
 
       if (!mimeType) {
         toast.error("No supported audio format found");
@@ -502,8 +526,7 @@ export default function AudioRecorder({
   const progressPercent = Math.min(100, (elapsedSeconds / MIN_DURATION_SECONDS) * 100);
   const remainingSeconds = Math.max(0, MIN_DURATION_SECONDS - elapsedSeconds);
 
-  const showGlow = isRecording && sessionId && recordingSlot;
-  const showDartboard = isRecording && !isPaused;
+  const showDartboard = realtimeStrengthPace.isActive;
 
   // MediaRecorder mode
   return (
@@ -519,16 +542,6 @@ export default function AudioRecorder({
           <p className="text-xs text-muted-foreground">
             Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB · Pace: ~{Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
-        </div>
-      )}
-      {showGlow && (
-        <div className="flex justify-center">
-          <AmbientGlowCircle
-            glowColor={chunkMetrics.glowColor}
-            connectionStatus={chunkMetrics.connectionStatus}
-            lastPauseDetectedAt={chunkMetrics.lastPauseDetectedAt}
-            size={120}
-          />
         </div>
       )}
       <div className="text-center">
