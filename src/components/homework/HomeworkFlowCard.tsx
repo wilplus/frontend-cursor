@@ -130,8 +130,8 @@ export default function HomeworkFlowCard() {
       const text =
         res.warm_up_task?.text ??
         res.warm_up_task_text ??
-        toText((res as { warm_up_task?: unknown }).warm_up_task) ||
-        toText((res as { task_text?: unknown }).task_text) ||
+        toText((res as { warm_up_task?: unknown }).warm_up_task) ??
+        toText((res as { task_text?: unknown }).task_text) ??
         "";
       setSessionId(res.session_id);
       setWarmUpText(text || "Your warm-up task will appear here.");
@@ -184,8 +184,8 @@ export default function HomeworkFlowCard() {
         const text =
           res.warm_up_task?.text ??
           res.warm_up_task_text ??
-          toText((res as { warm_up_task?: unknown }).warm_up_task) ||
-          toText((res as { task_text?: unknown }).task_text) ||
+          toText((res as { warm_up_task?: unknown }).warm_up_task) ??
+          toText((res as { task_text?: unknown }).task_text) ??
           "";
         setSessionId(res.session_id);
         setWarmUpText(text || "Your warm-up task will appear here.");
