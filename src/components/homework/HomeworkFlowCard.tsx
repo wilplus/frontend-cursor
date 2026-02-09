@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { homeworkApi } from "@/lib/api/homework-client";
-import type { HomeworkQuestion, TaskBlockV2 } from "@/lib/api/types-homework";
+import type {
+  HomeworkQuestion,
+  HomeworkSessionStatus,
+  TaskBlockV2,
+} from "@/lib/api/types-homework";
 import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,6 +19,54 @@ import { toast } from "sonner";
 const TOTAL_STEPS = 5;
 
 type Step = 1 | 2 | 3 | 4 | 5;
+
+/** Derive current step and restored state from session status (backend may send status enum or we infer from IDs/payload). */
+function deriveStepFromStatus(s: HomeworkSessionStatus): {
+  step: Step;
+  warmUpText: string;
+  taskText: string;
+  taskBlock: TaskBlockV2 | null;
+  finalTaskText: string;
+  questions: HomeworkQuestion[];
+  reportText: string;
+  performanceScoreEnd: number | null;
+} {
+  const warmUpText = s.warm_up_task_text ?? "";
+  const taskText = s.task_text ?? "";
+  const taskBlock = s.task_block ?? null;
+  const finalTaskText = s.final_task_text ?? "";
+  const reportText = s.report_text ?? "";
+  const performanceScoreEnd = s.performance_score_end ?? null;
+  const questions = Array.isArray(s.questions) ? s.questions : [];
+
+  const status = (s.status ?? "").toLowerCase();
+
+  if (reportText || performanceScoreEnd != null) {
+    return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
+  }
+  if (status === "report_generated") {
+    return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
+  }
+  if (questions.length > 0 && s.recording_2_id) {
+    return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  }
+  if (status === "post_questions_done" || status === "recording2_scored") {
+    return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  }
+  if (finalTaskText || s.recording_2_id) {
+    return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  }
+  if (status === "task_generated" || status === "focus_selected") {
+    return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  }
+  if (s.recording_1_id || taskText || taskBlock) {
+    return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  }
+  if (status === "warmup_recorded" || status === "warmup_scored") {
+    return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  }
+  return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+}
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
 function toText(v: unknown): string {
@@ -56,7 +109,10 @@ export default function HomeworkFlowCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
+  const [noFocusTaskAvailable, setNoFocusTaskAvailable] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const metricSubmitInProgress = useRef(false);
+  const postAnswersSubmitInProgress = useRef(false);
 
   const handleStart = async () => {
     setLoading(true);
@@ -91,11 +147,74 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  // Show recording step right away: auto-start when auth is ready (once per page load)
+  /** Clear state and start a new session (new session_id from backend). */
+  const handleStartOver = () => {
+    setSessionId(null);
+    setStep(0);
+    setWarmUpText("");
+    setTaskText("");
+    setFinalTaskText("");
+    setTaskBlock(null);
+    setQuestions([]);
+    setPostAnswers({});
+    setReportText("");
+    setPerformanceScoreEnd(null);
+    setError(null);
+    setNoFocusTaskAvailable(false);
+    setLoading(true);
+    homeworkApi
+      .start()
+      .then((res) => {
+        const raw =
+          res.warm_up_task_text ??
+          (res as { warm_up_task?: unknown }).warm_up_task ??
+          (res as { task_text?: unknown }).task_text ??
+          "";
+        setSessionId(res.session_id);
+        setWarmUpText(toText(raw) || "Your warm-up task will appear here.");
+        setStep(1);
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : "Failed to start";
+        setError(msg);
+        toast.error(msg);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  // On auth ready: try to resume from session status; otherwise start a new session (once per page load)
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
     autoStartAttempted = true;
-    handleStart();
+    setLoading(true);
+    homeworkApi
+      .getStatus()
+      .then((statusRes) => {
+        if (statusRes?.session_id) {
+          const derived = deriveStepFromStatus(statusRes);
+          setSessionId(statusRes.session_id);
+          setWarmUpText(derived.warmUpText);
+          setTaskText(derived.taskText);
+          setTaskBlock(derived.taskBlock);
+          setFinalTaskText(derived.finalTaskText);
+          setReportText(derived.reportText);
+          setPerformanceScoreEnd(derived.performanceScoreEnd);
+          const qList = derived.questions.map((q) => ({
+            ...q,
+            id: toId(q.id) || q.id,
+            text: toText(q.text),
+          }));
+          setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+          setStep(derived.step);
+          setError(null);
+        } else {
+          return handleStart();
+        }
+      })
+      .catch(() => {
+        void handleStart();
+      })
+      .finally(() => setLoading(false));
   }, [authReady, step]);
 
   // On step 2, if task_block is missing (e.g. user refreshed), load it from GET task-block
@@ -155,6 +274,9 @@ export default function HomeworkFlowCard() {
             }
           : null);
       setTaskBlock(block);
+      setNoFocusTaskAvailable(
+        block != null && (block.focus_task === null || block.focus_task === undefined)
+      );
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -167,6 +289,8 @@ export default function HomeworkFlowCard() {
 
   const handleMetricAnswersSubmit = async (answer_1: string, answer_2: string, answer_3: string) => {
     if (!sessionId) return;
+    if (metricSubmitInProgress.current) return;
+    metricSubmitInProgress.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -184,6 +308,7 @@ export default function HomeworkFlowCard() {
       toast.error(msg);
     } finally {
       setLoading(false);
+      metricSubmitInProgress.current = false;
     }
   };
 
@@ -221,6 +346,13 @@ export default function HomeworkFlowCard() {
 
   const handlePostAnswersSubmit = async () => {
     if (!sessionId) return;
+    if (postAnswersSubmitInProgress.current) return;
+    const missing = questions.filter((q) => !(postAnswers[toId(q.id)] ?? "").trim());
+    if (missing.length > 0) {
+      setError("Please answer all questions before continuing.");
+      return;
+    }
+    postAnswersSubmitInProgress.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -237,8 +369,13 @@ export default function HomeworkFlowCard() {
       toast.error(e instanceof Error ? e.message : "Failed to submit");
     } finally {
       setLoading(false);
+      postAnswersSubmitInProgress.current = false;
     }
   };
+
+  const allPostQuestionsAnswered =
+    questions.length === 0 ||
+    questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
 
   if (!authReady) {
     return (
@@ -292,9 +429,14 @@ export default function HomeworkFlowCard() {
         {step === 0 && error && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
             <p>{error}</p>
-            <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
-              Try again
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
+                Try again
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/dashboard">Abandon</Link>
+              </Button>
+            </div>
           </div>
         )}
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -310,14 +452,25 @@ export default function HomeworkFlowCard() {
             )}
           </p>
         </div>
-        {showRecorder ? (
-          <AudioRecorder
-            onRecordingComplete={handleRecording1Complete}
-            stopAndSend
-            sessionId={sessionId}
-            recordingSlot="recording_1"
-          />
-        ) : (
+        {showRecorder && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
+                Start over
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/dashboard">Abandon</Link>
+              </Button>
+            </div>
+            <AudioRecorder
+              onRecordingComplete={handleRecording1Complete}
+              stopAndSend
+              sessionId={sessionId}
+              recordingSlot="recording_1"
+            />
+          </div>
+        )}
+        {!showRecorder && (
           <Card className="p-6 flex items-center justify-center gap-2 text-muted-foreground text-sm">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             Preparing recorder…
@@ -331,9 +484,26 @@ export default function HomeworkFlowCard() {
   if (step === 2) {
     return (
       <Wrapper>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
+            Start over
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">Abandon</Link>
+          </Button>
+        </div>
+        {noFocusTaskAvailable && (
+          <div
+            className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
+            role="alert"
+          >
+            No focus task available for your current score. You can still answer the questions below and continue, or
+            start over. Contact your coach if this persists.
+          </div>
+        )}
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-sm font-medium text-muted-foreground mb-2">Your task (after first recording)</p>
-          <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">{taskText}</p>
+          <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">{taskText || "—"}</p>
         </div>
         <AnswerMetricQuestionsScreen
           sessionId={sessionId!}
@@ -363,6 +533,14 @@ export default function HomeworkFlowCard() {
     }
     return (
       <Wrapper>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
+            Start over
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">Abandon</Link>
+          </Button>
+        </div>
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
           <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
@@ -379,10 +557,18 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5)
+  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
   if (step === 4) {
     return (
       <Wrapper>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
+            Start over
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">Abandon</Link>
+          </Button>
+        </div>
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">Reflective questions</h3>
           <div className="space-y-4">
@@ -402,9 +588,15 @@ export default function HomeworkFlowCard() {
             })}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={handlePostAnswersSubmit} disabled={loading}>
+          <Button
+            onClick={handlePostAnswersSubmit}
+            disabled={loading || !allPostQuestionsAnswered}
+          >
             {loading ? "Submitting…" : "See my report"}
           </Button>
+          {!allPostQuestionsAnswered && questions.length > 0 && (
+            <p className="text-sm text-muted-foreground">Answer all questions above to continue.</p>
+          )}
         </Card>
       </Wrapper>
     );
@@ -424,9 +616,14 @@ export default function HomeworkFlowCard() {
           <div className="rounded-xl border border-border bg-muted/30 p-4">
             <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{reportText}</p>
           </div>
-          <Button asChild variant="outline">
-            <a href="/dashboard">Back to dashboard</a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={handleStartOver}>
+              Start new homework
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/dashboard">Back to dashboard</Link>
+            </Button>
+          </div>
         </Card>
       </Wrapper>
     );

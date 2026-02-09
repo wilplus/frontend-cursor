@@ -1,0 +1,105 @@
+# OpenAPI fragment: GET /v2/recordings/{recording_id}
+# Canonical transcript retrieval endpoint. Use for conformance and BFF/frontend types.
+
+openapi: 3.0.3
+info:
+  title: V2 Recordings (fragment)
+  version: 1.0.0
+
+paths:
+  /v2/recordings/{recording_id}:
+    get:
+      summary: Get a single recording by ID (transcript + metadata)
+      description: |
+        Returns recording details including transcription_text and transcript_preview.
+        Auth: student may fetch only own recordings (recordings.user_id == auth.user_id);
+        admin may fetch any. Otherwise 404 (or 403).
+      operationId: getRecordingV2
+      parameters:
+        - name: recording_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recording found; caller is owner or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingV2"
+        "404":
+          description: Recording not found or caller not allowed (resource enumeration safe)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                    example: RECORDING_NOT_FOUND
+        "403":
+          description: Forbidden (optional; if backend uses 403 instead of 404)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+components:
+  schemas:
+    RecordingV2:
+      type: object
+      required:
+        - id
+        - user_id
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+        session_v2_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        transcription_text:
+          type: string
+          nullable: true
+          description: Full transcript; null if transcription failed
+        transcript_preview:
+          type: string
+          nullable: true
+          description: Short preview (e.g. first 280 chars), computed on read
+        duration_seconds:
+          type: number
+          nullable: true
+        words_per_minute:
+          type: number
+          nullable: true
+        filler_words_count:
+          type: number
+          nullable: true
+        performance_score_v2:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 1
+        performance_metrics_v2:
+          type: object
+          additionalProperties: true
+          nullable: true
