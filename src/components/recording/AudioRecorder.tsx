@@ -75,6 +75,7 @@ export default function AudioRecorder({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [manualDuration, setManualDuration] = useState<string>("");
   const [fileDuration, setFileDuration] = useState<number | null>(null);
+  const [micPreviewError, setMicPreviewError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -111,6 +112,11 @@ export default function AudioRecorder({
   // Mic preview and real-time wheel: show on first screen and again after stop (no click needed)
   useEffect(() => {
     if (isRecording) return;
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMicPreviewError("Microphone not available. Use HTTPS or localhost.");
+      return;
+    }
+    setMicPreviewError(null);
     let cancelled = false;
     navigator.mediaDevices
       .getUserMedia({ audio: true })
@@ -125,8 +131,19 @@ export default function AudioRecorder({
         }
         streamRef.current = stream;
         realtimeStrengthPace.start(stream);
+        setMicPreviewError(null);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (cancelled) return;
+        const name = err?.name ?? "";
+        const msg =
+          name === "NotAllowedError" || name === "PermissionDeniedError"
+            ? "Microphone access denied. Allow the mic in your browser to see the feedback wheel."
+            : name === "NotFoundError"
+              ? "No microphone found. Connect a mic and refresh."
+              : "Microphone could not be loaded. Use HTTPS, allow the mic, or try again.";
+        setMicPreviewError(msg);
+      });
     return () => {
       cancelled = true;
     };
@@ -201,6 +218,7 @@ export default function AudioRecorder({
     try {
       const stream = streamRef.current ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
       if (!streamRef.current) streamRef.current = stream;
+      setMicPreviewError(null);
 
       if (!mimeType) {
         toast.error("No supported audio format found");
@@ -543,6 +561,11 @@ export default function AudioRecorder({
             Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB · Pace: ~{Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
         </div>
+      )}
+      {!showDartboard && !isRecording && micPreviewError && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          {micPreviewError}
+        </p>
       )}
       <div className="text-center">
         <div
