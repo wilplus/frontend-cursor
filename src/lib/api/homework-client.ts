@@ -30,19 +30,33 @@ async function getAuthFetchOptions(
   return { headers, credentials: "include" };
 }
 
+/** Thrown when API returns 422 or other error; may have .code (e.g. NO_WARMUP_CONFIGURED, VALIDATION_ERROR). */
+export type HomeworkApiError = Error & { code?: string };
+
+async function parseErrorBody(res: Response): Promise<{ message: string; code?: string }> {
+  try {
+    const body = await res.json();
+    const message =
+      (body as { error?: string }).error ||
+      (body as { message?: string }).message ||
+      res.statusText ||
+      `Request failed ${res.status}`;
+    const code = (body as { code?: string }).code;
+    return { message, code };
+  } catch {
+    return { message: res.statusText || `Request failed ${res.status}` };
+  }
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    let message: string;
-    try {
-      const err = await res.json();
-      message = (err as { error?: string }).error || res.statusText;
-    } catch {
-      message = res.statusText || `Request failed ${res.status}`;
-    }
+    const { message, code } = await parseErrorBody(res);
     if (res.status === 404) {
       throw new Error("Homework flow is not available yet. Please try again later.");
     }
-    throw new Error(message);
+    const err = new Error(message) as HomeworkApiError;
+    if (code) err.code = code;
+    throw err;
   }
   return res.json();
 }
@@ -62,7 +76,12 @@ export const homeworkApi = {
     const { headers, credentials } = await getAuthFetchOptions();
     const res = await fetch(`${BASE}/session/status`, { method: "GET", headers, credentials });
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error((await res.json().catch(() => ({})) as { error?: string }).error || res.statusText);
+    if (!res.ok) {
+      const { message, code } = await parseErrorBody(res);
+      const err = new Error(message) as HomeworkApiError;
+      if (code) err.code = code;
+      throw err;
+    }
     return res.json();
   },
 

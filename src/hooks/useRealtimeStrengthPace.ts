@@ -12,7 +12,8 @@ const UPDATE_MS = 100;
 const TARGET_DB = -22;
 const TOLERANCE_DB = 6;
 const TARGET_WPM = 140;
-const TOLERANCE_WPM = 30;
+/** Wider tolerance so "too fast" is less sensitive. */
+const TOLERANCE_WPM = 48;
 /** Voiced = speech; RMS > 0.015 (≈ -36 dB) to avoid treating noise as speech. */
 const VOICED_RMS_THRESHOLD = 0.015;
 const WINDOW_SAMPLES = 30; // 3 s at 100 ms
