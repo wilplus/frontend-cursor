@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import { homeworkApi } from "@/lib/api/homework-client";
+import { homeworkApi, type HomeworkApiError } from "@/lib/api/homework-client";
 import type {
   HomeworkQuestion,
   HomeworkSessionStatus,
@@ -15,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 const TOTAL_STEPS = 5;
 
@@ -93,7 +95,12 @@ function toId(v: unknown): string {
 // One auto-start per page load (avoids double request in React Strict Mode)
 let autoStartAttempted = false;
 
+function isNoWarmupError(e: unknown): e is HomeworkApiError {
+  return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "NO_WARMUP_CONFIGURED";
+}
+
 export default function HomeworkFlowCard() {
+  const router = useRouter();
   const authReady = useAuthReady();
   const [step, setStep] = useState<Step | 0>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -110,6 +117,7 @@ export default function HomeworkFlowCard() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noFocusTaskAvailable, setNoFocusTaskAvailable] = useState(false);
+  const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
@@ -128,6 +136,12 @@ export default function HomeworkFlowCard() {
       setWarmUpText(toText(raw) || "Your warm-up task will appear here.");
       setStep(1);
     } catch (e) {
+      if (isNoWarmupError(e)) {
+        setNoWarmupConfigured(true);
+        setError(null);
+        setStep(0);
+        return;
+      }
       const msg = e instanceof Error ? e.message : "Failed to start homework";
       const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
       if (isBackendUnavailable) {
@@ -161,6 +175,7 @@ export default function HomeworkFlowCard() {
     setPerformanceScoreEnd(null);
     setError(null);
     setNoFocusTaskAvailable(false);
+    setNoWarmupConfigured(false);
     setLoading(true);
     homeworkApi
       .start()
@@ -175,9 +190,14 @@ export default function HomeworkFlowCard() {
         setStep(1);
       })
       .catch((e) => {
-        const msg = e instanceof Error ? e.message : "Failed to start";
-        setError(msg);
-        toast.error(msg);
+        if (isNoWarmupError(e)) {
+          setNoWarmupConfigured(true);
+          setError(null);
+        } else {
+          const msg = e instanceof Error ? e.message : "Failed to start";
+          setError(msg);
+          toast.error(msg);
+        }
       })
       .finally(() => setLoading(false));
   };
@@ -211,8 +231,13 @@ export default function HomeworkFlowCard() {
           return handleStart();
         }
       })
-      .catch(() => {
-        void handleStart();
+      .catch((e) => {
+        if (isNoWarmupError(e)) {
+          setNoWarmupConfigured(true);
+          setError(null);
+        } else {
+          void handleStart();
+        }
       })
       .finally(() => setLoading(false));
   }, [authReady, step]);
@@ -287,25 +312,36 @@ export default function HomeworkFlowCard() {
     }
   };
 
+  const METRIC_ANSWERS_VALIDATION_MSG = "Please answer all three questions before continuing.";
+
   const handleMetricAnswersSubmit = async (answer_1: string, answer_2: string, answer_3: string) => {
     if (!sessionId) return;
     if (metricSubmitInProgress.current) return;
+    const a1 = answer_1.trim();
+    const a2 = answer_2.trim();
+    const a3 = answer_3.trim();
+    if (!a1 || !a2 || !a3) {
+      setError(METRIC_ANSWERS_VALIDATION_MSG);
+      toast.error(METRIC_ANSWERS_VALIDATION_MSG);
+      return;
+    }
     metricSubmitInProgress.current = true;
     setLoading(true);
     setError(null);
     try {
       const res = await homeworkApi.submitMetricAnswers(sessionId, {
-        metric_answer_1: answer_1,
-        metric_answer_2: answer_2,
-        metric_answer_3: answer_3,
+        metric_answer_1: a1,
+        metric_answer_2: a2,
+        metric_answer_3: a3,
       });
       const finalTask = res.final_task ?? res.final_task_text ?? "";
       setFinalTaskText(toText(finalTask));
       setStep(3);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to submit";
-      setError(msg);
-      toast.error(msg);
+      const isValidationError =
+        e instanceof Error && "code" in e && (e as HomeworkApiError).code === "VALIDATION_ERROR";
+      setError(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
+      toast.error(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
     } finally {
       setLoading(false);
       metricSubmitInProgress.current = false;
@@ -381,6 +417,33 @@ export default function HomeworkFlowCard() {
     return (
       <Card className="p-6">
         <p className="text-center text-muted-foreground text-sm">Loading…</p>
+      </Card>
+    );
+  }
+
+  if (noWarmupConfigured) {
+    return (
+      <Card className="p-6 space-y-4">
+        <p className="text-sm text-muted-foreground">
+          No warm-up tasks are configured for your account. Please contact your coach to get started.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="default">
+            <Link href="/dashboard">Contact your coach</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard">Back</Link>
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              await createClient().auth.signOut();
+              router.push("/login");
+            }}
+          >
+            Log out
+          </Button>
+        </div>
       </Card>
     );
   }

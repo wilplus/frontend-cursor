@@ -44,6 +44,8 @@ export default function AnswerMetricQuestionsScreen({
     void onSubmit(answer_1.trim(), answer_2.trim(), answer_3.trim());
   };
 
+  const allFilled = answer_1.trim() !== "" && answer_2.trim() !== "" && answer_3.trim() !== "";
+
   return (
     <div className="answer-metric-questions space-y-4">
       <Card className="p-6 space-y-4">
@@ -72,7 +74,8 @@ export default function AnswerMetricQuestionsScreen({
           />
         </div>
         {externalError && <p className="text-sm text-destructive">{externalError}</p>}
-        <Button onClick={handleSubmit} disabled={loading}>
+        {!allFilled && <p className="text-sm text-muted-foreground">Answer all three questions above to continue.</p>}
+        <Button onClick={handleSubmit} disabled={loading || !allFilled}>
           {loading ? "Submitting…" : "Continue"}
         </Button>
       </Card>

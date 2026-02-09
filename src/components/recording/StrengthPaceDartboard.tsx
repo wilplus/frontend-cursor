@@ -10,8 +10,8 @@ import { useMemo, useRef, useState, useEffect } from "react";
 
 const DEFAULT_SIZE = 200;
 const RADIUS = 80;
-/** Lerp factor per frame: higher = snappier, lower = smoother glide. */
-const BALL_LERP = 0.12;
+/** Lerp factor per frame: lower = slower, calmer glide (sense of heading in the right direction). */
+const BALL_LERP = 0.06;
 
 export interface StrengthPaceDartboardProps {
   /** Smoothed 0..1 (1 = on target). */
@@ -109,37 +109,39 @@ export function StrengthPaceDartboard({
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      <svg
-        viewBox={`0 0 ${size} ${size}`}
-        className="w-full max-w-[280px] aspect-square text-foreground"
-        aria-hidden
-      >
-        <defs>
-          <linearGradient id="dartboard-center" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="hsl(var(--primary) / 0.2)" />
-            <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
-          </linearGradient>
-        </defs>
-        {/* Rings: outer = bad, center = good */}
-        <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.3} />
-        <circle cx={center} cy={center} r={radius * 0.66} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.4} />
-        <circle cx={center} cy={center} r={radius * 0.33} fill="url(#dartboard-center)" stroke="currentColor" strokeWidth={1} opacity={0.6} />
-        {/* Axis labels */}
-        <text x={center - radius - 24} y={center + 4} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Quiet</text>
-        <text x={center + radius + 24} y={center + 4} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Loud</text>
-        <text x={center} y={center + radius + 18} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Too slow</text>
-        <text x={center} y={center - radius - 12} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Too fast</text>
-        {/* Ball: color by distance (center = primary, edge = destructive) */}
-        <circle
-          cx={cx}
-          cy={cy}
-          r={ballR}
-          fill={dist < 0.5 ? "hsl(var(--primary))" : dist < 0.8 ? "hsl(var(--primary) / 0.85)" : "hsl(var(--destructive))"}
-          stroke="hsl(var(--background))"
-          strokeWidth={2}
-          className="transition-none"
-        />
-      </svg>
+      <div className="relative flex w-full max-w-[280px] items-center justify-center gap-0">
+        <span className="w-14 shrink-0 text-center text-[11px] text-foreground opacity-70" aria-hidden>Quiet</span>
+        <svg
+          viewBox={`0 0 ${size} ${size}`}
+          className="aspect-square w-full max-w-[200px] text-foreground"
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="dartboard-center" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="hsl(var(--primary) / 0.2)" />
+              <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
+            </linearGradient>
+          </defs>
+          {/* Rings: outer = bad, center = good */}
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.3} />
+          <circle cx={center} cy={center} r={radius * 0.66} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.4} />
+          <circle cx={center} cy={center} r={radius * 0.33} fill="url(#dartboard-center)" stroke="currentColor" strokeWidth={1} opacity={0.6} />
+          {/* Axis labels (vertical only; Quiet/Loud are outside SVG so they stay visible) */}
+          <text x={center} y={center + radius + 18} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Too slow</text>
+          <text x={center} y={center - radius - 12} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Too fast</text>
+          {/* Ball: color by distance (center = primary, edge = destructive) */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={ballR}
+            fill={dist < 0.5 ? "hsl(var(--primary))" : dist < 0.8 ? "hsl(var(--primary) / 0.85)" : "hsl(var(--destructive))"}
+            stroke="hsl(var(--background))"
+            strokeWidth={2}
+            className="transition-none"
+          />
+        </svg>
+        <span className="w-14 shrink-0 text-center text-[11px] text-foreground opacity-70" aria-hidden>Loud</span>
+      </div>
     </div>
   );
 }
