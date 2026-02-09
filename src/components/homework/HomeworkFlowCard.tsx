@@ -33,7 +33,8 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   reportText: string;
   performanceScoreEnd: number | null;
 } {
-  const warmUpText = (s.warm_up_task?.text ?? s.warm_up_task_text ?? "").trim() || "";
+  const warmUpTask = s.warm_up_task ?? (s as { session?: { warm_up_task?: { text?: string } } }).session?.warm_up_task;
+  const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? "").trim() || "";
   const taskText = s.task_text ?? "";
   const taskBlock = s.task_block ?? null;
   const finalTaskText = s.final_task_text ?? "";
@@ -479,7 +480,7 @@ export default function HomeworkFlowCard() {
     }
     const showRecorder = !!sessionId;
     const warmUpDisplayText = sessionId
-      ? warmUpText
+      ? (warmUpText.trim() || "Your warm-up task will appear here.")
       : error
         ? "Tap Try again above to load your task."
         : "Loading your warm-up task…";

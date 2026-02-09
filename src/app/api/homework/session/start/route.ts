@@ -42,12 +42,18 @@ export async function POST(req: NextRequest) {
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  // Normalize so frontend always gets warm_up_task_text (backend may send warm_up_task or task_text)
+  // Normalize: backend may send warm_up_task { id, text } or warm_up_task_text string
+  const warmUpTask = data.warm_up_task as { id?: string; text?: string } | undefined;
+  const warmUpTaskTextFromObj =
+    warmUpTask && typeof warmUpTask === "object" && typeof warmUpTask.text === "string"
+      ? warmUpTask.text
+      : undefined;
   const normalized = {
     ...data,
+    warm_up_task: data.warm_up_task ?? null,
     warm_up_task_text:
       (data.warm_up_task_text as string) ??
-      (data.warm_up_task as string) ??
+      warmUpTaskTextFromObj ??
       (data.task_text as string) ??
       "",
   };
