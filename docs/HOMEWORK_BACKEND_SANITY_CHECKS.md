@@ -4,6 +4,30 @@ Two low-effort guardrails to prevent regressions. Implement these in the **backe
 
 ---
 
+## 0) Warm-up task: use admin-assigned list in student flow
+
+**Goal:** The warm-up tasks that the admin configures per student (in the admin panel, via `/v2/admin/students/:userId/task-warm-up` and the warm-up task pool) must be the **same** tasks the student sees when they start or resume homework.
+
+**Why it doesn’t show up otherwise:** The **student flow** does not call the admin API. It only calls:
+
+- `POST /v2/homework/session/start`
+- `GET /v2/homework/session/status`
+
+So the **backend** that implements these homework endpoints must:
+
+1. Identify the current user (student) from the auth token.
+2. Load that student’s **assigned warm-up tasks** (the same list the admin manages: e.g. `v2_student_warm_up_tasks` or whatever stores the result of admin “Assign warm-up tasks” / pool sync).
+3. When creating a new session (`POST session/start`) or when returning status with an in-progress session (`GET session/status`), **pick one** warm-up task (e.g. by `max_performance_score` band or `order_index`) and include it in the response as:
+   - `warm_up_task: { id: string, text: string }` and/or
+   - `warm_up_task_text: string`
+
+If the homework handlers do **not** read from the student’s assigned warm-up task list and instead return a hardcoded or empty task, the admin-configured tasks will **never** appear in the student flow.
+
+**Contract:**  
+“For the authenticated user (student), `POST /v2/homework/session/start` and `GET /v2/homework/session/status` must return a warm-up task that comes from that student’s assigned list (the same data the admin configures). If the student has no assigned tasks, return 422 with code `NO_WARMUP_CONFIGURED` (or equivalent) so the frontend can show ‘No warm-up tasks configured’.”
+
+---
+
 ## 1) One report per session (DB-level)
 
 **Goal:** Avoid creating multiple reports for the same session even if a bug (e.g. double submit) slips in.
