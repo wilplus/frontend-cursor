@@ -11,6 +11,35 @@ export interface HomeworkStartResponse {
   warm_up_task_text: string;
 }
 
+// —— Session status (for resume / step derivation). Backend may return a subset. ——
+export type HomeworkSessionStatusEnum =
+  | "created"
+  | "warmup_recorded"
+  | "warmup_scored"
+  | "focus_selected"
+  | "task_generated"
+  | "recording2_uploaded"
+  | "recording2_scored"
+  | "post_questions_done"
+  | "report_generated";
+
+export interface HomeworkSessionStatus {
+  session_id: UUID;
+  status?: HomeworkSessionStatusEnum | string;
+  warm_up_task_text?: string;
+  /** When set, user has completed recording_1. */
+  recording_1_id?: UUID | null;
+  /** When set, user has completed recording_2. */
+  recording_2_id?: UUID | null;
+  task_text?: string | null;
+  task_block?: TaskBlockV2 | null;
+  final_task_text?: string | null;
+  report_text?: string | null;
+  performance_score_end?: number | null;
+  /** Post-recording questions for step 4 (if any). */
+  questions?: HomeworkQuestion[];
+}
+
 // —— Metric question item (id + text, used in task_block) ——
 export interface MetricQuestionItemV2 {
   id?: string;

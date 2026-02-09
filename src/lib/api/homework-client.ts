@@ -4,6 +4,7 @@
  */
 import type {
   HomeworkStartResponse,
+  HomeworkSessionStatus,
   HomeworkRecording1Response,
   HomeworkMetricAnswersResponse,
   HomeworkRecording2Response,
@@ -56,8 +57,8 @@ export const homeworkApi = {
     return handleResponse<HomeworkStartResponse>(res);
   },
 
-  /** Get current session status (for resuming). Returns session_id + warm_up_task_text if active. */
-  async getStatus(): Promise<HomeworkStartResponse | null> {
+  /** Get current session status (for resuming). Returns session_id, optional status, recording IDs, and restored payload to derive step. */
+  async getStatus(): Promise<HomeworkSessionStatus | null> {
     const { headers, credentials } = await getAuthFetchOptions();
     const res = await fetch(`${BASE}/session/status`, { method: "GET", headers, credentials });
     if (res.status === 404) return null;

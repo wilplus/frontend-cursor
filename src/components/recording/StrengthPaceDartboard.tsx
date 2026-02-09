@@ -1,0 +1,145 @@
+"use client";
+
+/**
+ * Real-time Strength + Pace dartboard: center = good, edges = bad.
+ * Ball position from error (1 - score) and direction (quiet/loud, slow/fast).
+ * Ball glides via requestAnimationFrame lerp; color reflects distance (green = good, red = bad).
+ * Realtime feedback only; final score is computed after upload.
+ */
+import { useMemo, useRef, useState, useEffect } from "react";
+
+const DEFAULT_SIZE = 200;
+const RADIUS = 80;
+/** Lerp factor per frame: higher = snappier, lower = smoother glide. */
+const BALL_LERP = 0.12;
+
+export interface StrengthPaceDartboardProps {
+  /** Smoothed 0..1 (1 = on target). */
+  strengthScore: number;
+  /** Smoothed 0..1 (1 = on target). */
+  paceScore: number;
+  /** -1 = quiet, 1 = loud. */
+  strengthDirection: number;
+  /** -1 = slow, 1 = fast. */
+  paceDirection: number;
+  size?: number;
+}
+
+/** Center = good; position = direction * (1 - score), clamped to [-1, 1]. */
+function ballPosition(
+  score: number,
+  direction: number
+): number {
+  const error = 1 - score;
+  const signed = direction * error;
+  return Math.max(-1, Math.min(1, signed));
+}
+
+/** Distance from center in [-1,1] space; 0 = center, 1 = edge. */
+function distanceFromCenter(nx: number, ny: number): number {
+  return Math.min(1, Math.sqrt(nx * nx + ny * ny));
+}
+
+/** Human-readable status for accessibility (live region). */
+function getBallStatus(
+  strengthScore: number,
+  paceScore: number,
+  strengthDirection: number,
+  paceDirection: number
+): string {
+  const nearCenter = strengthScore > 0.85 && paceScore > 0.85;
+  if (nearCenter) return "Strength and pace on target.";
+  const parts: string[] = [];
+  if (strengthScore <= 0.85) {
+    parts.push(strengthDirection < 0 ? "Too quiet" : "Too loud");
+  }
+  if (paceScore <= 0.85) {
+    parts.push(paceDirection < 0 ? "Too slow" : "Too fast");
+  }
+  return parts.length ? parts.join(", ") + "." : "Strength and pace on target.";
+}
+
+export function StrengthPaceDartboard({
+  strengthScore,
+  paceScore,
+  strengthDirection,
+  paceDirection,
+  size = DEFAULT_SIZE,
+}: StrengthPaceDartboardProps) {
+  const scale = size / DEFAULT_SIZE;
+  const center = size / 2;
+  const radius = RADIUS * scale;
+  const ballR = 8 * scale;
+
+  const targetX = useMemo(
+    () => ballPosition(strengthScore, strengthDirection),
+    [strengthScore, strengthDirection]
+  );
+  const targetY = useMemo(
+    () => ballPosition(paceScore, paceDirection),
+    [paceScore, paceDirection]
+  );
+
+  const targetRef = useRef({ x: targetX, y: targetY });
+  targetRef.current = { x: targetX, y: targetY };
+  const currentRef = useRef({ x: 0, y: 0 });
+  const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    let rafId: number;
+    const tick = () => {
+      const t = targetRef.current;
+      const c = currentRef.current;
+      c.x += (t.x - c.x) * BALL_LERP;
+      c.y += (t.y - c.y) * BALL_LERP;
+      setDisplayPos({ x: c.x, y: c.y });
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  const cx = center + displayPos.x * radius;
+  const cy = center - displayPos.y * radius; // SVG y down; we want fast = top = negative y
+  const dist = distanceFromCenter(displayPos.x, displayPos.y);
+  const statusText = getBallStatus(strengthScore, paceScore, strengthDirection, paceDirection);
+
+  return (
+    <div className="flex flex-col items-center gap-1" role="img" aria-label="Strength and pace wheel: center is on target">
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {statusText}
+      </p>
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="w-full max-w-[280px] aspect-square text-foreground"
+        aria-hidden
+      >
+        <defs>
+          <linearGradient id="dartboard-center" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="hsl(var(--primary) / 0.2)" />
+            <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
+          </linearGradient>
+        </defs>
+        {/* Rings: outer = bad, center = good */}
+        <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.3} />
+        <circle cx={center} cy={center} r={radius * 0.66} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.4} />
+        <circle cx={center} cy={center} r={radius * 0.33} fill="url(#dartboard-center)" stroke="currentColor" strokeWidth={1} opacity={0.6} />
+        {/* Axis labels */}
+        <text x={center - radius - 24} y={center + 4} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Quiet</text>
+        <text x={center + radius + 24} y={center + 4} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Loud</text>
+        <text x={center} y={center + radius + 18} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Too slow</text>
+        <text x={center} y={center - radius - 12} textAnchor="middle" fontSize={11} fill="currentColor" opacity={0.7}>Too fast</text>
+        {/* Ball: color by distance (center = primary, edge = destructive) */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={ballR}
+          fill={dist < 0.5 ? "hsl(var(--primary))" : dist < 0.8 ? "hsl(var(--primary) / 0.85)" : "hsl(var(--destructive))"}
+          stroke="hsl(var(--background))"
+          strokeWidth={2}
+          className="transition-none"
+        />
+      </svg>
+    </div>
+  );
+}

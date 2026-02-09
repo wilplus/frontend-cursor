@@ -8,7 +8,9 @@ import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useChunkMetrics } from "@/hooks/useChunkMetrics";
+import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { AmbientGlowCircle } from "@/components/recording/AmbientGlowCircle";
+import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 import type { RecordingSlot } from "@/lib/audio/chunk-metrics-types";
 
 const MIN_DURATION_SECONDS = 60; // 1 minute
@@ -90,7 +92,10 @@ export default function AudioRecorder({
   setIsRecordingRef.current = setIsRecording;
 
   const chunkMetrics = useChunkMetrics(sessionId, recordingSlot);
+  const realtimeStrengthPace = useRealtimeStrengthPace();
   stopChunkPipelineRef.current = chunkMetrics.stop;
+  const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
+  stopRealtimeRef.current = realtimeStrengthPace.stop;
 
   // Detect MIME support on mount
   useEffect(() => {
@@ -107,6 +112,7 @@ export default function AudioRecorder({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      stopRealtimeRef.current?.();
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
       }
@@ -124,6 +130,7 @@ export default function AudioRecorder({
       rec.onstop = () => {
         if (pauseRequestedRef.current) {
           pauseRequestedRef.current = false;
+          stopRealtimeRef.current?.();
           setIsPausedRef.current(true);
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
@@ -134,9 +141,11 @@ export default function AudioRecorder({
         if (startAgainRequestedRef.current) {
           startAgainRequestedRef.current = false;
           stopChunkPipelineRef.current?.();
+          stopRealtimeRef.current?.();
           onStartAgain?.();
         } else if (chunksRef.current.length > 0 && startTimeRef.current) {
           stopChunkPipelineRef.current?.();
+          stopRealtimeRef.current?.();
           const blob = new Blob(chunksRef.current, { type: mime });
           const endTime = Date.now();
           const durationSeconds = Math.max(
@@ -196,6 +205,7 @@ export default function AudioRecorder({
       if (sessionId && recordingSlot) {
         chunkMetrics.start(stream);
       }
+      realtimeStrengthPace.start(stream);
 
       timerIntervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
@@ -216,10 +226,11 @@ export default function AudioRecorder({
       console.error("Failed to start recording:", err);
       toast.error("Failed to access microphone");
     }
-  }, [mimeType, onRecordingStart, attachOnStop, sessionId, recordingSlot, chunkMetrics.start]);
+  }, [mimeType, onRecordingStart, attachOnStop, sessionId, recordingSlot, chunkMetrics.start, realtimeStrengthPace.start]);
 
   const stopRecording = useCallback(() => {
     stopChunkPipelineRef.current?.();
+    stopRealtimeRef.current?.();
     if (isPaused) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -278,6 +289,7 @@ export default function AudioRecorder({
     attachOnStop(recorder, mimeType);
     startTimeRef.current = Date.now() - elapsedSeconds * 1000;
     recorder.start();
+    realtimeStrengthPace.start(stream);
     setIsPaused(false);
     timerIntervalRef.current = setInterval(() => {
       if (startTimeRef.current) {
@@ -292,10 +304,11 @@ export default function AudioRecorder({
         }
       }
     }, 100);
-  }, [mimeType, elapsedSeconds, attachOnStop]);
+  }, [mimeType, elapsedSeconds, attachOnStop, realtimeStrengthPace.start]);
 
   const handleStartAgain = useCallback(() => {
     if (isPaused) {
+      stopRealtimeRef.current?.();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -490,10 +503,24 @@ export default function AudioRecorder({
   const remainingSeconds = Math.max(0, MIN_DURATION_SECONDS - elapsedSeconds);
 
   const showGlow = isRecording && sessionId && recordingSlot;
+  const showDartboard = isRecording && !isPaused;
 
   // MediaRecorder mode
   return (
     <Card className="p-6 space-y-4">
+      {showDartboard && (
+        <div className="flex flex-col items-center gap-2">
+          <StrengthPaceDartboard
+            strengthScore={realtimeStrengthPace.strengthScore}
+            paceScore={realtimeStrengthPace.paceScore}
+            strengthDirection={realtimeStrengthPace.strengthDirection}
+            paceDirection={realtimeStrengthPace.paceDirection}
+          />
+          <p className="text-xs text-muted-foreground">
+            Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB · Pace: ~{Math.round(realtimeStrengthPace.wpmEstimate)} WPM
+          </p>
+        </div>
+      )}
       {showGlow && (
         <div className="flex justify-center">
           <AmbientGlowCircle
