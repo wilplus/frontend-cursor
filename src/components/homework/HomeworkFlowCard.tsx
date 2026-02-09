@@ -33,7 +33,7 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   reportText: string;
   performanceScoreEnd: number | null;
 } {
-  const warmUpText = s.warm_up_task_text ?? "";
+  const warmUpText = (s.warm_up_task?.text ?? s.warm_up_task_text ?? "").trim() || "";
   const taskText = s.task_text ?? "";
   const taskBlock = s.task_block ?? null;
   const finalTaskText = s.final_task_text ?? "";
@@ -127,13 +127,14 @@ export default function HomeworkFlowCard() {
     setError(null);
     try {
       const res = await homeworkApi.start();
-      const raw =
+      const text =
+        res.warm_up_task?.text ??
         res.warm_up_task_text ??
-        (res as { warm_up_task?: unknown }).warm_up_task ??
-        (res as { task_text?: unknown }).task_text ??
+        toText((res as { warm_up_task?: unknown }).warm_up_task) ||
+        toText((res as { task_text?: unknown }).task_text) ||
         "";
       setSessionId(res.session_id);
-      setWarmUpText(toText(raw) || "Your warm-up task will appear here.");
+      setWarmUpText(text || "Your warm-up task will appear here.");
       setStep(1);
     } catch (e) {
       if (isNoWarmupError(e)) {
@@ -180,13 +181,14 @@ export default function HomeworkFlowCard() {
     homeworkApi
       .start()
       .then((res) => {
-        const raw =
+        const text =
+          res.warm_up_task?.text ??
           res.warm_up_task_text ??
-          (res as { warm_up_task?: unknown }).warm_up_task ??
-          (res as { task_text?: unknown }).task_text ??
+          toText((res as { warm_up_task?: unknown }).warm_up_task) ||
+          toText((res as { task_text?: unknown }).task_text) ||
           "";
         setSessionId(res.session_id);
-        setWarmUpText(toText(raw) || "Your warm-up task will appear here.");
+        setWarmUpText(text || "Your warm-up task will appear here.");
         setStep(1);
       })
       .catch((e) => {

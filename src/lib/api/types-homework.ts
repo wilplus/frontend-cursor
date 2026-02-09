@@ -5,10 +5,18 @@
 
 export type UUID = string;
 
+/** Warm-up task shape returned by GET /session/status and POST /session/start. */
+export interface WarmUpTask {
+  id: string;
+  text: string;
+}
+
 // —— Start homework session ——
 export interface HomeworkStartResponse {
   session_id: UUID;
-  warm_up_task_text: string;
+  warm_up_task_text?: string;
+  /** When present, use this for the warm-up step (same shape as status.warm_up_task). */
+  warm_up_task?: WarmUpTask | null;
 }
 
 // —— Session status (for resume / step derivation). Backend may return a subset. ——
@@ -27,6 +35,8 @@ export interface HomeworkSessionStatus {
   session_id: UUID;
   status?: HomeworkSessionStatusEnum | string;
   warm_up_task_text?: string;
+  /** Top-level warm-up from GET /session/status (backfilled when snapshot was missing). Use for display; fallback to warm_up_task_text. */
+  warm_up_task?: WarmUpTask | null;
   /** When set, user has completed recording_1. */
   recording_1_id?: UUID | null;
   /** When set, user has completed recording_2. */
