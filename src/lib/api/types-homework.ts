@@ -57,13 +57,14 @@ export interface MetricQuestionItemV2 {
   order_index?: number;
 }
 
-// —— Task block (after recording_1): context + focus task + 3 metric questions ——
+// —— Task block (after recording_1): API returns context_short + 3 metric questions only (no focus_task on step 2) ——
 export interface TaskBlockV2 {
   context_short?: string;
-  focus_task?: unknown;
   metric_question_1?: MetricQuestionItemV2 | string;
   metric_question_2?: MetricQuestionItemV2 | string;
   metric_question_3?: MetricQuestionItemV2 | string;
+  /** @deprecated Not returned by API for metrics step; backend uses focus task only when generating final task (step 3). */
+  focus_task?: unknown;
 }
 
 // —— After recording_1: task text + optional task_block / metric labels for step 2 ——

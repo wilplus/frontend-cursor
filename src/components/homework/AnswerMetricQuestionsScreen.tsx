@@ -47,35 +47,44 @@ export default function AnswerMetricQuestionsScreen({
   const allFilled = answer_1.trim() !== "" && answer_2.trim() !== "" && answer_3.trim() !== "";
 
   return (
-    <div className="answer-metric-questions space-y-4">
-      <Card className="p-6 space-y-4">
-        <p className="text-sm font-medium">Answer these three questions:</p>
-        <div className="space-y-3">
-          <label className="block text-sm font-medium field-label">{label1}</label>
-          <textarea
-            className="field min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            placeholder="Your answer…"
-            value={answer_1}
-            onChange={(e) => setAnswer_1(e.target.value)}
-          />
-          <label className="block text-sm font-medium field-label">{label2}</label>
-          <textarea
-            className="field min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            placeholder="Your answer…"
-            value={answer_2}
-            onChange={(e) => setAnswer_2(e.target.value)}
-          />
-          <label className="block text-sm font-medium field-label">{label3}</label>
-          <textarea
-            className="field min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            placeholder="Your answer…"
-            value={answer_3}
-            onChange={(e) => setAnswer_3(e.target.value)}
-          />
+    <div className="answer-metric-questions">
+      <Card className="p-6 sm:p-8">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">{label1}</label>
+            <textarea
+              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              placeholder="Your answer…"
+              value={answer_1}
+              onChange={(e) => setAnswer_1(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">{label2}</label>
+            <textarea
+              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              placeholder="Your answer…"
+              value={answer_2}
+              onChange={(e) => setAnswer_2(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">{label3}</label>
+            <textarea
+              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              placeholder="Your answer…"
+              value={answer_3}
+              onChange={(e) => setAnswer_3(e.target.value)}
+            />
+          </div>
         </div>
-        {externalError && <p className="text-sm text-destructive">{externalError}</p>}
-        {!allFilled && <p className="text-sm text-muted-foreground">Answer all three questions above to continue.</p>}
-        <Button onClick={handleSubmit} disabled={loading || !allFilled}>
+        {externalError && <p className="mt-4 text-sm text-destructive">{externalError}</p>}
+        {!allFilled && <p className="mt-3 text-sm text-muted-foreground">Answer all three questions above to continue.</p>}
+        <Button
+          className="mt-6 w-full sm:w-auto min-w-[140px]"
+          onClick={handleSubmit}
+          disabled={loading || !allFilled}
+        >
           {loading ? "Submitting…" : "Continue"}
         </Button>
       </Card>

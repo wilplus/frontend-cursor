@@ -117,7 +117,6 @@ export default function HomeworkFlowCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
-  const [noFocusTaskAvailable, setNoFocusTaskAvailable] = useState(false);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
@@ -176,7 +175,6 @@ export default function HomeworkFlowCard() {
     setReportText("");
     setPerformanceScoreEnd(null);
     setError(null);
-    setNoFocusTaskAvailable(false);
     setNoWarmupConfigured(false);
     setLoading(true);
     homeworkApi
@@ -302,9 +300,6 @@ export default function HomeworkFlowCard() {
             }
           : null);
       setTaskBlock(block);
-      setNoFocusTaskAvailable(
-        block != null && (block.focus_task === null || block.focus_task === undefined)
-      );
       setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -546,30 +541,17 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: Task text + 3 metric questions
+  // Step 2: 3 metric questions only (context_short is used by backend for the task, not shown here)
   if (step === 2) {
     return (
       <Wrapper>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-4">
           <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
             Start over
           </Button>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/dashboard">Abandon</Link>
           </Button>
-        </div>
-        {noFocusTaskAvailable && (
-          <div
-            className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
-            role="alert"
-          >
-            No focus task available for your current score. You can still answer the questions below and continue, or
-            start over. Contact your coach if this persists.
-          </div>
-        )}
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-sm font-medium text-muted-foreground mb-2">Your task (after first recording)</p>
-          <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">{taskText || "—"}</p>
         </div>
         <AnswerMetricQuestionsScreen
           sessionId={sessionId!}
