@@ -270,7 +270,7 @@ export default function HomeworkFlowCard() {
           setError(null);
           return handleStart();
         }
-        applyStatusToState(statusRes);
+        if (statusRes) applyStatusToState(statusRes);
       })
       .catch((e) => {
         if (isNoWarmupError(e)) {
