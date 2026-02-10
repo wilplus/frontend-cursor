@@ -125,9 +125,11 @@ export default function AudioRecorder({
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+        // Replace any existing stream so we always start the wheel with a live stream
         if (streamRef.current) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
+          realtimeStrengthPace.stop();
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
         }
         streamRef.current = stream;
         realtimeStrengthPace.start(stream);
