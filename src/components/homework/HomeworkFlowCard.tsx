@@ -37,7 +37,7 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? "").trim() || "";
   const taskText = s.task_text ?? "";
   const taskBlock = s.task_block ?? null;
-  const finalTaskText = s.final_task_text ?? "";
+  const finalTaskText = (toText(s.final_task) || s.final_task_text || "").trim() || "";
   const reportText = s.report_text ?? "";
   const performanceScoreEnd = s.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
@@ -560,10 +560,11 @@ export default function HomeworkFlowCard() {
     }
     return (
       <Wrapper>
+        {/* Final task: only API value (response.final_task or final_task_text); no hardcoded fallback */}
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
           <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-            {finalTaskText}
+            {finalTaskText || "—"}
           </p>
         </div>
         <AudioRecorder

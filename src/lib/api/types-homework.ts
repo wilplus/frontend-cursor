@@ -43,6 +43,8 @@ export interface HomeworkSessionStatus {
   recording_2_id?: UUID | null;
   task_text?: string | null;
   task_block?: TaskBlockV2 | null;
+  /** Final task for recording_2 (from GET status or session). */
+  final_task?: string | { text?: string } | null;
   final_task_text?: string | null;
   report_text?: string | null;
   performance_score_end?: number | null;
