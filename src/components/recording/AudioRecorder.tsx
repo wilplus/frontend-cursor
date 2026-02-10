@@ -247,9 +247,6 @@ export default function AudioRecorder({
       if (sessionId && recordingSlot) {
         chunkMetrics.start(stream);
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx:startRecording',message:'calling realtimeStrengthPace.start',data:{streamActive:!!stream?.active,hasSessionId:!!sessionId,hasRecordingSlot:!!recordingSlot},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       realtimeStrengthPace.start(stream);
 
       timerIntervalRef.current = setInterval(() => {
