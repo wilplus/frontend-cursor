@@ -92,17 +92,44 @@ export const homeworkApi = {
     return handleResponse<{ task_block: TaskBlockV2 }>(res);
   },
 
-  /** Upload recording_1 (warm-up). Multipart: audio, duration_seconds. */
+  /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }. */
+  async getRecordingUploadUrl(
+    sessionId: string,
+    recording: "1" | "2",
+    signal?: AbortSignal
+  ): Promise<{ bucket: string; storage_path: string }> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/session/${sessionId}/recording-upload-url`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ recording }),
+      signal,
+      credentials,
+    });
+    return handleResponse<{ bucket: string; storage_path: string }>(res);
+  },
+
+  /** Upload recording_1 (warm-up): get upload URL → upload blob to Supabase Storage → POST recording-1 with JSON { storage_path, duration_seconds }. */
   async uploadRecording1(
     sessionId: string,
-    formData: FormData,
+    blob: Blob,
+    durationSeconds: number,
     signal?: AbortSignal
   ): Promise<HomeworkRecording1Response> {
-    const { headers, credentials } = await getAuthFetchOptions();
+    const { bucket, storage_path } = await this.getRecordingUploadUrl(sessionId, "1", signal);
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const contentType = blob.type || "audio/webm";
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
+      contentType,
+      upsert: true,
+    });
+    if (uploadError) throw new Error(uploadError.message);
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/recording-1`, {
       method: "POST",
       headers,
-      body: formData,
+      body: JSON.stringify({ storage_path, duration_seconds: durationSeconds }),
       signal,
       credentials,
     });
@@ -124,17 +151,27 @@ export const homeworkApi = {
     return handleResponse<HomeworkMetricAnswersResponse>(res);
   },
 
-  /** Upload recording_2. Multipart: audio, duration_seconds. */
+  /** Upload recording_2: get upload URL → upload blob to Supabase Storage → POST recording-2 with JSON { storage_path, duration_seconds }. */
   async uploadRecording2(
     sessionId: string,
-    formData: FormData,
+    blob: Blob,
+    durationSeconds: number,
     signal?: AbortSignal
   ): Promise<HomeworkRecording2Response> {
-    const { headers, credentials } = await getAuthFetchOptions();
+    const { bucket, storage_path } = await this.getRecordingUploadUrl(sessionId, "2", signal);
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const contentType = blob.type || "audio/webm";
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
+      contentType,
+      upsert: true,
+    });
+    if (uploadError) throw new Error(uploadError.message);
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/recording-2`, {
       method: "POST",
       headers,
-      body: formData,
+      body: JSON.stringify({ storage_path, duration_seconds: durationSeconds }),
       signal,
       credentials,
     });
