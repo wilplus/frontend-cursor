@@ -262,13 +262,6 @@ export default function HomeworkFlowCard() {
     };
   }, [step, sessionId, taskBlock]);
 
-  const buildFormData = (blob: Blob, durationSeconds: number): FormData => {
-    const formData = new FormData();
-    formData.append("audio", blob, "recording.webm");
-    formData.append("duration_seconds", String(durationSeconds));
-    return formData;
-  };
-
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
     if (sessionId === "mock-session") {
@@ -281,8 +274,7 @@ export default function HomeworkFlowCard() {
     setError(null);
     abortRef.current = new AbortController();
     try {
-      const formData = buildFormData(blob, durationSeconds);
-      const res = await homeworkApi.uploadRecording1(sessionId, formData, abortRef.current.signal);
+      const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
       setTaskText(toText(res.task_text));
       const r = res as {
         task_block?: TaskBlockV2;
@@ -352,8 +344,7 @@ export default function HomeworkFlowCard() {
     setError(null);
     abortRef.current = new AbortController();
     try {
-      const formData = buildFormData(blob, durationSeconds);
-      await homeworkApi.uploadRecording2(sessionId, formData, abortRef.current.signal);
+      await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
       const { questions: qList } = await homeworkApi.getQuestions(sessionId);
       if (qList.length === 0) {
         const reportRes = await homeworkApi.submitPostAnswers(sessionId, []);
