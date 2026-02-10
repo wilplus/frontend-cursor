@@ -72,6 +72,10 @@ export async function POST(
   }
 
   const { sessionId } = await params;
+  if (!sessionId || typeof sessionId !== "string" || sessionId.trim() === "") {
+    return addCors(NextResponse.json({ error: "Missing or invalid session id" }, { status: 400 }));
+  }
+
   const backend = getBackendUrl();
   if (!backend) {
     return addCors(NextResponse.json({ error: "Backend not configured" }, { status: 503 }));
@@ -82,16 +86,13 @@ export async function POST(
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/octet-stream",
   };
-  const forwardHeaders = [
-    "X-Sample-Rate",
-    "X-Seq",
-    "X-T-Ms",
-    "X-Chunk-Seq",
-    "X-Chunk-Start-Ms",
-    "X-Recording-Slot",
-    "X-Debug",
-  ];
-  for (const name of forwardHeaders) {
+  // Backend expects X-Seq and X-T-Ms; map client headers if it sends X-Chunk-Seq / X-Chunk-Start-Ms
+  const xSeq = request.headers.get("X-Chunk-Seq") ?? request.headers.get("X-Seq");
+  const xTMs = request.headers.get("X-Chunk-Start-Ms") ?? request.headers.get("X-T-Ms");
+  if (xSeq != null) headers["X-Seq"] = xSeq;
+  if (xTMs != null) headers["X-T-Ms"] = xTMs;
+  const otherHeaders = ["X-Sample-Rate", "X-Recording-Slot", "X-Debug"];
+  for (const name of otherHeaders) {
     const value = request.headers.get(name);
     if (value != null) headers[name] = value;
   }
