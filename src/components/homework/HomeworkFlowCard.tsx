@@ -33,17 +33,29 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   reportText: string;
   performanceScoreEnd: number | null;
 } {
-  const sessionLike = s as { session?: { status?: string; warm_up_task?: { text?: string } } };
-  const statusRaw = s.status ?? sessionLike.session?.status ?? "";
+  const session = (s as HomeworkSessionStatus).session;
+  const statusRaw =
+    s.status ??
+    session?.status ??
+    session?.state ??
+    s.session_state ??
+    "";
   const status = statusRaw.toLowerCase().trim();
 
-  const warmUpTask = s.warm_up_task ?? sessionLike.session?.warm_up_task;
-  const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? "").trim() || "";
+  const warmUpTask = s.warm_up_task ?? session?.warm_up_task;
+  const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? session?.warm_up_task_text ?? "").trim() || "";
   const taskText = s.task_text ?? "";
-  const taskBlock = s.task_block ?? null;
-  const finalTaskText = (toText(s.final_task) || s.final_task_text || "").trim() || "";
-  const reportText = s.report_text ?? "";
-  const performanceScoreEnd = s.performance_score_end ?? null;
+  const q1 = s.session_metric_question_1 ?? session?.session_metric_question_1;
+  const q2 = s.session_metric_question_2 ?? session?.session_metric_question_2;
+  const q3 = s.session_metric_question_3 ?? session?.session_metric_question_3;
+  const taskBlock =
+    s.task_block ??
+    (q1 != null || q2 != null || q3 != null
+      ? { metric_question_1: q1 ?? undefined, metric_question_2: q2 ?? undefined, metric_question_3: q3 ?? undefined }
+      : null);
+  const finalTaskText = (session?.final_task_text ?? s.final_task_text ?? toText(s.final_task) ?? "").trim() || "";
+  const reportText = (s.report_text ?? session?.context_long ?? "").trim() || "";
+  const performanceScoreEnd = s.performance_score_end ?? session?.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
 
   // Backend state-machine status → step (source of truth). Stops UI showing warm-up when status is e.g. final_task_ready.
@@ -132,11 +144,11 @@ export default function HomeworkFlowCard() {
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
 
-  /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. */
+  /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
     const sessionIdFromRes =
-      statusRes.session_id ?? (statusRes as { session?: { id?: string } }).session?.id;
-    if (sessionIdFromRes) setSessionId(sessionIdFromRes);
+      statusRes.session_id ?? statusRes.session?.id ?? null;
+    setSessionId(sessionIdFromRes);
     const derived = deriveStepFromStatus(statusRes);
     setWarmUpText(derived.warmUpText);
     setTaskText(derived.taskText);
@@ -243,11 +255,22 @@ export default function HomeworkFlowCard() {
     homeworkApi
       .getStatus()
       .then((statusRes) => {
-        if (statusRes?.session_id) {
-          applyStatusToState(statusRes);
-        } else {
+        const hasActive = statusRes?.has_active_session !== false;
+        const sessionIdFromRes = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
+        if (!hasActive || !sessionIdFromRes) {
+          setSessionId(null);
+          setStep(0);
+          setWarmUpText("");
+          setTaskText("");
+          setTaskBlock(null);
+          setFinalTaskText("");
+          setQuestions([]);
+          setReportText("");
+          setPerformanceScoreEnd(null);
+          setError(null);
           return handleStart();
         }
+        applyStatusToState(statusRes);
       })
       .catch((e) => {
         if (isNoWarmupError(e)) {
@@ -638,7 +661,9 @@ export default function HomeworkFlowCard() {
             </p>
           )}
           <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{reportText}</p>
+            <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
+              {reportText.trim() || "Report pending."}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={handleStartOver}>
