@@ -40,7 +40,7 @@ export type HomeworkSessionStatusEnum =
   | "report_generated";
 
 export interface HomeworkSessionStatus {
-  session_id: UUID;
+  session_id?: UUID;
   status?: HomeworkSessionStatusEnum | string;
   warm_up_task_text?: string;
   /** Top-level warm-up from GET /session/status (backfilled when snapshot was missing). Use for display; fallback to warm_up_task_text. */
@@ -58,6 +58,28 @@ export interface HomeworkSessionStatus {
   performance_score_end?: number | null;
   /** Post-recording questions for step 4 (if any). */
   questions?: HomeworkQuestion[];
+  /** Backend: no active session; clear state and require POST start. */
+  has_active_session?: boolean;
+  /** Backend: alternative to status (e.g. top-level session_state). */
+  session_state?: string;
+  /** Backend: nested session (snake_case). Use for id, status, warm_up_task_text, final_task_text, context_long, performance_score_end. */
+  session?: {
+    id?: string;
+    status?: string;
+    state?: string;
+    warm_up_task_text?: string;
+    warm_up_task?: WarmUpTask | null;
+    final_task_text?: string | null;
+    context_long?: string | null;
+    performance_score_end?: number | null;
+    session_metric_question_1?: MetricQuestionItemV2 | string | null;
+    session_metric_question_2?: MetricQuestionItemV2 | string | null;
+    session_metric_question_3?: MetricQuestionItemV2 | string | null;
+  };
+  /** Backend: metric questions when task_block not present (top-level snake_case). */
+  session_metric_question_1?: MetricQuestionItemV2 | string | null;
+  session_metric_question_2?: MetricQuestionItemV2 | string | null;
+  session_metric_question_3?: MetricQuestionItemV2 | string | null;
 }
 
 // —— Metric question item (id + text, used in task_block) ——

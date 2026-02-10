@@ -100,6 +100,8 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     stop();
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     audioContextRef.current = ctx;
+    // Resume so analyser gets real audio (browsers start AudioContext suspended until user gesture).
+    ctx.resume().catch(() => {});
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:start',message:'AudioContext created',data:{state:ctx.state},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
     // #endregion
