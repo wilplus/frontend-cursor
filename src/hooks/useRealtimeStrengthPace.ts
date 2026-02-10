@@ -57,6 +57,9 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   const voicedWindowRef = useRef<number[]>([]);
 
   const stop = useCallback(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:stop',message:'stop called',data:{hadInterval:!!intervalRef.current},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -91,9 +94,15 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   }, [stop]);
 
   const start = useCallback((stream: MediaStream) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:start',message:'start called',data:{streamId:stream?.id,active:stream?.active,trackCount:stream?.getTracks?.()?.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     stop();
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     audioContextRef.current = ctx;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:start',message:'AudioContext created',data:{state:ctx.state},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.5;
@@ -109,6 +118,7 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     smoothedPaceRef.current = 0.5;
     setIsActive(true);
 
+    let tickCount = 0;
     intervalRef.current = setInterval(() => {
       if (!analyserRef.current || !audioContextRef.current) return;
       const a = analyserRef.current;
@@ -121,6 +131,12 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
       }
       const rms = Math.sqrt(sumSq / dataArray.length);
       const db = rmsToDb(rms);
+      tickCount++;
+      // #region agent log
+      if (tickCount <= 3 || tickCount % 20 === 0) {
+        fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:tick',message:'interval tick',data:{tickCount,ctxState:audioContextRef.current?.state,rms,db},timestamp:Date.now(),hypothesisId:'H1,H4,H5'})}).catch(()=>{});
+      }
+      // #endregion
       setStrengthDb(db);
 
       const voiced = rms > VOICED_RMS_THRESHOLD ? 1 : 0;
