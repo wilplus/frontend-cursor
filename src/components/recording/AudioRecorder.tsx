@@ -544,29 +544,26 @@ export default function AudioRecorder({
   const progressPercent = Math.min(100, (elapsedSeconds / MIN_DURATION_SECONDS) * 100);
   const remainingSeconds = Math.max(0, MIN_DURATION_SECONDS - elapsedSeconds);
 
-  const showDartboard = realtimeStrengthPace.isActive;
-
-  // MediaRecorder mode
+  // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
     <Card className="p-6 space-y-4">
-      {showDartboard && (
-        <div className="flex flex-col items-center gap-2">
-          <StrengthPaceDartboard
-            strengthScore={realtimeStrengthPace.strengthScore}
-            paceScore={realtimeStrengthPace.paceScore}
-            strengthDirection={realtimeStrengthPace.strengthDirection}
-            paceDirection={realtimeStrengthPace.paceDirection}
-          />
+      <div className="flex flex-col items-center gap-2">
+        <StrengthPaceDartboard
+          strengthScore={realtimeStrengthPace.strengthScore}
+          paceScore={realtimeStrengthPace.paceScore}
+          strengthDirection={realtimeStrengthPace.strengthDirection}
+          paceDirection={realtimeStrengthPace.paceDirection}
+        />
+        {realtimeStrengthPace.isActive ? (
           <p className="text-xs text-muted-foreground">
             Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB · Pace: ~{Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
-        </div>
-      )}
-      {!showDartboard && !isRecording && micPreviewError && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-          {micPreviewError}
-        </p>
-      )}
+        ) : !isRecording && micPreviewError ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            {micPreviewError}
+          </p>
+        ) : null}
+      </div>
       <div className="text-center">
         <div
           className={`text-4xl font-mono font-bold ${isRecording ? "text-primary" : "text-foreground"}`}
