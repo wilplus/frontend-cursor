@@ -132,6 +132,28 @@ export default function HomeworkFlowCard() {
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
 
+  /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. */
+  const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
+    const sessionIdFromRes =
+      statusRes.session_id ?? (statusRes as { session?: { id?: string } }).session?.id;
+    if (sessionIdFromRes) setSessionId(sessionIdFromRes);
+    const derived = deriveStepFromStatus(statusRes);
+    setWarmUpText(derived.warmUpText);
+    setTaskText(derived.taskText);
+    setTaskBlock(derived.taskBlock);
+    setFinalTaskText(derived.finalTaskText);
+    setReportText(derived.reportText);
+    setPerformanceScoreEnd(derived.performanceScoreEnd);
+    const qList = derived.questions.map((q) => ({
+      ...q,
+      id: toId(q.id) || crypto.randomUUID(),
+      text: toText(q.text),
+    }));
+    setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+    setStep(derived.step);
+    setError(null);
+  };
+
   const handleStart = async () => {
     setLoading(true);
     setError(null);
@@ -222,22 +244,7 @@ export default function HomeworkFlowCard() {
       .getStatus()
       .then((statusRes) => {
         if (statusRes?.session_id) {
-          const derived = deriveStepFromStatus(statusRes);
-          setSessionId(statusRes.session_id);
-          setWarmUpText(derived.warmUpText);
-          setTaskText(derived.taskText);
-          setTaskBlock(derived.taskBlock);
-          setFinalTaskText(derived.finalTaskText);
-          setReportText(derived.reportText);
-          setPerformanceScoreEnd(derived.performanceScoreEnd);
-          const qList = derived.questions.map((q) => ({
-            ...q,
-            id: toId(q.id) || q.id,
-            text: toText(q.text),
-          }));
-          setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-          setStep(derived.step);
-          setError(null);
+          applyStatusToState(statusRes);
         } else {
           return handleStart();
         }
@@ -272,6 +279,30 @@ export default function HomeworkFlowCard() {
     };
   }, [step, sessionId, taskBlock]);
 
+  // On step 4, if questions are missing (thin status or refresh), load from GET questions
+  useEffect(() => {
+    if (step !== 4 || !sessionId || sessionId === "mock-session" || questions.length > 0) return;
+    let cancelled = false;
+    homeworkApi
+      .getQuestions(sessionId)
+      .then(({ questions: qList }) => {
+        if (!cancelled && qList.length > 0) {
+          const normalized = qList.map((q) => ({
+            ...q,
+            id: toId(q.id) || crypto.randomUUID(),
+            text: toText(q.text),
+          }));
+          setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, sessionId, questions.length]);
+
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
     if (sessionId === "mock-session") {
@@ -284,25 +315,9 @@ export default function HomeworkFlowCard() {
     setError(null);
     abortRef.current = new AbortController();
     try {
-      const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
-      setTaskText(toText(res.task_text));
-      const r = res as {
-        task_block?: TaskBlockV2;
-        metric_question_1?: TaskBlockV2["metric_question_1"];
-        metric_question_2?: TaskBlockV2["metric_question_2"];
-        metric_question_3?: TaskBlockV2["metric_question_3"];
-      };
-      const block =
-        r.task_block ??
-        (r.metric_question_1 != null || r.metric_question_2 != null || r.metric_question_3 != null
-          ? {
-              metric_question_1: r.metric_question_1,
-              metric_question_2: r.metric_question_2,
-              metric_question_3: r.metric_question_3,
-            }
-          : null);
-      setTaskBlock(block);
-      setStep(2);
+      await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
       toast.error(e instanceof Error ? e.message : "Upload failed");
@@ -329,14 +344,13 @@ export default function HomeworkFlowCard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await homeworkApi.submitMetricAnswers(sessionId, {
+      await homeworkApi.submitMetricAnswers(sessionId, {
         metric_answer_1: a1,
         metric_answer_2: a2,
         metric_answer_3: a3,
       });
-      const finalTask = res.final_task ?? res.final_task_text ?? "";
-      setFinalTaskText(toText(finalTask));
-      setStep(3);
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       const isValidationError =
         e instanceof Error && "code" in e && (e as HomeworkApiError).code === "VALIDATION_ERROR";
@@ -355,21 +369,9 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
-      const { questions: qList } = await homeworkApi.getQuestions(sessionId);
-      if (qList.length === 0) {
-        const reportRes = await homeworkApi.submitPostAnswers(sessionId, []);
-        setReportText(toText(reportRes.report_text));
-        setPerformanceScoreEnd(reportRes.performance_score_end);
-        setStep(5);
-      } else {
-        const normalized = qList.map((q) => ({
-          ...q,
-          id: toId(q.id) || crypto.randomUUID(),
-          text: toText(q.text),
-        }));
-        setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-        setStep(4);
-      }
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) applyStatusToState(statusRes);
+      // Step-4 questions filled by effect when status is thin (step 4 + questions.length === 0)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
       toast.error(e instanceof Error ? e.message : "Upload failed");
@@ -395,10 +397,9 @@ export default function HomeworkFlowCard() {
         question_id: toId(q.id),
         answer_text: (postAnswers[toId(q.id)] ?? "").trim(),
       }));
-      const res = await homeworkApi.submitPostAnswers(sessionId, answers);
-      setReportText(toText(res.report_text));
-      setPerformanceScoreEnd(res.performance_score_end);
-      setStep(5);
+      await homeworkApi.submitPostAnswers(sessionId, answers);
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to submit");
       toast.error(e instanceof Error ? e.message : "Failed to submit");
