@@ -22,7 +22,7 @@ const TOTAL_STEPS = 5;
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
-/** Derive current step and restored state from session status (backend may send status enum or we infer from IDs/payload). */
+/** Derive current step and restored state from session status. Backend status (warm_up, task_block, etc.) is source of truth; legacy status/IDs used as fallback. */
 function deriveStepFromStatus(s: HomeworkSessionStatus): {
   step: Step;
   warmUpText: string;
@@ -33,7 +33,11 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   reportText: string;
   performanceScoreEnd: number | null;
 } {
-  const warmUpTask = s.warm_up_task ?? (s as { session?: { warm_up_task?: { text?: string } } }).session?.warm_up_task;
+  const sessionLike = s as { session?: { status?: string; warm_up_task?: { text?: string } } };
+  const statusRaw = s.status ?? sessionLike.session?.status ?? "";
+  const status = statusRaw.toLowerCase().trim();
+
+  const warmUpTask = s.warm_up_task ?? sessionLike.session?.warm_up_task;
   const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? "").trim() || "";
   const taskText = s.task_text ?? "";
   const taskBlock = s.task_block ?? null;
@@ -42,8 +46,14 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const performanceScoreEnd = s.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
 
-  const status = (s.status ?? "").toLowerCase();
+  // Backend state-machine status → step (source of truth). Stops UI showing warm-up when status is e.g. final_task_ready.
+  if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  if (status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  if (status === "post_questions") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
 
+  // Fallback: payload/legacy status when backend status missing or unknown
   if (reportText || performanceScoreEnd != null) {
     return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
   }

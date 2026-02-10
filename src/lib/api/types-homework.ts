@@ -20,6 +20,14 @@ export interface HomeworkStartResponse {
 }
 
 // —— Session status (for resume / step derivation). Backend may return a subset. ——
+/** Backend state-machine status (source of truth for step). Use these to derive step on load. */
+export type HomeworkSessionStatusBackend =
+  | "warm_up"           // step 1: warm-up recording
+  | "task_block"        // step 2: metric questions
+  | "final_task_ready"  // step 3: final task + recording-2
+  | "post_questions"    // step 4: reflective questions
+  | "completed";        // step 5: report
+
 export type HomeworkSessionStatusEnum =
   | "created"
   | "warmup_recorded"
