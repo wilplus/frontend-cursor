@@ -94,17 +94,13 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   }, [stop]);
 
   const start = useCallback((stream: MediaStream) => {
+    if (!stream?.active) return;
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:start',message:'start called',data:{streamId:stream?.id,active:stream?.active,trackCount:stream?.getTracks?.()?.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
     // #endregion
     stop();
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     audioContextRef.current = ctx;
-    // Resume so analyser gets real audio (browsers start AudioContext suspended until user gesture).
-    ctx.resume().catch(() => {});
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:start',message:'AudioContext created',data:{state:ctx.state},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.5;
@@ -118,48 +114,52 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     voicedWindowRef.current = [];
     smoothedStrengthRef.current = 0.5;
     smoothedPaceRef.current = 0.5;
-    setIsActive(true);
 
-    let tickCount = 0;
-    intervalRef.current = setInterval(() => {
-      if (!analyserRef.current || !audioContextRef.current) return;
-      const a = analyserRef.current;
-      a.getFloatTimeDomainData(dataArray);
+    // Browsers start AudioContext suspended; resume before reading so the wheel gets real audio.
+    ctx.resume().then(() => {
+      if (audioContextRef.current !== ctx) return;
+      setIsActive(true);
+      let tickCount = 0;
+      intervalRef.current = setInterval(() => {
+        if (!analyserRef.current || !audioContextRef.current) return;
+        const a = analyserRef.current;
+        a.getFloatTimeDomainData(dataArray);
 
-      let sumSq = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        const s = dataArray[i];
-        sumSq += s * s;
-      }
-      const rms = Math.sqrt(sumSq / dataArray.length);
-      const db = rmsToDb(rms);
-      tickCount++;
-      // #region agent log
-      if (tickCount <= 3 || tickCount % 20 === 0) {
-        fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:tick',message:'interval tick',data:{tickCount,ctxState:audioContextRef.current?.state,rms,db},timestamp:Date.now(),hypothesisId:'H1,H4,H5'})}).catch(()=>{});
-      }
-      // #endregion
-      setStrengthDb(db);
+        let sumSq = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const s = dataArray[i];
+          sumSq += s * s;
+        }
+        const rms = Math.sqrt(sumSq / dataArray.length);
+        const db = rmsToDb(rms);
+        tickCount++;
+        // #region agent log
+        if (tickCount <= 3 || tickCount % 20 === 0) {
+          fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:tick',message:'interval tick',data:{tickCount,ctxState:audioContextRef.current?.state,rms,db},timestamp:Date.now(),hypothesisId:'H1,H4,H5'})}).catch(()=>{});
+        }
+        // #endregion
+        setStrengthDb(db);
 
-      const voiced = rms > VOICED_RMS_THRESHOLD ? 1 : 0;
-      const win = voicedWindowRef.current;
-      win.push(voiced);
-      if (win.length > WINDOW_SAMPLES) win.shift();
-      const voicedRatio = win.length === 0 ? 0 : win.reduce((a, b) => a + b, 0) / win.length;
-      const wpm = Math.max(WPM_MIN, Math.min(WPM_MAX, 60 + voicedRatio * 160));
-      setWpmEstimate(wpm);
+        const voiced = rms > VOICED_RMS_THRESHOLD ? 1 : 0;
+        const win = voicedWindowRef.current;
+        win.push(voiced);
+        if (win.length > WINDOW_SAMPLES) win.shift();
+        const voicedRatio = win.length === 0 ? 0 : win.reduce((a, b) => a + b, 0) / win.length;
+        const wpm = Math.max(WPM_MIN, Math.min(WPM_MAX, 60 + voicedRatio * 160));
+        setWpmEstimate(wpm);
 
-      const rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
-      const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
-      const smoothStr = EMA_ALPHA * rawStrengthScore + (1 - EMA_ALPHA) * smoothedStrengthRef.current;
-      const smoothPace = EMA_ALPHA * rawPaceScore + (1 - EMA_ALPHA) * smoothedPaceRef.current;
-      smoothedStrengthRef.current = smoothStr;
-      smoothedPaceRef.current = smoothPace;
-      setStrengthScore(smoothStr);
-      setPaceScore(smoothPace);
-      setStrengthDirection(db < TARGET_DB ? -1 : 1);
-      setPaceDirection(wpm < TARGET_WPM ? -1 : 1);
-    }, UPDATE_MS);
+        const rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
+        const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
+        const smoothStr = EMA_ALPHA * rawStrengthScore + (1 - EMA_ALPHA) * smoothedStrengthRef.current;
+        const smoothPace = EMA_ALPHA * rawPaceScore + (1 - EMA_ALPHA) * smoothedPaceRef.current;
+        smoothedStrengthRef.current = smoothStr;
+        smoothedPaceRef.current = smoothPace;
+        setStrengthScore(smoothStr);
+        setPaceScore(smoothPace);
+        setStrengthDirection(db < TARGET_DB ? -1 : 1);
+        setPaceDirection(wpm < TARGET_WPM ? -1 : 1);
+      }, UPDATE_MS);
+    }).catch(() => {});
   }, [stop]);
 
   return {
