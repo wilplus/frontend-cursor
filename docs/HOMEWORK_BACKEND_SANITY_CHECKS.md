@@ -28,6 +28,27 @@ If the homework handlers do **not** read from the student’s assigned warm-up t
 
 ---
 
+## 0b) Focus task: use admin-assigned list in task block (step 2)
+
+**Goal:** The focus tasks that the admin configures per student (in the admin panel, via `/v2/admin/students/:userId/task-focus` and the focus task pool) must be the **same** tasks the student sees in step 2 (after recording_1). The frontend shows "No focus task available" when `task_block.focus_task` is null/undefined.
+
+**Why it doesn't show up otherwise:** The **student flow** does not call the admin API. After recording_1 it only receives:
+
+- `POST /v2/homework/session/:id/recording-1` → response must include `task_block` (or equivalent) with **`focus_task`** and the three metric questions.
+- `GET /v2/homework/session/:id/task-block` → when resuming, same shape: **`task_block.focus_task`** must be set.
+
+So the **backend** must:
+
+1. When handling **POST recording-1** (or building the task block): compute `performance_score_1`, load the **student's assigned focus tasks** (the same list the admin manages), pick one whose score band matches `performance_score_1` (e.g. min/max performance score), and set **`task_block.focus_task`** (e.g. `{ id, text }`) in the response.
+2. When handling **GET task-block**: return the same `task_block` (including `focus_task`) that was stored for that session.
+
+If the backend does **not** read from the student's assigned focus task list when building the task block, or returns `focus_task: null`, the frontend will show "No focus task available for your current score" even though the admin has added focus tasks for that user.
+
+**Contract:**  
+"For the authenticated user (student), the response of `POST /v2/homework/session/:id/recording-1` and `GET /v2/homework/session/:id/task-block` must include `task_block.focus_task` (e.g. `{ id, text }`) chosen from that student's assigned focus tasks based on `performance_score_1`. If no focus task is eligible for the score band, you may return null; ideally at least one focus task has a band that covers 0–1 so one is always chosen."
+
+---
+
 ## 1) One report per session (DB-level)
 
 **Goal:** Avoid creating multiple reports for the same session even if a bug (e.g. double submit) slips in.
