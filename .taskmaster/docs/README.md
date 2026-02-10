@@ -1,24 +1,12 @@
 # Task Master docs (Willab)
 
-Reference files for task-master and AI context. Do not delete.
+**Taskmaster is the only source of truth for this app.** All app description, flow, contracts, implementation notes, and “what is missing” live here. Do not rely on other project docs for the canonical description.
 
 | File | Purpose |
 |------|---------|
-| **APP_DESCRIPTION.md** | **Single source of truth** for the app: what it is, flow explained, components involved, and what could go wrong. Use this first for onboarding, flow explanation, and debugging. |
-| **prd.txt** | Product requirements aligned with the project. Describes what is in place and what remains. Run `npx task-master parse-prd .taskmaster/docs/prd.txt` to generate tasks. |
-| **schema.sql** | Current Supabase schema (tables, columns, constraints). Use as the single source of truth for the database when implementing features or writing tasks. |
+| **APP_DESCRIPTION.md** | **Single source of truth:** what the app is, homework flow, API paths, GET status mapping, key contracts, implementation checklist, components, what could go wrong, and **what is missing**. Use this for onboarding, Cursor, and task planning. |
+| **ALIGNMENT-WITH-BACKEND-SPEC.md** | Where taskmaster and the backend consolidated MVP spec align vs differ. Use when integrating with the backend repo. |
+| **prd.txt** | Product requirements and roadmap. Run `npx task-master parse-prd .taskmaster/docs/prd.txt` to generate tasks. |
+| **schema.sql** | Supabase schema reference (if present). Use for DB-related tasks. |
 
-## Unify with project docs
-
-- **APP_DESCRIPTION.md** (this folder) — Unified app description: flow, components, failure modes. Start here.
-- **prd.txt** — PRD and roadmap; references APP_DESCRIPTION.md and root docs for implementation details.
-
-For deeper specs and contracts, see **project root docs/**:
-
-- **docs/STEPS-TO-MAKE-FLOW-WORK.md** — Implementation steps and checklist.
-- **docs/EXAMPLE-GET-SESSION-STATUS-RESPONSES.md** — GET status contract and mapping.
-- **docs/BACKEND_PROMPT_API_PATHS.md** — API paths (frontend /api vs backend /v2).
-- **docs/WARM_UP_SELECTION_SPEC.md** — Warm-up selection algorithm.
-- **docs/BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md** — Admin API contract.
-
-When writing or executing tasks, use APP_DESCRIPTION.md and these docs for contracts and specs.
+There are no other canonical docs for the app. The backend repo holds its own spec (CONTRACT-HOMEWORK-FLOW, migrations, OpenAPI). Project root `docs/` may contain archive, migrations, or artifacts (e.g. OPENAPI-V2-RECORDINGS.yaml, STYLING_GUIDELINES.md) but not the app description.
