@@ -11,7 +11,7 @@ This project uses [Task Master](https://docs.task-master.dev/) for task manageme
 - **Parse PRD → tasks:** `npx task-master parse-prd .taskmaster/docs/prd.txt`
 - **Expand tasks:** `npx task-master expand --all`
 
-Older docs (implementation notes, prompts, troubleshooting) and Supabase SQL scripts are in `docs/archive/`.
+**App description and flow:** The only source of truth is **`.taskmaster/docs/APP_DESCRIPTION.md`** (and other files in `.taskmaster/docs/`). Do not use other docs for the canonical app description. Older implementation notes and SQL scripts are in `docs/archive/`; `docs/migrations/` and other artifacts may remain in `docs/`.
 
 ## Setup
 

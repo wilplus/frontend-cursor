@@ -3,7 +3,7 @@
 Run: npx task-master parse-prd .taskmaster/docs/prd.txt
 to generate tasks into .taskmaster/tasks/tasks.json.
 
-Reference: Project root docs/ (WHATS_IN_PLACE.md, BACKEND_PROMPT_API_PATHS.md, WARM_UP_SELECTION_SPEC.md, HOMEWORK_FLOW_TECHNICAL_MAP.md, BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md) are the source of truth for what is built and what the backend must implement.
+Reference: .taskmaster/docs/APP_DESCRIPTION.md is the only source of truth for the app (flow, components, contracts, what is missing). All other app description docs have been removed; use taskmaster only.
 
 ---
 
@@ -21,9 +21,9 @@ API paths: Frontend calls /api/homework/session/start, /api/homework/session/:id
 
 # What remains (backend and specs)
 
-Backend homework endpoints: Implement POST /v2/homework/session/start (return session_id and warm_up_task_text; use last report performance_score_end and WARM_UP_SELECTION_SPEC.md to choose warm-up). Implement POST recording-1 (transcribe, extract context, compute performance_score_1, choose focus_task by score, return task_text and optional metric_question_1_text and metric_question_2_text). Implement POST metric-answers (return final_task_text). Implement POST recording-2 (compute performance_score_2). Implement GET questions and POST post-answers (return report_text and performance_score_end). All contracts in BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md and BACKEND_PROMPT_API_PATHS.md.
+Backend homework endpoints: Implement POST /v2/homework/session/start (return session_id and warm_up_task_text; use last report performance_score_end and warm-up selection algorithm to choose warm-up). Implement POST recording-1 (transcribe, extract context, compute performance_score_1, choose focus_task by score, return task text and metric questions). Implement POST metric-answers (return final_task_text). Implement POST recording-2 (compute performance_score_2). Implement GET questions and POST post-answers (report generated on post-answers; performance_score_end). All contracts and API paths are in .taskmaster/docs/APP_DESCRIPTION.md.
 
-Warm-up selection: Backend implements the algorithm in docs/WARM_UP_SELECTION_SPEC.md (max_performance_score per warm-up, eligible filter, closest within 3 percent, randomize, first-time easiest, fallback hardest). Admin API warm-up GET/POST/PUT must accept and return max_performance_score (0-1).
+Warm-up selection: Backend implements selection (max_performance_score per warm-up, eligible filter, anti-repetition, etc.) per backend spec. Admin API warm-up GET/POST/PUT must accept and return max_performance_score (0-1).
 
 Final task LLM: Define exact prompt and constraints for the model that builds final_task_text from context and focus_task and metric answers. Document in a backend or LLM spec; frontend already displays final_task_text.
 
@@ -31,7 +31,7 @@ Report content: Backend generates report to include coaching for both recording_
 
 # Development roadmap
 
-Phase 1 Backend homework flow: Implement all homework student endpoints so the frontend flow works end-to-end with a real backend. Add max_performance_score to warm-up task schema and admin API; implement warm-up selection on session start per WARM_UP_SELECTION_SPEC.md.
+Phase 1 Backend homework flow: Implement all homework student endpoints so the frontend flow works end-to-end with a real backend. Add max_performance_score to warm-up task schema and admin API; implement warm-up selection on session start (see backend spec).
 
 Phase 2 Scoring and content: Define and implement performance_score_1 and performance_score_2 formulas. Define final_task LLM prompt and constraints and implement. Ensure report generation uses context, both recordings, reflective answers, and metrics adherence.
 
@@ -43,8 +43,5 @@ Backend homework endpoints and warm-up selection must be implemented first so th
 
 # Appendix
 
-docs/WHATS_IN_PLACE.md: Short list of what is done and what is needed.
-docs/BACKEND_PROMPT_API_PATHS.md: Frontend vs backend paths; no v2 in frontend URL.
-docs/WARM_UP_SELECTION_SPEC.md: Exact warm-up selection algorithm and examples.
-docs/HOMEWORK_FLOW_TECHNICAL_MAP.md: Technical flow vs in-place items and open questions.
-docs/BACKEND_ADMIN_SYNC_AFTER_SIMPLIFIED_UI.md: Admin API contract (students, warm-up tasks with max_performance_score, tasks, questions, metrics).
+.taskmaster/docs/APP_DESCRIPTION.md: Only source of truth for the app (flow, components, contracts, implementation checklist, what is missing). Start here.
+.taskmaster/docs/ALIGNMENT-WITH-BACKEND-SPEC.md: Taskmaster vs backend spec alignment.
