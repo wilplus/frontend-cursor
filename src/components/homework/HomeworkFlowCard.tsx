@@ -490,14 +490,9 @@ export default function HomeworkFlowCard() {
         {step === 0 && error && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
             <p>{error}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
-                Try again
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/dashboard">Abandon</Link>
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
+              Try again
+            </Button>
           </div>
         )}
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -515,14 +510,6 @@ export default function HomeworkFlowCard() {
         </div>
         {showRecorder && (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
-                Start over
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/dashboard">Abandon</Link>
-              </Button>
-            </div>
             <AudioRecorder
               onRecordingComplete={handleRecording1Complete}
               stopAndSend
@@ -545,14 +532,6 @@ export default function HomeworkFlowCard() {
   if (step === 2) {
     return (
       <Wrapper>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
-            Start over
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/dashboard">Abandon</Link>
-          </Button>
-        </div>
         <AnswerMetricQuestionsScreen
           sessionId={sessionId!}
           taskBlock={taskBlock}
@@ -581,14 +560,6 @@ export default function HomeworkFlowCard() {
     }
     return (
       <Wrapper>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
-            Start over
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/dashboard">Abandon</Link>
-          </Button>
-        </div>
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
           <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
@@ -609,14 +580,6 @@ export default function HomeworkFlowCard() {
   if (step === 4) {
     return (
       <Wrapper>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleStartOver} disabled={loading}>
-            Start over
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/dashboard">Abandon</Link>
-          </Button>
-        </div>
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">Reflective questions</h3>
           <div className="space-y-4">
