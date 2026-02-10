@@ -574,6 +574,16 @@ export default function HomeworkFlowCard() {
           sessionId={sessionId}
           recordingSlot="recording_2"
         />
+        <div className="mt-3 flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={handleStartOver}
+          >
+            Abandon session
+          </Button>
+        </div>
       </Wrapper>
     );
   }
