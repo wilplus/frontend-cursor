@@ -35,14 +35,23 @@ export type HomeworkApiError = Error & { code?: string; backendStatus?: string }
 
 async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string }> {
   try {
-    const body = await res.json();
-    const message =
-      (body as { error?: string }).error ||
-      (body as { message?: string }).message ||
-      res.statusText ||
-      `Request failed ${res.status}`;
-    const code = (body as { code?: string }).code;
-    const status = (body as { status?: string }).status;
+    const body = (await res.json()) as {
+      error?: string;
+      message?: string;
+      code?: string;
+      status?: string;
+      details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
+    };
+    let message =
+      body.error || body.message || res.statusText || `Request failed ${res.status}`;
+    const code = body.code;
+    const status = body.status;
+    if (res.status === 422 && code === "RECORDING_DURATION_OUT_OF_RANGE" && body.details) {
+      const d = body.details;
+      const minMin = d.min_seconds != null ? Math.ceil(d.min_seconds / 60) : 1;
+      const maxMin = d.max_seconds != null ? Math.floor(d.max_seconds / 60) : 5;
+      message = `Recording must be between ${minMin} and ${maxMin} minutes. You recorded ${d.duration_seconds != null ? `${Math.round(d.duration_seconds)}s` : "too short"}. Please try again.`;
+    }
     return { message, code, status };
   } catch {
     return { message: res.statusText || `Request failed ${res.status}` };
