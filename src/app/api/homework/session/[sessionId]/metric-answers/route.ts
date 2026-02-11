@@ -14,7 +14,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> | { sessionId: string } }
 ) {
-  const token = await getV2AccessToken();
+  const token = await getV2AccessToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { sessionId } = typeof (params as Promise<{ sessionId: string }>).then === "function" ? await (params as Promise<{ sessionId: string }>) : (params as { sessionId: string });
   if (!sessionId) return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });

@@ -1,6 +1,9 @@
 /**
  * Pass through upstream response body (including 4xx/5xx) so backend error payload (code, error, status) is not lost.
- * Use in BFF routes that proxy to the backend.
+ * Copy to src/app/api/homework/proxyResponse.ts (or next to getAuth). Use in all BFF routes that proxy to the backend.
+ *
+ * Optional debug (set NEXT_PUBLIC_BFF_DEBUG=1 or uncomment): add response headers so you can verify this helper
+ * is deployed and upstream returned a body: X-BFF-ProxyResponse: 1, X-Upstream-Status, X-Upstream-Body-Len.
  */
 import { NextResponse } from "next/server";
 
