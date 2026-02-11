@@ -49,6 +49,17 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
   }
 }
 
+/** Safe parse: empty or non-JSON body won't throw; returns {} so 200 doesn't stick UI. */
+async function safeParseJson<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (!text || !text.trim()) return {} as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return {} as T;
+  }
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const { message, code, status } = await parseErrorBody(res);
@@ -65,7 +76,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
     if (res.status === 409 && status) err.backendStatus = status;
     throw err;
   }
-  return res.json();
+  return safeParseJson<T>(res);
 }
 
 const BASE = "/api/homework";
@@ -107,7 +118,7 @@ export const homeworkApi = {
     if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
       throw err;
     }
-    return res.json();
+    return safeParseJson<HomeworkSessionStatus | null>(res);
   },
 
   /** Get task-block for step 2 (e.g. when resuming). Returns task_block with 3 metric questions. */
