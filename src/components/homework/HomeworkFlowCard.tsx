@@ -600,7 +600,13 @@ export default function HomeworkFlowCard() {
       const derivedRec2 = statusRes ? deriveStepFromStatus(statusRes) : null;
       DEBUG_LOG("HomeworkFlowCard.tsx:handleRecording2Complete", "after_getStatus", { statusRaw: String(statusRawRec2), derivedStep: derivedRec2?.step ?? null, statusUnknown: derivedRec2?.statusUnknown ?? null }, "H1");
       // #endregion
-      if (statusRes) applyStatusToState(statusRes);
+      if (statusRes) {
+        applyStatusToState(statusRes);
+        // Defensive: after successful recording 2 upload, never show step 1 or 2 (metric questions). Force step 4 so user sees post-recording questions.
+        if (derivedRec2 && (derivedRec2.step === 1 || derivedRec2.step === 2)) {
+          setStep(4);
+        }
+      }
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
