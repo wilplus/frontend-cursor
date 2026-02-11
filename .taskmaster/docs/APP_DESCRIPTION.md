@@ -20,9 +20,9 @@ One **active** session per student. **GET session/status** is the single source 
 | Step | Name           | Student action              | Backend status     | Main APIs |
 |------|----------------|-----------------------------|--------------------|-----------|
 | 0    | No session     | Clicks “Start”              | —                  | GET status, POST start |
-| 1    | Warm-up        | Records warm-up; sees wheel + optional glow | `warm_up`          | GET status, recording-upload-url (rec "1"), Storage upload, POST recording-1; wheel = client-side strength/pace; glow = recording-metrics-chunk → pause_score |
+| 1    | Warm-up        | Records warm-up; sees wheel (strength/pace) | `warm_up`          | GET status, recording-upload-url (rec "1"), Storage upload, POST recording-1; wheel = client-side strength/pace (useRealtimeStrengthPace) |
 | 2    | Metric answers | Answers 3 questions (Q1 keywords, Q2 emotion, Q3 CTA) | `task_block`       | GET status, GET task-block (optional), POST metric-answers |
-| 3    | Final task     | Records final task (1–5 min); wheel + optional glow  | `final_task_ready` | GET status, recording-upload-url (rec "2"), upload, POST recording-2 |
+| 3    | Final task     | Records final task (1–5 min); wheel (strength/pace)  | `final_task_ready` | GET status, recording-upload-url (rec "2"), upload, POST recording-2 |
 | 4    | Post-questions | Answers reflective Qs (must answer all if any exist) | `post_questions`   | GET status, GET questions, POST post-answers |
 | 5    | Report         | Views report and score      | `completed`        | GET status (report from session.context_long, score from performance_score_end) |
 
@@ -34,7 +34,7 @@ One **active** session per student. **GET session/status** is the single source 
 ## 3. API paths (frontend vs backend)
 
 - **Frontend** calls **same-origin** paths only (no `v2` in URL):
-  - **Homework:** `/api/homework/session/status`, `/api/homework/session/start`, `/api/homework/session/[sessionId]/recording-upload-url`, `recording-1`, `recording-2`, `metric-answers`, `questions`, `post-answers`, `recording-metrics-chunk`, `task-block`.
+  - **Homework:** `/api/homework/session/status`, `/api/homework/session/start`, `/api/homework/session/[sessionId]/recording-upload-url`, `recording-1`, `recording-2`, `metric-answers`, `questions`, `post-answers`, `task-block`. (No `recording-metrics-chunk`; real-time wheel is client-side only.)
   - **Admin:** `/api/admin/*` (students, tasks, warm-up-tasks, post-recording-questions, metrics, etc.)
 - **BFF** proxies to backend with **Authorization: Bearer &lt;supabase_access_token&gt;**:
   - Homework → `BASE_URL/v2/homework/session/status`, `.../start`, `.../session/:id/recording-1`, etc.
@@ -47,9 +47,10 @@ One **active** session per student. **GET session/status** is the single source 
 
 - **Response:** Either `{ has_active_session: false, session: null }` or `{ has_active_session: true, session_id: "<uuid>", session: <object> }`. The `session` object is often the raw **v2_sessions** row (snake_case). Backend may send top-level fields or nest under `session`.
 - **Session id:** `sessionId = response.session_id ?? response.session?.id ?? null`. No session-scoped calls without a valid sessionId.
-- **Status → step:** Read status from `response.status ?? response.session?.status ?? response.session?.state ?? response.session_state ?? ""`, then map: `warm_up`→1, `task_block`→2, `final_task_ready`→3, `post_questions`→4, `completed`→5. Use **only** this to set the step when status is present.
-- **Warm-up text:** `warmUpText = response.warm_up_task?.text ?? response.warm_up_task_text ?? response.session?.warm_up_task_text ?? ""`.
-- **Task block (step 2):** Backend often does **not** send a shaped `task_block`. Build from `session_metric_question_1`, `session_metric_question_2`, `session_metric_question_3` (top-level or under `session`). Call GET task-block only if those are missing **and** the backend exposes that route.
+- **Status → step:** Read status from `response.status ?? response.session?.status ?? response.session?.state ?? response.session_state ?? ""`, then map **only** the five values: `warm_up`→1, `task_block`→2, `final_task_ready`→3, `post_questions`→4, `completed`→5. No legacy status strings and no field-based step inference. When status is missing or unknown **and** has_active_session is true, show a user-facing error (“Session status could not be determined. Please refresh.”) and a **Refresh** action that calls GET status again and applies; do not default to step 1 silently.
+- **Completed not active:** When status is `completed`, do not treat as an active session: on load, clear state and call POST start so the user starts a new session.
+- **Warm-up text (strict):** `warmUpText = response.warm_up_task?.text ?? response.session?.warm_up_task_text ?? ""`. There is **no default warm-up text**. `warm_up_task` in status may be null. If step is 1 and warmUpText is empty, show a blocking message (“Warm-up prompt unavailable. Please refresh.”) and a **Refresh** button; do not show placeholder or fallback text.
+- **Task block (step 2):** Prefer snapshot from `session.session_metric_question_1`, `session_metric_question_2`, `session_metric_question_3`. Call GET task-block **only as fallback** when those are missing (e.g. after refresh). Do not rely on task-block if snapshots exist.
 - **Final task text:** `finalTaskText = response.session?.final_task_text ?? response.final_task_text ?? ""`. Do not rely on `final_task` object only.
 - **Report text:** `reportText = response.report_text ?? response.session?.context_long ?? ""`. If still empty on step 5, show “Report pending.”
 - **Performance score (end):** `performanceScoreEnd = response.performance_score_end ?? response.session?.performance_score_end`.
@@ -61,12 +62,12 @@ One **active** session per student. **GET session/status** is the single source 
 ## 5. Key contracts (summary)
 
 - **Recording upload:** Get **bucket** and **storage_path** from recording-upload-url; upload blob to Supabase; then POST recording-1/2 with **JSON** body (e.g. storage_path, duration_seconds), not FormData. Call recording-upload-url for recording "1" only on step 1, for "2" only on step 3.
-- **Recording_2 duration:** Backend enforces **1–5 minutes** (60–300 s). If out of range → **422 RECORDING_DURATION_OUT_OF_RANGE**.
-- **Start when no warmups:** Backend returns **422 NO_WARMUP_CONFIGURED**; no session is created. Show a clear message; do not treat as active session.
+- **Recording_2 duration:** Backend enforces **1–5 minutes** (60–300 s). Frontend validates 60–300s before upload and shows a clear message if out of range; if backend returns **422 RECORDING_DURATION_OUT_OF_RANGE**, surface that error to the user.
+- **Start when no warmups:** Backend returns **422 NO_WARMUP_CONFIGURED**; no session is created. Show a clear blocking message (e.g. “Contact your coach”); do not proceed or treat as active session. Warm-up tasks are not auto-created.
+- **After POST start success:** Immediately call **GET status** and apply the response to state; do not assume the start response contains the full session row.
 - **Report:** Report is generated by the backend when **post-answers** are submitted (no separate POST /report). Step 5 content comes from GET status.
 - **Metric-answers body:** Backend typically expects **q1_keywords**, **q2_emotion** (enum), **q3_cta** (or canonical answer_1/2/3). BFF or client must send the shape the backend accepts.
 - **Wheel (dartboard):** Strength and pace are **client-side only** (useRealtimeStrengthPace, AnalyserNode). Start the update interval only after `ctx.resume()` so the analyser gets real audio.
-- **Glow (pause_score):** POST PCM chunks to same-origin BFF `.../recording-metrics-chunk`. Response **pause_score** (0–1) drives glow brightness (useChunkMetrics → AmbientGlowCircle). Optional red dot from **pause_detected**.
 
 ---
 
@@ -75,11 +76,12 @@ One **active** session per student. **GET session/status** is the single source 
 1. **has_active_session: false** → Clear sessionId and all session-derived state; call POST start; do not call session-scoped APIs until start returns a session id.
 2. **On every successful GET status** → Run applyStatusToState and **overwrite** step and all step-derived state; do not preserve the previous step.
 3. **Session id** → Set from `response.session_id ?? response.session?.id`; clear when no session.
-4. **Step** → Derive only from status (warm_up→1 … completed→5); fallbacks only when status is missing or unknown.
-5. **Warm-up, task block, final task, report, score** → Use the field mapping in §4.
-6. **Step 4** → When step is 4 and questions empty, call GET questions.
-7. **Step 5** → If report text empty after mapping, show “Report pending.”
-8. **Types** → Allow session_id, session.id, status, session.status, session.state, session_state, warm_up_task, warm_up_task_text, session.warm_up_task_text, task_block, session_metric_question_1/2/3, final_task_text, session.final_task_text, report_text, session.context_long, performance_score_end, session.performance_score_end, questions, has_active_session (and snake_case).
+4. **Step** → Derive only from the five statuses (warm_up→1 … completed→5); no legacy statuses or field-based inference. When status is missing or unknown but session is active, show error + Refresh (do not default step silently).
+5. **Warm-up, task block, final task, report, score** → Use the field mapping in §4. No default warm-up text; empty warm-up at step 1 → blocking message + Refresh.
+6. **After POST start** → Call GET status and apply; do not rely on start response for session state.
+7. **Step 4** → When step is 4 and questions empty, call GET questions.
+8. **Step 5** → If report text empty after mapping, show “Report pending.”
+9. **Types** → Allow session_id, session.id, status, session.status, session.state, session_state, warm_up_task (may be null), warm_up_task_text, session.warm_up_task_text, task_block, session_metric_question_1/2/3, final_task_text, session.final_task_text, report_text, session.context_long, performance_score_end, session.performance_score_end, questions, has_active_session (and snake_case).
 
 ---
 
@@ -87,15 +89,13 @@ One **active** session per student. **GET session/status** is the single source 
 
 | Area | Path / role |
 |------|-------------|
-| **HomeworkFlowCard** | `src/components/homework/HomeworkFlowCard.tsx` — GET status / POST start, applyStatusToState, deriveStepFromStatus, refetch after mutations. |
+| **HomeworkFlowCard** | `src/components/homework/HomeworkFlowCard.tsx` — GET status / POST start, applyStatusToState, deriveStepFromStatus (five statuses only), refreshStatus for unknown/empty, refetch after mutations. No default warm-up text. |
 | **AnswerMetricQuestionsScreen** | `src/components/homework/AnswerMetricQuestionsScreen.tsx` — Step 2: task block + metric inputs + submit. |
-| **AudioRecorder** | `src/components/recording/AudioRecorder.tsx` — Steps 1 & 3: record → blob, upload; StrengthPaceDartboard; useChunkMetrics (glow) when sessionId + recordingSlot set. |
+| **AudioRecorder** | `src/components/recording/AudioRecorder.tsx` — Steps 1 & 3: record → blob, upload; StrengthPaceDartboard (wheel only). |
 | **StrengthPaceDartboard** | `src/components/recording/StrengthPaceDartboard.tsx` — Wheel: strength + pace (useRealtimeStrengthPace). |
 | **useRealtimeStrengthPace** | `src/hooks/useRealtimeStrengthPace.ts` — Mic → AnalyserNode; interval only after ctx.resume(). |
-| **useChunkMetrics** | `src/hooks/useChunkMetrics.ts` — PCM → recording-metrics-chunk → pause_score → glowColor. |
-| **AmbientGlowCircle** | `src/components/recording/AmbientGlowCircle.tsx` — Glow from glowColor (optional in recorder UI). |
 | **homework-client** | `src/lib/api/homework-client.ts` — GET status, POST start, recording-upload-url, uploadRecording1/2, metric-answers, recording-2, questions, post-answers. |
-| **BFF routes** | `src/app/api/homework/session/status`, `start`, `[sessionId]/recording-upload-url`, `recording-1`, `recording-2`, `recording-metrics-chunk`, `metric-answers`, `questions`, `post-answers`, `task-block`. |
+| **BFF routes** | `src/app/api/homework/session/status`, `start`, `[sessionId]/recording-upload-url`, `recording-1`, `recording-2`, `metric-answers`, `questions`, `post-answers`, `task-block`. |
 
 ---
 
@@ -104,13 +104,14 @@ One **active** session per student. **GET session/status** is the single source 
 - **409 wrong step** — Drive step only from GET status; call recording-1 only when status is `warm_up`; after each mutation, refetch status and apply.
 - **Stale step** — On every successful GET status, overwrite step and state; do not preserve previous step.
 - **No session id / has_active_session: false** — Clear state and POST start before step 1.
-- **Empty warm-up / task block / final task / report** — Use mapping in §4; step 5 fallback “Report pending.”
+- **Status is completed on load** — Do not treat as active; clear state and call POST start so the user begins a new session.
+- **Empty warm-up / task block / final task / report** — Use mapping in §4; no default warm-up string (empty warm-up at step 1 → “Warm-up prompt unavailable. Please refresh.” + Refresh). Step 5 fallback “Report pending.”
+- **Status missing or unknown** — Show “Session status could not be determined. Please refresh.” and Refresh (calls GET status and apply); do not default to step 1 silently.
 - **Step 4 questions missing** — Call GET questions when step is 4 and questions empty.
 - **Recording upload fails** — Check bucket/path, Supabase RLS/CORS; use JSON for POST recording-1/2.
 - **422 RECORDING_DURATION_OUT_OF_RANGE** — Recording_2 must be 1–5 min; show message and re-record if needed.
 - **422 NO_WARMUP_CONFIGURED** — Show message (e.g. “Contact your coach”); do not treat as active session.
-- **Wheel not moving** — Start interval only inside `ctx.resume().then(...)`; guard `if (!stream?.active) return` in start(stream).
-- **Glow not visible** — Ensure chunk pipeline runs when recording and render AmbientGlowCircle with chunkMetrics.glowColor if glow is desired.
+- **Wheel not moving** — Start interval only inside `ctx.resume().then(...)`; guard `if (!stream?.active) return` in start(stream); only read analyser when `ctx.state === "running"`.
 - **403 / 404** — Backend admin check; frontend uses correct paths; BFF routes exist.
 
 **Error codes (backend):** NO_ACTIVE_SESSION, NO_WARMUP_CONFIGURED, INVALID_STATE, RECORDING_DURATION_OUT_OF_RANGE, VALIDATION_ERROR, TRANSCRIPTION_FAILED, etc. Frontend should handle 422/409 and show clear messages.
@@ -121,7 +122,7 @@ One **active** session per student. **GET session/status** is the single source 
 
 ### Backend (other repo)
 
-- **Homework endpoints** — Backend must implement: GET/POST session/status, session/start, recording-upload-url, recording-1, recording-2, metric-answers, questions, post-answers (and optionally task-block, recording-metrics-chunk). Until then, the frontend may show a friendly error or use BFF mock when `MOCK_HOMEWORK_BACKEND=1`.
+- **Homework endpoints** — Backend must implement: GET/POST session/status, session/start, recording-upload-url, recording-1, recording-2, metric-answers, questions, post-answers (and optionally task-block). Until then, the frontend may show a friendly error or use BFF mock when `MOCK_HOMEWORK_BACKEND=1`.
 - **Warm-up selection** — Algorithm (e.g. last score, max_performance_score, anti-repetition, tags) is defined in the backend spec; not in this repo.
 - **Focus task selection** — Simple Unlock (min_task_score ≤ score_1, snapshot to session) is backend-only.
 - **Scoring** — score_1 (3 metrics), score_2 (5 metrics), performance_score_end formula (e.g. average or weighted with task_execution_score), and optional score_transcription/task_execution_score are backend-only. No columns or formulas in this repo.
@@ -130,7 +131,6 @@ One **active** session per student. **GET session/status** is the single source 
 
 ### Frontend / BFF (this repo)
 
-- **Glow in recorder UI** — useChunkMetrics runs and glowColor is available, but **AmbientGlowCircle is not rendered** in AudioRecorder; to show the glow during recording, add it with chunkMetrics.glowColor.
 - **Metric-answers shape** — Ensure request body matches backend (q1_keywords, q2_emotion, q3_cta or answer_1/2/3); map response if backend returns different keys.
 - **3 vs 2 metric questions** — Spec says 3 pre-questions (Q1 keywords, Q2 emotion, Q3 CTA). If UI or API still use 2 inputs, align to 3 where backend expects 3.
 - **Abandon / start over** — If “abandon session” or “start over” exists, it should clear local state and either call a backend abandon endpoint or rely on POST start returning a new session when appropriate.
@@ -149,7 +149,37 @@ The **full backend MVP spec** (CONTRACT-HOMEWORK-FLOW, scoring, migrations, Open
 
 ---
 
-## 11. Other taskmaster files
+## 11. Frontend: what is needed / audit checklist
+
+Use this section for a line-level audit of the frontend against the taskmaster contracts. Key files to audit: `HomeworkFlowCard.tsx`, `homework-client.ts`, `AnswerMetricQuestionsScreen.tsx`, `AudioRecorder.tsx`, and all routes under `src/app/api/homework/session/**`.
+
+### Already done (glow removed + audit fixes)
+
+- **No glow / no PCM chunk:** useChunkMetrics, AmbientGlowCircle, pcm-chunk-pipeline, chunk-metrics-types, glow-color, and pcm-chunk-processor.js are **deleted**. AudioRecorder has no sessionId/recordingSlot, no chunk pipeline, no calls to recording-metrics-chunk. BFF route `recording-metrics-chunk` is **deleted**. homework-client.ts does not call recording-metrics-chunk. Recorder shows **wheel only** (useRealtimeStrengthPace). During recording, network calls are only: recording-upload-url, Supabase Storage upload, POST recording-1/2.
+- **Status → step:** Step derived only from the five canonical statuses; no legacy or field-based inference. When status is missing/unknown, show error + Refresh (no silent step 1). On load, when status is `completed`, session is not treated as active (state cleared, POST start called).
+- **Warm-up (strict):** No default warm-up text; warm-up from status only (`warm_up_task?.text ?? session.warm_up_task_text`). If step 1 and warmUpText empty, show “Warm-up prompt unavailable. Please refresh.” + Refresh. After POST start success, call GET status and apply (do not rely on start response for session state).
+- **Task block:** Prefer session snapshots (session_metric_question_1/2/3); GET task-block only as fallback when missing. No warm-up-task helper in frontend.
+- **Recording_2 duration:** Client validates 60–300s before upload and shows message if out of range; backend 422 RECORDING_DURATION_OUT_OF_RANGE is surfaced.
+- **Sanity check:** `rg -n "ChunkMetrics|recording-metrics-chunk|pause_score|pause_detected|AmbientGlowCircle|glow" src` should find no matches in app code (comments in bff.ts are generic).
+
+### Contract items to verify (punch list)
+
+| Area | Contract | Verify in |
+|------|----------|-----------|
+| **Status → step** | Step derived **only** from GET status → `session.status` (or equivalent). On every successful status fetch: **overwrite** step and all step-derived state (no "preserve previous step"). | HomeworkFlowCard |
+| **Session identity** | `sessionId = res.session_id ?? res.session?.id`. When `has_active_session: false`: clear session state; **do not** call session-scoped endpoints until POST start returns a session id. Completed sessions not treated as active. | HomeworkFlowCard, homework-client |
+| **Field mapping** | Warm-up: `warm_up_task.text` or `session.warm_up_task_text`. Step 2: build from `session_metric_question_1/2/3`. Final task: `session.final_task_text`. Report: `session.context_long`; fallback "Report pending." Score: `session.performance_score_end`. Snake_case allowed. | HomeworkFlowCard, applyStatusToState |
+| **Mutations + refetch** | After recording-1, metric-answers, recording-2, post-answers: **refetch status** and apply (overwrite state). | HomeworkFlowCard, handlers |
+| **Recording contract** | Flow: recording-upload-url → Supabase upload → POST recording-1/2 with **JSON** body (storage_path, duration_seconds), not FormData. recording_2 duration 60–300s; show/forward backend error if out of range. | homework-client, AudioRecorder |
+| **Step 4 questions** | If step === 4 and questions empty: GET `.../questions`. | HomeworkFlowCard |
+
+### BFF routes (required for same-origin frontend)
+
+Frontend calls only `/api/homework/...`. These BFF routes must exist and proxy to backend: status, start, recording-upload-url, recording-1, recording-2, metric-answers, questions, post-answers, task-block (optional). No recording-metrics-chunk route.
+
+---
+
+## 12. Other taskmaster files
 
 | File | Purpose |
 |------|---------|

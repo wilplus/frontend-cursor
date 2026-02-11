@@ -26,6 +26,7 @@ This doc maps the **taskmaster app description** (this repo) to the **Homework /
 | **Recording upload flow** | recording-upload-url → Storage → POST recording-1/2 with JSON (path, duration) | Backend may accept multipart `audio` or path+duration; BFF uses URL upload + JSON | Contract aligned. |
 | **One active session** | No session-scoped calls without valid sessionId; start when no active | Only one active session per student; start returns existing if active | Aligned. |
 | **Idempotency** | Refetch status after each step | Upload/answers/report return existing if already past step (200) | Aligned. |
+| **Recording UI** | Wheel (strength/pace) only, client-side (useRealtimeStrengthPace); no glow, no PCM chunk to backend | Backend may expose recording-metrics-chunk; frontend does not call it in this repo | Frontend uses AnalyserNode only for real-time feedback. |
 
 ---
 
@@ -37,9 +38,10 @@ This doc maps the **taskmaster app description** (this repo) to the **Homework /
 - DB columns (performance_score_1/2/end, metric_answers, session_metric_question_1/2/3): backend / DATA-MAPPING.
 - One report per session (unique constraint / guard): backend.
 - Sanity checks (active = not completed; report creation atomic): backend.
+- recording-metrics-chunk (PCM → pause_score): optional backend endpoint; frontend does not use it (wheel is client-side only).
 
 ---
 
 ## Summary
 
-Frontend and backend taskmasters are compatible: same flow, 5 statuses, step derivation from GET status, refetch after mutations, session id, field names, upload flow, one active session, idempotency. Score formulas, warm-up/focus selection, DB schema, and migrations stay in the backend spec.
+Frontend and backend taskmasters are compatible: same flow, 5 statuses, step derivation from GET status, refetch after mutations, session id, field names, upload flow, one active session, idempotency. Recording UI is wheel-only (client-side strength/pace); no glow or PCM chunk. Score formulas, warm-up/focus selection, DB schema, and migrations stay in the backend spec.

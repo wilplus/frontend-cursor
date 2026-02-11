@@ -22,7 +22,7 @@ const TOTAL_STEPS = 5;
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
-/** Derive current step and restored state from session status. Backend status (warm_up, task_block, etc.) is source of truth; legacy status/IDs used as fallback. */
+/** Derive current step and restored state from session status. Step only from the five canonical statuses (warm_up, task_block, final_task_ready, post_questions, completed). */
 function deriveStepFromStatus(s: HomeworkSessionStatus): {
   step: Step;
   warmUpText: string;
@@ -32,6 +32,8 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   questions: HomeworkQuestion[];
   reportText: string;
   performanceScoreEnd: number | null;
+  /** True when status was missing or not one of the five; UI should show error + Refresh. */
+  statusUnknown: boolean;
 } {
   const session = (s as HomeworkSessionStatus).session;
   const statusRaw =
@@ -58,39 +60,13 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const performanceScoreEnd = s.performance_score_end ?? session?.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
 
-  // Backend state-machine status → step (source of truth). Stops UI showing warm-up when status is e.g. final_task_ready.
-  if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  if (status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  if (status === "post_questions") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
+  if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "post_questions") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
-  // Fallback: payload/legacy status when backend status missing or unknown
-  if (reportText || performanceScoreEnd != null) {
-    return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
-  }
-  if (status === "report_generated") {
-    return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
-  }
-  if (questions.length > 0 && s.recording_2_id) {
-    return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (status === "post_questions_done" || status === "recording2_scored") {
-    return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (finalTaskText || s.recording_2_id) {
-    return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (status === "task_generated" || status === "focus_selected") {
-    return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (s.recording_1_id || taskText || taskBlock) {
-    return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (status === "warmup_recorded" || status === "warmup_scored") {
-    return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
+  return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
 }
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
@@ -122,6 +98,10 @@ function isNoWarmupError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "NO_WARMUP_CONFIGURED";
 }
 
+function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
+  return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
+}
+
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
@@ -140,6 +120,7 @@ export default function HomeworkFlowCard() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
+  const [statusUnknown, setStatusUnknown] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
@@ -163,40 +144,39 @@ export default function HomeworkFlowCard() {
     }));
     setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
     setStep(derived.step);
-    setError(null);
+    setStatusUnknown(derived.statusUnknown);
+    setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
   };
 
   const handleStart = async () => {
     setLoading(true);
     setError(null);
+    setStatusUnknown(false);
     try {
-      const res = await homeworkApi.start();
-      const text =
-        res.warm_up_task?.text ??
-        res.warm_up_task_text ??
-        toText((res as { warm_up_task?: unknown }).warm_up_task) ??
-        toText((res as { task_text?: unknown }).task_text) ??
-        "";
-      setSessionId(res.session_id);
-      setWarmUpText(text || "Your warm-up task will appear here.");
-      setStep(1);
+      await homeworkApi.start();
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) applyStatusToState(statusRes);
+      else {
+        setSessionId(null);
+        setStep(0);
+        setError("Could not load session. Please try again.");
+      }
     } catch (e) {
       if (isNoWarmupError(e)) {
         setNoWarmupConfigured(true);
         setError(null);
         setStep(0);
+        setSessionId(null);
         return;
       }
       const msg = e instanceof Error ? e.message : "Failed to start homework";
       const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
       if (isBackendUnavailable) {
-        // Show recording step anyway so the UI is visible; backend not implemented yet
         setSessionId("mock-session");
-        setWarmUpText(
-          "Read the following aloud at a comfortable pace. (Backend not connected — this is a preview.)"
-        );
+        setWarmUpText("");
         setStep(1);
         setError(null);
+        setStatusUnknown(false);
       } else {
         setError(msg);
         toast.error(msg);
@@ -220,19 +200,18 @@ export default function HomeworkFlowCard() {
     setPerformanceScoreEnd(null);
     setError(null);
     setNoWarmupConfigured(false);
+    setStatusUnknown(false);
     setLoading(true);
     homeworkApi
       .start()
-      .then((res) => {
-        const text =
-          res.warm_up_task?.text ??
-          res.warm_up_task_text ??
-          toText((res as { warm_up_task?: unknown }).warm_up_task) ??
-          toText((res as { task_text?: unknown }).task_text) ??
-          "";
-        setSessionId(res.session_id);
-        setWarmUpText(text || "Your warm-up task will appear here.");
-        setStep(1);
+      .then(async () => {
+        const statusRes = await homeworkApi.getStatus();
+        if (statusRes) applyStatusToState(statusRes);
+        else {
+          setSessionId(null);
+          setStep(0);
+          setError("Could not load session. Please try again.");
+        }
       })
       .catch((e) => {
         if (isNoWarmupError(e)) {
@@ -257,7 +236,12 @@ export default function HomeworkFlowCard() {
       .then((statusRes) => {
         const hasActive = statusRes?.has_active_session !== false;
         const sessionIdFromRes = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
-        if (!hasActive || !sessionIdFromRes) {
+        const statusRaw =
+          (statusRes as { status?: string })?.status ??
+          (statusRes as { session?: { status?: string } })?.session?.status ??
+          "";
+        const isCompleted = statusRaw.toLowerCase().trim() === "completed";
+        if (!hasActive || !sessionIdFromRes || isCompleted) {
           setSessionId(null);
           setStep(0);
           setWarmUpText("");
@@ -268,6 +252,7 @@ export default function HomeworkFlowCard() {
           setReportText("");
           setPerformanceScoreEnd(null);
           setError(null);
+          setStatusUnknown(false);
           return handleStart();
         }
         if (statusRes) applyStatusToState(statusRes);
@@ -334,6 +319,7 @@ export default function HomeworkFlowCard() {
       );
       return;
     }
+    if (uploadingRecording === 1) return;
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
@@ -342,8 +328,18 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      if (isInvalidSessionStateError(e)) {
+        try {
+          const statusRes = await homeworkApi.getStatus();
+          if (statusRes) applyStatusToState(statusRes);
+        } catch {
+          setError(e instanceof Error ? e.message : "Upload failed");
+          toast.error(e instanceof Error ? e.message : "Upload failed");
+        }
+      } else {
+        setError(e instanceof Error ? e.message : "Upload failed");
+        toast.error(e instanceof Error ? e.message : "Upload failed");
+      }
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
@@ -385,8 +381,18 @@ export default function HomeworkFlowCard() {
     }
   };
 
+  const RECORDING_2_DURATION_MIN = 60;
+  const RECORDING_2_DURATION_MAX = 300;
+
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
+    if (durationSeconds < RECORDING_2_DURATION_MIN || durationSeconds > RECORDING_2_DURATION_MAX) {
+      const msg = `Final recording must be between ${RECORDING_2_DURATION_MIN / 60} and ${RECORDING_2_DURATION_MAX / 60} minutes.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (uploadingRecording === 2) return;
     setUploadingRecording(2);
     setError(null);
     abortRef.current = new AbortController();
@@ -394,10 +400,19 @@ export default function HomeworkFlowCard() {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
-      // Step-4 questions filled by effect when status is thin (step 4 + questions.length === 0)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      if (isInvalidSessionStateError(e)) {
+        try {
+          const statusRes = await homeworkApi.getStatus();
+          if (statusRes) applyStatusToState(statusRes);
+        } catch {
+          setError(e instanceof Error ? e.message : "Upload failed");
+          toast.error(e instanceof Error ? e.message : "Upload failed");
+        }
+      } else {
+        setError(e instanceof Error ? e.message : "Upload failed");
+        toast.error(e instanceof Error ? e.message : "Upload failed");
+      }
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
@@ -435,6 +450,24 @@ export default function HomeworkFlowCard() {
   const allPostQuestionsAnswered =
     questions.length === 0 ||
     questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
+
+  /** Refetch GET status and apply to state (e.g. after "Refresh" when status unknown or warm-up empty). */
+  const refreshStatus = async () => {
+    if (!sessionId || sessionId === "mock-session") return;
+    setLoading(true);
+    setError(null);
+    setStatusUnknown(false);
+    try {
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) applyStatusToState(statusRes);
+      else setError("Could not load session. Please try again.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to refresh");
+      toast.error(e instanceof Error ? e.message : "Failed to refresh");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!authReady) {
     return (
@@ -499,8 +532,11 @@ export default function HomeworkFlowCard() {
       );
     }
     const showRecorder = !!sessionId;
+    const warmUpEmpty = step === 1 && sessionId && !warmUpText.trim();
+    const showStatusUnknownBlock = step === 1 && statusUnknown;
+    const showWarmUpUnavailableBlock = step === 1 && warmUpEmpty && !statusUnknown;
     const warmUpDisplayText = sessionId
-      ? (warmUpText.trim() || "Your warm-up task will appear here.")
+      ? warmUpText.trim()
       : error
         ? "Tap Try again above to load your task."
         : "Loading your warm-up task…";
@@ -512,7 +548,23 @@ export default function HomeworkFlowCard() {
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
           </div>
         )}
-        {step === 0 && error && (
+        {showStatusUnknownBlock && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
+            <p>{error ?? "Session status could not be determined. Please refresh."}</p>
+            <Button variant="outline" size="sm" onClick={refreshStatus} disabled={loading}>
+              Refresh
+            </Button>
+          </div>
+        )}
+        {showWarmUpUnavailableBlock && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
+            <p>Warm-up prompt unavailable. Please refresh.</p>
+            <Button variant="outline" size="sm" onClick={refreshStatus} disabled={loading}>
+              Refresh
+            </Button>
+          </div>
+        )}
+        {step === 0 && error && !showStatusUnknownBlock && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
             <p>{error}</p>
             <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
@@ -520,26 +572,26 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         )}
+        {!showStatusUnknownBlock && !showWarmUpUnavailableBlock && (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
           <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
             {!sessionId && loading ? (
               <span className="inline-flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                {warmUpDisplayText}
+                {warmUpDisplayText || "—"}
               </span>
             ) : (
-              warmUpDisplayText
+              warmUpDisplayText || "—"
             )}
           </p>
         </div>
+        )}
         {showRecorder && (
           <div className="flex flex-col gap-3">
             <AudioRecorder
               onRecordingComplete={handleRecording1Complete}
               stopAndSend
-              sessionId={sessionId}
-              recordingSlot="recording_1"
             />
           </div>
         )}
@@ -595,8 +647,6 @@ export default function HomeworkFlowCard() {
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
-          sessionId={sessionId}
-          recordingSlot="recording_2"
         />
         <div className="mt-3 flex justify-center">
           <Button
