@@ -77,6 +77,11 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   if (status === "recording2_uploaded" || status === "recording2_scored") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "finished" || status === "done" || status === "post_questions_done" || status === "report_generated") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
+  // #region agent log
+  if (typeof window !== "undefined") {
+    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:deriveStepFromStatus", message: "unmapped status -> step 1", data: { statusRaw, status, step: 1, statusUnknown: true }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+  }
+  // #endregion
   return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
 }
 
@@ -192,6 +197,9 @@ export default function HomeworkFlowCard() {
     }));
     setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
     const stepToSet = (justFinishedRecording2Ref.current && (derived.step === 1 || derived.step === 2 || derived.step === 3)) ? (justFinishedRecording2Ref.current = false, 4) : derived.step;
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:applyStatusToState',message:'setting step',data:{statusRaw:String(statusRaw).slice(0,50),derivedStep:derived.step,stepToSet},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
     setStep(stepToSet);
     setStatusUnknown(derived.statusUnknown);
     setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
@@ -454,6 +462,11 @@ export default function HomeworkFlowCard() {
   }, [step, sessionId, questions.length]);
 
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
+    // #region agent log
+    if (typeof window !== "undefined") {
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:handleRecording1Complete:entry", message: "rec1 complete handler entered", data: { hasSessionId: !!sessionId, uploadInProgress: uploadRecording1InProgressRef.current, uploadingRecording, step, durationSeconds }, timestamp: Date.now(), hypothesisId: "H5" }) }).catch(() => {});
+    }
+    // #endregion
     if (!sessionId) return;
     if (uploadRecording1InProgressRef.current) return;
     uploadRecording1InProgressRef.current = true;
@@ -476,12 +489,21 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:after uploadRecording1',message:'recording1 done',data:{hasRecording1Res:!!recording1Res,hasTaskBlock:!!recording1Res?.task_block},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       const statusRes = await homeworkApi.getStatus();
+      // #region agent log
+      const statusRaw = statusRes?.session?.status ?? statusRes?.status ?? '';
+      const derived = statusRes ? deriveStepFromStatus(statusRes) : { step: 0, statusUnknown: true };
+      const branch = !statusRes ? 'noStatusRes' : (derived.step >= 2 ? 'applyStatusToState' : 'setStep2FromRecording1Res');
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:after getStatus',message:'status after rec1',data:{statusRaw,derivedStep:derived.step,branch},timestamp:Date.now(),hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+      // #endregion
       if (statusRes) {
-        const derived = deriveStepFromStatus(statusRes);
+        const derivedApply = deriveStepFromStatus(statusRes);
         // Taskmaster: after recording-1, backend sets status to task_block (step 2). If getStatus() returns
         // stale warm_up (e.g. read lag), do not overwrite — use recording-1 response to stay on step 2.
-        if (derived.step >= 2) {
+        if (derivedApply.step >= 2) {
           applyStatusToState(statusRes);
         } else {
           setStep(2);
@@ -496,6 +518,9 @@ export default function HomeworkFlowCard() {
         setError(null);
       }
     } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:handleRecording1Complete catch',message:'rec1 error',data:{error:String((e as Error)?.message),code:(e as {code?:string})?.code},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
