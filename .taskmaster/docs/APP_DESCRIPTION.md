@@ -26,7 +26,7 @@ One **active** session per student. **GET session/status** is the single source 
 | 4    | Post-questions | Answers reflective Qs (must answer all if any exist) | `post_questions`   | GET status, GET questions, POST post-answers |
 | 5    | Report         | Views report and score      | `completed`        | **Entered only after POST post-answers succeeds.** Use the **post-answers response body** (report_text, performance_score_end) to render step 5. **Do not** call GET status to show the report: GET status does **not** return completed sessions, so the frontend must not block step 5 on it. |
 
-- **After step-advancing actions (recording-1, metric-answers, recording-2):** Frontend calls **GET session/status** and applies the response (applyStatusToState) so the UI stays in sync.
+- **After step-advancing actions (recording-1, metric-answers, recording-2):** Frontend sets a **UI step floor** (min step the UI may show), then calls **GET session/status** and applies the response. The displayed step is **max(stepFromStatus, uiStepFloor)** so the UI never goes backward when status is stale. See FRONTEND-FLOW-AND-CHANGES.md §4.
 - **After POST post-answers:** Do **not** refetch GET status to show the report. Use the **post-answers response** to set step to 5 and to set report text and score; GET status does not return completed sessions.
 - **Active session:** GET status returns only in-progress sessions (warm_up, task_block, final_task_ready, post_questions). **Completed** is not active; after completion the next load gets no active session and the frontend calls POST start for a new one.
 
@@ -75,7 +75,7 @@ One **active** session per student. **GET session/status** is the single source 
 ## 6. Implementation checklist (frontend/BFF)
 
 1. **has_active_session: false** → Clear sessionId and all session-derived state; call POST start; do not call session-scoped APIs until start returns a session id.
-2. **On every successful GET status** → Run applyStatusToState and **overwrite** step and all step-derived state; do not preserve the previous step.
+2. **On every successful GET status** → Run applyStatusToState; step is set to **max(derivedStep, uiStepFloor)** so we never go backward after a successful mutation; all other step-derived state from the response.
 3. **Session id** → Set from `response.session_id ?? response.session?.id`; clear when no session.
 4. **Step** → Derive only from the five statuses (warm_up→1 … completed→5); no legacy statuses or field-based inference. When status is missing or unknown but session is active, show error + Refresh (do not default step silently).
 5. **Warm-up, task block, final task, report, score** → Use the field mapping in §4. No default warm-up text; empty warm-up at step 1 → blocking message + Refresh.
@@ -103,7 +103,7 @@ One **active** session per student. **GET session/status** is the single source 
 ## 8. What could go wrong
 
 - **409 wrong step** — Drive step only from GET status; call recording-1 only when status is `warm_up`; after each mutation, refetch status and apply.
-- **Stale step** — On every successful GET status, overwrite step and state; do not preserve previous step.
+- **Stale step** — Step is clamped: displayed step = max(stepFromStatus, uiStepFloor); floor is set on mutation success and reset when there is no session or user starts over / goes to dashboard.
 - **No session id / has_active_session: false** — Clear state and POST start before step 1.
 - **Status is completed on load** — Do not treat as active; clear state and call POST start so the user begins a new session.
 - **Empty warm-up / task block / final task / report** — Use mapping in §4; no default warm-up string (empty warm-up at step 1 → “Warm-up prompt unavailable. Please refresh.” + Refresh). Step 5 fallback “Report pending.”

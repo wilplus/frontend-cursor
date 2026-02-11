@@ -26,7 +26,23 @@ Step 4: StepFlowWrapper (stable). handlePostAnswersSubmit(answersFromChild) → 
 
 After recording 1 backend may return warmup_recorded, warmup_scored, focus_selected, task_generated → we map to step 2. Similarly step 3/4 aliases. **Step 5 is entered from the post-answers response**, not from status; the "completed" / step-5 aliases in the table below are for edge cases (e.g. refresh or if backend ever returns completed in status).
 
-## 4. What changed
+## 4. UI step floor (monotonic progression)
+
+To avoid the UI snapping back when GET status is stale (eventual consistency), the frontend uses a **step floor** instead of overriding server status:
+
+- **serverStatus** = whatever GET status returns (source of truth from backend).
+- **uiStepFloor** = minimum step the UI is allowed to show after a confirmed step-advancing mutation.
+- **Displayed step** = `max(stepFromServerStatus, uiStepFloor)`.
+
+**When the floor is set:** On success of recording-1 → `uiStepFloor = max(uiStepFloor, 2)`; metric-answers → `max(uiStepFloor, 3)`; recording-2 → `max(uiStepFloor, 4)`. Then refetch GET status and apply; the applied step is clamped so the UI never goes backward.
+
+**Post-answers:** Step 5 and report are set from the **post-answers response** only; the floor is not used for step 5 (report screen is not driven by GET status).
+
+**When the floor is reset to 0:** No active session (e.g. load with no session or completed); user clicks “Back to dashboard”; user clicks “Start new homework” (handleStartOver); abandon session and end with no session; any path that clears sessionId and sets step to 0.
+
+**Sync behind:** If GET status remains behind the floor for a long time (e.g. 10–30s), this can be treated as a sync problem: show “Syncing…” or retry GET status (optional; not yet implemented).
+
+## 5. What changed
 
 - Recording 1 → step 2: aliases so user is not thrown back to step 1.
 
@@ -36,7 +52,7 @@ After recording 1 backend may return warmup_recorded, warmup_scored, focus_selec
 
 - Debug ingest: single debugIngest(); no request in production.
 
-## 5. Status aliases (explicit list)
+## 6. Status aliases (explicit list)
 
 | Backend returns | Mapped step |
 |-----------------|-------------|
@@ -47,7 +63,7 @@ After recording 1 backend may return warmup_recorded, warmup_scored, focus_selec
 
 Canonical five: warm_up→1, task_block→2, final_task_ready→3, post_questions→4, completed→5. **Step 5 after submitting post-answers** is always from the **post-answers response**, not from GET status.
 
-## 6. Before vs now (explicit)
+## 7. Before vs now (explicit)
 
 | Area | Before | Now |
 |------|--------|-----|
