@@ -393,6 +393,10 @@ export default function HomeworkFlowCard() {
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
+        const backendStatus = (e as HomeworkApiError).backendStatus;
+        if (backendStatus) {
+          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+        }
         try {
           const statusRes = await homeworkApi.getStatus();
           if (statusRes) {
