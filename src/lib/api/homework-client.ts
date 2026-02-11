@@ -56,6 +56,8 @@ async function handleResponse<T>(res: Response): Promise<T> {
     }
     const err = new Error(message) as HomeworkApiError;
     if (code) err.code = code;
+    // 409 = conflict (e.g. wrong step). Treat as session state so UI refetches status and syncs step.
+    if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
     throw err;
   }
   return res.json();
