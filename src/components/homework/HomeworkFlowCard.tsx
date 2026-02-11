@@ -107,8 +107,11 @@ function toId(v: unknown): string {
   return String(v);
 }
 
-// One auto-start per page load (avoids double request in React Strict Mode)
+// One auto-start per page load (avoids double request in React Strict Mode). Reset when user finishes and goes to dashboard so next visit starts fresh.
 let autoStartAttempted = false;
+function resetAutoStartAttempted() {
+  autoStartAttempted = false;
+}
 
 function isNoWarmupError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "NO_WARMUP_CONFIGURED";
@@ -210,13 +213,22 @@ export default function HomeworkFlowCard() {
     setError(null);
     setStatusUnknown(false);
     try {
-      await homeworkApi.start();
+      const startRes = await homeworkApi.start();
+      const warmUpTextFromStart =
+        (startRes.warm_up_task && "text" in startRes.warm_up_task ? startRes.warm_up_task.text : null) ??
+        (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
+        "";
+      setSessionId(startRes.session_id);
+      setStep(1);
+      setWarmUpText(warmUpTextFromStart);
+      setError(null);
+      setStatusUnknown(false);
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
       else {
-        setSessionId(null);
-        setStep(0);
-        setError("Could not load session. Please try again.");
+        setSessionId(startRes.session_id);
+        setStep(1);
+        setWarmUpText(warmUpTextFromStart);
       }
     } catch (e) {
       if (isNoWarmupError(e)) {
@@ -243,10 +255,30 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  /** Clear state and start a new session (new session_id from backend). */
-  const handleStartOver = () => {
+  /** Finish the flow: clear state and go to dashboard. Next time user starts homework they will begin from step 1 (first recording). */
+  const handleBackToDashboard = () => {
+    resetAutoStartAttempted();
     setSessionId(null);
     setStep(0);
+    setWarmUpText("");
+    setTaskText("");
+    setFinalTaskText("");
+    setTaskBlock(null);
+    setQuestions([]);
+    setPostAnswers({});
+    setReportText("");
+    setPerformanceScoreEnd(null);
+    setError(null);
+    setNoWarmupConfigured(false);
+    setStatusUnknown(false);
+    postAnswersAutoSubmitDoneRef.current = false;
+    router.push("/dashboard");
+  };
+
+  /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. */
+  const handleStartOver = () => {
+    setSessionId(null);
+    setStep(1);
     setWarmUpText("");
     setTaskText("");
     setFinalTaskText("");
@@ -284,10 +316,12 @@ export default function HomeworkFlowCard() {
         if (isNoWarmupError(e)) {
           setNoWarmupConfigured(true);
           setError(null);
+          setStep(0);
         } else {
           const msg = e instanceof Error ? e.message : "Failed to start";
           setError(msg);
           toast.error(msg);
+          setStep(0);
         }
       })
       .finally(() => setLoading(false));
@@ -367,7 +401,8 @@ export default function HomeworkFlowCard() {
           setPerformanceScoreEnd(null);
           setError(null);
           setStatusUnknown(false);
-          return handleStart();
+          setLoading(false);
+          return;
         }
         if (statusRes) {
           const derived = deriveStepFromStatus(statusRes);
@@ -847,12 +882,37 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 1 (or loading): Warm-up text + recorder — show as soon as user is logged in
-  if (step === 0 || step === 1) {
+  // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
+  if (step === 0) {
+    return (
+      <StepFlowWrapper step={0}>
+        <Card className="p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Homework</h3>
+          <p className="text-sm text-muted-foreground">
+            Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
+          </p>
+          {error && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
+              <p>{error}</p>
+              <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
+                Try again
+              </Button>
+            </div>
+          )}
+          <Button onClick={handleStart} disabled={loading} className="w-full sm:w-auto">
+            {loading ? "Starting…" : "Start homework"}
+          </Button>
+        </Card>
+      </StepFlowWrapper>
+    );
+  }
+
+  // Step 1: Warm-up text + recorder — show as soon as session exists (from POST start response)
+  if (step === 1) {
     const isUploadingRec1 = uploadingRecording === 1;
     if (isUploadingRec1) {
       return (
-        <StepFlowWrapper step={step}>
+        <StepFlowWrapper step={1}>
           <Card className="p-6">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -863,18 +923,12 @@ export default function HomeworkFlowCard() {
         </StepFlowWrapper>
       );
     }
-    const showRecorder = !!sessionId;
-    const warmUpEmpty = step === 1 && sessionId && !warmUpText.trim();
-    const showStatusUnknownBlock = step === 1 && statusUnknown;
-    const showWarmUpUnavailableBlock = step === 1 && warmUpEmpty && !statusUnknown;
-    const warmUpDisplayText = sessionId
-      ? warmUpText.trim()
-      : error
-        ? "Tap Try again above to load your task."
-        : "Loading your warm-up task…";
+    const warmUpEmpty = sessionId && !warmUpText.trim();
+    const showStatusUnknownBlock = statusUnknown;
+    const showWarmUpUnavailableBlock = warmUpEmpty && !statusUnknown;
 
     return (
-      <StepFlowWrapper step={step}>
+      <StepFlowWrapper step={1}>
         {sessionId === "mock-session" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
@@ -896,45 +950,22 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         )}
-        {step === 0 && error && !showStatusUnknownBlock && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
-            <p>{error}</p>
-            <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
-              Try again
-            </Button>
-          </div>
-        )}
         {!showStatusUnknownBlock && !showWarmUpUnavailableBlock && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
-          <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-            {!sessionId && loading ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                {warmUpDisplayText || "—"}
-              </span>
-            ) : (
-              warmUpDisplayText || "—"
-            )}
-          </p>
-        </div>
-        )}
-        {showRecorder && (
-          <div className="flex flex-col gap-3">
-            <AudioRecorder
-              onRecordingComplete={handleRecording1Complete}
-              stopAndSend
-              uploading={isUploadingRec1}
-            />
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
+            <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+              {warmUpText.trim() || "—"}
+            </p>
           </div>
         )}
-        {!showRecorder && (
-          <Card className="p-6 flex items-center justify-center gap-2 text-muted-foreground text-sm">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            Preparing recorder…
-          </Card>
-        )}
-        {showRecorder && sessionId && sessionId !== "mock-session" && (
+        <div className="flex flex-col gap-3">
+          <AudioRecorder
+            onRecordingComplete={handleRecording1Complete}
+            stopAndSend
+            uploading={isUploadingRec1}
+          />
+        </div>
+        {sessionId && sessionId !== "mock-session" && (
           <div className="mt-3 flex justify-center">
             <Button
               variant="ghost"
@@ -1046,11 +1077,11 @@ export default function HomeworkFlowCard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button onClick={handleBackToDashboard}>
+              Back to dashboard
+            </Button>
             <Button variant="outline" onClick={handleStartOver}>
               Start new homework
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/dashboard">Back to dashboard</Link>
             </Button>
           </div>
         </Card>
