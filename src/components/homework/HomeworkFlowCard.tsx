@@ -11,6 +11,8 @@ import type {
   TaskBlockV2,
 } from "@/lib/api/types-homework";
 import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
+import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
+import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
@@ -119,7 +121,6 @@ export default function HomeworkFlowCard() {
   const [finalTaskText, setFinalTaskText] = useState("");
   const [taskBlock, setTaskBlock] = useState<TaskBlockV2 | null>(null);
   const [questions, setQuestions] = useState<HomeworkQuestion[]>([]);
-  const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
   const [reportText, setReportText] = useState("");
   const [performanceScoreEnd, setPerformanceScoreEnd] = useState<number | null>(null);
 
@@ -215,7 +216,6 @@ export default function HomeworkFlowCard() {
     setFinalTaskText("");
     setTaskBlock(null);
     setQuestions([]);
-    setPostAnswers({});
     setReportText("");
     setPerformanceScoreEnd(null);
     setError(null);
@@ -279,8 +279,6 @@ export default function HomeworkFlowCard() {
     setTaskText("");
     setFinalTaskText("");
     setTaskBlock(null);
-    setQuestions([]);
-    setPostAnswers({});
     setReportText("");
     setPerformanceScoreEnd(null);
     setNoWarmupConfigured(false);
@@ -649,24 +647,19 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  const handlePostAnswersSubmit = async () => {
+  const handlePostAnswersSubmit = async (answers: Record<string, string>) => {
     if (!sessionId) return;
     if (postAnswersSubmitInProgress.current) return;
-    const missing = questions.filter((q) => !(postAnswers[toId(q.id)] ?? "").trim());
-    if (missing.length > 0) {
-      setError("Please answer all questions before continuing.");
-      return;
-    }
     postAnswersSubmitInProgress.current = true;
     setLoading(true);
     setError(null);
     if (typeof window !== "undefined") console.log("[step4] submitting=true");
     try {
-      const answers = questions.map((q) => ({
+      const payload = questions.map((q) => ({
         question_id: toId(q.id),
-        answer_text: (postAnswers[toId(q.id)] ?? "").trim(),
+        answer_text: (answers[toId(q.id)] ?? "").trim(),
       }));
-      await homeworkApi.submitPostAnswers(sessionId, answers);
+      await homeworkApi.submitPostAnswers(sessionId, payload);
       if (typeof window !== "undefined") console.log("[step4] post-answers status 200, parsed ok");
       const statusRes = await homeworkApi.getStatus();
       if (typeof window !== "undefined") console.log("[step4] getStatus done", statusRes ? "has status" : "null");
@@ -686,10 +679,6 @@ export default function HomeworkFlowCard() {
       postAnswersSubmitInProgress.current = false;
     }
   };
-
-  const allPostQuestionsAnswered =
-    questions.length === 0 ||
-    questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
 
   /** Refetch GET status and apply to state (e.g. after "Refresh" when status unknown or warm-up empty). */
   const refreshStatus = async () => {
@@ -920,39 +909,16 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
+  // Step 4: Reflective questions (local state in PostQuestionsStepScreen so typing does not re-render parent).
   if (step === 4) {
     return (
       <Wrapper>
-        <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Reflective questions</h3>
-          <div className="space-y-4">
-            {questions.map((q) => {
-              const qId = toId(q.id);
-              return (
-                <div key={qId}>
-                  <label className="block text-sm font-medium mb-1">{toText(q.text)}</label>
-                  <textarea
-                    className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    value={postAnswers[qId] ?? ""}
-                    onChange={(e) => setPostAnswers((prev) => ({ ...prev, [qId]: e.target.value }))}
-                    placeholder="Your answer…"
-                  />
-                </div>
-              );
-            })}
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button
-            onClick={handlePostAnswersSubmit}
-            disabled={loading || !allPostQuestionsAnswered}
-          >
-            {loading ? "Submitting…" : "See my report"}
-          </Button>
-          {!allPostQuestionsAnswered && questions.length > 0 && (
-            <p className="text-sm text-muted-foreground">Answer all questions above to continue.</p>
-          )}
-        </Card>
+        <PostQuestionsStepScreen
+          questions={questions}
+          onSubmit={handlePostAnswersSubmit}
+          loading={loading}
+          error={error}
+        />
       </Wrapper>
     );
   }
