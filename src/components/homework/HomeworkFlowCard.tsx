@@ -98,6 +98,10 @@ function isNoWarmupError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "NO_WARMUP_CONFIGURED";
 }
 
+function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
+  return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
+}
+
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
@@ -315,6 +319,7 @@ export default function HomeworkFlowCard() {
       );
       return;
     }
+    if (uploadingRecording === 1) return;
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
@@ -323,8 +328,18 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      if (isInvalidSessionStateError(e)) {
+        try {
+          const statusRes = await homeworkApi.getStatus();
+          if (statusRes) applyStatusToState(statusRes);
+        } catch {
+          setError(e instanceof Error ? e.message : "Upload failed");
+          toast.error(e instanceof Error ? e.message : "Upload failed");
+        }
+      } else {
+        setError(e instanceof Error ? e.message : "Upload failed");
+        toast.error(e instanceof Error ? e.message : "Upload failed");
+      }
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
@@ -377,6 +392,7 @@ export default function HomeworkFlowCard() {
       toast.error(msg);
       return;
     }
+    if (uploadingRecording === 2) return;
     setUploadingRecording(2);
     setError(null);
     abortRef.current = new AbortController();
@@ -384,10 +400,19 @@ export default function HomeworkFlowCard() {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
-      // Step-4 questions filled by effect when status is thin (step 4 + questions.length === 0)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      if (isInvalidSessionStateError(e)) {
+        try {
+          const statusRes = await homeworkApi.getStatus();
+          if (statusRes) applyStatusToState(statusRes);
+        } catch {
+          setError(e instanceof Error ? e.message : "Upload failed");
+          toast.error(e instanceof Error ? e.message : "Upload failed");
+        }
+      } else {
+        setError(e instanceof Error ? e.message : "Upload failed");
+        toast.error(e instanceof Error ? e.message : "Upload failed");
+      }
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
