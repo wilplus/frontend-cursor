@@ -141,7 +141,6 @@ export default function HomeworkFlowCard() {
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
   const justFinishedRecording2Ref = useRef(false);
-  const justFinishedRecording2Ref = useRef(false);
 
   /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
