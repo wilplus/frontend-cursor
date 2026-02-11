@@ -18,6 +18,7 @@ import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { debugIngest } from "@/lib/debugIngest";
 
 const TOTAL_STEPS = 5;
 
@@ -172,9 +173,7 @@ export default function HomeworkFlowCard() {
       console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
     }
     // #region agent log
-    if (process.env.NODE_ENV === "development") {
-      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:applyStatusToState", message: "applyStatusToState", data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
-    }
+    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:applyStatusToState", message: "applyStatusToState", data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, timestamp: Date.now(), hypothesisId: "H2" });
     // #endregion
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
@@ -948,9 +947,7 @@ export default function HomeworkFlowCard() {
   // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
   if (step === 4) {
     // #region agent log
-    if (process.env.NODE_ENV === "development") {
-      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
-    }
+    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" });
     // #endregion
     return (
       <StepFlowWrapper step={step}>
