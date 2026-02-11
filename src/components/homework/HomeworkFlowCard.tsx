@@ -166,10 +166,11 @@ export default function HomeworkFlowCard() {
   const postAnswersSubmitInProgress = useRef(false);
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
-  const justFinishedRecording2Ref = useRef(false);
   const postAnswersAutoSubmitDoneRef = useRef(false);
+  /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
+  const uiStepFloorRef = useRef(0);
 
-  /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
+  /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
     const derived = deriveStepFromStatus(statusRes);
     const statusRaw =
@@ -179,11 +180,8 @@ export default function HomeworkFlowCard() {
       (statusRes as { session_state?: string }).session_state ??
       "";
     if (typeof window !== "undefined") {
-      console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
+      console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, floor: uiStepFloorRef.current });
     }
-    // #region agent log
-    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:applyStatusToState", message: "applyStatusToState", data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, timestamp: Date.now(), hypothesisId: "H2" });
-    // #endregion
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
     setSessionId(sessionIdFromRes);
@@ -199,10 +197,7 @@ export default function HomeworkFlowCard() {
       text: toText(q.text),
     }));
     setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-    const stepToSet = (justFinishedRecording2Ref.current && (derived.step === 1 || derived.step === 2 || derived.step === 3)) ? (justFinishedRecording2Ref.current = false, 4) : derived.step;
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:applyStatusToState',message:'setting step',data:{statusRaw:String(statusRaw).slice(0,50),derivedStep:derived.step,stepToSet},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
+    const stepToSet = Math.max(derived.step, uiStepFloorRef.current) as Step | 0;
     setStep(stepToSet);
     setStatusUnknown(derived.statusUnknown);
     setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
@@ -234,6 +229,7 @@ export default function HomeworkFlowCard() {
       if (isNoWarmupError(e)) {
         setNoWarmupConfigured(true);
         setError(null);
+        uiStepFloorRef.current = 0;
         setStep(0);
         setSessionId(null);
         return;
@@ -258,6 +254,7 @@ export default function HomeworkFlowCard() {
   /** Finish the flow: clear state and go to dashboard. Next time user starts homework they will begin from step 1 (first recording). */
   const handleBackToDashboard = () => {
     resetAutoStartAttempted();
+    uiStepFloorRef.current = 0;
     setSessionId(null);
     setStep(0);
     setWarmUpText("");
@@ -277,6 +274,7 @@ export default function HomeworkFlowCard() {
 
   /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. */
   const handleStartOver = () => {
+    uiStepFloorRef.current = 0;
     setSessionId(null);
     setStep(1);
     setWarmUpText("");
@@ -297,16 +295,11 @@ export default function HomeworkFlowCard() {
       .then(async () => {
         const statusRes = await homeworkApi.getStatus();
         if (statusRes) {
-          const derived = deriveStepFromStatus(statusRes);
-          const flag = typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkJustFinishedRecording2") === "1";
-          const forceStep4 = flag && (derived.step === 1 || derived.step === 2 || derived.step === 3);
-          const toApply = forceStep4
-            ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
-            : statusRes;
-          if (forceStep4 && typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
-          applyStatusToState(toApply);
+          if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
+          applyStatusToState(statusRes);
         }
         else {
+          uiStepFloorRef.current = 0;
           setSessionId(null);
           setStep(0);
           setError("Could not load session. Please try again.");
@@ -316,11 +309,13 @@ export default function HomeworkFlowCard() {
         if (isNoWarmupError(e)) {
           setNoWarmupConfigured(true);
           setError(null);
+          uiStepFloorRef.current = 0;
           setStep(0);
         } else {
           const msg = e instanceof Error ? e.message : "Failed to start";
           setError(msg);
           toast.error(msg);
+          uiStepFloorRef.current = 0;
           setStep(0);
         }
       })
@@ -345,6 +340,7 @@ export default function HomeworkFlowCard() {
       setLoading(false);
       return;
     }
+    uiStepFloorRef.current = 0;
     setSessionId(null);
     setStep(0);
     setWarmUpText("");
@@ -390,6 +386,7 @@ export default function HomeworkFlowCard() {
           "";
         const isCompleted = statusRaw.toLowerCase().trim() === "completed";
         if (!hasActive || !sessionIdFromRes || isCompleted) {
+          uiStepFloorRef.current = 0;
           setSessionId(null);
           setStep(0);
           setWarmUpText("");
@@ -407,12 +404,11 @@ export default function HomeworkFlowCard() {
         if (statusRes) {
           const derived = deriveStepFromStatus(statusRes);
           const flag = typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkJustFinishedRecording2") === "1";
-          const forceStep4 = flag && (derived.step === 1 || derived.step === 2 || derived.step === 3);
-          const toApply = forceStep4
-            ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
-            : statusRes;
-          if (forceStep4 && typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
-          applyStatusToState(toApply);
+          if (flag) {
+            uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
+            if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
+          }
+          applyStatusToState(statusRes);
         }
       })
       .catch((e) => {
@@ -524,28 +520,11 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:after uploadRecording1',message:'recording1 done',data:{hasRecording1Res:!!recording1Res,hasTaskBlock:!!recording1Res?.task_block},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
+      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
       const statusRes = await homeworkApi.getStatus();
-      // #region agent log
-      const statusRaw = statusRes?.session?.status ?? statusRes?.status ?? '';
-      const derived = statusRes ? deriveStepFromStatus(statusRes) : { step: 0, statusUnknown: true };
-      const branch = !statusRes ? 'noStatusRes' : (derived.step >= 2 ? 'applyStatusToState' : 'setStep2FromRecording1Res');
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:after getStatus',message:'status after rec1',data:{statusRaw,derivedStep:derived.step,branch},timestamp:Date.now(),hypothesisId:'H1,H2,H3'})}).catch(()=>{});
-      // #endregion
       if (statusRes) {
-        const derivedApply = deriveStepFromStatus(statusRes);
-        // Taskmaster: after recording-1, backend sets status to task_block (step 2). If getStatus() returns
-        // stale warm_up (e.g. read lag), do not overwrite — use recording-1 response to stay on step 2.
-        if (derivedApply.step >= 2) {
-          applyStatusToState(statusRes);
-        } else {
-          setStep(2);
-          if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
-          setStatusUnknown(false);
-          setError(null);
-        }
+        applyStatusToState(statusRes);
+        if (recording1Res?.task_block && !statusRes.task_block && !statusRes.session?.task_block) setTaskBlock(recording1Res.task_block);
       } else {
         setStep(2);
         if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
@@ -629,48 +608,31 @@ export default function HomeworkFlowCard() {
           errorMsg: responseErr ?? undefined,
         });
       }
+      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
       const statusRes = await homeworkApi.getStatus();
+      const finalTextFromResponse =
+        typeof metricResponse?.final_task === "string"
+          ? metricResponse.final_task
+          : typeof metricResponse?.final_task_text === "string"
+            ? metricResponse.final_task_text
+            : metricResponse?.final_task && typeof (metricResponse.final_task as { text?: string }).text === "string"
+              ? (metricResponse.final_task as { text: string }).text
+              : "";
       if (statusRes) {
         applyStatusToState(statusRes);
-        const derived = deriveStepFromStatus(statusRes);
-        // If backend didn't advance status but metric-answers returned the final task, advance to step 3 so answers are "accepted"
-        if (derived.step === 2 && (metricResponse?.final_task ?? metricResponse?.final_task_text)) {
-          const finalText =
-            typeof metricResponse.final_task === "string"
-              ? metricResponse.final_task
-              : typeof metricResponse.final_task_text === "string"
-                ? metricResponse.final_task_text
-                : "";
-          if (finalText) {
-            setFinalTaskText(finalText);
-            setStep(3);
-            toast.success("Answers saved. Continue to the final recording.");
-          }
-        } else if (derived.step === 2) {
-          if (typeof window !== "undefined") {
-            console.warn("[HomeworkFlow] metric submit success but still step 2 - showing error");
-          }
-          const errMsg = "Answers may not have been saved. Please refresh and try again, or contact support.";
-          toast.error("Answers could not be saved. Please refresh and try again.");
-          queueMicrotask(() => setError(errMsg));
-        }
+        const finalFromSession =
+          statusRes?.session && typeof (statusRes.session as { final_task_text?: string }).final_task_text === "string"
+            ? (statusRes.session as { final_task_text: string }).final_task_text
+            : "";
+        const finalText = (finalTextFromResponse.trim() || finalFromSession.trim()) || "";
+        if (finalText) setFinalTaskText(finalText);
       } else {
-        // getStatus() returned null (e.g. 404) — still advance if we got final_task from submit response
-        const finalText =
-          typeof metricResponse?.final_task === "string"
-            ? metricResponse.final_task
-            : typeof metricResponse?.final_task_text === "string"
-              ? metricResponse.final_task_text
-              : "";
-        if (finalText) {
-          setFinalTaskText(finalText);
-          setStep(3);
-          toast.success("Answers saved. Continue to the final recording.");
-        } else {
-          setError("Answers were sent but we couldn’t load the next step. Please refresh the page.");
-          toast.error("Please refresh the page to continue.");
-        }
+        setStep(3);
+        if (finalTextFromResponse.trim()) setFinalTaskText(finalTextFromResponse.trim());
+        setStatusUnknown(false);
+        setError(null);
       }
+      toast.success("Answers saved. Continue to the final recording.");
     } catch (e) {
       if (typeof window !== "undefined") {
         console.warn("[HomeworkFlow] metric submit catch", e instanceof Error ? e.message : String(e));
@@ -736,21 +698,13 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
+      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
+      if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
       const statusRes = await homeworkApi.getStatus();
-      const derivedRec2 = statusRes ? deriveStepFromStatus(statusRes) : null;
-      if (statusRes) {
-        // After recording 2, never show step 1–3: force backend status to post_questions so we apply state with step 4.
-        const forceStep4 = derivedRec2 && derivedRec2.step !== 4 && derivedRec2.step !== 5;
-        if (forceStep4) justFinishedRecording2Ref.current = true;
-        if (forceStep4 && typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
-        const toApply = forceStep4
-          ? { ...statusRes, status: "post_questions" as const, session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions" as const, state: "post_questions" } }
-          : statusRes;
-        applyStatusToState(toApply);
-      }
+      if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
-        justFinishedRecording2Ref.current = true;
+        uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
         if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
@@ -759,13 +713,7 @@ export default function HomeworkFlowCard() {
         try {
           const statusRes = await homeworkApi.getStatus();
           if (statusRes) {
-            const derivedCatch = deriveStepFromStatus(statusRes);
-            const forceStep4Catch = derivedCatch.step !== 4 && derivedCatch.step !== 5;
-            const toApplyCatch = forceStep4Catch
-              ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
-              : statusRes;
-            if (forceStep4Catch) justFinishedRecording2Ref.current = true;
-            applyStatusToState(toApplyCatch);
+            applyStatusToState(statusRes);
             toast.success("Session updated. You're on the right step now.");
           }
         } catch {
