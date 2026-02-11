@@ -140,6 +140,8 @@ export default function HomeworkFlowCard() {
   const postAnswersSubmitInProgress = useRef(false);
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
+  const justFinishedRecording2Ref = useRef(false);
+  const justFinishedRecording2Ref = useRef(false);
 
   /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -171,7 +173,8 @@ export default function HomeworkFlowCard() {
       text: toText(q.text),
     }));
     setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-    setStep(derived.step);
+    const stepToSet = (justFinishedRecording2Ref.current && (derived.step === 1 || derived.step === 2 || derived.step === 3)) ? (justFinishedRecording2Ref.current = false, 4) : derived.step;
+    setStep(stepToSet);
     setStatusUnknown(derived.statusUnknown);
     setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
   };
@@ -601,11 +604,13 @@ export default function HomeworkFlowCard() {
       DEBUG_LOG("HomeworkFlowCard.tsx:handleRecording2Complete", "after_getStatus", { statusRaw: String(statusRawRec2), derivedStep: derivedRec2?.step ?? null, statusUnknown: derivedRec2?.statusUnknown ?? null }, "H1");
       // #endregion
       if (statusRes) {
-        applyStatusToState(statusRes);
-        // Defensive: after successful recording 2 upload, user must see step 4 (post-questions) or 5 (report). Force step 4 if backend returned anything else.
-        if (derivedRec2 && derivedRec2.step !== 4 && derivedRec2.step !== 5) {
-          setStep(4);
-        }
+        // After recording 2, never show step 1–3: force backend status to post_questions so we apply state with step 4.
+        if (forceStep4) justFinishedRecording2Ref.current = true;
+        const forceStep4 = derivedRec2 && derivedRec2.step !== 4 && derivedRec2.step !== 5;
+        const toApply = forceStep4
+          ? { ...statusRes, status: "post_questions" as const, session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions" as const, state: "post_questions" } }
+          : statusRes;
+        applyStatusToState(toApply);
       }
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
@@ -616,7 +621,12 @@ export default function HomeworkFlowCard() {
         try {
           const statusRes = await homeworkApi.getStatus();
           if (statusRes) {
-            applyStatusToState(statusRes);
+            const derivedCatch = deriveStepFromStatus(statusRes);
+            const forceStep4Catch = derivedCatch.step !== 4 && derivedCatch.step !== 5;
+            const toApplyCatch = forceStep4Catch
+              ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
+              : statusRes;
+            applyStatusToState(toApplyCatch);
             toast.success("Session updated. You're on the right step now.");
           }
         } catch {
