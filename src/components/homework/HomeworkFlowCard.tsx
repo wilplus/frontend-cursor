@@ -69,10 +69,12 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
   // Backend may use different strings; map common aliases so we don't get stuck on "unknown status"
+  // After recording 1: backend may return warmup_recorded, warmup_scored, focus_selected, task_generated → step 2 (metric questions)
+  if (status === "warmup_recorded" || status === "warmup_scored" || status === "focus_selected" || status === "task_generated") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "final_task" || status === "ready_for_final" || status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "post_task" || status === "post_task_questions" || status === "reflective") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "recording2_uploaded" || status === "recording2_scored") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "finished" || status === "done") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
+  if (status === "finished" || status === "done" || status === "post_questions_done" || status === "report_generated") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
   return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
 }
@@ -170,17 +172,9 @@ export default function HomeworkFlowCard() {
       console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
     }
     // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "HomeworkFlowCard.tsx:applyStatusToState",
-        message: "applyStatusToState",
-        data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown },
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {});
+    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:applyStatusToState", message: "applyStatusToState", data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
+    }
     // #endregion
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
@@ -952,17 +946,9 @@ export default function HomeworkFlowCard() {
   // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
   if (step === 4) {
     // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "HomeworkFlowCard.tsx:step4",
-        message: "step4 render",
-        data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length },
-        timestamp: Date.now(),
-        hypothesisId: "H1",
-      }),
-    }).catch(() => {});
+    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+    }
     // #endregion
     return (
       <StepFlowWrapper step={step}>

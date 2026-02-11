@@ -43,33 +43,17 @@ export default function PostQuestionsStepScreen({
 
   // #region agent log
   useEffect(() => {
-    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "PostQuestionsStepScreen.tsx:mount",
-        message: "PostQuestionsStepScreen mounted",
-        data: { questionsLen: questions.length },
-        timestamp: Date.now(),
-        hypothesisId: "H1",
-      }),
-    }).catch(() => {});
+    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "PostQuestionsStepScreen.tsx:mount", message: "PostQuestionsStepScreen mounted", data: { questionsLen: questions.length }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+    }
   }, []);
   // #endregion
 
   const handleChange = (qId: string, value: string) => {
     // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "PostQuestionsStepScreen.tsx:handleChange",
-        message: "onChange",
-        data: { qId, valueLen: value.length },
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {});
+    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "PostQuestionsStepScreen.tsx:handleChange", message: "onChange", data: { qId, valueLen: value.length }, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
+    }
     // #endregion
     setAnswers((prev) => ({ ...prev, [qId]: value }));
   };
