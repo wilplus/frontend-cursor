@@ -487,9 +487,16 @@ export default function HomeworkFlowCard() {
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
+        const backendStatus = (e as HomeworkApiError).backendStatus;
+        if (backendStatus) {
+          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+        }
         try {
           const statusRes = await homeworkApi.getStatus();
-          if (statusRes) applyStatusToState(statusRes);
+          if (statusRes) {
+            applyStatusToState(statusRes);
+            toast.success("Session updated. You're on the right step now.");
+          }
         } catch {
           setError(e instanceof Error ? e.message : "Upload failed");
           toast.error(e instanceof Error ? e.message : "Upload failed");
