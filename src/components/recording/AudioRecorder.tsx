@@ -49,6 +49,8 @@ interface AudioRecorderProps {
   onCancel?: () => void;
   /** When true: single "Stop & Send" orange button, no back/start again links, timer orange */
   stopAndSend?: boolean;
+  /** When true: disable Stop/Send button and show "Uploading…" (prevents double-submit) */
+  uploading?: boolean;
 }
 
 export default function AudioRecorder({
@@ -58,6 +60,7 @@ export default function AudioRecorder({
   onStartAgain,
   onCancel,
   stopAndSend = false,
+  uploading = false,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -591,10 +594,11 @@ export default function AudioRecorder({
             </Button>
             <Button
               onClick={stopRecording}
+              disabled={uploading}
               className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
-              {stopAndSend ? "Stop & Send" : "Stop"}
+              {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
             </Button>
           </div>
         ) : (
@@ -602,6 +606,7 @@ export default function AudioRecorder({
             <Button
               onClick={pauseRecording}
               variant="outline"
+              disabled={uploading}
               className="flex-1 rounded-full py-5 text-base font-semibold bg-muted/50 border-input text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Pause className="mr-2 h-4 w-4" aria-hidden />
@@ -609,10 +614,11 @@ export default function AudioRecorder({
             </Button>
             <Button
               onClick={stopRecording}
+              disabled={uploading}
               className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
-              {stopAndSend ? "Stop & Send" : "Stop"}
+              {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
             </Button>
           </div>
         )}
