@@ -624,7 +624,7 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  const RECORDING_2_DURATION_MIN = 60;
+  const RECORDING_2_DURATION_MIN = 62;
   const RECORDING_2_DURATION_MAX = 300;
 
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
@@ -633,7 +633,7 @@ export default function HomeworkFlowCard() {
     uploadRecording2InProgressRef.current = true;
     if (durationSeconds < RECORDING_2_DURATION_MIN || durationSeconds > RECORDING_2_DURATION_MAX) {
       uploadRecording2InProgressRef.current = false;
-      const msg = `Final recording must be between ${RECORDING_2_DURATION_MIN / 60} and ${RECORDING_2_DURATION_MAX / 60} minutes.`;
+      const msg = `Final recording must be at least 1 minute 2 seconds (62s) and at most 5 minutes. You recorded ${durationSeconds}s.`;
       setError(msg);
       toast.error(msg);
       return;
@@ -684,8 +684,9 @@ export default function HomeworkFlowCard() {
           toast.error(e instanceof Error ? e.message : "Upload failed");
         }
       } else {
-        setError(e instanceof Error ? e.message : "Upload failed");
-        toast.error(e instanceof Error ? e.message : "Upload failed");
+        const msg = e instanceof Error ? e.message : "Upload failed";
+        setError(msg);
+        toast.error(msg);
       }
     } finally {
       setUploadingRecording(null);
@@ -927,6 +928,7 @@ export default function HomeworkFlowCard() {
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
           uploading={isUploadingRec2}
+          minDurationSeconds={RECORDING_2_DURATION_MIN}
         />
         <div className="mt-3 flex justify-center">
           <Button
