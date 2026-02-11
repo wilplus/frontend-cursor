@@ -58,38 +58,14 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const performanceScoreEnd = s.performance_score_end ?? session?.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
 
-  // Backend state-machine status → step (source of truth). Stops UI showing warm-up when status is e.g. final_task_ready.
+  // Step derived only from GET status → session.status (source of truth). No field-based or legacy inference.
   if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
   if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
   if (status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
   if (status === "post_questions") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
   if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
 
-  // Fallback: payload/legacy status when backend status missing or unknown
-  if (reportText || performanceScoreEnd != null) {
-    return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
-  }
-  if (status === "report_generated") {
-    return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd };
-  }
-  if (questions.length > 0 && s.recording_2_id) {
-    return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (status === "post_questions_done" || status === "recording2_scored") {
-    return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (finalTaskText || s.recording_2_id) {
-    return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (status === "task_generated" || status === "focus_selected") {
-    return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (s.recording_1_id || taskText || taskBlock) {
-    return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
-  if (status === "warmup_recorded" || status === "warmup_scored") {
-    return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
-  }
+  // Only fallback: status missing or unknown → step 1 (no preserve-previous or field-based step inference).
   return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null };
 }
 
@@ -257,7 +233,12 @@ export default function HomeworkFlowCard() {
       .then((statusRes) => {
         const hasActive = statusRes?.has_active_session !== false;
         const sessionIdFromRes = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
-        if (!hasActive || !sessionIdFromRes) {
+        const statusRaw =
+          (statusRes as { status?: string })?.status ??
+          (statusRes as { session?: { status?: string } })?.session?.status ??
+          "";
+        const isCompleted = statusRaw.toLowerCase().trim() === "completed";
+        if (!hasActive || !sessionIdFromRes || isCompleted) {
           setSessionId(null);
           setStep(0);
           setWarmUpText("");
@@ -385,8 +366,17 @@ export default function HomeworkFlowCard() {
     }
   };
 
+  const RECORDING_2_DURATION_MIN = 60;
+  const RECORDING_2_DURATION_MAX = 300;
+
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
+    if (durationSeconds < RECORDING_2_DURATION_MIN || durationSeconds > RECORDING_2_DURATION_MAX) {
+      const msg = `Final recording must be between ${RECORDING_2_DURATION_MIN / 60} and ${RECORDING_2_DURATION_MAX / 60} minutes.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
     setUploadingRecording(2);
     setError(null);
     abortRef.current = new AbortController();

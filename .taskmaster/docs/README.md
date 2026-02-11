@@ -4,7 +4,7 @@
 
 | File | Purpose |
 |------|---------|
-| **APP_DESCRIPTION.md** | **Single source of truth:** what the app is, homework flow, API paths, GET status mapping, key contracts, implementation checklist, components, what could go wrong, and **what is missing**. Use this for onboarding, Cursor, and task planning. |
+| **APP_DESCRIPTION.md** | **Single source of truth:** what the app is, homework flow, API paths, GET status mapping, key contracts, implementation checklist, components, what could go wrong, **what is missing**, and **§11 Frontend audit checklist** (what’s done, what to verify, key files). Use this for onboarding, Cursor, and task planning. |
 | **ALIGNMENT-WITH-BACKEND-SPEC.md** | Where taskmaster and the backend consolidated MVP spec align vs differ. Use when integrating with the backend repo. |
 | **prd.txt** | Product requirements and roadmap. Run `npx task-master parse-prd .taskmaster/docs/prd.txt` to generate tasks. |
 | **schema.sql** | Supabase schema reference (if present). Use for DB-related tasks. |
