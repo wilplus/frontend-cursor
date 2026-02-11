@@ -159,6 +159,7 @@ export default function HomeworkFlowCard() {
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
   const justFinishedRecording2Ref = useRef(false);
+  const postAnswersAutoSubmitDoneRef = useRef(false);
 
   /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -249,6 +250,7 @@ export default function HomeworkFlowCard() {
     setError(null);
     setNoWarmupConfigured(false);
     setStatusUnknown(false);
+    postAnswersAutoSubmitDoneRef.current = false;
     setLoading(true);
     homeworkApi
       .start()
@@ -313,6 +315,7 @@ export default function HomeworkFlowCard() {
     setPerformanceScoreEnd(null);
     setNoWarmupConfigured(false);
     setStatusUnknown(false);
+    postAnswersAutoSubmitDoneRef.current = false;
     try {
       const statusRes = await homeworkApi.getStatus();
       if (statusRes?.has_active_session !== false && statusRes?.session_id) {
@@ -399,20 +402,47 @@ export default function HomeworkFlowCard() {
     };
   }, [step, sessionId, taskBlock]);
 
-  // On step 4, if questions are missing (thin status or refresh), load from GET questions
+  // On step 4, if questions are missing (thin status or refresh), load from GET questions. If none, finish without post-questions (auto-submit to get report).
   useEffect(() => {
     if (step !== 4 || !sessionId || sessionId === "mock-session" || questions.length > 0) return;
+    if (postAnswersAutoSubmitDoneRef.current) return;
     let cancelled = false;
     homeworkApi
       .getQuestions(sessionId)
       .then(({ questions: qList }) => {
-        if (!cancelled && qList.length > 0) {
+        if (cancelled) return;
+        if (qList.length > 0) {
           const normalized = qList.map((q) => ({
             ...q,
             id: toId(q.id) || crypto.randomUUID(),
             text: toText(q.text),
           }));
           setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+        } else {
+          // No reflective questions: finish without them — auto-submit to get report
+          postAnswersAutoSubmitDoneRef.current = true;
+          setLoading(true);
+          setError(null);
+          homeworkApi
+            .submitPostAnswers(sessionId, [])
+            .then((res) => {
+              if (!cancelled) {
+                setReportText(res.report_text ?? "");
+                setPerformanceScoreEnd(res.performance_score_end ?? null);
+                setStep(5);
+              }
+            })
+            .catch((e) => {
+              if (!cancelled) {
+                const msg = e instanceof Error ? e.message : "Failed to load report";
+                setError(msg);
+                toast.error(msg);
+                postAnswersAutoSubmitDoneRef.current = false;
+              }
+            })
+            .finally(() => {
+              if (!cancelled) setLoading(false);
+            });
         }
       })
       .catch(() => {
@@ -710,12 +740,25 @@ export default function HomeworkFlowCard() {
         question_id: toId(q.id),
         answer_text: (answersFromChild[toId(q.id)] ?? "").trim(),
       }));
-      await homeworkApi.submitPostAnswers(sessionId, answers);
-      const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
+      const res = await homeworkApi.submitPostAnswers(sessionId, answers);
+      // Completed sessions are not returned by GET status; show report from response
+      setReportText(res.report_text ?? "");
+      setPerformanceScoreEnd(res.performance_score_end ?? null);
+      setStep(5);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to submit");
-      toast.error(e instanceof Error ? e.message : "Failed to submit");
+      const msg = e instanceof Error ? e.message : "Failed to submit";
+      setError(msg);
+      toast.error(msg);
+      // On session state conflict, refetch status so step syncs with backend (e.g. back to step 3 if main recording not done)
+      const err = e as { code?: string };
+      if (err.code === "INVALID_SESSION_STATE" && sessionId) {
+        try {
+          const statusRes = await homeworkApi.getStatus();
+          if (statusRes) applyStatusToState(statusRes);
+        } catch {
+          // ignore
+        }
+      }
     } finally {
       setLoading(false);
       postAnswersSubmitInProgress.current = false;

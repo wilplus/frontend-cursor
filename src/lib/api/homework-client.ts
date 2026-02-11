@@ -31,33 +31,37 @@ async function getAuthFetchOptions(
   return { headers, credentials: "include" };
 }
 
-/** Thrown when API returns 422 or other error; may have .code (e.g. NO_WARMUP_CONFIGURED, VALIDATION_ERROR). 409 may include .backendStatus from response body. */
+/** Thrown when API returns 422 or other error; may have .code (e.g. NO_WARMUP_CONFIGURED, VALIDATION_ERROR). 409 may include .backendStatus and .hint from response body. */
 export type HomeworkApiError = Error & {
   code?: string;
   backendStatus?: string;
+  hint?: string;
   details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
 };
 
-async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
+async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string; hint?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
   try {
     const body = (await res.json()) as {
       error?: string;
       message?: string;
       code?: string;
       status?: string;
+      hint?: string;
       details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
     };
     let message =
       body.error || body.message || res.statusText || `Request failed ${res.status}`;
     const code = body.code;
     const status = body.status;
+    const hint = body.hint;
     if (res.status === 422 && code === "RECORDING_DURATION_OUT_OF_RANGE" && body.details) {
       const d = body.details;
       const minMin = d.min_seconds != null ? Math.ceil(d.min_seconds / 60) : 1;
       const maxMin = d.max_seconds != null ? Math.floor(d.max_seconds / 60) : 5;
       message = `Recording must be between ${minMin} and ${maxMin} minutes. You recorded ${d.duration_seconds != null ? `${Math.round(d.duration_seconds)}s` : "too short"}. Please try again.`;
     }
-    return { message, code, status, details: body.details };
+    if (hint && res.status === 409) message = `${message} ${hint}`;
+    return { message, code, status, hint, details: body.details };
   } catch {
     return { message: res.statusText || `Request failed ${res.status}` };
   }
@@ -76,7 +80,7 @@ async function safeParseJson<T>(res: Response): Promise<T> {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const { message, code, status, details } = await parseErrorBody(res);
+    const { message, code, status, hint, details } = await parseErrorBody(res);
     if (res.status === 409 && typeof window !== "undefined") {
       console.warn("[HomeworkFlow] 409 from API", { message, code, status });
     }
@@ -87,6 +91,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
     if (code) err.code = code;
     if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
     if (res.status === 409 && status) err.backendStatus = status;
+    if (hint) err.hint = hint;
     if (details) err.details = details as HomeworkApiError["details"];
     throw err;
   }
