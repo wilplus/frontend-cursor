@@ -1,42 +1,28 @@
-import type { NextRequest } from "next/server";
-import { proxyJson } from "@/lib/api/bff";
-import {
-  useMockHomework,
-  requireAuth,
-  mockPostAnswersResponse,
-} from "@/lib/api/homework-mock";
-
+/**
+ * Copy to: src/app/api/homework/session/[sessionId]/post-answers/route.ts
+ * Passes through 4xx/5xx body. Backend generates report (LLM); can be slow. Raise maxDuration to avoid Vercel 504.
+ */
+export const runtime = "nodejs";
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+import { NextRequest, NextResponse } from "next/server";
+import { getV2AccessToken, getBackendUrl } from "../../../../getAuth";
+import { proxyResponse } from "../../../../proxyResponse";
+
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> | { sessionId: string } }
 ) {
-  if (useMockHomework()) {
-    const unauth = await requireAuth(req);
-    if (unauth) return unauth;
-    try {
-      if (req.headers.get("content-type")?.includes("application/json")) {
-        await req.json();
-      }
-    } catch {
-      // consume body
-    }
-    return Response.json(mockPostAnswersResponse());
-  }
-  const { sessionId } = await params;
-  let body: { answers: Array<{ question_id: string; answer_text: string }> } = { answers: [] };
-  try {
-    if (req.headers.get("content-type")?.includes("application/json")) {
-      body = await req.json();
-    }
-  } catch {
-    // keep defaults
-  }
-  const res = await proxyJson(`/v2/homework/session/${sessionId}/post-answers`, {
+  const token = await getV2AccessToken();
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { sessionId } = typeof (params as Promise<{ sessionId: string }>).then === "function" ? await (params as Promise<{ sessionId: string }>) : (params as { sessionId: string });
+  if (!sessionId) return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+  const body = await request.json().catch(() => ({}));
+  const upstreamRes = await fetch(`${getBackendUrl()}/v2/homework/session/${sessionId}/post-answers`, {
     method: "POST",
-    body,
-  }, req);
-  if (res.status === 404) return Response.json(mockPostAnswersResponse());
-  return res;
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return proxyResponse(upstreamRes);
 }

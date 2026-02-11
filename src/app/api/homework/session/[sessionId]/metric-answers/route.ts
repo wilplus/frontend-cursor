@@ -1,53 +1,28 @@
-import type { NextRequest } from "next/server";
-import { proxyJson } from "@/lib/api/bff";
-import {
-  useMockHomework,
-  requireAuth,
-  mockMetricAnswersResponse,
-} from "@/lib/api/homework-mock";
-
+/**
+ * Copy to: src/app/api/homework/session/[sessionId]/metric-answers/route.ts
+ * Passes through 4xx/5xx body (e.g. 409 INVALID_SESSION_STATE). Backend generates final_task (LLM); can be slow.
+ */
+export const runtime = "nodejs";
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+import { NextRequest, NextResponse } from "next/server";
+import { getV2AccessToken, getBackendUrl } from "../../../../getAuth";
+import { proxyResponse } from "../../../../proxyResponse";
+
 export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> | { sessionId: string } }
 ) {
-  if (useMockHomework()) {
-    const unauth = await requireAuth(req);
-    if (unauth) return unauth;
-    try {
-      if (req.headers.get("content-type")?.includes("application/json")) {
-        await req.json();
-      }
-    } catch {
-      // consume body
-    }
-    return Response.json(mockMetricAnswersResponse());
-  }
-  const { sessionId } = await params;
-  let body: {
-    metric_answer_1?: string;
-    metric_answer_2?: string;
-    metric_answer_3?: string;
-    answer_1?: string;
-    answer_2?: string;
-    answer_3?: string;
-  } = {};
-  try {
-    if (req.headers.get("content-type")?.includes("application/json")) {
-      body = await req.json();
-    }
-  } catch {
-    // keep defaults
-  }
-  const res = await proxyJson(`/v2/homework/session/${sessionId}/metric-answers`, {
+  const token = await getV2AccessToken();
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { sessionId } = typeof (params as Promise<{ sessionId: string }>).then === "function" ? await (params as Promise<{ sessionId: string }>) : (params as { sessionId: string });
+  if (!sessionId) return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+  const body = await request.json().catch(() => ({}));
+  const upstreamRes = await fetch(`${getBackendUrl()}/v2/homework/session/${sessionId}/metric-answers`, {
     method: "POST",
-    body: {
-      metric_answer_1: body.metric_answer_1 ?? body.answer_1 ?? "",
-      metric_answer_2: body.metric_answer_2 ?? body.answer_2 ?? "",
-      metric_answer_3: body.metric_answer_3 ?? body.answer_3 ?? "",
-    },
-  }, req);
-  if (res.status === 404) return Response.json(mockMetricAnswersResponse());
-  return res;
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return proxyResponse(upstreamRes);
 }
