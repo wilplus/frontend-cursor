@@ -130,6 +130,8 @@ export default function HomeworkFlowCard() {
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
+  const uploadRecording1InProgressRef = useRef(false);
+  const uploadRecording2InProgressRef = useRef(false);
 
   /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -374,16 +376,22 @@ export default function HomeworkFlowCard() {
 
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
+    if (uploadRecording1InProgressRef.current) return;
+    uploadRecording1InProgressRef.current = true;
     if (typeof window !== "undefined") {
       console.warn("[HomeworkFlow] handleRecording1Complete", { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
     }
     if (sessionId === "mock-session") {
+      uploadRecording1InProgressRef.current = false;
       setError(
         "Recording captured (preview only). Implement POST /v2/homework/start and POST /v2/homework/session/:id/recording-1 on your backend to save and continue."
       );
       return;
     }
-    if (uploadingRecording === 1) return;
+    if (uploadingRecording === 1) {
+      uploadRecording1InProgressRef.current = false;
+      return;
+    }
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
@@ -428,6 +436,7 @@ export default function HomeworkFlowCard() {
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
+      uploadRecording1InProgressRef.current = false;
     }
   };
 
@@ -471,13 +480,19 @@ export default function HomeworkFlowCard() {
 
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
+    if (uploadRecording2InProgressRef.current) return;
+    uploadRecording2InProgressRef.current = true;
     if (durationSeconds < RECORDING_2_DURATION_MIN || durationSeconds > RECORDING_2_DURATION_MAX) {
+      uploadRecording2InProgressRef.current = false;
       const msg = `Final recording must be between ${RECORDING_2_DURATION_MIN / 60} and ${RECORDING_2_DURATION_MAX / 60} minutes.`;
       setError(msg);
       toast.error(msg);
       return;
     }
-    if (uploadingRecording === 2) return;
+    if (uploadingRecording === 2) {
+      uploadRecording2InProgressRef.current = false;
+      return;
+    }
     setUploadingRecording(2);
     setError(null);
     abortRef.current = new AbortController();
@@ -508,6 +523,7 @@ export default function HomeworkFlowCard() {
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
+      uploadRecording2InProgressRef.current = false;
     }
   };
 
@@ -684,6 +700,7 @@ export default function HomeworkFlowCard() {
             <AudioRecorder
               onRecordingComplete={handleRecording1Complete}
               stopAndSend
+              uploading={uploadingRecording === 1}
             />
           </div>
         )}
@@ -752,6 +769,7 @@ export default function HomeworkFlowCard() {
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
+          uploading={uploadingRecording === 2}
         />
         <div className="mt-3 flex justify-center">
           <Button
