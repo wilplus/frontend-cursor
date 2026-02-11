@@ -602,8 +602,8 @@ export default function HomeworkFlowCard() {
       // #endregion
       if (statusRes) {
         applyStatusToState(statusRes);
-        // Defensive: after successful recording 2 upload, never show step 1 or 2 (metric questions). Force step 4 so user sees post-recording questions.
-        if (derivedRec2 && (derivedRec2.step === 1 || derivedRec2.step === 2)) {
+        // Defensive: after successful recording 2 upload, user must see step 4 (post-questions) or 5 (report). Force step 4 if backend returned anything else.
+        if (derivedRec2 && derivedRec2.step !== 4 && derivedRec2.step !== 5) {
           setStep(4);
         }
       }
