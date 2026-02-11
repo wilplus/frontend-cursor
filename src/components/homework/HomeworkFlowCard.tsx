@@ -42,7 +42,7 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
     session?.state ??
     s.session_state ??
     "";
-  const status = statusRaw.toLowerCase().trim();
+  const status = statusRaw.toLowerCase().trim().replace(/\s+/g, "_");
 
   const warmUpTask = s.warm_up_task ?? session?.warm_up_task;
   const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? session?.warm_up_task_text ?? "").trim() || "";
@@ -60,11 +60,17 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const performanceScoreEnd = s.performance_score_end ?? session?.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
 
+  // Canonical statuses (taskmaster)
   if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "post_questions") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
+
+  // Backend may use different strings; map common aliases so we don't get stuck on "unknown status"
+  if (status === "final_task" || status === "ready_for_final" || status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "post_task" || status === "post_task_questions" || status === "reflective") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "finished" || status === "done") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
   return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
 }
@@ -127,10 +133,19 @@ export default function HomeworkFlowCard() {
 
   /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
+    const derived = deriveStepFromStatus(statusRes);
+    if (typeof window !== "undefined") {
+      const statusRaw =
+        statusRes.status ??
+        statusRes.session?.status ??
+        statusRes.session?.state ??
+        (statusRes as { session_state?: string }).session_state ??
+        "";
+      console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
+    }
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
     setSessionId(sessionIdFromRes);
-    const derived = deriveStepFromStatus(statusRes);
     setWarmUpText(derived.warmUpText);
     setTaskText(derived.taskText);
     setTaskBlock(derived.taskBlock);
@@ -359,6 +374,9 @@ export default function HomeworkFlowCard() {
 
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
+    if (typeof window !== "undefined") {
+      console.warn("[HomeworkFlow] handleRecording1Complete", { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
+    }
     if (sessionId === "mock-session") {
       setError(
         "Recording captured (preview only). Implement POST /v2/homework/start and POST /v2/homework/session/:id/recording-1 on your backend to save and continue."
@@ -377,10 +395,27 @@ export default function HomeworkFlowCard() {
       if (isInvalidSessionStateError(e)) {
         try {
           const statusRes = await homeworkApi.getStatus();
-          if (statusRes) applyStatusToState(statusRes);
+          if (statusRes) {
+            applyStatusToState(statusRes);
+            toast.success("Session updated. You're on the right step now.");
+          } else {
+            setError("Session state changed. Please refresh.");
+            toast.error("Session state changed. Please refresh.");
+          }
         } catch {
-          setError(e instanceof Error ? e.message : "Upload failed");
-          toast.error(e instanceof Error ? e.message : "Upload failed");
+          try {
+            const statusResRetry = await homeworkApi.getStatus();
+            if (statusResRetry) {
+              applyStatusToState(statusResRetry);
+              toast.success("Session updated.");
+            } else {
+              setError("Could not refresh session. Click Refresh below.");
+              toast.error("Could not refresh session. Click Refresh below.");
+            }
+          } catch {
+            setError("Could not refresh session. Click Refresh to try again.");
+            toast.error("Could not refresh session. Click Refresh to try again.");
+          }
         }
       } else {
         setError(e instanceof Error ? e.message : "Upload failed");
