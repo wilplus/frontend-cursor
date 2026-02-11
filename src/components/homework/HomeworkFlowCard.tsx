@@ -538,8 +538,6 @@ export default function HomeworkFlowCard() {
             <AudioRecorder
               onRecordingComplete={handleRecording1Complete}
               stopAndSend
-              sessionId={sessionId}
-              recordingSlot="recording_1"
             />
           </div>
         )}
@@ -595,8 +593,6 @@ export default function HomeworkFlowCard() {
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
-          sessionId={sessionId}
-          recordingSlot="recording_2"
         />
         <div className="mt-3 flex justify-center">
           <Button
