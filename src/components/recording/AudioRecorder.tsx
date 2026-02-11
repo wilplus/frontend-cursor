@@ -7,10 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
-import { useChunkMetrics } from "@/hooks/useChunkMetrics";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
-import type { RecordingSlot } from "@/lib/audio/chunk-metrics-types";
 
 const MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
@@ -51,9 +49,6 @@ interface AudioRecorderProps {
   onCancel?: () => void;
   /** When true: single "Stop & Send" orange button, no back/start again links, timer orange */
   stopAndSend?: boolean;
-  /** When set with recordingSlot, enables real-time ambient glow (PCM chunk metrics) during recording */
-  sessionId?: string | null;
-  recordingSlot?: RecordingSlot | null;
 }
 
 export default function AudioRecorder({
@@ -63,8 +58,6 @@ export default function AudioRecorder({
   onStartAgain,
   onCancel,
   stopAndSend = false,
-  sessionId = null,
-  recordingSlot = null,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -87,13 +80,10 @@ export default function AudioRecorder({
   const pauseRequestedRef = useRef(false);
   const setIsPausedRef = useRef(setIsPaused);
   const setIsRecordingRef = useRef(setIsRecording);
-  const stopChunkPipelineRef = useRef<(() => void) | null>(null);
   setIsPausedRef.current = setIsPaused;
   setIsRecordingRef.current = setIsRecording;
 
-  const chunkMetrics = useChunkMetrics(sessionId, recordingSlot);
   const realtimeStrengthPace = useRealtimeStrengthPace();
-  stopChunkPipelineRef.current = chunkMetrics.stop;
   const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
   stopRealtimeRef.current = realtimeStrengthPace.stop;
 
@@ -180,11 +170,9 @@ export default function AudioRecorder({
         }
         if (startAgainRequestedRef.current) {
           startAgainRequestedRef.current = false;
-          stopChunkPipelineRef.current?.();
           stopRealtimeRef.current?.();
           onStartAgain?.();
         } else if (chunksRef.current.length > 0 && startTimeRef.current) {
-          stopChunkPipelineRef.current?.();
           stopRealtimeRef.current?.();
           const blob = new Blob(chunksRef.current, { type: mime });
           const endTime = Date.now();
@@ -244,9 +232,6 @@ export default function AudioRecorder({
       setElapsedSeconds(0);
       onRecordingStart?.();
 
-      if (sessionId && recordingSlot) {
-        chunkMetrics.start(stream);
-      }
       realtimeStrengthPace.start(stream);
 
       timerIntervalRef.current = setInterval(() => {
@@ -268,10 +253,9 @@ export default function AudioRecorder({
       console.error("Failed to start recording:", err);
       toast.error("Failed to access microphone");
     }
-  }, [mimeType, onRecordingStart, attachOnStop, sessionId, recordingSlot, chunkMetrics.start, realtimeStrengthPace.start]);
+  }, [mimeType, onRecordingStart, attachOnStop, realtimeStrengthPace.start]);
 
   const stopRecording = useCallback(() => {
-    stopChunkPipelineRef.current?.();
     stopRealtimeRef.current?.();
     if (isPaused) {
       if (streamRef.current) {
