@@ -12,6 +12,7 @@ import type {
   HomeworkPostAnswersResponse,
   TaskBlockV2,
 } from "@/lib/api/types-homework";
+import { debugIngest } from "@/lib/debugIngest";
 
 async function getAuthFetchOptions(
   extra: Record<string, string> = {}
@@ -228,9 +229,7 @@ export const homeworkApi = {
     if (uploadError) throw new Error(uploadError.message);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     // #region agent log
-    if (process.env.NODE_ENV === "development") {
-      fetch('http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'homework-client.ts:uploadRecording2',message:'sending recording-2',data:{duration_seconds_sent:durationSeconds,storage_path_len:storage_path?.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    }
+    debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "homework-client.ts:uploadRecording2", message: "sending recording-2", data: { duration_seconds_sent: durationSeconds, storage_path_len: storage_path?.length }, timestamp: Date.now(), hypothesisId: "H2" });
     // #endregion
     const res = await fetch(`${BASE}/session/${sessionId}/recording-2`, {
       method: "POST",

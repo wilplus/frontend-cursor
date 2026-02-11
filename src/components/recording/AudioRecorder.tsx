@@ -9,6 +9,7 @@ import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
+import { debugIngest } from "@/lib/debugIngest";
 
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
@@ -215,7 +216,7 @@ export default function AudioRecorder({
             if (process.env.NODE_ENV === "development") {
               measureBlobDurationSeconds(blob)
                 .then((measured) => {
-                  fetch("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "AudioRecorder.tsx:onstop", message: "duration ui vs blob", data: { uiDurationSeconds: durationSeconds, measuredBlobSeconds: measured, startTime: startTimeRef.current, endTime, blobSize: blob.size }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+                  debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "AudioRecorder.tsx:onstop", message: "duration ui vs blob", data: { uiDurationSeconds: durationSeconds, measuredBlobSeconds: measured, startTime: startTimeRef.current, endTime, blobSize: blob.size }, timestamp: Date.now(), hypothesisId: "H1" });
                 })
                 .catch(() => {});
             }
@@ -261,9 +262,7 @@ export default function AudioRecorder({
 
       recorder.onstart = () => {
         startTimeRef.current = Date.now();
-        if (process.env.NODE_ENV === "development") {
-          fetch("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "AudioRecorder.tsx:recorder.onstart", message: "timer started when capture started", data: { startTime: startTimeRef.current }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
-        }
+        debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "AudioRecorder.tsx:recorder.onstart", message: "timer started when capture started", data: { startTime: startTimeRef.current }, timestamp: Date.now(), hypothesisId: "H1" });
       };
       recorder.start();
       setIsRecording(true);

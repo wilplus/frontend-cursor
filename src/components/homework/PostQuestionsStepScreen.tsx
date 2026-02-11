@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { HomeworkQuestion } from "@/lib/api/types-homework";
+import { debugIngest } from "@/lib/debugIngest";
 
 function toId(v: unknown): string {
   if (v == null) return "";
@@ -43,17 +44,13 @@ export default function PostQuestionsStepScreen({
 
   // #region agent log
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "PostQuestionsStepScreen.tsx:mount", message: "PostQuestionsStepScreen mounted", data: { questionsLen: questions.length }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
-    }
+    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "PostQuestionsStepScreen.tsx:mount", message: "PostQuestionsStepScreen mounted", data: { questionsLen: questions.length }, timestamp: Date.now(), hypothesisId: "H1" });
   }, []);
   // #endregion
 
   const handleChange = (qId: string, value: string) => {
     // #region agent log
-    if (process.env.NODE_ENV === "development") {
-      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "PostQuestionsStepScreen.tsx:handleChange", message: "onChange", data: { qId, valueLen: value.length }, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
-    }
+    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "PostQuestionsStepScreen.tsx:handleChange", message: "onChange", data: { qId, valueLen: value.length }, timestamp: Date.now(), hypothesisId: "H2" });
     // #endregion
     setAnswers((prev) => ({ ...prev, [qId]: value }));
   };
