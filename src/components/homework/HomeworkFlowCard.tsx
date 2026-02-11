@@ -465,10 +465,30 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
-      const isValidationError =
-        e instanceof Error && "code" in e && (e as HomeworkApiError).code === "VALIDATION_ERROR";
-      setError(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
-      toast.error(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
+      if (isInvalidSessionStateError(e)) {
+        const backendStatus = (e as HomeworkApiError).backendStatus;
+        if (backendStatus) {
+          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+        }
+        try {
+          const statusRes = await homeworkApi.getStatus();
+          if (statusRes) {
+            applyStatusToState(statusRes);
+            toast.success("Session updated. You're on the right step now.");
+          } else {
+            setError("Session state changed. Please refresh.");
+            toast.error("Session state changed. Please refresh.");
+          }
+        } catch {
+          setError(e instanceof Error ? e.message : "Failed to submit");
+          toast.error(e instanceof Error ? e.message : "Failed to submit");
+        }
+      } else {
+        const isValidationError =
+          e instanceof Error && "code" in e && (e as HomeworkApiError).code === "VALIDATION_ERROR";
+        setError(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
+        toast.error(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
+      }
     } finally {
       setLoading(false);
       metricSubmitInProgress.current = false;
@@ -626,7 +646,8 @@ export default function HomeworkFlowCard() {
 
   // Step 1 (or loading): Warm-up text + recorder — show as soon as user is logged in
   if (step === 0 || step === 1) {
-    if (uploadingRecording === 1) {
+    const isUploadingRec1 = uploadingRecording === 1;
+    if (isUploadingRec1) {
       return (
         <Wrapper>
           <Card className="p-6">
@@ -700,7 +721,7 @@ export default function HomeworkFlowCard() {
             <AudioRecorder
               onRecordingComplete={handleRecording1Complete}
               stopAndSend
-              uploading={uploadingRecording === 1}
+              uploading={isUploadingRec1}
             />
           </div>
         )}
@@ -744,7 +765,8 @@ export default function HomeworkFlowCard() {
 
   // Step 3: Final task + record
   if (step === 3) {
-    if (uploadingRecording === 2) {
+    const isUploadingRec2 = uploadingRecording === 2;
+    if (isUploadingRec2) {
       return (
         <Wrapper>
           <Card className="p-6">
@@ -769,7 +791,7 @@ export default function HomeworkFlowCard() {
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
-          uploading={uploadingRecording === 2}
+          uploading={isUploadingRec2}
         />
         <div className="mt-3 flex justify-center">
           <Button
