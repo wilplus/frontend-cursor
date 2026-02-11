@@ -432,8 +432,7 @@ export async function proxyMultipart<ResponseBody = unknown>(
 
 /**
  * Proxy a request with binary body (e.g. application/octet-stream) to the backend.
- * Forwards body as-is and selected headers (X-Chunk-Seq, X-Chunk-Start-Ms, X-Recording-Slot).
- * Used for real-time PCM chunk upload (ambient glow metrics).
+ * Forwards body as-is and selected headers.
  */
 export async function proxyBinary<ResponseBody = unknown>(
   path: string,
