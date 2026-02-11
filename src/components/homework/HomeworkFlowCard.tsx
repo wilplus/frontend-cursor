@@ -18,6 +18,13 @@ import AudioRecorder from "@/components/recording/AudioRecorder";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
+// #region agent log
+const DEBUG_LOG = (location: string, message: string, data: Record<string, unknown>, hypothesisId: string) => {
+  if (typeof window === "undefined") return;
+  fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location, message, data: { ...data, hypothesisId }, timestamp: Date.now() }) }).catch(() => {});
+};
+// #endregion
+
 const TOTAL_STEPS = 5;
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -70,6 +77,7 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   // Backend may use different strings; map common aliases so we don't get stuck on "unknown status"
   if (status === "final_task" || status === "ready_for_final" || status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "post_task" || status === "post_task_questions" || status === "reflective") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  if (status === "recording2_uploaded" || status === "recording2_scored") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "finished" || status === "done") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
   return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
@@ -136,14 +144,17 @@ export default function HomeworkFlowCard() {
   /** Single source of truth: apply GET session/status response to all step-dependent state. Used on load and after every step-advancing success. No session-scoped API calls without a valid sessionId. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
     const derived = deriveStepFromStatus(statusRes);
+    const statusRaw =
+      statusRes.status ??
+      statusRes.session?.status ??
+      statusRes.session?.state ??
+      (statusRes as { session_state?: string }).session_state ??
+      "";
     if (typeof window !== "undefined") {
-      const statusRaw =
-        statusRes.status ??
-        statusRes.session?.status ??
-        statusRes.session?.state ??
-        (statusRes as { session_state?: string }).session_state ??
-        "";
       console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
+      // #region agent log
+      DEBUG_LOG("HomeworkFlowCard.tsx:applyStatusToState", "apply", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, "H4");
+      // #endregion
     }
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
@@ -561,6 +572,9 @@ export default function HomeworkFlowCard() {
   const RECORDING_2_DURATION_MAX = 300;
 
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
+    // #region agent log
+    DEBUG_LOG("HomeworkFlowCard.tsx:handleRecording2Complete", "rec2_complete_start", { step, sessionId: sessionId?.slice(0, 8) }, "H1");
+    // #endregion
     if (!sessionId) return;
     if (uploadRecording2InProgressRef.current) return;
     uploadRecording2InProgressRef.current = true;
@@ -581,6 +595,11 @@ export default function HomeworkFlowCard() {
     try {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
       const statusRes = await homeworkApi.getStatus();
+      // #region agent log
+      const statusRawRec2 = statusRes?.status ?? statusRes?.session?.status ?? statusRes?.session?.state ?? statusRes?.session_state ?? "";
+      const derivedRec2 = statusRes ? deriveStepFromStatus(statusRes) : null;
+      DEBUG_LOG("HomeworkFlowCard.tsx:handleRecording2Complete", "after_getStatus", { statusRaw: String(statusRawRec2), derivedStep: derivedRec2?.step ?? null, statusUnknown: derivedRec2?.statusUnknown ?? null }, "H1");
+      // #endregion
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
