@@ -172,7 +172,7 @@ export default function HomeworkFlowCard() {
       console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
     }
     // #region agent log
-    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    if (process.env.NODE_ENV === "development") {
       fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:applyStatusToState", message: "applyStatusToState", data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
     }
     // #endregion
@@ -948,7 +948,7 @@ export default function HomeworkFlowCard() {
   // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
   if (step === 4) {
     // #region agent log
-    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    if (process.env.NODE_ENV === "development") {
       fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
     }
     // #endregion
