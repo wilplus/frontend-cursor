@@ -51,6 +51,9 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const { message, code } = await parseErrorBody(res);
+    if (res.status === 409 && typeof window !== "undefined") {
+      console.warn("[HomeworkFlow] 409 from API", { message, code });
+    }
     if (res.status === 404) {
       throw new Error("Homework flow is not available yet. Please try again later.");
     }
@@ -118,6 +121,9 @@ export const homeworkApi = {
     recording: "1" | "2",
     signal?: AbortSignal
   ): Promise<{ bucket: string; storage_path: string }> {
+    if (typeof window !== "undefined") {
+      console.warn("[HomeworkFlow] getRecordingUploadUrl", { recording, sessionId: sessionId?.slice(0, 8) + "…" });
+    }
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/recording-upload-url`, {
       method: "POST",
