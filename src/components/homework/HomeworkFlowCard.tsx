@@ -169,6 +169,19 @@ export default function HomeworkFlowCard() {
     if (typeof window !== "undefined") {
       console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
     }
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "HomeworkFlowCard.tsx:applyStatusToState",
+        message: "applyStatusToState",
+        data: { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown },
+        timestamp: Date.now(),
+        hypothesisId: "H2",
+      }),
+    }).catch(() => {});
+    // #endregion
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
     setSessionId(sessionIdFromRes);
@@ -439,9 +452,26 @@ export default function HomeworkFlowCard() {
     setError(null);
     abortRef.current = new AbortController();
     try {
-      await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
       const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
+      if (statusRes) {
+        const derived = deriveStepFromStatus(statusRes);
+        // Taskmaster: after recording-1, backend sets status to task_block (step 2). If getStatus() returns
+        // stale warm_up (e.g. read lag), do not overwrite — use recording-1 response to stay on step 2.
+        if (derived.step >= 2) {
+          applyStatusToState(statusRes);
+        } else {
+          setStep(2);
+          if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
+          setStatusUnknown(false);
+          setError(null);
+        }
+      } else {
+        setStep(2);
+        if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
+        setStatusUnknown(false);
+        setError(null);
+      }
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
