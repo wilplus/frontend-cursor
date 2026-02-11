@@ -17,7 +17,7 @@ Admin panel: Students list and profile. Per-student warm-up tasks (with max_perf
 
 Student app: One flow only at /dashboard. Step 1: Start session, show warm-up task text and recorder; upload recording_1. Step 2: Show task text and two metric question inputs; submit metric answers. Step 3: Show final task text and recorder; upload recording_2. Step 4: If backend returns questions, show form and submit; else skip to report. Step 5: Show report text and performance_score_end. Flow auto-starts on load. BFF mock available when NEXT_PUBLIC_API_URL unset or MOCK_HOMEWORK_BACKEND=1 so the flow runs without backend.
 
-API paths: Frontend calls /api/homework/session/start, /api/homework/session/:id/recording-1, metric-answers, recording-2, questions, post-answers. BFF proxies to backend /v2/homework/session/start and /v2/homework/session/:id/... Backend URL from NEXT_PUBLIC_API_URL or NEXT_PUBLIC_BACKEND_URL or BACKEND_URL.
+API paths: Frontend calls /api/homework/session/start, /api/homework/session/:id/recording-1, metric-answers, recording-2, questions, post-answers, task-block. BFF proxies to backend /v2/homework/session/start and /v2/homework/session/:id/... Backend URL from NEXT_PUBLIC_API_URL or NEXT_PUBLIC_BACKEND_URL or BACKEND_URL. Real-time recording UI: wheel (strength/pace) only, client-side (useRealtimeStrengthPace, AnalyserNode); no PCM chunk or glow. Strict taskmaster: step only from GET status (five values); no default warm-up text (empty → “Warm-up prompt unavailable. Please refresh.” + Refresh); status unknown → error + Refresh; after POST start call GET status and apply; 422 NO_WARMUP_CONFIGURED blocks with message.
 
 # What remains (backend and specs)
 

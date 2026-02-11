@@ -109,13 +109,19 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     smoothedStrengthRef.current = 0.5;
     smoothedPaceRef.current = 0.5;
 
-    // Browsers start AudioContext suspended; resume before reading so the wheel gets real audio.
+    // Browsers start AudioContext suspended; resume and start interval. Only read analyser when
+    // context is running (Chrome may keep it suspended until user gesture), and try resume() each tick so we pick up after a click.
     ctx.resume().then(() => {
       if (audioContextRef.current !== ctx) return;
       setIsActive(true);
       intervalRef.current = setInterval(() => {
-        if (!analyserRef.current || !audioContextRef.current) return;
+        const ctxNow = audioContextRef.current;
         const a = analyserRef.current;
+        if (!a || !ctxNow) return;
+        if (ctxNow.state !== "running") {
+          ctxNow.resume().catch(() => {});
+          return;
+        }
         a.getFloatTimeDomainData(dataArray);
 
         let sumSq = 0;
