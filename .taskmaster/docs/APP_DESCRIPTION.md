@@ -118,7 +118,51 @@ One **active** session per student. **GET session/status** is the single source 
 
 ---
 
-## 9. What is missing
+## 9. Debugging 409 and session state transitions
+
+To ensure the flow follows the intended sequence, verify that the **backend state machine** matches the **desired flow**. The frontend derives step only from **GET session/status**; if the backend returns a different status than expected after a mutation, you get **409** (e.g. on recording-upload-url or recording-1/2).
+
+### 9.1 Flow → backend status (taskmaster canonical)
+
+| Step | Name            | Backend status (`status`)   | Allowed action |
+|------|-----------------|----------------------------|----------------|
+| 1    | Warm-up         | `warm_up`                  | POST recording-upload-url ("1"), then POST recording-1 |
+| 2    | Metric answers  | `task_block`               | POST metric-answers |
+| 3    | Final task      | `final_task_ready`         | POST recording-upload-url ("2"), then POST recording-2 |
+| 4    | Post-questions  | `post_questions`           | GET questions, POST post-answers |
+| 5    | Report          | `completed`               | View report (GET status) |
+
+**Note:** Taskmaster uses `post_questions` (step 4) and `completed` (step 5). If the backend uses different names (e.g. `post_task`, `finished`), the frontend will not map them to steps 4/5 unless the backend sends these exact values or the frontend mapping is extended.
+
+### 9.2 How to debug (frontend)
+
+In **DevTools → Network**, filter by `status` or `recording`.
+
+1. **After Recording 1:** Check response of **GET session/status**. **Expect:** `status: "task_block"`. If it stays `warm_up` or jumps to `completed`, the backend transition after POST recording-1 is wrong.
+2. **After metric answers (step 2):** Check response after **POST metric-answers**. **Expect:** `status: "final_task_ready"`. If it stays `task_block`, you will get **409** when requesting recording-upload-url ("2") or POST recording-2, because the backend still thinks the user is on step 2.
+3. **After Recording 2:** Check **GET session/status**. **Expect:** `status: "post_questions"` (or step 5 if no post-questions). If the backend returns `completed` immediately and you need step 4 (post-questions), the backend must support a `post_questions` (or equivalent) state before `completed`.
+
+### 9.3 If you see 409 on the second recording
+
+1. **Refresh the page** (forces GET status).
+2. **Look at the UI after refresh:**
+   - **Shows Questions tab (step 2)?** → Backend is still in `task_block`. **POST metric-answers** may have returned 200 but did not transition to `final_task_ready`. Fix: backend must persist state to `final_task_ready` when metric-answers are submitted.
+   - **Shows Report (step 5)?** → Backend thinks the session is already `completed` (e.g. skipped step 4 or transitioned too early).
+   - **Stays on Recording 2 screen?** → Upload or recording-2 request may have failed for a different reason; check response body of recording-upload-url and POST recording-2.
+
+### 9.4 Request for the backend team
+
+> "Please verify the **state transition table** for the homework session. The frontend expects:
+> 1. `warm_up` → after POST recording-1 → `task_block`
+> 2. `task_block` → after POST metric-answers → `final_task_ready`
+> 3. `final_task_ready` → after POST recording-2 → `post_questions` (or `completed` if no post-questions)
+> 4. `post_questions` → after POST post-answers → `completed`
+>
+> I am seeing **409 Conflict** on recording-upload-url or recording-2. Please confirm that after submitting metric answers (step 2), the session status becomes `final_task_ready`. If it does not, the frontend cannot proceed to Recording 2."
+
+---
+
+## 10. What is missing
 
 ### Backend (other repo)
 
