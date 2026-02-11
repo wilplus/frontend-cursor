@@ -226,6 +226,52 @@ export default function HomeworkFlowCard() {
       .finally(() => setLoading(false));
   };
 
+  /** Abandon current session via API, clear state, refetch status. On 200 or 409: clear and show Start. */
+  const handleAbandon = async () => {
+    if (!sessionId || sessionId === "mock-session") {
+      handleStartOver();
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await homeworkApi.abandonSession(sessionId);
+      toast.success("Session abandoned. You can start a new session.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to abandon session";
+      setError(msg);
+      toast.error(msg);
+      setLoading(false);
+      return;
+    }
+    setSessionId(null);
+    setStep(0);
+    setWarmUpText("");
+    setTaskText("");
+    setFinalTaskText("");
+    setTaskBlock(null);
+    setQuestions([]);
+    setPostAnswers({});
+    setReportText("");
+    setPerformanceScoreEnd(null);
+    setNoWarmupConfigured(false);
+    setStatusUnknown(false);
+    try {
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes?.has_active_session !== false && statusRes?.session_id) {
+        applyStatusToState(statusRes);
+      } else {
+        setStep(0);
+        setSessionId(null);
+      }
+    } catch {
+      setStep(0);
+      setSessionId(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // On auth ready: try to resume from session status; otherwise start a new session (once per page load)
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
@@ -601,6 +647,19 @@ export default function HomeworkFlowCard() {
             Preparing recorder…
           </Card>
         )}
+        {showRecorder && sessionId && sessionId !== "mock-session" && (
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        )}
       </Wrapper>
     );
   }
@@ -653,7 +712,8 @@ export default function HomeworkFlowCard() {
             variant="ghost"
             size="sm"
             className="text-muted-foreground hover:text-destructive"
-            onClick={handleStartOver}
+            onClick={handleAbandon}
+            disabled={loading}
           >
             Abandon session
           </Button>
