@@ -110,6 +110,27 @@ function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
 }
 
+/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. */
+function StepFlowWrapper({
+  step,
+  children,
+}: {
+  step: Step | 0;
+  children: React.ReactNode;
+}) {
+  const flowStepIndex = step >= 1 ? step - 1 : 0;
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <ProgressStepBullets
+        total={TOTAL_STEPS}
+        currentIndex={flowStepIndex}
+        aria-label={step >= 1 ? `Step ${step} of ${TOTAL_STEPS}` : `Step 1 of ${TOTAL_STEPS}`}
+      />
+      {children}
+    </div>
+  );
+}
+
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
@@ -734,24 +755,12 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  const flowStepIndex = step >= 1 ? step - 1 : 0;
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="space-y-4 animate-fade-in">
-      <ProgressStepBullets
-        total={TOTAL_STEPS}
-        currentIndex={flowStepIndex}
-        aria-label={step >= 1 ? `Step ${step} of ${TOTAL_STEPS}` : `Step 1 of ${TOTAL_STEPS}`}
-      />
-      {children}
-    </div>
-  );
-
   // Step 1 (or loading): Warm-up text + recorder — show as soon as user is logged in
   if (step === 0 || step === 1) {
     const isUploadingRec1 = uploadingRecording === 1;
     if (isUploadingRec1) {
       return (
-        <Wrapper>
+        <StepFlowWrapper step={step}>
           <Card className="p-6">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -759,7 +768,7 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-muted-foreground">Please wait…</p>
             </div>
           </Card>
-        </Wrapper>
+        </StepFlowWrapper>
       );
     }
     const showRecorder = !!sessionId;
@@ -773,7 +782,7 @@ export default function HomeworkFlowCard() {
         : "Loading your warm-up task…";
 
     return (
-      <Wrapper>
+      <StepFlowWrapper step={step}>
         {sessionId === "mock-session" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
@@ -846,14 +855,14 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         )}
-      </Wrapper>
+      </StepFlowWrapper>
     );
   }
 
   // Step 2: 3 metric questions only (context_short is used by backend for the task, not shown here)
   if (step === 2) {
     return (
-      <Wrapper>
+      <StepFlowWrapper step={step}>
         <AnswerMetricQuestionsScreen
           sessionId={sessionId!}
           taskBlock={taskBlock}
@@ -861,7 +870,7 @@ export default function HomeworkFlowCard() {
           loading={loading}
           error={error}
         />
-      </Wrapper>
+      </StepFlowWrapper>
     );
   }
 
@@ -870,7 +879,7 @@ export default function HomeworkFlowCard() {
     const isUploadingRec2 = uploadingRecording === 2;
     if (isUploadingRec2) {
       return (
-        <Wrapper>
+        <StepFlowWrapper step={step}>
           <Card className="p-6">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -878,11 +887,11 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-muted-foreground">Please wait…</p>
             </div>
           </Card>
-        </Wrapper>
+        </StepFlowWrapper>
       );
     }
     return (
-      <Wrapper>
+      <StepFlowWrapper step={step}>
         {/* Final task: only API value (response.final_task or final_task_text); no hardcoded fallback */}
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
@@ -906,7 +915,7 @@ export default function HomeworkFlowCard() {
             Abandon session
           </Button>
         </div>
-      </Wrapper>
+      </StepFlowWrapper>
     );
   }
 
@@ -926,21 +935,21 @@ export default function HomeworkFlowCard() {
     }).catch(() => {});
     // #endregion
     return (
-      <Wrapper>
+      <StepFlowWrapper step={step}>
         <PostQuestionsStepScreen
           questions={questions}
           onSubmit={handlePostAnswersSubmit}
           loading={loading}
           error={error}
         />
-      </Wrapper>
+      </StepFlowWrapper>
     );
   }
 
   // Step 5: Report (content from backend; backend should include analysis of both recording 1 and 2)
   if (step === 5) {
     return (
-      <Wrapper>
+      <StepFlowWrapper step={step}>
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">Your report</h3>
           {performanceScoreEnd != null && (
@@ -962,7 +971,7 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         </Card>
-      </Wrapper>
+      </StepFlowWrapper>
     );
   }
 
