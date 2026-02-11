@@ -71,6 +71,22 @@ export const homeworkApi = {
     return handleResponse<HomeworkStartResponse>(res);
   },
 
+  /** Abandon the current session so it is no longer active; user can start a new session. Returns 200 or 409 (already completed/abandoned). */
+  async abandonSession(sessionId: string): Promise<{ abandoned: boolean; message?: string }> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/session/${sessionId}/abandon`, {
+      method: "POST",
+      headers,
+      body: "{}",
+      credentials,
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({})) as { abandoned?: boolean; message?: string };
+      return { abandoned: body.abandoned ?? true, message: body.message ?? "Session already completed or abandoned." };
+    }
+    return handleResponse<{ abandoned: boolean; message?: string }>(res);
+  },
+
   /** Get current session status (for resuming). Returns session_id, optional status, recording IDs, and restored payload to derive step. */
   async getStatus(): Promise<HomeworkSessionStatus | null> {
     const { headers, credentials } = await getAuthFetchOptions();
