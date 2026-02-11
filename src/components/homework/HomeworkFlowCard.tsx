@@ -237,7 +237,16 @@ export default function HomeworkFlowCard() {
       .start()
       .then(async () => {
         const statusRes = await homeworkApi.getStatus();
-        if (statusRes) applyStatusToState(statusRes);
+        if (statusRes) {
+          const derived = deriveStepFromStatus(statusRes);
+          const flag = typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkJustFinishedRecording2") === "1";
+          const forceStep4 = flag && (derived.step === 1 || derived.step === 2 || derived.step === 3);
+          const toApply = forceStep4
+            ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
+            : statusRes;
+          if (forceStep4 && typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
+          applyStatusToState(toApply);
+        }
         else {
           setSessionId(null);
           setStep(0);
@@ -332,7 +341,16 @@ export default function HomeworkFlowCard() {
           setStatusUnknown(false);
           return handleStart();
         }
-        if (statusRes) applyStatusToState(statusRes);
+        if (statusRes) {
+          const derived = deriveStepFromStatus(statusRes);
+          const flag = typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkJustFinishedRecording2") === "1";
+          const forceStep4 = flag && (derived.step === 1 || derived.step === 2 || derived.step === 3);
+          const toApply = forceStep4
+            ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
+            : statusRes;
+          if (forceStep4 && typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
+          applyStatusToState(toApply);
+        }
       })
       .catch((e) => {
         if (isNoWarmupError(e)) {
@@ -605,8 +623,9 @@ export default function HomeworkFlowCard() {
       // #endregion
       if (statusRes) {
         // After recording 2, never show step 1–3: force backend status to post_questions so we apply state with step 4.
-        if (forceStep4) justFinishedRecording2Ref.current = true;
         const forceStep4 = derivedRec2 && derivedRec2.step !== 4 && derivedRec2.step !== 5;
+        if (forceStep4) justFinishedRecording2Ref.current = true;
+        if (forceStep4 && typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
         const toApply = forceStep4
           ? { ...statusRes, status: "post_questions" as const, session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions" as const, state: "post_questions" } }
           : statusRes;
@@ -614,6 +633,8 @@ export default function HomeworkFlowCard() {
       }
     } catch (e) {
       if (isInvalidSessionStateError(e)) {
+        justFinishedRecording2Ref.current = true;
+        if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
           applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
@@ -626,6 +647,7 @@ export default function HomeworkFlowCard() {
             const toApplyCatch = forceStep4Catch
               ? { ...statusRes, status: "post_questions", session: statusRes.session ? { ...statusRes.session, status: "post_questions", state: "post_questions" } : { status: "post_questions", state: "post_questions" } }
               : statusRes;
+            if (forceStep4Catch) justFinishedRecording2Ref.current = true;
             applyStatusToState(toApplyCatch);
             toast.success("Session updated. You're on the right step now.");
           }
