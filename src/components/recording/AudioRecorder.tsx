@@ -10,8 +10,25 @@ import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 
-const MIN_DURATION_SECONDS = 60; // 1 minute
+const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
+
+async function measureBlobDurationSeconds(blob: Blob): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const audio = document.createElement("audio");
+    audio.preload = "metadata";
+    audio.src = URL.createObjectURL(blob);
+    audio.onloadedmetadata = () => {
+      const d = audio.duration;
+      URL.revokeObjectURL(audio.src);
+      resolve(d);
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(audio.src);
+      reject(new Error("Failed to load blob for duration"));
+    };
+  });
+}
 
 // MIME type candidates in priority order
 const MIME_CANDIDATES = [
@@ -51,6 +68,8 @@ interface AudioRecorderProps {
   stopAndSend?: boolean;
   /** When true: disable Stop/Send button and show "Uploading…" (prevents double-submit) */
   uploading?: boolean;
+  /** Min duration in seconds (default 60). Use 62+ for final recording to avoid backend reject. */
+  minDurationSeconds?: number;
 }
 
 export default function AudioRecorder({
@@ -61,6 +80,7 @@ export default function AudioRecorder({
   onCancel,
   stopAndSend = false,
   uploading = false,
+  minDurationSeconds = DEFAULT_MIN_DURATION_SECONDS,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -183,14 +203,25 @@ export default function AudioRecorder({
           const endTime = Date.now();
           const durationSeconds = Math.max(
             1,
-            Math.round((endTime - startTimeRef.current) / 1000)
+            Math.floor((endTime - startTimeRef.current) / 1000)
           );
           setIsRecordingRef.current(false);
-          if (durationSeconds < MIN_DURATION_SECONDS) {
+          if (durationSeconds < minDurationSeconds) {
             toast.error("Session must be at least 1 minute. Please record again.");
             chunksRef.current = [];
             startTimeRef.current = null;
           } else {
+            // #region agent log
+            if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_DEBUG_INGEST === "1") {
+            measureBlobDurationSeconds(blob)
+              .then((measured) => {
+                if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+                  fetch("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "AudioRecorder.tsx:onstop", message: "duration ui vs blob", data: { uiDurationSeconds: durationSeconds, measuredBlobSeconds: measured, startTime: startTimeRef.current, endTime, blobSize: blob.size }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+                }
+              })
+                .catch(() => {});
+            }
+            // #endregion
             onRecordingComplete(blob, durationSeconds);
           }
         }
@@ -204,7 +235,7 @@ export default function AudioRecorder({
         }
       };
     },
-    [onRecordingComplete, onStartAgain]
+    [onRecordingComplete, onStartAgain, minDurationSeconds]
   );
 
   const startRecording = useCallback(async () => {
@@ -230,7 +261,12 @@ export default function AudioRecorder({
 
       attachOnStop(recorder, mimeType);
 
-      startTimeRef.current = Date.now();
+      recorder.onstart = () => {
+        startTimeRef.current = Date.now();
+        if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+          fetch("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "AudioRecorder.tsx:recorder.onstart", message: "timer started when capture started", data: { startTime: startTimeRef.current }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+        }
+      };
       recorder.start();
       setIsRecording(true);
       setIsPaused(false);
@@ -270,7 +306,7 @@ export default function AudioRecorder({
       if (chunksRef.current.length > 0 && mimeType) {
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const durationSeconds = elapsedSeconds;
-        if (durationSeconds >= MIN_DURATION_SECONDS) {
+        if (durationSeconds >= minDurationSeconds) {
           onRecordingComplete(blob, durationSeconds);
         } else {
           toast.error("Session must be at least 1 minute. Please record again.");
@@ -295,7 +331,7 @@ export default function AudioRecorder({
         timerIntervalRef.current = null;
       }
     }
-  }, [isRecording, isPaused, mimeType, elapsedSeconds, onRecordingComplete]);
+  }, [isRecording, isPaused, mimeType, elapsedSeconds, onRecordingComplete, minDurationSeconds]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
@@ -318,7 +354,16 @@ export default function AudioRecorder({
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
     attachOnStop(recorder, mimeType);
-    startTimeRef.current = Date.now() - elapsedSeconds * 1000;
+
+    recorder.onstart = () => {
+      if (typeof window !== "undefined") {
+        console.log("[rec] onstart fired", Date.now(), "elapsedSeconds=", elapsedSeconds);
+      }
+      startTimeRef.current = Date.now() - elapsedSeconds * 1000;
+    };
+    if (typeof window !== "undefined") {
+      console.log("[rec] calling recorder.start()", Date.now());
+    }
     recorder.start();
     realtimeStrengthPace.start(stream);
     setIsPaused(false);
@@ -382,7 +427,7 @@ export default function AudioRecorder({
       await new Promise<void>((resolve, reject) => {
         audio.addEventListener("loadedmetadata", () => {
           const duration = Math.round(audio.duration);
-          if (duration >= MIN_DURATION_SECONDS && duration <= MAX_DURATION_SECONDS) {
+          if (duration >= minDurationSeconds && duration <= MAX_DURATION_SECONDS) {
             setFileDuration(duration);
             setManualDuration(duration.toString());
           } else {
@@ -419,16 +464,16 @@ export default function AudioRecorder({
       duration = fileDuration;
     } else {
       const parsed = parseInt(manualDuration, 10);
-      if (isNaN(parsed) || parsed < MIN_DURATION_SECONDS || parsed > MAX_DURATION_SECONDS) {
+      if (isNaN(parsed) || parsed < minDurationSeconds || parsed > MAX_DURATION_SECONDS) {
         toast.error(
-          `Duration must be between ${MIN_DURATION_SECONDS} seconds (1 min) and ${MAX_DURATION_SECONDS} seconds`
+          `Duration must be between ${minDurationSeconds} seconds (1 min) and ${MAX_DURATION_SECONDS} seconds`
         );
         return;
       }
       duration = parsed;
     }
 
-    if (duration < MIN_DURATION_SECONDS) {
+    if (duration < minDurationSeconds) {
       toast.error("Session must be at least 1 minute.");
       return;
     }
@@ -497,7 +542,7 @@ export default function AudioRecorder({
                 </label>
                 <Input
                   type="number"
-                  min={MIN_DURATION_SECONDS}
+                  min={minDurationSeconds}
                   max={MAX_DURATION_SECONDS}
                   value={manualDuration}
                   onChange={(e) => setManualDuration(e.target.value)}
@@ -530,8 +575,8 @@ export default function AudioRecorder({
   }
 
   // Progress toward minimum (60s): 0–100%
-  const progressPercent = Math.min(100, (elapsedSeconds / MIN_DURATION_SECONDS) * 100);
-  const remainingSeconds = Math.max(0, MIN_DURATION_SECONDS - elapsedSeconds);
+  const progressPercent = Math.min(100, (elapsedSeconds / minDurationSeconds) * 100);
+  const remainingSeconds = Math.max(0, minDurationSeconds - elapsedSeconds);
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
