@@ -456,15 +456,69 @@ export default function HomeworkFlowCard() {
     metricSubmitInProgress.current = true;
     setLoading(true);
     setError(null);
+    if (typeof window !== "undefined") {
+      console.warn("[HomeworkFlow] metric answers submit started", { sessionId: sessionId?.slice(0, 8) + "…" });
+    }
     try {
-      await homeworkApi.submitMetricAnswers(sessionId, {
+      const metricResponse = await homeworkApi.submitMetricAnswers(sessionId, {
         metric_answer_1: a1,
         metric_answer_2: a2,
         metric_answer_3: a3,
       });
+      const responseErr = metricResponse && typeof (metricResponse as { error?: string }).error === "string" ? (metricResponse as { error: string }).error : null;
+      if (typeof window !== "undefined") {
+        console.warn("[HomeworkFlow] metric-answers response", {
+          hasFinalTask: !!(metricResponse?.final_task ?? metricResponse?.final_task_text),
+          hasError: !!responseErr,
+          errorMsg: responseErr ?? undefined,
+        });
+      }
       const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
+      if (statusRes) {
+        applyStatusToState(statusRes);
+        const derived = deriveStepFromStatus(statusRes);
+        // If backend didn't advance status but metric-answers returned the final task, advance to step 3 so answers are "accepted"
+        if (derived.step === 2 && (metricResponse?.final_task ?? metricResponse?.final_task_text)) {
+          const finalText =
+            typeof metricResponse.final_task === "string"
+              ? metricResponse.final_task
+              : typeof metricResponse.final_task_text === "string"
+                ? metricResponse.final_task_text
+                : "";
+          if (finalText) {
+            setFinalTaskText(finalText);
+            setStep(3);
+            toast.success("Answers saved. Continue to the final recording.");
+          }
+        } else if (derived.step === 2) {
+          if (typeof window !== "undefined") {
+            console.warn("[HomeworkFlow] metric submit success but still step 2 - showing error");
+          }
+          const errMsg = "Answers may not have been saved. Please refresh and try again, or contact support.";
+          toast.error("Answers could not be saved. Please refresh and try again.");
+          queueMicrotask(() => setError(errMsg));
+        }
+      } else {
+        // getStatus() returned null (e.g. 404) — still advance if we got final_task from submit response
+        const finalText =
+          typeof metricResponse?.final_task === "string"
+            ? metricResponse.final_task
+            : typeof metricResponse?.final_task_text === "string"
+              ? metricResponse.final_task_text
+              : "";
+        if (finalText) {
+          setFinalTaskText(finalText);
+          setStep(3);
+          toast.success("Answers saved. Continue to the final recording.");
+        } else {
+          setError("Answers were sent but we couldn’t load the next step. Please refresh the page.");
+          toast.error("Please refresh the page to continue.");
+        }
+      }
     } catch (e) {
+      if (typeof window !== "undefined") {
+        console.warn("[HomeworkFlow] metric submit catch", e instanceof Error ? e.message : String(e));
+      }
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
@@ -474,7 +528,13 @@ export default function HomeworkFlowCard() {
           const statusRes = await homeworkApi.getStatus();
           if (statusRes) {
             applyStatusToState(statusRes);
-            toast.success("Session updated. You're on the right step now.");
+            const derived = deriveStepFromStatus(statusRes);
+            if (derived.step === 2) {
+              setError("Answers could not be saved. Please try again or refresh the page.");
+              toast.error("Answers could not be saved. Please try again or refresh.");
+            } else {
+              toast.success("Session updated. You're on the right step now.");
+            }
           } else {
             setError("Session state changed. Please refresh.");
             toast.error("Session state changed. Please refresh.");
@@ -486,8 +546,10 @@ export default function HomeworkFlowCard() {
       } else {
         const isValidationError =
           e instanceof Error && "code" in e && (e as HomeworkApiError).code === "VALIDATION_ERROR";
-        setError(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
-        toast.error(isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit"));
+        const rawMsg = isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit");
+        const displayMsg = (typeof rawMsg === "string" && rawMsg.trim()) ? rawMsg : "Failed to save answers. Please try again or refresh.";
+        setError(displayMsg);
+        toast.error(displayMsg);
       }
     } finally {
       setLoading(false);

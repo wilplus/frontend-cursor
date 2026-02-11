@@ -41,6 +41,9 @@ export default function AnswerMetricQuestionsScreen({
   const label3 = taskBlock ? toText(taskBlock.metric_question_3) || "Metric question 3" : "Metric question 3";
 
   const handleSubmit = () => {
+    if (typeof window !== "undefined") {
+      console.warn("[HomeworkFlow] metric Continue clicked", { allFilled, loading });
+    }
     void onSubmit(answer_1.trim(), answer_2.trim(), answer_3.trim());
   };
 

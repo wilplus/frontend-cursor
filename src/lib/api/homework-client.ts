@@ -164,19 +164,26 @@ export const homeworkApi = {
     return handleResponse<HomeworkRecording1Response>(res);
   },
 
-  /** Submit metric question answers (3); returns final task for recording_2. */
+  /** Submit metric question answers (3); returns final task for recording_2. Backend may be slow (LLM); 70s timeout. */
   async submitMetricAnswers(
     sessionId: string,
     body: { metric_answer_1: string; metric_answer_2: string; metric_answer_3: string }
   ): Promise<HomeworkMetricAnswersResponse> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    const res = await fetch(`${BASE}/session/${sessionId}/metric-answers`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      credentials,
-    });
-    return handleResponse<HomeworkMetricAnswersResponse>(res);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 70_000);
+    try {
+      const res = await fetch(`${BASE}/session/${sessionId}/metric-answers`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        credentials,
+        signal: controller.signal,
+      });
+      return await handleResponse<HomeworkMetricAnswersResponse>(res);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   },
 
   /** Upload recording_2: get upload URL → upload blob to Supabase Storage → POST recording-2 with JSON { storage_path, duration_seconds }. */
