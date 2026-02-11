@@ -12,13 +12,19 @@ import type {
 } from "@/lib/api/types-homework";
 import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
 import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
-import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+
+// #region agent log
+const DEBUG_LOG = (location: string, message: string, data: Record<string, unknown>, hypothesisId: string) => {
+  if (typeof window === "undefined") return;
+  fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location, message, data: { ...data, hypothesisId }, timestamp: Date.now() }) }).catch(() => {});
+};
+// #endregion
 
 const TOTAL_STEPS = 5;
 
@@ -121,6 +127,7 @@ export default function HomeworkFlowCard() {
   const [finalTaskText, setFinalTaskText] = useState("");
   const [taskBlock, setTaskBlock] = useState<TaskBlockV2 | null>(null);
   const [questions, setQuestions] = useState<HomeworkQuestion[]>([]);
+  const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
   const [reportText, setReportText] = useState("");
   const [performanceScoreEnd, setPerformanceScoreEnd] = useState<number | null>(null);
 
@@ -147,6 +154,9 @@ export default function HomeworkFlowCard() {
       "";
     if (typeof window !== "undefined") {
       console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown });
+      // #region agent log
+      DEBUG_LOG("HomeworkFlowCard.tsx:applyStatusToState", "apply", { statusRaw: String(statusRaw), derivedStep: derived.step, statusUnknown: derived.statusUnknown }, "H4");
+      // #endregion
     }
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
@@ -216,6 +226,7 @@ export default function HomeworkFlowCard() {
     setFinalTaskText("");
     setTaskBlock(null);
     setQuestions([]);
+    setPostAnswers({});
     setReportText("");
     setPerformanceScoreEnd(null);
     setError(null);
@@ -279,6 +290,8 @@ export default function HomeworkFlowCard() {
     setTaskText("");
     setFinalTaskText("");
     setTaskBlock(null);
+    setQuestions([]);
+    setPostAnswers({});
     setReportText("");
     setPerformanceScoreEnd(null);
     setNoWarmupConfigured(false);
@@ -580,6 +593,9 @@ export default function HomeworkFlowCard() {
   const RECORDING_2_DURATION_MAX = 300;
 
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
+    // #region agent log
+    DEBUG_LOG("HomeworkFlowCard.tsx:handleRecording2Complete", "rec2_complete_start", { step, sessionId: sessionId?.slice(0, 8) }, "H1");
+    // #endregion
     if (!sessionId) return;
     if (uploadRecording2InProgressRef.current) return;
     uploadRecording2InProgressRef.current = true;
@@ -600,8 +616,11 @@ export default function HomeworkFlowCard() {
     try {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
       const statusRes = await homeworkApi.getStatus();
+      // #region agent log
       const statusRawRec2 = statusRes?.status ?? statusRes?.session?.status ?? statusRes?.session?.state ?? statusRes?.session_state ?? "";
       const derivedRec2 = statusRes ? deriveStepFromStatus(statusRes) : null;
+      DEBUG_LOG("HomeworkFlowCard.tsx:handleRecording2Complete", "after_getStatus", { statusRaw: String(statusRawRec2), derivedStep: derivedRec2?.step ?? null, statusUnknown: derivedRec2?.statusUnknown ?? null }, "H1");
+      // #endregion
       if (statusRes) {
         // After recording 2, never show step 1–3: force backend status to post_questions so we apply state with step 4.
         const forceStep4 = derivedRec2 && derivedRec2.step !== 4 && derivedRec2.step !== 5;
@@ -647,38 +666,37 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  const handlePostAnswersSubmit = async (answers: Record<string, string>) => {
+  const handlePostAnswersSubmit = async () => {
     if (!sessionId) return;
     if (postAnswersSubmitInProgress.current) return;
+    const missing = questions.filter((q) => !(postAnswers[toId(q.id)] ?? "").trim());
+    if (missing.length > 0) {
+      setError("Please answer all questions before continuing.");
+      return;
+    }
     postAnswersSubmitInProgress.current = true;
     setLoading(true);
     setError(null);
-    if (typeof window !== "undefined") console.log("[step4] submitting=true");
     try {
-      const payload = questions.map((q) => ({
+      const answers = questions.map((q) => ({
         question_id: toId(q.id),
-        answer_text: (answers[toId(q.id)] ?? "").trim(),
+        answer_text: (postAnswers[toId(q.id)] ?? "").trim(),
       }));
-      await homeworkApi.submitPostAnswers(sessionId, payload);
-      if (typeof window !== "undefined") console.log("[step4] post-answers status 200, parsed ok");
+      await homeworkApi.submitPostAnswers(sessionId, answers);
       const statusRes = await homeworkApi.getStatus();
-      if (typeof window !== "undefined") console.log("[step4] getStatus done", statusRes ? "has status" : "null");
-      if (statusRes) {
-        applyStatusToState(statusRes);
-        if (typeof window !== "undefined") console.log("[step4] applied status, advanced");
-      } else {
-        if (typeof window !== "undefined") console.log("[step4] no statusRes, not advancing");
-      }
+      if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
-      if (typeof window !== "undefined") console.error("[step4] threw", e);
       setError(e instanceof Error ? e.message : "Failed to submit");
       toast.error(e instanceof Error ? e.message : "Failed to submit");
     } finally {
-      if (typeof window !== "undefined") console.log("[step4] finally -> submitting=false");
       setLoading(false);
       postAnswersSubmitInProgress.current = false;
     }
   };
+
+  const allPostQuestionsAnswered =
+    questions.length === 0 ||
+    questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
 
   /** Refetch GET status and apply to state (e.g. after "Refresh" when status unknown or warm-up empty). */
   const refreshStatus = async () => {
@@ -909,16 +927,39 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Reflective questions (local state in PostQuestionsStepScreen so typing does not re-render parent).
+  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
   if (step === 4) {
     return (
       <Wrapper>
-        <PostQuestionsStepScreen
-          questions={questions}
-          onSubmit={handlePostAnswersSubmit}
-          loading={loading}
-          error={error}
-        />
+        <Card className="p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Reflective questions</h3>
+          <div className="space-y-4">
+            {questions.map((q) => {
+              const qId = toId(q.id);
+              return (
+                <div key={qId}>
+                  <label className="block text-sm font-medium mb-1">{toText(q.text)}</label>
+                  <textarea
+                    className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={postAnswers[qId] ?? ""}
+                    onChange={(e) => setPostAnswers((prev) => ({ ...prev, [qId]: e.target.value }))}
+                    placeholder="Your answer…"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button
+            onClick={handlePostAnswersSubmit}
+            disabled={loading || !allPostQuestionsAnswered}
+          >
+            {loading ? "Submitting…" : "See my report"}
+          </Button>
+          {!allPostQuestionsAnswered && questions.length > 0 && (
+            <p className="text-sm text-muted-foreground">Answer all questions above to continue.</p>
+          )}
+        </Card>
       </Wrapper>
     );
   }
