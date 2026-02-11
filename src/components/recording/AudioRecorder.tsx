@@ -104,8 +104,10 @@ export default function AudioRecorder({
   const pauseRequestedRef = useRef(false);
   const setIsPausedRef = useRef(setIsPaused);
   const setIsRecordingRef = useRef(setIsRecording);
+  const setElapsedSecondsRef = useRef(setElapsedSeconds);
   setIsPausedRef.current = setIsPaused;
   setIsRecordingRef.current = setIsRecording;
+  setElapsedSecondsRef.current = setElapsedSeconds;
 
   const realtimeStrengthPace = useRealtimeStrengthPace();
   const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
@@ -211,15 +213,14 @@ export default function AudioRecorder({
             toast.error("Session must be at least 1 minute. Please record again.");
             chunksRef.current = [];
             startTimeRef.current = null;
+            setElapsedSecondsRef.current?.(0);
           } else {
             // #region agent log
-            if (process.env.NODE_ENV === "development") {
-              measureBlobDurationSeconds(blob)
-                .then((measured) => {
-                  debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "AudioRecorder.tsx:onstop", message: "duration ui vs blob", data: { uiDurationSeconds: durationSeconds, measuredBlobSeconds: measured, startTime: startTimeRef.current, endTime, blobSize: blob.size }, timestamp: Date.now(), hypothesisId: "H1" });
-                })
-                .catch(() => {});
-            }
+            measureBlobDurationSeconds(blob)
+              .then((measured) => {
+                debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "AudioRecorder.tsx:onstop", message: "duration ui vs blob", data: { uiDurationSeconds: durationSeconds, measuredBlobSeconds: measured, startTime: startTimeRef.current, endTime, blobSize: blob.size }, timestamp: Date.now(), hypothesisId: "H1" });
+              })
+              .catch(() => {});
             // #endregion
             onRecordingComplete(blob, durationSeconds);
           }
@@ -636,7 +637,7 @@ export default function AudioRecorder({
             </Button>
             <Button
               onClick={stopRecording}
-              disabled={uploading}
+              disabled={uploading || elapsedSeconds < minDurationSeconds}
               className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
@@ -656,7 +657,7 @@ export default function AudioRecorder({
             </Button>
             <Button
               onClick={stopRecording}
-              disabled={uploading}
+              disabled={uploading || elapsedSeconds < minDurationSeconds}
               className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
