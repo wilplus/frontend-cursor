@@ -254,6 +254,7 @@ export default function HomeworkFlowCard() {
   /** Finish the flow: clear state and go to dashboard. Next time user starts homework they will begin from step 1 (first recording). */
   const handleBackToDashboard = () => {
     resetAutoStartAttempted();
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
     uiStepFloorRef.current = 0;
     setSessionId(null);
     setStep(0);
@@ -274,6 +275,7 @@ export default function HomeworkFlowCard() {
 
   /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. */
   const handleStartOver = () => {
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
     uiStepFloorRef.current = 0;
     setSessionId(null);
     setStep(1);
@@ -386,6 +388,34 @@ export default function HomeworkFlowCard() {
           "";
         const isCompleted = statusRaw.toLowerCase().trim() === "completed";
         if (!hasActive || !sessionIdFromRes || isCompleted) {
+          const storedReport =
+            typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkReport");
+          if (storedReport) {
+            try {
+              const parsed = JSON.parse(storedReport) as {
+                sessionId?: string;
+                reportText?: string;
+                performanceScoreEnd?: number | null;
+              };
+              if (parsed.sessionId && (parsed.reportText !== undefined || parsed.performanceScoreEnd != null)) {
+                setSessionId(parsed.sessionId);
+                setReportText(parsed.reportText ?? "");
+                setPerformanceScoreEnd(parsed.performanceScoreEnd ?? null);
+                setStep(5);
+                setWarmUpText("");
+                setTaskText("");
+                setTaskBlock(null);
+                setFinalTaskText("");
+                setQuestions([]);
+                setError(null);
+                setStatusUnknown(false);
+                setLoading(false);
+                return;
+              }
+            } catch {
+              // ignore invalid JSON
+            }
+          }
           uiStepFloorRef.current = 0;
           setSessionId(null);
           setStep(0);
@@ -466,9 +496,17 @@ export default function HomeworkFlowCard() {
             .submitPostAnswers(sessionId, [])
             .then((res) => {
               if (!cancelled) {
-                setReportText(res.report_text ?? "");
-                setPerformanceScoreEnd(res.performance_score_end ?? null);
+                const reportTextVal = res.report_text ?? "";
+                const scoreVal = res.performance_score_end ?? null;
+                setReportText(reportTextVal);
+                setPerformanceScoreEnd(scoreVal);
                 setStep(5);
+                if (typeof sessionStorage !== "undefined") {
+                  sessionStorage.setItem(
+                    "homeworkReport",
+                    JSON.stringify({ sessionId, reportText: reportTextVal, performanceScoreEnd: scoreVal })
+                  );
+                }
               }
             })
             .catch((e) => {
@@ -751,9 +789,17 @@ export default function HomeworkFlowCard() {
       }));
       const res = await homeworkApi.submitPostAnswers(sessionId, answers);
       // Completed sessions are not returned by GET status; show report from response
-      setReportText(res.report_text ?? "");
-      setPerformanceScoreEnd(res.performance_score_end ?? null);
+      const reportTextVal = res.report_text ?? "";
+      const scoreVal = res.performance_score_end ?? null;
+      setReportText(reportTextVal);
+      setPerformanceScoreEnd(scoreVal);
       setStep(5);
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem(
+          "homeworkReport",
+          JSON.stringify({ sessionId, reportText: reportTextVal, performanceScoreEnd: scoreVal })
+        );
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to submit";
       setError(msg);
