@@ -184,6 +184,21 @@ export default function HomeworkFlowCard() {
     }
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
+    if (derived.step === 4 && sessionIdFromRes && typeof sessionStorage !== "undefined") {
+      const storedReportRaw = sessionStorage.getItem("homeworkReport");
+      if (storedReportRaw) {
+        try {
+          const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
+          if (r.sessionId === sessionIdFromRes) {
+            uiStepFloorRef.current = 5;
+            setReportText(r.reportText ?? "");
+            setPerformanceScoreEnd(r.performanceScoreEnd ?? null);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     setSessionId(sessionIdFromRes);
     setWarmUpText(derived.warmUpText);
     setTaskText(derived.taskText);
@@ -273,9 +288,8 @@ export default function HomeworkFlowCard() {
     router.push("/dashboard");
   };
 
-  /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. */
+  /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. Don't remove homeworkReport until we've confirmed a new session. */
   const handleStartOver = () => {
-    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
     uiStepFloorRef.current = 0;
     setSessionId(null);
     setStep(1);
@@ -304,9 +318,33 @@ export default function HomeworkFlowCard() {
         if (statusRes) {
           const statusSessionId = statusRes.session_id ?? statusRes.session?.id ?? (statusRes as { session?: { id?: string } }).session?.id ?? null;
           if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
+          const storedReportRaw = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("homeworkReport") : null;
+          if (storedReportRaw && statusSessionId) {
+            try {
+              const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
+              if (r.sessionId && r.sessionId === statusSessionId) {
+                uiStepFloorRef.current = 5;
+                setSessionId(r.sessionId);
+                setReportText(r.reportText ?? "");
+                setPerformanceScoreEnd(r.performanceScoreEnd ?? null);
+                setStep(5);
+                setWarmUpText("");
+                setTaskText("");
+                setTaskBlock(null);
+                setQuestions([]);
+                setError(null);
+                setStatusUnknown(false);
+                setLoading(false);
+                return;
+              }
+            } catch {
+              // ignore
+            }
+          }
           if (statusSessionId === newSessionId) {
             applyStatusToState(statusRes);
           } else {
+            if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
             setSessionId(newSessionId);
             setStep(1);
             setWarmUpText(warmUpTextFromStart);
@@ -314,6 +352,7 @@ export default function HomeworkFlowCard() {
             setStatusUnknown(false);
           }
         } else {
+          if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
           setSessionId(newSessionId);
           setStep(1);
           setWarmUpText(warmUpTextFromStart);
@@ -446,6 +485,31 @@ export default function HomeworkFlowCard() {
           return;
         }
         if (statusRes) {
+          const sessionIdFromResForReport = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
+          const storedReportRaw = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("homeworkReport") : null;
+          if (storedReportRaw && sessionIdFromResForReport) {
+            try {
+              const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
+              if (r.sessionId && r.sessionId === sessionIdFromResForReport) {
+                uiStepFloorRef.current = 5;
+                setSessionId(r.sessionId);
+                setReportText(r.reportText ?? "");
+                setPerformanceScoreEnd(r.performanceScoreEnd ?? null);
+                setStep(5);
+                setWarmUpText("");
+                setTaskText("");
+                setTaskBlock(null);
+                setFinalTaskText("");
+                setQuestions([]);
+                setError(null);
+                setStatusUnknown(false);
+                setLoading(false);
+                return;
+              }
+            } catch {
+              // ignore invalid JSON
+            }
+          }
           const derived = deriveStepFromStatus(statusRes);
           const flag = typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkJustFinishedRecording2") === "1";
           if (flag) {
