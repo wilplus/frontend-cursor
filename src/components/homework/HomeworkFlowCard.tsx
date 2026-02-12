@@ -184,6 +184,8 @@ export default function HomeworkFlowCard() {
     }
     const sessionIdFromRes =
       statusRes.session_id ?? statusRes.session?.id ?? null;
+    let reportTextToSet = derived.reportText;
+    let performanceScoreEndToSet = derived.performanceScoreEnd;
     if (derived.step === 4 && sessionIdFromRes && typeof sessionStorage !== "undefined") {
       const storedReportRaw = sessionStorage.getItem("homeworkReport");
       if (storedReportRaw) {
@@ -191,8 +193,8 @@ export default function HomeworkFlowCard() {
           const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
           if (r.sessionId === sessionIdFromRes) {
             uiStepFloorRef.current = 5;
-            setReportText(r.reportText ?? "");
-            setPerformanceScoreEnd(r.performanceScoreEnd ?? null);
+            reportTextToSet = r.reportText ?? "";
+            performanceScoreEndToSet = r.performanceScoreEnd ?? null;
           }
         } catch {
           /* ignore */
@@ -204,8 +206,8 @@ export default function HomeworkFlowCard() {
     setTaskText(derived.taskText);
     setTaskBlock(derived.taskBlock);
     setFinalTaskText(derived.finalTaskText);
-    setReportText(derived.reportText);
-    setPerformanceScoreEnd(derived.performanceScoreEnd);
+    setReportText(reportTextToSet);
+    setPerformanceScoreEnd(performanceScoreEndToSet);
     const qList = derived.questions.map((q) => ({
       ...q,
       id: toId(q.id) || crypto.randomUUID(),
