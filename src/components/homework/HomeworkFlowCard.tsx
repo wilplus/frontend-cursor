@@ -524,7 +524,8 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) {
         applyStatusToState(statusRes);
-        if (recording1Res?.task_block && !statusRes.task_block && !statusRes.session?.task_block) setTaskBlock(recording1Res.task_block);
+        const s = statusRes as HomeworkSessionStatus;
+        if (recording1Res?.task_block && !s.task_block) setTaskBlock(recording1Res.task_block);
       } else {
         setStep(2);
         if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
