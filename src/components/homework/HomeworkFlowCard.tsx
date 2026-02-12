@@ -294,17 +294,31 @@ export default function HomeworkFlowCard() {
     setLoading(true);
     homeworkApi
       .start()
-      .then(async () => {
+      .then(async (startRes) => {
+        const newSessionId = startRes.session_id ?? (startRes as { session_id?: string }).session_id ?? null;
+        const warmUpTextFromStart =
+          (startRes.warm_up_task && typeof startRes.warm_up_task === "object" && "text" in startRes.warm_up_task ? (startRes.warm_up_task as { text?: string }).text : null) ??
+          (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
+          "";
         const statusRes = await homeworkApi.getStatus();
         if (statusRes) {
+          const statusSessionId = statusRes.session_id ?? statusRes.session?.id ?? (statusRes as { session?: { id?: string } }).session?.id ?? null;
           if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
-          applyStatusToState(statusRes);
-        }
-        else {
-          uiStepFloorRef.current = 0;
-          setSessionId(null);
-          setStep(0);
-          setError("Could not load session. Please try again.");
+          if (statusSessionId === newSessionId) {
+            applyStatusToState(statusRes);
+          } else {
+            setSessionId(newSessionId);
+            setStep(1);
+            setWarmUpText(warmUpTextFromStart);
+            setError(null);
+            setStatusUnknown(false);
+          }
+        } else {
+          setSessionId(newSessionId);
+          setStep(1);
+          setWarmUpText(warmUpTextFromStart);
+          setError(null);
+          setStatusUnknown(false);
         }
       })
       .catch((e) => {
@@ -500,6 +514,7 @@ export default function HomeworkFlowCard() {
                 const scoreVal = res.performance_score_end ?? null;
                 setReportText(reportTextVal);
                 setPerformanceScoreEnd(scoreVal);
+                uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 5);
                 setStep(5);
                 if (typeof sessionStorage !== "undefined") {
                   sessionStorage.setItem(
@@ -788,11 +803,12 @@ export default function HomeworkFlowCard() {
         answer_text: (answersFromChild[toId(q.id)] ?? "").trim(),
       }));
       const res = await homeworkApi.submitPostAnswers(sessionId, answers);
-      // Completed sessions are not returned by GET status; show report from response
+      // Completed sessions are not returned by GET status; show report from response. Set floor so applyStatusToState cannot revert to step 4.
       const reportTextVal = res.report_text ?? "";
       const scoreVal = res.performance_score_end ?? null;
       setReportText(reportTextVal);
       setPerformanceScoreEnd(scoreVal);
+      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 5);
       setStep(5);
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem(
