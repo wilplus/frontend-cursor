@@ -102,6 +102,8 @@ export default function AudioRecorder({
   const abortControllerRef = useRef<AbortController | null>(null);
   const startAgainRequestedRef = useRef(false);
   const pauseRequestedRef = useRef(false);
+  /** Start mic request on pointer down so the permission prompt runs in the same user gesture (helps Safari/iOS). */
+  const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
   const setIsPausedRef = useRef(setIsPaused);
   const setIsRecordingRef = useRef(setIsRecording);
   const setElapsedSecondsRef = useRef(setElapsedSeconds);
@@ -207,7 +209,11 @@ export default function AudioRecorder({
         toast.error("Microphone not available");
         return;
       }
-      const stream = streamRef.current ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
+      // Use stream from a request started on pointer down (same user gesture), or request now
+      const stream =
+        streamRef.current ??
+        (await (streamPromiseRef.current ?? navigator.mediaDevices.getUserMedia({ audio: true })));
+      streamPromiseRef.current = null;
       if (!streamRef.current) streamRef.current = stream;
       setMicPreviewError(null);
 
@@ -256,16 +262,21 @@ export default function AudioRecorder({
         }
       }, 100);
     } catch (err) {
+      streamPromiseRef.current = null;
       const name = err instanceof Error ? err.name : "";
       const msg =
         name === "NotAllowedError" || name === "PermissionDeniedError"
-          ? "Microphone access denied. Please allow the mic when prompted, or check your browser settings."
+          ? "Microphone was blocked. Click the lock or info icon in the address bar and set Microphone to Allow, then try again."
           : name === "NotFoundError"
             ? "No microphone found. Connect a mic and try again."
             : "Microphone could not be accessed. Use HTTPS, allow the mic, or try again.";
       setMicPreviewError(msg);
       console.error("Failed to start recording:", err);
-      toast.error("Failed to access microphone");
+      toast.error(
+        name === "NotAllowedError" || name === "PermissionDeniedError"
+          ? "Allow microphone in your browser (address bar → site settings)"
+          : "Failed to access microphone"
+      );
     }
   }, [mimeType, onRecordingStart, attachOnStop, realtimeStrengthPace.start]);
 
@@ -595,6 +606,16 @@ export default function AudioRecorder({
       <div className="space-y-3">
         {!isRecording ? (
           <Button
+            onPointerDown={() => {
+              if (
+                typeof navigator !== "undefined" &&
+                navigator.mediaDevices?.getUserMedia &&
+                !streamRef.current &&
+                !streamPromiseRef.current
+              ) {
+                streamPromiseRef.current = navigator.mediaDevices.getUserMedia({ audio: true });
+              }
+            }}
             onClick={startRecording}
             className="w-full rounded-full py-6 text-base font-semibold"
           >
