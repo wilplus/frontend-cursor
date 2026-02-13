@@ -119,7 +119,7 @@ function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
 }
 
-/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. */
+/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. Progress bar is not shown here; step 5 renders it below the report. */
 function StepFlowWrapper({
   step,
   children,
@@ -127,14 +127,8 @@ function StepFlowWrapper({
   step: Step | 0;
   children: React.ReactNode;
 }) {
-  const flowStepIndex = step >= 1 ? step - 1 : 0;
   return (
     <div className="space-y-4 animate-fade-in">
-      <ProgressStepBullets
-        total={TOTAL_STEPS}
-        currentIndex={flowStepIndex}
-        aria-label={step >= 1 ? `Step ${step} of ${TOTAL_STEPS}` : `Step 1 of ${TOTAL_STEPS}`}
-      />
       {children}
     </div>
   );
@@ -264,28 +258,6 @@ export default function HomeworkFlowCard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  /** Finish the flow: clear state and go to dashboard. Next time user starts homework they will begin from step 1 (first recording). */
-  const handleBackToDashboard = () => {
-    resetAutoStartAttempted();
-    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
-    uiStepFloorRef.current = 0;
-    setSessionId(null);
-    setStep(0);
-    setWarmUpText("");
-    setTaskText("");
-    setFinalTaskText("");
-    setTaskBlock(null);
-    setQuestions([]);
-    setPostAnswers({});
-    setReportText("");
-    setPerformanceScoreEnd(null);
-    setError(null);
-    setNoWarmupConfigured(false);
-    setStatusUnknown(false);
-    postAnswersAutoSubmitDoneRef.current = false;
-    router.push("/dashboard");
   };
 
   /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. Don't remove homeworkReport until we've confirmed a new session. */
@@ -1149,11 +1121,13 @@ export default function HomeworkFlowCard() {
               {reportText.trim() || "Report pending."}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={handleBackToDashboard}>
-              Back to dashboard
-            </Button>
-            <Button variant="outline" onClick={handleStartOver}>
+          <ProgressStepBullets
+            total={TOTAL_STEPS}
+            currentIndex={4}
+            aria-label={`Step 5 of ${TOTAL_STEPS}`}
+          />
+          <div className="flex justify-center">
+            <Button onClick={handleStartOver} className="rounded-full px-6">
               Start new homework
             </Button>
           </div>
