@@ -159,6 +159,7 @@ export default function HomeworkFlowCard() {
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
@@ -266,93 +267,55 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  /** Clear state and start a new session (new session_id from backend). Show step 1 (warm-up) immediately so the first step appears instantly. Don't remove homeworkReport until we've confirmed a new session. */
-  const handleStartOver = () => {
-    uiStepFloorRef.current = 0;
-    setSessionId(null);
-    setStep(1);
-    setWarmUpText("");
-    setTaskText("");
-    setFinalTaskText("");
-    setTaskBlock(null);
-    setQuestions([]);
-    setPostAnswers({});
-    setReportText("");
-    setPerformanceScoreEnd(null);
-    setError(null);
-    setNoWarmupConfigured(false);
-    setStatusUnknown(false);
-    postAnswersAutoSubmitDoneRef.current = false;
-    setLoading(true);
-    homeworkApi
-      .start()
-      .then(async (startRes) => {
-        const newSessionId = startRes.session_id ?? (startRes as { session_id?: string }).session_id ?? null;
-        const warmUpTextFromStart =
-          (startRes.warm_up_task && typeof startRes.warm_up_task === "object" && "text" in startRes.warm_up_task ? (startRes.warm_up_task as { text?: string }).text : null) ??
-          (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
-          "";
-        const statusRes = await homeworkApi.getStatus();
-        if (statusRes) {
-          const statusSessionId = statusRes.session_id ?? statusRes.session?.id ?? (statusRes as { session?: { id?: string } }).session?.id ?? null;
-          if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
-          const storedReportRaw = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("homeworkReport") : null;
-          if (storedReportRaw && statusSessionId) {
-            try {
-              const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
-              if (r.sessionId && r.sessionId === statusSessionId) {
-                uiStepFloorRef.current = 5;
-                setSessionId(r.sessionId);
-                setReportText(r.reportText ?? "");
-                setPerformanceScoreEnd(r.performanceScoreEnd ?? null);
-                setStep(5);
-                setWarmUpText("");
-                setTaskText("");
-                setTaskBlock(null);
-                setQuestions([]);
-                setError(null);
-                setStatusUnknown(false);
-                setLoading(false);
-                return;
-              }
-            } catch {
-              // ignore
-            }
+  /** Reset the homework session as if the user had just logged in: clear backend session, clear all state and stored report, show step 0 (Start homework card). User stays logged in. Idempotent: safe to call multiple times; button disabled while resetting. */
+  const handleStartOver = async () => {
+    if (resetting) return;
+    setResetting(true);
+    try {
+      // Clear all flow-restore keys (only ones used in this flow)
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem("homeworkReport");
+        sessionStorage.removeItem("homeworkJustFinishedRecording2");
+      }
+      if (sessionId && sessionId !== "mock-session") {
+        try {
+          await homeworkApi.abandonSession(sessionId);
+        } catch (e) {
+          // Clear local state anyway; avoid stale server session when user starts again
+          if (typeof console !== "undefined" && console.warn) {
+            console.warn("[HomeworkFlow] abandonSession failed on reset", e);
           }
-          if (statusSessionId === newSessionId) {
-            applyStatusToState(statusRes);
-          } else {
-            if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
-            setSessionId(newSessionId);
-            setStep(1);
-            setWarmUpText(warmUpTextFromStart);
-            setError(null);
-            setStatusUnknown(false);
-          }
-        } else {
-          if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkReport");
-          setSessionId(newSessionId);
-          setStep(1);
-          setWarmUpText(warmUpTextFromStart);
-          setError(null);
-          setStatusUnknown(false);
         }
-      })
-      .catch((e) => {
-        if (isNoWarmupError(e)) {
-          setNoWarmupConfigured(true);
-          setError(null);
-          uiStepFloorRef.current = 0;
-          setStep(0);
-        } else {
-          const msg = e instanceof Error ? e.message : "Failed to start";
-          setError(msg);
-          toast.error(msg);
-          uiStepFloorRef.current = 0;
-          setStep(0);
-        }
-      })
-      .finally(() => setLoading(false));
+      }
+      // Abort any in-flight request
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+      uiStepFloorRef.current = 0;
+      postAnswersAutoSubmitDoneRef.current = false;
+      metricSubmitInProgress.current = false;
+      postAnswersSubmitInProgress.current = false;
+      uploadRecording1InProgressRef.current = false;
+      uploadRecording2InProgressRef.current = false;
+      setSessionId(null);
+      setStep(0);
+      setWarmUpText("");
+      setTaskText("");
+      setFinalTaskText("");
+      setTaskBlock(null);
+      setQuestions([]);
+      setPostAnswers({});
+      setReportText("");
+      setPerformanceScoreEnd(null);
+      setError(null);
+      setNoWarmupConfigured(false);
+      setStatusUnknown(false);
+      setLoading(false);
+      setUploadingRecording(null);
+    } finally {
+      setResetting(false);
+    }
   };
 
   /** Abandon current session via API, clear state, refetch status. On 200 or 409: clear and show Start. */
@@ -1128,8 +1091,8 @@ export default function HomeworkFlowCard() {
             </p>
           </div>
           <div className="flex justify-center">
-            <Button onClick={handleStartOver} className="rounded-full px-6">
-              Start new homework
+            <Button onClick={handleStartOver} disabled={resetting} className="rounded-full px-6">
+              {resetting ? "Resetting…" : "Start new homework"}
             </Button>
           </div>
         </Card>
