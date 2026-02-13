@@ -144,3 +144,10 @@ export interface HomeworkPostAnswersResponse {
   report_text: string;
   performance_score_end: number;
 }
+
+// —— GET report (step 5 panel: player + graph + text) ——
+export interface HomeworkReportResponse {
+  report_text: string;
+  scores: { warmup: number; final: number; overall: number };
+  final_recording: { id: string | null; audio_url: string | null };
+}

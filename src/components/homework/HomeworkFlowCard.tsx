@@ -8,10 +8,12 @@ import { homeworkApi, type HomeworkApiError } from "@/lib/api/homework-client";
 import type {
   HomeworkQuestion,
   HomeworkSessionStatus,
+  HomeworkReportResponse,
   TaskBlockV2,
 } from "@/lib/api/types-homework";
 import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
 import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
+import ReportSessionChart from "@/components/homework/ReportSessionChart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
@@ -153,6 +155,10 @@ export default function HomeworkFlowCard() {
   const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
   const [reportText, setReportText] = useState("");
   const [performanceScoreEnd, setPerformanceScoreEnd] = useState<number | null>(null);
+  /** Fetched report for step 5 (player + graph + text). Fresh on load so audio_url is valid. */
+  const [reportData, setReportData] = useState<HomeworkReportResponse | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -308,6 +314,9 @@ export default function HomeworkFlowCard() {
       setPostAnswers({});
       setReportText("");
       setPerformanceScoreEnd(null);
+      setReportData(null);
+      setReportLoading(false);
+      setReportError(null);
       setError(null);
       setNoWarmupConfigured(false);
       setStatusUnknown(false);
@@ -347,6 +356,9 @@ export default function HomeworkFlowCard() {
     setPostAnswers({});
     setReportText("");
     setPerformanceScoreEnd(null);
+    setReportData(null);
+    setReportLoading(false);
+    setReportError(null);
     setNoWarmupConfigured(false);
     setStatusUnknown(false);
     postAnswersAutoSubmitDoneRef.current = false;
@@ -549,6 +561,25 @@ export default function HomeworkFlowCard() {
       cancelled = true;
     };
   }, [step, sessionId, questions.length]);
+
+  // Fetch report when on step 5 with a real session (single source of truth for player + scores + text)
+  useEffect(() => {
+    if (step !== 5 || !sessionId || sessionId === "mock-session") return;
+    setReportLoading(true);
+    setReportError(null);
+    homeworkApi
+      .getReport(sessionId)
+      .then((data) => {
+        setReportData(data);
+        setReportError(null);
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : "Failed to load report";
+        setReportError(msg);
+        setReportData(null);
+      })
+      .finally(() => setReportLoading(false));
+  }, [step, sessionId]);
 
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     // #region agent log
@@ -1074,21 +1105,40 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 5: Report (content from backend; backend should include analysis of both recording 1 and 2)
+  // Step 5: Report — one container: (1) final recording player, (2) score chart, (3) report text
   if (step === 5) {
+    const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
+    const displayReportText = reportData?.report_text ?? reportText;
     return (
       <StepFlowWrapper step={step}>
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">Your report</h3>
-          {performanceScoreEnd != null && (
-            <p className="text-sm text-muted-foreground">
-              Overall score: {Math.round(performanceScoreEnd * 100)}%
-            </p>
+          {reportLoading && (
+            <p className="text-sm text-muted-foreground">Loading report…</p>
           )}
-          <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-              {reportText.trim() || "Report pending."}
-            </p>
+          {reportError && !reportLoading && (
+            <p className="text-sm text-destructive">{reportError}</p>
+          )}
+          <div className="space-y-4">
+            {/* 1. Final recording player */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Your final recording</p>
+              {reportData?.final_recording?.audio_url ? (
+                <audio controls src={reportData.final_recording.audio_url} className="w-full max-w-md" />
+              ) : (
+                <p className="text-sm text-muted-foreground">Recording playback not available.</p>
+              )}
+            </div>
+            {/* 2. Performance score graph */}
+            {displayScores && (
+              <ReportSessionChart scores={displayScores} />
+            )}
+            {/* 3. Report text */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
+                {displayReportText.trim() || "Report pending."}
+              </p>
+            </div>
           </div>
           <div className="flex justify-center">
             <Button onClick={handleStartOver} disabled={resetting} className="rounded-full px-6">

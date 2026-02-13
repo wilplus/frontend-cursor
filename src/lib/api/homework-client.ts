@@ -10,6 +10,7 @@ import type {
   HomeworkRecording2Response,
   HomeworkQuestionsResponse,
   HomeworkPostAnswersResponse,
+  HomeworkReportResponse,
   TaskBlockV2,
 } from "@/lib/api/types-homework";
 import { debugIngest } from "@/lib/debugIngest";
@@ -266,5 +267,19 @@ export const homeworkApi = {
       credentials,
     });
     return handleResponse<HomeworkPostAnswersResponse>(res);
+  },
+
+  /** Get report for completed session (step 5): report_text, scores, final_recording with fresh audio_url. */
+  async getReport(sessionId: string): Promise<HomeworkReportResponse> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/session/${sessionId}/report`, { method: "GET", headers, credentials });
+    return handleResponse<HomeworkReportResponse>(res);
+  },
+
+  /** Get fresh signed playback URL for a recording (e.g. when report audio_url expired). */
+  async getRecordingPlaybackUrl(recordingId: string): Promise<{ audio_url: string }> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`/api/recordings/${recordingId}/playback-url`, { method: "GET", headers, credentials });
+    return handleResponse<{ audio_url: string }>(res);
   },
 };

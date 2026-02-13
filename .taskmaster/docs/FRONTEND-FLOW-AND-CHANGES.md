@@ -1,6 +1,6 @@
 # Frontend flow: current behavior and what changed
 
-See APP_DESCRIPTION.md for full taskmaster. This doc summarizes (1) how the frontend flow looks now and (2) what changed. **Aligned with backend:** Step 5 is driven by the **post-answers response** only; GET status does not return completed sessions (see backend repo FLOW-AND-CHANGES.md).
+See APP_DESCRIPTION.md for full taskmaster. For the **end report panel** (audio player + scores chart + report text), see `docs/PLAN-END-REPORT-PANEL.md`; backend API in backend-cursor `.taskmaster/docs/PLAN-END-REPORT-PANEL.md`. This doc summarizes (1) how the frontend flow looks now and (2) what changed. **Aligned with backend:** Step 5 is driven by the **post-answers response** only; GET status does not return completed sessions (see backend repo FLOW-AND-CHANGES.md).
 
 ## 1. Current frontend flow (step-by-step)
 
@@ -11,16 +11,16 @@ See APP_DESCRIPTION.md for full taskmaster. This doc summarizes (1) how the fron
 | 2 | Metric Qs (3) | task_block (+ aliases) | AnswerMetricQuestionsScreen; POST metric-answers → GET status |
 | 3 | Final record | final_task_ready (+ aliases) | AudioRecorder min 62s; onstart first+resume; Stop disabled until 62s |
 | 4 | Reflective Qs | post_questions (+ aliases) | PostQuestionsStepScreen (local state); submit(answersFromChild) |
-| 5 | Report | **post-answers response** (not GET status) | Report + score from **POST post-answers response** (report_text, performance_score_end). **Single CTA:** one button only — "Start new homework". **Progress bar** is shown only on step 5, **below** the report text and **above** the button. Frontend does **not** block step 5 on GET status — backend does not return completed sessions from GET status. |
+| 5 | Report | **post-answers response** (not GET status) | Report + score from **POST post-answers response** (report_text, performance_score_end). **Single CTA:** one button only — "Start new homework". **Progress bar** at **top** for all steps (1–5), including step 5. Frontend does **not** block step 5 on GET status — backend does not return completed sessions from GET status. |
 
 Step 4: StepFlowWrapper (stable). handlePostAnswersSubmit(answersFromChild) → POST post-answers. On success, frontend sets report and score from the **response** and setStep(5); no GET status call required for step 5. Debug: debugIngest() only when NODE_ENV=development.
 
-**Step 5 UI:** Progress bar (ProgressStepBullets) is **not** rendered by StepFlowWrapper for any step. Only the report step (step 5) shows it: inside the report Card, below the report text block and above the "Start new homework" button. No "Back to dashboard" button on the report — only "Start new homework".
+**Step 5 UI:** One button only — "Start new homework" (no "Back to dashboard"). Progress bar (ProgressStepBullets) is rendered at the **top** by StepFlowWrapper for **all** steps (1–5); step 5 shows the same layout: progress bar → report card (title, score, report text, button).
 
 **Step 5 report screen (current spec):**
 - One button only: **"Start new homework"** (no "Back to dashboard").
-- Progress bar (step bullets 1–5) is shown **only on step 5**, inside the report Card: below the report text block, above the button.
-- Steps 1–4: no progress bar.
+- Progress bar at **top** for every step (1–5), including the report step.
+- "Start new homework" resets the homework session to step 0 (same "Homework" card as after login) without logging the user out; calls abandonSession, clears all state and storage; button shows "Resetting…" while handling.
 
 ## 2. Step 4 → 5 (aligned with backend)
 
@@ -67,7 +67,7 @@ To avoid the UI snapping back when GET status is stale (eventual consistency), t
 
 - Debug ingest: single debugIngest(); no request in production. All ingest calls (including HomeworkFlowCard) use debugIngest(); NODE_ENV !== "development" → no fetch.
 
-- **Step 5 (report):** Single button only — "Start new homework" (no "Back to dashboard"). Progress bar (ProgressStepBullets) shown **only** on step 5, **below** the report text and **above** the button; StepFlowWrapper does not render progress for any step.
+- **Step 5 (report):** Single button only — "Start new homework" (no "Back to dashboard"). Progress bar at **top** for all steps (1–5). "Start new homework" resets session to step 0 without logout (abandonSession, clear state/storage, idempotent with "Resetting…").
 
 - **Mic permission:** Mic is requested only on user action. Permission request is started on **pointer down** on "Start Recording" (streamPromiseRef) so the browser treats it as same user gesture (helps Safari/iOS). On NotAllowedError, show: "Microphone was blocked. Click the lock or info icon in the address bar and set Microphone to Allow, then try again." and toast "Allow microphone in your browser (address bar → site settings)".
 - **Auth / shared links:** Middleware strips auth params from URL; requires session for /dashboard and /admin; (protected) layout validates session server-side. Session in cookies with Secure, SameSite, HttpOnly so shared links do not log in another person; browser remembers user until logout.
@@ -95,6 +95,6 @@ Canonical five: warm_up→1, task_block→2, final_task_ready→3, post_question
 | Recording-2 422 | Not clearly surfaced. | RECORDING_DURATION_OUT_OF_RANGE → message with min/max and "You recorded Xs". |
 | Too-short recording | Stop allowed; toast; timer showed e.g. "00:06 remaining" next. | Stop disabled until min; on reject setElapsedSeconds(0) → "01:00 remaining". |
 | Debug ingest | Inline fetch to 127.0.0.1:7242/7243 in several files; CORS in prod. | debugIngest(url, payload); NODE_ENV !== "development" → return; no request in prod. |
-| Step 5 report UI | Two buttons (Back to dashboard, Start new homework); progress bar on all steps (top). | Single button "Start new homework" only; progress bar only on step 5, below report text, above button. |
+| Step 5 report UI | Two buttons (Back to dashboard, Start new homework); progress bar on all steps (top). | Single button "Start new homework" only; progress bar at top for all steps (1–5). "Start new homework" resets to step 0 without logout. |
 | Mic permission | getUserMedia on click only. | Request started on **pointer down** (same user gesture); clearer NotAllowedError copy (address bar → allow mic). |
 | Auth / shared links | Possible token in URL; /admin allowed without session check. | Auth params stripped from URL; session required for /admin; (protected) layout validates session; cookies Secure/SameSite/HttpOnly; shared link in another device → login. |
