@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/change-password"];
-const ADMIN_ROUTES = ["/admin"]; // Admin routes require admin role (backend will verify)
-const ADMIN_FEEDBACK_ROUTES = ["/recordings"]; // Admin feedback routes (backend will verify admin role)
+const ADMIN_ROUTES = ["/admin"];
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
+
+/** Query param names that must never be in URLs (avoid sharing auth when link is shared). */
+const AUTH_PARAMS = ["access_token", "refresh_token", "token", "api_key", "supabase_key"];
 
 function getCspDirectives(): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -79,6 +81,20 @@ export async function middleware(req: NextRequest) {
     return redirect;
   }
 
+  // Strip auth tokens from URL so sharing a link never passes credentials to another person
+  const hasAuthParam = AUTH_PARAMS.some((p) => searchParams.has(p));
+  if (hasAuthParam) {
+    const cleanUrl = new URL(pathname, req.url);
+    searchParams.forEach((value, key) => {
+      if (!AUTH_PARAMS.includes(key)) cleanUrl.searchParams.set(key, value);
+    });
+    const redirect = NextResponse.redirect(cleanUrl);
+    const redirectCsp = getCspDirectives();
+    redirect.headers.set("Content-Security-Policy", redirectCsp);
+    redirect.headers.set("X-Content-Security-Policy", redirectCsp);
+    return redirect;
+  }
+
   let res = NextResponse.next({
     request: {
       headers: req.headers,
@@ -89,6 +105,7 @@ export async function middleware(req: NextRequest) {
   res.headers.set("Content-Security-Policy", cspDirectives);
   res.headers.set("X-Content-Security-Policy", cspDirectives);
 
+  const isProd = process.env.NODE_ENV === "production";
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -98,10 +115,25 @@ export async function middleware(req: NextRequest) {
           return req.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          res.cookies.set({ name, value, ...options });
+          res.cookies.set({
+            name,
+            value,
+            ...options,
+            secure: isProd,
+            sameSite: "lax",
+            httpOnly: true,
+            path: "/",
+          });
         },
         remove(name: string, options: CookieOptions) {
-          res.cookies.set({ name, value: "", ...options });
+          res.cookies.set({
+            name,
+            value: "",
+            ...options,
+            secure: isProd,
+            sameSite: "lax",
+            path: "/",
+          });
         },
       },
     }
@@ -118,15 +150,20 @@ export async function middleware(req: NextRequest) {
     session = null;
   }
 
-  // Admin routes: Allow access but backend will verify admin role
+  // Admin routes: require valid session (same as protected); backend will verify admin role
   if (ADMIN_ROUTES.some((route) => pathname.startsWith(route))) {
-    // Allow access - backend will verify admin role via JWT
+    if (!session) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirectTo", pathname + (url.search || ""));
+      const redirect = NextResponse.redirect(loginUrl);
+      const redirectCsp = getCspDirectives();
+      redirect.headers.set("Content-Security-Policy", redirectCsp);
+      redirect.headers.set("X-Content-Security-Policy", redirectCsp);
+      return redirect;
+    }
     return res;
   }
 
-  // Admin feedback routes: Allow access but backend will verify admin role
-  // This allows /recordings/[recordingId]/feedback to be accessible
-  // The AdminAuthGuard component will check admin status on the page
   if (pathname.includes("/recordings/") && pathname.includes("/feedback")) {
     // If not logged in, redirect to login with full URL (including query params)
     if (!session) {

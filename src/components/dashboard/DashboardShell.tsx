@@ -11,7 +11,7 @@ export default function DashboardShell({
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
-      <main className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+      <main className="mx-auto w-full max-w-4xl flex flex-col min-w-0 px-4 py-8 space-y-8 sm:px-8 lg:px-10">
         {children}
       </main>
     </div>
