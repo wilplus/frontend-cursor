@@ -78,9 +78,7 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   if (status === "finished" || status === "done" || status === "post_questions_done" || status === "report_generated") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
 
   // #region agent log
-  if (typeof window !== "undefined") {
-    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:deriveStepFromStatus", message: "unmapped status -> step 1", data: { statusRaw, status, step: 1, statusUnknown: true }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
-  }
+  debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:deriveStepFromStatus", message: "unmapped status -> step 1", data: { statusRaw, status, step: 1, statusUnknown: true }, timestamp: Date.now(), hypothesisId: "H1" });
   // #endregion
   return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
 }
@@ -613,9 +611,7 @@ export default function HomeworkFlowCard() {
 
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     // #region agent log
-    if (typeof window !== "undefined") {
-      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:handleRecording1Complete:entry", message: "rec1 complete handler entered", data: { hasSessionId: !!sessionId, uploadInProgress: uploadRecording1InProgressRef.current, uploadingRecording, step, durationSeconds }, timestamp: Date.now(), hypothesisId: "H5" }) }).catch(() => {});
-    }
+    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete:entry", message: "rec1 complete handler entered", data: { hasSessionId: !!sessionId, uploadInProgress: uploadRecording1InProgressRef.current, uploadingRecording, step, durationSeconds }, timestamp: Date.now(), hypothesisId: "H5" });
     // #endregion
     if (!sessionId) return;
     if (uploadRecording1InProgressRef.current) return;
@@ -653,7 +649,7 @@ export default function HomeworkFlowCard() {
       }
     } catch (e) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HomeworkFlowCard.tsx:handleRecording1Complete catch',message:'rec1 error',data:{error:String((e as Error)?.message),code:(e as {code?:string})?.code},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete catch", message: "rec1 error", data: { error: String((e as Error)?.message), code: (e as { code?: string })?.code }, timestamp: Date.now(), hypothesisId: "H4" });
       // #endregion
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;

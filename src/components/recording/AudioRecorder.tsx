@@ -125,47 +125,9 @@ export default function AudioRecorder({
     }
   }, []);
 
-  // Mic preview and real-time wheel: show on first screen and again after stop (no click needed)
-  useEffect(() => {
-    if (isRecording) return;
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setMicPreviewError("Microphone not available. Use HTTPS or localhost.");
-      return;
-    }
-    setMicPreviewError(null);
-    let cancelled = false;
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        // Replace any existing stream so we always start the wheel with a live stream
-        if (streamRef.current) {
-          realtimeStrengthPace.stop();
-          streamRef.current.getTracks().forEach((t) => t.stop());
-          streamRef.current = null;
-        }
-        streamRef.current = stream;
-        realtimeStrengthPace.start(stream);
-        setMicPreviewError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        const name = err?.name ?? "";
-        const msg =
-          name === "NotAllowedError" || name === "PermissionDeniedError"
-            ? "Microphone access denied. Allow the mic in your browser to see the feedback wheel."
-            : name === "NotFoundError"
-              ? "No microphone found. Connect a mic and refresh."
-              : "Microphone could not be loaded. Use HTTPS, allow the mic, or try again.";
-        setMicPreviewError(msg);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isRecording, realtimeStrengthPace.start]);
+  // Don't request mic on mount — browsers block getUserMedia without a user gesture (e.g. Safari).
+  // Mic is requested only when the user clicks "Start Recording" (startRecording). The wheel then
+  // runs from that stream. We only set micPreviewError after a failed attempt from a user action.
 
   // Cleanup on unmount
   useEffect(() => {
@@ -240,6 +202,11 @@ export default function AudioRecorder({
 
   const startRecording = useCallback(async () => {
     try {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        setMicPreviewError("Microphone not available. Use HTTPS or localhost.");
+        toast.error("Microphone not available");
+        return;
+      }
       const stream = streamRef.current ?? (await navigator.mediaDevices.getUserMedia({ audio: true }));
       if (!streamRef.current) streamRef.current = stream;
       setMicPreviewError(null);
@@ -289,6 +256,14 @@ export default function AudioRecorder({
         }
       }, 100);
     } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      const msg =
+        name === "NotAllowedError" || name === "PermissionDeniedError"
+          ? "Microphone access denied. Please allow the mic when prompted, or check your browser settings."
+          : name === "NotFoundError"
+            ? "No microphone found. Connect a mic and try again."
+            : "Microphone could not be accessed. Use HTTPS, allow the mic, or try again.";
+      setMicPreviewError(msg);
       console.error("Failed to start recording:", err);
       toast.error("Failed to access microphone");
     }
