@@ -37,5 +37,8 @@
     "task-master-ai": "^0.42.0",
     "typescript": "^5.9.3",
     "zustand": "^5.0.10"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^19.2.3"
   }
 }
