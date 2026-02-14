@@ -25,6 +25,13 @@ import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 
 const TOTAL_STEPS = 5;
 
+/** Default warm-up question when the backend assigns none. */
+const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
+
+function resolveWarmUpText(text: string | null | undefined): string {
+  return (text ?? "").trim() || DEFAULT_WARMUP_QUESTION;
+}
+
 type Step = 1 | 2 | 3 | 4 | 5;
 
 /** Derive current step and restored state from session status. Step only from the five canonical statuses (warm_up, task_block, final_task_ready, post_questions, completed). */
@@ -219,7 +226,7 @@ export default function HomeworkFlowCard() {
       }
     }
     setSessionId(sessionIdFromRes);
-    setWarmUpText(derived.warmUpText);
+    setWarmUpText(resolveWarmUpText(derived.warmUpText));
     setTaskText(derived.taskText);
     setTaskBlock(derived.taskBlock);
     setFinalTaskText(derived.finalTaskText);
@@ -249,7 +256,7 @@ export default function HomeworkFlowCard() {
         "";
       setSessionId(startRes.session_id);
       setStep(1);
-      setWarmUpText(warmUpTextFromStart);
+      setWarmUpText(resolveWarmUpText(warmUpTextFromStart));
       setError(null);
       setStatusUnknown(false);
       const statusRes = await homeworkApi.getStatus();
@@ -257,7 +264,7 @@ export default function HomeworkFlowCard() {
       else {
         setSessionId(startRes.session_id);
         setStep(1);
-        setWarmUpText(warmUpTextFromStart);
+        setWarmUpText(resolveWarmUpText(warmUpTextFromStart));
       }
     } catch (e) {
       if (isNoWarmupError(e)) {
@@ -348,8 +355,12 @@ export default function HomeworkFlowCard() {
     setLoading(true);
     setError(null);
     try {
-      await homeworkApi.abandonSession(sessionId);
-      toast.success("Session abandoned. You can start a new session.");
+      const result = await homeworkApi.abandonSession(sessionId);
+      if (result.message?.toLowerCase().includes("not found") || result.message?.toLowerCase().includes("already cleared")) {
+        toast.success("Session was already cleared. You can start a new session.");
+      } else {
+        toast.success("Session abandoned. You can start a new session.");
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to abandon session";
       setError(msg);
@@ -952,7 +963,7 @@ export default function HomeworkFlowCard() {
     questions.length === 0 ||
     questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
 
-  /** Refetch GET status and apply to state (e.g. after "Refresh" when status unknown or warm-up empty). */
+  /** Refetch GET status and apply to state (e.g. after "Refresh" when status unknown or warm-up empty). If no active session (e.g. cleaned up), redirect to step 0. */
   const refreshStatus = async () => {
     if (!sessionId || sessionId === "mock-session") return;
     setLoading(true);
@@ -960,8 +971,44 @@ export default function HomeworkFlowCard() {
     setStatusUnknown(false);
     try {
       const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
-      else setError("Could not load session. Please try again.");
+      const hasActive = statusRes?.has_active_session !== false;
+      const sessionIdFromRes = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
+      if (!statusRes || !hasActive || !sessionIdFromRes) {
+        // Session was cleaned up or no longer exists — full reset to step 0 so user can start fresh
+        if (abortRef.current) {
+          abortRef.current.abort();
+          abortRef.current = null;
+        }
+        uiStepFloorRef.current = 0;
+        postAnswersAutoSubmitDoneRef.current = false;
+        metricSubmitInProgress.current = false;
+        postAnswersSubmitInProgress.current = false;
+        uploadRecording1InProgressRef.current = false;
+        uploadRecording2InProgressRef.current = false;
+        setSessionId(null);
+        setStep(0);
+        setWarmUpText("");
+        setTaskText("");
+        setTaskBlock(null);
+        setFinalTaskText("");
+        setQuestions([]);
+        setPostAnswers({});
+        setReportText("");
+        setPerformanceScoreEnd(null);
+        setReportData(null);
+        setReportLoading(false);
+        setReportError(null);
+        setNoWarmupConfigured(false);
+        setStatusUnknown(false);
+        setUploadingRecording(null);
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.removeItem("homeworkReport");
+          sessionStorage.removeItem("homeworkJustFinishedRecording2");
+        }
+        toast.success("Session was cleared. You can start a new one.");
+        return;
+      }
+      applyStatusToState(statusRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to refresh");
       toast.error(e instanceof Error ? e.message : "Failed to refresh");
@@ -1077,7 +1124,7 @@ export default function HomeworkFlowCard() {
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
             <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
             <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-              {warmUpText.trim() || "—"}
+              {warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
             </p>
           </div>
         )}
