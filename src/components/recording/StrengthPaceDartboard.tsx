@@ -9,8 +9,16 @@ import { useMemo, useRef, useState, useEffect } from "react";
 const VIEWBOX_SIZE = 300;
 const RADIUS = 120;
 const BALL_R = 10;
-/** Higher = ball responds in ~200–300 ms; sustained off-target still drifts slowly. */
-const BALL_LERP = 0.12;
+/** Base blend (0–1); double smoothstep yields slower, eased motion with no sudden jumps. */
+const BALL_LERP_BASE = 0.2;
+/** Smoothstep for easing (applied x2 for extra smooth direction changes). */
+function smoothstep(t: number): number {
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * (3 - 2 * c);
+}
+function easedLerp(): number {
+  return smoothstep(smoothstep(BALL_LERP_BASE));
+}
 
 /** Position in [-1, 1] from score and direction (center = on target). */
 function ballPosition(score: number, direction: number): number {
@@ -57,19 +65,21 @@ export function StrengthPaceDartboard({
   const currentRef = useRef({ x: 0, y: 0 });
   const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
 
+  const ballBlend = useMemo(() => easedLerp(), []);
+
   useEffect(() => {
     let rafId: number;
     const tick = () => {
       const t = targetRef.current;
       const c = currentRef.current;
-      c.x += (t.x - c.x) * BALL_LERP;
-      c.y += (t.y - c.y) * BALL_LERP;
+      c.x += (t.x - c.x) * ballBlend;
+      c.y += (t.y - c.y) * ballBlend;
       setDisplayPos({ x: c.x, y: c.y });
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, []);
+  }, [ballBlend]);
 
   const cx = center + displayPos.x * radius;
   const cy = center - displayPos.y * radius;
