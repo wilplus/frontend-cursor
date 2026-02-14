@@ -47,7 +47,7 @@ To avoid the UI snapping back when GET status is stale (eventual consistency), t
 
 **When the floor is reset to 0:** No active session (e.g. load with no session or completed); user clicks “Start new homework” (handleStartOver); abandon session and end with no session; **session-gone (404)** from any homework API → startOverFromScratch(); any path that clears sessionId and sets step to 0.
 
-**Sync behind:** If GET status remains behind the floor for a long time (e.g. 10–30s), this can be treated as a sync problem: show “Syncing…” or retry GET status (optional; not yet implemented).
+**Sync behind:** If GET status remains behind the floor for more than 10s (steps 1–4), the frontend shows "Syncing…" below the progress bar and retries GET status; on response it applies state and clears the message.
 
 ## 4.5 Auth and session (shared links, persistence)
 

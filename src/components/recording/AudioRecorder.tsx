@@ -486,7 +486,7 @@ export default function AudioRecorder({
 
   if (isSupported === null) {
     return (
-      <Card className="p-6">
+      <Card className="p-6 border-0 bg-transparent shadow-none">
         <p className="text-center text-muted-foreground">
           Checking audio support...
         </p>
@@ -497,7 +497,7 @@ export default function AudioRecorder({
   // File upload fallback (Safari iOS or unsupported browsers)
   if (isFileUploadMode) {
     return (
-      <Card className="p-6 space-y-4">
+      <Card className="p-6 space-y-4 border-0 bg-transparent shadow-none">
         <div>
           <h3 className="text-lg font-semibold mb-2">
             Upload Audio Recording
