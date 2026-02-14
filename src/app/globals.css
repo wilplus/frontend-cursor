@@ -20,6 +20,10 @@
     --primary: 24 95% 53%;
     --step-completed: 142 76% 36%;
     --step-pending: 210 40% 96.1%;
+    /* Dartboard ring strokes (1px), HSL-compatible */
+    --dartboard-ring-outer: 220 13% 91%;
+    --dartboard-ring-mid: 220 13% 85%;
+    --dartboard-ring-inner: 220 13% 78%;
   }
 
   .dark {
@@ -36,6 +40,9 @@
     --primary: 24 95% 53%;
     --step-completed: 142 76% 36%;
     --step-pending: 217.2 32.6% 17.5%;
+    --dartboard-ring-outer: 217.2 32.6% 25%;
+    --dartboard-ring-mid: 217.2 32.6% 30%;
+    --dartboard-ring-inner: 217.2 32.6% 35%;
   }
 }
 
@@ -118,11 +125,3 @@ body.no-scroll {
 }
 
 /* Strength/pace wheel: on narrow viewports scale the 533px row to fit so it’s visibly big on mobile */
-.dartboard-row-scale-fit {
-  transform-origin: center top;
-}
-@media (max-width: 560px) {
-  .dartboard-row-scale-fit {
-    transform: scale(min(1, (100vw - 5rem) / 33.3125rem));
-  }
-}
