@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +91,9 @@ export default function AudioRecorder({
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  /** Prompt font size: shrink by 2px when >3 lines, by 4px when >5 lines (at base size). */
+  const [promptSizeClass, setPromptSizeClass] = useState<"default" | "medium" | "small">("default");
+  const promptMeasureRef = useRef<HTMLParagraphElement | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isFileUploadMode, setIsFileUploadMode] = useState(false);
@@ -157,6 +160,23 @@ export default function AudioRecorder({
       }
     };
   }, []);
+
+  // Measure prompt at base size; shrink font when >3 lines (-2px) or >5 lines (-4px)
+  useLayoutEffect(() => {
+    if (!prompt || !promptMeasureRef.current) {
+      setPromptSizeClass("default");
+      return;
+    }
+    const el = promptMeasureRef.current;
+    const style = getComputedStyle(el);
+    const fontSize = parseFloat(style.fontSize);
+    const lineHeightVal = style.lineHeight;
+    const lhPx = lineHeightVal === "normal" ? fontSize * 1.25 : parseFloat(lineHeightVal);
+    const lines = lhPx > 0 ? el.scrollHeight / lhPx : 1;
+    if (lines > 5) setPromptSizeClass("small");
+    else if (lines > 3) setPromptSizeClass("medium");
+    else setPromptSizeClass("default");
+  }, [prompt]);
 
   const attachOnStop = useCallback(
     (rec: MediaRecorder, mime: string) => {
@@ -577,9 +597,27 @@ export default function AudioRecorder({
     <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
       <div className="p-4 sm:p-6 space-y-5">
         {prompt ? (
-          <p className="w-full text-center text-lg font-bold leading-snug text-foreground sm:text-xl">
-            {prompt}
-          </p>
+          <div className="relative w-full">
+            <p
+              ref={promptMeasureRef}
+              aria-hidden
+              className="absolute left-0 top-0 w-full text-center text-lg font-bold leading-snug text-foreground sm:text-xl"
+              style={{ visibility: "hidden" }}
+            >
+              {prompt}
+            </p>
+            <p
+              className={`w-full text-center font-bold leading-snug text-foreground ${
+                promptSizeClass === "medium"
+                  ? "text-base sm:text-lg"
+                  : promptSizeClass === "small"
+                    ? "text-sm sm:text-base"
+                    : "text-lg sm:text-xl"
+              }`}
+            >
+              {prompt}
+            </p>
+          </div>
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex justify-center w-full">
