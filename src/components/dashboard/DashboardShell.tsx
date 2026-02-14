@@ -1,19 +1,48 @@
 "use client";
 
+import React, { useState, useCallback, useEffect } from "react";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 
-/** Wraps dashboard content (single flow: warm-up + recording_1 → … → recording_2 → report). */
+const RecordingContext = React.createContext<{
+  isRecording: boolean;
+  setRecordingActive: (active: boolean) => void;
+} | null>(null);
+
+export function useRecordingContext() {
+  const ctx = React.useContext(RecordingContext);
+  return ctx ?? { isRecording: false, setRecordingActive: () => {} };
+}
+
+/** Wraps dashboard content (single flow: warm-up + recording_1 → … → recording_2 → report). When recording, header is hidden and body scroll is locked; main content uses safe scroll (overflow-y: auto). */
 export default function DashboardShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isRecording, setIsRecording] = useState(false);
+  const setRecordingActive = useCallback((active: boolean) => {
+    setIsRecording(active);
+  }, []);
+
+  useEffect(() => {
+    if (isRecording) {
+      document.body.classList.add("no-scroll");
+    } else {
+      document.body.classList.remove("no-scroll");
+    }
+    return () => document.body.classList.remove("no-scroll");
+  }, [isRecording]);
+
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader />
-      <main className="mx-auto w-full max-w-4xl flex flex-col min-w-0 px-4 py-8 space-y-8 sm:px-8 lg:px-10">
-        {children}
-      </main>
-    </div>
+    <RecordingContext.Provider value={{ isRecording, setRecordingActive }}>
+      <div className="min-h-screen bg-background">
+        {!isRecording && <DashboardHeader />}
+        <main
+          className={`mx-auto w-full max-w-4xl flex flex-col min-w-0 px-4 py-8 space-y-8 sm:px-8 lg:px-10 ${isRecording ? "recording-screen" : ""}`}
+        >
+          {children}
+        </main>
+      </div>
+    </RecordingContext.Provider>
   );
 }

@@ -95,9 +95,24 @@ body {
 
 @media (max-width: 640px) {
   html {
-    font-size: 14px;
+    font-size: 16px;
   }
   .max-w-4xl {
     max-width: min(36rem, 100vw - 2rem);
   }
+  input,
+  textarea {
+    font-size: 16px;
+    scroll-margin-top: 1.5rem;
+  }
+}
+
+/* Recording mode: lock body scroll; allow main content to scroll if needed (safe mobile pattern) */
+body.no-scroll {
+  overflow: hidden;
+}
+
+.recording-screen {
+  min-height: 100dvh;
+  overflow-y: auto;
 }

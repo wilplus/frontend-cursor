@@ -39,16 +39,16 @@ export default function DashboardHeader() {
 
   return (
     <header className="border-b bg-card">
-      <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
+      <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-4 py-4 sm:px-8 sm:gap-4 lg:px-10">
         <Link
           href="/dashboard"
-          className="text-2xl font-bold hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+          className="shrink-0 text-xl font-bold hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded sm:text-2xl"
         >
           Willab
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 shrink items-center gap-2 sm:gap-4">
           {userEmail && (
-            <span className="text-sm text-muted-foreground">
+            <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:block sm:max-w-[12rem] lg:max-w-[14rem]">
               {userEmail}
             </span>
           )}
@@ -57,6 +57,7 @@ export default function DashboardHeader() {
             size="sm"
             onClick={handleLogout}
             disabled={loading}
+            className="shrink-0"
           >
             {loading ? "Logging out..." : "Logout"}
           </Button>
