@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { TaskBlockV2 } from "@/lib/api/types-homework";
 
 /** Coerce API value to string; backend may send { text } or plain string. */
@@ -55,7 +54,7 @@ export default function AnswerMetricQuestionsScreen({
 
   return (
     <div className="answer-metric-questions">
-      <Card className="p-6 sm:p-8">
+      <div className="p-6 sm:p-8 bg-background rounded-xl">
         <div className="space-y-8">
           <div className="space-y-3">
             <label className={labelClass}>{label1}</label>
@@ -86,7 +85,6 @@ export default function AnswerMetricQuestionsScreen({
           </div>
         </div>
         {externalError && <p className="mt-4 text-sm text-destructive">{externalError}</p>}
-        {!allFilled && <p className="mt-3 text-sm text-muted-foreground">Answer all three questions above to continue.</p>}
         <Button
           className="mt-8 w-full rounded-xl bg-primary text-white font-normal hover:bg-primary/90 h-12"
           onClick={handleSubmit}
@@ -94,7 +92,7 @@ export default function AnswerMetricQuestionsScreen({
         >
           {loading ? "Submitting…" : "Continue"}
         </Button>
-      </Card>
+      </div>
     </div>
   );
 }
