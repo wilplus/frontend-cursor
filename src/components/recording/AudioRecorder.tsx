@@ -577,7 +577,7 @@ export default function AudioRecorder({
     <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
       <div className="p-4 sm:p-6 space-y-5">
         {prompt ? (
-          <p className="text-lg font-bold leading-snug text-foreground text-left sm:text-xl">
+          <p className="text-center text-lg font-bold leading-snug text-foreground sm:text-xl">
             {prompt}
           </p>
         ) : null}

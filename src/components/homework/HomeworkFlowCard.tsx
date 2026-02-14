@@ -1243,7 +1243,7 @@ export default function HomeworkFlowCard() {
           />
         )}
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-3 flex justify-center">
+          <div className="mt-1.5 flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1271,7 +1271,7 @@ export default function HomeworkFlowCard() {
           error={error}
         />
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-3 flex justify-center">
+          <div className="mt-1.5 flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1312,7 +1312,7 @@ export default function HomeworkFlowCard() {
           uploading={isUploadingRec2}
           minDurationSeconds={RECORDING_2_DURATION_MIN}
         />
-        <div className="mt-3 flex justify-center">
+        <div className="mt-1.5 flex justify-center">
           <Button
             variant="ghost"
             size="sm"
