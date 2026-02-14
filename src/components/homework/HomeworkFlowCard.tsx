@@ -1422,10 +1422,13 @@ export default function HomeworkFlowCard() {
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
 
+    // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
+    // If backend omits it or returns empty, we show only current session as S1.
     const performanceHistory = reportData?.performance_history;
+    const lastFive = performanceHistory?.length ? performanceHistory.slice(-5) : [];
     const progressChartData =
-      performanceHistory && performanceHistory.length > 0
-        ? performanceHistory.map((p, i) => ({
+      lastFive.length > 0
+        ? lastFive.map((p, i) => ({
             sessionLabel: `S${i + 1}`,
             date: p.date,
             score: p.score,
