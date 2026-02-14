@@ -581,14 +581,16 @@ export default function AudioRecorder({
             {prompt}
           </p>
         ) : null}
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-[120%] -ml-[10%] max-w-none">
-            <StrengthPaceDartboard
+        <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
+          <div className="flex justify-center w-full">
+            <div className="w-[120%] max-w-none relative left-1/2 -translate-x-1/2">
+              <StrengthPaceDartboard
               strengthScore={realtimeStrengthPace.strengthScore}
               paceScore={realtimeStrengthPace.paceScore}
               strengthDirection={realtimeStrengthPace.strengthDirection}
               paceDirection={realtimeStrengthPace.paceDirection}
             />
+            </div>
           </div>
         {realtimeStrengthPace.isActive ? (
           <p className="text-sm text-muted-foreground">
