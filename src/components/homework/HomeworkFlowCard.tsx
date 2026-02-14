@@ -1143,22 +1143,34 @@ export default function HomeworkFlowCard() {
   if (step === 0) {
     return (
       <StepFlowWrapper step={0}>
-        <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Homework</h3>
-          <p className="text-sm text-muted-foreground">
+        <Card className="p-6 sm:p-8">
+          <div className="flex flex-col items-center text-center space-y-5">
+            <div
+              className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary/40 bg-primary/10 text-primary"
+              aria-hidden
+            >
+              <Mic className="h-8 w-8 sm:h-10 sm:w-10" strokeWidth={2} />
+            </div>
+            <h2 className="text-xl font-bold text-foreground sm:text-2xl">Homework</h2>
+            <p className="text-sm text-muted-foreground max-w-md">
             Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
           </p>
           {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
-              <p>{error}</p>
-              <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
-                Try again
-              </Button>
-            </div>
-          )}
-          <Button onClick={handleStart} disabled={loading} className="w-full sm:w-auto">
-            {loading ? "Starting…" : "Start homework"}
-          </Button>
+              <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
+                <p>{error}</p>
+                <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
+                  Try again
+                </Button>
+              </div>
+            )}
+            <Button
+              onClick={handleStart}
+              disabled={loading}
+              className="w-full max-w-md rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
+            >
+              {loading ? "Starting…" : "Start homework"}
+            </Button>
+          </div>
         </Card>
       </StepFlowWrapper>
     );

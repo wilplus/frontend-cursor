@@ -9,7 +9,8 @@ import { useMemo, useRef, useState, useEffect } from "react";
 const VIEWBOX_SIZE = 300;
 const RADIUS = 120;
 const BALL_R = 10;
-const BALL_LERP = 0.12;
+/** Lower = ball drifts more slowly toward target, giving user time to read direction and correct (anticipatory cue). */
+const BALL_LERP = 0.05;
 
 /** Position in [-1, 1] from score and direction (center = on target). */
 function ballPosition(score: number, direction: number): number {
