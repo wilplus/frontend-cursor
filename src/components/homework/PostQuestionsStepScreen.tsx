@@ -72,7 +72,7 @@ export default function PostQuestionsStepScreen({
   const labelClass = "block text-sm font-medium text-foreground";
 
   return (
-    <div className="p-6 sm:p-8 bg-background rounded-xl space-y-6">
+    <div className="p-6 sm:p-8 space-y-6">
       <h3 className="text-lg font-semibold text-foreground">Reflective questions</h3>
       <div className="space-y-8">
         {questions.map((q) => {

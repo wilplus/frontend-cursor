@@ -486,7 +486,7 @@ export default function AudioRecorder({
 
   if (isSupported === null) {
     return (
-      <Card className="p-6">
+      <Card className="p-6 border-0 bg-transparent shadow-none">
         <p className="text-center text-muted-foreground">
           Checking audio support...
         </p>
@@ -497,7 +497,7 @@ export default function AudioRecorder({
   // File upload fallback (Safari iOS or unsupported browsers)
   if (isFileUploadMode) {
     return (
-      <Card className="p-6 space-y-4">
+      <Card className="p-6 space-y-4 border-0 bg-transparent shadow-none">
         <div>
           <h3 className="text-lg font-semibold mb-2">
             Upload Audio Recording
@@ -581,14 +581,16 @@ export default function AudioRecorder({
             {prompt}
           </p>
         ) : null}
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-[120%] -ml-[10%] max-w-none">
-            <StrengthPaceDartboard
+        <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
+          <div className="flex justify-center w-full">
+            <div className="w-[120%] max-w-none relative left-1/2 -translate-x-1/2">
+              <StrengthPaceDartboard
               strengthScore={realtimeStrengthPace.strengthScore}
               paceScore={realtimeStrengthPace.paceScore}
               strengthDirection={realtimeStrengthPace.strengthDirection}
               paceDirection={realtimeStrengthPace.paceDirection}
             />
+            </div>
           </div>
         {realtimeStrengthPace.isActive ? (
           <p className="text-sm text-muted-foreground">

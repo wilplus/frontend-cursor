@@ -130,18 +130,20 @@ function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
 }
 
-/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. Progress bar only on steps 1–4 (hidden on step 0 and step 5). */
+/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. Progress bar only on steps 1–4 (hidden on step 0 and step 5). When syncingBehind, show "Syncing…" below the progress bar. */
 function StepFlowWrapper({
   step,
+  syncingBehind,
   children,
 }: {
   step: Step | 0;
+  syncingBehind?: boolean;
   children: React.ReactNode;
 }) {
   const showProgressBar = step >= 1 && step <= 4;
   const flowStepIndex = step >= 1 ? step - 1 : 0;
   return (
-    <div className="space-y-4 animate-fade-in">
+      <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
       {showProgressBar && (
         <ProgressStepBullets
           total={TOTAL_STEPS}
@@ -150,7 +152,10 @@ function StepFlowWrapper({
           variant="minimal"
         />
       )}
-      {children}
+      {syncingBehind && (
+        <p className="text-center text-sm text-muted-foreground">Syncing…</p>
+      )}
+      <div className="w-full flex flex-col items-center">{children}</div>
     </div>
   );
 }
@@ -180,6 +185,7 @@ export default function HomeworkFlowCard() {
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [syncingBehind, setSyncingBehind] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
   const postAnswersSubmitInProgress = useRef(false);
@@ -188,6 +194,8 @@ export default function HomeworkFlowCard() {
   const postAnswersAutoSubmitDoneRef = useRef(false);
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
+  /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
+  const lastDerivedStepRef = useRef(0);
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {
@@ -198,6 +206,39 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
+
+  /** Sync behind: when GET status is behind the step floor for 10s, show "Syncing…" and retry GET status. */
+  const syncBehindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (step < 1 || step > 4 || !sessionId || sessionId === "mock-session") {
+      setSyncingBehind(false);
+      return;
+    }
+    if (step <= lastDerivedStepRef.current) {
+      if (syncBehindTimeoutRef.current) {
+        clearTimeout(syncBehindTimeoutRef.current);
+        syncBehindTimeoutRef.current = null;
+      }
+      return;
+    }
+    syncBehindTimeoutRef.current = setTimeout(() => {
+      syncBehindTimeoutRef.current = null;
+      setSyncingBehind(true);
+      homeworkApi
+        .getStatus()
+        .then((statusRes) => {
+          if (statusRes) applyStatusToState(statusRes);
+        })
+        .catch(() => {})
+        .finally(() => setSyncingBehind(false));
+    }, 10_000);
+    return () => {
+      if (syncBehindTimeoutRef.current) {
+        clearTimeout(syncBehindTimeoutRef.current);
+        syncBehindTimeoutRef.current = null;
+      }
+    };
+  }, [step, sessionId]);
 
   /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -243,6 +284,7 @@ export default function HomeworkFlowCard() {
       text: toText(q.text),
     }));
     setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+    lastDerivedStepRef.current = derived.step;
     const stepToSet = Math.max(derived.step, uiStepFloorRef.current) as Step | 0;
     setStep(stepToSet);
     setStatusUnknown(derived.statusUnknown);
@@ -278,6 +320,7 @@ export default function HomeworkFlowCard() {
         setNoWarmupConfigured(true);
         setError(null);
         uiStepFloorRef.current = 0;
+        lastDerivedStepRef.current = 0;
         setStep(0);
         setSessionId(null);
         return;
@@ -325,6 +368,7 @@ export default function HomeworkFlowCard() {
         abortRef.current = null;
       }
       uiStepFloorRef.current = 0;
+      lastDerivedStepRef.current = 0;
       postAnswersAutoSubmitDoneRef.current = false;
       metricSubmitInProgress.current = false;
       postAnswersSubmitInProgress.current = false;
@@ -385,6 +429,7 @@ export default function HomeworkFlowCard() {
       abortRef.current = null;
     }
     uiStepFloorRef.current = 0;
+    lastDerivedStepRef.current = 0;
     postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
     postAnswersSubmitInProgress.current = false;
@@ -416,6 +461,7 @@ export default function HomeworkFlowCard() {
       abortRef.current = null;
     }
     uiStepFloorRef.current = 0;
+    lastDerivedStepRef.current = 0;
     postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
     postAnswersSubmitInProgress.current = false;
@@ -502,6 +548,7 @@ export default function HomeworkFlowCard() {
             }
           }
           uiStepFloorRef.current = 0;
+          lastDerivedStepRef.current = 0;
           setSessionId(null);
           setStep(0);
           setWarmUpText("");
@@ -696,6 +743,20 @@ export default function HomeworkFlowCard() {
       uploadRecording1InProgressRef.current = false;
       return;
     }
+    // If session already advanced past warm_up (e.g. another tab or race), sync and skip upload to avoid 409
+    try {
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) {
+        const derived = deriveStepFromStatus(statusRes);
+        if (derived.step >= 2) {
+          applyStatusToState(statusRes);
+          toast.info("Session already advanced. You're on the right step now.");
+          return;
+        }
+      }
+    } catch {
+      /* proceed to upload */
+    }
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
@@ -723,7 +784,7 @@ export default function HomeworkFlowCard() {
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
-          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
         }
         try {
           const statusRes = await homeworkApi.getStatus();
@@ -898,7 +959,7 @@ export default function HomeworkFlowCard() {
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
-          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
         }
         try {
           const statusRes = await homeworkApi.getStatus();
@@ -967,7 +1028,7 @@ export default function HomeworkFlowCard() {
         if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
-          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
         }
         try {
           const statusRes = await homeworkApi.getStatus();
@@ -1067,6 +1128,7 @@ export default function HomeworkFlowCard() {
           abortRef.current = null;
         }
         uiStepFloorRef.current = 0;
+        lastDerivedStepRef.current = 0;
         postAnswersAutoSubmitDoneRef.current = false;
         metricSubmitInProgress.current = false;
         postAnswersSubmitInProgress.current = false;
@@ -1142,20 +1204,23 @@ export default function HomeworkFlowCard() {
   // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
   if (step === 0) {
     return (
-      <StepFlowWrapper step={0}>
-        <Card className="p-6 sm:p-8">
+      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center w-full">
+        <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
+          <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
           <div className="flex flex-col items-center text-center space-y-5">
             <div
-              className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary/40 bg-primary/10 text-primary"
+              className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-full bg-orange-50"
               aria-hidden
             >
-              <Mic className="h-8 w-8 sm:h-10 sm:w-10" strokeWidth={2} />
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-orange-100">
+                <Mic className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500" strokeWidth={2} />
+              </div>
             </div>
             <h2 className="text-xl font-bold text-foreground sm:text-2xl">Homework</h2>
             <p className="text-sm text-muted-foreground max-w-md">
             Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
-          </p>
-          {error && (
+            </p>
+            {error && (
               <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
                 <p>{error}</p>
                 <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
@@ -1172,7 +1237,8 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         </Card>
-      </StepFlowWrapper>
+        </StepFlowWrapper>
+      </div>
     );
   }
 
@@ -1181,8 +1247,8 @@ export default function HomeworkFlowCard() {
     const isUploadingRec1 = uploadingRecording === 1;
     if (isUploadingRec1) {
       return (
-        <StepFlowWrapper step={1}>
-          <Card className="p-6">
+        <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
               <h3 className="text-lg font-semibold">Sending first recording</h3>
@@ -1197,7 +1263,7 @@ export default function HomeworkFlowCard() {
     const showWarmUpUnavailableBlock = warmUpEmpty && !statusUnknown;
 
     return (
-      <StepFlowWrapper step={1}>
+      <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
         {sessionId === "mock-session" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
@@ -1243,7 +1309,7 @@ export default function HomeworkFlowCard() {
           />
         )}
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-[3.5px] flex justify-center">
+          <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1262,7 +1328,7 @@ export default function HomeworkFlowCard() {
   // Step 2: 3 metric questions only (context_short is used by backend for the task, not shown here)
   if (step === 2) {
     return (
-      <StepFlowWrapper step={step}>
+      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
         <AnswerMetricQuestionsScreen
           sessionId={sessionId!}
           taskBlock={taskBlock}
@@ -1271,7 +1337,7 @@ export default function HomeworkFlowCard() {
           error={error}
         />
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-[3.5px] flex justify-center">
+          <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1292,8 +1358,8 @@ export default function HomeworkFlowCard() {
     const isUploadingRec2 = uploadingRecording === 2;
     if (isUploadingRec2) {
       return (
-        <StepFlowWrapper step={step}>
-          <Card className="p-6">
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
               <h3 className="text-lg font-semibold">Sending second recording</h3>
@@ -1304,7 +1370,7 @@ export default function HomeworkFlowCard() {
       );
     }
     return (
-      <StepFlowWrapper step={step}>
+      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
         <AudioRecorder
           prompt={finalTaskText || "—"}
           onRecordingComplete={handleRecording2Complete}
@@ -1312,7 +1378,7 @@ export default function HomeworkFlowCard() {
           uploading={isUploadingRec2}
           minDurationSeconds={RECORDING_2_DURATION_MIN}
         />
-        <div className="mt-[3.5px] flex justify-center">
+        <div className="mt-[1px] flex justify-center">
           <Button
             variant="ghost"
             size="sm"
@@ -1333,7 +1399,7 @@ export default function HomeworkFlowCard() {
     debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" });
     // #endregion
     return (
-      <StepFlowWrapper step={step}>
+      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
         <PostQuestionsStepScreen
           questions={questions}
           onSubmit={handlePostAnswersSubmit}
