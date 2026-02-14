@@ -116,3 +116,13 @@ body.no-scroll {
   min-height: 100dvh;
   overflow-y: auto;
 }
+
+/* Strength/pace wheel: on narrow viewports scale the 533px row to fit so it’s visibly big on mobile */
+.dartboard-row-scale-fit {
+  transform-origin: center top;
+}
+@media (max-width: 560px) {
+  .dartboard-row-scale-fit {
+    transform: scale(min(1, (100vw - 5rem) / 33.3125rem));
+  }
+}
