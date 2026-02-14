@@ -1227,7 +1227,7 @@ export default function HomeworkFlowCard() {
   // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
   if (step === 0) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center w-full">
+      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-16 w-full">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
           <div className="flex flex-col items-center text-center space-y-5">
