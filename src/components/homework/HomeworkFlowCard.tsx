@@ -264,8 +264,10 @@ export default function HomeworkFlowCard() {
       setError(null);
       setStatusUnknown(false);
       const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
-      else {
+      const sessionIdFromStatus = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
+      if (statusRes && sessionIdFromStatus === startRes.session_id) {
+        applyStatusToState(statusRes);
+      } else {
         setSessionId(startRes.session_id);
         setStep(1);
         setWarmUpText(resolveWarmUpText(warmUpTextFromStart));
@@ -1183,17 +1185,31 @@ export default function HomeworkFlowCard() {
         )}
         {showStatusUnknownBlock && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
-            <p>{error ?? "Session status could not be determined. Please refresh."}</p>
-            <Button variant="outline" size="sm" onClick={refreshStatus} disabled={loading}>
-              Refresh
+            <p>Session could not be restored. Start over to begin a new session.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                startOverFromScratch();
+                toast.info("Click Start homework to begin a new session.");
+              }}
+            >
+              Start over
             </Button>
           </div>
         )}
         {showWarmUpUnavailableBlock && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
-            <p>Warm-up prompt unavailable. Please refresh.</p>
-            <Button variant="outline" size="sm" onClick={refreshStatus} disabled={loading}>
-              Refresh
+            <p>Warm-up prompt unavailable. Start over to begin a new session.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                startOverFromScratch();
+                toast.info("Click Start homework to begin a new session.");
+              }}
+            >
+              Start over
             </Button>
           </div>
         )}

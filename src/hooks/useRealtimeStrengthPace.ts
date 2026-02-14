@@ -8,7 +8,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { bandScore } from "@/lib/audio/band-score";
 
-const UPDATE_MS = 100;
+const UPDATE_MS = 150;
+/** Good band is [TARGET_DB - TOLERANCE_DB, TARGET_DB + TOLERANCE_DB], centered at TARGET_DB. */
 const TARGET_DB = -22;
 const TOLERANCE_DB = 6;
 const TARGET_WPM = 140;
@@ -17,7 +18,7 @@ const TOLERANCE_WPM = 48;
 /** Voiced = speech; RMS > 0.015 (≈ -36 dB) to avoid treating noise as speech. */
 const VOICED_RMS_THRESHOLD = 0.015;
 const WINDOW_SAMPLES = 30; // 3 s at 100 ms
-const EMA_ALPHA = 0.2;
+const EMA_ALPHA = 0.12;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 
@@ -141,7 +142,10 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         const wpm = Math.max(WPM_MIN, Math.min(WPM_MAX, 60 + voicedRatio * 160));
         setWpmEstimate(wpm);
 
-        const rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
+        let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
+        if (db < TARGET_DB) {
+          rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
+        }
         const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
         const smoothStr = EMA_ALPHA * rawStrengthScore + (1 - EMA_ALPHA) * smoothedStrengthRef.current;
         const smoothPace = EMA_ALPHA * rawPaceScore + (1 - EMA_ALPHA) * smoothedPaceRef.current;
