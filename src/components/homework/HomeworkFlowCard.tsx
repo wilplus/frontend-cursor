@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -146,7 +145,6 @@ function StepFlowWrapper({
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
-  const { setRecordingActive, setShowNavbar } = useRecordingContext();
   const [step, setStep] = useState<Step | 0>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [warmUpText, setWarmUpText] = useState("");
@@ -176,16 +174,6 @@ export default function HomeworkFlowCard() {
   const postAnswersAutoSubmitDoneRef = useRef(false);
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
-
-  /** Clear recording-context when not on a recording step (so body scroll lock is released when leaving step 1/3). */
-  useEffect(() => {
-    if (step !== 1 && step !== 3) setRecordingActive(false);
-  }, [step, setRecordingActive]);
-
-  /** Show navbar only on step 5 (end report); hide for steps 0–4. */
-  useEffect(() => {
-    setShowNavbar(step === 5);
-  }, [step, setShowNavbar]);
 
   /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -737,6 +725,74 @@ export default function HomeworkFlowCard() {
       if (typeof window !== "undefined") {
         console.warn("[HomeworkFlow] metric submit catch", e instanceof Error ? e.message : String(e));
       }
+      const errCode = (e as HomeworkApiError).code;
+      const errMessage = e instanceof Error ? e.message : "Failed to submit";
+
+      if (errCode === "RECORDING_1_FAILED") {
+        setError(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
+        toast.error(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
+        return;
+      }
+
+      if (errCode === "RECORDING_1_PROCESSING") {
+        toast.info("Still analyzing your recording. Please wait a moment.");
+        const maxWaitMs = 60000;
+        const pollIntervalMs = 2500;
+        const start = Date.now();
+        while (Date.now() - start < maxWaitMs && sessionId) {
+          await new Promise((r) => setTimeout(r, pollIntervalMs));
+          try {
+            const statusRes = await homeworkApi.getStatus();
+            const session = (statusRes as { session?: { performance_score_1?: number; context_short?: string; recording_1_processing_status?: string } })?.session;
+            const ready = session?.performance_score_1 != null && (session?.context_short || session?.recording_1_processing_status === "completed");
+            if (ready) {
+              const retryResponse = await homeworkApi.submitMetricAnswers(sessionId, {
+                metric_answer_1: a1,
+                metric_answer_2: a2,
+                metric_answer_3: a3,
+              });
+              uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
+              const statusRes2 = await homeworkApi.getStatus();
+              const finalTextFromResponse =
+                typeof retryResponse?.final_task === "string"
+                  ? retryResponse.final_task
+                  : typeof retryResponse?.final_task_text === "string"
+                    ? retryResponse.final_task_text
+                    : retryResponse?.final_task && typeof (retryResponse.final_task as { text?: string }).text === "string"
+                      ? (retryResponse.final_task as { text: string }).text
+                      : "";
+              if (statusRes2) {
+                applyStatusToState(statusRes2);
+                const finalFromSession =
+                  statusRes2?.session && typeof (statusRes2.session as { final_task_text?: string }).final_task_text === "string"
+                    ? (statusRes2.session as { final_task_text: string }).final_task_text
+                    : "";
+                const finalText = (finalTextFromResponse.trim() || finalFromSession.trim()) || "";
+                if (finalText) setFinalTaskText(finalText);
+              } else {
+                setStep(3);
+                if (finalTextFromResponse.trim()) setFinalTaskText(finalTextFromResponse.trim());
+                setStatusUnknown(false);
+                setError(null);
+              }
+              toast.success("Answers saved. Continue to the final recording.");
+              return;
+            }
+          } catch (retryErr) {
+            if ((retryErr as HomeworkApiError).code === "RECORDING_1_PROCESSING") continue;
+            if ((retryErr as HomeworkApiError).code === "RECORDING_1_FAILED") {
+              setError((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
+              toast.error((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
+              return;
+            }
+            throw retryErr;
+          }
+        }
+        setError("Analysis is taking longer than usual. Please try again in a moment.");
+        toast.error("Analysis is taking longer than usual. Please try again in a moment.");
+        return;
+      }
+
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
@@ -758,13 +814,12 @@ export default function HomeworkFlowCard() {
             toast.error("Session state changed. Please refresh.");
           }
         } catch {
-          setError(e instanceof Error ? e.message : "Failed to submit");
-          toast.error(e instanceof Error ? e.message : "Failed to submit");
+          setError(errMessage);
+          toast.error(errMessage);
         }
       } else {
-        const isValidationError =
-          e instanceof Error && "code" in e && (e as HomeworkApiError).code === "VALIDATION_ERROR";
-        const rawMsg = isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : (e instanceof Error ? e.message : "Failed to submit");
+        const isValidationError = errCode === "VALIDATION_ERROR";
+        const rawMsg = isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : errMessage;
         const displayMsg = (typeof rawMsg === "string" && rawMsg.trim()) ? rawMsg : "Failed to save answers. Please try again or refresh.";
         setError(displayMsg);
         toast.error(displayMsg);
@@ -1008,9 +1063,9 @@ export default function HomeworkFlowCard() {
           </div>
         )}
         {!showStatusUnknownBlock && !showWarmUpUnavailableBlock && (
-          <div className="min-w-0 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
             <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
-            <p className="break-words text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+            <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
               {warmUpText.trim() || "—"}
             </p>
           </div>
@@ -1018,7 +1073,6 @@ export default function HomeworkFlowCard() {
         <div className="flex flex-col gap-3">
           <AudioRecorder
             onRecordingComplete={handleRecording1Complete}
-            onRecordingChange={setRecordingActive}
             stopAndSend
             uploading={isUploadingRec1}
           />
@@ -1074,15 +1128,14 @@ export default function HomeworkFlowCard() {
     return (
       <StepFlowWrapper step={step}>
         {/* Final task: only API value (response.final_task or final_task_text); no hardcoded fallback */}
-        <div className="min-w-0 rounded-xl border border-primary/30 bg-primary/5 p-4">
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
-          <p className="break-words text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+          <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
             {finalTaskText || "—"}
           </p>
         </div>
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
-          onRecordingChange={setRecordingActive}
           stopAndSend
           uploading={isUploadingRec2}
           minDurationSeconds={RECORDING_2_DURATION_MIN}
@@ -1148,8 +1201,8 @@ export default function HomeworkFlowCard() {
               <ReportSessionChart scores={displayScores} />
             )}
             {/* 3. Report text */}
-            <div className="min-w-0 rounded-xl border border-border bg-muted/30 p-4">
-              <p className="break-words whitespace-pre-wrap text-sm text-foreground leading-relaxed">
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
                 {displayReportText.trim() || "Report pending."}
               </p>
             </div>
