@@ -2,13 +2,14 @@
 
 /**
  * Real-time Strength (volume) + Pace feedback only.
- * Uses mic → AnalyserNode; 100ms loop → RMS/dB, voiced ratio → WPM, band scores + EMA.
+ * Uses mic → AnalyserNode; 100 ms loop → RMS/dB, voiced ratio → WPM, band scores + dual EMA (fast/slow trend).
+ * Strength: trend-biased blend + asymmetric damping when returning to center. Pace: lighter trend, more fast weight.
  * Final score is computed after upload; this hook is for live UI only.
  */
 import { useState, useCallback, useRef, useEffect } from "react";
 import { bandScore } from "@/lib/audio/band-score";
 
-const UPDATE_MS = 150;
+const UPDATE_MS = 100;
 /** Good band is [TARGET_DB - TOLERANCE_DB, TARGET_DB + TOLERANCE_DB], centered at TARGET_DB. */
 const TARGET_DB = -22;
 const TOLERANCE_DB = 6;
@@ -17,10 +18,20 @@ const TARGET_WPM = 140;
 const TOLERANCE_WPM = 48;
 /** Voiced = speech; RMS > 0.015 (≈ -36 dB) to avoid treating noise as speech. */
 const VOICED_RMS_THRESHOLD = 0.015;
-const WINDOW_SAMPLES = 30; // 3 s at 100 ms
-const EMA_ALPHA = 0.12;
+const WINDOW_SAMPLES = 30; // ~3 s at 100 ms
 const WPM_MIN = 60;
 const WPM_MAX = 220;
+
+/** Dual EMA for strength: fast reaction (~200–300 ms), slow trend (~800 ms). */
+const ALPHA_FAST_STR = 0.28;
+const ALPHA_SLOW_STR = 0.08;
+const BLEND_SLOW_STR = 0.7;
+const BLEND_SLOW_STR_RETURN = 0.85; // when reversing to center, damp so ball eases back
+
+/** Dual EMA for pace: lighter trend, more weight on fast so it stays responsive. */
+const ALPHA_FAST_PACE = 0.3;
+const ALPHA_SLOW_PACE = 0.1;
+const BLEND_SLOW_PACE = 0.6;
 
 function rmsToDb(rms: number): number {
   return 20 * Math.log10(rms + 1e-8);
@@ -53,8 +64,10 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const smoothedStrengthRef = useRef(0.5);
-  const smoothedPaceRef = useRef(0.5);
+  const fastStrengthRef = useRef(0.5);
+  const slowStrengthRef = useRef(0.5);
+  const fastPaceRef = useRef(0.5);
+  const slowPaceRef = useRef(0.5);
   const voicedWindowRef = useRef<number[]>([]);
 
   const stop = useCallback(() => {
@@ -107,8 +120,10 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     const bufferLength = analyser.fftSize;
     const dataArray = new Float32Array(bufferLength);
     voicedWindowRef.current = [];
-    smoothedStrengthRef.current = 0.5;
-    smoothedPaceRef.current = 0.5;
+    fastStrengthRef.current = 0.5;
+    slowStrengthRef.current = 0.5;
+    fastPaceRef.current = 0.5;
+    slowPaceRef.current = 0.5;
 
     // Browsers start AudioContext suspended; resume and start interval. Only read analyser when
     // context is running (Chrome may keep it suspended until user gesture), and try resume() each tick so we pick up after a click.
@@ -147,12 +162,25 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
           rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
         }
         const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
-        const smoothStr = EMA_ALPHA * rawStrengthScore + (1 - EMA_ALPHA) * smoothedStrengthRef.current;
-        const smoothPace = EMA_ALPHA * rawPaceScore + (1 - EMA_ALPHA) * smoothedPaceRef.current;
-        smoothedStrengthRef.current = smoothStr;
-        smoothedPaceRef.current = smoothPace;
-        setStrengthScore(smoothStr);
-        setPaceScore(smoothPace);
+
+        const fastStr = ALPHA_FAST_STR * rawStrengthScore + (1 - ALPHA_FAST_STR) * fastStrengthRef.current;
+        const slowStr = ALPHA_SLOW_STR * rawStrengthScore + (1 - ALPHA_SLOW_STR) * slowStrengthRef.current;
+        const wasStrengthBad = slowStrengthRef.current < 0.85;
+        fastStrengthRef.current = fastStr;
+        slowStrengthRef.current = slowStr;
+        const returningToCenter = rawStrengthScore >= 0.85 && wasStrengthBad;
+        const effectiveStrengthScore = returningToCenter
+          ? BLEND_SLOW_STR_RETURN * slowStr + (1 - BLEND_SLOW_STR_RETURN) * fastStr
+          : BLEND_SLOW_STR * slowStr + (1 - BLEND_SLOW_STR) * fastStr;
+
+        const fastPace = ALPHA_FAST_PACE * rawPaceScore + (1 - ALPHA_FAST_PACE) * fastPaceRef.current;
+        const slowPace = ALPHA_SLOW_PACE * rawPaceScore + (1 - ALPHA_SLOW_PACE) * slowPaceRef.current;
+        fastPaceRef.current = fastPace;
+        slowPaceRef.current = slowPace;
+        const effectivePaceScore = BLEND_SLOW_PACE * slowPace + (1 - BLEND_SLOW_PACE) * fastPace;
+
+        setStrengthScore(effectiveStrengthScore);
+        setPaceScore(effectivePaceScore);
         setStrengthDirection(db < TARGET_DB ? -1 : 1);
         setPaceDirection(wpm < TARGET_WPM ? -1 : 1);
       }, UPDATE_MS);
