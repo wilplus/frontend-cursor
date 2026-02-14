@@ -13,6 +13,9 @@ const RADIUS = 120;
 const BALL_R = 12;
 /** Lerp factor per frame: lower = slower, calmer glide (sense of heading in the right direction). */
 const BALL_LERP = 0.06;
+/** Wheel display size (35% bigger than 300). All four labels use this font size in px so they match. */
+const WHEEL_SIZE_PX = 405;
+const LABEL_FONT_SIZE_PX = 16;
 export interface StrengthPaceDartboardProps {
   /** Smoothed 0..1 (1 = on target). */
   strengthScore: number;
@@ -107,31 +110,33 @@ export function StrengthPaceDartboard({
   const labelClass = "shrink-0 text-center text-foreground font-medium opacity-70";
 
   return (
-    <div className="flex flex-col items-center gap-1" role="img" aria-label="Strength and pace wheel: center is on target">
+    <div className="flex flex-col items-center gap-1 w-full" role="img" aria-label="Strength and pace wheel: center is on target">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      {/* All labels same font size (text-base); wheel 35% bigger (405px); container widened to fit */}
-      <div className="relative flex w-full max-w-[min(560px,calc(100vw-2rem))] items-center justify-center gap-0 text-base">
-        <span className={`w-16 ${labelClass}`} aria-hidden>Quiet</span>
-        <svg
-          viewBox={`0 0 ${size} ${size}`}
-          className="aspect-square w-full max-w-[405px] text-foreground"
-          aria-hidden
-        >
-          <defs>
-            <linearGradient id="dartboard-center" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="hsl(var(--primary) / 0.2)" />
-              <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
-            </linearGradient>
-          </defs>
-          {/* Rings: outer = bad, center = good */}
-          <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.3} />
-          <circle cx={center} cy={center} r={radius * 0.66} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.4} />
-          <circle cx={center} cy={center} r={radius * 0.33} fill="url(#dartboard-center)" stroke="currentColor" strokeWidth={1} opacity={0.6} />
-          {/* Axis labels: 1em = same size as Quiet/Loud */}
-          <text x={center} y={center + radius + 22} textAnchor="middle" fontSize="1em" fill="currentColor" fontWeight={500} opacity={0.7}>Slow</text>
-          <text x={center} y={center - radius - 14} textAnchor="middle" fontSize="1em" fill="currentColor" fontWeight={500} opacity={0.7}>Fast</text>
+      {/* Wheel 405px + labels; on mobile scale row to fit so wheel is visibly big (see .dartboard-row-scale-fit in globals.css) */}
+      <div className="relative flex w-full justify-center">
+        <div className="dartboard-row-scale-fit flex shrink-0 items-center justify-center gap-0" style={{ width: WHEEL_SIZE_PX + 128 }}>
+          <span className={`w-16 ${labelClass}`} style={{ fontSize: LABEL_FONT_SIZE_PX }} aria-hidden>Quiet</span>
+          <svg
+            viewBox={`0 0 ${size} ${size}`}
+            className="shrink-0 aspect-square text-foreground"
+            style={{ width: WHEEL_SIZE_PX, height: WHEEL_SIZE_PX }}
+            aria-hidden
+          >
+            <defs>
+              <linearGradient id="dartboard-center" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="hsl(var(--primary) / 0.2)" />
+                <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
+              </linearGradient>
+            </defs>
+            {/* Rings: outer = bad, center = good */}
+            <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.3} />
+            <circle cx={center} cy={center} r={radius * 0.66} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.4} />
+            <circle cx={center} cy={center} r={radius * 0.33} fill="url(#dartboard-center)" stroke="currentColor" strokeWidth={1} opacity={0.6} />
+            {/* Axis labels: explicit px so they match Quiet/Loud exactly */}
+            <text x={center} y={center + radius + 22} textAnchor="middle" fontSize={LABEL_FONT_SIZE_PX} fill="currentColor" fontWeight={500} opacity={0.7}>Slow</text>
+            <text x={center} y={center - radius - 14} textAnchor="middle" fontSize={LABEL_FONT_SIZE_PX} fill="currentColor" fontWeight={500} opacity={0.7}>Fast</text>
           {/* Ball: color by distance (center = primary, edge = destructive) */}
           <circle
             cx={cx}
@@ -143,7 +148,8 @@ export function StrengthPaceDartboard({
             className="transition-none"
           />
         </svg>
-        <span className={`w-16 ${labelClass}`} aria-hidden>Loud</span>
+          <span className={`w-16 ${labelClass}`} style={{ fontSize: LABEL_FONT_SIZE_PX }} aria-hidden>Loud</span>
+        </div>
       </div>
     </div>
   );
