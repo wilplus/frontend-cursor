@@ -98,3 +98,13 @@ Canonical five: warm_up→1, task_block→2, final_task_ready→3, post_question
 | Step 5 report UI | Two buttons (Back to dashboard, Start new homework); progress bar on all steps (top). | Single button "Start new homework" only; progress bar at top for all steps (1–5). "Start new homework" resets to step 0 without logout. |
 | Mic permission | getUserMedia on click only. | Request started on **pointer down** (same user gesture); clearer NotAllowedError copy (address bar → allow mic). |
 | Auth / shared links | Possible token in URL; /admin allowed without session check. | Auth params stripped from URL; session required for /admin; (protected) layout validates session; cookies Secure/SameSite/HttpOnly; shared link in another device → login. |
+
+## 8. Recent changes (last ~10h)
+
+- **Navbar visibility:** Navbar (header with Willab + hamburger menu) is shown **only on step 0** (start) and **step 5** (report). Hidden on steps 1–4. Step 5 report screen: **no progress bar** at top (navbar only); progress bar shown on steps 0–4 only.
+- **Abandon session:** Full local reset after POST abandon (no refetch). Clears sessionStorage, refs, and all homework state; sets step to 0. **404 from abandon** (session not found / already cleaned up): API client treats as success; frontend shows toast “Session was already cleared. You can start a new session.” and still goes to step 0.
+- **Refresh when no active session:** In **refreshStatus**, when GET status returns **no active session** (`has_active_session === false`, no `session_id`, or null/404): full reset (same as abandon), set step to 0, toast “Session was cleared. You can start a new one.” No “Session status could not be determined” in that case.
+- **Default warm-up:** When backend returns **no or empty** warm-up task, frontend shows **“How was your day so far?”** (set on POST start and in applyStatusToState; display fallback). Backend summary: `backend-summary-default-warmup.md` in project root.
+- **Abandon on step 2:** “Abandon session” button added on step 2 (post recording-1 metric questions), same as steps 1 and 3.
+- **Recording 1 → step 2:** Step 2 and `task_block` set **from POST recording-1 response** immediately; GET status then called to sync; `task_block` from POST is re-applied after applyStatusToState so GET cannot overwrite with stale null. 404 from homework API: use backend message when present, else generic “Homework flow is not available yet.”
+- **Metric wheel (StrengthPaceDartboard):** Labels “Too fast” / “Too slow” → **“Fast”** / **“Slow”**. On mobile: unified label font size (text-base); wheel **380px** max; timer **text-2xl** (smaller) so it matches label size. Desktop unchanged (300px wheel, text-4xl timer).

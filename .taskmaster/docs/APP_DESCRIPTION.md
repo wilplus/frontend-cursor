@@ -24,7 +24,7 @@ One **active** session per student. **GET session/status** is the single source 
 | 2    | Metric answers | Answers 3 questions (Q1 keywords, Q2 emotion, Q3 CTA) | `task_block`       | GET status, GET task-block (optional), POST metric-answers |
 | 3    | Final task     | Records final task (1–5 min); wheel (strength/pace)  | `final_task_ready` | GET status, recording-upload-url (rec "2"), upload, POST recording-2 |
 | 4    | Post-questions | Answers reflective Qs (must answer all if any exist) | `post_questions`   | GET status, GET questions, POST post-answers |
-| 5    | Report         | Views report and score      | `completed`        | **Entered only after POST post-answers succeeds.** Use the **post-answers response body** (report_text, performance_score_end) to render step 5. **Do not** call GET status to show the report: GET status does **not** return completed sessions. **Step 5 UI:** One button only — "Start new homework". Progress bar at **top** for all steps (1–5). "Start new homework" resets session to step 0 (same Homework card as after login) without logging out. See FRONTEND-FLOW-AND-CHANGES.md. |
+| 5    | Report         | Views report and score      | `completed`        | **Entered only after POST post-answers succeeds.** Use the **post-answers response body** (report_text, performance_score_end) to render step 5. **Do not** call GET status to show the report: GET status does **not** return completed sessions. **Step 5 UI:** One button only — "Start new homework". **Navbar** visible on step 0 and step 5 only; **progress bar** on steps 0–4 only (none on step 5). "Start new homework" resets session to step 0 without logging out. See FRONTEND-FLOW-AND-CHANGES.md. |
 
 - **After step-advancing actions (recording-1, metric-answers, recording-2):** Frontend sets a **UI step floor** (min step the UI may show), then calls **GET session/status** and applies the response. The displayed step is **max(stepFromStatus, uiStepFloor)** so the UI never goes backward when status is stale. See FRONTEND-FLOW-AND-CHANGES.md §4.
 - **After POST post-answers:** Do **not** refetch GET status to show the report. Use the **post-answers response** to set step to 5 and to set report text and score; GET status does not return completed sessions.
@@ -50,7 +50,7 @@ One **active** session per student. **GET session/status** is the single source 
 - **Session id:** `sessionId = response.session_id ?? response.session?.id ?? null`. No session-scoped calls without a valid sessionId.
 - **Status → step:** Read status from `response.status ?? response.session?.status ?? response.session?.state ?? response.session_state ?? ""`, then map the **five canonical** values: `warm_up`→1, `task_block`→2, `final_task_ready`→3, `post_questions`→4, `completed`→5. The frontend also maps **aliases** (e.g. after recording 1 the backend may return `warmup_recorded`, `warmup_scored`, `focus_selected`, `task_generated` → step 2; see **FRONTEND-FLOW-AND-CHANGES.md** for the full alias table). No field-based step inference. When status is missing or unknown **and** has_active_session is true, show a user-facing error (“Session status could not be determined. Please refresh.”) and a **Refresh** action that calls GET status again and applies; do not default to step 1 silently.
 - **Completed not active:** When status is `completed`, do not treat as an active session: on load, clear state and call POST start so the user starts a new session.
-- **Warm-up text (strict):** `warmUpText = response.warm_up_task?.text ?? response.session?.warm_up_task_text ?? ""`. There is **no default warm-up text**. `warm_up_task` in status may be null. If step is 1 and warmUpText is empty, show a blocking message (“Warm-up prompt unavailable. Please refresh.”) and a **Refresh** button; do not show placeholder or fallback text.
+- **Warm-up text:** `warmUpText = response.warm_up_task?.text ?? response.session?.warm_up_task_text ?? ""`. When this is **empty or null**, the frontend uses the **default warm-up question**: “How was your day so far?” (see `backend-summary-default-warmup.md`). Backend can omit warm-up; frontend never blocks step 1 for missing warm-up.
 - **Task block (step 2):** Prefer snapshot from `session.session_metric_question_1`, `session_metric_question_2`, `session_metric_question_3`. Call GET task-block **only as fallback** when those are missing (e.g. after refresh). Do not rely on task-block if snapshots exist.
 - **Final task text:** `finalTaskText = response.session?.final_task_text ?? response.final_task_text ?? ""`. Do not rely on `final_task` object only.
 - **Report text:** `reportText = response.report_text ?? response.session?.context_long ?? ""`. If still empty on step 5, show “Report pending.”
@@ -79,7 +79,7 @@ One **active** session per student. **GET session/status** is the single source 
 2. **On every successful GET status** → Run applyStatusToState; step is set to **max(derivedStep, uiStepFloor)** so we never go backward after a successful mutation; all other step-derived state from the response.
 3. **Session id** → Set from `response.session_id ?? response.session?.id`; clear when no session.
 4. **Step** → Derive only from the five statuses (warm_up→1 … completed→5); no legacy statuses or field-based inference. When status is missing or unknown but session is active, show error + Refresh (do not default step silently).
-5. **Warm-up, task block, final task, report, score** → Use the field mapping in §4. No default warm-up text; empty warm-up at step 1 → blocking message + Refresh.
+5. **Warm-up, task block, final task, report, score** → Use the field mapping in §4. Empty warm-up → frontend shows default “How was your day so far?” (no blocking message).
 6. **After POST start** → Call GET status and apply; do not rely on start response for session state.
 7. **Step 4** → When step is 4 and questions empty, call GET questions.
 8. **Step 5** → Enter step 5 only after POST post-answers succeeds; set report text and score from the **response body**. Do not refetch GET status for the report. If report text empty after mapping, show “Report pending.”
@@ -91,7 +91,7 @@ One **active** session per student. **GET session/status** is the single source 
 
 | Area | Path / role |
 |------|-------------|
-| **HomeworkFlowCard** | `src/components/homework/HomeworkFlowCard.tsx` — GET status / POST start, applyStatusToState, deriveStepFromStatus (five statuses only), refreshStatus for unknown/empty, refetch after mutations. Step 5: single "Start new homework" button; progress bar only on step 5, below report, above button. No default warm-up text. |
+| **HomeworkFlowCard** | `src/components/homework/HomeworkFlowCard.tsx` — GET status / POST start, applyStatusToState, deriveStepFromStatus (five statuses only), refreshStatus (when no active session → full reset to step 0). Step 5: single "Start new homework" button; **no progress bar** on step 5 (navbar only at top). Default warm-up “How was your day so far?” when backend sends none. Abandon 404 → success, step 0. |
 | **AnswerMetricQuestionsScreen** | `src/components/homework/AnswerMetricQuestionsScreen.tsx` — Step 2: task block + metric inputs + submit. |
 | **AudioRecorder** | `src/components/recording/AudioRecorder.tsx` — Steps 1 & 3: record → blob, upload; StrengthPaceDartboard (wheel only). Mic requested on pointer down (same user gesture); clearer NotAllowedError copy. |
 | **StrengthPaceDartboard** | `src/components/recording/StrengthPaceDartboard.tsx` — Wheel: strength + pace (useRealtimeStrengthPace). |
@@ -118,7 +118,8 @@ One **active** session per student. **GET session/status** is the single source 
 - **Stale step** — Step is clamped: displayed step = max(stepFromStatus, uiStepFloor); floor is set on mutation success and reset when there is no session or user starts over / goes to dashboard.
 - **No session id / has_active_session: false** — Clear state and POST start before step 1.
 - **Status is completed on load** — Do not treat as active; clear state and call POST start so the user begins a new session.
-- **Empty warm-up / task block / final task / report** — Use mapping in §4; no default warm-up string (empty warm-up at step 1 → “Warm-up prompt unavailable. Please refresh.” + Refresh). Step 5 fallback “Report pending.”
+- **Empty warm-up / task block / final task / report** — Use mapping in §4. Empty warm-up → frontend default “How was your day so far?” Step 5 fallback “Report pending.”
+- **Session not found / cleaned up** — **Abandon 404:** API client treats as success; frontend clears state and goes to step 0, toast “Session was already cleared.” **Refresh when no active session:** GET status returns `has_active_session: false` or null → full reset to step 0, toast “Session was cleared. You can start a new one.”
 - **Status missing or unknown** — Show “Session status could not be determined. Please refresh.” and Refresh (calls GET status and apply); do not default to step 1 silently.
 - **Step 4 questions missing** — Call GET questions when step is 4 and questions empty.
 - **Recording upload fails** — Check bucket/path, Supabase RLS/CORS; use JSON for POST recording-1/2.
