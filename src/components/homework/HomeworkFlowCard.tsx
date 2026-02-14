@@ -339,7 +339,7 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  /** Abandon current session via API, clear state, refetch status. On 200 or 409: clear and show Start. */
+  /** Abandon current session via API (backend deletes/invalidates it), then full local reset to step 0. No refetch — guarantees a clean restart. */
   const handleAbandon = async () => {
     if (!sessionId || sessionId === "mock-session") {
       handleStartOver();
@@ -357,7 +357,21 @@ export default function HomeworkFlowCard() {
       setLoading(false);
       return;
     }
+    // Full restart: clear storage and all state; do not refetch status (avoids re-applying any session).
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("homeworkReport");
+      sessionStorage.removeItem("homeworkJustFinishedRecording2");
+    }
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
     uiStepFloorRef.current = 0;
+    postAnswersAutoSubmitDoneRef.current = false;
+    metricSubmitInProgress.current = false;
+    postAnswersSubmitInProgress.current = false;
+    uploadRecording1InProgressRef.current = false;
+    uploadRecording2InProgressRef.current = false;
     setSessionId(null);
     setStep(0);
     setWarmUpText("");
@@ -373,21 +387,8 @@ export default function HomeworkFlowCard() {
     setReportError(null);
     setNoWarmupConfigured(false);
     setStatusUnknown(false);
-    postAnswersAutoSubmitDoneRef.current = false;
-    try {
-      const statusRes = await homeworkApi.getStatus();
-      if (statusRes?.has_active_session !== false && statusRes?.session_id) {
-        applyStatusToState(statusRes);
-      } else {
-        setStep(0);
-        setSessionId(null);
-      }
-    } catch {
-      setStep(0);
-      setSessionId(null);
-    } finally {
-      setLoading(false);
-    }
+    setUploadingRecording(null);
+    setLoading(false);
   };
 
   // On auth ready: try to resume from session status; otherwise start a new session (once per page load)
@@ -1117,6 +1118,19 @@ export default function HomeworkFlowCard() {
           loading={loading}
           error={error}
         />
+        {sessionId && sessionId !== "mock-session" && (
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        )}
       </StepFlowWrapper>
     );
   }
