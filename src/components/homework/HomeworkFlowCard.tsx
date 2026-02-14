@@ -21,6 +21,7 @@ import AudioRecorder from "@/components/recording/AudioRecorder";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
+import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 
 const TOTAL_STEPS = 5;
 
@@ -145,6 +146,7 @@ function StepFlowWrapper({
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
+  const { setRecordingActive, setShowNavbar } = useRecordingContext();
   const [step, setStep] = useState<Step | 0>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [warmUpText, setWarmUpText] = useState("");
@@ -174,6 +176,16 @@ export default function HomeworkFlowCard() {
   const postAnswersAutoSubmitDoneRef = useRef(false);
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
+
+  /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
+  useEffect(() => {
+    setShowNavbar(step === 0 || step === 5);
+  }, [step, setShowNavbar]);
+
+  /** Clear recording context when not on a recording step (body scroll lock released when leaving step 1/3). */
+  useEffect(() => {
+    if (step !== 1 && step !== 3) setRecordingActive(false);
+  }, [step, setRecordingActive]);
 
   /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -1172,12 +1184,12 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 5: Report — one container: (1) final recording player, (2) score chart, (3) report text
+  // Step 5: Report — no progress bar; navbar is shown. (1) final recording player, (2) score chart, (3) report text
   if (step === 5) {
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
     return (
-      <StepFlowWrapper step={step}>
+      <div className="space-y-4 animate-fade-in">
         <Card className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">Your report</h3>
           {reportLoading && (
@@ -1213,7 +1225,7 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         </Card>
-      </StepFlowWrapper>
+      </div>
     );
   }
 

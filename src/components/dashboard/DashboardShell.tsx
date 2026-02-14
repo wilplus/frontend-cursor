@@ -21,7 +21,7 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const [isRecording, setIsRecording] = useState(false);
-  const [showNavbar, setShowNavbar] = useState(false);
+  const [showNavbar, setShowNavbar] = useState(true);
   const setRecordingActive = useCallback((active: boolean) => {
     setIsRecording(active);
   }, []);
