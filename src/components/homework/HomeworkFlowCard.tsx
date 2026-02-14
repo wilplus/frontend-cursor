@@ -129,7 +129,7 @@ function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
 }
 
-/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. Progress bar at top for all steps. */
+/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. Progress bar only on steps 1–4 (hidden on step 0 and step 5). */
 function StepFlowWrapper({
   step,
   children,
@@ -137,14 +137,17 @@ function StepFlowWrapper({
   step: Step | 0;
   children: React.ReactNode;
 }) {
+  const showProgressBar = step >= 1 && step <= 4;
   const flowStepIndex = step >= 1 ? step - 1 : 0;
   return (
     <div className="space-y-4 animate-fade-in">
-      <ProgressStepBullets
-        total={TOTAL_STEPS}
-        currentIndex={flowStepIndex}
-        aria-label={step >= 1 ? `Step ${step} of ${TOTAL_STEPS}` : `Step 1 of ${TOTAL_STEPS}`}
-      />
+      {showProgressBar && (
+        <ProgressStepBullets
+          total={TOTAL_STEPS}
+          currentIndex={flowStepIndex}
+          aria-label={`Step ${step} of ${TOTAL_STEPS}`}
+        />
+      )}
       {children}
     </div>
   );

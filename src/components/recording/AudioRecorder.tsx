@@ -572,9 +572,10 @@ export default function AudioRecorder({
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
-    <Card className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-3">
-      <div className="flex flex-col items-center gap-1">
-        <StrengthPaceDartboard
+    <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
+      <Card className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-5">
+        <div className="flex flex-col items-center gap-1">
+          <StrengthPaceDartboard
           strengthScore={realtimeStrengthPace.strengthScore}
           paceScore={realtimeStrengthPace.paceScore}
           strengthDirection={realtimeStrengthPace.strengthDirection}
@@ -589,16 +590,16 @@ export default function AudioRecorder({
             {micPreviewError}
           </p>
         ) : null}
-      </div>
-      <div className="text-center">
-        <div
-          className={`text-2xl sm:text-4xl font-mono font-bold tracking-tight ${isRecording ? "text-primary" : "text-foreground"}`}
-        >
-          {formatTime(elapsedSeconds)}
         </div>
-      </div>
+        <div className="text-center">
+          <div
+            className={`text-4xl sm:text-5xl font-mono font-bold tracking-wider ${isRecording ? "text-primary" : "text-foreground"}`}
+          >
+            {formatTime(elapsedSeconds)}
+          </div>
+        </div>
 
-      <div className="space-y-1.5">
+        <div className="space-y-1.5">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all duration-300"
@@ -609,12 +610,12 @@ export default function AudioRecorder({
           {formatTime(remainingSeconds)} remaining to reach minimum
         </p>
         <p className="text-xs text-muted-foreground">Max recording: 5 minutes</p>
-      </div>
+        </div>
 
-      <div className="space-y-3">
-        {!isRecording ? (
-          <Button
-            onPointerDown={() => {
+        <div className="space-y-3">
+          {!isRecording ? (
+            <Button
+              onPointerDown={() => {
               if (
                 typeof navigator !== "undefined" &&
                 navigator.mediaDevices?.getUserMedia &&
@@ -625,7 +626,7 @@ export default function AudioRecorder({
               }
             }}
             onClick={startRecording}
-            className="w-full rounded-full py-6 text-base font-semibold"
+            className="h-12 w-full rounded-xl font-semibold active:scale-[0.98]"
           >
             <Mic className="mr-2 h-5 w-5" aria-hidden />
             Start Recording
@@ -634,7 +635,7 @@ export default function AudioRecorder({
           <div className="flex gap-2">
             <Button
               onClick={resumeRecording}
-              className="flex-1 rounded-full py-5 text-base font-semibold"
+              className="h-12 flex-1 rounded-xl font-semibold active:scale-[0.98]"
             >
               <Play className="mr-2 h-5 w-5 fill-current" aria-hidden />
               Resume
@@ -642,7 +643,7 @@ export default function AudioRecorder({
             <Button
               onClick={stopRecording}
               disabled={uploading || elapsedSeconds < minDurationSeconds}
-              className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
+              className={`h-12 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
               {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
@@ -654,7 +655,7 @@ export default function AudioRecorder({
               onClick={pauseRecording}
               variant="outline"
               disabled={uploading}
-              className="flex-1 rounded-full py-5 text-base font-semibold bg-muted/50 border-input text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="h-12 flex-1 rounded-xl font-semibold bg-muted/50 border-input text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98]"
             >
               <Pause className="mr-2 h-4 w-4" aria-hidden />
               Pause
@@ -662,7 +663,7 @@ export default function AudioRecorder({
             <Button
               onClick={stopRecording}
               disabled={uploading || elapsedSeconds < minDurationSeconds}
-              className={`flex-1 rounded-full py-5 text-base font-semibold text-white ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
+              className={`h-12 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
             >
               <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
               {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
@@ -680,7 +681,8 @@ export default function AudioRecorder({
         {!stopAndSend && isRecording && onStartAgain && (
           <FlowBackLink onClick={handleStartAgain}>start again</FlowBackLink>
         )}
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </div>
   );
 }
