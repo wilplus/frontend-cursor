@@ -449,10 +449,6 @@ export default function HomeworkFlowCard() {
       sessionStorage.removeItem("homeworkReport");
       sessionStorage.removeItem("homeworkJustFinishedRecording2");
     }
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
     uiStepFloorRef.current = 0;
     lastDerivedStepRef.current = 0;
     postAnswersAutoSubmitDoneRef.current = false;
