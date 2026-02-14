@@ -99,10 +99,10 @@ export default function LoginForm() {
   };
 
   return (
-    <Card className="p-6">
+    <Card className="min-w-0 p-4 sm:p-6">
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="mb-2 block text-sm font-medium">Email</label>
+          <label className="mb-2 block text-base font-medium sm:text-sm">Email</label>
           <Input
             type="email"
             placeholder="you@example.com"
@@ -113,7 +113,7 @@ export default function LoginForm() {
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium">Password</label>
+          <label className="mb-2 block text-base font-medium sm:text-sm">Password</label>
           <Input
             type="password"
             placeholder="••••••••"
@@ -132,7 +132,7 @@ export default function LoginForm() {
         </Button>
       </form>
 
-      <div className="mt-4 space-y-2 text-center text-sm">
+      <div className="mt-4 space-y-2 text-center text-base sm:text-sm">
         <p>
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-orange-500 hover:underline">
