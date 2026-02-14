@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { HomeworkQuestion } from "@/lib/api/types-homework";
 import { debugIngest } from "@/lib/debugIngest";
 
@@ -73,7 +72,7 @@ export default function PostQuestionsStepScreen({
   const labelClass = "block text-sm font-medium text-foreground";
 
   return (
-    <Card className="p-6 sm:p-8 space-y-6">
+    <div className="p-6 sm:p-8 bg-background rounded-xl space-y-6">
       <h3 className="text-lg font-semibold text-foreground">Reflective questions</h3>
       <div className="space-y-8">
         {questions.map((q) => {
@@ -99,9 +98,6 @@ export default function PostQuestionsStepScreen({
       >
         {loading ? "Submitting…" : "See my report"}
       </Button>
-      {!allAnswered && questions.length > 0 && (
-        <p className="text-sm text-muted-foreground">Answer all questions above to continue.</p>
-      )}
-    </Card>
+    </div>
   );
 }
