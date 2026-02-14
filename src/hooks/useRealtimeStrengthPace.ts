@@ -8,7 +8,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { bandScore } from "@/lib/audio/band-score";
 
-const UPDATE_MS = 100;
+/** Update often so the wheel reacts instantly; ball motion is eased/slow in the dartboard. */
+const UPDATE_MS = 50;
 /** Good band is [TARGET_DB - TOLERANCE_DB, TARGET_DB + TOLERANCE_DB]. Higher TARGET_DB = band shifted right (prefer slightly stronger voice). */
 const TARGET_DB = -20;
 const TOLERANCE_DB = 5;
