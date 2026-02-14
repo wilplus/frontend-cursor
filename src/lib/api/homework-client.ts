@@ -35,6 +35,7 @@ async function getAuthFetchOptions(
 /** Thrown when API returns 422 or other error; may have .code (e.g. NO_WARMUP_CONFIGURED, VALIDATION_ERROR). 409 may include .backendStatus and .hint from response body. */
 export type HomeworkApiError = Error & {
   code?: string;
+  status?: number;
   backendStatus?: string;
   hint?: string;
   details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
@@ -88,7 +89,10 @@ async function handleResponse<T>(res: Response): Promise<T> {
     if (res.status === 404) {
       const fallback = "Homework flow is not available yet. Please try again later.";
       const useBackend = message?.trim() && message !== "Not Found" && !message.startsWith("Request failed ");
-      throw new Error(useBackend ? message : fallback);
+      const err = new Error(useBackend ? message : fallback) as HomeworkApiError;
+      if (code) err.code = code;
+      err.status = 404;
+      throw err;
     }
     const err = new Error(message) as HomeworkApiError;
     if (code) err.code = code;

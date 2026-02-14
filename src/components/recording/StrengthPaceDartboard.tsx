@@ -110,7 +110,7 @@ export function StrengthPaceDartboard({
   const labelClass = "shrink-0 text-center text-foreground font-medium opacity-70";
 
   return (
-    <div className="flex flex-col items-center gap-1 w-full" role="img" aria-label="Strength and pace wheel: center is on target">
+    <div className="flex flex-col items-center gap-0.5 w-full" role="img" aria-label="Strength and pace wheel: center is on target">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>

@@ -572,8 +572,8 @@ export default function AudioRecorder({
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
-    <Card className="p-6 space-y-4">
-      <div className="flex flex-col items-center gap-2">
+    <Card className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-3">
+      <div className="flex flex-col items-center gap-1">
         <StrengthPaceDartboard
           strengthScore={realtimeStrengthPace.strengthScore}
           paceScore={realtimeStrengthPace.paceScore}
@@ -592,13 +592,13 @@ export default function AudioRecorder({
       </div>
       <div className="text-center">
         <div
-          className={`text-2xl sm:text-4xl font-mono font-bold ${isRecording ? "text-primary" : "text-foreground"}`}
+          className={`text-2xl sm:text-4xl font-mono font-bold tracking-tight ${isRecording ? "text-primary" : "text-foreground"}`}
         >
           {formatTime(elapsedSeconds)}
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all duration-300"

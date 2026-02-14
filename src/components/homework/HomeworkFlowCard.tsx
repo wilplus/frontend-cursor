@@ -402,6 +402,54 @@ export default function HomeworkFlowCard() {
     setLoading(false);
   };
 
+  /** Local-only reset to step 0 (no API call). Use when session is already gone (404) so user can start a new lesson. */
+  const startOverFromScratch = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    uiStepFloorRef.current = 0;
+    postAnswersAutoSubmitDoneRef.current = false;
+    metricSubmitInProgress.current = false;
+    postAnswersSubmitInProgress.current = false;
+    uploadRecording1InProgressRef.current = false;
+    uploadRecording2InProgressRef.current = false;
+    setSessionId(null);
+    setStep(0);
+    setWarmUpText("");
+    setTaskText("");
+    setFinalTaskText("");
+    setTaskBlock(null);
+    setQuestions([]);
+    setPostAnswers({});
+    setReportText("");
+    setPerformanceScoreEnd(null);
+    setReportData(null);
+    setReportLoading(false);
+    setReportError(null);
+    setError(null);
+    setNoWarmupConfigured(false);
+    setStatusUnknown(false);
+    setUploadingRecording(null);
+    setLoading(false);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("homeworkReport");
+      sessionStorage.removeItem("homeworkJustFinishedRecording2");
+    }
+  };
+
+  /** True if error indicates session is gone (404 / SESSION_NOT_FOUND or message). */
+  const isSessionGoneError = (e: unknown) => {
+    const err = e as { code?: string; message?: string; status?: number };
+    const msg = (err.message ?? "").toLowerCase();
+    return (
+      err.code === "SESSION_NOT_FOUND" ||
+      err.status === 404 ||
+      msg.includes("session not found") ||
+      msg.includes("no active session")
+    );
+  };
+
   // On auth ready: try to resume from session status; otherwise start a new session (once per page load)
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
@@ -598,6 +646,11 @@ export default function HomeworkFlowCard() {
         setReportError(null);
       })
       .catch((e) => {
+        if (isSessionGoneError(e)) {
+          toast.info("Your session is gone. You can start a new lesson.");
+          startOverFromScratch();
+          return;
+        }
         const msg = e instanceof Error ? e.message : "Failed to load report";
         setReportError(msg);
         setReportData(null);
@@ -645,6 +698,11 @@ export default function HomeworkFlowCard() {
       // #region agent log
       debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete catch", message: "rec1 error", data: { error: String((e as Error)?.message), code: (e as { code?: string })?.code }, timestamp: Date.now(), hypothesisId: "H4" });
       // #endregion
+      if (isSessionGoneError(e)) {
+        toast.info("Your session is gone. You can start a new lesson.");
+        startOverFromScratch();
+        return;
+      }
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
@@ -744,6 +802,11 @@ export default function HomeworkFlowCard() {
       }
       toast.success("Answers saved. Continue to the final recording.");
     } catch (e) {
+      if (isSessionGoneError(e)) {
+        toast.info("Your session is gone. You can start a new lesson.");
+        startOverFromScratch();
+        return;
+      }
       if (typeof window !== "undefined") {
         console.warn("[HomeworkFlow] metric submit catch", e instanceof Error ? e.message : String(e));
       }
@@ -880,6 +943,11 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       if (statusRes) applyStatusToState(statusRes);
     } catch (e) {
+      if (isSessionGoneError(e)) {
+        toast.info("Your session is gone. You can start a new lesson.");
+        startOverFromScratch();
+        return;
+      }
       if (isInvalidSessionStateError(e)) {
         uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
         if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
@@ -940,6 +1008,11 @@ export default function HomeworkFlowCard() {
         );
       }
     } catch (e) {
+      if (isSessionGoneError(e)) {
+        toast.info("Your session is gone. You can start a new lesson.");
+        startOverFromScratch();
+        return;
+      }
       const msg = e instanceof Error ? e.message : "Failed to submit";
       setError(msg);
       toast.error(msg);
