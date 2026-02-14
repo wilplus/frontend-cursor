@@ -28,7 +28,7 @@ function getBallStatus(
   const nearCenter = strengthScore > 0.85 && paceScore > 0.85;
   if (nearCenter) return "Strength and pace on target.";
   const parts: string[] = [];
-  if (strengthScore <= 0.85) parts.push(strengthDirection < 0 ? "Too quiet" : "Too loud");
+  if (strengthScore <= 0.85 && strengthDirection !== 0) parts.push(strengthDirection < 0 ? "Too quiet" : "Too loud");
   if (paceScore <= 0.85) parts.push(paceDirection < 0 ? "Slow" : "Fast");
   return parts.length ? parts.join(", ") + "." : "Strength and pace on target.";
 }

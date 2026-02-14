@@ -18,14 +18,17 @@ const TOLERANCE_WPM = 48;
 /** Voiced = speech; RMS > 0.015 (≈ -36 dB) to avoid treating noise as speech. */
 const VOICED_RMS_THRESHOLD = 0.015;
 const WINDOW_SAMPLES = 30; // 3 s at 100 ms
-/** Dual EMA: fast (responsive) + slow (smooth). Strength blend 0.7 slow + 0.3 fast; return-to-center 0.85 slow + 0.15 fast. */
-const EMA_STRENGTH_FAST = 0.28;
-const EMA_STRENGTH_SLOW = 0.09;
+/** VAD for strength: silence = center. Consecutive frames above/below to confirm voice on/off. */
+const VOICE_RMS_THRESHOLD = 0.02;
+const VOICE_ON_MIN_FRAMES = 2;
+const VOICE_OFF_MIN_FRAMES = 3;
+const STRENGTH_CENTER_DRIFT_ALPHA = 0.05;
+/** Dual EMA: trend dominant (~600ms) for strength. */
+const EMA_STRENGTH_FAST = 0.25;
+const EMA_STRENGTH_SLOW = 0.07;
 /** Pace: 0.6 slow + 0.4 fast (lighter trend). */
 const EMA_PACE_FAST = 0.2;
 const EMA_PACE_SLOW = 0.08;
-/** Raw strength on target above this → use return-to-center damping blend. */
-const ON_TARGET_THRESHOLD = 0.85;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 
@@ -65,6 +68,9 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   const fastPaceRef = useRef(0.5);
   const slowPaceRef = useRef(0.5);
   const voicedWindowRef = useRef<number[]>([]);
+  const voiceActiveRef = useRef(false);
+  const voiceAboveCountRef = useRef(0);
+  const voiceBelowCountRef = useRef(0);
 
   const stop = useCallback(() => {
     if (intervalRef.current) {
@@ -85,6 +91,11 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
       audioContextRef.current = null;
     }
     voicedWindowRef.current = [];
+    voiceActiveRef.current = false;
+    voiceAboveCountRef.current = 0;
+    voiceBelowCountRef.current = 0;
+    fastStrengthRef.current = 1.0;
+    slowStrengthRef.current = 1.0;
     setIsActive(false);
     setStrengthScore(0.5);
     setPaceScore(0.5);
@@ -116,16 +127,21 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     const bufferLength = analyser.fftSize;
     const dataArray = new Float32Array(bufferLength);
     voicedWindowRef.current = [];
-    fastStrengthRef.current = 0.5;
-    slowStrengthRef.current = 0.5;
+    fastStrengthRef.current = 1.0;
+    slowStrengthRef.current = 1.0;
     fastPaceRef.current = 0.5;
     slowPaceRef.current = 0.5;
+    voiceActiveRef.current = false;
+    voiceAboveCountRef.current = 0;
+    voiceBelowCountRef.current = 0;
 
     // Browsers start AudioContext suspended; resume and start interval. Only read analyser when
     // context is running (Chrome may keep it suspended until user gesture), and try resume() each tick so we pick up after a click.
     ctx.resume().then(() => {
       if (audioContextRef.current !== ctx) return;
       setIsActive(true);
+      setStrengthScore(1.0);
+      setStrengthDirection(0);
       intervalRef.current = setInterval(() => {
         const ctxNow = audioContextRef.current;
         const a = analyserRef.current;
@@ -145,6 +161,22 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         const db = rmsToDb(rms);
         setStrengthDb(db);
 
+        // VAD for strength: consecutive frames above/below threshold
+        const above = rms >= VOICE_RMS_THRESHOLD;
+        if (above) {
+          voiceAboveCountRef.current += 1;
+          voiceBelowCountRef.current = 0;
+        } else {
+          voiceBelowCountRef.current += 1;
+          voiceAboveCountRef.current = 0;
+        }
+        if (!voiceActiveRef.current && voiceAboveCountRef.current >= VOICE_ON_MIN_FRAMES) {
+          voiceActiveRef.current = true;
+        }
+        if (voiceActiveRef.current && voiceBelowCountRef.current >= VOICE_OFF_MIN_FRAMES) {
+          voiceActiveRef.current = false;
+        }
+
         const voiced = rms > VOICED_RMS_THRESHOLD ? 1 : 0;
         const win = voicedWindowRef.current;
         win.push(voiced);
@@ -153,22 +185,33 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         const wpm = Math.max(WPM_MIN, Math.min(WPM_MAX, 60 + voicedRatio * 160));
         setWpmEstimate(wpm);
 
-        let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
-        if (db < TARGET_DB) {
-          rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
-        } else if (db > TARGET_DB) {
-          rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 1.2);
-        }
         const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
 
-        // Dual EMA for strength: fast + slow; return-to-center damping when raw is on target
-        const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
-        const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
-        fastStrengthRef.current = fastStr;
-        slowStrengthRef.current = slowStr;
-        const returnToCenter = rawStrengthScore > ON_TARGET_THRESHOLD;
-        const strengthBlend = returnToCenter ? 0.85 * slowStr + 0.15 * fastStr : 0.7 * slowStr + 0.3 * fastStr;
+        let strengthBlend: number;
+        let strengthDir: number;
+        if (voiceActiveRef.current) {
+          let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
+          if (db < TARGET_DB) {
+            rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
+          } else if (db > TARGET_DB) {
+            rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 1.2);
+          }
+          const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
+          const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
+          fastStrengthRef.current = fastStr;
+          slowStrengthRef.current = slowStr;
+          strengthBlend = 0.3 * fastStr + 0.7 * slowStr;
+          strengthDir = db < TARGET_DB ? -1 : 1;
+        } else {
+          const fastStr = (1 - STRENGTH_CENTER_DRIFT_ALPHA) * fastStrengthRef.current + STRENGTH_CENTER_DRIFT_ALPHA * 1.0;
+          const slowStr = (1 - STRENGTH_CENTER_DRIFT_ALPHA) * slowStrengthRef.current + STRENGTH_CENTER_DRIFT_ALPHA * 1.0;
+          fastStrengthRef.current = fastStr;
+          slowStrengthRef.current = slowStr;
+          strengthBlend = 0.3 * fastStr + 0.7 * slowStr;
+          strengthDir = 0;
+        }
         setStrengthScore(strengthBlend);
+        setStrengthDirection(strengthDir);
 
         // Dual EMA for pace: 0.6 slow + 0.4 fast (lighter trend)
         const fastPace = EMA_PACE_FAST * rawPaceScore + (1 - EMA_PACE_FAST) * fastPaceRef.current;
@@ -178,7 +221,6 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         const paceBlend = 0.6 * slowPace + 0.4 * fastPace;
         setPaceScore(paceBlend);
 
-        setStrengthDirection(db < TARGET_DB ? -1 : 1);
         setPaceDirection(wpm < TARGET_WPM ? -1 : 1);
       }, UPDATE_MS);
     }).catch(() => {});
