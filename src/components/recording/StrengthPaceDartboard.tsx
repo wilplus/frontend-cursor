@@ -111,12 +111,12 @@ export function StrengthPaceDartboard({
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      {/* Unified label size: text-base on mobile, sm:text-sm on desktop; wheel larger on mobile (380px) */}
-      <div className="relative flex w-full max-w-[min(420px,calc(100vw-2.5rem))] items-center justify-center gap-0 text-base sm:text-sm">
+      {/* All labels same font size (text-base); wheel 35% bigger (405px); container widened to fit */}
+      <div className="relative flex w-full max-w-[min(560px,calc(100vw-2rem))] items-center justify-center gap-0 text-base">
         <span className={`w-16 ${labelClass}`} aria-hidden>Quiet</span>
         <svg
           viewBox={`0 0 ${size} ${size}`}
-          className="aspect-square w-full max-w-[380px] sm:max-w-[300px] text-foreground"
+          className="aspect-square w-full max-w-[405px] text-foreground"
           aria-hidden
         >
           <defs>
