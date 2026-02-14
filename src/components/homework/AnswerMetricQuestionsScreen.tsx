@@ -49,12 +49,12 @@ export default function AnswerMetricQuestionsScreen({
   const allFilled = answer_1.trim() !== "" && answer_2.trim() !== "" && answer_3.trim() !== "";
 
   const inputClass =
-    "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+    "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base sm:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
   const labelClass = "block text-sm font-medium text-foreground";
 
   return (
-    <div className="answer-metric-questions">
-      <div className="p-6 sm:p-8">
+    <div className="answer-metric-questions w-full max-w-xl sm:max-w-2xl mx-auto">
+      <div className="p-4 sm:p-6 md:p-8">
         <div className="space-y-8">
           <div className="space-y-3">
             <label className={labelClass}>{label1}</label>

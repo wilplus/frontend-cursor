@@ -68,11 +68,11 @@ export default function PostQuestionsStepScreen({
   };
 
   const inputClass =
-    "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+    "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base sm:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
   const labelClass = "block text-sm font-medium text-foreground";
 
   return (
-    <div className="p-6 sm:p-8 space-y-6">
+    <div className="w-full max-w-xl sm:max-w-2xl mx-auto p-4 sm:p-6 md:p-8 space-y-6">
       <h3 className="text-lg font-semibold text-foreground">Reflective questions</h3>
       <div className="space-y-8">
         {questions.map((q) => {

@@ -105,11 +105,11 @@ body {
     font-size: 16px;
   }
   .max-w-4xl {
-    max-width: min(36rem, 100vw - 2rem);
+    max-width: min(36rem, calc(100vw - 30px));
   }
   input,
   textarea {
-    font-size: 16px;
+    font-size: 16px !important;
     scroll-margin-top: 1.5rem;
   }
 }
