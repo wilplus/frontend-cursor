@@ -86,7 +86,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
       console.warn("[HomeworkFlow] 409 from API", { message, code, status });
     }
     if (res.status === 404) {
-      throw new Error("Homework flow is not available yet. Please try again later.");
+      const fallback = "Homework flow is not available yet. Please try again later.";
+      const useBackend = message?.trim() && message !== "Not Found" && !message.startsWith("Request failed ");
+      throw new Error(useBackend ? message : fallback);
     }
     const err = new Error(message) as HomeworkApiError;
     if (code) err.code = code;

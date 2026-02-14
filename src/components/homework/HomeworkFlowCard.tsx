@@ -621,17 +621,15 @@ export default function HomeworkFlowCard() {
     try {
       const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
       uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
+      // Show step 2 and metric questions immediately from POST response (no wait for getStatus)
+      setStep(2);
+      if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
+      setStatusUnknown(false);
+      setError(null);
+      // Sync rest of session state in background; keep task_block from POST so GET can't overwrite with stale null
       const statusRes = await homeworkApi.getStatus();
-      if (statusRes) {
-        applyStatusToState(statusRes);
-        const s = statusRes as HomeworkSessionStatus;
-        if (recording1Res?.task_block && !s.task_block) setTaskBlock(recording1Res.task_block);
-      } else {
-        setStep(2);
-        if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
-        setStatusUnknown(false);
-        setError(null);
-      }
+      if (statusRes) applyStatusToState(statusRes);
+      if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
     } catch (e) {
       // #region agent log
       debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete catch", message: "rec1 error", data: { error: String((e as Error)?.message), code: (e as { code?: string })?.code }, timestamp: Date.now(), hypothesisId: "H4" });
