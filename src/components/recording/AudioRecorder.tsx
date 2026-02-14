@@ -592,7 +592,7 @@ export default function AudioRecorder({
       </div>
       <div className="text-center">
         <div
-          className={`text-4xl font-mono font-bold ${isRecording ? "text-primary" : "text-foreground"}`}
+          className={`text-2xl sm:text-4xl font-mono font-bold ${isRecording ? "text-primary" : "text-foreground"}`}
         >
           {formatTime(elapsedSeconds)}
         </div>
