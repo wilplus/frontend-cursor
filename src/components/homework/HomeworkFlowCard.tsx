@@ -143,7 +143,7 @@ function StepFlowWrapper({
   const showProgressBar = step >= 1 && step <= 4;
   const flowStepIndex = step >= 1 ? step - 1 : 0;
   return (
-    <div className="space-y-4 animate-fade-in">
+      <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
       {showProgressBar && (
         <ProgressStepBullets
           total={TOTAL_STEPS}
@@ -155,7 +155,7 @@ function StepFlowWrapper({
       {syncingBehind && (
         <p className="text-center text-sm text-muted-foreground">Syncing…</p>
       )}
-      {children}
+      <div className="w-full flex flex-col items-center">{children}</div>
     </div>
   );
 }
@@ -1190,20 +1190,23 @@ export default function HomeworkFlowCard() {
   // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
   if (step === 0) {
     return (
-      <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
-        <Card className="border-0 bg-transparent p-6 shadow-none sm:p-8">
+      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center w-full">
+        <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
+          <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
           <div className="flex flex-col items-center text-center space-y-5">
             <div
-              className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-full border-2 border-primary/40 bg-primary/10 text-primary"
+              className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-full bg-orange-50"
               aria-hidden
             >
-              <Mic className="h-8 w-8 sm:h-10 sm:w-10" strokeWidth={2} />
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-orange-100">
+                <Mic className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500" strokeWidth={2} />
+              </div>
             </div>
             <h2 className="text-xl font-bold text-foreground sm:text-2xl">Homework</h2>
             <p className="text-sm text-muted-foreground max-w-md">
             Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
-          </p>
-          {error && (
+            </p>
+            {error && (
               <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
                 <p>{error}</p>
                 <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
@@ -1220,7 +1223,8 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         </Card>
-      </StepFlowWrapper>
+        </StepFlowWrapper>
+      </div>
     );
   }
 
@@ -1230,7 +1234,7 @@ export default function HomeworkFlowCard() {
     if (isUploadingRec1) {
       return (
         <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
-          <Card className="p-6">
+          <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
               <h3 className="text-lg font-semibold">Sending first recording</h3>
@@ -1291,7 +1295,7 @@ export default function HomeworkFlowCard() {
           />
         )}
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-[3.5px] flex justify-center">
+          <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1319,7 +1323,7 @@ export default function HomeworkFlowCard() {
           error={error}
         />
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-[3.5px] flex justify-center">
+          <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1341,7 +1345,7 @@ export default function HomeworkFlowCard() {
     if (isUploadingRec2) {
       return (
         <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-          <Card className="p-6">
+          <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
               <h3 className="text-lg font-semibold">Sending second recording</h3>
@@ -1360,7 +1364,7 @@ export default function HomeworkFlowCard() {
           uploading={isUploadingRec2}
           minDurationSeconds={RECORDING_2_DURATION_MIN}
         />
-        <div className="mt-[3.5px] flex justify-center">
+        <div className="mt-[1px] flex justify-center">
           <Button
             variant="ghost"
             size="sm"
