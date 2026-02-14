@@ -45,7 +45,7 @@ To avoid the UI snapping back when GET status is stale (eventual consistency), t
 
 **Post-answers:** Step 5 and report are set from the **post-answers response** only; the floor is not used for step 5 (report screen is not driven by GET status).
 
-**When the floor is reset to 0:** No active session (e.g. load with no session or completed); user clicks “Start new homework” (handleStartOver); abandon session and end with no session; any path that clears sessionId and sets step to 0.
+**When the floor is reset to 0:** No active session (e.g. load with no session or completed); user clicks “Start new homework” (handleStartOver); abandon session and end with no session; **session-gone (404)** from any homework API → startOverFromScratch(); any path that clears sessionId and sets step to 0.
 
 **Sync behind:** If GET status remains behind the floor for a long time (e.g. 10–30s), this can be treated as a sync problem: show “Syncing…” or retry GET status (optional; not yet implemented).
 
@@ -56,6 +56,22 @@ To avoid the UI snapping back when GET status is stale (eventual consistency), t
 - **Server-side safeguard:** `(protected)/layout.tsx` runs for all routes under `(protected)`; calls `getUser()`; if no user, redirects to login. So shared links open in another browser/device show login, not another user's session.
 - **Persistence:** Session in cookies (Supabase SSR). Cookie options: `Secure` (prod), `SameSite: lax`, `HttpOnly`, `path: "/"`. User stays logged in until they log out.
 - **Logout:** Header calls `signOut()` then `router.push("/login")`.
+
+## 4.6 Session-gone / start-over
+
+When the backend no longer has the user's session (e.g. expired, cleaned up, or 404), the frontend **does not block the user**: it shows one clear message and resets to step 0 so they can start a new lesson.
+
+- **API client (`homework-client.ts`):** `HomeworkApiError` includes optional `status?: number`. On **404**, the client throws an error with `code` (e.g. `SESSION_NOT_FOUND` when the backend sends it) and `status: 404`, so the UI can reliably detect "session gone".
+- **Helpers in `HomeworkFlowCard.tsx`:**
+  - **`startOverFromScratch()`** — Local-only reset: abort ref, clear refs, clear sessionStorage (`homeworkReport`, `homeworkJustFinishedRecording2`), reset all homework state, set step to **0**. No API call (used when the session is already gone).
+  - **`isSessionGoneError(e)`** — Returns true when `e.code === "SESSION_NOT_FOUND"`, `e.status === 404`, or the message contains "session not found" / "no active session".
+- **Where session-gone is handled (toast + reset to step 0):**
+  - **uploadRecording1** → `handleRecording1Complete` catch: if `isSessionGoneError(e)` → toast "Your session is gone. You can start a new lesson." → `startOverFromScratch()` → return.
+  - **uploadRecording2** → `handleRecording2Complete` catch: same.
+  - **submitMetricAnswers** → `handleMetricAnswersSubmit` catch: same (before RECORDING_1_FAILED / RECORDING_1_PROCESSING / INVALID_SESSION_STATE).
+  - **submitPostAnswers** → `handlePostAnswersSubmit` catch: same.
+  - **getReport** (useEffect when on step 5) → `.catch`: same.
+- **Outcome:** For any 404 / session-not-found from these five flows, the user sees a single toast and is sent back to step 0 with no duplicate reset logic. Backend contract is unchanged; see backend repo `docs/FRONTEND-SESSION-GONE-START-OVER.md` for the single reference for both sides.
 
 ## 5. What changed
 
@@ -71,6 +87,8 @@ To avoid the UI snapping back when GET status is stale (eventual consistency), t
 
 - **Mic permission:** Mic is requested only on user action. Permission request is started on **pointer down** on "Start Recording" (streamPromiseRef) so the browser treats it as same user gesture (helps Safari/iOS). On NotAllowedError, show: "Microphone was blocked. Click the lock or info icon in the address bar and set Microphone to Allow, then try again." and toast "Allow microphone in your browser (address bar → site settings)".
 - **Auth / shared links:** Middleware strips auth params from URL; requires session for /dashboard and /admin; (protected) layout validates session server-side. Session in cookies with Secure, SameSite, HttpOnly so shared links do not log in another person; browser remembers user until logout.
+
+- **Session-gone (404):** Any homework API that returns 404 (or SESSION_NOT_FOUND / "session not found" / "no active session") is treated as "session is over". Frontend shows toast "Your session is gone. You can start a new lesson." and runs `startOverFromScratch()` so the user lands on step 0 and can start a new lesson. Applied in: recording 1 upload, recording 2 upload, metric-answers submit, post-answers submit, getReport.
 
 ## 6. Status aliases (explicit list)
 
@@ -98,13 +116,4 @@ Canonical five: warm_up→1, task_block→2, final_task_ready→3, post_question
 | Step 5 report UI | Two buttons (Back to dashboard, Start new homework); progress bar on all steps (top). | Single button "Start new homework" only; progress bar at top for all steps (1–5). "Start new homework" resets to step 0 without logout. |
 | Mic permission | getUserMedia on click only. | Request started on **pointer down** (same user gesture); clearer NotAllowedError copy (address bar → allow mic). |
 | Auth / shared links | Possible token in URL; /admin allowed without session check. | Auth params stripped from URL; session required for /admin; (protected) layout validates session; cookies Secure/SameSite/HttpOnly; shared link in another device → login. |
-
-## 8. Recent changes (last ~10h)
-
-- **Navbar visibility:** Navbar (header with Willab + hamburger menu) is shown **only on step 0** (start) and **step 5** (report). Hidden on steps 1–4. Step 5 report screen: **no progress bar** at top (navbar only); progress bar shown on steps 0–4 only.
-- **Abandon session:** Full local reset after POST abandon (no refetch). Clears sessionStorage, refs, and all homework state; sets step to 0. **404 from abandon** (session not found / already cleaned up): API client treats as success; frontend shows toast “Session was already cleared. You can start a new session.” and still goes to step 0.
-- **Refresh when no active session:** In **refreshStatus**, when GET status returns **no active session** (`has_active_session === false`, no `session_id`, or null/404): full reset (same as abandon), set step to 0, toast “Session was cleared. You can start a new one.” No “Session status could not be determined” in that case.
-- **Default warm-up:** When backend returns **no or empty** warm-up task, frontend shows **“How was your day so far?”** (set on POST start and in applyStatusToState; display fallback). Backend summary: `backend-summary-default-warmup.md` in project root.
-- **Abandon on step 2:** “Abandon session” button added on step 2 (post recording-1 metric questions), same as steps 1 and 3.
-- **Recording 1 → step 2:** Step 2 and `task_block` set **from POST recording-1 response** immediately; GET status then called to sync; `task_block` from POST is re-applied after applyStatusToState so GET cannot overwrite with stale null. 404 from homework API: use backend message when present, else generic “Homework flow is not available yet.”
-- **Metric wheel (StrengthPaceDartboard):** Labels “Too fast” / “Too slow” → **“Fast”** / **“Slow”**. On mobile: unified label font size (text-base); wheel **380px** max; timer **text-2xl** (smaller) so it matches label size. Desktop unchanged (300px wheel, text-4xl timer).
+| Session gone (404) | Errors could leave user stuck or show generic messages. | Client sets `status: 404` and `code` on 404; `isSessionGoneError()` + `startOverFromScratch()` in recording 1/2, metric-answers, post-answers, getReport → one toast and reset to step 0. |
