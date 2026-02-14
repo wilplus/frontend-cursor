@@ -421,6 +421,13 @@ export default function HomeworkFlowCard() {
       handleStartOver();
       return;
     }
+    // Abort any in-flight recording upload so we don't leave it running after abandoning
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    uploadRecording1InProgressRef.current = false;
+    uploadRecording2InProgressRef.current = false;
     setLoading(true);
     setError(null);
     try {
@@ -786,15 +793,22 @@ export default function HomeworkFlowCard() {
     try {
       const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
       uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
+      lastDerivedStepRef.current = 2;
       // Show step 2 and metric questions immediately from POST response (no wait for getStatus)
       setStep(2);
       if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
       setStatusUnknown(false);
       setError(null);
       // Sync rest of session state in background; keep task_block from POST so GET can't overwrite with stale null
-      const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
-      if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
+      try {
+        const statusRes = await homeworkApi.getStatus();
+        if (statusRes) applyStatusToState(statusRes);
+        if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
+        // Ensure we stay on step 2 after sync (backend may still return warm_up briefly)
+        setStep((s) => (s >= 2 ? s : 2));
+      } catch {
+        // Keep step 2 and task_block from upload response; user can continue
+      }
     } catch (e) {
       // #region agent log
       debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete catch", message: "rec1 error", data: { error: String((e as Error)?.message), code: (e as { code?: string })?.code }, timestamp: Date.now(), hypothesisId: "H4" });
