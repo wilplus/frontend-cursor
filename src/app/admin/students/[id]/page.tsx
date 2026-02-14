@@ -577,7 +577,7 @@ export default function AdminStudentProfilePage() {
       .catch((e) => toast.error(e?.message ?? "Failed to save"))
       .finally(() => setSaving(false));
   };
-  const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
+  const handleWarmUpCreate = async (text: string): Promise<PoolItem | void> => {
     try {
       const res = await adminApi.createWarmUpPoolTask({ text });
       const task = res.task_warm_up;
@@ -718,7 +718,7 @@ export default function AdminStudentProfilePage() {
       .catch((e) => toast.error(e?.message ?? "Failed to save"))
       .finally(() => setSaving(false));
   };
-  const handleFocusCreate = async (text: string): Promise<PoolItem> => {
+  const handleFocusCreate = async (text: string): Promise<PoolItem | void> => {
     try {
       const res = await adminApi.createFocusTaskPoolItem({ text, order_index: 0, max_performance_score: 1 });
       const item = res.task_focus;
