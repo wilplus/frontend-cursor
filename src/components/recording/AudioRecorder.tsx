@@ -62,6 +62,7 @@ function formatTime(seconds: number): string {
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob, durationSeconds: number) => void;
   onRecordingStart?: () => void;
+  onRecordingChange?: (active: boolean) => void;
   onBack?: () => void;
   onStartAgain?: () => void;
   onCancel?: () => void;
@@ -76,6 +77,7 @@ interface AudioRecorderProps {
 export default function AudioRecorder({
   onRecordingComplete,
   onRecordingStart,
+  onRecordingChange,
   onBack,
   onStartAgain,
   onCancel,
@@ -130,6 +132,12 @@ export default function AudioRecorder({
   // Don't request mic on mount — browsers block getUserMedia without a user gesture (e.g. Safari).
   // Mic is requested only when the user clicks "Start Recording" (startRecording). The wheel then
   // runs from that stream. We only set micPreviewError after a failed attempt from a user action.
+
+  // Notify parent when recording state changes (e.g. for hiding navbar / scroll lock)
+  useEffect(() => {
+    onRecordingChange?.(isRecording);
+    return () => onRecordingChange?.(false);
+  }, [isRecording, onRecordingChange]);
 
   // Cleanup on unmount
   useEffect(() => {

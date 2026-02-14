@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
+import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -145,6 +146,7 @@ function StepFlowWrapper({
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
+  const { setRecordingActive } = useRecordingContext();
   const [step, setStep] = useState<Step | 0>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [warmUpText, setWarmUpText] = useState("");
@@ -174,6 +176,11 @@ export default function HomeworkFlowCard() {
   const postAnswersAutoSubmitDoneRef = useRef(false);
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
+
+  /** Clear recording-context when not on a recording step (so navbar returns when leaving step 1/3). */
+  useEffect(() => {
+    if (step !== 1 && step !== 3) setRecordingActive(false);
+  }, [step, setRecordingActive]);
 
   /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
@@ -996,9 +1003,9 @@ export default function HomeworkFlowCard() {
           </div>
         )}
         {!showStatusUnknownBlock && !showWarmUpUnavailableBlock && (
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="min-w-0 rounded-xl border border-primary/30 bg-primary/5 p-4">
             <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
-            <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+            <p className="break-words text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
               {warmUpText.trim() || "—"}
             </p>
           </div>
@@ -1006,6 +1013,7 @@ export default function HomeworkFlowCard() {
         <div className="flex flex-col gap-3">
           <AudioRecorder
             onRecordingComplete={handleRecording1Complete}
+            onRecordingChange={setRecordingActive}
             stopAndSend
             uploading={isUploadingRec1}
           />
@@ -1061,14 +1069,15 @@ export default function HomeworkFlowCard() {
     return (
       <StepFlowWrapper step={step}>
         {/* Final task: only API value (response.final_task or final_task_text); no hardcoded fallback */}
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+        <div className="min-w-0 rounded-xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
-          <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
+          <p className="break-words text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
             {finalTaskText || "—"}
           </p>
         </div>
         <AudioRecorder
           onRecordingComplete={handleRecording2Complete}
+          onRecordingChange={setRecordingActive}
           stopAndSend
           uploading={isUploadingRec2}
           minDurationSeconds={RECORDING_2_DURATION_MIN}
@@ -1134,8 +1143,8 @@ export default function HomeworkFlowCard() {
               <ReportSessionChart scores={displayScores} />
             )}
             {/* 3. Report text */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
+            <div className="min-w-0 rounded-xl border border-border bg-muted/30 p-4">
+              <p className="break-words whitespace-pre-wrap text-sm text-foreground leading-relaxed">
                 {displayReportText.trim() || "Report pending."}
               </p>
             </div>

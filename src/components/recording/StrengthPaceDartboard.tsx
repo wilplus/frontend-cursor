@@ -114,7 +114,7 @@ export function StrengthPaceDartboard({
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      <div className="relative flex w-full max-w-[420px] items-center justify-center gap-0">
+      <div className="relative flex w-full max-w-[min(420px,calc(100vw-2.5rem))] items-center justify-center gap-0">
         <span className={`w-16 ${labelClass}`} style={labelStyle} aria-hidden>Quiet</span>
         <svg
           viewBox={`0 0 ${size} ${size}`}
