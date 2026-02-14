@@ -230,39 +230,6 @@ export default function HomeworkFlowCard() {
     finalTaskTextRef.current = finalTaskText;
   }, [taskBlock, finalTaskText]);
 
-  /** Sync behind: when GET status is behind the step floor for 10s, show "Syncing…" and retry GET status. */
-  const syncBehindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (step < 1 || step > 4 || !sessionId || sessionId === "mock-session") {
-      setSyncingBehind(false);
-      return;
-    }
-    if (step <= lastDerivedStepRef.current) {
-      if (syncBehindTimeoutRef.current) {
-        clearTimeout(syncBehindTimeoutRef.current);
-        syncBehindTimeoutRef.current = null;
-      }
-      return;
-    }
-    syncBehindTimeoutRef.current = setTimeout(() => {
-      syncBehindTimeoutRef.current = null;
-      setSyncingBehind(true);
-      homeworkApi
-        .getStatus()
-        .then((statusRes) => {
-          if (statusRes) applyStatusToState(statusRes);
-        })
-        .catch(() => {})
-        .finally(() => setSyncingBehind(false));
-    }, 10_000);
-    return () => {
-      if (syncBehindTimeoutRef.current) {
-        clearTimeout(syncBehindTimeoutRef.current);
-        syncBehindTimeoutRef.current = null;
-      }
-    };
-  }, [step, sessionId]);
-
   /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
     const derived = deriveStepFromStatus(statusRes);
