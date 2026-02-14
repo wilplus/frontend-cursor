@@ -13,8 +13,6 @@ const RADIUS = 120;
 const BALL_R = 12;
 /** Lerp factor per frame: lower = slower, calmer glide (sense of heading in the right direction). */
 const BALL_LERP = 0.06;
-const LABEL_FONT_SIZE = 14;
-
 export interface StrengthPaceDartboardProps {
   /** Smoothed 0..1 (1 = on target). */
   strengthScore: number;
@@ -56,7 +54,7 @@ function getBallStatus(
     parts.push(strengthDirection < 0 ? "Too quiet" : "Too loud");
   }
   if (paceScore <= 0.85) {
-    parts.push(paceDirection < 0 ? "Too slow" : "Too fast");
+    parts.push(paceDirection < 0 ? "Slow" : "Fast");
   }
   return parts.length ? parts.join(", ") + "." : "Strength and pace on target.";
 }
@@ -107,18 +105,18 @@ export function StrengthPaceDartboard({
   const statusText = getBallStatus(strengthScore, paceScore, strengthDirection, paceDirection);
 
   const labelClass = "shrink-0 text-center text-foreground font-medium opacity-70";
-  const labelStyle = { fontSize: LABEL_FONT_SIZE };
 
   return (
     <div className="flex flex-col items-center gap-1" role="img" aria-label="Strength and pace wheel: center is on target">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      <div className="relative flex w-full max-w-[min(420px,calc(100vw-2.5rem))] items-center justify-center gap-0">
-        <span className={`w-16 ${labelClass}`} style={labelStyle} aria-hidden>Quiet</span>
+      {/* Unified label size: text-base on mobile, sm:text-sm on desktop; wheel 18% bigger on mobile (354px) */}
+      <div className="relative flex w-full max-w-[min(420px,calc(100vw-2.5rem))] items-center justify-center gap-0 text-base sm:text-sm">
+        <span className={`w-16 ${labelClass}`} aria-hidden>Quiet</span>
         <svg
           viewBox={`0 0 ${size} ${size}`}
-          className="aspect-square w-full max-w-[300px] text-foreground"
+          className="aspect-square w-full max-w-[354px] sm:max-w-[300px] text-foreground"
           aria-hidden
         >
           <defs>
@@ -131,9 +129,9 @@ export function StrengthPaceDartboard({
           <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.3} />
           <circle cx={center} cy={center} r={radius * 0.66} fill="none" stroke="currentColor" strokeWidth={1} opacity={0.4} />
           <circle cx={center} cy={center} r={radius * 0.33} fill="url(#dartboard-center)" stroke="currentColor" strokeWidth={1} opacity={0.6} />
-          {/* Axis labels: same size and style as Quiet/Loud */}
-          <text x={center} y={center + radius + 22} textAnchor="middle" fontSize={LABEL_FONT_SIZE} fill="currentColor" fontWeight={500} opacity={0.7}>Too slow</text>
-          <text x={center} y={center - radius - 14} textAnchor="middle" fontSize={LABEL_FONT_SIZE} fill="currentColor" fontWeight={500} opacity={0.7}>Too fast</text>
+          {/* Axis labels: 1em = same size as Quiet/Loud */}
+          <text x={center} y={center + radius + 22} textAnchor="middle" fontSize="1em" fill="currentColor" fontWeight={500} opacity={0.7}>Slow</text>
+          <text x={center} y={center - radius - 14} textAnchor="middle" fontSize="1em" fill="currentColor" fontWeight={500} opacity={0.7}>Fast</text>
           {/* Ball: color by distance (center = primary, edge = destructive) */}
           <circle
             cx={cx}
@@ -145,7 +143,7 @@ export function StrengthPaceDartboard({
             className="transition-none"
           />
         </svg>
-        <span className={`w-16 ${labelClass}`} style={labelStyle} aria-hidden>Loud</span>
+        <span className={`w-16 ${labelClass}`} aria-hidden>Loud</span>
       </div>
     </div>
   );
