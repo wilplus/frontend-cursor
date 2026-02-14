@@ -146,6 +146,7 @@ function StepFlowWrapper({
           total={TOTAL_STEPS}
           currentIndex={flowStepIndex}
           aria-label={`Step ${step} of ${TOTAL_STEPS}`}
+          variant="minimal"
         />
       )}
       {children}
@@ -1197,20 +1198,13 @@ export default function HomeworkFlowCard() {
           </div>
         )}
         {!showStatusUnknownBlock && !showWarmUpUnavailableBlock && (
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-            <p className="text-sm font-medium text-muted-foreground mb-1">Warm-up task</p>
-            <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-              {warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
-            </p>
-          </div>
-        )}
-        <div className="flex flex-col gap-3">
           <AudioRecorder
+            prompt={warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
             onRecordingComplete={handleRecording1Complete}
             stopAndSend
             uploading={isUploadingRec1}
           />
-        </div>
+        )}
         {sessionId && sessionId !== "mock-session" && (
           <div className="mt-3 flex justify-center">
             <Button
@@ -1274,14 +1268,8 @@ export default function HomeworkFlowCard() {
     }
     return (
       <StepFlowWrapper step={step}>
-        {/* Final task: only API value (response.final_task or final_task_text); no hardcoded fallback */}
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-sm font-medium text-muted-foreground mb-1">Final task</p>
-          <p className="text-base font-medium leading-relaxed text-foreground whitespace-pre-wrap">
-            {finalTaskText || "—"}
-          </p>
-        </div>
         <AudioRecorder
+          prompt={finalTaskText || "—"}
           onRecordingComplete={handleRecording2Complete}
           stopAndSend
           uploading={isUploadingRec2}

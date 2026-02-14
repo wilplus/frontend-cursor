@@ -72,6 +72,8 @@ interface AudioRecorderProps {
   uploading?: boolean;
   /** Min duration in seconds (default 60). Use 62+ for final recording to avoid backend reject. */
   minDurationSeconds?: number;
+  /** Optional prompt/question shown at top of card (e.g. "How was your day so far?") */
+  prompt?: string;
 }
 
 export default function AudioRecorder({
@@ -84,6 +86,7 @@ export default function AudioRecorder({
   stopAndSend = false,
   uploading = false,
   minDurationSeconds = DEFAULT_MIN_DURATION_SECONDS,
+  prompt,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -567,13 +570,17 @@ export default function AudioRecorder({
   }
 
   // Progress toward minimum (60s): 0–100%
-  const progressPercent = Math.min(100, (elapsedSeconds / minDurationSeconds) * 100);
-  const remainingSeconds = Math.max(0, minDurationSeconds - elapsedSeconds);
+  const progressPercent = Math.min(100, (elapsedSeconds / MAX_DURATION_SECONDS) * 100);
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
     <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
-      <Card className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-5">
+      <div className="p-4 sm:p-6 space-y-5">
+        {prompt ? (
+          <p className="text-base font-bold leading-snug text-foreground text-left">
+            {prompt}
+          </p>
+        ) : null}
         <div className="flex flex-col items-center gap-1">
           <StrengthPaceDartboard
           strengthScore={realtimeStrengthPace.strengthScore}
@@ -582,8 +589,8 @@ export default function AudioRecorder({
           paceDirection={realtimeStrengthPace.paceDirection}
         />
         {realtimeStrengthPace.isActive ? (
-          <p className="text-xs text-muted-foreground">
-            Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB · Pace: ~{Math.round(realtimeStrengthPace.wpmEstimate)} WPM
+          <p className="text-foreground text-xs font-normal opacity-90">
+            Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB   Pace: {Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
         ) : !isRecording && micPreviewError ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
@@ -591,25 +598,21 @@ export default function AudioRecorder({
           </p>
         ) : null}
         </div>
-        <div className="text-center">
-          <div
-            className={`text-4xl sm:text-5xl font-mono font-bold tracking-wider ${isRecording ? "text-primary" : "text-foreground"}`}
-          >
-            {formatTime(elapsedSeconds)}
-          </div>
-        </div>
-
         <div className="space-y-1.5">
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {formatTime(remainingSeconds)} remaining to reach minimum
-        </p>
-        <p className="text-xs text-muted-foreground">Max recording: 5 minutes</p>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">
+              min. {minDurationSeconds}s
+            </span>
+            <span className={`font-semibold ${isRecording ? "text-primary" : "text-foreground"}`}>
+              {formatTime(elapsedSeconds)}/5:00
+            </span>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -629,7 +632,7 @@ export default function AudioRecorder({
             className="h-12 w-full rounded-xl font-semibold active:scale-[0.98]"
           >
             <Mic className="mr-2 h-5 w-5" aria-hidden />
-            Start Recording
+            Record an answer
           </Button>
         ) : isPaused ? (
           <div className="flex gap-2">
@@ -682,7 +685,7 @@ export default function AudioRecorder({
           <FlowBackLink onClick={handleStartAgain}>start again</FlowBackLink>
         )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
