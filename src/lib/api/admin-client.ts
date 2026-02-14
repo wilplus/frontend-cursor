@@ -89,6 +89,13 @@ export interface StudentProfile {
   }>;
 }
 
+/** Full report for a completed session (admin modal). Same shape as homework report. */
+export interface AdminSessionReportResponse {
+  report_text: string;
+  scores: { warmup: number; final: number; overall: number };
+  final_recording: { id: string | null; audio_url: string | null };
+}
+
 export interface Exercise {
   id: string;
   title: string;
@@ -183,6 +190,12 @@ export const adminApi = {
 
   getStudentProfile: (userId: string) =>
     adminFetch<StudentProfile>(`/students/${userId}`),
+
+  /** Full report for a student's completed session (for admin report modal). */
+  getStudentSessionReport: (userId: string, sessionId: string) =>
+    adminFetch<AdminSessionReportResponse>(
+      `/students/${userId}/sessions/${sessionId}/report`
+    ),
 
   putOverrides: (userId: string, data: Record<string, unknown>) =>
     adminFetch<{ status: string }>(`/students/${userId}/overrides`, { method: "PUT", body: data }),
