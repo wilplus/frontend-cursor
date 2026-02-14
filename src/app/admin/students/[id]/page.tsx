@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AlertTriangle, ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import SectionCard from "@/components/admin/SectionCard";
 import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
 import { Button } from "@/components/ui/button";
@@ -420,6 +421,9 @@ export default function AdminStudentProfilePage() {
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
 
   const [contextDraft, setContextDraft] = useState("");
+  const [reportModalSession, setReportModalSession] = useState<
+    (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
+  >(null);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -1011,17 +1015,20 @@ export default function AdminStudentProfilePage() {
             <p className="text-sm text-muted-foreground">No reports yet.</p>
           ) : (
             reports.map((s) => (
-              <div
+              <button
+                type="button"
                 key={s.id}
-                className="rounded-xl border border-border bg-muted/30 p-4 shadow-sm"
+                onClick={() => setReportModalSession(s)}
+                className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
               >
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                   Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
                 </p>
-                <p className="whitespace-pre-wrap text-sm text-foreground">
+                <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
                   {s.report_preview?.report_text_preview ?? ""}
                 </p>
-              </div>
+                <p className="text-xs text-primary mt-2">View full report and recording →</p>
+              </button>
             ))
           )}
         </div>
@@ -1089,6 +1096,15 @@ export default function AdminStudentProfilePage() {
         question={postQuestionEdit}
         onSave={handlePostQuestionEditSave}
         saving={saving}
+      />
+      <ReportDetailModal
+        open={!!reportModalSession}
+        onOpenChange={(open) => {
+          if (!open) setReportModalSession(null);
+        }}
+        userId={id}
+        studentEmail={profile?.email ?? null}
+        session={reportModalSession}
       />
     </div>
   );

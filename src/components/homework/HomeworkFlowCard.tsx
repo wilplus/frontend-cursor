@@ -197,10 +197,15 @@ export default function HomeworkFlowCard() {
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
   const postAnswersAutoSubmitDoneRef = useRef(false);
+  /** Session IDs we have already triggered notify-lesson-complete for (admin email). */
+  const notifiedLessonCompleteRef = useRef<Set<string>>(new Set());
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
   /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
   const lastDerivedStepRef = useRef(0);
+  /** Latest known task content; preserved when applyStatusToState gets a thin GET response so task does not disappear. */
+  const taskBlockRef = useRef<TaskBlockV2 | null>(null);
+  const finalTaskTextRef = useRef<string>("");
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {
@@ -211,6 +216,12 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
+
+  /** Keep refs in sync with task content so applyStatusToState can preserve them when GET response omits task_block/final_task_text. */
+  useEffect(() => {
+    taskBlockRef.current = taskBlock;
+    finalTaskTextRef.current = finalTaskText;
+  }, [taskBlock, finalTaskText]);
 
   /** Sync behind: when GET status is behind the step floor for 10s, show "Syncing…" and retry GET status. */
   const syncBehindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -279,8 +290,8 @@ export default function HomeworkFlowCard() {
     setSessionId(sessionIdFromRes);
     setWarmUpText(resolveWarmUpText(derived.warmUpText));
     setTaskText(derived.taskText);
-    setTaskBlock(derived.taskBlock);
-    setFinalTaskText(derived.finalTaskText);
+    setTaskBlock(derived.taskBlock ?? taskBlockRef.current ?? null);
+    setFinalTaskText(derived.finalTaskText?.trim() ? derived.finalTaskText.trim() : (finalTaskTextRef.current || ""));
     setReportText(reportTextToSet);
     setPerformanceScoreEnd(performanceScoreEndToSet);
     const qList = derived.questions.map((q) => ({
@@ -610,7 +621,7 @@ export default function HomeworkFlowCard() {
           setNoWarmupConfigured(true);
           setError(null);
         } else {
-          void handleStart();
+          setError("Could not load session. Click Start homework to begin.");
         }
       })
       .finally(() => setLoading(false));
@@ -705,6 +716,11 @@ export default function HomeworkFlowCard() {
       .then((data) => {
         setReportData(data);
         setReportError(null);
+        // Notify admin (e.g. artur@willonski.com) once per session when report is ready
+        if (!notifiedLessonCompleteRef.current.has(sessionId)) {
+          notifiedLessonCompleteRef.current.add(sessionId);
+          homeworkApi.notifyLessonComplete(sessionId).catch(() => {});
+        }
       })
       .catch((e) => {
         if (isSessionGoneError(e)) {
