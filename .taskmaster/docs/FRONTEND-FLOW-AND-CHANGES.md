@@ -1,13 +1,13 @@
 # Frontend flow: current behavior and what changed
 
-See APP_DESCRIPTION.md for full taskmaster. For the **end report panel** (audio player + scores chart + report text), see `docs/PLAN-END-REPORT-PANEL.md`; backend API in backend-cursor `.taskmaster/docs/PLAN-END-REPORT-PANEL.md`. This doc summarizes (1) how the frontend flow looks now and (2) what changed. **Aligned with backend:** Step 5 is driven by the **post-answers response** only; GET status does not return completed sessions (see backend repo FLOW-AND-CHANGES.md).
+See APP_DESCRIPTION.md for full taskmaster. Step 5 report layout and GET report (including optional `performance_history`) are described in §1 and §2 below and in APP_DESCRIPTION.md. This doc summarizes (1) how the frontend flow looks now and (2) what changed. **Aligned with backend:** Step 5 is driven by the **post-answers response** only; GET status does not return completed sessions (see backend repo FLOW-AND-CHANGES.md).
 
 ## 1. Current frontend flow (step-by-step)
 
 | Step | UI | Status (canonical or alias) | Behavior |
 |------|-----|-----------------------------|----------|
 | 0 | Start | — | POST start → GET status → apply |
-| 1 | Warm-up record | warm_up | AudioRecorder min 60s; timer in onstart; Stop disabled until min |
+| 1 | Warm-up record | warm_up | AudioRecorder min 30s; timer in onstart; Stop disabled until min |
 | 2 | Metric Qs (3) | task_block (+ aliases) | AnswerMetricQuestionsScreen; POST metric-answers → GET status |
 | 3 | Final record | final_task_ready (+ aliases) | AudioRecorder min 62s; onstart first+resume; Stop disabled until 62s |
 | 4 | Reflective Qs | post_questions (+ aliases) | PostQuestionsStepScreen (local state); submit(answersFromChild) |
@@ -15,11 +15,11 @@ See APP_DESCRIPTION.md for full taskmaster. For the **end report panel** (audio 
 
 Step 4: StepFlowWrapper (stable). handlePostAnswersSubmit(answersFromChild) → POST post-answers. On success, frontend sets report and score from the **response** and setStep(5); no GET status call required for step 5. Debug: debugIngest() only when NODE_ENV=development.
 
-**Step 5 UI:** One button only — "Start new homework" (no "Back to dashboard"). Progress bar (ProgressStepBullets) is rendered at the **top** by StepFlowWrapper for **all** steps (1–5); step 5 shows the same layout: progress bar → report card (title, score, report text, button).
+**Step 5 UI:** Progress bar (ProgressStepBullets) at **top** for steps 1–4 only (not step 5). Step 5 layout: report card with (1) final recording player, (2) **Progress over sessions** line chart (orange line, S1–S5; tooltip on dot shows date and overall score; data from GET report `performance_history` or single point from current overall), (3) report text, (4) "Start new homework" button.
 
 **Step 5 report screen (current spec):**
-- One button only: **"Start new homework"** (no "Back to dashboard").
-- Progress bar at **top** for every step (1–5), including the report step.
+- Order: (1) Final recording, (2) Progress over sessions chart, (3) report text, (4) **"Start new homework"** (full-width, rounded-xl).
+- Progress bar at **top** for steps 1–4 only; **no progress bar** on step 5.
 - "Start new homework" resets the homework session to step 0 (same "Homework" card as after login) without logging the user out; calls abandonSession, clears all state and storage; button shows "Resetting…" while handling.
 
 ## 2. Step 4 → 5 (aligned with backend)
@@ -85,6 +85,7 @@ When the backend no longer has the user's session (e.g. expired, cleaned up, or 
 
 - **Step 5 (report):** Single button only — "Start new homework" (no "Back to dashboard"). Progress bar at **top** for all steps (1–5). "Start new homework" resets session to step 0 without logout (abandonSession, clear state/storage, idempotent with "Resetting…").
 
+- **Real-time strength/pace wheel (dartboard):** Client-side only (useRealtimeStrengthPace). Update interval **100 ms**. **Dual EMA** (fast + slow) for trend-based feedback: strength uses 0.7 slow + 0.3 fast blend with **return-to-center damping** (when raw is on target but trend was bad, use 0.85 slow + 0.15 fast so the ball eases back). Pace uses 0.6 slow + 0.4 fast (lighter trend). **Quiet side** remains 22% less sensitive (0.78 factor before EMA). Ball follow **BALL_LERP 0.12** so the ball responds promptly without jumping on brief blips; sustained off-target pulls the ball slowly in that direction.
 - **Mic permission:** Mic is requested only on user action. Permission request is started on **pointer down** on "Start Recording" (streamPromiseRef) so the browser treats it as same user gesture (helps Safari/iOS). On NotAllowedError, show: "Microphone was blocked. Click the lock or info icon in the address bar and set Microphone to Allow, then try again." and toast "Allow microphone in your browser (address bar → site settings)".
 - **Auth / shared links:** Middleware strips auth params from URL; requires session for /dashboard and /admin; (protected) layout validates session server-side. Session in cookies with Secure, SameSite, HttpOnly so shared links do not log in another person; browser remembers user until logout.
 
@@ -117,3 +118,5 @@ Canonical five: warm_up→1, task_block→2, final_task_ready→3, post_question
 | Mic permission | getUserMedia on click only. | Request started on **pointer down** (same user gesture); clearer NotAllowedError copy (address bar → allow mic). |
 | Auth / shared links | Possible token in URL; /admin allowed without session check. | Auth params stripped from URL; session required for /admin; (protected) layout validates session; cookies Secure/SameSite/HttpOnly; shared link in another device → login. |
 | Session gone (404) | Errors could leave user stuck or show generic messages. | Client sets `status: 404` and `code` on 404; `isSessionGoneError()` + `startOverFromScratch()` in recording 1/2, metric-answers, post-answers, getReport → one toast and reset to step 0. |
+| Recording-1 minimum | Min 60s. | **Min 30s** for first (warm-up) recording; UI shows "min. 30s"; validation before upload. Final recording remains min 62s, max 5 min. |
+| Strength/pace wheel | Single EMA, 150 ms tick; ball lerp 0.06. | **100 ms** tick; **dual EMA** (fast + slow) with trend-biased blend; **return-to-center damping** for strength; pace lighter trend; **BALL_LERP 0.12**. Ball reacts in ~200–300 ms but does not jump on blips; sustained off-target drifts slowly. |

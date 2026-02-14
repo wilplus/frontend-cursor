@@ -541,10 +541,10 @@ export default function AudioRecorder({
                   max={MAX_DURATION_SECONDS}
                   value={manualDuration}
                   onChange={(e) => setManualDuration(e.target.value)}
-                  placeholder="Enter duration in seconds (min 60)"
+                  placeholder={`Enter duration in seconds (min ${minDurationSeconds})`}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Min 1 min, max 5 min
+                  Min {minDurationSeconds}s, max 5 min
                 </p>
               </div>
             )}
@@ -569,7 +569,7 @@ export default function AudioRecorder({
     );
   }
 
-  // Progress toward minimum (60s): 0–100%
+  // Progress toward max duration (5 min): 0–100%
   const progressPercent = Math.min(100, (elapsedSeconds / MAX_DURATION_SECONDS) * 100);
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
@@ -577,22 +577,25 @@ export default function AudioRecorder({
     <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
       <div className="p-4 sm:p-6 space-y-5">
         {prompt ? (
-          <p className="text-base font-bold leading-snug text-foreground text-left">
+          <p className="text-lg font-bold leading-snug text-foreground text-left sm:text-xl">
             {prompt}
           </p>
         ) : null}
         <div className="flex flex-col items-center gap-1">
-          <StrengthPaceDartboard
-          strengthScore={realtimeStrengthPace.strengthScore}
-          paceScore={realtimeStrengthPace.paceScore}
-          strengthDirection={realtimeStrengthPace.strengthDirection}
-          paceDirection={realtimeStrengthPace.paceDirection}
-        />
+          <div className="w-[120%] -ml-[10%] max-w-none">
+            <StrengthPaceDartboard
+              strengthScore={realtimeStrengthPace.strengthScore}
+              paceScore={realtimeStrengthPace.paceScore}
+              strengthDirection={realtimeStrengthPace.strengthDirection}
+              paceDirection={realtimeStrengthPace.paceDirection}
+            />
+          </div>
         {realtimeStrengthPace.isActive ? (
-          <p className="text-foreground text-xs font-normal opacity-90">
+          <p className="text-sm text-muted-foreground">
             Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB   Pace: {Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
-        ) : !isRecording && micPreviewError ? (
+        ) : null}
+        {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             {micPreviewError}
           </p>

@@ -13,11 +13,12 @@ import type {
 } from "@/lib/api/types-homework";
 import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
 import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
-import ReportSessionChart from "@/components/homework/ReportSessionChart";
+import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
+import { Mic } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -664,7 +665,17 @@ export default function HomeworkFlowCard() {
       .finally(() => setReportLoading(false));
   }, [step, sessionId]);
 
+  const RECORDING_1_DURATION_MIN = 30;
+  const RECORDING_2_DURATION_MIN = 62;
+  const RECORDING_2_DURATION_MAX = 300;
+
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
+    if (durationSeconds < RECORDING_1_DURATION_MIN) {
+      const msg = `First recording must be at least ${RECORDING_1_DURATION_MIN} seconds. You recorded ${durationSeconds}s.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
     // #region agent log
     debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete:entry", message: "rec1 complete handler entered", data: { hasSessionId: !!sessionId, uploadInProgress: uploadRecording1InProgressRef.current, uploadingRecording, step, durationSeconds }, timestamp: Date.now(), hypothesisId: "H5" });
     // #endregion
@@ -920,9 +931,6 @@ export default function HomeworkFlowCard() {
       metricSubmitInProgress.current = false;
     }
   };
-
-  const RECORDING_2_DURATION_MIN = 62;
-  const RECORDING_2_DURATION_MAX = 300;
 
   const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
     if (!sessionId) return;
@@ -1219,6 +1227,7 @@ export default function HomeworkFlowCard() {
             onRecordingComplete={handleRecording1Complete}
             stopAndSend
             uploading={isUploadingRec1}
+            minDurationSeconds={RECORDING_1_DURATION_MIN}
           />
         )}
         {sessionId && sessionId !== "mock-session" && (
@@ -1323,10 +1332,23 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 5: Report — no progress bar; navbar is shown. (1) final recording player, (2) score chart, (3) report text
+  // Step 5: Report — (1) recording, (2) performance chart, (3) text, (4) button
   if (step === 5) {
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
+
+    const performanceHistory = reportData?.performance_history;
+    const progressChartData =
+      performanceHistory && performanceHistory.length > 0
+        ? performanceHistory.map((p, i) => ({
+            sessionLabel: `S${i + 1}`,
+            date: p.date,
+            score: p.score,
+          }))
+        : displayScores?.overall != null
+          ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
+          : [];
+
     return (
       <div className="space-y-4 animate-fade-in">
         <Card className="p-6 space-y-4">
@@ -1347,9 +1369,9 @@ export default function HomeworkFlowCard() {
                 <p className="text-sm text-muted-foreground">Recording playback not available.</p>
               )}
             </div>
-            {/* 2. Performance score graph */}
-            {displayScores && (
-              <ReportSessionChart scores={displayScores} />
+            {/* 2. Progress over sessions chart */}
+            {progressChartData.length > 0 && (
+              <ProgressOverSessionsChart data={progressChartData} />
             )}
             {/* 3. Report text */}
             <div className="rounded-xl border border-border bg-muted/30 p-4">
@@ -1358,11 +1380,9 @@ export default function HomeworkFlowCard() {
               </p>
             </div>
           </div>
-          <div className="flex justify-center">
-            <Button onClick={handleStartOver} disabled={resetting} className="rounded-full px-6">
-              {resetting ? "Resetting…" : "Start new homework"}
-            </Button>
-          </div>
+          <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
+            {resetting ? "Resetting…" : "Start new homework"}
+          </Button>
         </Card>
       </div>
     );
