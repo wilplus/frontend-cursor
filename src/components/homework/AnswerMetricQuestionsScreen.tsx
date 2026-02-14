@@ -54,7 +54,7 @@ export default function AnswerMetricQuestionsScreen({
 
   return (
     <div className="answer-metric-questions">
-      <div className="p-6 sm:p-8 bg-background rounded-xl">
+      <div className="p-6 sm:p-8">
         <div className="space-y-8">
           <div className="space-y-3">
             <label className={labelClass}>{label1}</label>

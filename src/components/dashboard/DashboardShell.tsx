@@ -40,9 +40,11 @@ export default function DashboardShell({
       <div className="min-h-screen bg-background">
         {showNavbar && <DashboardHeader />}
         <main
-          className={`mx-auto w-full max-w-4xl flex flex-col min-w-0 px-4 py-8 space-y-8 sm:px-8 lg:px-10 ${isRecording ? "recording-screen" : ""}`}
+          className={`w-full max-w-4xl mx-auto flex flex-col min-w-0 px-4 py-8 sm:px-8 lg:px-10 ${isRecording ? "recording-screen" : ""}`}
         >
-          {children}
+          <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
+            {children}
+          </div>
         </main>
       </div>
     </RecordingContext.Provider>
