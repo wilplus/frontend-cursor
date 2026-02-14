@@ -1,29 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
+const REPORT_PATH = (userId: string, sessionId: string) =>
+  `/v2/admin/students/${userId}/sessions/${sessionId}/report`;
+
 /**
- * GET full report for a student's completed session (admin).
- * Returns report_text, scores, final_recording with audio_url for the admin report modal.
- * Backend contract: GET /v2/admin/students/:userId/sessions/:sessionId/report
+ * GET or POST full report for a student's completed session (admin).
+ * Tries GET first; if backend returns 405, tries POST (some backends use POST for report).
  * Response shape: { report_text: string; scores: { warmup, final, overall }; final_recording: { id, audio_url } }
  */
-export async function GET(
+async function handleReport(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; sessionId: string }> }
-) {
+  params: { id: string; sessionId: string },
+  method: "GET" | "POST"
+): Promise<NextResponse> {
   const token = await getV2AccessToken(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const { id: userId, sessionId } = await params;
+  const { id: userId, sessionId } = params;
   const backend = getBackendUrl();
-  const res = await fetch(
-    `${backend}/v2/admin/students/${userId}/sessions/${sessionId}/report`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  const url = `${backend}${REPORT_PATH(userId, sessionId)}`;
+  const init: RequestInit = {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+    ...(method === "POST" && { body: JSON.stringify({}) }),
+  };
+  if (method === "POST") {
+    (init.headers as Record<string, string>)["Content-Type"] = "application/json";
+  }
+  const res = await fetch(url, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
   return NextResponse.json(data);
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; sessionId: string }> }
+) {
+  const p = await params;
+  const resGet = await handleReport(request, p, "GET");
+  if (resGet.status === 405) {
+    return handleReport(request, p, "POST");
+  }
+  return resGet;
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; sessionId: string }> }
+) {
+  const p = await params;
+  return handleReport(request, p, "POST");
 }
