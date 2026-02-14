@@ -146,7 +146,7 @@ function StepFlowWrapper({
 export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
-  const { setRecordingActive } = useRecordingContext();
+  const { setRecordingActive, setShowNavbar } = useRecordingContext();
   const [step, setStep] = useState<Step | 0>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [warmUpText, setWarmUpText] = useState("");
@@ -177,10 +177,15 @@ export default function HomeworkFlowCard() {
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
 
-  /** Clear recording-context when not on a recording step (so navbar returns when leaving step 1/3). */
+  /** Clear recording-context when not on a recording step (so body scroll lock is released when leaving step 1/3). */
   useEffect(() => {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
+
+  /** Show navbar only on step 5 (end report); hide for steps 0–4. */
+  useEffect(() => {
+    setShowNavbar(step === 5);
+  }, [step, setShowNavbar]);
 
   /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
   const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
