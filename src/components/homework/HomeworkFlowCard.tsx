@@ -73,6 +73,11 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const performanceScoreEnd = s.performance_score_end ?? session?.performance_score_end ?? null;
   const questions = Array.isArray(s.questions) ? s.questions : [];
 
+  // Empty or missing status is normal for a brand-new session (e.g. right after POST start). Treat as step 1 so we don't show "Session could not be restored" and unmount the recorder.
+  if (status === "" || status === "created" || status === "initializing" || status === "pending") {
+    return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
+  }
+
   // Canonical statuses (taskmaster)
   if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
   if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
@@ -309,7 +314,9 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       const sessionIdFromStatus = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
       if (statusRes && sessionIdFromStatus === startRes.session_id) {
-        applyStatusToState(statusRes);
+        const derived = deriveStepFromStatus(statusRes);
+        // Don't overwrite with statusUnknown when we just started — keeps recorder visible and avoids "Session could not be restored" on new session.
+        if (!derived.statusUnknown) applyStatusToState(statusRes);
       } else {
         setSessionId(startRes.session_id);
         setStep(1);
