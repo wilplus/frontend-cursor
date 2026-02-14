@@ -203,9 +203,16 @@ export default function HomeworkFlowCard() {
   const uiStepFloorRef = useRef(0);
   /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
   const lastDerivedStepRef = useRef(0);
+  /** Current UI step (updated when step state changes). Used in applyStatusToState to never set step lower than displayed. */
+  const lastStepRef = useRef(0);
   /** Latest known task content; preserved when applyStatusToState gets a thin GET response so task does not disappear. */
   const taskBlockRef = useRef<TaskBlockV2 | null>(null);
   const finalTaskTextRef = useRef<string>("");
+
+  /** Keep lastStepRef in sync with step so applyStatusToState can clamp to never go backward. */
+  useEffect(() => {
+    lastStepRef.current = step;
+  }, [step]);
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {
@@ -301,7 +308,7 @@ export default function HomeworkFlowCard() {
     }));
     setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
     lastDerivedStepRef.current = derived.step;
-    const stepToSet = Math.max(derived.step, uiStepFloorRef.current) as Step | 0;
+    const stepToSet = Math.max(derived.step, uiStepFloorRef.current, lastStepRef.current) as Step | 0;
     setStep(stepToSet);
     setStatusUnknown(derived.statusUnknown);
     setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
@@ -815,6 +822,7 @@ export default function HomeworkFlowCard() {
         return;
       }
       if (isInvalidSessionStateError(e)) {
+        uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
           applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
@@ -990,6 +998,7 @@ export default function HomeworkFlowCard() {
       }
 
       if (isInvalidSessionStateError(e)) {
+        uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
           applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
@@ -1439,6 +1448,19 @@ export default function HomeworkFlowCard() {
           loading={loading}
           error={error}
         />
+        {sessionId && sessionId !== "mock-session" && (
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        )}
       </StepFlowWrapper>
     );
   }
