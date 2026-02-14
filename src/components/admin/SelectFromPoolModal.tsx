@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Search, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ interface SelectFromPoolModalProps {
   allowCreate?: boolean;
   /** Create new item; return the new PoolItem to show in list and add to selection. */
   onCreateNew?: (text: string) => Promise<PoolItem | void>;
+  /** Called when create fails; if not provided, a toast is shown. */
+  onError?: (error: Error) => void;
   maxSelection?: number;
   /** When true and pool is empty, show "Loading..." instead of "No items in pool yet". */
   poolLoading?: boolean;
@@ -37,6 +40,7 @@ export default function SelectFromPoolModal({
   onConfirm,
   allowCreate = false,
   onCreateNew,
+  onError,
   maxSelection,
   poolLoading = false,
 }: SelectFromPoolModalProps) {
@@ -94,6 +98,10 @@ export default function SelectFromPoolModal({
         setLocalSelected((prev) => new Set([...prev, added.id]));
       }
       setNewItemText("");
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (onError) onError(err);
+      else toast.error(err.message || "Failed to add to pool");
     } finally {
       setCreating(false);
     }

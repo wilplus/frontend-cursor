@@ -558,14 +558,23 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createWarmUpPoolTask({ text });
-    const task = res.task_warm_up;
-    setWarmUpPoolTasks((prev) => [...prev, task]);
-    return {
-      id: task.id,
-      label: task.text,
-      subLabel: task.max_performance_score != null ? `Max score: ${task.max_performance_score}` : undefined,
-    };
+    try {
+      const res = await adminApi.createWarmUpPoolTask({ text });
+      const task = res.task_warm_up;
+      if (!task?.id || task.text == null) {
+        toast.error("Unexpected response from server");
+        return;
+      }
+      setWarmUpPoolTasks((prev) => [...prev, task]);
+      return {
+        id: task.id,
+        label: task.text,
+        subLabel: task.max_performance_score != null ? `Max score: ${task.max_performance_score}` : undefined,
+      };
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "Failed to add to pool");
+      throw e;
+    }
   };
 
   const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {
@@ -690,14 +699,23 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
   const handleFocusCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createFocusTaskPoolItem({ text, order_index: 0, max_performance_score: 1 });
-    const item = res.task_focus;
-    setFocusPoolTasks((prev) => [...prev, item]);
-    return {
-      id: item.id,
-      label: item.text,
-      subLabel: item.max_performance_score != null ? `Max score: ${item.max_performance_score}` : undefined,
-    };
+    try {
+      const res = await adminApi.createFocusTaskPoolItem({ text, order_index: 0, max_performance_score: 1 });
+      const item = res.task_focus;
+      if (!item?.id || item.text == null) {
+        toast.error("Unexpected response from server");
+        return;
+      }
+      setFocusPoolTasks((prev) => [...prev, item]);
+      return {
+        id: item.id,
+        label: item.text,
+        subLabel: item.max_performance_score != null ? `Max score: ${item.max_performance_score}` : undefined,
+      };
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "Failed to add to pool");
+      throw e;
+    }
   };
   const handleFocusEditModalSave = async (data: { text: string; max_performance_score: number }) => {
     setSaving(true);
