@@ -743,6 +743,20 @@ export default function HomeworkFlowCard() {
       uploadRecording1InProgressRef.current = false;
       return;
     }
+    // If session already advanced past warm_up (e.g. another tab or race), sync and skip upload to avoid 409
+    try {
+      const statusRes = await homeworkApi.getStatus();
+      if (statusRes) {
+        const derived = deriveStepFromStatus(statusRes);
+        if (derived.step >= 2) {
+          applyStatusToState(statusRes);
+          toast.info("Session already advanced. You're on the right step now.");
+          return;
+        }
+      }
+    } catch {
+      /* proceed to upload */
+    }
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
@@ -770,7 +784,7 @@ export default function HomeworkFlowCard() {
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
-          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
         }
         try {
           const statusRes = await homeworkApi.getStatus();
@@ -945,7 +959,7 @@ export default function HomeworkFlowCard() {
       if (isInvalidSessionStateError(e)) {
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
-          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
         }
         try {
           const statusRes = await homeworkApi.getStatus();
@@ -1014,7 +1028,7 @@ export default function HomeworkFlowCard() {
         if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
         const backendStatus = (e as HomeworkApiError).backendStatus;
         if (backendStatus) {
-          applyStatusToState({ status: backendStatus } as HomeworkSessionStatus);
+          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
         }
         try {
           const statusRes = await homeworkApi.getStatus();
