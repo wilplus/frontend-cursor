@@ -594,8 +594,8 @@ export default function AudioRecorder({
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
-    <div className="max-w-lg mx-auto px-4 py-5 space-y-5">
-      <div className="p-4 sm:p-6 space-y-5">
+    <div className="w-full max-w-lg mx-auto px-0 sm:px-2 py-5 space-y-5">
+      <div className="p-2 sm:p-6 space-y-5">
         {prompt ? (
           <div className="relative w-full">
             <p
@@ -621,7 +621,7 @@ export default function AudioRecorder({
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex justify-center w-full">
-            <div className="w-[120%] max-w-none relative left-1/2 -translate-x-1/2">
+            <div className="w-[140%] min-w-[280px] sm:min-w-[320px] max-w-[380px] sm:max-w-[420px] relative left-1/2 -translate-x-1/2">
               <StrengthPaceDartboard
               strengthScore={realtimeStrengthPace.strengthScore}
               paceScore={realtimeStrengthPace.paceScore}
