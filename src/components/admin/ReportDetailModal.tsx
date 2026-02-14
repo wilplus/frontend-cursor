@@ -56,8 +56,7 @@ export default function ReportDetailModal({
 
   const reportText =
     report?.report_text ??
-    (session?.report_preview?.report_text_preview || "").trim() ||
-    "";
+    ((session?.report_preview?.report_text_preview || "").trim() || "");
   const audioUrl = report?.final_recording?.audio_url ?? null;
   const scores = report?.scores;
   const dateLabel = session?.created_at
