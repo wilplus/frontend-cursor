@@ -1243,7 +1243,7 @@ export default function HomeworkFlowCard() {
           />
         )}
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-1.5 flex justify-center">
+          <div className="mt-[3.5px] flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1271,7 +1271,7 @@ export default function HomeworkFlowCard() {
           error={error}
         />
         {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-1.5 flex justify-center">
+          <div className="mt-[3.5px] flex justify-center">
             <Button
               variant="ghost"
               size="sm"
@@ -1312,7 +1312,7 @@ export default function HomeworkFlowCard() {
           uploading={isUploadingRec2}
           minDurationSeconds={RECORDING_2_DURATION_MIN}
         />
-        <div className="mt-1.5 flex justify-center">
+        <div className="mt-[3.5px] flex justify-center">
           <Button
             variant="ghost"
             size="sm"
@@ -1362,9 +1362,9 @@ export default function HomeworkFlowCard() {
           : [];
 
     return (
-      <div className="space-y-4 animate-fade-in">
-        <Card className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Your report</h3>
+      <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+        <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+          <h3 className="text-center text-lg font-semibold">Your report</h3>
           {reportLoading && (
             <p className="text-sm text-muted-foreground">Loading report…</p>
           )}
