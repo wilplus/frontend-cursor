@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { TaskBlockV2 } from "@/lib/api/types-homework";
 
 /** Coerce API value to string; backend may send { text } or plain string. */
@@ -49,48 +48,51 @@ export default function AnswerMetricQuestionsScreen({
 
   const allFilled = answer_1.trim() !== "" && answer_2.trim() !== "" && answer_3.trim() !== "";
 
+  const inputClass =
+    "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+  const labelClass = "block text-sm font-medium text-foreground";
+
   return (
     <div className="answer-metric-questions">
-      <Card className="p-6 sm:p-8">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-foreground">{label1}</label>
+      <div className="p-6 sm:p-8 bg-background rounded-xl">
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <label className={labelClass}>{label1}</label>
             <textarea
-              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              placeholder="Your answer…"
+              className={inputClass}
+              placeholder="Describe your answer…"
               value={answer_1}
               onChange={(e) => setAnswer_1(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-foreground">{label2}</label>
+          <div className="space-y-3">
+            <label className={labelClass}>{label2}</label>
             <textarea
-              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              placeholder="Your answer…"
+              className={inputClass}
+              placeholder="Describe your answer…"
               value={answer_2}
               onChange={(e) => setAnswer_2(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-foreground">{label3}</label>
+          <div className="space-y-3">
+            <label className={labelClass}>{label3}</label>
             <textarea
-              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              placeholder="Your answer…"
+              className={inputClass}
+              placeholder="Describe your answer…"
               value={answer_3}
               onChange={(e) => setAnswer_3(e.target.value)}
             />
           </div>
         </div>
         {externalError && <p className="mt-4 text-sm text-destructive">{externalError}</p>}
-        {!allFilled && <p className="mt-3 text-sm text-muted-foreground">Answer all three questions above to continue.</p>}
         <Button
-          className="mt-6 w-full sm:w-auto min-w-[140px]"
+          className="mt-8 w-full rounded-xl bg-primary text-white font-normal hover:bg-primary/90 h-12"
           onClick={handleSubmit}
           disabled={loading || !allFilled}
         >
           {loading ? "Submitting…" : "Continue"}
         </Button>
-      </Card>
+      </div>
     </div>
   );
 }

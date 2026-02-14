@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { HomeworkQuestion } from "@/lib/api/types-homework";
 import { debugIngest } from "@/lib/debugIngest";
 
@@ -68,18 +67,22 @@ export default function PostQuestionsStepScreen({
     void onSubmit(out);
   };
 
+  const inputClass =
+    "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+  const labelClass = "block text-sm font-medium text-foreground";
+
   return (
-    <Card className="p-6 space-y-4">
-      <h3 className="text-lg font-semibold">Reflective questions</h3>
-      <div className="space-y-4">
+    <div className="p-6 sm:p-8 bg-background rounded-xl space-y-6">
+      <h3 className="text-lg font-semibold text-foreground">Reflective questions</h3>
+      <div className="space-y-8">
         {questions.map((q) => {
           const qId = toId(q.id);
           return (
-            <div key={qId}>
-              <label className="block text-sm font-medium mb-1">{toText(q.text)}</label>
+            <div key={qId} className="space-y-3">
+              <label className={labelClass}>{toText(q.text)}</label>
               <textarea
-                className="min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                placeholder="Your answer…"
+                className={inputClass}
+                placeholder="Describe your answer…"
                 value={answers[qId] ?? ""}
                 onChange={(e) => handleChange(qId, e.target.value)}
               />
@@ -89,14 +92,12 @@ export default function PostQuestionsStepScreen({
       </div>
       {externalError && <p className="text-sm text-destructive">{externalError}</p>}
       <Button
+        className="mt-8 w-full rounded-xl bg-primary text-white font-normal hover:bg-primary/90 h-12"
         onClick={handleSubmit}
         disabled={loading || !allAnswered}
       >
         {loading ? "Submitting…" : "See my report"}
       </Button>
-      {!allAnswered && questions.length > 0 && (
-        <p className="text-sm text-muted-foreground">Answer all questions above to continue.</p>
-      )}
-    </Card>
+    </div>
   );
 }

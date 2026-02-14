@@ -145,9 +145,17 @@ export interface HomeworkPostAnswersResponse {
   performance_score_end: number;
 }
 
+/** One point for "Progress over sessions" chart: date and combined score (0–100). */
+export interface PerformanceHistoryPoint {
+  date: string; // ISO or display date
+  score: number; // 0–100
+}
+
 // —— GET report (step 5 panel: player + graph + text) ——
 export interface HomeworkReportResponse {
   report_text: string;
   scores: { warmup: number; final: number; overall: number };
   final_recording: { id: string | null; audio_url: string | null };
+  /** Last 5 sessions' performance (oldest first). When absent, frontend may derive a single point from scores.overall. */
+  performance_history?: PerformanceHistoryPoint[];
 }
