@@ -9,15 +9,15 @@ import { useMemo, useRef, useState, useEffect } from "react";
 const VIEWBOX_SIZE = 300;
 const RADIUS = 120;
 const BALL_R = 10;
-/** Base blend (0–1); double smoothstep yields slower, eased motion with no sudden jumps. */
-const BALL_LERP_BASE = 0.2;
-/** Smoothstep for easing (applied x2 for extra smooth direction changes). */
+/** Blend factor: eased (smoothstep) and quite slow, but no delay — ball starts moving on first frame. */
+const BALL_LERP_BASE = 0.12;
 function smoothstep(t: number): number {
   const c = Math.max(0, Math.min(1, t));
   return c * c * (3 - 2 * c);
 }
+/** Single smoothstep: eased, slow motion that reacts instantly when target changes. */
 function easedLerp(): number {
-  return smoothstep(smoothstep(BALL_LERP_BASE));
+  return smoothstep(BALL_LERP_BASE);
 }
 
 /** Position in [-1, 1] from score and direction (center = on target). */
