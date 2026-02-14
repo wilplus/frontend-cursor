@@ -201,6 +201,9 @@ export default function HomeworkFlowCard() {
   const uiStepFloorRef = useRef(0);
   /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
   const lastDerivedStepRef = useRef(0);
+  /** Latest known task content; preserved when applyStatusToState gets a thin GET response so task does not disappear. */
+  const taskBlockRef = useRef<TaskBlockV2 | null>(null);
+  const finalTaskTextRef = useRef<string>("");
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {
@@ -211,6 +214,12 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
+
+  /** Keep refs in sync with task content so applyStatusToState can preserve them when GET response omits task_block/final_task_text. */
+  useEffect(() => {
+    taskBlockRef.current = taskBlock;
+    finalTaskTextRef.current = finalTaskText;
+  }, [taskBlock, finalTaskText]);
 
   /** Sync behind: when GET status is behind the step floor for 10s, show "Syncing…" and retry GET status. */
   const syncBehindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -279,8 +288,8 @@ export default function HomeworkFlowCard() {
     setSessionId(sessionIdFromRes);
     setWarmUpText(resolveWarmUpText(derived.warmUpText));
     setTaskText(derived.taskText);
-    setTaskBlock(derived.taskBlock);
-    setFinalTaskText(derived.finalTaskText);
+    setTaskBlock(derived.taskBlock ?? taskBlockRef.current ?? null);
+    setFinalTaskText(derived.finalTaskText?.trim() ? derived.finalTaskText.trim() : (finalTaskTextRef.current || ""));
     setReportText(reportTextToSet);
     setPerformanceScoreEnd(performanceScoreEndToSet);
     const qList = derived.questions.map((q) => ({
@@ -610,7 +619,7 @@ export default function HomeworkFlowCard() {
           setNoWarmupConfigured(true);
           setError(null);
         } else {
-          void handleStart();
+          setError("Could not load session. Click Start homework to begin.");
         }
       })
       .finally(() => setLoading(false));
