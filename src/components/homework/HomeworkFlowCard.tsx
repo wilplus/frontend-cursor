@@ -197,6 +197,8 @@ export default function HomeworkFlowCard() {
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
   const postAnswersAutoSubmitDoneRef = useRef(false);
+  /** Session IDs we have already triggered notify-lesson-complete for (admin email). */
+  const notifiedLessonCompleteRef = useRef<Set<string>>(new Set());
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
   /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
@@ -714,6 +716,11 @@ export default function HomeworkFlowCard() {
       .then((data) => {
         setReportData(data);
         setReportError(null);
+        // Notify admin (e.g. artur@willonski.com) once per session when report is ready
+        if (!notifiedLessonCompleteRef.current.has(sessionId)) {
+          notifiedLessonCompleteRef.current.add(sessionId);
+          homeworkApi.notifyLessonComplete(sessionId).catch(() => {});
+        }
       })
       .catch((e) => {
         if (isSessionGoneError(e)) {
