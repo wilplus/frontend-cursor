@@ -30,20 +30,26 @@ export default function ReportDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AdminSessionReportResponse | null>(null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !session) {
       setReport(null);
       setError(null);
+      setPlaybackUrl(null);
       return;
     }
     setLoading(true);
     setError(null);
+    setPlaybackUrl(null);
     adminApi
       .getStudentSessionReport(userId, session.id)
       .then((data) => {
         setReport(data);
         setError(null);
+        if (data.final_recording?.audio_url) {
+          setPlaybackUrl(data.final_recording.audio_url);
+        }
       })
       .catch((e) => {
         setReport(null);
@@ -52,12 +58,23 @@ export default function ReportDetailModal({
       .finally(() => setLoading(false));
   }, [open, userId, session?.id]);
 
+  // When report API fails or doesn't return audio, try admin playback URL using session.recording_id
+  useEffect(() => {
+    if (!open || loading || playbackUrl) return;
+    const recordingId = session?.recording_id;
+    if (!recordingId) return;
+    adminApi
+      .getRecordingPlaybackUrl(recordingId)
+      .then((r) => r.audio_url && setPlaybackUrl(r.audio_url))
+      .catch(() => {});
+  }, [open, loading, playbackUrl, session?.recording_id]);
+
   if (!open) return null;
 
   const reportText =
     report?.report_text ??
     ((session?.report_preview?.report_text_preview || "").trim() || "");
-  const audioUrl = report?.final_recording?.audio_url ?? null;
+  const audioUrl = playbackUrl ?? report?.final_recording?.audio_url ?? null;
   const scores = report?.scores;
   const dateLabel = session?.created_at
     ? new Date(session.created_at).toLocaleDateString(undefined, {
@@ -103,8 +120,7 @@ export default function ReportDetailModal({
           )}
           {error && !loading && (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-              {error}
-              {reportText && " Showing preview below."}
+              Full report and recording require the backend admin report API. Showing available preview below.
             </p>
           )}
 
@@ -146,13 +162,13 @@ export default function ReportDetailModal({
                 </div>
               )}
 
-              {/* Full report text */}
-              <div>
+              {/* Full report text — no truncation; full scroll */}
+              <div className="min-h-0">
                 <p className="text-sm font-medium text-muted-foreground mb-2">
                   Report
                 </p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
+                <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[50vh] overflow-y-auto">
+                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed break-words">
                     {reportText || "No report text available."}
                   </p>
                 </div>

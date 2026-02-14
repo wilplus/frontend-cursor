@@ -197,6 +197,10 @@ export const adminApi = {
       `/students/${userId}/sessions/${sessionId}/report`
     ),
 
+  /** Playback URL for a recording (admin). Use when report modal has recording_id but no audio_url. */
+  getRecordingPlaybackUrl: (recordingId: string) =>
+    adminFetch<{ audio_url: string }>(`/recordings/${recordingId}/playback-url`),
+
   putOverrides: (userId: string, data: Record<string, unknown>) =>
     adminFetch<{ status: string }>(`/students/${userId}/overrides`, { method: "PUT", body: data }),
 
