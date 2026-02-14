@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { adminApi, type AdminSessionReportResponse } from "@/lib/api/admin-client";
 import { Button } from "@/components/ui/button";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 type SessionWithPreview = {
   id: string;
@@ -31,6 +33,8 @@ export default function ReportDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AdminSessionReportResponse | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (!open || !session) {
@@ -82,7 +86,7 @@ export default function ReportDetailModal({
       })
     : "—";
 
-  return (
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={() => onOpenChange(false)}
@@ -190,4 +194,9 @@ export default function ReportDetailModal({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
 }
