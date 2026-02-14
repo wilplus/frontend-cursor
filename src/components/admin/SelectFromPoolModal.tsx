@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 export interface PoolItem {
   id: string;
@@ -49,6 +51,8 @@ export default function SelectFromPoolModal({
   const [creating, setCreating] = useState(false);
   const [localSelected, setLocalSelected] = useState<Set<string>>(() => new Set(selectedIds));
   const [localAppends, setLocalAppends] = useState<PoolItem[]>([]);
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (open) {
@@ -111,7 +115,7 @@ export default function SelectFromPoolModal({
 
   const selectedCount = localSelected.size;
 
-  return (
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={handleCancel}
@@ -225,4 +229,9 @@ export default function SelectFromPoolModal({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
 }

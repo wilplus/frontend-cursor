@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AlertTriangle, ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import SectionCard from "@/components/admin/SectionCard";
 import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
@@ -125,6 +127,8 @@ function WarmUpTaskEditModal({
   const [text, setText] = useState("");
   const [scoreInput, setScoreInput] = useState("1");
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (open) {
       setText(task?.text ?? "");
@@ -149,7 +153,7 @@ function WarmUpTaskEditModal({
 
   if (!open) return null;
 
-  return (
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={() => onOpenChange(false)}
@@ -198,6 +202,10 @@ function WarmUpTaskEditModal({
       </div>
     </div>
   );
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
 }
 
 const POST_ANSWER_TYPES = ["text", "scale", "binary"] as const;
@@ -218,6 +226,8 @@ function PostQuestionEditModal({
 }) {
   const [text, setText] = useState("");
   const [answerType, setAnswerType] = useState("text");
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (open) {
@@ -242,7 +252,7 @@ function PostQuestionEditModal({
 
   if (!open) return null;
 
-  return (
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={() => onOpenChange(false)}
@@ -291,6 +301,10 @@ function PostQuestionEditModal({
       </div>
     </div>
   );
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
 }
 
 // —— Edit/Create focus task modal: text + Max score (0–1); same pattern as warm-up. ——
@@ -309,6 +323,8 @@ function FocusTaskEditModal({
 }) {
   const [text, setText] = useState("");
   const [scoreInput, setScoreInput] = useState("1");
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (open) {
@@ -334,7 +350,7 @@ function FocusTaskEditModal({
 
   if (!open) return null;
 
-  return (
+  const overlay = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={() => onOpenChange(false)}
@@ -383,6 +399,10 @@ function FocusTaskEditModal({
       </div>
     </div>
   );
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
 }
 
 export default function AdminStudentProfilePage() {
