@@ -29,6 +29,14 @@ const TOTAL_STEPS = 5;
 /** Default warm-up question when the backend assigns none. */
 const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
 
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 function resolveWarmUpText(text: string | null | undefined): string {
   return (text ?? "").trim() || DEFAULT_WARMUP_QUESTION;
 }
@@ -199,6 +207,10 @@ export default function HomeworkFlowCard() {
   const postAnswersAutoSubmitDoneRef = useRef(false);
   /** Session IDs we have already triggered notify-lesson-complete for (admin email). */
   const notifiedLessonCompleteRef = useRef<Set<string>>(new Set());
+  /** When set, user just finished a lesson (step 5 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
+  const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
+  /** Ticker so countdown re-renders every second when tutor deadline is shown. */
+  const [countdownTick, setCountdownTick] = useState(0);
   /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
   const uiStepFloorRef = useRef(0);
   /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
@@ -213,6 +225,35 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     lastStepRef.current = step;
   }, [step]);
+
+  /** On step 0, fetch status so we get backend tutor_feedback_deadline (when no active session). */
+  useEffect(() => {
+    if (step !== 0) return;
+    homeworkApi.getStatus().then((statusRes) => {
+      const deadlineIso = statusRes?.tutor_feedback_deadline;
+      if (deadlineIso && typeof deadlineIso === "string") {
+        const ms = new Date(deadlineIso).getTime();
+        setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
+      } else {
+        setTutorFeedbackDeadlineMs(null);
+      }
+    }).catch(() => {
+      setTutorFeedbackDeadlineMs(null);
+    });
+  }, [step]);
+
+  /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
+  useEffect(() => {
+    if (tutorFeedbackDeadlineMs == null) return;
+    const id = setInterval(() => {
+      if (Date.now() >= tutorFeedbackDeadlineMs) {
+        setTutorFeedbackDeadlineMs(null);
+      } else {
+        setCountdownTick((t) => t + 1);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [tutorFeedbackDeadlineMs]);
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {
@@ -279,6 +320,13 @@ export default function HomeworkFlowCard() {
     setStep(stepToSet);
     setStatusUnknown(derived.statusUnknown);
     setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
+    const deadlineIso = (statusRes as { tutor_feedback_deadline?: string | null }).tutor_feedback_deadline;
+    if (deadlineIso && typeof deadlineIso === "string") {
+      const ms = new Date(deadlineIso).getTime();
+      setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
+    } else {
+      setTutorFeedbackDeadlineMs(null);
+    }
   };
 
   const handleStart = async () => {
@@ -384,6 +432,7 @@ export default function HomeworkFlowCard() {
       setStatusUnknown(false);
       setLoading(false);
       setUploadingRecording(null);
+      setTutorFeedbackDeadlineMs(null);
     } finally {
       setResetting(false);
     }
@@ -556,6 +605,13 @@ export default function HomeworkFlowCard() {
           setError(null);
           setStatusUnknown(false);
           setLoading(false);
+          const deadlineIso = statusRes?.tutor_feedback_deadline;
+          if (deadlineIso && typeof deadlineIso === "string") {
+            const ms = new Date(deadlineIso).getTime();
+            setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
+          } else {
+            setTutorFeedbackDeadlineMs(null);
+          }
           return;
         }
         if (statusRes) {
@@ -1226,9 +1282,20 @@ export default function HomeworkFlowCard() {
               </div>
             </div>
             <h2 className="text-xl font-bold text-foreground sm:text-2xl">Homework</h2>
-            <p className="text-sm text-muted-foreground max-w-md">
-            Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
-            </p>
+            {tutorFeedbackDeadlineMs != null ? (
+              <div className="w-full max-w-md rounded-xl bg-amber-50 dark:bg-amber-950/30 p-4 text-left space-y-2">
+                <p className="text-sm text-orange-700 dark:text-orange-400">
+                  Your tutor has <span className="font-mono font-semibold tabular-nums">{formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}</span> to send you feedback and a new homework on your email address.
+                </p>
+                <p className="text-sm text-orange-700 dark:text-orange-400">
+                  You can start the lesson now though it will be awkwardly similar to the previous one!
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground max-w-md">
+                Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
+              </p>
+            )}
             {error && (
               <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
                 <p>{error}</p>

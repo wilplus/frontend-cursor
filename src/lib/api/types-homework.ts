@@ -80,6 +80,8 @@ export interface HomeworkSessionStatus {
   session_metric_question_1?: MetricQuestionItemV2 | string | null;
   session_metric_question_2?: MetricQuestionItemV2 | string | null;
   session_metric_question_3?: MetricQuestionItemV2 | string | null;
+  /** When no active session: deadline (ISO 8601 UTC) for tutor to send feedback and new homework. Omitted when past or not applicable. */
+  tutor_feedback_deadline?: string | null;
 }
 
 // —— Metric question item (id + text, used in task_block) ——
@@ -158,4 +160,6 @@ export interface HomeworkReportResponse {
   final_recording: { id: string | null; audio_url: string | null };
   /** Last 5 sessions' performance (oldest first). When absent, frontend may derive a single point from scores.overall. */
   performance_history?: PerformanceHistoryPoint[];
+  /** When completed and deadline in future: ISO 8601 UTC. Omitted when past or not applicable. */
+  tutor_feedback_deadline?: string | null;
 }
