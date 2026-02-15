@@ -3,7 +3,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import ChangePasswordForm from "@/components/auth/ChangePasswordForm";
 
 export const metadata: Metadata = {
-  title: "Change Password | willab - willpower lab 🎙️",
+  title: "Change Password | Willab",
 };
 
 export default function ChangePasswordPage() {
