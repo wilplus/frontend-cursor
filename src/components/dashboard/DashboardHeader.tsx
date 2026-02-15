@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu } from "lucide-react";
+import WillabLogo from "@/components/WillabLogo";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -87,9 +88,9 @@ export default function DashboardHeader() {
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
         <Link
           href="/dashboard"
-          className="shrink-0 text-xl font-bold hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded sm:text-2xl"
+          className="shrink-0 hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
         >
-          willab - willpower lab 🎙️
+          <WillabLogo size="md" />
         </Link>
         <div className="relative flex shrink-0" ref={menuRef}>
           <Button

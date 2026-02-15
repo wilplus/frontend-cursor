@@ -3,7 +3,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import HomeworkFlowCard from "@/components/homework/HomeworkFlowCard";
 
 export const metadata: Metadata = {
-  title: "Dashboard | willab - willpower lab 🎙️",
+  title: "Dashboard | Willab",
 };
 
 export default function DashboardPage() {
