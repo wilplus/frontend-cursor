@@ -1,4 +1,4 @@
-# Task Master docs (Willab)
+# Task Master docs (willab - willpower lab 🎙️)
 
 **Taskmaster is the only source of truth for this app.** All app description, flow, contracts, implementation notes, and “what is missing” live here. Do not rely on other project docs for the canonical description.
 

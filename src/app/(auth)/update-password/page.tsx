@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import UpdatePasswordForm from "@/components/auth/UpdatePasswordForm";
 
 export const metadata: Metadata = {
-  title: "Update Password | Willab",
+  title: "Update Password | willab - willpower lab 🎙️",
 };
 
 export default function UpdatePasswordPage() {
@@ -11,7 +11,7 @@ export default function UpdatePasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold">Willab</h1>
+          <h1 className="text-3xl font-bold">willab - willpower lab 🎙️</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Set your new password below. You are not signed in yet — after saving, you’ll sign in with your new password.
           </p>

@@ -89,7 +89,7 @@ export default function DashboardHeader() {
           href="/dashboard"
           className="shrink-0 text-xl font-bold hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded sm:text-2xl"
         >
-          Willab
+          willab - willpower lab 🎙️
         </Link>
         <div className="relative flex shrink-0" ref={menuRef}>
           <Button
