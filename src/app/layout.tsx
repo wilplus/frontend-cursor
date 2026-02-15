@@ -6,8 +6,8 @@ import { Toaster } from "sonner";
 // Inter font will be loaded at runtime if available
 
 export const metadata: Metadata = {
-  title: "Willab",
-  description: "Communication coaching through interview practice",
+  title: "willab - willpower lab that fuels your speaking confidence",
+  description: "willab - willpower lab for your confidence on stage",
   icons: {
     icon: "/icon",
   },

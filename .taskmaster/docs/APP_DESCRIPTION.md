@@ -1,4 +1,4 @@
-# Willab — App description (single source of truth)
+# willab - willpower lab 🎙️ — App description (single source of truth)
 
 **Taskmaster is the only source of truth for this app.** Everything you need to understand the product, flow, contracts, implementation, and gaps is in this folder. Use this file for Cursor, onboarding, and task planning.
 
@@ -6,7 +6,7 @@
 
 ## 1. What the app is
 
-- **Product:** Willab is a **speech coaching app**. The student homework flow is a fixed sequence: **warm-up recording** → **3 self-rating questions** (pre-questions: keywords, emotion, CTA) → **final task recording** → **reflective questions** (if configured) → **final report with score**.
+- **Product:** willab - willpower lab 🎙️ is a **speech coaching app**. The student homework flow is a fixed sequence: **warm-up recording** → **3 self-rating questions** (pre-questions: keywords, emotion, CTA) → **final task recording** → **reflective questions** (if configured) → **final report with score**.
 - **Users:** Students (Supabase Auth). Admin/coach features (students, tasks, warm-ups, questions, reports) live in separate admin flows.
 - **This repo:** **Frontend** (Next.js) and **BFF** (Next.js API routes). The **backend** (Flask) and its full spec live in a **separate repo**.
 - **Deployment:** Frontend/BFF call the backend via a configurable base URL (`NEXT_PUBLIC_API_URL`). Audio is stored in **Supabase Storage** (bucket `audio_recordings`); other data in **Supabase (PostgreSQL)**.

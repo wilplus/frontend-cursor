@@ -1,6 +1,6 @@
-# Willab
+# willab - willpower lab 🎙️
 
-Next.js frontend for Willab (practice interview sessions, Supabase auth, Flask backend).
+Next.js frontend for willab - willpower lab (practice interview sessions, Supabase auth, Flask backend).
 
 ## What to do next (Task Master)
 
