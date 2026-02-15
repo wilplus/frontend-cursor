@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "willab - willpower lab for your confidence on stage",
   icons: {
     icon: "/icon",
+    shortcut: "/icon",
+    apple: "/icon",
   },
 };
 
