@@ -11,10 +11,12 @@ const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-const DEADZONE_SCORE = 0.92;
-/** iOS-level spring: firm, no bounce. */
-const SPRING_STIFFNESS = 0.05;
-const SPRING_DAMPING = 0.82;
+/** Public speaking smooth mode: calmer spring, no center snap. */
+const SPRING_STIFFNESS = 0.032;
+const SPRING_DAMPING = 0.87;
+const TARGET_SMOOTHING = 0.12;
+const MAX_VELOCITY = 3.5;
+const SOFT_DEADZONE = 0.05;
 /** Public speaking: reward sustained control, not lab precision. */
 const COHERENCE_STRENGTH = 0.88;
 const COHERENCE_PACE = 0.85;
@@ -29,9 +31,10 @@ function tension(score: number): number {
 }
 
 function ballPosition(score: number, direction: number): number {
-  if (score >= DEADZONE_SCORE) return 0;
   const error = 1 - score;
-  const signed = direction * error;
+  if (error < SOFT_DEADZONE) return 0;
+  const scaledError = (error - SOFT_DEADZONE) / (1 - SOFT_DEADZONE);
+  const signed = direction * scaledError;
   return Math.max(-1, Math.min(1, signed));
 }
 
@@ -74,8 +77,9 @@ export function StrengthPaceDartboard({
     [paceScore, paceDirection]
   );
 
-  const targetRef = useRef({ x: targetX, y: targetY });
-  targetRef.current = { x: targetX, y: targetY };
+  const rawTargetRef = useRef({ x: targetX, y: targetY });
+  rawTargetRef.current = { x: targetX, y: targetY };
+  const targetRef = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
   const velRef = useRef({ x: 0, y: 0 });
   const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
@@ -103,15 +107,26 @@ export function StrengthPaceDartboard({
   useEffect(() => {
     let rafId: number;
     const tick = () => {
+      const raw = rawTargetRef.current;
       const t = targetRef.current;
       const p = posRef.current;
       const v = velRef.current;
+
+      t.x += (raw.x - t.x) * TARGET_SMOOTHING;
+      t.y += (raw.y - t.y) * TARGET_SMOOTHING;
+
       v.x += (t.x - p.x) * SPRING_STIFFNESS;
       v.y += (t.y - p.y) * SPRING_STIFFNESS;
       v.x *= SPRING_DAMPING;
       v.y *= SPRING_DAMPING;
+      v.x = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.x));
+      v.y = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.y));
+
       p.x += v.x;
       p.y += v.y;
+      if (Math.abs(p.x) < 0.0001) p.x = 0;
+      if (Math.abs(p.y) < 0.0001) p.y = 0;
+
       setDisplayPos({ x: p.x, y: p.y });
       rafId = requestAnimationFrame(tick);
     };
