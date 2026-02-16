@@ -981,7 +981,8 @@ export default function HomeworkFlowCard() {
       }
 
       if (errCode === "RECORDING_1_PROCESSING") {
-        toast.info("Still analyzing your recording. Please wait a moment.");
+        setError(errMessage || "Still analyzing your recording. Please wait a moment.");
+        toast.info(errMessage || "Still analyzing your recording. Please wait a moment.");
         const maxWaitMs = 60000;
         const pollIntervalMs = 2500;
         const start = Date.now();
@@ -1007,6 +1008,7 @@ export default function HomeworkFlowCard() {
                     : retryResponse?.final_task && typeof (retryResponse.final_task as { text?: string }).text === "string"
                       ? (retryResponse.final_task as { text: string }).text
                       : "";
+              setError(null);
               if (statusRes2) {
                 applyStatusToState(statusRes2);
                 const finalFromSession =
@@ -1019,7 +1021,6 @@ export default function HomeworkFlowCard() {
                 setStep(3);
                 if (finalTextFromResponse.trim()) setFinalTaskText(finalTextFromResponse.trim());
                 setStatusUnknown(false);
-                setError(null);
               }
               toast.success("Answers saved. Continue to the final recording.");
               return;
@@ -1065,9 +1066,12 @@ export default function HomeworkFlowCard() {
           toast.error(errMessage);
         }
       } else {
-        const isValidationError = errCode === "VALIDATION_ERROR";
-        const rawMsg = isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : errMessage;
-        const displayMsg = (typeof rawMsg === "string" && rawMsg.trim()) ? rawMsg : "Failed to save answers. Please try again or refresh.";
+        const displayMsg =
+          typeof errMessage === "string" && errMessage.trim()
+            ? errMessage
+            : errCode === "VALIDATION_ERROR"
+              ? METRIC_ANSWERS_VALIDATION_MSG
+              : "Failed to save answers. Please try again or refresh.";
         setError(displayMsg);
         toast.error(displayMsg);
       }
@@ -1430,20 +1434,8 @@ export default function HomeworkFlowCard() {
           onSubmit={handleMetricAnswersSubmit}
           loading={loading}
           error={error}
+          onAbandon={sessionId && sessionId !== "mock-session" ? handleAbandon : undefined}
         />
-        {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-[1px] flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={handleAbandon}
-              disabled={loading}
-            >
-              Abandon session
-            </Button>
-          </div>
-        )}
       </StepFlowWrapper>
     );
   }
