@@ -261,7 +261,8 @@ export const homeworkApi = {
     durationSeconds: number,
     signal?: AbortSignal
   ): Promise<HomeworkRecording2Response> {
-    const { bucket, storage_path } = await this.getRecordingUploadUrl(sessionId, "2", signal);
+    const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
+    const { bucket, storage_path } = uploadUrlResult as { bucket: string; storage_path: string };
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const contentType = blob.type || "audio/webm";
