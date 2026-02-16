@@ -32,6 +32,16 @@ One **active** session per student. **GET session/status** is the single source 
 
 ---
 
+## 2.5 Student experience: flow, warning, emails
+
+**Flow (short):** Step 0 → Start screen (may show tutor countdown warning). Click **Start homework** → step 1 (warm-up recording + wheel) → step 2 (3 metric questions) → step 3 (final recording + wheel) → step 4 (reflective questions) → step 5 (report, chart, **Start new homework** → back to step 0).
+
+**Tutor countdown warning (step 0 only):** Shown when the student has no active session, has a completed lesson, the tutor has not yet sent the next homework (`tutor_feedback_sent_at` unset), and the feedback window (e.g. 24h) is still in the future. Message: "Your tutor has [HH:MM:SS] to send you feedback and a new homework on your email address." It disappears when (1) the countdown reaches zero, (2) the tutor sends new homework (backend sets `tutor_feedback_sent_at`; frontend polls GET status every 45s on step 0 and hides when deadline is omitted), or (3) the student starts a new session. Frontend fetches status for this only after auth is ready (avoids 500 on first load).
+
+**Emails:** The student receives an email when the tutor sends new homework (backend sends it after POST …/send-assignment). Auth emails (e.g. password reset) are from Supabase.
+
+---
+
 ## 3. API paths (frontend vs backend)
 
 - **Frontend** calls **same-origin** paths only (no `v2` in URL):
