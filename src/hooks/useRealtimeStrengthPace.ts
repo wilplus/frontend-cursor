@@ -8,8 +8,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { bandScore } from "@/lib/audio/band-score";
 
-/** Update often so the wheel reacts instantly; ball motion is eased/slow in the dartboard. */
-const UPDATE_MS = 50;
+/** Public speaking smooth: ~14 updates/sec reduces jitter. */
+const UPDATE_MS = 70;
 /** Good band is [TARGET_DB - TOLERANCE_DB, TARGET_DB + TOLERANCE_DB]. Higher TARGET_DB = band shifted right (prefer slightly stronger voice). */
 const TARGET_DB = -20;
 const TOLERANCE_DB = 5;
@@ -25,20 +25,18 @@ const VOICE_ON_MIN_FRAMES = 2;
 const VOICE_OFF_MIN_FRAMES = 3;
 /** Silence: gradual drift to neutral over ~800ms; never imply pause = mistake. */
 const STRENGTH_CENTER_DRIFT_ALPHA = 0.04;
-/** Public speaking: strength ≥ this is treated as "confident projection" (display 1.0). */
-const IDEAL_STRENGTH_THRESHOLD = 0.92;
 /** Pace: nonlinear compression so small expressive shifts don't cause visible tension. */
 const PACE_ERROR_EXP = 1.4;
-/** Dual EMA: trend dominant (~600ms) for strength. */
-const EMA_STRENGTH_FAST = 0.25;
-const EMA_STRENGTH_SLOW = 0.07;
+/** Dual EMA: slightly slower for calmer public speaking UX. */
+const EMA_STRENGTH_FAST = 0.22;
+const EMA_STRENGTH_SLOW = 0.06;
 /** Pace: 0.6 slow + 0.4 fast (lighter trend). */
 const EMA_PACE_FAST = 0.2;
 const EMA_PACE_SLOW = 0.08;
 /** Adaptive smoothing: when far off target, favor fast EMA for quicker response; when close, favor slow for calm. */
 const ADAPTIVE_RAW_THRESHOLD = 0.85;
-/** Axis decoupling: pace gets one extra slow EMA (~60–80ms) so humans feel drive responsive, pace deliberate. */
-const PACE_DISPLAY_EMA = 0.18;
+/** Pace display: slower smoothing for calm public speaking. */
+const PACE_DISPLAY_EMA = 0.12;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 
@@ -216,7 +214,7 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
           // Adaptive: when far off (raw low), more fast EMA for quicker response; when close, calm 0.3 fast + 0.7 slow
           const strengthFastWeight = rawStrengthScore >= ADAPTIVE_RAW_THRESHOLD ? 0.3 : 0.5;
           let blend = strengthFastWeight * fastStr + (1 - strengthFastWeight) * slowStr;
-          strengthBlend = blend >= IDEAL_STRENGTH_THRESHOLD ? 1.0 : blend / IDEAL_STRENGTH_THRESHOLD;
+          strengthBlend = 1 - Math.pow(1 - blend, 1.6);
           strengthDir = db < TARGET_DB ? -1 : 1;
         } else {
           const fastStr = (1 - STRENGTH_CENTER_DRIFT_ALPHA) * fastStrengthRef.current + STRENGTH_CENTER_DRIFT_ALPHA * 1.0;
@@ -224,7 +222,7 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
           fastStrengthRef.current = fastStr;
           slowStrengthRef.current = slowStr;
           const blend = 0.3 * fastStr + 0.7 * slowStr;
-          strengthBlend = blend >= IDEAL_STRENGTH_THRESHOLD ? 1.0 : blend / IDEAL_STRENGTH_THRESHOLD;
+          strengthBlend = 1 - Math.pow(1 - blend, 1.6);
           strengthDir = 0;
         }
         setStrengthScore(strengthBlend);
