@@ -16,6 +16,9 @@ const TOLERANCE_DB = 5;
 /** Public speaking: slightly faster target, wider tolerance for emphasis/pauses. */
 const TARGET_WPM = 150;
 const TOLERANCE_WPM = 60;
+/** Pace direction hysteresis: avoid rapid flip around single WPM boundary. */
+const PACE_FAST_THRESHOLD = TARGET_WPM + 5;
+const PACE_SLOW_THRESHOLD = TARGET_WPM - 5;
 /** Voiced = speech; RMS > 0.015 (≈ -36 dB) to avoid treating noise as speech. */
 const VOICED_RMS_THRESHOLD = 0.015;
 const WINDOW_SAMPLES = 30; // 3 s at 100 ms
@@ -39,9 +42,15 @@ const ADAPTIVE_RAW_THRESHOLD = 0.85;
 const PACE_DISPLAY_EMA = 0.12;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
+const SILENCE_SETTLED_MS = 500;
 
 function rmsToDb(rms: number): number {
   return 20 * Math.log10(rms + 1e-8);
+}
+
+export interface UseRealtimeStrengthPaceOptions {
+  onVoiceDrop?: () => void;
+  onSilenceSettled?: () => void;
 }
 
 export interface UseRealtimeStrengthPaceResult {
@@ -58,7 +67,7 @@ export interface UseRealtimeStrengthPaceResult {
   stop: () => void;
 }
 
-export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
+export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions): UseRealtimeStrengthPaceResult {
   const [strengthScore, setStrengthScore] = useState(0.5);
   const [paceScore, setPaceScore] = useState(0.5);
   const [strengthDb, setStrengthDb] = useState(-60);
@@ -80,8 +89,16 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   const voiceActiveRef = useRef(false);
   const voiceAboveCountRef = useRef(0);
   const voiceBelowCountRef = useRef(0);
+  const paceDirectionRef = useRef(0);
+  const silenceSettledTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const stop = useCallback(() => {
+    if (silenceSettledTimeoutRef.current) {
+      clearTimeout(silenceSettledTimeoutRef.current);
+      silenceSettledTimeoutRef.current = null;
+    }
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -112,6 +129,7 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     setStrengthDb(-60);
     setWpmEstimate(TARGET_WPM);
     setStrengthDirection(0);
+    paceDirectionRef.current = 0;
     setPaceDirection(0);
   }, []);
 
@@ -181,11 +199,23 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
           voiceBelowCountRef.current += 1;
           voiceAboveCountRef.current = 0;
         }
+        const wasVoiceActive = voiceActiveRef.current;
         if (!voiceActiveRef.current && voiceAboveCountRef.current >= VOICE_ON_MIN_FRAMES) {
+          if (silenceSettledTimeoutRef.current) {
+            clearTimeout(silenceSettledTimeoutRef.current);
+            silenceSettledTimeoutRef.current = null;
+          }
           voiceActiveRef.current = true;
         }
         if (voiceActiveRef.current && voiceBelowCountRef.current >= VOICE_OFF_MIN_FRAMES) {
           voiceActiveRef.current = false;
+          if (wasVoiceActive) {
+            optionsRef.current?.onVoiceDrop?.();
+            silenceSettledTimeoutRef.current = setTimeout(() => {
+              silenceSettledTimeoutRef.current = null;
+              optionsRef.current?.onSilenceSettled?.();
+            }, SILENCE_SETTLED_MS);
+          }
         }
 
         const voiced = rms > VOICED_RMS_THRESHOLD ? 1 : 0;
@@ -241,7 +271,11 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         displayPaceRef.current = PACE_DISPLAY_EMA * displayPaceRaw + (1 - PACE_DISPLAY_EMA) * displayPaceRef.current;
         setPaceScore(displayPaceRef.current);
 
-        setPaceDirection(wpm < TARGET_WPM ? -1 : 1);
+        let nextPaceDir = paceDirectionRef.current;
+        if (wpm > PACE_FAST_THRESHOLD) nextPaceDir = 1;
+        else if (wpm < PACE_SLOW_THRESHOLD) nextPaceDir = -1;
+        paceDirectionRef.current = nextPaceDir;
+        setPaceDirection(nextPaceDir);
       }, UPDATE_MS);
     }).catch(() => {});
   }, [stop]);

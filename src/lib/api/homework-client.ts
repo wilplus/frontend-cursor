@@ -157,7 +157,20 @@ export const homeworkApi = {
     return handleResponse<{ task_block: TaskBlockV2 }>(res);
   },
 
-  /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }, or 200 with already_past_step + task_block when session is already at step 2. */
+  /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }, or 200 with already_past_step + task_block when session is already at step 2 (only for recording "1"). */
+  async getRecordingUploadUrl(
+    sessionId: string,
+    recording: "2",
+    signal?: AbortSignal
+  ): Promise<{ bucket: string; storage_path: string }>;
+  async getRecordingUploadUrl(
+    sessionId: string,
+    recording: "1",
+    signal?: AbortSignal
+  ): Promise<
+    | { bucket: string; storage_path: string }
+    | { already_past_step: true; status?: string; task_block: TaskBlockV2 }
+  >;
   async getRecordingUploadUrl(
     sessionId: string,
     recording: "1" | "2",
@@ -212,7 +225,7 @@ export const homeworkApi = {
         status: uploadUrlResult.status,
       };
     }
-    const { bucket, storage_path } = uploadUrlResult as { bucket: string; storage_path: string };
+    const { bucket, storage_path } = uploadUrlResult;
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const contentType = blob.type || "audio/webm";
@@ -261,8 +274,7 @@ export const homeworkApi = {
     durationSeconds: number,
     signal?: AbortSignal
   ): Promise<HomeworkRecording2Response> {
-    const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
-    const { bucket, storage_path } = uploadUrlResult as { bucket: string; storage_path: string };
+    const { bucket, storage_path } = await this.getRecordingUploadUrl(sessionId, "2", signal);
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const contentType = blob.type || "audio/webm";

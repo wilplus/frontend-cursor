@@ -4,19 +4,23 @@
  * Apple-precision strength + pace field.
  * White + orange, on-brand: clean, high-clarity, no glow/pulse. Feedback via structural tension only.
  */
-import { useMemo, useRef, useState, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect } from "react";
 
 const VIEWBOX_SIZE = 300;
 const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-/** Public speaking smooth mode: calmer spring, no center snap. */
-const SPRING_STIFFNESS = 0.032;
-const SPRING_DAMPING = 0.87;
-const TARGET_SMOOTHING = 0.12;
+/** Public speaking stability: calmer spring, no diagonal slingshot. */
+const SPRING_STIFFNESS = 0.028;
+const SPRING_DAMPING = 0.88;
+const TARGET_SMOOTHING = 0.1;
 const MAX_VELOCITY = 3.5;
 const SOFT_DEADZONE = 0.05;
+/** Ignore direction when error is tiny to avoid left bias from stale direction. */
+const MIN_DIRECTION_ERROR = 0.08;
+/** Nonlinear target scaling to avoid corner slamming. */
+const TARGET_SCALE_EXP = 1.4;
 /** Public speaking: reward sustained control, not lab precision. */
 const COHERENCE_STRENGTH = 0.88;
 const COHERENCE_PACE = 0.85;
@@ -33,8 +37,10 @@ function tension(score: number): number {
 function ballPosition(score: number, direction: number): number {
   const error = 1 - score;
   if (error < SOFT_DEADZONE) return 0;
-  const scaledError = (error - SOFT_DEADZONE) / (1 - SOFT_DEADZONE);
-  const signed = direction * scaledError;
+  const effectiveDirection = error < MIN_DIRECTION_ERROR ? 0 : direction;
+  let scaledError = (error - SOFT_DEADZONE) / (1 - SOFT_DEADZONE);
+  scaledError = Math.pow(scaledError, TARGET_SCALE_EXP);
+  const signed = effectiveDirection * scaledError;
   return Math.max(-1, Math.min(1, signed));
 }
 
@@ -62,12 +68,15 @@ export interface StrengthPaceDartboardProps {
   paceDirection: number;
 }
 
-export function StrengthPaceDartboard({
-  strengthScore,
-  paceScore,
-  strengthDirection,
-  paceDirection,
-}: StrengthPaceDartboardProps) {
+export interface StrengthPaceDartboardHandle {
+  dampVelocityOnVoiceDrop: () => void;
+  resetOnSilenceSettled: () => void;
+}
+
+export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, StrengthPaceDartboardProps>(function StrengthPaceDartboard(
+  { strengthScore, paceScore, strengthDirection, paceDirection },
+  ref
+) {
   const targetX = useMemo(
     () => ballPosition(strengthScore, strengthDirection),
     [strengthScore, strengthDirection]
@@ -83,6 +92,25 @@ export function StrengthPaceDartboard({
   const posRef = useRef({ x: 0, y: 0 });
   const velRef = useRef({ x: 0, y: 0 });
   const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      dampVelocityOnVoiceDrop() {
+        velRef.current.x *= 0.4;
+        velRef.current.y *= 0.4;
+      },
+      resetOnSilenceSettled() {
+        targetRef.current.x = 0;
+        targetRef.current.y = 0;
+        rawTargetRef.current.x = 0;
+        rawTargetRef.current.y = 0;
+        velRef.current.x *= 0.3;
+        velRef.current.y *= 0.3;
+      },
+    }),
+    []
+  );
 
   const isCoherent =
     strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE;
@@ -115,8 +143,13 @@ export function StrengthPaceDartboard({
       t.x += (raw.x - t.x) * TARGET_SMOOTHING;
       t.y += (raw.y - t.y) * TARGET_SMOOTHING;
 
-      v.x += (t.x - p.x) * SPRING_STIFFNESS;
-      v.y += (t.y - p.y) * SPRING_STIFFNESS;
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const combinedMagnitude = Math.sqrt(dx * dx + dy * dy);
+      const axisDamp = combinedMagnitude > 0.8 ? 0.85 : 1;
+
+      v.x += dx * SPRING_STIFFNESS * axisDamp;
+      v.y += dy * SPRING_STIFFNESS * axisDamp;
       v.x *= SPRING_DAMPING;
       v.y *= SPRING_DAMPING;
       v.x = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.x));
@@ -270,4 +303,4 @@ export function StrengthPaceDartboard({
       </svg>
     </div>
   );
-}
+});
