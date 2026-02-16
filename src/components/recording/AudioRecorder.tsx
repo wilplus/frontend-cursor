@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
-import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
+import { StrengthPaceDartboard, type StrengthPaceDartboardHandle } from "@/components/recording/StrengthPaceDartboard";
 import { debugIngest } from "@/lib/debugIngest";
 
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
@@ -119,7 +119,11 @@ export default function AudioRecorder({
   setIsRecordingRef.current = setIsRecording;
   setElapsedSecondsRef.current = setElapsedSeconds;
 
-  const realtimeStrengthPace = useRealtimeStrengthPace();
+  const dartboardRef = useRef<StrengthPaceDartboardHandle>(null);
+  const realtimeStrengthPace = useRealtimeStrengthPace({
+    onVoiceDrop: () => dartboardRef.current?.dampVelocityOnVoiceDrop?.(),
+    onSilenceSettled: () => dartboardRef.current?.resetOnSilenceSettled?.(),
+  });
   const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
   stopRealtimeRef.current = realtimeStrengthPace.stop;
 
@@ -623,6 +627,7 @@ export default function AudioRecorder({
           <div className="flex justify-center w-full">
             <div className="w-[clamp(420px,60vw,680px)]">
               <StrengthPaceDartboard
+              ref={dartboardRef}
               strengthScore={realtimeStrengthPace.strengthScore}
               paceScore={realtimeStrengthPace.paceScore}
               strengthDirection={realtimeStrengthPace.strengthDirection}

@@ -24,6 +24,8 @@ export interface AnswerMetricQuestionsScreenProps {
   error?: string | null;
   /** When provided, shows an "Abandon session" button so the user can leave the step when stuck. */
   onAbandon?: () => void;
+  /** When true, Continue is disabled (e.g. recording analysis failed and submitting again won't help). */
+  submitDisabled?: boolean;
 }
 
 export default function AnswerMetricQuestionsScreen({
@@ -33,6 +35,7 @@ export default function AnswerMetricQuestionsScreen({
   loading = false,
   error: externalError = null,
   onAbandon,
+  submitDisabled = false,
 }: AnswerMetricQuestionsScreenProps) {
   const [answer_1, setAnswer_1] = useState("");
   const [answer_2, setAnswer_2] = useState("");
@@ -84,9 +87,9 @@ export default function AnswerMetricQuestionsScreen({
         <Button
           className="mt-8 w-full rounded-xl bg-primary text-white font-normal hover:bg-primary/90 h-12"
           onClick={handleSubmit}
-          disabled={loading || !allFilled}
+          disabled={loading || !allFilled || submitDisabled}
         >
-          {loading ? "Submitting…" : "Continue"}
+          {loading ? "Submitting…" : submitDisabled ? "Can't continue" : "Continue"}
         </Button>
         {onAbandon && (
           <div className="mt-4 flex justify-center">

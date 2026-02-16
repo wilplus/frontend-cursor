@@ -194,6 +194,10 @@ export default function HomeworkFlowCard() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** When true, metric step Continue is disabled because recording-1 analysis failed (submitting again won't help). */
+  const [metricStepBlockedByRecordingFailure, setMetricStepBlockedByRecordingFailure] = useState(false);
+  /** On step 2 when taskBlock was null, we fetch it; this becomes true when that fetch settles (success or fail) so we can show form instead of loading. */
+  const [taskBlockFetchSettled, setTaskBlockFetchSettled] = useState(false);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
@@ -345,6 +349,25 @@ export default function HomeworkFlowCard() {
       setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
     } else {
       setTutorFeedbackDeadlineMs(null);
+    }
+  };
+
+  /**
+   * Single source of truth: fetch GET session/status, apply to state, and ensure task_block
+   * is loaded when backend says task_block. Use after any 409 or unexpected response.
+   */
+  const reconcileSessionState = async (sid: string) => {
+    const statusRes = await homeworkApi.getStatus();
+    if (!statusRes) return;
+    applyStatusToState(statusRes);
+    const derived = deriveStepFromStatus(statusRes);
+    if (derived.step === 2 && sid && !derived.taskBlock) {
+      try {
+        const data = await homeworkApi.getTaskBlock(sid);
+        if (data.task_block) setTaskBlock(data.task_block);
+      } catch {
+        setError("Could not load questions. Try continuing or refresh.");
+      }
     }
   };
 
@@ -515,6 +538,7 @@ export default function HomeworkFlowCard() {
     setStatusUnknown(false);
     setUploadingRecording(null);
     setLoading(false);
+    setMetricStepBlockedByRecordingFailure(false);
   };
 
   /** Local-only reset to step 0 (no API call). Use when session is already gone (404) so user can start a new lesson. */
@@ -548,6 +572,7 @@ export default function HomeworkFlowCard() {
     setStatusUnknown(false);
     setUploadingRecording(null);
     setLoading(false);
+    setMetricStepBlockedByRecordingFailure(false);
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.removeItem("homeworkReport");
       sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -692,11 +717,18 @@ export default function HomeworkFlowCard() {
       })
       .catch(() => {
         if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+      })
+      .finally(() => {
+        if (!cancelled) setTaskBlockFetchSettled(true);
       });
     return () => {
       cancelled = true;
     };
   }, [step, sessionId, taskBlock]);
+
+  useEffect(() => {
+    if (step !== 2) setTaskBlockFetchSettled(false);
+  }, [step]);
 
   // On step 4, if questions are missing (thin status or refresh), load from GET questions. If none, finish without post-questions (auto-submit to get report).
   useEffect(() => {
@@ -872,47 +904,12 @@ export default function HomeworkFlowCard() {
       }
       if (isInvalidSessionStateError(e)) {
         uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
-        const backendStatus = (e as HomeworkApiError).backendStatus;
-        if (backendStatus) {
-          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
-        }
         try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) {
-            applyStatusToState(statusRes);
-            const derived = deriveStepFromStatus(statusRes);
-            if (derived.step === 2 && sessionId && !derived.taskBlock) {
-              homeworkApi
-                .getTaskBlock(sessionId)
-                .then((data) => data.task_block && setTaskBlock(data.task_block))
-                .catch(() => {});
-            }
-            toast.success("Session updated. You're on the right step now.");
-          } else {
-            setError("Session state changed. Please refresh.");
-            toast.error("Session state changed. Please refresh.");
-          }
+          if (sessionId) await reconcileSessionState(sessionId);
+          toast.success("Session updated. You're on the right step now.");
         } catch {
-          try {
-            const statusResRetry = await homeworkApi.getStatus();
-            if (statusResRetry) {
-              applyStatusToState(statusResRetry);
-              const derived = deriveStepFromStatus(statusResRetry);
-              if (derived.step === 2 && sessionId && !derived.taskBlock) {
-                homeworkApi
-                  .getTaskBlock(sessionId)
-                  .then((data) => data.task_block && setTaskBlock(data.task_block))
-                  .catch(() => {});
-              }
-              toast.success("Session updated.");
-            } else {
-              setError("Could not refresh session. Click Refresh below.");
-              toast.error("Could not refresh session. Click Refresh below.");
-            }
-          } catch {
-            setError("Could not refresh session. Click Refresh to try again.");
-            toast.error("Could not refresh session. Click Refresh to try again.");
-          }
+          setError("Could not refresh session. Click Refresh to try again.");
+          toast.error("Could not refresh session. Click Refresh to try again.");
         }
       } else {
         setError(e instanceof Error ? e.message : "Upload failed");
@@ -958,6 +955,9 @@ export default function HomeworkFlowCard() {
           errorMsg: responseErr ?? undefined,
         });
       }
+      if (metricResponse?.recording_1_fallback && metricResponse?.message?.trim()) {
+        toast.info(metricResponse.message.trim());
+      }
       uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
       const statusRes = await homeworkApi.getStatus();
       const finalTextFromResponse =
@@ -996,6 +996,7 @@ export default function HomeworkFlowCard() {
       const errMessage = e instanceof Error ? e.message : "Failed to submit";
 
       if (errCode === "RECORDING_1_FAILED") {
+        setMetricStepBlockedByRecordingFailure(true);
         setError(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
         toast.error(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
         return;
@@ -1043,12 +1044,16 @@ export default function HomeworkFlowCard() {
                 if (finalTextFromResponse.trim()) setFinalTaskText(finalTextFromResponse.trim());
                 setStatusUnknown(false);
               }
+              if (retryResponse?.recording_1_fallback && retryResponse?.message?.trim()) {
+                toast.info(retryResponse.message.trim());
+              }
               toast.success("Answers saved. Continue to the final recording.");
               return;
             }
           } catch (retryErr) {
             if ((retryErr as HomeworkApiError).code === "RECORDING_1_PROCESSING") continue;
             if ((retryErr as HomeworkApiError).code === "RECORDING_1_FAILED") {
+              setMetricStepBlockedByRecordingFailure(true);
               setError((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
               toast.error((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
               return;
@@ -1063,25 +1068,9 @@ export default function HomeworkFlowCard() {
 
       if (isInvalidSessionStateError(e)) {
         uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
-        const backendStatus = (e as HomeworkApiError).backendStatus;
-        if (backendStatus) {
-          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
-        }
         try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) {
-            applyStatusToState(statusRes);
-            const derived = deriveStepFromStatus(statusRes);
-            if (derived.step === 2) {
-              setError("Answers could not be saved. Please try again or refresh the page.");
-              toast.error("Answers could not be saved. Please try again or refresh.");
-            } else {
-              toast.success("Session updated. You're on the right step now.");
-            }
-          } else {
-            setError("Session state changed. Please refresh.");
-            toast.error("Session state changed. Please refresh.");
-          }
+          if (sessionId) await reconcileSessionState(sessionId);
+          toast.success("Session updated. You're on the right step now.");
         } catch {
           setError(errMessage);
           toast.error(errMessage);
@@ -1135,16 +1124,9 @@ export default function HomeworkFlowCard() {
       if (isInvalidSessionStateError(e)) {
         uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
         if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
-        const backendStatus = (e as HomeworkApiError).backendStatus;
-        if (backendStatus) {
-          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
-        }
         try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) {
-            applyStatusToState(statusRes);
-            toast.success("Session updated. You're on the right step now.");
-          }
+          if (sessionId) await reconcileSessionState(sessionId);
+          toast.success("Session updated. You're on the right step now.");
         } catch {
           setError(e instanceof Error ? e.message : "Upload failed");
           toast.error(e instanceof Error ? e.message : "Upload failed");
@@ -1445,8 +1427,32 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: 3 metric questions only (context_short is used by backend for the task, not shown here)
+  // Step 2: metric questions — don't render form until task_block is loaded or fetch has settled (defensive)
   if (step === 2) {
+    const showMetricForm = taskBlock != null || taskBlockFetchSettled;
+    if (!showMetricForm && sessionId && sessionId !== "mock-session") {
+      return (
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading questions…</p>
+            </div>
+          </Card>
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        </StepFlowWrapper>
+      );
+    }
     return (
       <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
         <AnswerMetricQuestionsScreen
@@ -1456,6 +1462,7 @@ export default function HomeworkFlowCard() {
           loading={loading}
           error={error}
           onAbandon={sessionId && sessionId !== "mock-session" ? handleAbandon : undefined}
+          submitDisabled={metricStepBlockedByRecordingFailure}
         />
       </StepFlowWrapper>
     );

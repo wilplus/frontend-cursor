@@ -122,6 +122,10 @@ export interface MetricAnswersResponseV2 {
 export interface HomeworkMetricAnswersResponse {
   final_task?: string;
   final_task_text?: string;
+  /** When true, recording-1 analysis failed and backend used a general focus; see message. */
+  recording_1_fallback?: boolean;
+  /** Explanation when recording_1_fallback is true (e.g. "Your first recording couldn't be fully analyzed..."). */
+  message?: string;
 }
 
 // —— After recording_2 ——
