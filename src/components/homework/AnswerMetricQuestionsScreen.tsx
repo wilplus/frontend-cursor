@@ -22,6 +22,8 @@ export interface AnswerMetricQuestionsScreenProps {
   onSubmit: (answer_1: string, answer_2: string, answer_3: string) => void | Promise<void>;
   loading?: boolean;
   error?: string | null;
+  /** When provided, shows an "Abandon session" button so the user can leave the step when stuck. */
+  onAbandon?: () => void;
 }
 
 export default function AnswerMetricQuestionsScreen({
@@ -30,23 +32,33 @@ export default function AnswerMetricQuestionsScreen({
   onSubmit,
   loading = false,
   error: externalError = null,
+  onAbandon,
 }: AnswerMetricQuestionsScreenProps) {
   const [answer_1, setAnswer_1] = useState("");
   const [answer_2, setAnswer_2] = useState("");
   const [answer_3, setAnswer_3] = useState("");
 
-  const label1 = taskBlock ? toText(taskBlock.metric_question_1) || "Metric question 1" : "Metric question 1";
-  const label2 = taskBlock ? toText(taskBlock.metric_question_2) || "Metric question 2" : "Metric question 2";
-  const label3 = taskBlock ? toText(taskBlock.metric_question_3) || "Metric question 3" : "Metric question 3";
+  const b1 = taskBlock ? toText(taskBlock.metric_question_1).trim() : "";
+  const b2 = taskBlock ? toText(taskBlock.metric_question_2).trim() : "";
+  const b3 = taskBlock ? toText(taskBlock.metric_question_3).trim() : "";
+  const hasAnyFromBackend = b1 !== "" || b2 !== "" || b3 !== "";
+  const visibleQuestions: { label: string; value: string; setValue: (s: string) => void }[] = hasAnyFromBackend
+    ? [
+        b1 && { label: b1, value: answer_1, setValue: setAnswer_1 },
+        b2 && { label: b2, value: answer_2, setValue: setAnswer_2 },
+        b3 && { label: b3, value: answer_3, setValue: setAnswer_3 },
+      ].filter(Boolean) as { label: string; value: string; setValue: (s: string) => void }[]
+    : [
+        { label: "Metric question 1", value: answer_1, setValue: setAnswer_1 },
+        { label: "Metric question 2", value: answer_2, setValue: setAnswer_2 },
+        { label: "Metric question 3", value: answer_3, setValue: setAnswer_3 },
+      ];
 
   const handleSubmit = () => {
-    if (typeof window !== "undefined") {
-      console.warn("[HomeworkFlow] metric Continue clicked", { allFilled, loading });
-    }
     void onSubmit(answer_1.trim(), answer_2.trim(), answer_3.trim());
   };
 
-  const allFilled = answer_1.trim() !== "" && answer_2.trim() !== "" && answer_3.trim() !== "";
+  const allFilled = visibleQuestions.every((q) => q.value.trim() !== "");
 
   const inputClass =
     "min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base sm:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -56,33 +68,17 @@ export default function AnswerMetricQuestionsScreen({
     <div className="answer-metric-questions w-full max-w-xl sm:max-w-2xl mx-auto">
       <div className="p-4 sm:p-6 md:p-8">
         <div className="space-y-8">
-          <div className="space-y-3">
-            <label className={labelClass}>{label1}</label>
-            <textarea
-              className={inputClass}
-              placeholder="Describe your answer…"
-              value={answer_1}
-              onChange={(e) => setAnswer_1(e.target.value)}
-            />
-          </div>
-          <div className="space-y-3">
-            <label className={labelClass}>{label2}</label>
-            <textarea
-              className={inputClass}
-              placeholder="Describe your answer…"
-              value={answer_2}
-              onChange={(e) => setAnswer_2(e.target.value)}
-            />
-          </div>
-          <div className="space-y-3">
-            <label className={labelClass}>{label3}</label>
-            <textarea
-              className={inputClass}
-              placeholder="Describe your answer…"
-              value={answer_3}
-              onChange={(e) => setAnswer_3(e.target.value)}
-            />
-          </div>
+          {visibleQuestions.map((q, i) => (
+            <div key={i} className="space-y-3">
+              <label className={labelClass}>{q.label}</label>
+              <textarea
+                className={inputClass}
+                placeholder="Describe your answer…"
+                value={q.value}
+                onChange={(e) => q.setValue(e.target.value)}
+              />
+            </div>
+          ))}
         </div>
         {externalError && <p className="mt-4 text-sm text-destructive">{externalError}</p>}
         <Button
@@ -92,6 +88,19 @@ export default function AnswerMetricQuestionsScreen({
         >
           {loading ? "Submitting…" : "Continue"}
         </Button>
+        {onAbandon && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={onAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
