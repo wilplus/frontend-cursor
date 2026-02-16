@@ -621,7 +621,7 @@ export default function AudioRecorder({
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex justify-center w-full">
-            <div className="w-[140%] min-w-[280px] sm:min-w-[320px] max-w-[380px] sm:max-w-[420px] relative left-1/2 -translate-x-1/2">
+            <div className="w-[clamp(420px,60vw,680px)]">
               <StrengthPaceDartboard
               strengthScore={realtimeStrengthPace.strengthScore}
               paceScore={realtimeStrengthPace.paceScore}
