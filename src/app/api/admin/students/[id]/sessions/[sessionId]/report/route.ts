@@ -39,20 +39,18 @@ async function handleReport(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; sessionId: string }> }
+  { params }: { params: { id: string; sessionId: string } }
 ) {
-  const p = await params;
-  const resGet = await handleReport(request, p, "GET");
+  const resGet = await handleReport(request, params, "GET");
   if (resGet.status === 405) {
-    return handleReport(request, p, "POST");
+    return handleReport(request, params, "POST");
   }
   return resGet;
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; sessionId: string }> }
+  { params }: { params: { id: string; sessionId: string } }
 ) {
-  const p = await params;
-  return handleReport(request, p, "POST");
+  return handleReport(request, params, "POST");
 }

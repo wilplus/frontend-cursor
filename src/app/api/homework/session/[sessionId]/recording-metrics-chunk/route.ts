@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> | { sessionId: string } }
+  { params }: { params: { sessionId: string } }
 ) {
   void params;
   return new NextResponse(null, { status: 204 });
@@ -18,7 +18,7 @@ export async function GET(
 
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> | { sessionId: string } }
+  { params }: { params: { sessionId: string } }
 ) {
   void params;
   return new NextResponse(null, { status: 204 });
