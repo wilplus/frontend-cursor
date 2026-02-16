@@ -68,6 +68,7 @@ function deriveStepFromStatus(s: HomeworkSessionStatus): {
   const warmUpTask = s.warm_up_task ?? session?.warm_up_task;
   const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? session?.warm_up_task_text ?? "").trim() || "";
   const taskText = s.task_text ?? "";
+  // Step 2: prefer task_block from response; else build from session (backend persists session_metric_question_* when recording-1 succeeds). GET task-block is also fetched when step 2 has no taskBlock.
   const q1 = s.session_metric_question_1 ?? session?.session_metric_question_1;
   const q2 = s.session_metric_question_2 ?? session?.session_metric_question_2;
   const q3 = s.session_metric_question_3 ?? session?.session_metric_question_3;
