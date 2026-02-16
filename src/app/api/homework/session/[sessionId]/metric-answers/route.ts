@@ -14,9 +14,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> | { sessionId: string } }
 ) {
+  if (process.env.NODE_ENV !== "test") {
+    console.log("BFF metric-answers hit");
+  }
   const token = await getV2AccessToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { sessionId } = typeof (params as Promise<{ sessionId: string }>).then === "function" ? await (params as Promise<{ sessionId: string }>) : (params as { sessionId: string });
+  const { sessionId } = await (typeof (params as Promise<unknown>).then === "function" ? (params as Promise<{ sessionId: string }>) : Promise.resolve(params as { sessionId: string }));
   if (!sessionId) return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
   const body = await request.json().catch(() => ({}));
   const upstreamRes = await fetch(`${getBackendUrl()}/v2/homework/session/${sessionId}/metric-answers`, {
