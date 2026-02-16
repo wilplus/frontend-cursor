@@ -30,6 +30,8 @@ const EMA_STRENGTH_SLOW = 0.07;
 /** Pace: 0.6 slow + 0.4 fast (lighter trend). */
 const EMA_PACE_FAST = 0.2;
 const EMA_PACE_SLOW = 0.08;
+/** Adaptive smoothing: when far off target, favor fast EMA for quicker response; when close, favor slow for calm. */
+const ADAPTIVE_RAW_THRESHOLD = 0.85;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 
@@ -201,7 +203,9 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
           const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
           fastStrengthRef.current = fastStr;
           slowStrengthRef.current = slowStr;
-          strengthBlend = 0.3 * fastStr + 0.7 * slowStr;
+          // Adaptive: when far off (raw low), more fast EMA for quicker response; when close, calm 0.3 fast + 0.7 slow
+          const strengthFastWeight = rawStrengthScore >= ADAPTIVE_RAW_THRESHOLD ? 0.3 : 0.5;
+          strengthBlend = strengthFastWeight * fastStr + (1 - strengthFastWeight) * slowStr;
           strengthDir = db < TARGET_DB ? -1 : 1;
         } else {
           const fastStr = (1 - STRENGTH_CENTER_DRIFT_ALPHA) * fastStrengthRef.current + STRENGTH_CENTER_DRIFT_ALPHA * 1.0;
@@ -214,12 +218,13 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         setStrengthScore(strengthBlend);
         setStrengthDirection(strengthDir);
 
-        // Dual EMA for pace: 0.6 slow + 0.4 fast (lighter trend)
+        // Dual EMA for pace; adaptive: when far off, more fast for quicker response
         const fastPace = EMA_PACE_FAST * rawPaceScore + (1 - EMA_PACE_FAST) * fastPaceRef.current;
         const slowPace = EMA_PACE_SLOW * rawPaceScore + (1 - EMA_PACE_SLOW) * slowPaceRef.current;
         fastPaceRef.current = fastPace;
         slowPaceRef.current = slowPace;
-        const paceBlend = 0.6 * slowPace + 0.4 * fastPace;
+        const paceFastWeight = rawPaceScore >= ADAPTIVE_RAW_THRESHOLD ? 0.4 : 0.55;
+        const paceBlend = (1 - paceFastWeight) * slowPace + paceFastWeight * fastPace;
         setPaceScore(paceBlend);
 
         setPaceDirection(wpm < TARGET_WPM ? -1 : 1);

@@ -226,9 +226,9 @@ export default function HomeworkFlowCard() {
     lastStepRef.current = step;
   }, [step]);
 
-  /** On step 0, fetch status so we get backend tutor_feedback_deadline (when no active session). */
+  /** On step 0, fetch status so we get backend tutor_feedback_deadline (when no active session). Wait for auth to avoid 500 on first load. */
   useEffect(() => {
-    if (step !== 0) return;
+    if (!authReady || step !== 0) return;
     homeworkApi.getStatus().then((statusRes) => {
       const deadlineIso = statusRes?.tutor_feedback_deadline;
       if (deadlineIso && typeof deadlineIso === "string") {
@@ -240,7 +240,7 @@ export default function HomeworkFlowCard() {
     }).catch(() => {
       setTutorFeedbackDeadlineMs(null);
     });
-  }, [step]);
+  }, [authReady, step]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {
@@ -254,6 +254,25 @@ export default function HomeworkFlowCard() {
     }, 1000);
     return () => clearInterval(id);
   }, [tutorFeedbackDeadlineMs]);
+
+  /** While on step 0 with timer showing, poll session/status so we hide the timer when backend clears tutor_feedback_deadline (e.g. tutor sent feedback). */
+  const TUTOR_DEADLINE_POLL_INTERVAL_MS = 45_000;
+  useEffect(() => {
+    if (!authReady || step !== 0 || tutorFeedbackDeadlineMs == null) return;
+    const id = setInterval(() => {
+      homeworkApi.getStatus().then((statusRes) => {
+        const deadlineIso = statusRes?.tutor_feedback_deadline;
+        if (deadlineIso && typeof deadlineIso === "string") {
+          const ms = new Date(deadlineIso).getTime();
+          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
+          else setTutorFeedbackDeadlineMs(null);
+        } else {
+          setTutorFeedbackDeadlineMs(null);
+        }
+      }).catch(() => {});
+    }, TUTOR_DEADLINE_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [authReady, step, tutorFeedbackDeadlineMs]);
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {

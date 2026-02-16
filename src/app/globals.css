@@ -24,6 +24,13 @@
     --dartboard-ring-outer: 220 13% 91%;
     --dartboard-ring-mid: 220 13% 85%;
     --dartboard-ring-inner: 220 13% 78%;
+    /* Neuro-performance wheel: cognitive alignment palette (HSL, use with hsl(var(--neuro-*))) */
+    --neuro-perfect: 190 90% 65%;
+    --neuro-weak: 210 85% 55%;
+    --neuro-strong: 28 85% 60%;
+    --neuro-slow: 240 70% 60%;
+    --neuro-fast: 50 95% 65%;
+    --neuro-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .dark {
@@ -43,6 +50,12 @@
     --dartboard-ring-outer: 217.2 32.6% 25%;
     --dartboard-ring-mid: 217.2 32.6% 30%;
     --dartboard-ring-inner: 217.2 32.6% 35%;
+    --neuro-perfect: 190 85% 70%;
+    --neuro-weak: 210 80% 58%;
+    --neuro-strong: 28 80% 62%;
+    --neuro-slow: 240 65% 62%;
+    --neuro-fast: 50 90% 68%;
+    --neuro-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
@@ -74,6 +87,86 @@
 
 .animate-fade-in-short {
   animation: fade-in-short 0.2s ease-out forwards;
+}
+
+/* Strength/pace dartboard: gentle pulse when user is off target (biofeedback) */
+@keyframes dartboard-ball-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.dartboard-ball-pulse {
+  transform-origin: center;
+  animation: dartboard-ball-pulse 1.2s ease-in-out infinite;
+}
+
+/* Perfect-state glow circle (softer breathing feel) */
+.dartboard-perfect-glow-circle {
+  animation: dartboard-perfect-glow-breathe 4s ease-in-out infinite;
+}
+
+@keyframes dartboard-perfect-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Neuro-performance wheel: micro-frequency pulse (subtle brightness, no flash) */
+@keyframes neuro-pulse-slight {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.88;
+  }
+}
+
+@keyframes neuro-pulse-strong {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.neuro-ball-pulse-slight {
+  animation: neuro-pulse-slight 833ms ease-in-out infinite; /* ~1.2Hz */
+}
+
+.neuro-ball-pulse-strong {
+  animation: neuro-pulse-strong 500ms ease-in-out infinite; /* 2Hz */
+}
+
+/* Neural coherence: calm 8s breathe when aligned */
+@keyframes neuro-coherence-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.neuro-coherence-glow {
+  animation: neuro-coherence-breathe 8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Neuro dartboard: deliberate easing for all transitions (no bounce/elastic) */
+.neuro-dartboard-transition {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Admin panel: spec palette (orange primary, etc.) — applied via .admin-panel wrapper */
