@@ -212,7 +212,7 @@ export const homeworkApi = {
         status: uploadUrlResult.status,
       };
     }
-    const { bucket, storage_path } = uploadUrlResult;
+    const { bucket, storage_path } = uploadUrlResult as { bucket: string; storage_path: string };
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const contentType = blob.type || "audio/webm";
