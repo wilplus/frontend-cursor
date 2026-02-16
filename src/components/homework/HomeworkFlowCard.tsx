@@ -837,22 +837,29 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      if (recording1Res && "alreadyAtStep2" in recording1Res && recording1Res.alreadyAtStep2 && recording1Res.task_block) {
+        uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
+        lastDerivedStepRef.current = 2;
+        setStep(2);
+        setTaskBlock(recording1Res.task_block);
+        setStatusUnknown(false);
+        setError(null);
+        toast.info("Session already advanced. You're on the right step now.");
+        return;
+      }
       uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
       lastDerivedStepRef.current = 2;
-      // Show step 2 and metric questions immediately from POST response (no wait for getStatus)
       setStep(2);
       if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
       setStatusUnknown(false);
       setError(null);
-      // Sync rest of session state in background; keep task_block from POST so GET can't overwrite with stale null
       try {
         const statusRes = await homeworkApi.getStatus();
         if (statusRes) applyStatusToState(statusRes);
         if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
-        // Ensure we stay on step 2 after sync (backend may still return warm_up briefly)
         setStep((s) => (s >= 2 ? s : 2));
       } catch {
-        // Keep step 2 and task_block from upload response; user can continue
+        // Keep step 2 and task_block from upload response
       }
     } catch (e) {
       // #region agent log
@@ -873,6 +880,13 @@ export default function HomeworkFlowCard() {
           const statusRes = await homeworkApi.getStatus();
           if (statusRes) {
             applyStatusToState(statusRes);
+            const derived = deriveStepFromStatus(statusRes);
+            if (derived.step === 2 && sessionId && !derived.taskBlock) {
+              homeworkApi
+                .getTaskBlock(sessionId)
+                .then((data) => data.task_block && setTaskBlock(data.task_block))
+                .catch(() => {});
+            }
             toast.success("Session updated. You're on the right step now.");
           } else {
             setError("Session state changed. Please refresh.");
@@ -883,6 +897,13 @@ export default function HomeworkFlowCard() {
             const statusResRetry = await homeworkApi.getStatus();
             if (statusResRetry) {
               applyStatusToState(statusResRetry);
+              const derived = deriveStepFromStatus(statusResRetry);
+              if (derived.step === 2 && sessionId && !derived.taskBlock) {
+                homeworkApi
+                  .getTaskBlock(sessionId)
+                  .then((data) => data.task_block && setTaskBlock(data.task_block))
+                  .catch(() => {});
+              }
               toast.success("Session updated.");
             } else {
               setError("Could not refresh session. Click Refresh below.");

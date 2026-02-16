@@ -157,12 +157,15 @@ export const homeworkApi = {
     return handleResponse<{ task_block: TaskBlockV2 }>(res);
   },
 
-  /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }. */
+  /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }, or 200 with already_past_step + task_block when session is already at step 2. */
   async getRecordingUploadUrl(
     sessionId: string,
     recording: "1" | "2",
     signal?: AbortSignal
-  ): Promise<{ bucket: string; storage_path: string }> {
+  ): Promise<
+    | { bucket: string; storage_path: string }
+    | { already_past_step: true; status?: string; task_block: TaskBlockV2 }
+  > {
     if (typeof window !== "undefined") {
       console.warn("[HomeworkFlow] getRecordingUploadUrl", { recording, sessionId: sessionId?.slice(0, 8) + "…" });
     }
@@ -174,17 +177,42 @@ export const homeworkApi = {
       signal,
       credentials,
     });
-    return handleResponse<{ bucket: string; storage_path: string }>(res);
+    if (!res.ok) return handleResponse<never>(res) as Promise<never>;
+    const body = await safeParseJson<{
+      bucket?: string;
+      storage_path?: string;
+      already_past_step?: boolean;
+      status?: string;
+      task_block?: TaskBlockV2;
+    }>(res);
+    if (body.already_past_step === true && body.task_block) {
+      return { already_past_step: true, status: body.status, task_block: body.task_block };
+    }
+    if (body.bucket && body.storage_path) {
+      return { bucket: body.bucket, storage_path: body.storage_path };
+    }
+    throw new Error("Invalid recording-upload-url response");
   },
 
-  /** Upload recording_1 (warm-up): get upload URL → upload blob to Supabase Storage → POST recording-1 with JSON { storage_path, duration_seconds }. */
+  /** Upload recording_1 (warm-up): get upload URL → upload blob to Supabase Storage → POST recording-1 with JSON { storage_path, duration_seconds }. Returns alreadyAtStep2 + task_block when backend responds 200 with already_past_step (session already at step 2). */
   async uploadRecording1(
     sessionId: string,
     blob: Blob,
     durationSeconds: number,
     signal?: AbortSignal
-  ): Promise<HomeworkRecording1Response> {
-    const { bucket, storage_path } = await this.getRecordingUploadUrl(sessionId, "1", signal);
+  ): Promise<
+    | HomeworkRecording1Response
+    | { alreadyAtStep2: true; task_block: TaskBlockV2; status?: string }
+  > {
+    const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "1", signal);
+    if ("already_past_step" in uploadUrlResult && uploadUrlResult.already_past_step && uploadUrlResult.task_block) {
+      return {
+        alreadyAtStep2: true,
+        task_block: uploadUrlResult.task_block,
+        status: uploadUrlResult.status,
+      };
+    }
+    const { bucket, storage_path } = uploadUrlResult;
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const contentType = blob.type || "audio/webm";
