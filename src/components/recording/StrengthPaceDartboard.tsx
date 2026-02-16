@@ -1,29 +1,33 @@
 "use client";
 
 /**
- * Neuro-performance strength + pace field.
- * Neural-field style: radial gradients, hemisphere direction cues, precision spring,
- * coherence state, micro-frequency pulse. Cognitive alignment instrument, not gamified target.
+ * Apple-precision strength + pace field.
+ * White + orange, on-brand: clean, high-clarity, no glow/pulse. Feedback via structural tension only.
  */
 import { useMemo, useRef, useState, useEffect } from "react";
 
 const VIEWBOX_SIZE = 300;
+const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-/** Micro-deadzone: score above this → ball target 0 (no jitter). */
 const DEADZONE_SCORE = 0.92;
-/** Neuro spring: controlled, no bounce. stiffness 0.045, damping 0.82 */
-const SPRING_STIFFNESS = 0.045;
+/** iOS-level spring: firm, no bounce. */
+const SPRING_STIFFNESS = 0.05;
 const SPRING_DAMPING = 0.82;
-/** Coherence: both axes above this for COHERENCE_MS → neural alignment state. */
-const COHERENCE_SCORE = 0.94;
-const COHERENCE_MS = 800;
-/** Pulse: show when either axis below this. Slight pulse 0.5–0.7, strong < 0.5 */
-const PULSE_SLIGHT_THRESHOLD = 0.7;
-const PULSE_STRONG_THRESHOLD = 0.5;
+/** Public speaking: reward sustained control, not lab precision. */
+const COHERENCE_STRENGTH = 0.88;
+const COHERENCE_PACE = 0.85;
+const COHERENCE_MS = 1200;
+/** Sustained authority: 4+ seconds stable → ring thickens, crosshair sharper. */
+const AUTHORITY_MS = 4000;
+/** Anxiety reduction: small deviations almost entirely ignored. */
+const TENSION_EXP = 2.0;
 
-/** Position in [-1, 1] from score and direction; deadzone when score >= DEADZONE_SCORE. */
+function tension(score: number): number {
+  return Math.pow(Math.max(0, 1 - score), TENSION_EXP);
+}
+
 function ballPosition(score: number, direction: number): number {
   if (score >= DEADZONE_SCORE) return 0;
   const error = 1 - score;
@@ -31,30 +35,22 @@ function ballPosition(score: number, direction: number): number {
   return Math.max(-1, Math.min(1, signed));
 }
 
-/** Neuro tone: Aligned / Over drive / Low drive / Over pace / Under pace */
+/** Public speaking: presence language (not correction). */
 function getBallStatus(
   strengthScore: number,
   paceScore: number,
   strengthDirection: number,
   paceDirection: number
 ): string {
-  if (strengthScore >= COHERENCE_SCORE && paceScore >= COHERENCE_SCORE)
-    return "Aligned.";
+  if (strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE)
+    return "Presence stable.";
   const parts: string[] = [];
-  if (strengthScore < COHERENCE_SCORE && strengthDirection !== 0)
-    parts.push(strengthDirection < 0 ? "Low drive" : "Over drive");
-  if (paceScore < COHERENCE_SCORE)
-    parts.push(paceDirection < 0 ? "Under pace" : "Over pace");
-  return parts.length ? parts.join(", ") + "." : "Aligned.";
+  if (strengthScore < COHERENCE_STRENGTH && strengthDirection !== 0)
+    parts.push(strengthDirection < 0 ? "Low activation" : "High activation");
+  if (paceScore < COHERENCE_PACE)
+    parts.push(paceDirection < 0 ? "Slower pace" : "Faster pace");
+  return parts.length ? parts.join(", ") + "." : "Presence stable.";
 }
-
-/** Half-circle clip paths: top, bottom, left, right. Center 150,150 radius 120. */
-const HEMISPHERE_PATHS = {
-  top: "M 30 150 A 120 120 0 0 1 150 30 A 120 120 0 0 1 270 150 Z",
-  bottom: "M 270 150 A 120 120 0 0 1 150 270 A 120 120 0 0 1 30 150 Z",
-  left: "M 150 30 A 120 120 0 0 1 30 150 A 120 120 0 0 1 150 270 Z",
-  right: "M 150 270 A 120 120 0 0 1 270 150 A 120 120 0 0 1 150 30 Z",
-} as const;
 
 export interface StrengthPaceDartboardProps {
   strengthScore: number;
@@ -69,8 +65,6 @@ export function StrengthPaceDartboard({
   strengthDirection,
   paceDirection,
 }: StrengthPaceDartboardProps) {
-  const center = VIEWBOX_SIZE / 2;
-
   const targetX = useMemo(
     () => ballPosition(strengthScore, strengthDirection),
     [strengthScore, strengthDirection]
@@ -87,28 +81,25 @@ export function StrengthPaceDartboard({
   const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
 
   const isCoherent =
-    strengthScore >= COHERENCE_SCORE && paceScore >= COHERENCE_SCORE;
+    strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE;
   const coherentStartRef = useRef<number | null>(null);
-  const [showCoherenceGlow, setShowCoherenceGlow] = useState(false);
-
-  const isOffTarget =
-    strengthScore < PULSE_SLIGHT_THRESHOLD || paceScore < PULSE_SLIGHT_THRESHOLD;
-  const pulseStrong =
-    strengthScore < PULSE_STRONG_THRESHOLD || paceScore < PULSE_STRONG_THRESHOLD;
+  const [coherent, setCoherent] = useState(false);
+  const [authority, setAuthority] = useState(false);
 
   useEffect(() => {
     const now = Date.now();
     if (isCoherent) {
       if (coherentStartRef.current === null) coherentStartRef.current = now;
-      if (now - (coherentStartRef.current ?? now) >= COHERENCE_MS)
-        setShowCoherenceGlow(true);
+      const elapsed = now - (coherentStartRef.current ?? now);
+      setCoherent(elapsed >= COHERENCE_MS);
+      setAuthority(elapsed >= AUTHORITY_MS);
     } else {
       coherentStartRef.current = null;
-      setShowCoherenceGlow(false);
+      setCoherent(false);
+      setAuthority(false);
     }
   }, [isCoherent]);
 
-  // Spring physics (neuro: stiff, damped, no bounce)
   useEffect(() => {
     let rafId: number;
     const tick = () => {
@@ -128,8 +119,10 @@ export function StrengthPaceDartboard({
     return () => cancelAnimationFrame(rafId);
   }, []);
 
-  const cx = center + displayPos.x * RADIUS;
-  const cy = center - displayPos.y * RADIUS;
+  const ballX = displayPos.x * RADIUS;
+  const ballY = -displayPos.y * RADIUS;
+  const cx = CENTER + ballX;
+  const cy = CENTER + ballY;
   const statusText = getBallStatus(
     strengthScore,
     paceScore,
@@ -137,187 +130,127 @@ export function StrengthPaceDartboard({
     paceDirection
   );
 
-  // Hemisphere overlay opacity: direction cue (field distortion). Max opacity ~0.25, subtle.
-  const topOpacity = paceDirection === 1 ? (1 - paceScore) * 0.25 : 0;
-  const bottomOpacity = paceDirection === -1 ? (1 - paceScore) * 0.25 : 0;
-  const leftOpacity = strengthDirection === -1 ? (1 - strengthScore) * 0.25 : 0;
-  const rightOpacity = strengthDirection === 1 ? (1 - strengthScore) * 0.25 : 0;
-
-  // Ball/glow color token from dominant deviation (neuro palette).
   const worstScore = Math.min(strengthScore, paceScore);
-  const ballGlowToken = useMemo((): string => {
-    if (worstScore >= COHERENCE_SCORE) return "neuro-perfect";
-    if (strengthScore < paceScore) {
-      return strengthDirection < 0 ? "neuro-weak" : "neuro-strong";
-    }
-    return paceDirection < 0 ? "neuro-slow" : "neuro-fast";
-  }, [worstScore, strengthScore, paceScore, strengthDirection, paceDirection]);
-
-  const transitionClass = "neuro-dartboard-transition";
+  let t = tension(worstScore);
+  if (worstScore < 1) {
+    if (strengthDirection < 0) t *= 1.2;
+    else if (strengthDirection > 0) t *= 0.7;
+    if (paceDirection > 0) t *= 0.8;
+    t = Math.min(1, t);
+  }
+  /** Structural tension: outer ring base (gray), orange overlay when error. */
+  const outerRingBaseOpacity = coherent ? 0.45 : 0.35;
+  const outerRingOrangeOpacity = t * 0.5;
+  const crosshairOpacity = authority ? 0.22 : coherent ? 0.18 : 0.12;
+  const outerRingStrokeWidth = authority ? 1 : 0.75;
+  /** Ball stroke: soft orange when coherent, more defined when tension. */
+  const ballStrokeOpacity = coherent ? 0.6 : 0.5 + t * 0.5;
 
   return (
     <div
       className="flex flex-col items-center w-full"
       role="img"
-      aria-label="Neural alignment: keep drive and pace in the center"
+      aria-label="Vocal presence: keep drive and pace centered"
     >
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
       <svg viewBox="0 0 300 300" className="w-full aspect-square" aria-hidden>
         <defs>
-          {/* Neural field: radial gradient (soft center → fade to edge) */}
-          <radialGradient
-            id="neuro-field-outer"
-            cx="50%"
-            cy="50%"
-            r="50%"
-          >
-            <stop offset="0%" stopColor="hsl(var(--neuro-perfect))" stopOpacity="0.08" />
-            <stop offset="40%" stopColor="hsl(var(--neuro-perfect))" stopOpacity="0.03" />
-            <stop offset="100%" stopColor="hsl(var(--neuro-perfect))" stopOpacity="0.02" />
+          <radialGradient id="apple-field" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stopColor="white" />
+            <stop offset="100%" stopColor="hsl(var(--np-gray-soft))" />
           </radialGradient>
-          <radialGradient
-            id="neuro-field-inner"
-            cx="50%"
-            cy="50%"
-            r="50%"
-          >
-            <stop offset="0%" stopColor="hsl(var(--neuro-perfect))" stopOpacity="0.9" />
-            <stop offset="40%" stopColor="hsl(var(--neuro-perfect))" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="hsl(var(--neuro-perfect))" stopOpacity="0.05" />
-          </radialGradient>
-          {/* Hemisphere direction overlays: top=fast, bottom=slow, left=weak, right=strong */}
-          <linearGradient id="neuro-hemisphere-top" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor="hsl(var(--neuro-fast))" stopOpacity="0" />
-            <stop offset="100%" stopColor="hsl(var(--neuro-fast))" stopOpacity="0.6" />
-          </linearGradient>
-          <linearGradient id="neuro-hemisphere-bottom" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--neuro-slow))" stopOpacity="0" />
-            <stop offset="100%" stopColor="hsl(var(--neuro-slow))" stopOpacity="0.6" />
-          </linearGradient>
-          <linearGradient id="neuro-hemisphere-left" x1="1" y1="0" x2="0" y2="0">
-            <stop offset="0%" stopColor="hsl(var(--neuro-weak))" stopOpacity="0" />
-            <stop offset="100%" stopColor="hsl(var(--neuro-weak))" stopOpacity="0.6" />
-          </linearGradient>
-          <linearGradient id="neuro-hemisphere-right" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="hsl(var(--neuro-strong))" stopOpacity="0" />
-            <stop offset="100%" stopColor="hsl(var(--neuro-strong))" stopOpacity="0.6" />
-          </linearGradient>
-          <filter id="neuro-ball-shadow" x="-40%" y="-40%" width="180%" height="180%" filterUnits="userSpaceOnUse">
-            <feDropShadow dx={0} dy={1} stdDeviation={0.5} floodColor="hsl(var(--foreground) / 0.15)" />
+          <filter id="apple-ball-shadow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.12} />
           </filter>
-          <filter id="neuro-coherence-glow" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+          <filter id="apple-ball-shadow-coherent" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.08} />
           </filter>
         </defs>
 
-        {/* Crosshair: thin axes (neuro data layer) */}
-        <line x1={center} y1={0} x2={center} y2={VIEWBOX_SIZE} stroke="hsl(var(--foreground))" strokeWidth={0.5} opacity={0.15} />
-        <line x1={0} y1={center} x2={VIEWBOX_SIZE} y2={center} stroke="hsl(var(--foreground))" strokeWidth={0.5} opacity={0.15} />
+        {/* Base field */}
+        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#apple-field)" />
 
-        {/* Outer ring: thin stroke, low opacity (neural field boundary) */}
+        {/* Outer ring: gray base; orange overlay for structural tension; thickens with authority */}
         <circle
-          cx={center}
-          cy={center}
+          cx={CENTER}
+          cy={CENTER}
           r={RADIUS}
-          fill="url(#neuro-field-outer)"
-          stroke="hsl(var(--foreground))"
-          strokeWidth={0.75}
-          opacity={0.35}
-          className={transitionClass}
+          fill="none"
+          stroke="hsl(var(--np-gray-mid))"
+          strokeWidth={outerRingStrokeWidth}
+          opacity={outerRingBaseOpacity}
+          className="apple-transition"
         />
-        {/* Middle ring: gradient fade */}
+        {outerRingOrangeOpacity > 0 && (
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={RADIUS}
+            fill="none"
+            stroke="hsl(var(--np-orange))"
+            strokeWidth={outerRingStrokeWidth}
+            opacity={outerRingOrangeOpacity}
+            className="apple-transition"
+          />
+        )}
+        {/* Mid ring */}
         <circle
-          cx={center}
-          cy={center}
-          r={RADIUS * 0.66}
-          fill="url(#neuro-field-outer)"
-          stroke="hsl(var(--foreground))"
+          cx={CENTER}
+          cy={CENTER}
+          r={80}
+          fill="none"
+          stroke="hsl(var(--np-gray-mid))"
           strokeWidth={0.75}
           opacity={0.25}
-          className={transitionClass}
+          className="apple-transition"
         />
-        {/* Hemisphere direction overlays (field distortion) */}
-        {topOpacity > 0 && (
-          <path
-            d={HEMISPHERE_PATHS.top}
-            fill="url(#neuro-hemisphere-top)"
-            opacity={topOpacity}
-            className={transitionClass}
-            style={{ transitionDuration: "300ms" }}
-          />
-        )}
-        {bottomOpacity > 0 && (
-          <path
-            d={HEMISPHERE_PATHS.bottom}
-            fill="url(#neuro-hemisphere-bottom)"
-            opacity={bottomOpacity}
-            className={transitionClass}
-            style={{ transitionDuration: "300ms" }}
-          />
-        )}
-        {leftOpacity > 0 && (
-          <path
-            d={HEMISPHERE_PATHS.left}
-            fill="url(#neuro-hemisphere-left)"
-            opacity={leftOpacity}
-            className={transitionClass}
-            style={{ transitionDuration: "300ms" }}
-          />
-        )}
-        {rightOpacity > 0 && (
-          <path
-            d={HEMISPHERE_PATHS.right}
-            fill="url(#neuro-hemisphere-right)"
-            opacity={rightOpacity}
-            className={transitionClass}
-            style={{ transitionDuration: "300ms" }}
-          />
-        )}
-        {/* Inner bullseye: radial gradient (neural alignment zone) */}
+        {/* Inner ring */}
         <circle
-          cx={center}
-          cy={center}
-          r={RADIUS * 0.33}
-          fill="url(#neuro-field-inner)"
-          stroke="hsl(var(--foreground))"
+          cx={CENTER}
+          cy={CENTER}
+          r={40}
+          fill="none"
+          stroke="hsl(var(--np-gray-mid))"
           strokeWidth={0.75}
-          opacity={0.9}
-          className={transitionClass}
+          opacity={0.2}
+          className="apple-transition"
         />
-        {/* Coherence glow: when both > 0.94 for 800ms */}
-        {showCoherenceGlow && (
-          <circle
-            cx={center}
-            cy={center}
-            r={RADIUS * 0.42}
-            fill="hsl(var(--neuro-perfect) / 0.4)"
-            filter="url(#neuro-coherence-glow)"
-            className="neuro-coherence-glow"
-          />
-        )}
-        {/* Ball glow: intensity by error, color by state (neuro palette); micro-frequency pulse when off */}
-        <circle
-          cx={cx}
-          cy={cy}
-          r={BALL_R + 8}
-          fill={`hsl(var(--${ballGlowToken}))`}
-          opacity={0.2 + (1 - worstScore) * 0.15}
-          className={`${transitionClass} ${showCoherenceGlow ? "" : isOffTarget ? (pulseStrong ? "neuro-ball-pulse-strong" : "neuro-ball-pulse-slight") : ""}`}
-          style={{ transitionDuration: "250ms" }}
+
+        {/* Crosshair */}
+        <line
+          x1={CENTER}
+          y1={30}
+          x2={CENTER}
+          y2={270}
+          stroke="hsl(var(--np-gray-deep))"
+          strokeWidth={0.5}
+          opacity={crosshairOpacity}
+          className="apple-transition"
         />
-        {/* Ball: neuro color; no pulse when coherent */}
+        <line
+          x1={30}
+          y1={CENTER}
+          x2={270}
+          y2={CENTER}
+          stroke="hsl(var(--np-gray-deep))"
+          strokeWidth={0.5}
+          opacity={crosshairOpacity}
+          className="apple-transition"
+        />
+
+        {/* Ball: white, thin orange ring, soft shadow */}
         <circle
           cx={cx}
           cy={cy}
           r={BALL_R}
-          fill={`hsl(var(--${ballGlowToken}))`}
-          stroke="hsl(var(--background))"
-          strokeWidth={1}
-          filter="url(#neuro-ball-shadow)"
-          className={transitionClass}
-          style={{ transitionDuration: "200ms" }}
+          fill="white"
+          stroke="hsl(var(--np-orange))"
+          strokeWidth={1.25}
+          strokeOpacity={ballStrokeOpacity}
+          filter={coherent ? "url(#apple-ball-shadow-coherent)" : "url(#apple-ball-shadow)"}
+          className="apple-transition"
         />
       </svg>
     </div>
