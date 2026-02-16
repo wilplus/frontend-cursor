@@ -11,11 +11,11 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  { params }: { params: { sessionId: string } }
 ) {
   const unauth = await requireAuth(req);
   if (unauth) return unauth;
-  const { sessionId } = await params;
+  const { sessionId } = params;
   return proxyJson(
     `/v2/homework/session/${sessionId}/notify-lesson-complete`,
     { method: "POST", body: {} },

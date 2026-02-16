@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 /** GET task-block for step 2 (e.g. when resuming). Returns task_block with metric_question_1, metric_question_2, metric_question_3. */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  { params }: { params: { sessionId: string } }
 ) {
-  const { sessionId } = await params;
+  const { sessionId } = params;
   const res = await proxyJson(`/v2/homework/session/${sessionId}/task-block`, undefined, req);
   return res;
 }

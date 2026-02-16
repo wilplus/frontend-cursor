@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /** POST with { "recording": "1" } or "2" → returns { bucket, storage_path } for Supabase Storage upload. */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  { params }: { params: { sessionId: string } }
 ) {
   const unauth = await requireAuth(req);
   if (unauth) return unauth;
@@ -22,7 +22,7 @@ export async function POST(
   }
 
   const recording = body.recording === "2" ? "2" : "1";
-  const { sessionId } = await params;
+  const { sessionId } = params;
 
   if (useMockHomework()) {
     return Response.json({
