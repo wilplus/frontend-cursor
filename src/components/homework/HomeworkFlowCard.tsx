@@ -1067,14 +1067,13 @@ export default function HomeworkFlowCard() {
       }
 
       if (isInvalidSessionStateError(e)) {
-        uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
-        try {
-          if (sessionId) await reconcileSessionState(sessionId);
-          toast.success("Session updated. You're on the right step now.");
-        } catch {
-          setError(errMessage);
-          toast.error(errMessage);
-        }
+        // Do not call reconcileSessionState here: backend may still be processing (e.g. generating final_task).
+        // Advancing to step 3 on 409 would let the UI progress before metric-answers has actually succeeded.
+        const msg =
+          errMessage?.trim() ||
+          "Session state conflict. The system may still be processing. Please wait a moment and click Continue again.";
+        setError(msg);
+        toast.info(msg);
       } else {
         const displayMsg =
           typeof errMessage === "string" && errMessage.trim()
