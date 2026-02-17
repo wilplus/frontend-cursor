@@ -778,6 +778,8 @@ export default function HomeworkFlowCard() {
         return;
       }
 
+      // RECORDING_1_PROCESSING: poll GET status only to decide when to retry the same mutation. Do not use GET
+      // response to set step or applyStatusToState. Step advances only when POST metric-answers succeeds. Approved.
       if (errCode === "RECORDING_1_PROCESSING") {
         setError(errMessage || "Still analyzing your recording. Please wait a moment.");
         toast.info(errMessage || "Still analyzing your recording. Please wait a moment.");
