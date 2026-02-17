@@ -38,27 +38,24 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   }
 }
 
-/** Unified response shape for GET status and all mutations. Top-level status only; optional data. Matches backend exactly. */
+/** Unified response shape for GET status and all mutations. Top-level status only; optional data. Matches backend exactly. Backend sends report_text, not report. */
 export interface HomeworkResponse {
   status: PublicHomeworkStatus;
   session_id?: string | null;
   warm_up_task?: WarmUpTask | null;
   warm_up_task_text?: string | null;
   task_text?: string | null;
-  /** From recording-1 response; GET status does not return this. */
   task_block?: TaskBlockV2 | null;
-  /** From metric-answers response; GET status does not return this. */
   final_task?: string | null;
   final_task_text?: string | null;
-  /** From post-answers response (backend sends report_text, not report). GET status does not return this. */
   report_text?: string | null;
-  /** Backend sends performance_score_2 (e.g. from post-answers report). */
   performance_score_2?: number | null;
-  /** Legacy/alternate field name. */
   performance_score_end?: number | null;
   questions?: HomeworkQuestion[];
   tutor_feedback_deadline?: string | null;
   tutor_feedback_message?: string | null;
+  session?: unknown;
+  has_active_session?: boolean;
 }
 
 /** Normalize raw API status string to PublicHomeworkStatus. Use when building HomeworkResponse from GET. */
