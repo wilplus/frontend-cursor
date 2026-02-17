@@ -197,8 +197,10 @@ export default function HomeworkFlowCard() {
   const [error, setError] = useState<string | null>(null);
   /** When true, metric step Continue is disabled because recording-1 analysis failed (submitting again won't help). */
   const [metricStepBlockedByRecordingFailure, setMetricStepBlockedByRecordingFailure] = useState(false);
-  /** On step 2 when taskBlock was null, we fetch it; this becomes true when that fetch settles (success or fail) so we can show form instead of loading. */
+  /** On step 2 when taskBlock was null, we fetch it; this becomes true when that fetch settles (success or fail). Used to show error if questions still missing after fetch. */
   const [taskBlockFetchSettled, setTaskBlockFetchSettled] = useState(false);
+  /** On step 4 when questions were [], we fetch GET questions; this becomes true when that fetch settles so we only show the form once questions are loaded (or show error). */
+  const [questionsStep4Settled, setQuestionsStep4Settled] = useState(false);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
@@ -225,6 +227,8 @@ export default function HomeworkFlowCard() {
   /** Latest known task content; preserved when applyStatusToState gets a thin GET response so task does not disappear. */
   const taskBlockRef = useRef<TaskBlockV2 | null>(null);
   const finalTaskTextRef = useRef<string>("");
+  /** True when we already started fetching task-block (e.g. in initial effect or reconcileSessionState) so step 2 useEffect does not double-fetch. */
+  const taskBlockFetchStartedRef = useRef(false);
 
   /** Keep lastStepRef in sync with step so applyStatusToState can clamp to never go backward. */
   useEffect(() => {
@@ -354,21 +358,25 @@ export default function HomeworkFlowCard() {
   };
 
   /**
-   * Single source of truth: fetch GET session/status, apply to state, and ensure task_block
-   * is loaded when backend says task_block. Use after any 409 or unexpected response.
+   * Single source of truth: fetch GET session/status and GET task-block in parallel, apply to state.
+   * Use after any 409 or unexpected response. Speeds up step 2 by not waiting for status before fetching task-block.
    */
   const reconcileSessionState = async (sid: string) => {
-    const statusRes = await homeworkApi.getStatus();
+    const [statusRes, taskBlockRes] = await Promise.all([
+      homeworkApi.getStatus(),
+      homeworkApi.getTaskBlock(sid).catch(() => null),
+    ]);
     if (!statusRes) return;
     applyStatusToState(statusRes);
     const derived = deriveStepFromStatus(statusRes);
-    if (derived.step === 2 && sid && !derived.taskBlock) {
-      try {
-        const data = await homeworkApi.getTaskBlock(sid);
-        if (data.task_block) setTaskBlock(data.task_block);
-      } catch {
+    if (derived.step === 2) {
+      taskBlockFetchStartedRef.current = true;
+      if (!derived.taskBlock && taskBlockRes?.task_block) {
+        setTaskBlock(taskBlockRes.task_block);
+      } else if (!derived.taskBlock && !taskBlockRes) {
         setError("Could not load questions. Try continuing or refresh.");
       }
+      setTaskBlockFetchSettled(true);
     }
   };
 
@@ -692,6 +700,17 @@ export default function HomeworkFlowCard() {
             if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
           }
           applyStatusToState(statusRes);
+          // Prefetch task-block when status says step 2 so step 2 UI has data sooner (avoids waiting for useEffect).
+          if (derived.step === 2 && sessionIdFromResForReport && !derived.taskBlock) {
+            taskBlockFetchStartedRef.current = true;
+            homeworkApi
+              .getTaskBlock(sessionIdFromResForReport)
+              .then((data) => {
+                if (data.task_block) setTaskBlock(data.task_block);
+              })
+              .catch(() => setError("Could not load questions. Try continuing or refresh."))
+              .finally(() => setTaskBlockFetchSettled(true));
+          }
         }
       })
       .catch((e) => {
@@ -705,9 +724,11 @@ export default function HomeworkFlowCard() {
       .finally(() => setLoading(false));
   }, [authReady, step]);
 
-  // On step 2, if task_block is missing (e.g. user refreshed), load it from GET task-block
+  // On step 2, if task_block is missing (e.g. user refreshed), load it from GET task-block. Skip if already started (e.g. by initial effect or reconcileSessionState).
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session" || taskBlock != null) return;
+    if (taskBlockFetchStartedRef.current) return;
+    taskBlockFetchStartedRef.current = true;
     let cancelled = false;
     homeworkApi
       .getTaskBlock(sessionId)
@@ -728,7 +749,14 @@ export default function HomeworkFlowCard() {
   }, [step, sessionId, taskBlock]);
 
   useEffect(() => {
-    if (step !== 2) setTaskBlockFetchSettled(false);
+    if (step !== 2) {
+      setTaskBlockFetchSettled(false);
+      taskBlockFetchStartedRef.current = false;
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 4) setQuestionsStep4Settled(false);
   }, [step]);
 
   // On step 4, if questions are missing (thin status or refresh), load from GET questions. If none, finish without post-questions (auto-submit to get report).
@@ -740,6 +768,7 @@ export default function HomeworkFlowCard() {
       .getQuestions(sessionId)
       .then(({ questions: qList }) => {
         if (cancelled) return;
+        setQuestionsStep4Settled(true);
         if (qList.length > 0) {
           const normalized = qList.map((q) => ({
             ...q,
@@ -784,7 +813,10 @@ export default function HomeworkFlowCard() {
         }
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+        if (!cancelled) {
+          setQuestionsStep4Settled(true);
+          setError("Could not load questions. Try continuing or refresh.");
+        }
       });
     return () => {
       cancelled = true;
@@ -1427,16 +1459,19 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: metric questions — don't render form until task_block is loaded or fetch has settled (defensive)
+  // Step 2: metric questions — only show form when task_block is loaded; otherwise show loading (or error if fetch settled with no data)
   if (step === 2) {
-    const showMetricForm = taskBlock != null || taskBlockFetchSettled;
-    if (!showMetricForm && sessionId && sessionId !== "mock-session") {
+    const step2DataReady = taskBlock != null;
+    if (!step2DataReady && sessionId && sessionId !== "mock-session") {
       return (
         <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
               <p className="text-sm text-muted-foreground">Loading questions…</p>
+              {taskBlockFetchSettled && error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
             </div>
           </Card>
           <div className="mt-[1px] flex justify-center">
@@ -1508,11 +1543,68 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
+  // Step 4: Reflective questions — only show form when questions are loaded (or 0 and we're auto-submitting). Otherwise show loading or error.
   if (step === 4) {
     // #region agent log
     debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" });
     // #endregion
+    const step4DataReady = questions.length > 0 || (questionsStep4Settled && questions.length === 0);
+    if (!step4DataReady && sessionId && sessionId !== "mock-session") {
+      return (
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading questions…</p>
+            </div>
+          </Card>
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        </StepFlowWrapper>
+      );
+    }
+    if (questionsStep4Settled && questions.length === 0 && sessionId && sessionId !== "mock-session") {
+      // Fetch returned 0 questions — we're in auto-submit path (loading) or failed; show minimal UI
+      return (
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              {loading ? (
+                <>
+                  <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                  <p className="text-sm text-muted-foreground">Finishing…</p>
+                </>
+              ) : (
+                <>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <p className="text-sm text-muted-foreground">No reflective questions for this session.</p>
+                </>
+              )}
+            </div>
+          </Card>
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        </StepFlowWrapper>
+      );
+    }
     return (
       <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
         <PostQuestionsStepScreen
@@ -1538,8 +1630,22 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 5: Report — (1) recording, (2) performance chart, (3) text, (4) button
+  // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
   if (step === 5) {
+    const step5DataReady = reportData != null || (reportError != null && !reportLoading);
+    if (!step5DataReady) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          <Card className="border-0 bg-transparent p-6 shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading report…</p>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
 
@@ -1562,10 +1668,7 @@ export default function HomeworkFlowCard() {
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>
-          {reportLoading && (
-            <p className="text-sm text-muted-foreground">Loading report…</p>
-          )}
-          {reportError && !reportLoading && (
+          {reportError && (
             <p className="text-sm text-destructive">{reportError}</p>
           )}
           <div className="space-y-4">
