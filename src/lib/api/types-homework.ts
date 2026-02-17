@@ -5,6 +5,71 @@
 
 export type UUID = string;
 
+// —— Public status (must match backend exactly). Only use top-level status. ——
+export type PublicHomeworkStatus =
+  | "none"
+  | "recording_1_required"
+  | "task_block"
+  | "final_task_ready"
+  | "post_questions"
+  | "completed";
+
+export type Step = 0 | 1 | 2 | 3 | 4 | 5;
+
+/** Single mapping: backend status → UI step. Only place that knows workflow structure. */
+export function mapStatusToStep(status: PublicHomeworkStatus): Step {
+  switch (status) {
+    case "none":
+      return 0;
+    case "recording_1_required":
+      return 1;
+    case "task_block":
+      return 2;
+    case "final_task_ready":
+      return 3;
+    case "post_questions":
+      return 4;
+    case "completed":
+      return 5;
+    default: {
+      const _exhaustive: never = status;
+      return 0;
+    }
+  }
+}
+
+/** Unified response shape for GET status and all mutations. Top-level status only; optional data. Matches backend exactly. */
+export interface HomeworkResponse {
+  status: PublicHomeworkStatus;
+  session_id?: string | null;
+  warm_up_task?: WarmUpTask | null;
+  warm_up_task_text?: string | null;
+  task_text?: string | null;
+  /** From recording-1 response; GET status does not return this. */
+  task_block?: TaskBlockV2 | null;
+  /** From metric-answers response; GET status does not return this. */
+  final_task?: string | null;
+  final_task_text?: string | null;
+  /** From post-answers response (backend sends report_text, not report). GET status does not return this. */
+  report_text?: string | null;
+  /** Backend sends performance_score_2 (e.g. from post-answers report). */
+  performance_score_2?: number | null;
+  /** Legacy/alternate field name. */
+  performance_score_end?: number | null;
+  questions?: HomeworkQuestion[];
+  tutor_feedback_deadline?: string | null;
+  tutor_feedback_message?: string | null;
+}
+
+/** Normalize raw API status string to PublicHomeworkStatus. Use when building HomeworkResponse from GET. */
+export function toPublicStatus(s: unknown): PublicHomeworkStatus {
+  if (typeof s !== "string") return "none";
+  const t = s.toLowerCase().trim().replace(/\s+/g, "_");
+  const allowed: PublicHomeworkStatus[] = ["none", "recording_1_required", "task_block", "final_task_ready", "post_questions", "completed"];
+  if (allowed.includes(t as PublicHomeworkStatus)) return t as PublicHomeworkStatus;
+  return "none";
+}
+
 /** Warm-up task shape returned by GET /session/status and POST /session/start. */
 export interface WarmUpTask {
   id: string;
@@ -82,6 +147,37 @@ export interface HomeworkSessionStatus {
   session_metric_question_3?: MetricQuestionItemV2 | string | null;
   /** When no active session: deadline (ISO 8601 UTC) for tutor to send feedback and new homework. Omitted when past or not applicable. */
   tutor_feedback_deadline?: string | null;
+  /** When no active session: optional message from tutor (e.g. warning to wait for feedback). Show as info banner on step 0. */
+  tutor_feedback_message?: string | null;
+}
+
+/** Build HomeworkResponse from GET status. Normalizes status to top-level (only place that reads nested session.status). */
+export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): HomeworkResponse {
+  const status = toPublicStatus(raw.status ?? raw.session?.status);
+  const q1 = raw.session_metric_question_1 ?? raw.session?.session_metric_question_1;
+  const q2 = raw.session_metric_question_2 ?? raw.session?.session_metric_question_2;
+  const q3 = raw.session_metric_question_3 ?? raw.session?.session_metric_question_3;
+  const task_block =
+    raw.task_block ??
+    (q1 != null || q2 != null || q3 != null
+      ? { metric_question_1: q1 ?? undefined, metric_question_2: q2 ?? undefined, metric_question_3: q3 ?? undefined }
+      : null);
+  return {
+    status,
+    session_id: raw.session_id ?? raw.session?.id ?? null,
+    warm_up_task: raw.warm_up_task ?? raw.session?.warm_up_task ?? null,
+    warm_up_task_text: raw.warm_up_task_text ?? raw.session?.warm_up_task_text ?? null,
+    task_text: raw.task_text ?? null,
+    task_block,
+    final_task: typeof raw.final_task === "string" ? raw.final_task : null,
+    final_task_text: raw.final_task_text ?? raw.session?.final_task_text ?? null,
+    report_text: raw.report_text ?? raw.session?.context_long ?? null,
+    performance_score_2: (raw as { performance_score_2?: number }).performance_score_2 ?? raw.performance_score_end ?? raw.session?.performance_score_end ?? null,
+    performance_score_end: raw.performance_score_end ?? raw.session?.performance_score_end ?? null,
+    questions: raw.questions ?? undefined,
+    tutor_feedback_deadline: raw.tutor_feedback_deadline ?? null,
+    tutor_feedback_message: raw.tutor_feedback_message ?? null,
+  };
 }
 
 // —— Metric question item (id + text, used in task_block) ——
