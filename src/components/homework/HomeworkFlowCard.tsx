@@ -787,6 +787,7 @@ export default function HomeworkFlowCard() {
         while (Date.now() - start < maxWaitMs && sessionId) {
           await new Promise((r) => setTimeout(r, pollIntervalMs));
           try {
+            // Poll GET only to decide when to retry the same mutation; step advances only when POST metric-answers succeeds below.
             const statusRes = await homeworkApi.getStatus();
             const session = (statusRes as { session?: { performance_score_1?: number; context_short?: string; recording_1_processing_status?: string } })?.session;
             const ready = session?.performance_score_1 != null && (session?.context_short || session?.recording_1_processing_status === "completed");
