@@ -10,6 +10,13 @@ import type {
   HomeworkSessionStatus,
   HomeworkReportResponse,
   TaskBlockV2,
+  HomeworkResponse,
+} from "@/lib/api/types-homework";
+import {
+  mapStatusToStep,
+  getStatusToHomeworkResponse,
+  type Step as StepType,
+  type PublicHomeworkStatus,
 } from "@/lib/api/types-homework";
 import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
 import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
@@ -29,75 +36,19 @@ const TOTAL_STEPS = 5;
 /** Default warm-up question when the backend assigns none. */
 const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
 
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 function resolveWarmUpText(text: string | null | undefined): string {
   return (text ?? "").trim() || DEFAULT_WARMUP_QUESTION;
 }
 
-type Step = 1 | 2 | 3 | 4 | 5;
-
-/** Derive current step and restored state from session status. Step only from the five canonical statuses (warm_up, task_block, final_task_ready, post_questions, completed). */
-function deriveStepFromStatus(s: HomeworkSessionStatus): {
-  step: Step;
-  warmUpText: string;
-  taskText: string;
-  taskBlock: TaskBlockV2 | null;
-  finalTaskText: string;
-  questions: HomeworkQuestion[];
-  reportText: string;
-  performanceScoreEnd: number | null;
-  /** True when status was missing or not one of the five; UI should show error + Refresh. */
-  statusUnknown: boolean;
-} {
-  const session = (s as HomeworkSessionStatus).session;
-  const statusRaw =
-    s.status ??
-    session?.status ??
-    session?.state ??
-    s.session_state ??
-    "";
-  const status = statusRaw.toLowerCase().trim().replace(/\s+/g, "_");
-
-  const warmUpTask = s.warm_up_task ?? session?.warm_up_task;
-  const warmUpText = (warmUpTask?.text ?? s.warm_up_task_text ?? session?.warm_up_task_text ?? "").trim() || "";
-  const taskText = s.task_text ?? "";
-  const q1 = s.session_metric_question_1 ?? session?.session_metric_question_1;
-  const q2 = s.session_metric_question_2 ?? session?.session_metric_question_2;
-  const q3 = s.session_metric_question_3 ?? session?.session_metric_question_3;
-  const taskBlock =
-    s.task_block ??
-    (q1 != null || q2 != null || q3 != null
-      ? { metric_question_1: q1 ?? undefined, metric_question_2: q2 ?? undefined, metric_question_3: q3 ?? undefined }
-      : null);
-  const finalTaskText = (session?.final_task_text ?? s.final_task_text ?? toText(s.final_task) ?? "").trim() || "";
-  const reportText = (s.report_text ?? session?.context_long ?? "").trim() || "";
-  const performanceScoreEnd = s.performance_score_end ?? session?.performance_score_end ?? null;
-  const questions = Array.isArray(s.questions) ? s.questions : [];
-
-  // Empty or missing status is normal for a brand-new session (e.g. right after POST start). Treat as step 1 so we don't show "Session could not be restored" and unmount the recorder.
-  if (status === "" || status === "created" || status === "initializing" || status === "pending") {
-    return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  }
-
-  // Canonical statuses (taskmaster)
-  if (status === "warm_up") return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "task_block") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "post_questions") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "completed") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
-
-  // Backend may use different strings; map common aliases so we don't get stuck on "unknown status"
-  // After recording 1: backend may return warmup_recorded, warmup_scored, focus_selected, task_generated → step 2 (metric questions)
-  if (status === "warmup_recorded" || status === "warmup_scored" || status === "focus_selected" || status === "task_generated") return { step: 2, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "final_task" || status === "ready_for_final" || status === "final_task_ready") return { step: 3, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "post_task" || status === "post_task_questions" || status === "reflective") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "recording2_uploaded" || status === "recording2_scored") return { step: 4, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: false };
-  if (status === "finished" || status === "done" || status === "post_questions_done" || status === "report_generated") return { step: 5, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd, statusUnknown: false };
-
-  // #region agent log
-  debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:deriveStepFromStatus", message: "unmapped status -> step 1", data: { statusRaw, status, step: 1, statusUnknown: true }, timestamp: Date.now(), hypothesisId: "H1" });
-  // #endregion
-  return { step: 1, warmUpText, taskText, taskBlock, finalTaskText, questions, reportText, performanceScoreEnd: null, statusUnknown: true };
-}
+type Step = StepType;
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
 function toText(v: unknown): string {
@@ -141,7 +92,7 @@ function StepFlowWrapper({
   syncingBehind,
   children,
 }: {
-  step: Step | 0;
+  step: Step;
   syncingBehind?: boolean;
   children: React.ReactNode;
 }) {
@@ -169,7 +120,7 @@ export default function HomeworkFlowCard() {
   const router = useRouter();
   const authReady = useAuthReady();
   const { setRecordingActive, setShowNavbar } = useRecordingContext();
-  const [step, setStep] = useState<Step | 0>(0);
+  const [step, setStep] = useState<Step>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [warmUpText, setWarmUpText] = useState("");
   const [taskText, setTaskText] = useState("");
@@ -186,6 +137,12 @@ export default function HomeworkFlowCard() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** When true, metric step Continue is disabled because recording-1 analysis failed (submitting again won't help). */
+  const [metricStepBlockedByRecordingFailure, setMetricStepBlockedByRecordingFailure] = useState(false);
+  /** On step 2 when taskBlock was null, we fetch it; this becomes true when that fetch settles (success or fail). Used to show error if questions still missing after fetch. */
+  const [taskBlockFetchSettled, setTaskBlockFetchSettled] = useState(false);
+  /** On step 4 when questions were [], we fetch GET questions; this becomes true when that fetch settles so we only show the form once questions are loaded (or show error). */
+  const [questionsStep4Settled, setQuestionsStep4Settled] = useState(false);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
@@ -199,13 +156,67 @@ export default function HomeworkFlowCard() {
   const postAnswersAutoSubmitDoneRef = useRef(false);
   /** Session IDs we have already triggered notify-lesson-complete for (admin email). */
   const notifiedLessonCompleteRef = useRef<Set<string>>(new Set());
-  /** Minimum step the UI may show after a confirmed mutation success. Prevents regressing when GET status is stale. Reset to 0 when there is no session or user starts over / goes to dashboard. */
-  const uiStepFloorRef = useRef(0);
-  /** Last step derived from GET status (before clamping). Used to detect "sync behind" and show Syncing… / retry. */
-  const lastDerivedStepRef = useRef(0);
-  /** Latest known task content; preserved when applyStatusToState gets a thin GET response so task does not disappear. */
-  const taskBlockRef = useRef<TaskBlockV2 | null>(null);
-  const finalTaskTextRef = useRef<string>("");
+  /** When set, user just finished a lesson (step 5 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
+  const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
+  /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
+  const [tutorFeedbackMessage, setTutorFeedbackMessage] = useState<string | null>(null);
+  /** Ticker so countdown re-renders every second when tutor deadline is shown. */
+  const [countdownTick, setCountdownTick] = useState(0);
+  /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
+  const taskBlockFetchStartedRef = useRef(false);
+
+  /** On step 0, fetch status so we get backend tutor_feedback_deadline and tutor_feedback_message (when no active session). Wait for auth to avoid 500 on first load. */
+  useEffect(() => {
+    if (!authReady || step !== 0) return;
+    homeworkApi.getStatus().then((statusRes) => {
+      const deadlineIso = statusRes?.tutor_feedback_deadline;
+      if (deadlineIso && typeof deadlineIso === "string") {
+        const ms = new Date(deadlineIso).getTime();
+        setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
+      } else {
+        setTutorFeedbackDeadlineMs(null);
+      }
+      const msg = statusRes?.tutor_feedback_message;
+      setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+    }).catch(() => {
+      setTutorFeedbackDeadlineMs(null);
+      setTutorFeedbackMessage(null);
+    });
+  }, [authReady, step]);
+
+  /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
+  useEffect(() => {
+    if (tutorFeedbackDeadlineMs == null) return;
+    const id = setInterval(() => {
+      if (Date.now() >= tutorFeedbackDeadlineMs) {
+        setTutorFeedbackDeadlineMs(null);
+      } else {
+        setCountdownTick((t) => t + 1);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [tutorFeedbackDeadlineMs]);
+
+  /** While on step 0 with timer showing, poll session/status so we hide the timer when backend clears tutor_feedback_deadline (e.g. tutor sent feedback). Also refresh tutor_feedback_message. */
+  const TUTOR_DEADLINE_POLL_INTERVAL_MS = 45_000;
+  useEffect(() => {
+    if (!authReady || step !== 0 || tutorFeedbackDeadlineMs == null) return;
+    const id = setInterval(() => {
+      homeworkApi.getStatus().then((statusRes) => {
+        const deadlineIso = statusRes?.tutor_feedback_deadline;
+        if (deadlineIso && typeof deadlineIso === "string") {
+          const ms = new Date(deadlineIso).getTime();
+          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
+          else setTutorFeedbackDeadlineMs(null);
+        } else {
+          setTutorFeedbackDeadlineMs(null);
+        }
+        const msg = statusRes?.tutor_feedback_message;
+        setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+      }).catch(() => {});
+    }, TUTOR_DEADLINE_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [authReady, step, tutorFeedbackDeadlineMs]);
 
   /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
   useEffect(() => {
@@ -217,94 +228,67 @@ export default function HomeworkFlowCard() {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
 
-  /** Keep refs in sync with task content so applyStatusToState can preserve them when GET response omits task_block/final_task_text. */
-  useEffect(() => {
-    taskBlockRef.current = taskBlock;
-    finalTaskTextRef.current = finalTaskText;
-  }, [taskBlock, finalTaskText]);
+  /** Single state projection from backend response. No floors, caps, or step overrides. Never downgrade step. */
+  const applyStatusToState = (res: HomeworkResponse) => {
+    const status: PublicHomeworkStatus = res.status ?? "none";
+    const step = mapStatusToStep(status);
+    setStep(step);
+    setStatusUnknown(false);
+    setError(null);
 
-  /** Sync behind: when GET status is behind the step floor for 10s, show "Syncing…" and retry GET status. */
-  const syncBehindTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (step < 1 || step > 4 || !sessionId || sessionId === "mock-session") {
-      setSyncingBehind(false);
+    if (res.session_id != null) setSessionId(res.session_id);
+    if (status === "none") {
+      setSessionId(null);
+      setWarmUpText("");
+      setTaskText("");
+      setTaskBlock(null);
+      setFinalTaskText("");
+      setQuestions([]);
+      setReportText("");
+      setPerformanceScoreEnd(null);
+      setReportData(null);
+      setTutorFeedbackDeadlineMs(null);
+      setTutorFeedbackMessage(null);
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem("homeworkReport");
+        sessionStorage.removeItem("homeworkJustFinishedRecording2");
+      }
       return;
     }
-    if (step <= lastDerivedStepRef.current) {
-      if (syncBehindTimeoutRef.current) {
-        clearTimeout(syncBehindTimeoutRef.current);
-        syncBehindTimeoutRef.current = null;
-      }
-      return;
-    }
-    syncBehindTimeoutRef.current = setTimeout(() => {
-      syncBehindTimeoutRef.current = null;
-      setSyncingBehind(true);
-      homeworkApi
-        .getStatus()
-        .then((statusRes) => {
-          if (statusRes) applyStatusToState(statusRes);
-        })
-        .catch(() => {})
-        .finally(() => setSyncingBehind(false));
-    }, 10_000);
-    return () => {
-      if (syncBehindTimeoutRef.current) {
-        clearTimeout(syncBehindTimeoutRef.current);
-        syncBehindTimeoutRef.current = null;
-      }
-    };
-  }, [step, sessionId]);
 
-  /** Apply GET session/status to state. Step is clamped: nextStep = max(derivedStep, uiStepFloor) so we never go backward after a successful mutation. */
-  const applyStatusToState = (statusRes: HomeworkSessionStatus) => {
-    const derived = deriveStepFromStatus(statusRes);
-    const statusRaw =
-      statusRes.status ??
-      statusRes.session?.status ??
-      statusRes.session?.state ??
-      (statusRes as { session_state?: string }).session_state ??
-      "";
-    if (typeof window !== "undefined") {
-      console.warn("[HomeworkFlow] applyStatusToState", { statusRaw: String(statusRaw), derivedStep: derived.step, floor: uiStepFloorRef.current });
+    if ("warm_up_task" in res && res.warm_up_task != null) {
+      setWarmUpText(resolveWarmUpText(res.warm_up_task.text ?? ""));
+    } else if ("warm_up_task_text" in res && res.warm_up_task_text != null) {
+      setWarmUpText(resolveWarmUpText(res.warm_up_task_text));
     }
-    const sessionIdFromRes =
-      statusRes.session_id ?? statusRes.session?.id ?? null;
-    let reportTextToSet = derived.reportText;
-    let performanceScoreEndToSet = derived.performanceScoreEnd;
-    if (derived.step === 4 && sessionIdFromRes && typeof sessionStorage !== "undefined") {
-      const storedReportRaw = sessionStorage.getItem("homeworkReport");
-      if (storedReportRaw) {
-        try {
-          const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
-          if (r.sessionId === sessionIdFromRes) {
-            uiStepFloorRef.current = 5;
-            reportTextToSet = r.reportText ?? "";
-            performanceScoreEndToSet = r.performanceScoreEnd ?? null;
-          }
-        } catch {
-          /* ignore */
-        }
+    if ("task_text" in res && res.task_text !== undefined) setTaskText(res.task_text ?? "");
+    if ("task_block" in res && res.task_block != null) setTaskBlock(res.task_block);
+    if ("final_task" in res && res.final_task != null) setFinalTaskText(res.final_task.trim());
+    else if ("final_task_text" in res && res.final_task_text != null) setFinalTaskText(res.final_task_text.trim());
+    if ("performance_score_2" in res && res.performance_score_2 !== undefined) setPerformanceScoreEnd(res.performance_score_2);
+    if ("report_text" in res && res.report_text !== undefined) setReportText(res.report_text ?? "");
+    if ("performance_score_end" in res && res.performance_score_end !== undefined) setPerformanceScoreEnd(res.performance_score_end);
+    if ("questions" in res && Array.isArray(res.questions)) {
+      const qList = res.questions.map((q) => ({
+        ...q,
+        id: toId(q.id) || crypto.randomUUID(),
+        text: toText(q.text),
+      }));
+      setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+    }
+    if ("tutor_feedback_deadline" in res) {
+      const deadlineIso = res.tutor_feedback_deadline;
+      if (deadlineIso && typeof deadlineIso === "string") {
+        const ms = new Date(deadlineIso).getTime();
+        setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
+      } else {
+        setTutorFeedbackDeadlineMs(null);
       }
     }
-    setSessionId(sessionIdFromRes);
-    setWarmUpText(resolveWarmUpText(derived.warmUpText));
-    setTaskText(derived.taskText);
-    setTaskBlock(derived.taskBlock ?? taskBlockRef.current ?? null);
-    setFinalTaskText(derived.finalTaskText?.trim() ? derived.finalTaskText.trim() : (finalTaskTextRef.current || ""));
-    setReportText(reportTextToSet);
-    setPerformanceScoreEnd(performanceScoreEndToSet);
-    const qList = derived.questions.map((q) => ({
-      ...q,
-      id: toId(q.id) || crypto.randomUUID(),
-      text: toText(q.text),
-    }));
-    setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-    lastDerivedStepRef.current = derived.step;
-    const stepToSet = Math.max(derived.step, uiStepFloorRef.current) as Step | 0;
-    setStep(stepToSet);
-    setStatusUnknown(derived.statusUnknown);
-    setError(derived.statusUnknown ? "Session status could not be determined. Please refresh." : null);
+    if ("tutor_feedback_message" in res) {
+      const msg = res.tutor_feedback_message;
+      setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+    }
   };
 
   const handleStart = async () => {
@@ -316,39 +300,26 @@ export default function HomeworkFlowCard() {
       const warmUpTextFromStart =
         (startRes.warm_up_task && "text" in startRes.warm_up_task ? startRes.warm_up_task.text : null) ??
         (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
+        (startRes as { warm_up_task_text?: string }).warm_up_task_text ??
         "";
-      setSessionId(startRes.session_id);
-      setStep(1);
-      setWarmUpText(resolveWarmUpText(warmUpTextFromStart));
-      setError(null);
-      setStatusUnknown(false);
-      const statusRes = await homeworkApi.getStatus();
-      const sessionIdFromStatus = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
-      if (statusRes && sessionIdFromStatus === startRes.session_id) {
-        const derived = deriveStepFromStatus(statusRes);
-        // Don't overwrite with statusUnknown when we just started — keeps recorder visible and avoids "Session could not be restored" on new session.
-        if (!derived.statusUnknown) applyStatusToState(statusRes);
-      } else {
-        setSessionId(startRes.session_id);
-        setStep(1);
-        setWarmUpText(resolveWarmUpText(warmUpTextFromStart));
-      }
+      applyStatusToState({
+        status: "recording_1_required",
+        session_id: startRes.session_id,
+        warm_up_task: (startRes as { warm_up_task?: { id: string; text: string } }).warm_up_task ?? null,
+        warm_up_task_text: warmUpTextFromStart || null,
+      });
     } catch (e) {
       if (isNoWarmupError(e)) {
         setNoWarmupConfigured(true);
         setError(null);
-        uiStepFloorRef.current = 0;
-        lastDerivedStepRef.current = 0;
-        setStep(0);
-        setSessionId(null);
+        applyStatusToState({ status: "none" });
         return;
       }
       const msg = e instanceof Error ? e.message : "Failed to start homework";
       const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
       if (isBackendUnavailable) {
-        setSessionId("mock-session");
+        applyStatusToState({ status: "recording_1_required", session_id: "mock-session" });
         setWarmUpText("");
-        setStep(1);
         setError(null);
         setStatusUnknown(false);
       } else {
@@ -385,8 +356,6 @@ export default function HomeworkFlowCard() {
         abortRef.current.abort();
         abortRef.current = null;
       }
-      uiStepFloorRef.current = 0;
-      lastDerivedStepRef.current = 0;
       postAnswersAutoSubmitDoneRef.current = false;
       metricSubmitInProgress.current = false;
       postAnswersSubmitInProgress.current = false;
@@ -410,6 +379,8 @@ export default function HomeworkFlowCard() {
       setStatusUnknown(false);
       setLoading(false);
       setUploadingRecording(null);
+      setTutorFeedbackDeadlineMs(null);
+      setTutorFeedbackMessage(null);
     } finally {
       setResetting(false);
     }
@@ -421,6 +392,13 @@ export default function HomeworkFlowCard() {
       handleStartOver();
       return;
     }
+    // Abort any in-flight recording upload so we don't leave it running after abandoning
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    uploadRecording1InProgressRef.current = false;
+    uploadRecording2InProgressRef.current = false;
     setLoading(true);
     setError(null);
     try {
@@ -431,82 +409,37 @@ export default function HomeworkFlowCard() {
         toast.success("Session abandoned. You can start a new session.");
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to abandon session";
-      setError(msg);
-      toast.error(msg);
-      setLoading(false);
-      return;
+      if (!isSessionGoneError(e)) {
+        setError(e instanceof Error ? e.message : "Failed to abandon session");
+        toast.error("Could not abandon session");
+        setLoading(false);
+        return;
+      }
+      toast.success("Session was already cleared. You can start a new session.");
     }
-    // Full restart: clear storage and all state; do not refetch status (avoids re-applying any session).
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem("homeworkReport");
-      sessionStorage.removeItem("homeworkJustFinishedRecording2");
-    }
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-    uiStepFloorRef.current = 0;
-    lastDerivedStepRef.current = 0;
     postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
     postAnswersSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
     uploadRecording2InProgressRef.current = false;
-    setSessionId(null);
-    setStep(0);
-    setWarmUpText("");
-    setTaskText("");
-    setFinalTaskText("");
-    setTaskBlock(null);
-    setQuestions([]);
-    setPostAnswers({});
-    setReportText("");
-    setPerformanceScoreEnd(null);
-    setReportData(null);
-    setReportLoading(false);
-    setReportError(null);
-    setNoWarmupConfigured(false);
-    setStatusUnknown(false);
-    setUploadingRecording(null);
+    applyStatusToState({ status: "none" });
     setLoading(false);
+    setMetricStepBlockedByRecordingFailure(false);
   };
 
-  /** Local-only reset to step 0 (no API call). Use when session is already gone (404) so user can start a new lesson. */
+  /** Local-only reset when session is already gone (e.g. 404). Uses same projection as abandon. */
   const startOverFromScratch = () => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    uiStepFloorRef.current = 0;
-    lastDerivedStepRef.current = 0;
     postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
     postAnswersSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
     uploadRecording2InProgressRef.current = false;
-    setSessionId(null);
-    setStep(0);
-    setWarmUpText("");
-    setTaskText("");
-    setFinalTaskText("");
-    setTaskBlock(null);
-    setQuestions([]);
-    setPostAnswers({});
-    setReportText("");
-    setPerformanceScoreEnd(null);
-    setReportData(null);
-    setReportLoading(false);
-    setReportError(null);
-    setError(null);
-    setNoWarmupConfigured(false);
-    setStatusUnknown(false);
-    setUploadingRecording(null);
-    setLoading(false);
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem("homeworkReport");
-      sessionStorage.removeItem("homeworkJustFinishedRecording2");
-    }
+    applyStatusToState({ status: "none" });
+    setMetricStepBlockedByRecordingFailure(false);
   };
 
   /** True if error indicates session is gone (404 / SESSION_NOT_FOUND or message). */
@@ -521,115 +454,81 @@ export default function HomeworkFlowCard() {
     );
   };
 
-  // On auth ready: try to resume from session status; otherwise start a new session (once per page load)
+  // Cold load: GET status only (mount). Never downgrade step; missing payload handled by Option B (e.g. fetch task-block for step 2).
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
     autoStartAttempted = true;
     setLoading(true);
+    let cancelled = false;
     homeworkApi
       .getStatus()
       .then((statusRes) => {
-        const hasActive = statusRes?.has_active_session !== false;
-        const sessionIdFromRes = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
-        const statusRaw =
-          (statusRes as { status?: string })?.status ??
-          (statusRes as { session?: { status?: string } })?.session?.status ??
-          "";
-        const isCompleted = statusRaw.toLowerCase().trim() === "completed";
-        if (!hasActive || !sessionIdFromRes || isCompleted) {
-          const storedReport =
-            typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkReport");
-          if (storedReport) {
-            try {
-              const parsed = JSON.parse(storedReport) as {
-                sessionId?: string;
-                reportText?: string;
-                performanceScoreEnd?: number | null;
-              };
-              if (parsed.sessionId && (parsed.reportText !== undefined || parsed.performanceScoreEnd != null)) {
-                setSessionId(parsed.sessionId);
-                setReportText(parsed.reportText ?? "");
-                setPerformanceScoreEnd(parsed.performanceScoreEnd ?? null);
-                setStep(5);
-                setWarmUpText("");
-                setTaskText("");
-                setTaskBlock(null);
-                setFinalTaskText("");
-                setQuestions([]);
-                setError(null);
-                setStatusUnknown(false);
-                setLoading(false);
-                return;
-              }
-            } catch {
-              // ignore invalid JSON
-            }
+        if (cancelled) return;
+        if (!statusRes || statusRes.has_active_session === false) {
+          applyStatusToState({ status: "none" });
+          if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
+            const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
+            if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
           }
-          uiStepFloorRef.current = 0;
-          lastDerivedStepRef.current = 0;
-          setSessionId(null);
-          setStep(0);
-          setWarmUpText("");
-          setTaskText("");
-          setTaskBlock(null);
-          setFinalTaskText("");
-          setQuestions([]);
-          setReportText("");
-          setPerformanceScoreEnd(null);
-          setError(null);
-          setStatusUnknown(false);
-          setLoading(false);
+          if (typeof statusRes?.tutor_feedback_message === "string" && statusRes.tutor_feedback_message.trim()) {
+            setTutorFeedbackMessage(statusRes.tutor_feedback_message.trim());
+          }
           return;
         }
-        if (statusRes) {
-          const sessionIdFromResForReport = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
-          const storedReportRaw = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("homeworkReport") : null;
-          if (storedReportRaw && sessionIdFromResForReport) {
-            try {
-              const r = JSON.parse(storedReportRaw) as { sessionId?: string; reportText?: string; performanceScoreEnd?: number | null };
-              if (r.sessionId && r.sessionId === sessionIdFromResForReport) {
-                uiStepFloorRef.current = 5;
-                setSessionId(r.sessionId);
-                setReportText(r.reportText ?? "");
-                setPerformanceScoreEnd(r.performanceScoreEnd ?? null);
-                setStep(5);
-                setWarmUpText("");
-                setTaskText("");
-                setTaskBlock(null);
-                setFinalTaskText("");
-                setQuestions([]);
-                setError(null);
-                setStatusUnknown(false);
-                setLoading(false);
-                return;
-              }
-            } catch {
-              // ignore invalid JSON
-            }
-          }
-          const derived = deriveStepFromStatus(statusRes);
-          const flag = typeof sessionStorage !== "undefined" && sessionStorage.getItem("homeworkJustFinishedRecording2") === "1";
-          if (flag) {
-            uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
-            if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("homeworkJustFinishedRecording2");
-          }
-          applyStatusToState(statusRes);
+        const resp = getStatusToHomeworkResponse(statusRes);
+        applyStatusToState(resp);
+        const sessionIdFromRes = resp.session_id ?? null;
+        if (mapStatusToStep(resp.status) === 2 && sessionIdFromRes && !resp.task_block) {
+          taskBlockFetchStartedRef.current = true;
+          homeworkApi
+            .getTaskBlock(sessionIdFromRes)
+            .then((data) => {
+              if (!cancelled && data.task_block) setTaskBlock(data.task_block);
+            })
+            .catch(() => {
+              if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+            })
+            .finally(() => {
+              if (!cancelled) setTaskBlockFetchSettled(true);
+            });
         }
       })
       .catch((e) => {
+        if (cancelled) return;
         if (isNoWarmupError(e)) {
           setNoWarmupConfigured(true);
           setError(null);
+          applyStatusToState({ status: "none" });
         } else {
           setError("Could not load session. Click Start homework to begin.");
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [authReady, step]);
 
-  // On step 2, if task_block is missing (e.g. user refreshed), load it from GET task-block
+  // Tab refocus: GET status and apply. No downgrade.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        homeworkApi.getStatus().then((res) => {
+          if (res) applyStatusToState(getStatusToHomeworkResponse(res));
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  // On step 2, if task_block is missing (e.g. after refresh — Option B), fetch from GET task-block. Never downgrade step.
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session" || taskBlock != null) return;
+    if (taskBlockFetchStartedRef.current) return;
+    taskBlockFetchStartedRef.current = true;
     let cancelled = false;
     homeworkApi
       .getTaskBlock(sessionId)
@@ -640,11 +539,25 @@ export default function HomeworkFlowCard() {
       })
       .catch(() => {
         if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+      })
+      .finally(() => {
+        if (!cancelled) setTaskBlockFetchSettled(true);
       });
     return () => {
       cancelled = true;
     };
   }, [step, sessionId, taskBlock]);
+
+  useEffect(() => {
+    if (step !== 2) {
+      setTaskBlockFetchSettled(false);
+      taskBlockFetchStartedRef.current = false;
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 4) setQuestionsStep4Settled(false);
+  }, [step]);
 
   // On step 4, if questions are missing (thin status or refresh), load from GET questions. If none, finish without post-questions (auto-submit to get report).
   useEffect(() => {
@@ -655,6 +568,7 @@ export default function HomeworkFlowCard() {
       .getQuestions(sessionId)
       .then(({ questions: qList }) => {
         if (cancelled) return;
+        setQuestionsStep4Settled(true);
         if (qList.length > 0) {
           const normalized = qList.map((q) => ({
             ...q,
@@ -671,16 +585,16 @@ export default function HomeworkFlowCard() {
             .submitPostAnswers(sessionId, [])
             .then((res) => {
               if (!cancelled) {
-                const reportTextVal = res.report_text ?? "";
-                const scoreVal = res.performance_score_end ?? null;
-                setReportText(reportTextVal);
-                setPerformanceScoreEnd(scoreVal);
-                uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 5);
-                setStep(5);
+                applyStatusToState({
+                  status: "completed",
+                  session_id: sessionId,
+                  report_text: res.report_text ?? "",
+                  performance_score_end: res.performance_score_end ?? null,
+                });
                 if (typeof sessionStorage !== "undefined") {
                   sessionStorage.setItem(
                     "homeworkReport",
-                    JSON.stringify({ sessionId, reportText: reportTextVal, performanceScoreEnd: scoreVal })
+                    JSON.stringify({ sessionId, reportText: res.report_text ?? "", performanceScoreEnd: res.performance_score_end ?? null })
                   );
                 }
               }
@@ -699,7 +613,10 @@ export default function HomeworkFlowCard() {
         }
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
+        if (!cancelled) {
+          setQuestionsStep4Settled(true);
+          setError("Could not load questions. Try continuing or refresh.");
+        }
       });
     return () => {
       cancelled = true;
@@ -766,35 +683,17 @@ export default function HomeworkFlowCard() {
       uploadRecording1InProgressRef.current = false;
       return;
     }
-    // If session already advanced past warm_up (e.g. another tab or race), sync and skip upload to avoid 409
-    try {
-      const statusRes = await homeworkApi.getStatus();
-      if (statusRes) {
-        const derived = deriveStepFromStatus(statusRes);
-        if (derived.step >= 2) {
-          applyStatusToState(statusRes);
-          toast.info("Session already advanced. You're on the right step now.");
-          return;
-        }
-      }
-    } catch {
-      /* proceed to upload */
-    }
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
     try {
-      const recording1Res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
-      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 2);
-      // Show step 2 and metric questions immediately from POST response (no wait for getStatus)
-      setStep(2);
-      if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
-      setStatusUnknown(false);
-      setError(null);
-      // Sync rest of session state in background; keep task_block from POST so GET can't overwrite with stale null
-      const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
-      if (recording1Res?.task_block) setTaskBlock(recording1Res.task_block);
+      const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      applyStatusToState({
+        status: "task_block",
+        session_id: sessionId,
+        task_block: (res as { task_block?: TaskBlockV2 }).task_block ?? null,
+        task_text: (res as { task_text?: string }).task_text ?? undefined,
+      });
     } catch (e) {
       // #region agent log
       debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete catch", message: "rec1 error", data: { error: String((e as Error)?.message), code: (e as { code?: string })?.code }, timestamp: Date.now(), hypothesisId: "H4" });
@@ -805,34 +704,8 @@ export default function HomeworkFlowCard() {
         return;
       }
       if (isInvalidSessionStateError(e)) {
-        const backendStatus = (e as HomeworkApiError).backendStatus;
-        if (backendStatus) {
-          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
-        }
-        try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) {
-            applyStatusToState(statusRes);
-            toast.success("Session updated. You're on the right step now.");
-          } else {
-            setError("Session state changed. Please refresh.");
-            toast.error("Session state changed. Please refresh.");
-          }
-        } catch {
-          try {
-            const statusResRetry = await homeworkApi.getStatus();
-            if (statusResRetry) {
-              applyStatusToState(statusResRetry);
-              toast.success("Session updated.");
-            } else {
-              setError("Could not refresh session. Click Refresh below.");
-              toast.error("Could not refresh session. Click Refresh below.");
-            }
-          } catch {
-            setError("Could not refresh session. Click Refresh to try again.");
-            toast.error("Could not refresh session. Click Refresh to try again.");
-          }
-        }
+        setError("Session state conflict. Please refresh the page or switch tab and back.");
+        toast.error("Session state conflict. Please refresh the page or switch tab and back.");
       } else {
         setError(e instanceof Error ? e.message : "Upload failed");
         toast.error(e instanceof Error ? e.message : "Upload failed");
@@ -872,35 +745,19 @@ export default function HomeworkFlowCard() {
       const responseErr = metricResponse && typeof (metricResponse as { error?: string }).error === "string" ? (metricResponse as { error: string }).error : null;
       if (typeof window !== "undefined") {
         console.warn("[HomeworkFlow] metric-answers response", {
-          hasFinalTask: !!(metricResponse?.final_task ?? metricResponse?.final_task_text),
+          hasFinalTask: !!metricResponse?.final_task,
           hasError: !!responseErr,
           errorMsg: responseErr ?? undefined,
         });
       }
-      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
-      const statusRes = await homeworkApi.getStatus();
-      const finalTextFromResponse =
-        typeof metricResponse?.final_task === "string"
-          ? metricResponse.final_task
-          : typeof metricResponse?.final_task_text === "string"
-            ? metricResponse.final_task_text
-            : metricResponse?.final_task && typeof (metricResponse.final_task as { text?: string }).text === "string"
-              ? (metricResponse.final_task as { text: string }).text
-              : "";
-      if (statusRes) {
-        applyStatusToState(statusRes);
-        const finalFromSession =
-          statusRes?.session && typeof (statusRes.session as { final_task_text?: string }).final_task_text === "string"
-            ? (statusRes.session as { final_task_text: string }).final_task_text
-            : "";
-        const finalText = (finalTextFromResponse.trim() || finalFromSession.trim()) || "";
-        if (finalText) setFinalTaskText(finalText);
-      } else {
-        setStep(3);
-        if (finalTextFromResponse.trim()) setFinalTaskText(finalTextFromResponse.trim());
-        setStatusUnknown(false);
-        setError(null);
+      if (metricResponse?.recording_1_fallback && metricResponse?.message?.trim()) {
+        toast.info(metricResponse.message.trim());
       }
+      applyStatusToState({
+        status: "final_task_ready",
+        session_id: sessionId,
+        final_task: typeof metricResponse?.final_task === "string" ? metricResponse.final_task : undefined,
+      });
       toast.success("Answers saved. Continue to the final recording.");
     } catch (e) {
       if (isSessionGoneError(e)) {
@@ -915,19 +772,22 @@ export default function HomeworkFlowCard() {
       const errMessage = e instanceof Error ? e.message : "Failed to submit";
 
       if (errCode === "RECORDING_1_FAILED") {
+        setMetricStepBlockedByRecordingFailure(true);
         setError(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
         toast.error(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
         return;
       }
 
       if (errCode === "RECORDING_1_PROCESSING") {
-        toast.info("Still analyzing your recording. Please wait a moment.");
+        setError(errMessage || "Still analyzing your recording. Please wait a moment.");
+        toast.info(errMessage || "Still analyzing your recording. Please wait a moment.");
         const maxWaitMs = 60000;
         const pollIntervalMs = 2500;
         const start = Date.now();
         while (Date.now() - start < maxWaitMs && sessionId) {
           await new Promise((r) => setTimeout(r, pollIntervalMs));
           try {
+            // Poll GET only to decide when to retry the same mutation; step advances only when POST metric-answers succeeds below.
             const statusRes = await homeworkApi.getStatus();
             const session = (statusRes as { session?: { performance_score_1?: number; context_short?: string; recording_1_processing_status?: string } })?.session;
             const ready = session?.performance_score_1 != null && (session?.context_short || session?.recording_1_processing_status === "completed");
@@ -937,29 +797,14 @@ export default function HomeworkFlowCard() {
                 metric_answer_2: a2,
                 metric_answer_3: a3,
               });
-              uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 3);
-              const statusRes2 = await homeworkApi.getStatus();
-              const finalTextFromResponse =
-                typeof retryResponse?.final_task === "string"
-                  ? retryResponse.final_task
-                  : typeof retryResponse?.final_task_text === "string"
-                    ? retryResponse.final_task_text
-                    : retryResponse?.final_task && typeof (retryResponse.final_task as { text?: string }).text === "string"
-                      ? (retryResponse.final_task as { text: string }).text
-                      : "";
-              if (statusRes2) {
-                applyStatusToState(statusRes2);
-                const finalFromSession =
-                  statusRes2?.session && typeof (statusRes2.session as { final_task_text?: string }).final_task_text === "string"
-                    ? (statusRes2.session as { final_task_text: string }).final_task_text
-                    : "";
-                const finalText = (finalTextFromResponse.trim() || finalFromSession.trim()) || "";
-                if (finalText) setFinalTaskText(finalText);
-              } else {
-                setStep(3);
-                if (finalTextFromResponse.trim()) setFinalTaskText(finalTextFromResponse.trim());
-                setStatusUnknown(false);
-                setError(null);
+              applyStatusToState({
+                status: "final_task_ready",
+                session_id: sessionId,
+                final_task: typeof retryResponse?.final_task === "string" ? retryResponse.final_task : undefined,
+              });
+              setError(null);
+              if (retryResponse?.recording_1_fallback && retryResponse?.message?.trim()) {
+                toast.info(retryResponse.message.trim());
               }
               toast.success("Answers saved. Continue to the final recording.");
               return;
@@ -967,6 +812,7 @@ export default function HomeworkFlowCard() {
           } catch (retryErr) {
             if ((retryErr as HomeworkApiError).code === "RECORDING_1_PROCESSING") continue;
             if ((retryErr as HomeworkApiError).code === "RECORDING_1_FAILED") {
+              setMetricStepBlockedByRecordingFailure(true);
               setError((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
               toast.error((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
               return;
@@ -980,33 +826,20 @@ export default function HomeworkFlowCard() {
       }
 
       if (isInvalidSessionStateError(e)) {
-        const backendStatus = (e as HomeworkApiError).backendStatus;
-        if (backendStatus) {
-          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
-        }
-        try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) {
-            applyStatusToState(statusRes);
-            const derived = deriveStepFromStatus(statusRes);
-            if (derived.step === 2) {
-              setError("Answers could not be saved. Please try again or refresh the page.");
-              toast.error("Answers could not be saved. Please try again or refresh.");
-            } else {
-              toast.success("Session updated. You're on the right step now.");
-            }
-          } else {
-            setError("Session state changed. Please refresh.");
-            toast.error("Session state changed. Please refresh.");
-          }
-        } catch {
-          setError(errMessage);
-          toast.error(errMessage);
-        }
+        // Do not call GET status here (contract: no GET inside mutation handler). User can refresh or refocus.
+        // Advancing to step 3 on 409 would let the UI progress before metric-answers has actually succeeded.
+        const msg =
+          errMessage?.trim() ||
+          "Session state conflict. The system may still be processing. Please wait a moment and click Continue again.";
+        setError(msg);
+        toast.info(msg);
       } else {
-        const isValidationError = errCode === "VALIDATION_ERROR";
-        const rawMsg = isValidationError ? METRIC_ANSWERS_VALIDATION_MSG : errMessage;
-        const displayMsg = (typeof rawMsg === "string" && rawMsg.trim()) ? rawMsg : "Failed to save answers. Please try again or refresh.";
+        const displayMsg =
+          typeof errMessage === "string" && errMessage.trim()
+            ? errMessage
+            : errCode === "VALIDATION_ERROR"
+              ? METRIC_ANSWERS_VALIDATION_MSG
+              : "Failed to save answers. Please try again or refresh.";
         setError(displayMsg);
         toast.error(displayMsg);
       }
@@ -1036,10 +869,10 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
-      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
-      if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
-      const statusRes = await homeworkApi.getStatus();
-      if (statusRes) applyStatusToState(statusRes);
+      applyStatusToState({
+        status: "post_questions",
+        session_id: sessionId,
+      });
     } catch (e) {
       if (isSessionGoneError(e)) {
         toast.info("Your session is gone. You can start a new lesson.");
@@ -1047,22 +880,8 @@ export default function HomeworkFlowCard() {
         return;
       }
       if (isInvalidSessionStateError(e)) {
-        uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 4);
-        if (typeof sessionStorage !== "undefined") sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
-        const backendStatus = (e as HomeworkApiError).backendStatus;
-        if (backendStatus) {
-          applyStatusToState({ status: backendStatus, session_id: sessionId ?? undefined } as HomeworkSessionStatus);
-        }
-        try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) {
-            applyStatusToState(statusRes);
-            toast.success("Session updated. You're on the right step now.");
-          }
-        } catch {
-          setError(e instanceof Error ? e.message : "Upload failed");
-          toast.error(e instanceof Error ? e.message : "Upload failed");
-        }
+        setError("Session state conflict. Please refresh the page or switch tab and back.");
+        toast.error("Session state conflict. Please refresh the page or switch tab and back.");
       } else {
         const msg = e instanceof Error ? e.message : "Upload failed";
         setError(msg);
@@ -1092,17 +911,16 @@ export default function HomeworkFlowCard() {
         answer_text: (answersFromChild[toId(q.id)] ?? "").trim(),
       }));
       const res = await homeworkApi.submitPostAnswers(sessionId, answers);
-      // Completed sessions are not returned by GET status; show report from response. Set floor so applyStatusToState cannot revert to step 4.
-      const reportTextVal = res.report_text ?? "";
-      const scoreVal = res.performance_score_end ?? null;
-      setReportText(reportTextVal);
-      setPerformanceScoreEnd(scoreVal);
-      uiStepFloorRef.current = Math.max(uiStepFloorRef.current, 5);
-      setStep(5);
+      applyStatusToState({
+        status: "completed",
+        session_id: sessionId,
+        report_text: res.report_text ?? "",
+        performance_score_end: res.performance_score_end ?? null,
+      });
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem(
           "homeworkReport",
-          JSON.stringify({ sessionId, reportText: reportTextVal, performanceScoreEnd: scoreVal })
+          JSON.stringify({ sessionId, reportText: res.report_text ?? "", performanceScoreEnd: res.performance_score_end ?? null })
         );
       }
     } catch (e) {
@@ -1111,18 +929,14 @@ export default function HomeworkFlowCard() {
         startOverFromScratch();
         return;
       }
-      const msg = e instanceof Error ? e.message : "Failed to submit";
-      setError(msg);
-      toast.error(msg);
-      // On session state conflict, refetch status so step syncs with backend (e.g. back to step 3 if main recording not done)
       const err = e as { code?: string };
-      if (err.code === "INVALID_SESSION_STATE" && sessionId) {
-        try {
-          const statusRes = await homeworkApi.getStatus();
-          if (statusRes) applyStatusToState(statusRes);
-        } catch {
-          // ignore
-        }
+      if (err.code === "INVALID_SESSION_STATE") {
+        setError("Session state conflict. Please refresh the page or switch tab and back.");
+        toast.error("Session state conflict. Please refresh the page or switch tab and back.");
+      } else {
+        const msg = e instanceof Error ? e.message : "Failed to submit";
+        setError(msg);
+        toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -1134,53 +948,27 @@ export default function HomeworkFlowCard() {
     questions.length === 0 ||
     questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
 
-  /** Refetch GET status and apply to state (e.g. after "Refresh" when status unknown or warm-up empty). If no active session (e.g. cleaned up), redirect to step 0. */
+  /** User-initiated refresh: GET status and apply. No downgrade; missing payload handled per Option B. */
   const refreshStatus = async () => {
-    if (!sessionId || sessionId === "mock-session") return;
+    if (sessionId === "mock-session") return;
     setLoading(true);
     setError(null);
     setStatusUnknown(false);
     try {
       const statusRes = await homeworkApi.getStatus();
-      const hasActive = statusRes?.has_active_session !== false;
-      const sessionIdFromRes = statusRes?.session_id ?? (statusRes as { session?: { id?: string } })?.session?.id;
-      if (!statusRes || !hasActive || !sessionIdFromRes) {
-        // Session was cleaned up or no longer exists — full reset to step 0 so user can start fresh
-        if (abortRef.current) {
-          abortRef.current.abort();
-          abortRef.current = null;
+      if (!statusRes || statusRes.has_active_session === false) {
+        applyStatusToState({ status: "none" });
+        if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
+          const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
+          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
         }
-        uiStepFloorRef.current = 0;
-        lastDerivedStepRef.current = 0;
-        postAnswersAutoSubmitDoneRef.current = false;
-        metricSubmitInProgress.current = false;
-        postAnswersSubmitInProgress.current = false;
-        uploadRecording1InProgressRef.current = false;
-        uploadRecording2InProgressRef.current = false;
-        setSessionId(null);
-        setStep(0);
-        setWarmUpText("");
-        setTaskText("");
-        setTaskBlock(null);
-        setFinalTaskText("");
-        setQuestions([]);
-        setPostAnswers({});
-        setReportText("");
-        setPerformanceScoreEnd(null);
-        setReportData(null);
-        setReportLoading(false);
-        setReportError(null);
-        setNoWarmupConfigured(false);
-        setStatusUnknown(false);
-        setUploadingRecording(null);
-        if (typeof sessionStorage !== "undefined") {
-          sessionStorage.removeItem("homeworkReport");
-          sessionStorage.removeItem("homeworkJustFinishedRecording2");
+        if (typeof statusRes?.tutor_feedback_message === "string" && statusRes.tutor_feedback_message.trim()) {
+          setTutorFeedbackMessage(statusRes.tutor_feedback_message.trim());
         }
         toast.success("Session was cleared. You can start a new one.");
-        return;
+      } else {
+        applyStatusToState(getStatusToHomeworkResponse(statusRes));
       }
-      applyStatusToState(statusRes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to refresh");
       toast.error(e instanceof Error ? e.message : "Failed to refresh");
@@ -1227,8 +1015,18 @@ export default function HomeworkFlowCard() {
   // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
   if (step === 0) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center w-full">
+      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-16 w-full">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
+          {tutorFeedbackMessage && (
+            <div className="w-full max-w-md mx-auto mb-4 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 p-4 text-left">
+              <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{tutorFeedbackMessage}</p>
+              {tutorFeedbackDeadlineMs != null && (
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-2 font-mono tabular-nums">
+                  Time remaining: {formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}
+                </p>
+              )}
+            </div>
+          )}
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
           <div className="flex flex-col items-center text-center space-y-5">
             <div
@@ -1240,9 +1038,20 @@ export default function HomeworkFlowCard() {
               </div>
             </div>
             <h2 className="text-xl font-bold text-foreground sm:text-2xl">Homework</h2>
-            <p className="text-sm text-muted-foreground max-w-md">
-            Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
-            </p>
+            {tutorFeedbackDeadlineMs != null && !tutorFeedbackMessage ? (
+              <div className="w-full max-w-md rounded-xl bg-amber-50 dark:bg-amber-950/30 p-4 text-left space-y-2">
+                <p className="text-sm text-orange-700 dark:text-orange-400">
+                  Your tutor has <span className="font-mono font-semibold tabular-nums">{formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}</span> to send you feedback and a new homework on your email address.
+                </p>
+                <p className="text-sm text-orange-700 dark:text-orange-400">
+                  You can start the lesson now though it will be awkwardly similar to the previous one!
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground max-w-md">
+                Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
+              </p>
+            )}
             {error && (
               <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
                 <p>{error}</p>
@@ -1348,18 +1157,21 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: 3 metric questions only (context_short is used by backend for the task, not shown here)
+  // Step 2: metric questions — only show form when task_block is loaded; otherwise show loading (or error if fetch settled with no data)
   if (step === 2) {
-    return (
-      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-        <AnswerMetricQuestionsScreen
-          sessionId={sessionId!}
-          taskBlock={taskBlock}
-          onSubmit={handleMetricAnswersSubmit}
-          loading={loading}
-          error={error}
-        />
-        {sessionId && sessionId !== "mock-session" && (
+    const step2DataReady = taskBlock != null;
+    if (!step2DataReady && sessionId && sessionId !== "mock-session") {
+      return (
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading questions…</p>
+              {taskBlockFetchSettled && error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+            </div>
+          </Card>
           <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
@@ -1371,7 +1183,20 @@ export default function HomeworkFlowCard() {
               Abandon session
             </Button>
           </div>
-        )}
+        </StepFlowWrapper>
+      );
+    }
+    return (
+      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+        <AnswerMetricQuestionsScreen
+          sessionId={sessionId!}
+          taskBlock={taskBlock}
+          onSubmit={handleMetricAnswersSubmit}
+          loading={loading}
+          error={error}
+          onAbandon={sessionId && sessionId !== "mock-session" ? handleAbandon : undefined}
+          submitDisabled={metricStepBlockedByRecordingFailure}
+        />
       </StepFlowWrapper>
     );
   }
@@ -1416,11 +1241,68 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Reflective questions (0 or N — if GET questions returned [], we skip to step 5). Enforce answer all before submit.
+  // Step 4: Reflective questions — only show form when questions are loaded (or 0 and we're auto-submitting). Otherwise show loading or error.
   if (step === 4) {
     // #region agent log
     debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" });
     // #endregion
+    const step4DataReady = questions.length > 0 || (questionsStep4Settled && questions.length === 0);
+    if (!step4DataReady && sessionId && sessionId !== "mock-session") {
+      return (
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading questions…</p>
+            </div>
+          </Card>
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        </StepFlowWrapper>
+      );
+    }
+    if (questionsStep4Settled && questions.length === 0 && sessionId && sessionId !== "mock-session") {
+      // Fetch returned 0 questions — we're in auto-submit path (loading) or failed; show minimal UI
+      return (
+        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              {loading ? (
+                <>
+                  <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+                  <p className="text-sm text-muted-foreground">Finishing…</p>
+                </>
+              ) : (
+                <>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <p className="text-sm text-muted-foreground">No reflective questions for this session.</p>
+                </>
+              )}
+            </div>
+          </Card>
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        </StepFlowWrapper>
+      );
+    }
     return (
       <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
         <PostQuestionsStepScreen
@@ -1429,19 +1311,49 @@ export default function HomeworkFlowCard() {
           loading={loading}
           error={error}
         />
+        {sessionId && sessionId !== "mock-session" && (
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        )}
       </StepFlowWrapper>
     );
   }
 
-  // Step 5: Report — (1) recording, (2) performance chart, (3) text, (4) button
+  // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
   if (step === 5) {
+    const step5DataReady = reportData != null || (reportError != null && !reportLoading);
+    if (!step5DataReady) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          <Card className="border-0 bg-transparent p-6 shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading report…</p>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
 
+    // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
+    // If backend omits it or returns empty, we show only current session as S1.
     const performanceHistory = reportData?.performance_history;
+    const lastFive = performanceHistory?.length ? performanceHistory.slice(-5) : [];
     const progressChartData =
-      performanceHistory && performanceHistory.length > 0
-        ? performanceHistory.map((p, i) => ({
+      lastFive.length > 0
+        ? lastFive.map((p, i) => ({
             sessionLabel: `S${i + 1}`,
             date: p.date,
             score: p.score,
@@ -1454,10 +1366,7 @@ export default function HomeworkFlowCard() {
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>
-          {reportLoading && (
-            <p className="text-sm text-muted-foreground">Loading report…</p>
-          )}
-          {reportError && !reportLoading && (
+          {reportError && (
             <p className="text-sm text-destructive">{reportError}</p>
           )}
           <div className="space-y-4">
