@@ -228,7 +228,7 @@ export default function HomeworkFlowCard() {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
 
-  /** Single state projection from backend response. No floors, caps, or step overrides. Never downgrade step. */
+  /** Single state projection from backend response. No floors, caps, refs, or previous-step logic. Do not clear step-specific state when a field is absent; only clear on status === "none". Never downgrade step. */
   const applyStatusToState = (res: HomeworkResponse) => {
     const status: PublicHomeworkStatus = res.status ?? "none";
     const step = mapStatusToStep(status);
@@ -331,12 +331,11 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  /** Reset the homework session as if the user had just logged in: clear backend session, clear all state and stored report, show step 0 (Start homework card). User stays logged in. Idempotent: safe to call multiple times; button disabled while resetting. */
+  /** Reset the homework session: clear backend session, then single state projection to step 0. Do not call setStep outside applyStatusToState; use applyStatusToState({ status: "none" }). */
   const handleStartOver = async () => {
     if (resetting) return;
     setResetting(true);
     try {
-      // Clear all flow-restore keys (only ones used in this flow)
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -345,13 +344,11 @@ export default function HomeworkFlowCard() {
         try {
           await homeworkApi.abandonSession(sessionId);
         } catch (e) {
-          // Clear local state anyway; avoid stale server session when user starts again
           if (typeof console !== "undefined" && console.warn) {
             console.warn("[HomeworkFlow] abandonSession failed on reset", e);
           }
         }
       }
-      // Abort any in-flight request
       if (abortRef.current) {
         abortRef.current.abort();
         abortRef.current = null;
@@ -361,17 +358,7 @@ export default function HomeworkFlowCard() {
       postAnswersSubmitInProgress.current = false;
       uploadRecording1InProgressRef.current = false;
       uploadRecording2InProgressRef.current = false;
-      setSessionId(null);
-      setStep(0);
-      setWarmUpText("");
-      setTaskText("");
-      setFinalTaskText("");
-      setTaskBlock(null);
-      setQuestions([]);
-      setPostAnswers({});
-      setReportText("");
-      setPerformanceScoreEnd(null);
-      setReportData(null);
+      applyStatusToState({ status: "none" });
       setReportLoading(false);
       setReportError(null);
       setError(null);
@@ -379,20 +366,21 @@ export default function HomeworkFlowCard() {
       setStatusUnknown(false);
       setLoading(false);
       setUploadingRecording(null);
-      setTutorFeedbackDeadlineMs(null);
-      setTutorFeedbackMessage(null);
+      setMetricStepBlockedByRecordingFailure(false);
+      setTaskBlockFetchSettled(false);
+      setQuestionsStep4Settled(false);
+      setPostAnswers({});
     } finally {
       setResetting(false);
     }
   };
 
-  /** Abandon current session via API (backend deletes/invalidates it), then full local reset to step 0. No refetch — guarantees a clean restart. */
+  /** Abandon current session. Treat 200 and 404 as success; in both cases run applyStatusToState({ status: "none" }). Do not call GET status after abandon. */
   const handleAbandon = async () => {
     if (!sessionId || sessionId === "mock-session") {
       handleStartOver();
       return;
     }
-    // Abort any in-flight recording upload so we don't leave it running after abandoning
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
@@ -778,7 +766,7 @@ export default function HomeworkFlowCard() {
         return;
       }
 
-      // RECORDING_1_PROCESSING: poll GET status only to decide when to retry the same mutation. Do not use GET to set step or applyStatusToState; step advances only when POST metric-answers succeeds.
+      // Approved exception: when POST metric-answers returns 409 RECORDING_1_PROCESSING, poll GET status only to decide when to retry the same mutation. Do not pass this GET response to applyStatusToState; step advances only when POST metric-answers succeeds, then applyStatusToState(retryResponse).
       if (errCode === "RECORDING_1_PROCESSING") {
         setError(errMessage || "Still analyzing your recording. Please wait a moment.");
         toast.info(errMessage || "Still analyzing your recording. Please wait a moment.");
@@ -789,6 +777,7 @@ export default function HomeworkFlowCard() {
           await new Promise((r) => setTimeout(r, pollIntervalMs));
           try {
             // Poll GET only to decide when to retry the same mutation; step advances only when POST metric-answers succeeds below.
+            // GET status only to decide when to retry; do not call applyStatusToState(statusRes).
             const statusRes = await homeworkApi.getStatus();
             const session = (statusRes as { session?: { performance_score_1?: number; context_short?: string; recording_1_processing_status?: string } })?.session;
             const ready = session?.performance_score_1 != null && (session?.context_short || session?.recording_1_processing_status === "completed");
@@ -869,10 +858,11 @@ export default function HomeworkFlowCard() {
     setError(null);
     abortRef.current = new AbortController();
     try {
-      await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
+      const res = await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
       applyStatusToState({
         status: "post_questions",
         session_id: sessionId,
+        ...(res.performance_score_2 !== undefined && { performance_score_2: res.performance_score_2 }),
       });
     } catch (e) {
       if (isSessionGoneError(e)) {
