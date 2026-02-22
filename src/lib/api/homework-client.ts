@@ -149,11 +149,9 @@ export const homeworkApi = {
     return safeParseJson<HomeworkSessionStatus | null>(res);
   },
 
-  /** Get task-block for step 2 (e.g. when resuming). Returns task_block with 3 metric questions. */
-  async getTaskBlock(sessionId: string): Promise<{ task_block: TaskBlockV2 }> {
-    const { headers, credentials } = await getAuthFetchOptions();
-    const res = await fetch(`${BASE}/session/${sessionId}/task-block`, { headers, credentials });
-    return handleResponse<{ task_block: TaskBlockV2 }>(res);
+  /** Step 2 removed: no-op to avoid 404 from old/cached bundles. Do not call; flow goes 0 → 1 → 5. */
+  async getTaskBlock(_sessionId: string): Promise<{ task_block: TaskBlockV2 }> {
+    return { task_block: {} };
   },
 
   /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }, or 200 with already_past_step + task_block when session is already at step 2 (only for recording "1"). */
