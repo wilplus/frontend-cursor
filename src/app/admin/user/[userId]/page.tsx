@@ -136,7 +136,7 @@ export default function UserContextPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Admin Feedback</h2>
             {userRecordings.length > 0 && (
-              <Link href={`/recordings/${userRecordings[0].recording_id}/feedback?user_id=${userId}`}>
+              <Link href={`/admin/students/${userId}`}>
                 <Button size="sm" variant="outline">
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Feedback
@@ -221,7 +221,7 @@ export default function UserContextPage() {
                         </span>
                       </div>
                     </div>
-                    <Link href={`/recordings/${recording.recording_id}/feedback?user_id=${userId}`}>
+                    <Link href={`/admin/students/${userId}`}>
                       <Button size="sm" variant="ghost">
                         <FileText className="h-4 w-4" />
                       </Button>

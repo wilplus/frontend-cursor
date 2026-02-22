@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { Mic } from "lucide-react";
+import { Mic, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -160,6 +160,10 @@ export default function HomeworkFlowCard() {
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
   const [tutorFeedbackMessage, setTutorFeedbackMessage] = useState<string | null>(null);
+  /** Coach video URL for current session (from GET session/status). Shown at top of flow when step >= 1. */
+  const [tutorVideoUrl, setTutorVideoUrl] = useState<string | null>(null);
+  /** Coach message about the video. Shown above the Watch video link. */
+  const [tutorVideoDescription, setTutorVideoDescription] = useState<string | null>(null);
   /** Ticker so countdown re-renders every second when tutor deadline is shown. */
   const [countdownTick, setCountdownTick] = useState(0);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
@@ -249,6 +253,8 @@ export default function HomeworkFlowCard() {
       setReportData(null);
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
+      setTutorVideoUrl(null);
+      setTutorVideoDescription(null);
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -288,6 +294,14 @@ export default function HomeworkFlowCard() {
     if ("tutor_feedback_message" in res) {
       const msg = res.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+    }
+    if ("tutor_video_url" in res) {
+      const url = res.tutor_video_url;
+      setTutorVideoUrl(typeof url === "string" && url.trim() ? url.trim() : null);
+    }
+    if ("tutor_video_description" in res) {
+      const desc = res.tutor_video_description;
+      setTutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
   };
 
@@ -1065,12 +1079,31 @@ export default function HomeworkFlowCard() {
     );
   }
 
+  const tutorVideoUrlTrimmed = (tutorVideoUrl ?? "").trim();
+  const tutorVideoBlock = tutorVideoUrlTrimmed ? (
+    <div className="w-full max-w-md mx-auto mb-6 rounded-xl border border-border bg-muted/50 p-4 space-y-2">
+      {tutorVideoDescription && (
+        <p className="text-sm text-foreground whitespace-pre-wrap">{(tutorVideoDescription ?? "").trim()}</p>
+      )}
+      <a
+        href={tutorVideoUrlTrimmed}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5"
+      >
+        Watch video
+        <ExternalLink className="h-4 w-4" />
+      </a>
+    </div>
+  ) : null;
+
   // Step 1: Warm-up text + recorder — show as soon as session exists (from POST start response)
   if (step === 1) {
     const isUploadingRec1 = uploadingRecording === 1;
     if (isUploadingRec1) {
       return (
         <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
+          {tutorVideoBlock}
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -1087,6 +1120,7 @@ export default function HomeworkFlowCard() {
 
     return (
       <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
+        {tutorVideoBlock}
         {sessionId === "mock-session" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
@@ -1154,6 +1188,7 @@ export default function HomeworkFlowCard() {
     if (!step2DataReady && sessionId && sessionId !== "mock-session") {
       return (
         <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          {tutorVideoBlock}
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -1179,6 +1214,7 @@ export default function HomeworkFlowCard() {
     }
     return (
       <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+        {tutorVideoBlock}
         <AnswerMetricQuestionsScreen
           sessionId={sessionId!}
           taskBlock={taskBlock}
@@ -1198,6 +1234,7 @@ export default function HomeworkFlowCard() {
     if (isUploadingRec2) {
       return (
         <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          {tutorVideoBlock}
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -1210,6 +1247,7 @@ export default function HomeworkFlowCard() {
     }
     return (
       <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+        {tutorVideoBlock}
         <AudioRecorder
           prompt={finalTaskText || "—"}
           onRecordingComplete={handleRecording2Complete}
@@ -1241,6 +1279,7 @@ export default function HomeworkFlowCard() {
     if (!step4DataReady && sessionId && sessionId !== "mock-session") {
       return (
         <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          {tutorVideoBlock}
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -1265,6 +1304,7 @@ export default function HomeworkFlowCard() {
       // Fetch returned 0 questions — we're in auto-submit path (loading) or failed; show minimal UI
       return (
         <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+          {tutorVideoBlock}
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               {loading ? (
@@ -1296,6 +1336,7 @@ export default function HomeworkFlowCard() {
     }
     return (
       <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
+        {tutorVideoBlock}
         <PostQuestionsStepScreen
           questions={questions}
           onSubmit={handlePostAnswersSubmit}
@@ -1355,6 +1396,7 @@ export default function HomeworkFlowCard() {
 
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+        {tutorVideoBlock}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>
           {reportError && (
