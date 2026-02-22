@@ -441,6 +441,11 @@ export default function AdminStudentProfilePage() {
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
 
   const [contextDraft, setContextDraft] = useState("");
+  const [assignmentVideoUrl, setAssignmentVideoUrl] = useState("");
+  const [assignmentVideoDescription, setAssignmentVideoDescription] = useState("");
+  /** Flow step toggles: when true, that step is skipped for this student. Saved via putOverrides. */
+  const [flowSkipMetricQuestions, setFlowSkipMetricQuestions] = useState(false);
+  const [flowSkipPostQuestions, setFlowSkipPostQuestions] = useState(false);
   const [reportModalSession, setReportModalSession] = useState<
     (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
   >(null);
@@ -455,7 +460,52 @@ export default function AdminStudentProfilePage() {
     adminApi
       .getStudentProfile(id)
       .then((p) => {
+        // #region agent log
+        const overridesRaw = (p as Record<string, unknown>).overrides;
+        const skipMetric = overridesRaw != null && typeof overridesRaw === "object" && "skip_metric_questions" in overridesRaw ? (overridesRaw as Record<string, unknown>).skip_metric_questions : undefined;
+        const skipPost = overridesRaw != null && typeof overridesRaw === "object" && "skip_post_questions" in overridesRaw ? (overridesRaw as Record<string, unknown>).skip_post_questions : undefined;
+        const payload1 = {
+          location: "admin/students/[id]/page.tsx:load.getStudentProfile.then",
+          message: "GET profile response overrides and flow-step values",
+          data: {
+            hasOverrides: overridesRaw != null,
+            overridesKeys: overridesRaw != null && typeof overridesRaw === "object" ? Object.keys(overridesRaw as object) : [],
+            skip_metric_questions_raw: skipMetric,
+            skip_metric_questions_type: typeof skipMetric,
+            skip_post_questions_raw: skipPost,
+            skip_post_questions_type: typeof skipPost,
+            topLevelKeys: Object.keys(p as object),
+          },
+          timestamp: Date.now(),
+          hypothesisId: "H1-H2-H4-H5",
+        };
+        console.log("[DEBUG_FLOW_STEPS]", JSON.stringify(payload1));
+        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload1),
+        }).catch(() => {});
+        // #endregion
         setProfile(p);
+        const valueMetric = p.overrides?.skip_metric_questions ?? false;
+        const valuePost = p.overrides?.skip_post_questions ?? false;
+        // #region agent log
+        const payload2 = {
+          location: "admin/students/[id]/page.tsx:load.beforeSetState",
+          message: "Values about to set for flow-step state",
+          data: { valueMetric, valuePost, typeMetric: typeof valueMetric, typePost: typeof valuePost },
+          timestamp: Date.now(),
+          hypothesisId: "H4",
+        };
+        console.log("[DEBUG_FLOW_STEPS]", JSON.stringify(payload2));
+        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload2),
+        }).catch(() => {});
+        // #endregion
+        setFlowSkipMetricQuestions(valueMetric);
+        setFlowSkipPostQuestions(valuePost);
         const sp = p.speaker_profile || {};
         const parts = [
           sp.main_goal,
@@ -548,8 +598,57 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
+  const saveFlowSteps = () => {
+    setSaving(true);
+    const o = profile?.overrides ?? {};
+    const body: Record<string, unknown> = {
+      skip_metric_questions: flowSkipMetricQuestions,
+      skip_post_questions: flowSkipPostQuestions,
+    };
+    if (o.intended_emotion_prompt !== undefined) body.intended_emotion_prompt = o.intended_emotion_prompt;
+    if (o.keywords_prompt !== undefined) body.keywords_prompt = o.keywords_prompt;
+    if (o.emotion_check_question_text !== undefined) body.emotion_check_question_text = o.emotion_check_question_text;
+    if (o.assigned_post_question_ids !== undefined) body.assigned_post_question_ids = o.assigned_post_question_ids;
+    if (o.assigned_next_exercise_id !== undefined) body.assigned_next_exercise_id = o.assigned_next_exercise_id;
+    if (o.assigned_next_task_ids !== undefined) body.assigned_next_task_ids = o.assigned_next_task_ids;
+    if (o.show_exercise_step !== undefined) body.show_exercise_step = o.show_exercise_step;
+    adminApi
+      .putOverrides(id, body)
+      .then(() => {
+        toast.success("Flow steps saved");
+        load();
+      })
+      .catch((e) => toast.error((e as Error)?.message))
+      .finally(() => setSaving(false));
+  };
+
   const sendAssignment = () => {
-    adminApi.sendAssignment(id).then(() => toast.success("Homework sent")).catch((e) => toast.error(e.message));
+    const videoUrl = assignmentVideoUrl.trim();
+    const videoDesc = assignmentVideoDescription.trim();
+    if (videoUrl && !/^https?:\/\//i.test(videoUrl)) {
+      toast.error("Video URL must start with http:// or https://");
+      return;
+    }
+    if (videoUrl.length > 2048) {
+      toast.error("Video URL must be 2048 characters or less");
+      return;
+    }
+    if (videoDesc.length > 2000) {
+      toast.error("Message to student must be 2000 characters or less");
+      return;
+    }
+    const body =
+      videoUrl || videoDesc
+        ? { ...(videoUrl ? { video_url: videoUrl } : {}), ...(videoDesc ? { video_description: videoDesc } : {}) }
+        : undefined;
+    adminApi
+      .sendAssignment(id, body)
+      .then(() => {
+        toast.success("Homework sent");
+        setAssignmentVideoUrl("");
+        setAssignmentVideoDescription("");
+      })
+      .catch((e) => toast.error(e.message));
   };
 
   // Warm-up (mirrors focus_tasks): pool + per-student list, Confirm = PUT sync pool_task_ids.
@@ -822,6 +921,82 @@ export default function AdminStudentProfilePage() {
         }
       >
         <div className="space-y-6">
+          {/* Flow steps: toggle steps 2 and 4 on/off for this student. Backend must honor these (skip step when true). */}
+          {/* #region agent log */}
+          {(() => {
+            const payload3 = {
+              location: "admin/students/[id]/page.tsx:FlowStepsSection.render",
+              message: "Flow-step state at checkbox render",
+              data: { flowSkipMetricQuestions, flowSkipPostQuestions },
+              timestamp: Date.now(),
+              hypothesisId: "H3",
+            };
+            console.log("[DEBUG_FLOW_STEPS]", JSON.stringify(payload3));
+            fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload3),
+            }).catch(() => {});
+            return null;
+          })()}
+          {/* #endregion */}
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-sm font-medium">Homework flow steps</p>
+            <p className="text-xs text-muted-foreground">Turn steps off to simplify the flow (e.g. warm-up → final recording → report). Backend must support skipping.</p>
+            <div className="flex flex-wrap items-center gap-6 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!flowSkipMetricQuestions}
+                  onChange={(e) => setFlowSkipMetricQuestions(!e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <span className="text-sm">Step 2: Metric questions</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!flowSkipPostQuestions}
+                  onChange={(e) => setFlowSkipPostQuestions(!e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <span className="text-sm">Step 4: Post-questions</span>
+              </label>
+              <Button type="button" size="sm" variant="secondary" onClick={saveFlowSteps} disabled={saving}>
+                {saving ? "Saving…" : "Save flow steps"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Optional video and message for assignment email */}
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-sm font-medium">Included in email when you send homework</p>
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Video URL (optional)</label>
+              <Input
+                type="url"
+                value={assignmentVideoUrl}
+                onChange={(e) => setAssignmentVideoUrl(e.target.value)}
+                placeholder="https://loom.com/share/… or YouTube, Supabase Storage, etc."
+                maxLength={2048}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Must start with http:// or https://, max 2048 characters.</p>
+            </div>
+            <div>
+              <label className="block text-sm text-muted-foreground mb-1">Message to student (optional)</label>
+              <textarea
+                value={assignmentVideoDescription}
+                onChange={(e) => setAssignmentVideoDescription(e.target.value)}
+                placeholder="e.g. Focus on pacing this week."
+                rows={3}
+                maxLength={2000}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Max 2000 characters. Shown in the assignment email.</p>
+            </div>
+          </div>
+
           {/* Warm-up Tasks */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">

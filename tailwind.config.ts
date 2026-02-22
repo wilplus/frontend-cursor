@@ -9,6 +9,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        heading: ["var(--font-dm-serif)", "DM Serif Display", "serif"],
+        body: ["var(--font-dm-sans)", "DM Sans", "sans-serif"],
+      },
       minHeight: {
         "question-box": "min(180px, 40vw)",
       },
@@ -34,6 +38,7 @@ const config: Config = {
       colors: {
         background: "hsl(var(--background))",
         primary: "hsl(var(--primary))",
+        "primary-foreground": "hsl(var(--primary-foreground))",
         "step-completed": "hsl(var(--step-completed))",
         "step-pending": "hsl(var(--step-pending))",
         foreground: "hsl(var(--foreground))",
@@ -56,6 +61,11 @@ const config: Config = {
         },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        secondary: "hsl(var(--secondary, var(--muted)))",
+        email: {
+          bg: "hsl(var(--email-bg))",
+          divider: "hsl(var(--email-divider))",
+        },
       },
     },
   },

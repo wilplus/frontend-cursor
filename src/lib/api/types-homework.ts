@@ -54,6 +54,10 @@ export interface HomeworkResponse {
   questions?: HomeworkQuestion[];
   tutor_feedback_deadline?: string | null;
   tutor_feedback_message?: string | null;
+  /** Coach video link for this session (e.g. Loom, YouTube). Shown on homework flow when set. */
+  tutor_video_url?: string | null;
+  /** Optional message from coach about the video. Shown above the video link. */
+  tutor_video_description?: string | null;
   session?: unknown;
   has_active_session?: boolean;
 }
@@ -124,7 +128,7 @@ export interface HomeworkSessionStatus {
   has_active_session?: boolean;
   /** Backend: alternative to status (e.g. top-level session_state). */
   session_state?: string;
-  /** Backend: nested session (snake_case). Use for id, status, warm_up_task_text, final_task_text, context_long, performance_score_end. */
+  /** Backend: nested session (snake_case). Use for id, status, warm_up_task_text, final_task_text, context_long, performance_score_end, tutor_video_*. */
   session?: {
     id?: string;
     status?: string;
@@ -137,6 +141,8 @@ export interface HomeworkSessionStatus {
     session_metric_question_1?: MetricQuestionItemV2 | string | null;
     session_metric_question_2?: MetricQuestionItemV2 | string | null;
     session_metric_question_3?: MetricQuestionItemV2 | string | null;
+    tutor_video_url?: string | null;
+    tutor_video_description?: string | null;
   };
   /** Backend: metric questions when task_block not present (top-level snake_case). */
   session_metric_question_1?: MetricQuestionItemV2 | string | null;
@@ -146,6 +152,10 @@ export interface HomeworkSessionStatus {
   tutor_feedback_deadline?: string | null;
   /** When no active session: optional message from tutor (e.g. warning to wait for feedback). Show as info banner on step 0. */
   tutor_feedback_message?: string | null;
+  /** Coach video URL for this session (from send-assignment). */
+  tutor_video_url?: string | null;
+  /** Optional coach message about the video. */
+  tutor_video_description?: string | null;
 }
 
 /** Build HomeworkResponse from GET status. Normalizes status to top-level (only place that reads nested session.status). */
@@ -174,6 +184,8 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     questions: raw.questions ?? undefined,
     tutor_feedback_deadline: raw.tutor_feedback_deadline ?? null,
     tutor_feedback_message: raw.tutor_feedback_message ?? null,
+    tutor_video_url: raw.tutor_video_url ?? raw.session?.tutor_video_url ?? null,
+    tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
   };
 }
 

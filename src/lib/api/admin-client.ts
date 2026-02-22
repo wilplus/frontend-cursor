@@ -66,6 +66,10 @@ export interface StudentProfile {
     assigned_post_question_ids?: string[];
     assigned_next_exercise_id?: string;
     assigned_next_task_ids?: string[];
+    /** When true, student skips step 2 (metric questions). Backend must transition recording_1 → final_task_ready. */
+    skip_metric_questions?: boolean;
+    /** When true, student skips step 4 (post-questions). Backend must transition recording_2 → completed. */
+    skip_post_questions?: boolean;
   } | null;
   speaker_profile: {
     main_goal?: string;
@@ -207,8 +211,12 @@ export const adminApi = {
   putSpeakerProfile: (userId: string, data: Record<string, unknown>) =>
     adminFetch<{ status: string }>(`/students/${userId}/speaker-profile`, { method: "PUT", body: data }),
 
-  sendAssignment: (userId: string) =>
-    adminFetch<{ status: string }>(`/students/${userId}/send-assignment`, { method: "POST" }),
+  /** Optional body: { video_url?, video_description? }. Only keys with non-empty values are sent. Used in assignment email. */
+  sendAssignment: (userId: string, body?: { video_url?: string; video_description?: string }) =>
+    adminFetch<{ status: string }>(`/students/${userId}/send-assignment`, {
+      method: "POST",
+      ...(body && Object.keys(body).length > 0 ? { body } : {}),
+    }),
 
   getWarmUpTasks: (userId: string) =>
     adminFetch<{ task_warm_up: WarmUpTask[] }>(`/students/${userId}/task-warm-up`).then((r) => r.task_warm_up ?? []),

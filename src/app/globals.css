@@ -17,6 +17,7 @@
     --input: 220 13% 91%;
     --ring: 24 95% 53%;
     --border: 220 13% 91%;
+    --secondary: 220 14% 96%;
     --primary: 24 95% 53%;
     --step-completed: 142 76% 36%;
     --step-pending: 210 40% 96.1%;
@@ -37,6 +38,23 @@
     --np-gray-soft: 0 0% 92%;
     --np-gray-mid: 0 0% 85%;
     --np-gray-deep: 0 0% 75%;
+    /* Coach email template (Willab assignment email) */
+    --email-bg: 220 14% 96%;
+    --email-divider: 220 13% 91%;
+    --primary-foreground: 0 0% 100%;
+  }
+
+  /* Email template scope: design system for assignment email (backend can replicate) */
+  .coach-email {
+    --primary: 25 95% 53%;
+    --foreground: 220 25% 14%;
+    --background: 0 0% 100%;
+    --muted-foreground: 220 9% 46%;
+    --secondary: 220 14% 96%;
+    --border: 220 13% 91%;
+    --email-bg: 220 14% 96%;
+    --email-divider: 220 13% 91%;
+    --primary-foreground: 0 0% 100%;
   }
 
   .dark {

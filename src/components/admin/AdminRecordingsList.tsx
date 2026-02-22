@@ -108,7 +108,7 @@ export default function AdminRecordingsList({
   }, [loadRecordings]);
 
   const handleRecordingClick = (recording: RecordingForAdmin) => {
-    router.push(`/recordings/${recording.recording_id}/feedback?user_id=${recording.user_id}`);
+    router.push(`/admin/students/${recording.user_id}`);
   };
 
   const filteredRecordings = recordings.filter((recording) => {
