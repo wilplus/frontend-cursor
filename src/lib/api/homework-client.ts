@@ -174,7 +174,6 @@ export const homeworkApi = {
       signal,
       credentials,
     });
-    if (!res.ok) return handleResponse<never>(res) as Promise<never>;
     const body = await safeParseJson<{
       bucket?: string;
       storage_path?: string;
@@ -182,6 +181,10 @@ export const homeworkApi = {
       status?: string;
       task_block?: TaskBlockV2;
     }>(res);
+    if (res.status === 409) {
+      return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as TaskBlockV2 };
+    }
+    if (!res.ok) return handleResponse<never>(res) as Promise<never>;
     if (body.already_past_step === true && body.task_block) {
       return { already_past_step: true, status: body.status, task_block: body.task_block };
     }
