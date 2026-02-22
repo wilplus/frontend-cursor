@@ -16,7 +16,7 @@ export type PublicHomeworkStatus =
 
 export type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
-/** Single mapping: backend status → UI step. Only place that knows workflow structure. */
+/** Single mapping: backend status → UI step. Steps 2–4 are temporarily removed: task_block, final_task_ready, post_questions all show report (step 5). */
 export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   switch (status) {
     case "none":
@@ -24,11 +24,9 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
     case "recording_1_required":
       return 1;
     case "task_block":
-      return 2;
     case "final_task_ready":
-      return 3;
     case "post_questions":
-      return 4;
+      return 5;
     case "completed":
       return 5;
     default: {
