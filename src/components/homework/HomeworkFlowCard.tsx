@@ -588,6 +588,7 @@ export default function HomeworkFlowCard() {
     skipStep2ToReportDoneRef.current = true;
     setReportFromRecording1Only(true);
     setError(null);
+    stepRef.current = 5;
     setStep(5);
   }, [step, sessionId, taskBlock, taskBlockFetchSettled, error]);
 
