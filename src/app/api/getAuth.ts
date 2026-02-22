@@ -2,13 +2,15 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const RAW =
+/** Private URL for BFF→backend (e.g. Railway: http://backend.railway.internal:PORT). When set, used instead of public URL. */
+const RAW_INTERNAL = process.env.BACKEND_URL_INTERNAL?.trim().replace(/\/+$/, "");
+const RAW_PUBLIC =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.BACKEND_URL ||
   "";
-/** Base URL with no trailing slash so paths don't get double slashes */
-const BACKEND_URL = RAW.replace(/\/+$/, "");
+/** Base URL with no trailing slash. Prefers BACKEND_URL_INTERNAL when set (server-side only). */
+const BACKEND_URL = (RAW_INTERNAL || RAW_PUBLIC).replace(/\/+$/, "");
 
 export function getBackendUrl(): string {
   return BACKEND_URL;
