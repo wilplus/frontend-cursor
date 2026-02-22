@@ -271,4 +271,14 @@ export interface HomeworkReportResponse {
   performance_history?: PerformanceHistoryPoint[];
   /** When completed and deadline in future: ISO 8601 UTC. Omitted when past or not applicable. */
   tutor_feedback_deadline?: string | null;
+  /** When report is from recording-1 only (e.g. skip from step 2): first recording playback and analysis. */
+  recording_1?: { id: string | null; audio_url: string | null };
+  /** Transcript of recording 1 (when report is recording-1 only). */
+  transcript?: string | null;
+  /** Filler words count (when report is recording-1 only). */
+  filler_word_count?: number | null;
+  /** Strength metric label or value (e.g. "7/10" or "Good"). */
+  strength_metric?: string | null;
+  /** Pace metric label or value (e.g. "Steady"). */
+  pace_metric?: string | null;
 }

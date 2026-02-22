@@ -168,6 +168,8 @@ export default function HomeworkFlowCard() {
   const [countdownTick, setCountdownTick] = useState(0);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
   const taskBlockFetchStartedRef = useRef(false);
+  /** When step 2 fails to load questions, we auto-skip to step 5 (report) once; this ref prevents doing it more than once. */
+  const skipStep2ToReportDoneRef = useRef(false);
 
   /** On step 0, fetch status so we get backend tutor_feedback_deadline and tutor_feedback_message (when no active session). Wait for auth to avoid 500 on first load. */
   useEffect(() => {
@@ -255,6 +257,8 @@ export default function HomeworkFlowCard() {
       setTutorFeedbackMessage(null);
       setTutorVideoUrl(null);
       setTutorVideoDescription(null);
+      skipStep2ToReportDoneRef.current = false;
+      setReportFromRecording1Only(false);
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -440,6 +444,7 @@ export default function HomeworkFlowCard() {
     postAnswersSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
     uploadRecording2InProgressRef.current = false;
+    skipStep2ToReportDoneRef.current = false;
     applyStatusToState({ status: "none" });
     setMetricStepBlockedByRecordingFailure(false);
   };
@@ -556,6 +561,17 @@ export default function HomeworkFlowCard() {
       taskBlockFetchStartedRef.current = false;
     }
   }, [step]);
+
+  /** When step 2 fails to load questions (task block fetch settled with error), skip straight to step 5 (report). */
+  const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
+  useEffect(() => {
+    if (step !== 2 || !sessionId || sessionId === "mock-session") return;
+    if (taskBlock != null || !taskBlockFetchSettled || !error || skipStep2ToReportDoneRef.current) return;
+    skipStep2ToReportDoneRef.current = true;
+    setReportFromRecording1Only(true);
+    setError(null);
+    setStep(5);
+  }, [step, sessionId, taskBlock, taskBlockFetchSettled, error]);
 
   useEffect(() => {
     if (step !== 4) setQuestionsStep4Settled(false);
@@ -1380,7 +1396,6 @@ export default function HomeworkFlowCard() {
     const displayReportText = reportData?.report_text ?? reportText;
 
     // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
-    // If backend omits it or returns empty, we show only current session as S1.
     const performanceHistory = reportData?.performance_history;
     const lastFive = performanceHistory?.length ? performanceHistory.slice(-5) : [];
     const progressChartData =
@@ -1394,6 +1409,80 @@ export default function HomeworkFlowCard() {
           ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
           : [];
 
+    const coachMessage = "Your coach has 24 hours to analyse your homework and send a feedback on your email!";
+
+    // Simplified report when we skipped from step 2 (recording-1 only): no blank sections, only recording 1 + transcript + filler + strength/pace + coach message.
+    if (reportFromRecording1Only) {
+      const rec1Url = reportData?.recording_1?.audio_url;
+      const transcript = (reportData?.transcript ?? "").trim();
+      const fillerCount = reportData?.filler_word_count;
+      const strength = (reportData?.strength_metric ?? "").trim();
+      const pace = (reportData?.pace_metric ?? "").trim();
+
+      return (
+        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          {tutorVideoBlock}
+          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+            <h3 className="text-center text-lg font-semibold">Your report</h3>
+            {reportError && (
+              <p className="text-sm text-destructive">{reportError}</p>
+            )}
+            <div className="space-y-4">
+              {/* 1. First recording + transcript */}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
+                {rec1Url ? (
+                  <audio controls src={rec1Url} className="w-full max-w-md" />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Recording playback not available.</p>
+                )}
+              </div>
+              {transcript ? (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcript}</p>
+                  </div>
+                </div>
+              ) : null}
+              {/* 2. Filler words count */}
+              {fillerCount != null && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+                  <p className="text-sm text-foreground">{fillerCount} filler word{fillerCount !== 1 ? "s" : ""} detected.</p>
+                </div>
+              )}
+              {/* 3. Strength and pace */}
+              {(strength || pace) ? (
+                <div className="flex flex-wrap gap-6">
+                  {strength ? (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Strength</p>
+                      <p className="text-sm text-foreground">{strength}</p>
+                    </div>
+                  ) : null}
+                  {pace ? (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Pace</p>
+                      <p className="text-sm text-foreground">{pace}</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {/* 4. Coach message */}
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-sm text-foreground leading-relaxed">{coachMessage}</p>
+              </div>
+            </div>
+            <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
+              {resetting ? "Resetting…" : "Start new homework"}
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
+    // Full report (both recordings): final recording, chart, report text.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         {tutorVideoBlock}
@@ -1403,7 +1492,6 @@ export default function HomeworkFlowCard() {
             <p className="text-sm text-destructive">{reportError}</p>
           )}
           <div className="space-y-4">
-            {/* 1. Final recording player */}
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Your final recording</p>
               {reportData?.final_recording?.audio_url ? (
@@ -1412,11 +1500,9 @@ export default function HomeworkFlowCard() {
                 <p className="text-sm text-muted-foreground">Recording playback not available.</p>
               )}
             </div>
-            {/* 2. Progress over sessions chart */}
             {progressChartData.length > 0 && (
               <ProgressOverSessionsChart data={progressChartData} />
             )}
-            {/* 3. Report text */}
             <div className="rounded-xl border border-border bg-muted/30 p-4">
               <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
                 {displayReportText.trim() || "Report pending."}
