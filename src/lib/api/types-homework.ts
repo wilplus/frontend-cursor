@@ -281,4 +281,6 @@ export interface HomeworkReportResponse {
   strength_metric?: string | null;
   /** Pace metric label or value (e.g. "Steady"). */
   pace_metric?: string | null;
+  /** When report is recording-1 only: performance score for first recording (0–1). Used for progress chart; frontend converts to 0–100. If absent, frontend may use scores.overall. */
+  performance_score_1?: number | null;
 }

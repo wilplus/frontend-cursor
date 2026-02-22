@@ -48,6 +48,18 @@ function resolveWarmUpText(text: string | null | undefined): string {
   return (text ?? "").trim() || DEFAULT_WARMUP_QUESTION;
 }
 
+/** Return at most the first 2 sentences of text (by ., !, ?). */
+function firstTwoSentences(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  const match = t.match(/^(.+?[.!?])\s*(.+?[.!?])?[\s\S]*/);
+  if (match) {
+    const second = (match[2] ?? "").trim();
+    return second ? `${match[1].trim()} ${second}`.trim() : match[1].trim();
+  }
+  return t;
+}
+
 type Step = StepType;
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
@@ -170,6 +182,9 @@ export default function HomeworkFlowCard() {
   const taskBlockFetchStartedRef = useRef(false);
   /** When step 2 fails to load questions, we auto-skip to step 5 (report) once; this ref prevents doing it more than once. */
   const skipStep2ToReportDoneRef = useRef(false);
+  /** Mirror of step for use inside applyStatusToState (so we never downgrade step when applying backend response). */
+  const stepRef = useRef(step);
+  stepRef.current = step;
 
   /** On step 0, fetch status so we get backend tutor_feedback_deadline and tutor_feedback_message (when no active session). Wait for auth to avoid 500 on first load. */
   useEffect(() => {
@@ -234,11 +249,14 @@ export default function HomeworkFlowCard() {
     if (step !== 1 && step !== 3) setRecordingActive(false);
   }, [step, setRecordingActive]);
 
-  /** Single state projection from backend response. No floors, caps, refs, or previous-step logic. Do not clear step-specific state when a field is absent; only clear on status === "none". Never downgrade step. */
+  /** Single state projection from backend response. Step is only updated when status is "none" (go to 0) or when the backend step is >= current step (never downgrade). */
   const applyStatusToState = (res: HomeworkResponse) => {
     const status: PublicHomeworkStatus = res.status ?? "none";
-    const step = mapStatusToStep(status);
-    setStep(step);
+    const newStep = mapStatusToStep(status);
+    const currentStep = stepRef.current;
+    if (status === "none" || newStep >= currentStep) {
+      setStep(newStep);
+    }
     setStatusUnknown(false);
     setError(null);
 
@@ -1411,13 +1429,25 @@ export default function HomeworkFlowCard() {
 
     const coachMessage = "Your coach has 24 hours to analyse your homework and send a feedback on your email!";
 
-    // Simplified report when we skipped from step 2 (recording-1 only): no blank sections, only recording 1 + transcript + filler + strength/pace + coach message.
+    // Simplified report when we skipped from step 2 (recording-1 only): recording 1 + transcript + filler + strength/pace + progress chart (1st performance) + coach message.
     if (reportFromRecording1Only) {
       const rec1Url = reportData?.recording_1?.audio_url;
       const transcript = (reportData?.transcript ?? "").trim();
       const fillerCount = reportData?.filler_word_count;
       const strength = (reportData?.strength_metric ?? "").trim();
       const pace = (reportData?.pace_metric ?? "").trim();
+      // Progress chart: use 1st recording performance. Backend may send performance_score_1 (0–1) or scores.overall (0–100) or performance_history.
+      const score1 = reportData?.performance_score_1 != null
+        ? Math.round(reportData.performance_score_1 * 100)
+        : reportData?.scores?.overall;
+      const history1 = reportData?.performance_history;
+      const lastFive1 = history1?.length ? history1.slice(-5) : [];
+      const progressChartData1 =
+        lastFive1.length > 0
+          ? lastFive1.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
+          : score1 != null
+            ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: score1 }]
+            : [];
 
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
@@ -1441,7 +1471,7 @@ export default function HomeworkFlowCard() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
                   <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcript}</p>
+                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{firstTwoSentences(transcript)}</p>
                   </div>
                 </div>
               ) : null}
@@ -1469,7 +1499,11 @@ export default function HomeworkFlowCard() {
                   ) : null}
                 </div>
               ) : null}
-              {/* 4. Coach message */}
+              {/* Progress chart: 1 recording = 1st performance score; 2 recordings = end performance (handled in full report below) */}
+              {progressChartData1.length > 0 && (
+                <ProgressOverSessionsChart data={progressChartData1} />
+              )}
+              {/* Coach message */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm text-foreground leading-relaxed">{coachMessage}</p>
               </div>
