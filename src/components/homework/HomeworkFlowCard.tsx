@@ -18,8 +18,6 @@ import {
   type Step as StepType,
   type PublicHomeworkStatus,
 } from "@/lib/api/types-homework";
-import AnswerMetricQuestionsScreen from "@/components/homework/AnswerMetricQuestionsScreen";
-import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,7 +29,8 @@ import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
 import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 
-const TOTAL_STEPS = 5;
+/** Temporarily only 2 steps: record (1) and report (5). Steps 2–4 removed. */
+const TOTAL_STEPS = 2;
 
 /** Default warm-up question when the backend assigns none. */
 const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
@@ -98,7 +97,7 @@ function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
 }
 
-/** Stable wrapper so children (e.g. PostQuestionsStepScreen) do not remount on parent re-render. Progress bar only on steps 1–4 (hidden on step 0 and step 5). When syncingBehind, show "Syncing…" below the progress bar. */
+/** Progress bar only on step 1 (record). Hidden on step 0 and step 5 (report). Steps 2–4 removed. */
 function StepFlowWrapper({
   step,
   syncingBehind,
@@ -108,8 +107,8 @@ function StepFlowWrapper({
   syncingBehind?: boolean;
   children: React.ReactNode;
 }) {
-  const showProgressBar = step >= 1 && step <= 4;
-  const flowStepIndex = step >= 1 ? step - 1 : 0;
+  const showProgressBar = step === 1;
+  const flowStepIndex = step === 1 ? 0 : 0;
   return (
       <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
       {showProgressBar && (
@@ -244,9 +243,9 @@ export default function HomeworkFlowCard() {
     setShowNavbar(step === 0 || step === 5);
   }, [step, setShowNavbar]);
 
-  /** Clear recording context when not on a recording step (body scroll lock released when leaving step 1/3). */
+  /** Clear recording context when not on step 1 (record). Step 3 removed. */
   useEffect(() => {
-    if (step !== 1 && step !== 3) setRecordingActive(false);
+    if (step !== 1) setRecordingActive(false);
   }, [step, setRecordingActive]);
 
   /** Single state projection from backend response. Step is only updated when status is "none" (go to 0) or when the backend step is >= current step (never downgrade). */
@@ -324,6 +323,9 @@ export default function HomeworkFlowCard() {
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
       setTutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+    }
+    if (status === "task_block" || status === "final_task_ready" || status === "post_questions") {
+      setReportFromRecording1Only(true);
     }
   };
 
@@ -502,21 +504,6 @@ export default function HomeworkFlowCard() {
         }
         const resp = getStatusToHomeworkResponse(statusRes);
         applyStatusToState(resp);
-        const sessionIdFromRes = resp.session_id ?? null;
-        if (mapStatusToStep(resp.status) === 2 && sessionIdFromRes && !resp.task_block) {
-          taskBlockFetchStartedRef.current = true;
-          homeworkApi
-            .getTaskBlock(sessionIdFromRes)
-            .then((data) => {
-              if (!cancelled && data.task_block) setTaskBlock(data.task_block);
-            })
-            .catch(() => {
-              if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
-            })
-            .finally(() => {
-              if (!cancelled) setTaskBlockFetchSettled(true);
-            });
-        }
       })
       .catch((e) => {
         if (cancelled) return;
@@ -549,116 +536,8 @@ export default function HomeworkFlowCard() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  // On step 2, if task_block is missing (e.g. after refresh — Option B), fetch from GET task-block. Never downgrade step.
-  useEffect(() => {
-    if (step !== 2 || !sessionId || sessionId === "mock-session" || taskBlock != null) return;
-    if (taskBlockFetchStartedRef.current) return;
-    taskBlockFetchStartedRef.current = true;
-    let cancelled = false;
-    homeworkApi
-      .getTaskBlock(sessionId)
-      .then((data) => {
-        if (!cancelled && data.task_block) {
-          setTaskBlock(data.task_block);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError("Could not load questions. Try continuing or refresh.");
-      })
-      .finally(() => {
-        if (!cancelled) setTaskBlockFetchSettled(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [step, sessionId, taskBlock]);
-
-  useEffect(() => {
-    if (step !== 2) {
-      setTaskBlockFetchSettled(false);
-      taskBlockFetchStartedRef.current = false;
-    }
-  }, [step]);
-
-  /** When step 2 fails to load questions (task block fetch settled with error), skip straight to step 5 (report). */
   const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
-  useEffect(() => {
-    if (step !== 2 || !sessionId || sessionId === "mock-session") return;
-    if (taskBlock != null || !taskBlockFetchSettled || !error || skipStep2ToReportDoneRef.current) return;
-    skipStep2ToReportDoneRef.current = true;
-    setReportFromRecording1Only(true);
-    setError(null);
-    stepRef.current = 5;
-    setStep(5);
-  }, [step, sessionId, taskBlock, taskBlockFetchSettled, error]);
-
-  useEffect(() => {
-    if (step !== 4) setQuestionsStep4Settled(false);
-  }, [step]);
-
-  // On step 4, if questions are missing (thin status or refresh), load from GET questions. If none, finish without post-questions (auto-submit to get report).
-  useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session" || questions.length > 0) return;
-    if (postAnswersAutoSubmitDoneRef.current) return;
-    let cancelled = false;
-    homeworkApi
-      .getQuestions(sessionId)
-      .then(({ questions: qList }) => {
-        if (cancelled) return;
-        setQuestionsStep4Settled(true);
-        if (qList.length > 0) {
-          const normalized = qList.map((q) => ({
-            ...q,
-            id: toId(q.id) || crypto.randomUUID(),
-            text: toText(q.text),
-          }));
-          setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-        } else {
-          // No reflective questions: finish without them — auto-submit to get report
-          postAnswersAutoSubmitDoneRef.current = true;
-          setLoading(true);
-          setError(null);
-          homeworkApi
-            .submitPostAnswers(sessionId, [])
-            .then((res) => {
-              if (!cancelled) {
-                applyStatusToState({
-                  status: "completed",
-                  session_id: sessionId,
-                  report_text: res.report_text ?? "",
-                  performance_score_end: res.performance_score_end ?? null,
-                });
-                if (typeof sessionStorage !== "undefined") {
-                  sessionStorage.setItem(
-                    "homeworkReport",
-                    JSON.stringify({ sessionId, reportText: res.report_text ?? "", performanceScoreEnd: res.performance_score_end ?? null })
-                  );
-                }
-              }
-            })
-            .catch((e) => {
-              if (!cancelled) {
-                const msg = e instanceof Error ? e.message : "Failed to load report";
-                setError(msg);
-                toast.error(msg);
-                postAnswersAutoSubmitDoneRef.current = false;
-              }
-            })
-            .finally(() => {
-              if (!cancelled) setLoading(false);
-            });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setQuestionsStep4Settled(true);
-          setError("Could not load questions. Try continuing or refresh.");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [step, sessionId, questions.length]);
+  // Steps 2–4 effects removed (task block fetch, skip-to-report, step 4 questions).
 
   // Fetch report when on step 5 with a real session (single source of truth for player + scores + text)
   useEffect(() => {
@@ -1217,183 +1096,7 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: metric questions — only show form when task_block is loaded; otherwise show loading (or error if fetch settled with no data)
-  if (step === 2) {
-    const step2DataReady = taskBlock != null;
-    if (!step2DataReady && sessionId && sessionId !== "mock-session") {
-      return (
-        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-          {tutorVideoBlock}
-          <Card className="p-6 border-0 bg-transparent shadow-none">
-            <div className="text-center space-y-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-              <p className="text-sm text-muted-foreground">Loading questions…</p>
-              {taskBlockFetchSettled && error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
-            </div>
-          </Card>
-          <div className="mt-[1px] flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={handleAbandon}
-              disabled={loading}
-            >
-              Abandon session
-            </Button>
-          </div>
-        </StepFlowWrapper>
-      );
-    }
-    return (
-      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-        {tutorVideoBlock}
-        <AnswerMetricQuestionsScreen
-          sessionId={sessionId!}
-          taskBlock={taskBlock}
-          onSubmit={handleMetricAnswersSubmit}
-          loading={loading}
-          error={error}
-          onAbandon={sessionId && sessionId !== "mock-session" ? handleAbandon : undefined}
-          submitDisabled={metricStepBlockedByRecordingFailure}
-        />
-      </StepFlowWrapper>
-    );
-  }
-
-  // Step 3: Final task + record
-  if (step === 3) {
-    const isUploadingRec2 = uploadingRecording === 2;
-    if (isUploadingRec2) {
-      return (
-        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-          {tutorVideoBlock}
-          <Card className="p-6 border-0 bg-transparent shadow-none">
-            <div className="text-center space-y-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-              <h3 className="text-lg font-semibold">Sending second recording</h3>
-              <p className="text-sm text-muted-foreground">Please wait…</p>
-            </div>
-          </Card>
-        </StepFlowWrapper>
-      );
-    }
-    return (
-      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-        {tutorVideoBlock}
-        <AudioRecorder
-          prompt={finalTaskText || "—"}
-          onRecordingComplete={handleRecording2Complete}
-          stopAndSend
-          uploading={isUploadingRec2}
-          minDurationSeconds={RECORDING_2_DURATION_MIN}
-        />
-        <div className="mt-[1px] flex justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive"
-            onClick={handleAbandon}
-            disabled={loading}
-          >
-            Abandon session
-          </Button>
-        </div>
-      </StepFlowWrapper>
-    );
-  }
-
-  // Step 4: Reflective questions — only show form when questions are loaded (or 0 and we're auto-submitting). Otherwise show loading or error.
-  if (step === 4) {
-    // #region agent log
-    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:step4", message: "step4 render", data: { step: 4, questionsLen: questions.length, postAnswersKeys: Object.keys(postAnswers).length }, timestamp: Date.now(), hypothesisId: "H1" });
-    // #endregion
-    const step4DataReady = questions.length > 0 || (questionsStep4Settled && questions.length === 0);
-    if (!step4DataReady && sessionId && sessionId !== "mock-session") {
-      return (
-        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-          {tutorVideoBlock}
-          <Card className="p-6 border-0 bg-transparent shadow-none">
-            <div className="text-center space-y-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-              <p className="text-sm text-muted-foreground">Loading questions…</p>
-            </div>
-          </Card>
-          <div className="mt-[1px] flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={handleAbandon}
-              disabled={loading}
-            >
-              Abandon session
-            </Button>
-          </div>
-        </StepFlowWrapper>
-      );
-    }
-    if (questionsStep4Settled && questions.length === 0 && sessionId && sessionId !== "mock-session") {
-      // Fetch returned 0 questions — we're in auto-submit path (loading) or failed; show minimal UI
-      return (
-        <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-          {tutorVideoBlock}
-          <Card className="p-6 border-0 bg-transparent shadow-none">
-            <div className="text-center space-y-4">
-              {loading ? (
-                <>
-                  <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-                  <p className="text-sm text-muted-foreground">Finishing…</p>
-                </>
-              ) : (
-                <>
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  <p className="text-sm text-muted-foreground">No reflective questions for this session.</p>
-                </>
-              )}
-            </div>
-          </Card>
-          <div className="mt-[1px] flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={handleAbandon}
-              disabled={loading}
-            >
-              Abandon session
-            </Button>
-          </div>
-        </StepFlowWrapper>
-      );
-    }
-    return (
-      <StepFlowWrapper step={step} syncingBehind={syncingBehind}>
-        {tutorVideoBlock}
-        <PostQuestionsStepScreen
-          questions={questions}
-          onSubmit={handlePostAnswersSubmit}
-          loading={loading}
-          error={error}
-        />
-        {sessionId && sessionId !== "mock-session" && (
-          <div className="mt-[1px] flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={handleAbandon}
-              disabled={loading}
-            >
-              Abandon session
-            </Button>
-          </div>
-        )}
-      </StepFlowWrapper>
-    );
-  }
+  // Steps 2–4 temporarily removed. Flow: 0 → 1 (record) → 5 (report).
 
   // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
   if (step === 5) {
