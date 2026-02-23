@@ -86,6 +86,19 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
     [paceScore, paceDirection]
   );
 
+  // #region agent log
+  const dartboardLogRef = useRef({ lastLog: 0, lastS: -1, lastP: -1 });
+  useEffect(() => {
+    const now = Date.now();
+    const ds = Math.abs(strengthScore - dartboardLogRef.current.lastS);
+    const dp = Math.abs(paceScore - dartboardLogRef.current.lastP);
+    if (ds > 0.02 || dp > 0.02 || now - dartboardLogRef.current.lastLog > 2000) {
+      dartboardLogRef.current = { lastLog: now, lastS: strengthScore, lastP: paceScore };
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StrengthPaceDartboard.tsx',message:'dartboard props',data:{strengthScore,paceScore,strengthDirection,paceDirection,targetX,targetY},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    }
+  }, [strengthScore, paceScore, strengthDirection, paceDirection, targetX, targetY]);
+  // #endregion
+
   const rawTargetRef = useRef({ x: targetX, y: targetY });
   rawTargetRef.current = { x: targetX, y: targetY };
   const targetRef = useRef({ x: 0, y: 0 });

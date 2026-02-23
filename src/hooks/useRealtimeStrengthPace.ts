@@ -19,11 +19,11 @@ const TOLERANCE_WPM = 60;
 /** Pace direction hysteresis: avoid rapid flip around single WPM boundary. */
 const PACE_FAST_THRESHOLD = TARGET_WPM + 5;
 const PACE_SLOW_THRESHOLD = TARGET_WPM - 5;
-/** Voiced = speech; RMS > 0.015 (≈ -36 dB) to avoid treating noise as speech. */
-const VOICED_RMS_THRESHOLD = 0.015;
+/** Voiced = speech; RMS > 0.004 (≈ -48 dB) so typical mic levels trigger; avoids treating only loud speech as speech. */
+const VOICED_RMS_THRESHOLD = 0.004;
 const WINDOW_SAMPLES = 30; // 3 s at 100 ms
-/** VAD for strength: silence = center. Consecutive frames above/below to confirm voice on/off. */
-const VOICE_RMS_THRESHOLD = 0.02;
+/** VAD for strength: silence = center. Consecutive frames above/below to confirm voice on/off. Typical speech RMS ~0.005–0.02. */
+const VOICE_RMS_THRESHOLD = 0.005;
 const VOICE_ON_MIN_FRAMES = 2;
 const VOICE_OFF_MIN_FRAMES = 3;
 /** Silence: gradual drift to neutral over ~800ms; never imply pause = mistake. */
@@ -140,6 +140,9 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
   }, [stop]);
 
   const start = useCallback((stream: MediaStream) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:start',message:'start(stream) called',data:{streamActive:!!stream?.active,hasTracks:!!stream?.getAudioTracks?.()?.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     if (!stream?.active) return;
     stop();
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -171,11 +174,16 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
       setIsActive(true);
       setStrengthScore(1.0);
       setStrengthDirection(0);
+      let tickCount = 0;
       intervalRef.current = setInterval(() => {
+        tickCount += 1;
         const ctxNow = audioContextRef.current;
         const a = analyserRef.current;
         if (!a || !ctxNow) return;
         if (ctxNow.state !== "running") {
+          // #region agent log
+          if (tickCount <= 3 || tickCount % 30 === 0) fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:interval',message:'skip ctx not running',data:{state:ctxNow.state,tick:tickCount},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
           ctxNow.resume().catch(() => {});
           return;
         }
@@ -276,6 +284,9 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         else if (wpm < PACE_SLOW_THRESHOLD) nextPaceDir = -1;
         paceDirectionRef.current = nextPaceDir;
         setPaceDirection(nextPaceDir);
+        // #region agent log
+        if (tickCount <= 5 || tickCount % 25 === 0) fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useRealtimeStrengthPace.ts:interval',message:'updated strength/pace',data:{tick:tickCount,rms,db,strengthBlend,paceScore:displayPaceRef.current,voiceActive:voiceActiveRef.current},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
       }, UPDATE_MS);
     }).catch(() => {});
   }, [stop]);
