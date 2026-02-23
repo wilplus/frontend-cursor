@@ -97,6 +97,10 @@ function isInvalidSessionStateError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "INVALID_SESSION_STATE";
 }
 
+function isReportNotReadyError(e: unknown): e is HomeworkApiError {
+  return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "REPORT_NOT_READY";
+}
+
 /** Progress bar only on step 1 (record). Hidden on step 0 and step 5 (report). Steps 2–4 removed. */
 function StepFlowWrapper({
   step,
@@ -145,6 +149,9 @@ export default function HomeworkFlowCard() {
   const [reportData, setReportData] = useState<HomeworkReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and allow retry. */
+  const [reportNotReady, setReportNotReady] = useState(false);
+  const [reportRetryCount, setReportRetryCount] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -544,11 +551,13 @@ export default function HomeworkFlowCard() {
     if (step !== 5 || !sessionId || sessionId === "mock-session") return;
     setReportLoading(true);
     setReportError(null);
+    setReportNotReady(false);
     homeworkApi
       .getReport(sessionId)
       .then((data) => {
         setReportData(data);
         setReportError(null);
+        setReportNotReady(false);
         // Notify admin (e.g. artur@willonski.com) once per session when report is ready
         if (!notifiedLessonCompleteRef.current.has(sessionId)) {
           notifiedLessonCompleteRef.current.add(sessionId);
@@ -561,12 +570,18 @@ export default function HomeworkFlowCard() {
           startOverFromScratch();
           return;
         }
+        if (isReportNotReadyError(e)) {
+          setReportNotReady(true);
+          setReportError(null);
+          setReportData(null);
+          return;
+        }
         const msg = e instanceof Error ? e.message : "Failed to load report";
         setReportError(msg);
         setReportData(null);
       })
       .finally(() => setReportLoading(false));
-  }, [step, sessionId]);
+  }, [step, sessionId, reportRetryCount]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1100,7 +1115,10 @@ export default function HomeworkFlowCard() {
 
   // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
   if (step === 5) {
-    const step5DataReady = reportData != null || (reportError != null && !reportLoading);
+    const step5DataReady =
+      reportData != null ||
+      (reportError != null && !reportLoading) ||
+      reportNotReady;
     if (!step5DataReady) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
@@ -1114,7 +1132,34 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    // Report API failed (e.g. 404): show clear end state so "report" is still displayed
+    // Backend returned REPORT_NOT_READY (404): report is still being generated
+    if (reportNotReady) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          {tutorVideoBlock}
+          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+            <h3 className="text-center text-lg font-semibold">Your report</h3>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+              <p className="text-sm text-foreground">
+                Your report is being generated. This usually takes a minute after your recording is processed.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Click below to check again.
+              </p>
+            </div>
+            <Button
+              onClick={() => setReportRetryCount((c) => c + 1)}
+              disabled={reportLoading}
+              className="mt-2 w-full rounded-xl h-12 font-semibold"
+            >
+              {reportLoading ? "Checking…" : "Check again"}
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
+    // Report API failed (e.g. other 404 or network error): show clear end state so "report" is still displayed
     if (reportError != null && reportData == null) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
