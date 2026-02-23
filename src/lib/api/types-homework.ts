@@ -261,6 +261,14 @@ export interface PerformanceHistoryPoint {
 }
 
 // —— GET report (step 5 panel: player + graph + text) ——
+
+/** New shape: single recording with transcription and filler words. Optional for backward compat. */
+export interface ReportRecording {
+  transcription_text?: string | null;
+  filler_words_count?: { total: number; breakdown?: Record<string, number> };
+  audio_url?: string | null;
+}
+
 export interface HomeworkReportResponse {
   report_text: string;
   scores: { warmup: number; final: number; overall: number };
@@ -269,11 +277,15 @@ export interface HomeworkReportResponse {
   performance_history?: PerformanceHistoryPoint[];
   /** When completed and deadline in future: ISO 8601 UTC. Omitted when past or not applicable. */
   tutor_feedback_deadline?: string | null;
+  /** New: optional recording with full transcription and filler words. When present, prefer over legacy transcript/filler_word_count. */
+  recording?: ReportRecording | null;
+  /** Optional 2-sentence coach insight. Omitted for older sessions or if generation failed. */
+  coach_insight?: string | null;
   /** When report is from recording-1 only (e.g. skip from step 2): first recording playback and analysis. */
   recording_1?: { id: string | null; audio_url: string | null };
-  /** Transcript of recording 1 (when report is recording-1 only). */
+  /** Transcript of recording 1 (legacy; prefer recording.transcription_text when present). */
   transcript?: string | null;
-  /** Filler words count (when report is recording-1 only). */
+  /** Filler words count (legacy; prefer recording.filler_words_count when present). */
   filler_word_count?: number | null;
   /** Strength metric label or value (e.g. "7/10" or "Good"). */
   strength_metric?: string | null;

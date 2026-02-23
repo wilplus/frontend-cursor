@@ -59,6 +59,15 @@ function firstTwoSentences(text: string): string {
   return t;
 }
 
+/** Format filler_words_count.breakdown for display (e.g. "um: 3, like: 2"). */
+function formatFillerBreakdown(breakdown: Record<string, number> | undefined): string {
+  if (!breakdown || typeof breakdown !== "object") return "";
+  return Object.entries(breakdown)
+    .filter(([, n]) => typeof n === "number" && n > 0)
+    .map(([word, n]) => `${word}: ${n}`)
+    .join(", ");
+}
+
 type Step = StepType;
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
@@ -1197,16 +1206,25 @@ export default function HomeworkFlowCard() {
           ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
           : [];
 
-    const coachMessage = "Your coach has 24 hours to analyse your homework and send a feedback on your email!";
+    const coachMessageFallback = "Your coach has 24 hours to analyse your homework and send a feedback on your email!";
 
-    // Simplified report when we skipped from step 2 (recording-1 only): recording 1 + transcript + filler + strength/pace + progress chart (1st performance) + coach message.
+    // Playback: final_recording.audio_url or recording.audio_url (same when one recording) or recording_1 (legacy).
+    const playbackUrl =
+      reportData?.final_recording?.audio_url ??
+      reportData?.recording?.audio_url ??
+      reportData?.recording_1?.audio_url;
+    // Full transcription: recording.transcription_text (new) or legacy transcript.
+    const transcriptionText = (reportData?.recording?.transcription_text ?? reportData?.transcript ?? "").trim();
+    // Filler: recording.filler_words_count (new) or legacy filler_word_count.
+    const fillerTotal =
+      reportData?.recording?.filler_words_count?.total ?? reportData?.filler_word_count ?? null;
+    const fillerBreakdown = reportData?.recording?.filler_words_count?.breakdown;
+    const coachInsight = (reportData?.coach_insight ?? "").trim();
+
+    // Simplified report when we skipped from step 2 (recording-1 only): recording + transcript + filler + strength/pace + chart + coach block.
     if (reportFromRecording1Only) {
-      const rec1Url = reportData?.recording_1?.audio_url;
-      const transcript = (reportData?.transcript ?? "").trim();
-      const fillerCount = reportData?.filler_word_count;
       const strength = (reportData?.strength_metric ?? "").trim();
       const pace = (reportData?.pace_metric ?? "").trim();
-      // Progress chart: use 1st recording performance. Backend may send performance_score_1 (0–1) or scores.overall (0–100) or performance_history.
       const score1 = reportData?.performance_score_1 != null
         ? Math.round(reportData.performance_score_1 * 100)
         : reportData?.scores?.overall;
@@ -1228,31 +1246,35 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-destructive">{reportError}</p>
             )}
             <div className="space-y-4">
-              {/* 1. First recording + transcript */}
+              {/* 1. Recording playback */}
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                {rec1Url ? (
-                  <audio controls src={rec1Url} className="w-full max-w-md" />
+                {playbackUrl ? (
+                  <audio controls src={playbackUrl} className="w-full max-w-md" />
                 ) : (
                   <p className="text-sm text-muted-foreground">Recording playback not available.</p>
                 )}
               </div>
-              {transcript ? (
+              {/* 2. Transcript (only when we have data; hide if recording missing and no legacy) */}
+              {transcriptionText ? (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
                   <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{firstTwoSentences(transcript)}</p>
+                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
                   </div>
                 </div>
               ) : null}
-              {/* 2. Filler words count */}
-              {fillerCount != null && (
+              {/* 3. Filler words (total + breakdown when present) */}
+              {fillerTotal != null && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                  <p className="text-sm text-foreground">{fillerCount} filler word{fillerCount !== 1 ? "s" : ""} detected.</p>
+                  <p className="text-sm text-foreground">
+                    {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
+                    {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
+                  </p>
                 </div>
               )}
-              {/* 3. Strength and pace */}
+              {/* 4. Strength and pace */}
               {(strength || pace) ? (
                 <div className="flex flex-wrap gap-6">
                   {strength ? (
@@ -1269,14 +1291,17 @@ export default function HomeworkFlowCard() {
                   ) : null}
                 </div>
               ) : null}
-              {/* Progress chart: 1 recording = 1st performance score; 2 recordings = end performance (handled in full report below) */}
               {progressChartData1.length > 0 && (
                 <ProgressOverSessionsChart data={progressChartData1} />
               )}
-              {/* Coach message */}
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm text-foreground leading-relaxed">{coachMessage}</p>
-              </div>
+              {/* Coach insight (2 sentences) or fallback message */}
+              {(coachInsight || coachMessageFallback) && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {coachInsight || coachMessageFallback}
+                  </p>
+                </div>
+              )}
             </div>
             <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
               {resetting ? "Resetting…" : "Start new homework"}
@@ -1286,7 +1311,7 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    // Full report (both recordings): final recording, chart, report text.
+    // Full report (both recordings): playback from final_recording/recording, chart, transcript when present, report text, coach insight when present.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         {tutorVideoBlock}
@@ -1298,8 +1323,8 @@ export default function HomeworkFlowCard() {
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Your final recording</p>
-              {reportData?.final_recording?.audio_url ? (
-                <audio controls src={reportData.final_recording.audio_url} className="w-full max-w-md" />
+              {playbackUrl ? (
+                <audio controls src={playbackUrl} className="w-full max-w-md" />
               ) : (
                 <p className="text-sm text-muted-foreground">Recording playback not available.</p>
               )}
@@ -1307,11 +1332,35 @@ export default function HomeworkFlowCard() {
             {progressChartData.length > 0 && (
               <ProgressOverSessionsChart data={progressChartData} />
             )}
+            {transcriptionText ? (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
+                </div>
+              </div>
+            ) : null}
+            {(fillerTotal != null || formatFillerBreakdown(fillerBreakdown)) ? (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+                <p className="text-sm text-foreground">
+                  {fillerTotal != null
+                    ? `${fillerTotal} filler word${fillerTotal !== 1 ? "s" : ""} detected${formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.`
+                    : formatFillerBreakdown(fillerBreakdown)}
+                </p>
+              </div>
+            ) : null}
             <div className="rounded-xl border border-border bg-muted/30 p-4">
               <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
                 {displayReportText.trim() || "Report pending."}
               </p>
             </div>
+            {coachInsight ? (
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Coach insight</p>
+                <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
+              </div>
+            ) : null}
           </div>
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
             {resetting ? "Resetting…" : "Start new homework"}
