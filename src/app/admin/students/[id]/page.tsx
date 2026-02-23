@@ -460,51 +460,9 @@ export default function AdminStudentProfilePage() {
     adminApi
       .getStudentProfile(id)
       .then((p) => {
-        // #region agent log
-        const pUnknown: unknown = p;
-        const overridesRaw = (pUnknown as Record<string, unknown>).overrides;
-        const skipMetric = overridesRaw != null && typeof overridesRaw === "object" && "skip_metric_questions" in overridesRaw ? (overridesRaw as Record<string, unknown>).skip_metric_questions : undefined;
-        const skipPost = overridesRaw != null && typeof overridesRaw === "object" && "skip_post_questions" in overridesRaw ? (overridesRaw as Record<string, unknown>).skip_post_questions : undefined;
-        const payload1 = {
-          location: "admin/students/[id]/page.tsx:load.getStudentProfile.then",
-          message: "GET profile response overrides and flow-step values",
-          data: {
-            hasOverrides: overridesRaw != null,
-            overridesKeys: overridesRaw != null && typeof overridesRaw === "object" ? Object.keys(overridesRaw as object) : [],
-            skip_metric_questions_raw: skipMetric,
-            skip_metric_questions_type: typeof skipMetric,
-            skip_post_questions_raw: skipPost,
-            skip_post_questions_type: typeof skipPost,
-            topLevelKeys: Object.keys(pUnknown as object),
-          },
-          timestamp: Date.now(),
-          hypothesisId: "H1-H2-H4-H5",
-        };
-        console.log("[DEBUG_FLOW_STEPS]", JSON.stringify(payload1));
-        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload1),
-        }).catch(() => {});
-        // #endregion
         setProfile(p);
         const valueMetric = p.overrides?.skip_metric_questions ?? false;
         const valuePost = p.overrides?.skip_post_questions ?? false;
-        // #region agent log
-        const payload2 = {
-          location: "admin/students/[id]/page.tsx:load.beforeSetState",
-          message: "Values about to set for flow-step state",
-          data: { valueMetric, valuePost, typeMetric: typeof valueMetric, typePost: typeof valuePost },
-          timestamp: Date.now(),
-          hypothesisId: "H4",
-        };
-        console.log("[DEBUG_FLOW_STEPS]", JSON.stringify(payload2));
-        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload2),
-        }).catch(() => {});
-        // #endregion
         setFlowSkipMetricQuestions(valueMetric);
         setFlowSkipPostQuestions(valuePost);
         const sp = p.speaker_profile || {};
@@ -923,24 +881,6 @@ export default function AdminStudentProfilePage() {
       >
         <div className="space-y-6">
           {/* Flow steps: toggle steps 2 and 4 on/off for this student. Backend must honor these (skip step when true). */}
-          {/* #region agent log */}
-          {(() => {
-            const payload3 = {
-              location: "admin/students/[id]/page.tsx:FlowStepsSection.render",
-              message: "Flow-step state at checkbox render",
-              data: { flowSkipMetricQuestions, flowSkipPostQuestions },
-              timestamp: Date.now(),
-              hypothesisId: "H3",
-            };
-            console.log("[DEBUG_FLOW_STEPS]", JSON.stringify(payload3));
-            fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload3),
-            }).catch(() => {});
-            return null;
-          })()}
-          {/* #endregion */}
           <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
             <p className="text-sm font-medium">Homework flow steps</p>
             <p className="text-xs text-muted-foreground">Turn steps off to simplify the flow (e.g. warm-up → final recording → report). Backend must support skipping.</p>
