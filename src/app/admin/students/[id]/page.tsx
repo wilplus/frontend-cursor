@@ -461,7 +461,8 @@ export default function AdminStudentProfilePage() {
       .getStudentProfile(id)
       .then((p) => {
         // #region agent log
-        const overridesRaw = (p as unknown as Record<string, unknown>).overrides;
+        const pUnknown: unknown = p;
+        const overridesRaw = (pUnknown as Record<string, unknown>).overrides;
         const skipMetric = overridesRaw != null && typeof overridesRaw === "object" && "skip_metric_questions" in overridesRaw ? (overridesRaw as Record<string, unknown>).skip_metric_questions : undefined;
         const skipPost = overridesRaw != null && typeof overridesRaw === "object" && "skip_post_questions" in overridesRaw ? (overridesRaw as Record<string, unknown>).skip_post_questions : undefined;
         const payload1 = {
@@ -474,7 +475,7 @@ export default function AdminStudentProfilePage() {
             skip_metric_questions_type: typeof skipMetric,
             skip_post_questions_raw: skipPost,
             skip_post_questions_type: typeof skipPost,
-            topLevelKeys: Object.keys(p as unknown as object),
+            topLevelKeys: Object.keys(pUnknown as object),
           },
           timestamp: Date.now(),
           hypothesisId: "H1-H2-H4-H5",
