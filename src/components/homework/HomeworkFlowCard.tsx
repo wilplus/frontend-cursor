@@ -1114,6 +1114,27 @@ export default function HomeworkFlowCard() {
       );
     }
 
+    // Report API failed (e.g. 404): show clear end state so "report" is still displayed
+    if (reportError != null && reportData == null) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          {tutorVideoBlock}
+          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+            <h3 className="text-center text-lg font-semibold">Your report</h3>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+              <p className="text-sm text-foreground">
+                We couldn’t load your report right now. This can happen if the report is still being generated—try again in a moment, or start a new homework below.
+              </p>
+              <p className="text-sm text-destructive">{reportError}</p>
+            </div>
+            <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
+              {resetting ? "Resetting…" : "Start new homework"}
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
 

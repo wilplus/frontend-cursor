@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { proxyJson } from "@/lib/api/bff";
 import { requireAuth } from "@/lib/api/homework-mock";
 
@@ -11,6 +12,17 @@ export async function GET(
 ) {
   const unauth = await requireAuth(req);
   if (unauth) return unauth;
-  const { sessionId } = params;
-  return proxyJson(`/v2/homework/session/${sessionId}/report`, { method: "GET" }, req);
+
+  const sessionId = params?.sessionId;
+  if (!sessionId || typeof sessionId !== "string") {
+    return NextResponse.json(
+      { code: "BAD_REQUEST", error: "Missing or invalid sessionId" },
+      { status: 400 }
+    );
+  }
+
+  const res = await proxyJson(`/v2/homework/session/${sessionId}/report`, { method: "GET" }, req);
+  // So we can tell in Network tab whether this BFF route ran (404 with this header = backend 404)
+  res.headers.set("X-Homework-Report-Route", "hit");
+  return res;
 }

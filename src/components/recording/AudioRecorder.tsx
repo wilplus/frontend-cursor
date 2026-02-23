@@ -127,6 +127,18 @@ export default function AudioRecorder({
   const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
   stopRealtimeRef.current = realtimeStrengthPace.stop;
 
+  // #region agent log
+  const parentLogRef = useRef({ last: 0, lastActive: false });
+  useEffect(() => {
+    const { isActive, strengthScore, paceScore } = realtimeStrengthPace;
+    const now = Date.now();
+    if (isActive !== parentLogRef.current.lastActive || now - parentLogRef.current.last > 1500) {
+      parentLogRef.current = { last: now, lastActive: isActive };
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx:render',message:'parent passing to dartboard',data:{isActive,strengthScore,paceScore},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    }
+  }, [realtimeStrengthPace.isActive, realtimeStrengthPace.strengthScore, realtimeStrengthPace.paceScore]);
+  // #endregion
+
   // Detect MIME support on mount
   useEffect(() => {
     const detected = detectSupportedMimeType();
@@ -279,6 +291,9 @@ export default function AudioRecorder({
       setElapsedSeconds(0);
       onRecordingStart?.();
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx',message:'parent calling realtimeStrengthPace.start(stream)',data:{isRecording:true,hasStream:!!stream},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       realtimeStrengthPace.start(stream);
 
       timerIntervalRef.current = setInterval(() => {

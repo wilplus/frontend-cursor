@@ -147,11 +147,17 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
 
   useEffect(() => {
     let rafId: number;
+    let frameCount = 0;
     const tick = () => {
+      frameCount += 1;
       const raw = rawTargetRef.current;
       const t = targetRef.current;
       const p = posRef.current;
       const v = velRef.current;
+
+      // #region agent log
+      if (frameCount === 1 || frameCount % 90 === 0) fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StrengthPaceDartboard.tsx:raf',message:'animation tick',data:{frame:frameCount,rawX:raw.x,rawY:raw.y,posX:p.x,posY:p.y},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
 
       t.x += (raw.x - t.x) * TARGET_SMOOTHING;
       t.y += (raw.y - t.y) * TARGET_SMOOTHING;
