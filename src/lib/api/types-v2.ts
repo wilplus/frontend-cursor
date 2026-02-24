@@ -203,6 +203,9 @@ export interface StudentOverridesV2 {
   keywords_prompt?: string | null;
   emotion_check_question_text?: string | null;
   assigned_post_question_ids?: UUID[] | null;
+  /** Preferred: list of exercise ids assigned to this student (step 0 + email). */
+  assigned_exercise_ids?: UUID[] | null;
+  /** @deprecated Use assigned_exercise_ids; backend may derive as first element. */
   assigned_next_exercise_id?: UUID | null;
   assigned_next_task_ids?: UUID[] | null;
 }

@@ -558,10 +558,11 @@ export default function AdminStudentProfilePage() {
   /** Flow step toggles: when true, that step is skipped for this student. Saved via putOverrides. */
   const [flowSkipMetricQuestions, setFlowSkipMetricQuestions] = useState(false);
   const [flowSkipPostQuestions, setFlowSkipPostQuestions] = useState(false);
-  /** Exercises pool for assigned_next_exercise_id dropdown. */
+  /** Exercises pool (global). Assigned ones are in overrides.assigned_exercise_ids. */
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  /** Selected exercise id for next homework (saved in overrides). */
-  const [assignedNextExerciseId, setAssignedNextExerciseId] = useState<string>("");
+  /** Exercise ids assigned to this student (step 0 + email). Saved in overrides.assigned_exercise_ids. */
+  const [assignedExerciseIds, setAssignedExerciseIds] = useState<string[]>([]);
+  const [modalAssignedExercises, setModalAssignedExercises] = useState(false);
   const [reportModalSession, setReportModalSession] = useState<
     (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
   >(null);
@@ -583,7 +584,14 @@ export default function AdminStudentProfilePage() {
         const valuePost = p.overrides?.skip_post_questions ?? false;
         setFlowSkipMetricQuestions(valueMetric);
         setFlowSkipPostQuestions(valuePost);
-        setAssignedNextExerciseId(p.overrides?.assigned_next_exercise_id ?? "");
+        const ids = p.overrides?.assigned_exercise_ids;
+        setAssignedExerciseIds(
+          Array.isArray(ids) && ids.length > 0
+            ? ids
+            : p.overrides?.assigned_next_exercise_id
+              ? [p.overrides.assigned_next_exercise_id]
+              : []
+        );
         const sp = p.speaker_profile || {};
         const parts = [
           sp.main_goal,
@@ -690,7 +698,7 @@ export default function AdminStudentProfilePage() {
     if (o.keywords_prompt !== undefined) body.keywords_prompt = o.keywords_prompt;
     if (o.emotion_check_question_text !== undefined) body.emotion_check_question_text = o.emotion_check_question_text;
     if (o.assigned_post_question_ids !== undefined) body.assigned_post_question_ids = o.assigned_post_question_ids;
-    body.assigned_next_exercise_id = assignedNextExerciseId.trim() || null;
+    body.assigned_exercise_ids = assignedExerciseIds.length > 0 ? assignedExerciseIds : null;
     if (o.assigned_next_task_ids !== undefined) body.assigned_next_task_ids = o.assigned_next_task_ids;
     if (o.show_exercise_step !== undefined) body.show_exercise_step = o.show_exercise_step;
     adminApi
@@ -861,6 +869,26 @@ export default function AdminStudentProfilePage() {
     return { id: question.id, label: question.text };
   };
   const postRecordingSelectedIds: string[] = postRecordingQuestions.map((q) => q.id);
+
+  // Assigned exercises: pool = all exercises; selected = overrides.assigned_exercise_ids; save on confirm.
+  const assignedExercisesPool: PoolItem[] = exercises.map((ex) => ({
+    id: ex.id,
+    label: ex.title,
+    subLabel: ex.video_url ? "Video" : ex.description ? ex.description.slice(0, 40) + (ex.description.length > 40 ? "…" : "") : undefined,
+  }));
+  const handleAssignedExercisesConfirm = (selectedIds: string[]) => {
+    setModalAssignedExercises(false);
+    setAssignedExerciseIds(selectedIds);
+    setSaving(true);
+    adminApi
+      .putOverrides(id, { assigned_exercise_ids: selectedIds.length > 0 ? selectedIds : null })
+      .then(() => {
+        load();
+        toast.success("Assigned exercises updated");
+      })
+      .catch((e) => toast.error(e?.message ?? "Failed to save"))
+      .finally(() => setSaving(false));
+  };
 
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
     setSaving(true);
@@ -1064,19 +1092,35 @@ export default function AdminStudentProfilePage() {
               </label>
             </div>
             <div className="pt-2">
-              <label className="block text-sm font-medium mb-1">Assigned next exercise</label>
-              <select
-                value={assignedNextExerciseId}
-                onChange={(e) => setAssignedNextExerciseId(e.target.value)}
-                className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">— None —</option>
-                {exercises.map((ex) => (
-                  <option key={ex.id} value={ex.id}>
-                    {ex.title}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <label className="text-sm font-medium">Assigned exercises</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setModalAssignedExercises(true)}
+                >
+                  Manage list
+                </Button>
+              </div>
+              <ul className="space-y-2 rounded-md border border-border bg-muted/30 p-2 min-h-[2.5rem]">
+                {assignedExerciseIds
+                  .map((exId) => exercises.find((e) => e.id === exId))
+                  .filter((ex): ex is Exercise => ex != null)
+                  .map((ex) => (
+                    <li key={ex.id} className="flex flex-wrap items-center gap-2 rounded-md bg-background px-3 py-2 text-sm">
+                      <span className="min-w-0 flex-1">{ex.title}</span>
+                      {ex.video_url ? (
+                        <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
+                          Video
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+              {assignedExerciseIds.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">No assigned exercises. Click Manage list to choose from the pool.</p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">Shown to the student on step 0 (no active session) as assigned exercises.</p>
             </div>
             <div className="pt-2">
@@ -1179,7 +1223,7 @@ export default function AdminStudentProfilePage() {
             )}
           </div>
 
-          {/* Exercises (global pool): title, video_url, description. Assign via "Assigned next exercise" above. */}
+          {/* Exercises (global pool): title, video_url, description. Assign via "Assigned exercises" (Manage list) above. */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Exercises</p>
@@ -1482,6 +1526,14 @@ export default function AdminStudentProfilePage() {
         onConfirm={handleQuestionsConfirm}
         allowCreate
         onCreateNew={handleQuestionsCreate}
+      />
+      <SelectFromPoolModal
+        open={modalAssignedExercises}
+        onOpenChange={setModalAssignedExercises}
+        title="Select Assigned Exercises"
+        pool={assignedExercisesPool}
+        selectedIds={assignedExerciseIds}
+        onConfirm={handleAssignedExercisesConfirm}
       />
       <PostQuestionEditModal
         open={postQuestionEditOpen}
