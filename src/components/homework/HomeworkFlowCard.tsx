@@ -243,7 +243,8 @@ export default function HomeworkFlowCard() {
       }
       const msg = statusRes?.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-      if ("assigned_exercises" in (statusRes ?? {}) && Array.isArray(statusRes?.assigned_exercises)) {
+      // Only update when backend sends a non-empty list so old exercises stay visible on step 0 until new ones are assigned
+      if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
         setAssignedExercises(statusRes.assigned_exercises);
       }
     }).catch(() => {
@@ -281,7 +282,7 @@ export default function HomeworkFlowCard() {
         }
         const msg = statusRes?.tutor_feedback_message;
         setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-        if ("assigned_exercises" in (statusRes ?? {}) && Array.isArray(statusRes?.assigned_exercises)) {
+        if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
           setAssignedExercises(statusRes.assigned_exercises);
         }
       }).catch(() => {});
@@ -371,7 +372,7 @@ export default function HomeworkFlowCard() {
       const desc = res.tutor_video_description;
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
-    if ("assigned_exercises" in res && Array.isArray(res.assigned_exercises)) {
+    if (Array.isArray(res.assigned_exercises) && res.assigned_exercises.length > 0) {
       setAssignedExercises(res.assigned_exercises);
     }
     if (status === "task_block" || status === "final_task_ready" || status === "post_questions") {
