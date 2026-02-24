@@ -1155,7 +1155,6 @@ export default function AdminStudentProfilePage() {
             {warmUpTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
-            </ul>
             </div>
           </div>
 
