@@ -5,6 +5,7 @@ This folder contains **code for the backend** to implement the new assignment em
 ## Files
 
 - **`assignment_email.py`** – Builds the full HTML and documents how to call it from your send-assignment endpoint.
+- **`coach_message_after_homework.md`** – How to store and return the coach message so the homework flow shows “A message for you” (no video on the homework page). Includes POST send-assignment and GET session/status examples.
 
 ## Quick integration
 

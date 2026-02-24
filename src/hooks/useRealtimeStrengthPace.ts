@@ -8,13 +8,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { bandScore } from "@/lib/audio/band-score";
 
-/** Public speaking smooth: ~14 updates/sec reduces jitter. */
-const UPDATE_MS = 70;
-/** Good band is [TARGET_DB - TOLERANCE_DB, TARGET_DB + TOLERANCE_DB]. Higher TARGET_DB = band shifted right (prefer slightly stronger voice). */
-const TARGET_DB = -20;
+/** Public speaking smooth: slower updates = less sensitive wheel. */
+const UPDATE_MS = 100;
+/** Good band is [TARGET_DB - TOLERANCE_DB, TARGET_DB + TOLERANCE_DB]. Higher TARGET_DB = prefer slightly stronger voice so it doesn’t lean to weak. */
+const TARGET_DB = -18;
 const TOLERANCE_DB = 5;
-/** Public speaking: slightly faster target, wider tolerance for emphasis/pauses. */
-const TARGET_WPM = 150;
+/** Public speaking: slightly faster acceptable pace, wider tolerance for emphasis/pauses. */
+const TARGET_WPM = 165;
 const TOLERANCE_WPM = 60;
 /** Pace direction hysteresis: avoid rapid flip around single WPM boundary. */
 const PACE_FAST_THRESHOLD = TARGET_WPM + 5;
@@ -30,16 +30,16 @@ const VOICE_OFF_MIN_FRAMES = 3;
 const STRENGTH_CENTER_DRIFT_ALPHA = 0.04;
 /** Pace: nonlinear compression so small expressive shifts don't cause visible tension. */
 const PACE_ERROR_EXP = 1.4;
-/** Dual EMA: slightly slower for calmer public speaking UX. */
-const EMA_STRENGTH_FAST = 0.22;
-const EMA_STRENGTH_SLOW = 0.06;
-/** Pace: 0.6 slow + 0.4 fast (lighter trend). */
-const EMA_PACE_FAST = 0.2;
-const EMA_PACE_SLOW = 0.08;
+/** Dual EMA: slower = less sensitive wheel, calmer public speaking UX. */
+const EMA_STRENGTH_FAST = 0.15;
+const EMA_STRENGTH_SLOW = 0.04;
+/** Pace: slower EMAs = less twitchy. */
+const EMA_PACE_FAST = 0.14;
+const EMA_PACE_SLOW = 0.05;
 /** Adaptive smoothing: when far off target, favor fast EMA for quicker response; when close, favor slow for calm. */
 const ADAPTIVE_RAW_THRESHOLD = 0.85;
-/** Pace display: slower smoothing for calm public speaking. */
-const PACE_DISPLAY_EMA = 0.12;
+/** Pace display: slower smoothing = less sensitive. */
+const PACE_DISPLAY_EMA = 0.08;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 const SILENCE_SETTLED_MS = 500;
@@ -243,7 +243,8 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
           if (db < TARGET_DB) {
             rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
           } else if (db > TARGET_DB) {
-            rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 1.1);
+            // Favor strong voice: less penalty above target so ball doesn’t lean to weak
+            rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.88);
           }
           const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
           const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;

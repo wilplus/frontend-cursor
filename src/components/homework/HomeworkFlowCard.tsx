@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { Mic, ExternalLink, Play, X } from "lucide-react";
+import { Mic, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -35,6 +35,14 @@ const TOTAL_STEPS = 2;
 
 /** Default warm-up question when the backend assigns none. */
 const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
+
+/** Default exercise shown on step 0 when the student has no assigned exercises (e.g. new user / nothing set in admin). */
+const DEFAULT_INTRO_EXERCISE: AssignedExercise = {
+  id: "intro-0",
+  title: "Intro",
+  description: null,
+  video_url: null,
+};
 
 function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -200,10 +208,8 @@ export default function HomeworkFlowCard() {
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
   const [tutorFeedbackMessage, setTutorFeedbackMessage] = useState<string | null>(null);
-  /** Coach video URL for current session (from GET session/status). Shown at top of flow when step >= 1. */
-  const [tutorVideoUrl, setTutorVideoUrl] = useState<string | null>(null);
-  /** Coach message about the video. Shown above the Watch video link. */
-  const [tutorVideoDescription, setTutorVideoDescription] = useState<string | null>(null);
+  /** Message from coach to the student for this homework (e.g. after assignment). Shown when step >= 1; no video. From tutor_video_description. */
+  const [coachMessageAfterHomework, setCoachMessageAfterHomework] = useState<string | null>(null);
   /** When step 0 and has_active_session false: exercises assigned to this student (from GET status assigned_exercises). */
   const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
   /** When set, show modal with iframe for this video URL (non-Vimeo links). */
@@ -237,7 +243,9 @@ export default function HomeworkFlowCard() {
       }
       const msg = statusRes?.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-      setAssignedExercises(Array.isArray(statusRes?.assigned_exercises) ? statusRes.assigned_exercises : []);
+      if ("assigned_exercises" in (statusRes ?? {}) && Array.isArray(statusRes?.assigned_exercises)) {
+        setAssignedExercises(statusRes.assigned_exercises);
+      }
     }).catch(() => {
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
@@ -273,7 +281,9 @@ export default function HomeworkFlowCard() {
         }
         const msg = statusRes?.tutor_feedback_message;
         setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-        setAssignedExercises(Array.isArray(statusRes?.assigned_exercises) ? statusRes.assigned_exercises : []);
+        if ("assigned_exercises" in (statusRes ?? {}) && Array.isArray(statusRes?.assigned_exercises)) {
+          setAssignedExercises(statusRes.assigned_exercises);
+        }
       }).catch(() => {});
     }, TUTOR_DEADLINE_POLL_INTERVAL_MS);
     return () => clearInterval(id);
@@ -315,7 +325,7 @@ export default function HomeworkFlowCard() {
       setTutorFeedbackMessage(null);
       setTutorVideoUrl(null);
       setTutorVideoDescription(null);
-      setAssignedExercises([]);
+      // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
       if (typeof sessionStorage !== "undefined") {
@@ -358,13 +368,9 @@ export default function HomeworkFlowCard() {
       const msg = res.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
     }
-    if ("tutor_video_url" in res) {
-      const url = res.tutor_video_url;
-      setTutorVideoUrl(typeof url === "string" && url.trim() ? url.trim() : null);
-    }
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
-      setTutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+      setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
     if ("assigned_exercises" in res && Array.isArray(res.assigned_exercises)) {
       setAssignedExercises(res.assigned_exercises);
@@ -1039,11 +1045,13 @@ export default function HomeworkFlowCard() {
             >
               {loading ? "Starting…" : "Start homework"}
             </Button>
-            {assignedExercises.length > 0 ? (
+            {(() => {
+              const step0Exercises = assignedExercises.length > 0 ? assignedExercises : [DEFAULT_INTRO_EXERCISE];
+              return (
               <div className="w-full max-w-md mt-6 pt-6 border-t border-border space-y-4">
                 <p className="text-sm font-medium text-foreground">An exercise before you start the homework!</p>
                 <ul className="space-y-4" role="list">
-                  {assignedExercises.map((ex) => {
+                  {step0Exercises.map((ex) => {
                     const videoUrl = ex.video_url?.trim();
                     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
                     return (
@@ -1082,7 +1090,8 @@ export default function HomeworkFlowCard() {
                   })}
                 </ul>
               </div>
-            ) : null}
+              );
+            })()}
             {videoModalUrl ? (
               <div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -1122,21 +1131,11 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  const tutorVideoUrlTrimmed = (tutorVideoUrl ?? "").trim();
-  const tutorVideoBlock = tutorVideoUrlTrimmed ? (
+  const coachMessageTrimmed = (coachMessageAfterHomework ?? "").trim();
+  const coachMessageBlock = coachMessageTrimmed ? (
     <div className="w-full max-w-md mx-auto mb-6 rounded-xl border border-border bg-muted/50 p-4 space-y-2">
-      {tutorVideoDescription && (
-        <p className="text-sm text-foreground whitespace-pre-wrap">{(tutorVideoDescription ?? "").trim()}</p>
-      )}
-      <a
-        href={tutorVideoUrlTrimmed}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5"
-      >
-        Watch video
-        <ExternalLink className="h-4 w-4" />
-      </a>
+      <p className="text-sm font-medium text-muted-foreground">A message for you</p>
+      <p className="text-sm text-foreground whitespace-pre-wrap">{coachMessageTrimmed}</p>
     </div>
   ) : null;
 
@@ -1146,7 +1145,7 @@ export default function HomeworkFlowCard() {
     if (isUploadingRec1) {
       return (
         <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
-          {tutorVideoBlock}
+          {coachMessageBlock}
           <Card className="p-6 border-0 bg-transparent shadow-none">
             <div className="text-center space-y-4">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -1163,7 +1162,7 @@ export default function HomeworkFlowCard() {
 
     return (
       <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
-        {tutorVideoBlock}
+        {coachMessageBlock}
         {sessionId === "mock-session" && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
@@ -1250,7 +1249,7 @@ export default function HomeworkFlowCard() {
     if (reportNotReady) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          {tutorVideoBlock}
+          {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
             <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
@@ -1277,7 +1276,7 @@ export default function HomeworkFlowCard() {
     if (reportError != null && reportData == null) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          {tutorVideoBlock}
+          {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
             <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
@@ -1344,7 +1343,7 @@ export default function HomeworkFlowCard() {
 
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          {tutorVideoBlock}
+          {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
             {reportError && (
@@ -1419,7 +1418,7 @@ export default function HomeworkFlowCard() {
     // Full report (both recordings): playback from final_recording/recording, chart, transcript when present, report text, coach insight when present.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-        {tutorVideoBlock}
+        {coachMessageBlock}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>
           {reportError && (

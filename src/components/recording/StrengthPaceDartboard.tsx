@@ -11,14 +11,14 @@ const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-/** Public speaking stability: calmer spring, no diagonal slingshot. */
-const SPRING_STIFFNESS = 0.028;
+/** Public speaking stability: calmer spring, no diagonal slingshot. Less sensitive = slower follow. */
+const SPRING_STIFFNESS = 0.02;
 const SPRING_DAMPING = 0.88;
-const TARGET_SMOOTHING = 0.1;
-const MAX_VELOCITY = 3.5;
-const SOFT_DEADZONE = 0.05;
+const TARGET_SMOOTHING = 0.06;
+const MAX_VELOCITY = 2.2;
+const SOFT_DEADZONE = 0.1;
 /** Ignore direction when error is tiny to avoid left bias from stale direction. */
-const MIN_DIRECTION_ERROR = 0.08;
+const MIN_DIRECTION_ERROR = 0.12;
 /** Nonlinear target scaling to avoid corner slamming. */
 const TARGET_SCALE_EXP = 1.4;
 /** Public speaking: reward sustained control, not lab precision. */
