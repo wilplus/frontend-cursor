@@ -19,10 +19,11 @@ The frontend calls this when the user is on the homework screen with no active s
 
 Populate it from the **student’s overrides**:
 
-- If the student has **`assigned_next_exercise_id`** set in overrides (the id the admin chose in the “Assigned next exercise” dropdown), **resolve that id** to the corresponding exercise record and return it (and only it) inside `assigned_exercises`.
-- If **`assigned_next_exercise_id`** is missing or null, return **`assigned_exercises: []`** (or omit the field; frontend treats missing as `[]`).
+- Prefer **`assigned_exercise_ids`** (array of exercise ids). If present, **resolve each id** to the corresponding exercise and return them in **`assigned_exercises`** in the same order. If the array is empty or missing, fall back below.
+- Fallback: if the student has **`assigned_next_exercise_id`** set (legacy single id), resolve that id and return a single-item array in `assigned_exercises`.
+- If neither is set, return **`assigned_exercises: []`** (or omit the field; frontend treats missing as `[]`).
 
-So: **no active session + `assigned_next_exercise_id` set** → return one item in `assigned_exercises`; otherwise return an empty array (or omit).
+So: **no active session + `assigned_exercise_ids` or `assigned_next_exercise_id`** → return the resolved exercises in `assigned_exercises`; otherwise return an empty array (or omit).
 
 ---
 
@@ -66,13 +67,12 @@ If the exercise linked by `assigned_next_exercise_id` was deleted or not found, 
    - Determine the **current user (student)** from the auth token/session.
    - Determine whether the student has an **active homework session**.
 2. If there is **no active session**:
-   - Load the student’s **overrides** and read **`assigned_next_exercise_id`**.
-   - If present, **fetch the exercise** by that id from your exercises table (or service).
-   - Build one object: `{ id, title, video_url?, description? }` (only include `video_url` / `description` if you have them).
-   - Set **`assigned_exercises`** to `[that object]` in the JSON response.
-   - If `assigned_next_exercise_id` is null or the exercise is not found, set **`assigned_exercises`** to `[]` (or omit).
+   - Load the student’s **overrides**. Prefer **`assigned_exercise_ids`** (array); if missing or empty, use **`assigned_next_exercise_id`** as a single-element array.
+   - For each id, **fetch the exercise** from your exercises table. Build objects `{ id, title, video_url?, description? }`.
+   - Set **`assigned_exercises`** to that array (same order as ids; skip or omit deleted/invalid ids if you prefer).
+   - If there are no ids or no valid exercises, set **`assigned_exercises`** to `[]` (or omit).
 3. If there **is** an active session:
-   - You can omit `assigned_exercises` or set it to `[]`; the step 0 “Assigned for you” block is only shown when there is no active session.
+   - Omit `assigned_exercises` or set it to `[]`; the step 0 “Assigned for you” block is only shown when there is no active session.
 
 ---
 
@@ -84,6 +84,6 @@ The step 0 screen only renders the “Assigned for you” list from **`response.
 
 ## 6. Related
 
-- Admin sets the assigned exercise via **PUT** student overrides with **`assigned_next_exercise_id`** (e.g. from the Flow steps “Assigned next exercise” dropdown).
+- Admin sets assigned exercises via **PUT** student overrides with **`assigned_exercise_ids`** (array). The admin UI uses a pool + “Manage list” (like warm-up tasks); multiple exercises can be assigned. Legacy **`assigned_next_exercise_id`** is still supported as a fallback for one exercise.
 - The same “has an assigned exercise” idea is used in the **assignment email**: see `docs/cursor-prompts/BACKEND_ASSIGNMENT_EMAIL.md` and `docs/backend-reference/assignment_email.py`.
 - Frontend types: `HomeworkSessionStatus.assigned_exercises`, `AssignedExercise` in `src/lib/api/types-homework.ts`. Frontend usage: `HomeworkFlowCard` step 0 and `applyStatusToState` when it receives status with `assigned_exercises`.

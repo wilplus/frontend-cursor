@@ -64,6 +64,7 @@ export interface StudentProfile {
     keywords_prompt?: string;
     emotion_check_question_text?: string;
     assigned_post_question_ids?: string[];
+    assigned_exercise_ids?: string[];
     assigned_next_exercise_id?: string;
     assigned_next_task_ids?: string[];
     /** When true, student skips step 2 (metric questions). Backend must transition recording_1 → final_task_ready. */

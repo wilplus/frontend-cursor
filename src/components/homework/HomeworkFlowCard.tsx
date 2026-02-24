@@ -1041,7 +1041,7 @@ export default function HomeworkFlowCard() {
             </Button>
             {assignedExercises.length > 0 ? (
               <div className="w-full max-w-md mt-6 pt-6 border-t border-border space-y-4">
-                <p className="text-sm font-medium text-foreground">Assigned for you</p>
+                <p className="text-sm font-medium text-foreground">An exercise before you start the homework!</p>
                 <ul className="space-y-4" role="list">
                   {assignedExercises.map((ex) => {
                     const videoUrl = ex.video_url?.trim();
