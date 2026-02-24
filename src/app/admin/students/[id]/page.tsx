@@ -852,6 +852,24 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
+  const removeExerciseFromAssignment = (exerciseId: string) => {
+    const nextIds = assignedExerciseIds.filter((id) => id !== exerciseId);
+    setAssignedExerciseIds(nextIds);
+    setSaving(true);
+    const body: Record<string, unknown> = {
+      assigned_exercise_ids: nextIds.length > 0 ? nextIds : null,
+      assigned_next_exercise_id: nextIds[0] ?? null,
+    };
+    adminApi
+      .putOverrides(id, body)
+      .then(() => {
+        toast.success("Removed from list");
+        load();
+      })
+      .catch((e) => toast.error(e?.message ?? "Failed to update"))
+      .finally(() => setSaving(false));
+  };
+
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
     setSaving(true);
     try {
@@ -1076,13 +1094,35 @@ export default function AdminStudentProfilePage() {
                     .map((exId) => exercises.find((e) => e.id === exId))
                     .filter((ex): ex is Exercise => ex != null)
                     .map((ex) => (
-                      <li key={ex.id} className="flex flex-wrap items-center gap-2 rounded-md bg-background px-3 py-2 text-sm">
+                      <li key={ex.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
                         <span className="min-w-0 flex-1">{ex.title}</span>
                         {ex.video_url ? (
                           <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
                             Video
                           </span>
                         ) : null}
+                        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExerciseEditExercise(ex);
+                              setExerciseEditOpen(true);
+                            }}
+                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-label="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeExerciseFromAssignment(ex.id)}
+                            disabled={saving}
+                            className="rounded p-1 text-destructive hover:bg-destructive/10"
+                            aria-label="Remove from list"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </li>
                     ))}
                 </ul>
