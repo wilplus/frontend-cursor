@@ -300,4 +300,6 @@ export interface HomeworkReportResponse {
   pace_metric?: string | null;
   /** When report is recording-1 only: performance score for first recording (0–1). Used for progress chart; frontend converts to 0–100. If absent, frontend may use scores.overall. */
   performance_score_1?: number | null;
+  /** Main CTA at end of report (e.g. "Send the homework to the coach!"). On tap: go to step 0 and call GET session/status so timer can appear if needed. */
+  report_cta?: string | null;
 }
