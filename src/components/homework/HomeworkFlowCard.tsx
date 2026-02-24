@@ -39,10 +39,10 @@ const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
 
 /** Default exercise shown on step 0 when the student has no assigned exercises (e.g. new user / nothing set in admin). */
 const DEFAULT_INTRO_EXERCISE: AssignedExercise = {
-  id: "intro-0",
+  id: "0-intro",
   title: "Intro",
   description: null,
-  video_url: null,
+  video_url: "https://vimeo.com/1167696503?fl=ip&fe=ec",
 };
 
 function formatCountdown(ms: number): string {
@@ -90,11 +90,11 @@ function parseVimeoId(url: string): string | null {
   }
 }
 
-/** Display title for an assigned exercise: avoid showing raw id (e.g. "intro-0"); prefer title or friendly label. */
+/** Display title for an assigned exercise: avoid showing raw id (e.g. "0-intro"); prefer title or friendly label. */
 function exerciseDisplayTitle(ex: AssignedExercise): string {
   const t = (ex.title ?? "").trim();
   if (t && t !== ex.id) return t;
-  if (ex.id === "intro-0") return "Intro";
+  if (ex.id === "0-intro") return "Intro";
   return t || ex.id || "Exercise";
 }
 
