@@ -883,10 +883,12 @@ export default function AdminStudentProfilePage() {
     adminApi
       .putOverrides(id, { assigned_exercise_ids: selectedIds.length > 0 ? selectedIds : null })
       .then(() => {
-        load();
         toast.success("Assigned exercises updated");
       })
-      .catch((e) => toast.error(e?.message ?? "Failed to save"))
+      .catch((e) => {
+        toast.error(e?.message ?? "Failed to save");
+        setAssignedExerciseIds(assignedExerciseIds);
+      })
       .finally(() => setSaving(false));
   };
 

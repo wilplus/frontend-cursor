@@ -323,8 +323,7 @@ export default function HomeworkFlowCard() {
       setReportData(null);
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
-      setTutorVideoUrl(null);
-      setTutorVideoDescription(null);
+      setCoachMessageAfterHomework(null);
       // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
