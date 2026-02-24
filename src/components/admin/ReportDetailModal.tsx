@@ -85,9 +85,7 @@ export default function ReportDetailModal({
 
   // Same data shape as student report: prefer report API, fallback to session preview
   const reportText =
-    report?.report_text ??
-    (session?.report_preview?.report_text_preview ?? "").trim() ||
-    "";
+    (report?.report_text ?? (session?.report_preview?.report_text_preview ?? "").trim()) || "";
   const audioUrl =
     playbackUrl ??
     report?.final_recording?.audio_url ??
