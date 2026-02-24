@@ -11,7 +11,14 @@ const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-/** No easing: ball follows target directly for immediate response. */
+/** Easing: spring so ball moves smoothly, no sudden jumps. */
+const SPRING_STIFFNESS = 0.045;
+const SPRING_DAMPING = 0.86;
+const MAX_VELOCITY = 1.5;
+/** Rate limit target movement: max change per frame so it "slowly fades" to the top instead of jumping. */
+const MAX_TARGET_DELTA_TOWARD_EDGE = 0.014;
+/** When moving back toward center, allow slightly faster so return feels responsive. */
+const MAX_TARGET_DELTA_TOWARD_CENTER = 0.035;
 const SOFT_DEADZONE = 0.1;
 /** Ignore direction when error is tiny to avoid left bias from stale direction. */
 const MIN_DIRECTION_ERROR = 0.12;
@@ -155,13 +162,33 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
       if (frameCount === 1 || frameCount % 90 === 0) fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StrengthPaceDartboard.tsx:raf',message:'animation tick',data:{frame:frameCount,rawX:raw.x,rawY:raw.y,posX:p.x,posY:p.y},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
       // #endregion
 
-      // No easing: ball follows target directly
-      t.x = raw.x;
-      t.y = raw.y;
-      p.x = raw.x;
-      p.y = raw.y;
-      v.x = 0;
-      v.y = 0;
+      // Rate-limit target: move toward raw by at most maxDelta per frame so sustained speech "slowly fades" to the top (no sudden jumps)
+      const moveToward = (current: number, goal: number, towardEdge: boolean): number => {
+        const d = goal - current;
+        const maxDelta = towardEdge ? MAX_TARGET_DELTA_TOWARD_EDGE : MAX_TARGET_DELTA_TOWARD_CENTER;
+        if (Math.abs(d) <= maxDelta) return goal;
+        return current + Math.sign(d) * maxDelta;
+      };
+      const towardEdgeX = Math.abs(raw.x) >= Math.abs(t.x);
+      const towardEdgeY = Math.abs(raw.y) >= Math.abs(t.y);
+      t.x = moveToward(t.x, raw.x, towardEdgeX);
+      t.y = moveToward(t.y, raw.y, towardEdgeY);
+
+      // Spring: ball eases toward target (smooth motion, no jumps)
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const combinedMagnitude = Math.sqrt(dx * dx + dy * dy);
+      const axisDamp = combinedMagnitude > 0.8 ? 0.85 : 1;
+      v.x += dx * SPRING_STIFFNESS * axisDamp;
+      v.y += dy * SPRING_STIFFNESS * axisDamp;
+      v.x *= SPRING_DAMPING;
+      v.y *= SPRING_DAMPING;
+      v.x = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.x));
+      v.y = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.y));
+      p.x += v.x;
+      p.y += v.y;
+      if (Math.abs(p.x) < 0.0001) p.x = 0;
+      if (Math.abs(p.y) < 0.0001) p.y = 0;
       setDisplayPos({ x: p.x, y: p.y });
       rafId = requestAnimationFrame(tick);
     };
