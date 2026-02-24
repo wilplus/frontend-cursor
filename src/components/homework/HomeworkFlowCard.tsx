@@ -374,6 +374,8 @@ export default function HomeworkFlowCard() {
       } else {
         setTutorFeedbackDeadlineMs(null);
       }
+    } else {
+      setTutorFeedbackDeadlineMs(null);
     }
     if ("tutor_feedback_message" in res) {
       const msg = res.tutor_feedback_message;
@@ -1346,6 +1348,7 @@ export default function HomeworkFlowCard() {
 
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
+    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Send the homework to the coach!";
 
     // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
     const performanceHistory = reportData?.performance_history;
@@ -1459,7 +1462,7 @@ export default function HomeworkFlowCard() {
               )}
             </div>
             <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Send the homework to the coach!"}
+              {resetting ? "Resetting…" : reportCtaLabel}
             </Button>
           </Card>
         </div>
@@ -1518,7 +1521,7 @@ export default function HomeworkFlowCard() {
             ) : null}
           </div>
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-            {resetting ? "Resetting…" : "Send the homework to the coach!"}
+            {resetting ? "Resetting…" : reportCtaLabel}
           </Button>
         </Card>
       </div>
