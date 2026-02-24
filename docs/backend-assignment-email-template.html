@@ -1,0 +1,210 @@
+<!--
+  Backend: paste this into your email template (e.g. Resend React Email, or inline HTML).
+  Variables: {{video_url}}, {{coach_message}}, {{has_assigned_exercise}}, {{homework_link}}, {{student_name}} (optional).
+  If video_url is empty → show orange gradient block only.
+  If coach_message is empty → use default text.
+  If has_assigned_exercise is true → show the exercise line.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New homework</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 16px;
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background-color: #e8eaef; /* 220 14% 96% */
+      color: #1b2236; /* 220 25% 14% */
+    }
+    .wrap { max-width: 600px; margin: 0 auto; }
+    .brand { text-align: center; margin-bottom: 24px; }
+    .brand-name { font-size: 18px; font-weight: 700; color: #1b2236; }
+    .brand-name .dot { color: #f97316; } /* 25 95% 53% */
+    .brand-tagline { font-size: 14px; color: #6b7280; margin-top: 2px; }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 16px -4px rgba(27, 34, 54, 0.07);
+    }
+    .video-block {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 */
+      height: 0;
+      overflow: hidden;
+    }
+    .video-block.has-video a {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      background: rgba(27, 34, 54, 0.2);
+    }
+    .video-block.has-video a:hover { background: rgba(27, 34, 54, 0.35); }
+    .play-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #f97316;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    }
+    .play-btn svg { margin-left: 6px; }
+    .video-block.gradient-only {
+      padding-bottom: 56.25%;
+      background: linear-gradient(135deg, #f97316 0%, #f97316 40%, #f59e0b 70%, #d97706 100%);
+    }
+    .body-inner { padding: 40px; }
+    .meta { font-size: 14px; font-weight: 500; color: #6b7280; margin-bottom: 4px; }
+    .title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      color: #1b2236;
+      margin: 0 0 24px 0;
+      line-height: 1.2;
+    }
+    .message {
+      font-size: 15px;
+      line-height: 1.6;
+      color: rgba(27, 34, 54, 0.85);
+      margin-bottom: 32px;
+    }
+    .message p { margin: 0 0 16px 0; }
+    .message p:last-child { margin-bottom: 0; }
+    .divider { height: 1px; background: #e5e7eb; margin: 32px 0; }
+    .cta-card {
+      background: #f3f4f6;
+      border-radius: 8px;
+      padding: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .cta-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(249, 115, 22, 0.1);
+      color: #f97316;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cta-title { font-family: 'DM Serif Display', serif; font-size: 18px; font-weight: 600; color: #1b2236; margin: 0 0 4px 0; }
+    .cta-subtitle { font-size: 14px; color: #6b7280; margin: 0 0 8px 0; }
+    .cta-exercise { font-size: 14px; color: #6b7280; margin: 0 0 12px 0; }
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f97316;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 14px; font-weight: 500;
+      text-decoration: none;
+    }
+    .cta-btn:hover { background: #ea580c; }
+    .coach-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 32px;
+      margin-top: 32px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .coach-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(249, 115, 22, 0.15);
+      color: #f97316;
+      font-size: 14px; font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .coach-name { font-weight: 600; font-size: 14px; color: #1b2236; margin: 0; }
+    .coach-role { font-size: 12px; color: #6b7280; margin: 0; }
+    .footer-links { text-align: center; font-size: 12px; color: #6b7280; margin-top: 24px; }
+    .footer-links a { color: #6b7280; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <p class="brand-name">Willab<span class="dot">.</span></p>
+      <p class="brand-tagline">Homework tool for public speaking</p>
+    </div>
+
+    <div class="card">
+      <!-- Video block: gradient if no video_url, else thumbnail + play link -->
+      <div class="video-block {{#if video_url}}has-video{{else}}gradient-only{{/if}}">
+        {{#if video_url}}
+        <a href="{{video_url}}" target="_blank" rel="noopener">
+          {{#if video_thumb_url}}
+          <img src="{{video_thumb_url}}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />
+          {{/if}}
+          <span class="play-btn">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </span>
+        </a>
+        {{/if}}
+      </div>
+
+      <div class="body-inner">
+        <p class="meta">Week 3 · Session Recap</p>
+        <h1 class="title">Great progress this week{{#if student_name}}, {{student_name}}{{/if}}!</h1>
+
+        <div class="message">
+          {{#if coach_message}}
+            {{{coach_message_paragraphs}}}
+          {{else}}
+            <p>Good work. It is a small step for you, but a huge step for your progress!</p>
+          {{/if}}
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="cta-card">
+          <div class="cta-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div>
+            <h2 class="cta-title">New Homework Available</h2>
+            <p class="cta-subtitle">Week 3 — Vocal Projection & Pause Technique</p>
+            {{#if has_assigned_exercise}}
+            <p class="cta-exercise">You have an exercise assigned — it will appear on the main screen after you follow the link below.</p>
+            {{/if}}
+            <a href="{{homework_link}}" class="cta-btn">View Homework →</a>
+          </div>
+        </div>
+
+        <div class="coach-footer">
+          <div class="coach-avatar">{{coach_initials}}</div>
+          <div>
+            <p class="coach-name">{{coach_name}}</p>
+            <p class="coach-role">{{coach_role}}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="footer-links">You received this because you're enrolled in a coaching program.</p>
+    <p class="footer-links"><a href="{{unsubscribe_url}}">Unsubscribe</a> · <a href="{{preferences_url}}">Preferences</a></p>
+  </div>
+</body>
+</html>
