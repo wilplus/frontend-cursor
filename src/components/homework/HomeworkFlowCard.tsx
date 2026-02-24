@@ -241,7 +241,7 @@ export default function HomeworkFlowCard() {
   const stepRef = useRef(step);
   stepRef.current = step;
 
-  /** On step 0, fetch status so we get backend tutor_feedback_deadline and tutor_feedback_message (when no active session). Wait for auth to avoid 500 on first load. */
+  /** Refetch status on step 0 (mount/load) so the UI gets tutor_feedback_deadline and the timer can show. Without this, the countdown never appears. Runs whenever we land on step 0 (e.g. after "Send the homework to the coach!"). Wait for auth to avoid 500 on first load. */
   useEffect(() => {
     if (!authReady || step !== 0) return;
     homeworkApi.getStatus().then((statusRes) => {
@@ -258,9 +258,12 @@ export default function HomeworkFlowCard() {
       if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
         setAssignedExercises(statusRes.assigned_exercises);
       }
-    }).catch(() => {
+    }).catch((err) => {
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn("[HomeworkFlow] Step 0 status refetch failed (timer may not show):", err);
+      }
     });
   }, [authReady, step]);
 
@@ -333,8 +336,7 @@ export default function HomeworkFlowCard() {
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
-      setTutorFeedbackDeadlineMs(null);
-      setTutorFeedbackMessage(null);
+      // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 5 report)
       setCoachMessageAfterHomework(null);
       // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
       skipStep2ToReportDoneRef.current = false;
@@ -472,7 +474,7 @@ export default function HomeworkFlowCard() {
       setTaskBlockFetchSettled(false);
       setQuestionsStep4Settled(false);
       setPostAnswers({});
-      // Fetch status so step 0 shows tutor countdown timer until admin sends homework again
+      // Refetch status after navigating to step 0 so the countdown (tutor_feedback_deadline) and tutor_feedback_message are set; without this the timer can't show
       homeworkApi.getStatus().then((statusRes) => {
         const deadlineIso = statusRes?.tutor_feedback_deadline;
         if (deadlineIso && typeof deadlineIso === "string") {
@@ -486,7 +488,13 @@ export default function HomeworkFlowCard() {
         if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
           setAssignedExercises(statusRes.assigned_exercises);
         }
-      }).catch(() => {});
+      }).catch((err) => {
+        setTutorFeedbackDeadlineMs(null);
+        setTutorFeedbackMessage(null);
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn("[HomeworkFlow] Status refetch after Send to coach failed:", err);
+        }
+      });
     } finally {
       setResetting(false);
     }
@@ -630,6 +638,12 @@ export default function HomeworkFlowCard() {
         setReportData(data);
         setReportError(null);
         setReportNotReady(false);
+        // So the tutor countdown can show on step 0 after "Send homework to coach" (incl. first-time completers if backend sends deadline in report)
+        const deadlineIso = (data as { tutor_feedback_deadline?: string | null }).tutor_feedback_deadline;
+        if (deadlineIso && typeof deadlineIso === "string") {
+          const ms = new Date(deadlineIso).getTime();
+          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
+        }
         // Notify admin (e.g. artur@willonski.com) once per session when report is ready
         if (!notifiedLessonCompleteRef.current.has(sessionId)) {
           notifiedLessonCompleteRef.current.add(sessionId);

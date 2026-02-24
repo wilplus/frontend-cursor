@@ -30,9 +30,9 @@ const VOICE_OFF_MIN_FRAMES = 3;
 const STRENGTH_CENTER_DRIFT_ALPHA = 0.04;
 /** Pace: nonlinear compression so small expressive shifts don't cause visible tension. */
 const PACE_ERROR_EXP = 1.4;
-/** Dual EMA: slower = less sensitive wheel, calmer public speaking UX. */
-const EMA_STRENGTH_FAST = 0.15;
-const EMA_STRENGTH_SLOW = 0.04;
+/** Dual EMA: strength more sensitive so wheel reacts clearly to volume. */
+const EMA_STRENGTH_FAST = 0.28;
+const EMA_STRENGTH_SLOW = 0.09;
 /** Pace: slower EMAs = less twitchy. */
 const EMA_PACE_FAST = 0.14;
 const EMA_PACE_SLOW = 0.05;
