@@ -56,6 +56,8 @@ export interface HomeworkResponse {
   tutor_video_url?: string | null;
   /** Optional message from coach about the video. Shown above the video link. */
   tutor_video_description?: string | null;
+  /** When has_active_session === false: exercises assigned to this student. Shown on step 0 below Start homework. */
+  assigned_exercises?: AssignedExercise[];
   session?: unknown;
   has_active_session?: boolean;
 }
@@ -154,6 +156,16 @@ export interface HomeworkSessionStatus {
   tutor_video_url?: string | null;
   /** Optional coach message about the video. */
   tutor_video_description?: string | null;
+  /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
+  assigned_exercises?: AssignedExercise[];
+}
+
+/** Exercise item returned in GET session/status when no active session (from assigned_exercises). */
+export interface AssignedExercise {
+  id: string;
+  title: string;
+  video_url?: string | null;
+  description?: string | null;
 }
 
 /** Build HomeworkResponse from GET status. Normalizes status to top-level (only place that reads nested session.status). */
@@ -184,6 +196,7 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     tutor_feedback_message: raw.tutor_feedback_message ?? null,
     tutor_video_url: raw.tutor_video_url ?? raw.session?.tutor_video_url ?? null,
     tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
+    assigned_exercises: Array.isArray(raw.assigned_exercises) ? raw.assigned_exercises : [],
   };
 }
 

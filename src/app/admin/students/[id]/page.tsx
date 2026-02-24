@@ -19,6 +19,7 @@ import {
   type WarmUpPoolTask,
   type FocusTask,
   type FocusTaskPoolItem,
+  type Exercise,
 } from "@/lib/api/admin-client";
 import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
@@ -188,6 +189,117 @@ function WarmUpTaskEditModal({
               value={scoreInput}
               onChange={(e) => setScoreInput(e.target.value)}
               className="w-full"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSave} disabled={saving}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
+}
+
+// —— Edit/Create exercise modal: title (required), video_url + description (optional). Exercises are global pool. ——
+function ExerciseEditModal({
+  open,
+  onOpenChange,
+  exercise,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  exercise: Exercise | null;
+  onSave: (data: { title: string; video_url?: string; description?: string }) => Promise<void>;
+  saving: boolean;
+}) {
+  const [title, setTitle] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [description, setDescription] = useState("");
+
+  useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (open) {
+      setTitle(exercise?.title ?? "");
+      setVideoUrl(exercise?.video_url ?? "");
+      setDescription(exercise?.description ?? "");
+    }
+  }, [open, exercise?.title, exercise?.video_url, exercise?.description]);
+
+  const handleSave = async () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      toast.error("Title is required.");
+      return;
+    }
+    try {
+      await onSave({
+        title: trimmedTitle,
+        video_url: videoUrl.trim() || undefined,
+        description: description.trim() || undefined,
+      });
+      onOpenChange(false);
+    } catch {
+      // onSave already toasts error
+    }
+  };
+
+  if (!open) return null;
+
+  const overlay = (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => onOpenChange(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="exercise-edit-title"
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="exercise-edit-title" className="text-lg font-semibold mb-4">
+          {exercise ? "Edit exercise" : "Add exercise"}
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Title (required)</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Pitch practice"
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Video URL (optional)</label>
+            <Input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://vimeo.com/… or Loom, YouTube, etc."
+              className="w-full font-mono text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description (optional)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Short description for the student"
+              rows={3}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </div>
@@ -446,9 +558,15 @@ export default function AdminStudentProfilePage() {
   /** Flow step toggles: when true, that step is skipped for this student. Saved via putOverrides. */
   const [flowSkipMetricQuestions, setFlowSkipMetricQuestions] = useState(false);
   const [flowSkipPostQuestions, setFlowSkipPostQuestions] = useState(false);
+  /** Exercises pool for assigned_next_exercise_id dropdown. */
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  /** Selected exercise id for next homework (saved in overrides). */
+  const [assignedNextExerciseId, setAssignedNextExerciseId] = useState<string>("");
   const [reportModalSession, setReportModalSession] = useState<
     (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
   >(null);
+  const [exerciseEditOpen, setExerciseEditOpen] = useState(false);
+  const [exerciseEditExercise, setExerciseEditExercise] = useState<Exercise | null>(null);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -465,6 +583,7 @@ export default function AdminStudentProfilePage() {
         const valuePost = p.overrides?.skip_post_questions ?? false;
         setFlowSkipMetricQuestions(valueMetric);
         setFlowSkipPostQuestions(valuePost);
+        setAssignedNextExerciseId(p.overrides?.assigned_next_exercise_id ?? "");
         const sp = p.speaker_profile || {};
         const parts = [
           sp.main_goal,
@@ -480,6 +599,7 @@ export default function AdminStudentProfilePage() {
           adminApi.getFocusTasks(id),
           getUserMetricQuestions(),
           adminApi.getStudentPostRecordingQuestions(id),
+          adminApi.getExercises(),
         ]);
       })
       .then((results) => {
@@ -513,6 +633,8 @@ export default function AdminStudentProfilePage() {
           setPostRecordingQuestionsError(msg);
           toast.error(msg);
         }
+        const exercisesRes = results[5];
+        if (exercisesRes?.status === "fulfilled") setExercises(exercisesRes.value);
       })
       .catch((e) => {
         toast.error(e.message);
@@ -568,7 +690,7 @@ export default function AdminStudentProfilePage() {
     if (o.keywords_prompt !== undefined) body.keywords_prompt = o.keywords_prompt;
     if (o.emotion_check_question_text !== undefined) body.emotion_check_question_text = o.emotion_check_question_text;
     if (o.assigned_post_question_ids !== undefined) body.assigned_post_question_ids = o.assigned_post_question_ids;
-    if (o.assigned_next_exercise_id !== undefined) body.assigned_next_exercise_id = o.assigned_next_exercise_id;
+    body.assigned_next_exercise_id = assignedNextExerciseId.trim() || null;
     if (o.assigned_next_task_ids !== undefined) body.assigned_next_task_ids = o.assigned_next_task_ids;
     if (o.show_exercise_step !== undefined) body.show_exercise_step = o.show_exercise_step;
     adminApi
@@ -676,6 +798,43 @@ export default function AdminStudentProfilePage() {
     } catch (e) {
       toast.error((e as Error).message);
       throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExerciseEditModalSave = async (data: {
+    title: string;
+    video_url?: string;
+    description?: string;
+  }) => {
+    setSaving(true);
+    try {
+      if (exerciseEditExercise) {
+        await adminApi.updateExercise(exerciseEditExercise.id, data);
+        toast.success("Exercise updated");
+      } else {
+        await adminApi.createExercise(data);
+        toast.success("Exercise added");
+      }
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteExerciseHandler = async (exerciseId: string) => {
+    if (!confirm("Delete this exercise? Students will no longer see it in assigned exercises.")) return;
+    setSaving(true);
+    try {
+      await adminApi.deleteExercise(exerciseId);
+      toast.success("Exercise deleted");
+      setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -903,6 +1062,24 @@ export default function AdminStudentProfilePage() {
                 />
                 <span className="text-sm">Step 4: Post-questions</span>
               </label>
+            </div>
+            <div className="pt-2">
+              <label className="block text-sm font-medium mb-1">Assigned next exercise</label>
+              <select
+                value={assignedNextExerciseId}
+                onChange={(e) => setAssignedNextExerciseId(e.target.value)}
+                className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">— None —</option>
+                {exercises.map((ex) => (
+                  <option key={ex.id} value={ex.id}>
+                    {ex.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Shown to the student on step 0 (no active session) as assigned exercises.</p>
+            </div>
+            <div className="pt-2">
               <Button type="button" size="sm" variant="outline" onClick={saveFlowSteps} disabled={saving}>
                 {saving ? "Saving…" : "Save flow steps"}
               </Button>
@@ -999,6 +1176,61 @@ export default function AdminStudentProfilePage() {
             </ul>
             {warmUpTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one.</p>
+            )}
+          </div>
+
+          {/* Exercises (global pool): title, video_url, description. Assign via "Assigned next exercise" above. */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Exercises</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setExerciseEditExercise(null);
+                  setExerciseEditOpen(true);
+                }}
+              >
+                + Add
+              </Button>
+            </div>
+            <ul className="space-y-2">
+              {exercises.map((ex) => (
+                <li key={ex.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                  <span className="min-w-0 flex-1 text-sm">{ex.title}</span>
+                  {ex.video_url ? (
+                    <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
+                      Video
+                    </span>
+                  ) : null}
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExerciseEditExercise(ex);
+                        setExerciseEditOpen(true);
+                      }}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteExerciseHandler(ex.id)}
+                      disabled={saving}
+                      className="rounded p-1 text-destructive hover:bg-destructive/10"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {exercises.length === 0 && (
+              <p className="text-sm text-muted-foreground">No exercises. Click + Add to create one.</p>
             )}
           </div>
 
@@ -1197,6 +1429,16 @@ export default function AdminStudentProfilePage() {
         }}
         task={warmUpEditTask}
         onSave={handleWarmUpEditModalSave}
+        saving={saving}
+      />
+      <ExerciseEditModal
+        open={exerciseEditOpen}
+        onOpenChange={(open) => {
+          setExerciseEditOpen(open);
+          if (!open) setExerciseEditExercise(null);
+        }}
+        exercise={exerciseEditExercise}
+        onSave={handleExerciseEditModalSave}
         saving={saving}
       />
       <SelectFromPoolModal

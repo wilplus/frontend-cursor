@@ -6,37 +6,52 @@ import { DM_Sans, DM_Serif_Display } from "next/font/google";
 const dmSans = DM_Sans({ subsets: ["latin"], display: "swap" });
 const dmSerif = DM_Serif_Display({ weight: "400", subsets: ["latin"], display: "swap" });
 
+const DEFAULT_COACH_MESSAGE =
+  "Good work. It is a small step for you, but a huge step for your progress!";
+
 /**
  * Willab assignment email template — design reference for the backend.
  * Backend should replicate this layout and tokens in the HTML email sent on POST send-assignment.
- * Thumbnail: add public/coach-video-thumb.jpg (or set videoThumbSrc prop) for the video preview image.
+ * - If videoUrl is set: show video thumbnail + play overlay (use videoThumbSrc if provided).
+ * - If videoUrl is not set: show orange gradient block only.
+ * - If coachMessage is not set: show DEFAULT_COACH_MESSAGE.
+ * - If hasAssignedExercise: show line that exercise will be on main screen after following the link.
  */
 export default function CoachEmail({
+  videoUrl = null,
   videoThumbSrc = "/coach-video-thumb.jpg",
   videoDuration = "4:32",
   metaLabel = "Week 3 · Session Recap",
   title = "Great progress this week, Sarah!",
-  bodyParagraphs = [
-    "I recorded a quick video walking you through the key takeaways from our last session. Pay special attention to the breathing exercise at 2:15 — I think it'll make a real difference for your next presentation.",
-    "I've also put together your new homework for this week. It builds on what we covered, so take your time with it.",
-  ],
+  coachMessage = null,
+  hasAssignedExercise = false,
   homeworkTitle = "New Homework Available",
   homeworkSubtitle = "Week 3 — Vocal Projection & Pause Technique",
   coachInitials = "LC",
   coachName = "Laura Chen",
   coachRole = "Public Speaking Coach",
 }: {
-  videoThumbSrc?: string;
-  videoDuration?: string;
+  videoUrl?: string | null;
+  videoThumbSrc?: string | null;
+  videoDuration?: string | null;
   metaLabel?: string;
   title?: string;
-  bodyParagraphs?: string[];
+  /** Coach message body. If null/empty, shows default: "Good work. It is a small step for you, but a huge step for your progress!" */
+  coachMessage?: string | null;
+  /** If true, show a line that assigned exercise will appear on the main screen after following the link. */
+  hasAssignedExercise?: boolean;
   homeworkTitle?: string;
   homeworkSubtitle?: string;
   coachInitials?: string;
   coachName?: string;
   coachRole?: string;
 }) {
+  const hasVideo = Boolean(videoUrl?.trim());
+  const bodyParagraphs = (coachMessage?.trim() || DEFAULT_COACH_MESSAGE)
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   return (
     <div className={`coach-email ${dmSans.className} bg-email-bg min-h-screen py-8 px-4`}>
       <div className="mx-auto max-w-[600px]">
@@ -57,28 +72,44 @@ export default function CoachEmail({
             boxShadow: "0 1px 16px -4px hsl(var(--foreground) / 0.07)",
           }}
         >
-          {/* Video thumbnail with play overlay */}
-          <div className="relative aspect-video w-full bg-muted group">
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${videoThumbSrc})` }}
-            />
-            <div
-              className="absolute inset-0 bg-foreground/20 group-hover:bg-foreground/35 transition-colors"
-              aria-hidden
-            />
-            <a
-              href="#watch"
-              className="absolute inset-0 flex items-center justify-center no-underline text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
-              aria-label="Watch video"
-            >
-              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg scale-100 group-hover:scale-110 transition-transform">
-                <Play className="h-10 w-10 ml-1" fill="currentColor" />
-              </span>
-            </a>
-            <span className="absolute bottom-2 right-2 rounded px-2 py-1 text-xs font-medium text-white bg-black/50 backdrop-blur-sm">
-              {videoDuration}
-            </span>
+          {/* Video block: thumbnail + play when videoUrl set, else orange gradient */}
+          <div className="relative aspect-video w-full overflow-hidden group">
+            {hasVideo ? (
+              <>
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{
+                    backgroundImage: videoThumbSrc
+                      ? `url(${videoThumbSrc})`
+                      : undefined,
+                    backgroundColor: !videoThumbSrc ? "hsl(var(--muted))" : undefined,
+                  }}
+                />
+                <div
+                  className="absolute inset-0 bg-foreground/20 group-hover:bg-foreground/35 transition-colors"
+                  aria-hidden
+                />
+                <a
+                  href={videoUrl!}
+                  className="absolute inset-0 flex items-center justify-center no-underline text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full group"
+                  aria-label="Watch video"
+                >
+                  <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg scale-100 group-hover:scale-110 transition-transform">
+                    <Play className="h-10 w-10 ml-1" fill="currentColor" />
+                  </span>
+                </a>
+                {videoDuration && (
+                  <span className="absolute bottom-2 right-2 rounded px-2 py-1 text-xs font-medium text-white bg-black/50 backdrop-blur-sm">
+                    {videoDuration}
+                  </span>
+                )}
+              </>
+            ) : (
+              <div
+                className="absolute inset-0 bg-gradient-to-br from-primary via-orange-500 to-amber-600"
+                aria-hidden
+              />
+            )}
           </div>
 
           {/* Email body */}
@@ -117,6 +148,11 @@ export default function CoachEmail({
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {homeworkSubtitle}
                 </p>
+                {hasAssignedExercise && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    You have an exercise assigned — it will appear on the main screen after you follow the link below.
+                  </p>
+                )}
                 <a
                   href="#homework"
                   className="inline-flex items-center gap-2 mt-3 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground no-underline hover:bg-primary/90 transition-colors hover:gap-3"

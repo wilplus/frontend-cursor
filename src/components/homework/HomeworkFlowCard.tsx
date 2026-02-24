@@ -11,6 +11,7 @@ import type {
   HomeworkReportResponse,
   TaskBlockV2,
   HomeworkResponse,
+  AssignedExercise,
 } from "@/lib/api/types-homework";
 import {
   mapStatusToStep,
@@ -23,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { Mic, ExternalLink } from "lucide-react";
+import { Mic, ExternalLink, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -66,6 +67,18 @@ function formatFillerBreakdown(breakdown: Record<string, number> | undefined): s
     .filter(([, n]) => typeof n === "number" && n > 0)
     .map(([word, n]) => `${word}: ${n}`)
     .join(", ");
+}
+
+/** Extract Vimeo video id from vimeo.com/123, vimeo.com/video/123, or player.vimeo.com/video/123. */
+function parseVimeoId(url: string): string | null {
+  const u = url.trim();
+  if (!u) return null;
+  try {
+    const match = u.match(/(?:vimeo\.com\/video\/|vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/i);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
 }
 
 type Step = StepType;
@@ -191,6 +204,16 @@ export default function HomeworkFlowCard() {
   const [tutorVideoUrl, setTutorVideoUrl] = useState<string | null>(null);
   /** Coach message about the video. Shown above the Watch video link. */
   const [tutorVideoDescription, setTutorVideoDescription] = useState<string | null>(null);
+  /** When step 0 and has_active_session false: exercises assigned to this student (from GET status assigned_exercises). */
+  const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
+  /** When set, show modal with iframe for this video URL (non-Vimeo links). */
+  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!videoModalUrl) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setVideoModalUrl(null);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [videoModalUrl]);
   /** Ticker so countdown re-renders every second when tutor deadline is shown. */
   const [countdownTick, setCountdownTick] = useState(0);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
@@ -214,6 +237,7 @@ export default function HomeworkFlowCard() {
       }
       const msg = statusRes?.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+      setAssignedExercises(Array.isArray(statusRes?.assigned_exercises) ? statusRes.assigned_exercises : []);
     }).catch(() => {
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
@@ -249,6 +273,7 @@ export default function HomeworkFlowCard() {
         }
         const msg = statusRes?.tutor_feedback_message;
         setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+        setAssignedExercises(Array.isArray(statusRes?.assigned_exercises) ? statusRes.assigned_exercises : []);
       }).catch(() => {});
     }, TUTOR_DEADLINE_POLL_INTERVAL_MS);
     return () => clearInterval(id);
@@ -290,6 +315,7 @@ export default function HomeworkFlowCard() {
       setTutorFeedbackMessage(null);
       setTutorVideoUrl(null);
       setTutorVideoDescription(null);
+      setAssignedExercises([]);
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
       if (typeof sessionStorage !== "undefined") {
@@ -339,6 +365,9 @@ export default function HomeworkFlowCard() {
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
       setTutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+    }
+    if ("assigned_exercises" in res && Array.isArray(res.assigned_exercises)) {
+      setAssignedExercises(res.assigned_exercises);
     }
     if (status === "task_block" || status === "final_task_ready" || status === "post_questions") {
       setReportFromRecording1Only(true);
@@ -1010,6 +1039,82 @@ export default function HomeworkFlowCard() {
             >
               {loading ? "Starting…" : "Start homework"}
             </Button>
+            {assignedExercises.length > 0 ? (
+              <div className="w-full max-w-md mt-6 pt-6 border-t border-border space-y-4">
+                <p className="text-sm font-medium text-foreground">Assigned for you</p>
+                <ul className="space-y-4" role="list">
+                  {assignedExercises.map((ex) => {
+                    const videoUrl = ex.video_url?.trim();
+                    const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
+                    return (
+                      <li key={ex.id} className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                        <p className="text-sm font-medium text-foreground">{ex.title}</p>
+                        {videoUrl ? (
+                          vimeoId ? (
+                            <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                              <iframe
+                                src={`https://player.vimeo.com/video/${vimeoId}`}
+                                title={ex.title}
+                                className="h-full w-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                allowFullScreen
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setVideoModalUrl(videoUrl)}
+                              className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                              <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
+                                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg">
+                                  <Play className="h-7 w-7 ml-1" fill="currentColor" />
+                                </span>
+                              </span>
+                            </button>
+                          )
+                        ) : null}
+                        {ex.description?.trim() ? (
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{ex.description.trim()}</p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+            {videoModalUrl ? (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Video"
+                onClick={() => setVideoModalUrl(null)}
+              >
+                <div
+                  className="relative flex w-full max-w-4xl flex-col rounded-xl bg-background shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setVideoModalUrl(null)}
+                    className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <div className="aspect-video w-full overflow-hidden rounded-t-xl bg-black">
+                    <iframe
+                      src={videoModalUrl}
+                      title="Video"
+                      className="h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </Card>
         </StepFlowWrapper>
