@@ -553,11 +553,7 @@ export default function AdminStudentProfilePage() {
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
 
   const [contextDraft, setContextDraft] = useState("");
-  const [assignmentVideoUrl, setAssignmentVideoUrl] = useState("");
   const [assignmentVideoDescription, setAssignmentVideoDescription] = useState("");
-  /** Flow step toggles: when true, that step is skipped for this student. Saved via putOverrides. */
-  const [flowSkipMetricQuestions, setFlowSkipMetricQuestions] = useState(false);
-  const [flowSkipPostQuestions, setFlowSkipPostQuestions] = useState(false);
   /** Exercises pool (global). Assigned ones are in overrides.assigned_exercise_ids. */
   const [exercises, setExercises] = useState<Exercise[]>([]);
   /** Exercise ids assigned to this student (step 0 + email). Saved in overrides.assigned_exercise_ids. */
@@ -580,10 +576,6 @@ export default function AdminStudentProfilePage() {
       .getStudentProfile(id)
       .then((p) => {
         setProfile(p);
-        const valueMetric = p.overrides?.skip_metric_questions ?? false;
-        const valuePost = p.overrides?.skip_post_questions ?? false;
-        setFlowSkipMetricQuestions(valueMetric);
-        setFlowSkipPostQuestions(valuePost);
         const ids = p.overrides?.assigned_exercise_ids;
         setAssignedExerciseIds(
           Array.isArray(ids) && ids.length > 0
@@ -687,54 +679,17 @@ export default function AdminStudentProfilePage() {
       .finally(() => setSaving(false));
   };
 
-  const saveFlowSteps = () => {
-    setSaving(true);
-    const o = profile?.overrides ?? {};
-    const body: Record<string, unknown> = {
-      skip_metric_questions: flowSkipMetricQuestions,
-      skip_post_questions: flowSkipPostQuestions,
-    };
-    if (o.intended_emotion_prompt !== undefined) body.intended_emotion_prompt = o.intended_emotion_prompt;
-    if (o.keywords_prompt !== undefined) body.keywords_prompt = o.keywords_prompt;
-    if (o.emotion_check_question_text !== undefined) body.emotion_check_question_text = o.emotion_check_question_text;
-    if (o.assigned_post_question_ids !== undefined) body.assigned_post_question_ids = o.assigned_post_question_ids;
-    body.assigned_exercise_ids = assignedExerciseIds.length > 0 ? assignedExerciseIds : null;
-    if (o.assigned_next_task_ids !== undefined) body.assigned_next_task_ids = o.assigned_next_task_ids;
-    if (o.show_exercise_step !== undefined) body.show_exercise_step = o.show_exercise_step;
-    adminApi
-      .putOverrides(id, body)
-      .then(() => {
-        toast.success("Flow steps saved");
-        load();
-      })
-      .catch((e) => toast.error((e as Error)?.message))
-      .finally(() => setSaving(false));
-  };
-
   const sendAssignment = () => {
-    const videoUrl = assignmentVideoUrl.trim();
     const videoDesc = assignmentVideoDescription.trim();
-    if (videoUrl && !/^https?:\/\//i.test(videoUrl)) {
-      toast.error("Video URL must start with http:// or https://");
-      return;
-    }
-    if (videoUrl.length > 2048) {
-      toast.error("Video URL must be 2048 characters or less");
-      return;
-    }
     if (videoDesc.length > 2000) {
       toast.error("Message to student must be 2000 characters or less");
       return;
     }
-    const body =
-      videoUrl || videoDesc
-        ? { ...(videoUrl ? { video_url: videoUrl } : {}), ...(videoDesc ? { video_description: videoDesc } : {}) }
-        : undefined;
+    const body = videoDesc ? { video_description: videoDesc } : undefined;
     adminApi
       .sendAssignment(id, body)
       .then(() => {
         toast.success("Homework sent");
-        setAssignmentVideoUrl("");
         setAssignmentVideoDescription("");
       })
       .catch((e) => toast.error(e.message));
@@ -835,7 +790,7 @@ export default function AdminStudentProfilePage() {
   };
 
   const deleteExerciseHandler = async (exerciseId: string) => {
-    if (!confirm("Delete this exercise? Students will no longer see it in assigned exercises.")) return;
+    if (!confirm("Delete this exercise? Students will no longer see it in their exercises.")) return;
     setSaving(true);
     try {
       await adminApi.deleteExercise(exerciseId);
@@ -880,10 +835,15 @@ export default function AdminStudentProfilePage() {
     setModalAssignedExercises(false);
     setAssignedExerciseIds(selectedIds);
     setSaving(true);
+    const body: Record<string, unknown> = {
+      assigned_exercise_ids: selectedIds.length > 0 ? selectedIds : null,
+      assigned_next_exercise_id: selectedIds[0] ?? null,
+    };
     adminApi
-      .putOverrides(id, { assigned_exercise_ids: selectedIds.length > 0 ? selectedIds : null })
+      .putOverrides(id, body)
       .then(() => {
-        toast.success("Assigned exercises updated");
+        toast.success("Exercises updated");
+        load();
       })
       .catch((e) => {
         toast.error(e?.message ?? "Failed to save");
@@ -1069,33 +1029,36 @@ export default function AdminStudentProfilePage() {
         }
       >
         <div className="space-y-6">
-          {/* Flow steps: toggle steps 2 and 4 on/off for this student. Backend must honor these (skip step when true). */}
-          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-            <p className="text-sm font-medium">Homework flow steps</p>
-            <p className="text-xs text-muted-foreground">Turn steps off to simplify the flow (e.g. warm-up → final recording → report). Backend must support skipping.</p>
-            <div className="flex flex-wrap items-center gap-6 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!flowSkipMetricQuestions}
-                  onChange={(e) => setFlowSkipMetricQuestions(!e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                <span className="text-sm">Step 2: Metric questions</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!flowSkipPostQuestions}
-                  onChange={(e) => setFlowSkipPostQuestions(!e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                <span className="text-sm">Step 4: Post-questions</span>
-              </label>
-            </div>
-            <div className="pt-2">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <label className="text-sm font-medium">Assigned exercises</label>
+          {/* Message to the student — shown in assignment email */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Message to the student</label>
+            <textarea
+              value={assignmentVideoDescription}
+              onChange={(e) => setAssignmentVideoDescription(e.target.value)}
+              placeholder="content of the message"
+              rows={4}
+              maxLength={2000}
+              className="w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">Max 2000 characters. Shown in the assignment email when you send homework.</p>
+          </div>
+
+          {/* Exercises — shown on step 0 (no active session) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm font-medium">Exercises</label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setExerciseEditExercise(null);
+                    setExerciseEditOpen(true);
+                  }}
+                >
+                  + Add
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -1105,66 +1068,34 @@ export default function AdminStudentProfilePage() {
                   Manage list
                 </Button>
               </div>
-              <ul className="space-y-2 rounded-md border border-border bg-muted/30 p-2 min-h-[2.5rem]">
-                {assignedExerciseIds
-                  .map((exId) => exercises.find((e) => e.id === exId))
-                  .filter((ex): ex is Exercise => ex != null)
-                  .map((ex) => (
-                    <li key={ex.id} className="flex flex-wrap items-center gap-2 rounded-md bg-background px-3 py-2 text-sm">
-                      <span className="min-w-0 flex-1">{ex.title}</span>
-                      {ex.video_url ? (
-                        <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
-                          Video
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-              </ul>
-              {assignedExerciseIds.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-1">No assigned exercises. Click Manage list to choose from the pool.</p>
+            </div>
+            <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
+              {assignedExerciseIds.length > 0 ? (
+                <ul className="space-y-2">
+                  {assignedExerciseIds
+                    .map((exId) => exercises.find((e) => e.id === exId))
+                    .filter((ex): ex is Exercise => ex != null)
+                    .map((ex) => (
+                      <li key={ex.id} className="flex flex-wrap items-center gap-2 rounded-md bg-background px-3 py-2 text-sm">
+                        <span className="min-w-0 flex-1">{ex.title}</span>
+                        {ex.video_url ? (
+                          <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
+                            Video
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No exercises. Click + Add to create one or Manage list to choose from the pool.</p>
               )}
-              <p className="text-xs text-muted-foreground mt-1">Shown to the student on step 0 (no active session) as assigned exercises.</p>
-            </div>
-            <div className="pt-2">
-              <Button type="button" size="sm" variant="outline" onClick={saveFlowSteps} disabled={saving}>
-                {saving ? "Saving…" : "Save flow steps"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Optional video and message for assignment email */}
-          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-            <p className="text-sm font-medium">Included in email when you send homework</p>
-            <div>
-              <label className="block text-sm text-muted-foreground mb-1">Video URL (optional)</label>
-              <Input
-                type="url"
-                value={assignmentVideoUrl}
-                onChange={(e) => setAssignmentVideoUrl(e.target.value)}
-                placeholder="https://loom.com/share/… or YouTube, Supabase Storage, etc."
-                maxLength={2048}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Must start with http:// or https://, max 2048 characters.</p>
-            </div>
-            <div>
-              <label className="block text-sm text-muted-foreground mb-1">Message to student (optional)</label>
-              <textarea
-                value={assignmentVideoDescription}
-                onChange={(e) => setAssignmentVideoDescription(e.target.value)}
-                placeholder="e.g. Focus on pacing this week."
-                rows={3}
-                maxLength={2000}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Max 2000 characters. Shown in the assignment email.</p>
             </div>
           </div>
 
           {/* Warm-up Tasks */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Warm-up Tasks</p>
+              <p className="text-sm font-medium">Warm-up tasks</p>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -1188,6 +1119,7 @@ export default function AdminStudentProfilePage() {
                 {warmUpTasksError}
               </p>
             )}
+            <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
             <ul className="space-y-2">
               {warmUpTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
@@ -1221,63 +1153,10 @@ export default function AdminStudentProfilePage() {
               ))}
             </ul>
             {warmUpTasks.length === 0 && (
-              <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one.</p>
+              <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
-          </div>
-
-          {/* Exercises (global pool): title, video_url, description. Assign via "Assigned exercises" (Manage list) above. */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Exercises</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setExerciseEditExercise(null);
-                  setExerciseEditOpen(true);
-                }}
-              >
-                + Add
-              </Button>
-            </div>
-            <ul className="space-y-2">
-              {exercises.map((ex) => (
-                <li key={ex.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-                  <span className="min-w-0 flex-1 text-sm">{ex.title}</span>
-                  {ex.video_url ? (
-                    <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
-                      Video
-                    </span>
-                  ) : null}
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExerciseEditExercise(ex);
-                        setExerciseEditOpen(true);
-                      }}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label="Edit"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteExerciseHandler(ex.id)}
-                      disabled={saving}
-                      className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
-              ))}
             </ul>
-            {exercises.length === 0 && (
-              <p className="text-sm text-muted-foreground">No exercises. Click + Add to create one.</p>
-            )}
+            </div>
           </div>
 
           {/* Focus tasks */}
@@ -1307,43 +1186,45 @@ export default function AdminStudentProfilePage() {
                 {focusTasksError}
               </p>
             )}
+            <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
             <ul className="space-y-2">
               {[...focusTasks]
                 .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-                .map((q) => (
-                  <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-                    <span className="min-w-0 flex-1 text-sm">{q.text}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      Max score: {q.max_performance_score ?? 1}
-                    </span>
-                    <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFocusEditTask(q);
-                          setFocusEditOpen(true);
-                        }}
-                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        aria-label="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteFocusTask(q.id)}
-                        disabled={saving}
-                        className="rounded p-1 text-destructive hover:bg-destructive/10"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                .map((t) => (
+                <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                  <span className="min-w-0 flex-1 text-sm">{t.text}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    Max score: {t.max_performance_score ?? 1}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFocusEditTask(t);
+                        setFocusEditOpen(true);
+                      }}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteFocusTask(t.id)}
+                      disabled={saving}
+                      className="rounded p-1 text-destructive hover:bg-destructive/10"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
             </ul>
             {focusTasks.length === 0 && (
-              <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to create one.</p>
+              <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
+            </div>
           </div>
 
           {/* Post-recording questions (same pattern as warm-up/focus: + Add, Manage list, Edit, Delete) */}
@@ -1532,7 +1413,7 @@ export default function AdminStudentProfilePage() {
       <SelectFromPoolModal
         open={modalAssignedExercises}
         onOpenChange={setModalAssignedExercises}
-        title="Select Assigned Exercises"
+        title="Select Exercises"
         pool={assignedExercisesPool}
         selectedIds={assignedExerciseIds}
         onConfirm={handleAssignedExercisesConfirm}
