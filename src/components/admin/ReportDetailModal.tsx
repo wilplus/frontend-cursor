@@ -7,6 +7,14 @@ import { adminApi, type AdminSessionReportResponse } from "@/lib/api/admin-clien
 import { Button } from "@/components/ui/button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
+function formatFillerBreakdown(breakdown: Record<string, number> | undefined): string {
+  if (!breakdown || typeof breakdown !== "object") return "";
+  return Object.entries(breakdown)
+    .filter(([, n]) => typeof n === "number" && n > 0)
+    .map(([word, n]) => `${word}: ${n}`)
+    .join(", ");
+}
+
 type SessionWithPreview = {
   id: string;
   created_at?: string;
@@ -75,10 +83,25 @@ export default function ReportDetailModal({
 
   if (!open) return null;
 
+  // Same data shape as student report: prefer report API, fallback to session preview
   const reportText =
     report?.report_text ??
-    ((session?.report_preview?.report_text_preview || "").trim() || "");
-  const audioUrl = playbackUrl ?? report?.final_recording?.audio_url ?? null;
+    (session?.report_preview?.report_text_preview ?? "").trim() ||
+    "";
+  const audioUrl =
+    playbackUrl ??
+    report?.final_recording?.audio_url ??
+    report?.recording?.audio_url ??
+    null;
+  const transcriptionText = (
+    report?.recording?.transcription_text ?? report?.transcript ?? ""
+  ).trim();
+  const fillerTotal =
+    report?.recording?.filler_words_count?.total ?? report?.filler_word_count ?? null;
+  const fillerBreakdown = report?.recording?.filler_words_count?.breakdown;
+  const strength = (report?.strength_metric ?? "").trim();
+  const pace = (report?.pace_metric ?? "").trim();
+  const coachInsight = (report?.coach_insight ?? "").trim();
   const scores = report?.scores;
   const dateLabel = session?.created_at
     ? new Date(session.created_at).toLocaleDateString(undefined, {
@@ -124,13 +147,13 @@ export default function ReportDetailModal({
           )}
           {error && !loading && (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-              Full report and recording require the backend admin report API. Showing available preview below.
+              Full report API unavailable. Showing available preview data below.
             </p>
           )}
 
           {!loading && (
             <>
-              {/* Recording */}
+              {/* Final recording — same as student "Your recording" */}
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">
                   Final recording
@@ -147,6 +170,58 @@ export default function ReportDetailModal({
                   </p>
                 )}
               </div>
+
+              {/* Transcript */}
+              {transcriptionText ? (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    Transcript
+                  </p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[40vh] overflow-y-auto">
+                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
+                      {transcriptionText}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Filler words */}
+              {fillerTotal != null && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Filler words
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
+                    {formatFillerBreakdown(fillerBreakdown)
+                      ? ` (${formatFillerBreakdown(fillerBreakdown)})`
+                      : ""}
+                    .
+                  </p>
+                </div>
+              )}
+
+              {/* Metrics: Pace & Strength — same as student */}
+              {(pace || strength) ? (
+                <div className="flex flex-wrap gap-6">
+                  {pace ? (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Pace
+                      </p>
+                      <p className="text-sm text-foreground">{pace}</p>
+                    </div>
+                  ) : null}
+                  {strength ? (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Strength
+                      </p>
+                      <p className="text-sm text-foreground">{strength}</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {/* Scores */}
               {scores && (
@@ -166,7 +241,7 @@ export default function ReportDetailModal({
                 </div>
               )}
 
-              {/* Full report text — no truncation; full scroll */}
+              {/* Report text — main content (same as student) */}
               <div className="min-h-0">
                 <p className="text-sm font-medium text-muted-foreground mb-2">
                   Report
@@ -177,6 +252,18 @@ export default function ReportDetailModal({
                   </p>
                 </div>
               </div>
+
+              {/* Coach insight */}
+              {coachInsight ? (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Coach insight
+                  </p>
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {coachInsight}
+                  </p>
+                </div>
+              ) : null}
             </>
           )}
         </div>

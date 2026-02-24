@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
 import { useRecordingContext } from "@/components/dashboard/DashboardShell";
+import Lottie from "lottie-react";
 
 /** Temporarily only 2 steps: record (1) and report (5). Steps 2–4 removed. */
 const TOTAL_STEPS = 2;
@@ -179,9 +180,11 @@ export default function HomeworkFlowCard() {
   const [reportData, setReportData] = useState<HomeworkReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and allow retry. */
+  /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
+  /** Loading Lottie animation data (fetched once for step 5). */
+  const [loadingLottieData, setLoadingLottieData] = useState<object | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -459,6 +462,21 @@ export default function HomeworkFlowCard() {
       setTaskBlockFetchSettled(false);
       setQuestionsStep4Settled(false);
       setPostAnswers({});
+      // Fetch status so step 0 shows tutor countdown timer until admin sends homework again
+      homeworkApi.getStatus().then((statusRes) => {
+        const deadlineIso = statusRes?.tutor_feedback_deadline;
+        if (deadlineIso && typeof deadlineIso === "string") {
+          const ms = new Date(deadlineIso).getTime();
+          setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
+        } else {
+          setTutorFeedbackDeadlineMs(null);
+        }
+        const msg = statusRes?.tutor_feedback_message;
+        setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
+        if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
+          setAssignedExercises(statusRes.assigned_exercises);
+        }
+      }).catch(() => {});
     } finally {
       setResetting(false);
     }
@@ -626,6 +644,23 @@ export default function HomeworkFlowCard() {
       })
       .finally(() => setReportLoading(false));
   }, [step, sessionId, reportRetryCount]);
+
+  // Load Lottie animation for report loading / generating states
+  useEffect(() => {
+    if (step !== 5 || loadingLottieData != null) return;
+    fetch("/animations/loading.json")
+      .then((r) => r.json())
+      .then(setLoadingLottieData)
+      .catch(() => {});
+  }, [step, loadingLottieData]);
+
+  // When report is still being generated, poll automatically (no user click)
+  useEffect(() => {
+    if (!reportNotReady || !sessionId) return;
+    const intervalMs = 5000;
+    const id = setInterval(() => setReportRetryCount((c) => c + 1), intervalMs);
+    return () => clearInterval(id);
+  }, [reportNotReady, sessionId]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1236,8 +1271,14 @@ export default function HomeworkFlowCard() {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           <Card className="border-0 bg-transparent p-6 shadow-none">
-            <div className="text-center space-y-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+            <div className="text-center space-y-4 flex flex-col items-center">
+              {loadingLottieData ? (
+                <div className="w-24 h-24">
+                  <Lottie animationData={loadingLottieData} loop />
+                </div>
+              ) : (
+                <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              )}
               <p className="text-sm text-muted-foreground">Loading report…</p>
             </div>
           </Card>
@@ -1245,28 +1286,25 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    // Backend returned REPORT_NOT_READY (404): report is still being generated
+    // Backend returned REPORT_NOT_READY (404): report is still being generated — show Lottie and auto-refresh
     if (reportNotReady) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
-            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-              <p className="text-sm text-foreground">
-                Your report is being generated. This usually takes a minute after your recording is processed.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Click below to check again.
+            <div className="flex flex-col items-center rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+              {loadingLottieData ? (
+                <div className="w-24 h-24">
+                  <Lottie animationData={loadingLottieData} loop />
+                </div>
+              ) : (
+                <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              )}
+              <p className="text-sm text-foreground text-center">
+                Your report is being generated. This usually takes a minute after your recording is processed. We’ll refresh automatically.
               </p>
             </div>
-            <Button
-              onClick={() => setReportRetryCount((c) => c + 1)}
-              disabled={reportLoading}
-              className="mt-2 w-full rounded-xl h-12 font-semibold"
-            >
-              {reportLoading ? "Checking…" : "Check again"}
-            </Button>
           </Card>
         </div>
       );
@@ -1286,7 +1324,7 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-destructive">{reportError}</p>
             </div>
             <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Start new homework"}
+              {resetting ? "Resetting…" : "Send the homework to the coach!"}
             </Button>
           </Card>
         </div>
@@ -1408,7 +1446,7 @@ export default function HomeworkFlowCard() {
               )}
             </div>
             <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Start new homework"}
+              {resetting ? "Resetting…" : "Send the homework to the coach!"}
             </Button>
           </Card>
         </div>
@@ -1467,7 +1505,7 @@ export default function HomeworkFlowCard() {
             ) : null}
           </div>
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-            {resetting ? "Resetting…" : "Start new homework"}
+            {resetting ? "Resetting…" : "Send the homework to the coach!"}
           </Button>
         </Card>
       </div>

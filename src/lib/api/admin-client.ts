@@ -94,11 +94,24 @@ export interface StudentProfile {
   }>;
 }
 
-/** Full report for a completed session (admin modal). Same shape as homework report. */
+/** Recording with transcription and filler words (optional; aligns with homework report). */
+export interface AdminReportRecording {
+  transcription_text?: string | null;
+  filler_words_count?: { total: number; breakdown?: Record<string, number> };
+  audio_url?: string | null;
+}
+
+/** Full report for a completed session (admin modal). Aligns with homework report; extra fields optional. */
 export interface AdminSessionReportResponse {
   report_text: string;
   scores: { warmup: number; final: number; overall: number };
   final_recording: { id: string | null; audio_url: string | null };
+  recording?: AdminReportRecording | null;
+  transcript?: string | null;
+  filler_word_count?: number | null;
+  strength_metric?: string | null;
+  pace_metric?: string | null;
+  coach_insight?: string | null;
 }
 
 export interface Exercise {
