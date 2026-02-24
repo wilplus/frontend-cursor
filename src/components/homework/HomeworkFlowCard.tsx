@@ -90,6 +90,14 @@ function parseVimeoId(url: string): string | null {
   }
 }
 
+/** Display title for an assigned exercise: avoid showing raw id (e.g. "intro-0"); prefer title or friendly label. */
+function exerciseDisplayTitle(ex: AssignedExercise): string {
+  const t = (ex.title ?? "").trim();
+  if (t && t !== ex.id) return t;
+  if (ex.id === "intro-0") return "Intro";
+  return t || ex.id || "Exercise";
+}
+
 type Step = StepType;
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
@@ -1089,15 +1097,16 @@ export default function HomeworkFlowCard() {
                   {step0Exercises.map((ex) => {
                     const videoUrl = ex.video_url?.trim();
                     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
+                    const displayTitle = exerciseDisplayTitle(ex);
                     return (
                       <li key={ex.id} className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                        <p className="text-sm font-medium text-foreground">{ex.title}</p>
+                        <p className="text-sm font-medium text-foreground">{displayTitle}</p>
                         {videoUrl ? (
                           vimeoId ? (
                             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
                               <iframe
                                 src={`https://player.vimeo.com/video/${vimeoId}`}
-                                title={ex.title}
+                                title={displayTitle}
                                 className="h-full w-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                                 allowFullScreen
@@ -1116,7 +1125,11 @@ export default function HomeworkFlowCard() {
                               </span>
                             </button>
                           )
-                        ) : null}
+                        ) : (
+                          <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-muted/50 border border-border">
+                            <p className="text-sm text-muted-foreground">No video for this exercise</p>
+                          </div>
+                        )}
                         {ex.description?.trim() ? (
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{ex.description.trim()}</p>
                         ) : null}
