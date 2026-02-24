@@ -11,11 +11,7 @@ const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-/** Public speaking stability: calmer spring, no diagonal slingshot. Less sensitive = slower follow. */
-const SPRING_STIFFNESS = 0.02;
-const SPRING_DAMPING = 0.88;
-const TARGET_SMOOTHING = 0.06;
-const MAX_VELOCITY = 2.2;
+/** No easing: ball follows target directly for immediate response. */
 const SOFT_DEADZONE = 0.1;
 /** Ignore direction when error is tiny to avoid left bias from stale direction. */
 const MIN_DIRECTION_ERROR = 0.12;
@@ -159,26 +155,13 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
       if (frameCount === 1 || frameCount % 90 === 0) fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StrengthPaceDartboard.tsx:raf',message:'animation tick',data:{frame:frameCount,rawX:raw.x,rawY:raw.y,posX:p.x,posY:p.y},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
       // #endregion
 
-      t.x += (raw.x - t.x) * TARGET_SMOOTHING;
-      t.y += (raw.y - t.y) * TARGET_SMOOTHING;
-
-      const dx = t.x - p.x;
-      const dy = t.y - p.y;
-      const combinedMagnitude = Math.sqrt(dx * dx + dy * dy);
-      const axisDamp = combinedMagnitude > 0.8 ? 0.85 : 1;
-
-      v.x += dx * SPRING_STIFFNESS * axisDamp;
-      v.y += dy * SPRING_STIFFNESS * axisDamp;
-      v.x *= SPRING_DAMPING;
-      v.y *= SPRING_DAMPING;
-      v.x = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.x));
-      v.y = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.y));
-
-      p.x += v.x;
-      p.y += v.y;
-      if (Math.abs(p.x) < 0.0001) p.x = 0;
-      if (Math.abs(p.y) < 0.0001) p.y = 0;
-
+      // No easing: ball follows target directly
+      t.x = raw.x;
+      t.y = raw.y;
+      p.x = raw.x;
+      p.y = raw.y;
+      v.x = 0;
+      v.y = 0;
       setDisplayPos({ x: p.x, y: p.y });
       rafId = requestAnimationFrame(tick);
     };

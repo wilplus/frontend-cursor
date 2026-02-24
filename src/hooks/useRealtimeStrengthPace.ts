@@ -244,7 +244,7 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
             rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
           } else if (db > TARGET_DB) {
             // Favor strong voice: less penalty above target so ball doesn’t lean to weak
-            rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.88);
+            rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.45);
           }
           const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
           const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
