@@ -19,9 +19,11 @@ import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
 
 /* ─── constants ──────────────────────────────────────────────── */
 
-// strength (perceptual loudness): wider tolerance = ball centered more often
-const TARGET_DB = -20;
+// strength (perceptual loudness): target low enough so normal/loud speech reaches center (was -20 → ball leaned weak)
+const TARGET_DB = -26;
 const DB_TOLERANCE = 10;
+/** Softer penalty for "too quiet" so the ball doesn't always lean left when speaking at normal volume */
+const STRENGTH_QUIET_SOFTEN = 0.5;
 
 // pace (syllable rate → WPM): wider tolerance = less leaning
 const TARGET_SYL = 3.5;     // syl/s ≈ 150 WPM
@@ -36,6 +38,13 @@ const SUB_FRAMES = 2;        // → 40 Hz envelope
 // voice activity: center ball quickly on pause so it doesn’t lean outside
 const VOICE_RMS = 0.006;
 const SILENCE_GRACE_MS = 350;
+/** After this much silence, ball starts drifting down slowly (signal: time for pause) */
+const SILENCE_DROP_AFTER_MS = 2500;
+const SILENCE_DROP_DURATION_MS = 3500;
+const SILENCE_DROP_AMOUNT = 0.45;
+
+/** How fast the displayed target drifts toward the raw error — slow = no jump, calm drift */
+const TARGET_LERP = 0.04;
 
 // 1€ filter tuning
 const STR_MIN_CUT = 0.8;
@@ -95,6 +104,8 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     strF: new OneEuroFilter(STR_MIN_CUT, STR_BETA),
     paceF: new OneEuroFilter(PACE_MIN_CUT, PACE_BETA),
     syl: new SyllableRateDetector(SUB_FRAMES * (1000 / TICK_MS), 3),
+    smoothTargetX: 0,
+    smoothTargetY: 0,
   });
 
   const start = useCallback((stream: MediaStream) => {
@@ -134,6 +145,8 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     s.strF.reset();
     s.paceF.reset();
     s.syl.reset();
+    s.smoothTargetX = 0;
+    s.smoothTargetY = 0;
 
     setState(prev => ({ ...prev, isActive: true }));
 
@@ -178,6 +191,8 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         rawStr = 0; // no meaningful signal yet
       } else {
         rawStr = Math.max(-1, Math.min(1, (dB - TARGET_DB) / DB_TOLERANCE));
+        // soften "too quiet" side so ball doesn't always lean left when speaking at normal volume
+        if (rawStr < 0) rawStr *= STRENGTH_QUIET_SOFTEN;
       }
 
       let rawPace: number;
@@ -187,44 +202,46 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         rawPace = Math.max(-1, Math.min(1, (sylRate - TARGET_SYL) / SYL_TOLERANCE));
       }
 
-      // ── silence = center lock (A2: grounded, intentional) ──
+      let rawX: number;
+      let rawY: number;
+
+      // ── silence: good pause = stay center; too long = ball slowly drifts down ──
       if (silenceMs > SILENCE_GRACE_MS) {
         const t = now / 1000;
         s.strF.filter(0, t);
         s.paceF.filter(0, t);
-        setState({
-          targetX: 0,
-          targetY: 0,
-          strengthDb: dB,
-          wpmEstimate: Math.round(wpm),
-          score: 1,
-          isActive: true,
-        });
-        return;
+        rawX = 0;
+        if (silenceMs <= SILENCE_DROP_AFTER_MS) {
+          rawY = 0; // good pause, stay centered
+        } else {
+          const ramp = Math.min(1, (silenceMs - SILENCE_DROP_AFTER_MS) / SILENCE_DROP_DURATION_MS);
+          rawY = -SILENCE_DROP_AMOUNT * ramp; // drift down slowly: "pause getting long"
+        }
+      } else {
+        // ── speaking: 1€ + deadzone, then drift target slowly (no jump) ──
+        const t = now / 1000;
+        const sx = s.strF.filter(rawStr, t);
+        const sy = s.paceF.filter(rawPace, t);
+        rawX = deadzone(sx, DEADZONE);
+        rawY = deadzone(sy, DEADZONE);
+        // near-perfect = exact center so we don't micro-drift
+        const dist = Math.hypot(rawX, rawY);
+        if (dist < 0.08) {
+          rawX = 0;
+          rawY = 0;
+        }
       }
 
-      // ── 1€ adaptive smoothing ──
-      const t = now / 1000;
-      let sx = s.strF.filter(rawStr, t);
-      let sy = s.paceF.filter(rawPace, t);
+      // ── rate-limit target: ball starts leaving center slowly, never jumps ──
+      s.smoothTargetX += (rawX - s.smoothTargetX) * TARGET_LERP;
+      s.smoothTargetY += (rawY - s.smoothTargetY) * TARGET_LERP;
 
-      // ── continuous deadzone ──
-      let x = deadzone(sx, DEADZONE);
-      let y = deadzone(sy, DEADZONE);
-
-      // ── composite score ──
-      const dist = Math.hypot(x, y);
+      const dist = Math.hypot(s.smoothTargetX, s.smoothTargetY);
       const score = Math.max(0, 1 - dist / Math.SQRT2);
 
-      // kill micro drift: near-perfect = exact center (Apple removes unnecessary motion)
-      if (score > 0.94) {
-        x = 0;
-        y = 0;
-      }
-
       setState({
-        targetX: x,
-        targetY: y,
+        targetX: s.smoothTargetX,
+        targetY: s.smoothTargetY,
         strengthDb: dB,
         wpmEstimate: Math.round(wpm),
         score,
