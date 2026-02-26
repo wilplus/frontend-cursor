@@ -1,335 +1,209 @@
 "use client";
 
 /**
- * Apple-precision strength + pace field.
- * White + orange, on-brand: clean, high-clarity, no glow/pulse. Feedback via structural tension only.
+ * Strength + Pace sniper field.
+ *
+ * Takes pre-filtered signed positions from the hook.
+ * Animates with a spring for 60fps visual smoothness.
+ * White + orange on-brand. Feedback via structural tension only.
  */
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect } from "react";
 
-const VIEWBOX_SIZE = 300;
+import { useRef, useState, useEffect, useMemo } from "react";
+
+/* ─── constants ──────────────────────────────────────────────── */
+
+const VIEWBOX = 300;
 const CENTER = 150;
 const RADIUS = 120;
 const BALL_R = 10;
 
-/** Easing: spring so ball moves smoothly, no sudden jumps. */
-const SPRING_STIFFNESS = 0.045;
-const SPRING_DAMPING = 0.86;
-const MAX_VELOCITY = 1.5;
-/** Rate limit target movement: max change per frame so it "slowly fades" to the top instead of jumping. */
-const MAX_TARGET_DELTA_TOWARD_EDGE = 0.014;
-/** When moving back toward center, allow slightly faster so return feels responsive. */
-const MAX_TARGET_DELTA_TOWARD_CENTER = 0.035;
-const SOFT_DEADZONE = 0.1;
-/** Ignore direction when error is tiny to avoid left bias from stale direction. */
-const MIN_DIRECTION_ERROR = 0.12;
-/** Nonlinear target scaling to avoid corner slamming. */
-const TARGET_SCALE_EXP = 1.4;
-/** Public speaking: reward sustained control, not lab precision. */
-const COHERENCE_STRENGTH = 0.88;
-const COHERENCE_PACE = 0.85;
+// spring
+const STIFFNESS = 0.045;
+const DAMPING = 0.86;
+const MAX_VEL = 1.5;
+
+// coherence detection
+const COHERENCE_DIST = 0.15;
 const COHERENCE_MS = 1200;
-/** Sustained authority: 4+ seconds stable → ring thickens, crosshair sharper. */
 const AUTHORITY_MS = 4000;
-/** Anxiety reduction: small deviations almost entirely ignored. */
 const TENSION_EXP = 2.0;
 
-function tension(score: number): number {
-  return Math.pow(Math.max(0, 1 - score), TENSION_EXP);
-}
+// accessibility
+const STATUS_THRESH = 0.2;
 
-function ballPosition(score: number, direction: number): number {
-  const error = 1 - score;
-  if (error < SOFT_DEADZONE) return 0;
-  const effectiveDirection = error < MIN_DIRECTION_ERROR ? 0 : direction;
-  let scaledError = (error - SOFT_DEADZONE) / (1 - SOFT_DEADZONE);
-  scaledError = Math.pow(scaledError, TARGET_SCALE_EXP);
-  const signed = effectiveDirection * scaledError;
-  return Math.max(-1, Math.min(1, signed));
-}
+/* ─── accessibility ──────────────────────────────────────────── */
 
-/** Public speaking: presence language (not correction). */
-function getBallStatus(
-  strengthScore: number,
-  paceScore: number,
-  strengthDirection: number,
-  paceDirection: number
-): string {
-  if (strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE)
-    return "Presence stable.";
+function getBallStatus(x: number, y: number): string {
   const parts: string[] = [];
-  if (strengthScore < COHERENCE_STRENGTH && strengthDirection !== 0)
-    parts.push(strengthDirection < 0 ? "Low activation" : "High activation");
-  if (paceScore < COHERENCE_PACE)
-    parts.push(paceDirection < 0 ? "Slower pace" : "Faster pace");
+  if (x < -STATUS_THRESH) parts.push("Low activation");
+  else if (x > STATUS_THRESH) parts.push("High activation");
+  if (y < -STATUS_THRESH) parts.push("Slower pace");
+  else if (y > STATUS_THRESH) parts.push("Faster pace");
   return parts.length ? parts.join(", ") + "." : "Presence stable.";
 }
 
+/* ─── types ──────────────────────────────────────────────────── */
+
 export interface StrengthPaceDartboardProps {
-  strengthScore: number;
-  paceScore: number;
-  strengthDirection: number;
-  paceDirection: number;
+  /** Signed X: −1 too quiet … 0 perfect … +1 too loud */
+  targetX: number;
+  /** Signed Y: −1 too slow … 0 perfect … +1 too fast */
+  targetY: number;
 }
 
-export interface StrengthPaceDartboardHandle {
-  dampVelocityOnVoiceDrop: () => void;
-  resetOnSilenceSettled: () => void;
-}
+/* ─── component ──────────────────────────────────────────────── */
 
-export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, StrengthPaceDartboardProps>(function StrengthPaceDartboard(
-  { strengthScore, paceScore, strengthDirection, paceDirection },
-  ref
-) {
-  const targetX = useMemo(
-    () => ballPosition(strengthScore, strengthDirection),
-    [strengthScore, strengthDirection]
-  );
-  const targetY = useMemo(
-    () => ballPosition(paceScore, paceDirection),
-    [paceScore, paceDirection]
-  );
-
-  // #region agent log
-  const dartboardLogRef = useRef({ lastLog: 0, lastS: -1, lastP: -1 });
-  useEffect(() => {
-    const now = Date.now();
-    const ds = Math.abs(strengthScore - dartboardLogRef.current.lastS);
-    const dp = Math.abs(paceScore - dartboardLogRef.current.lastP);
-    if (ds > 0.02 || dp > 0.02 || now - dartboardLogRef.current.lastLog > 2000) {
-      dartboardLogRef.current = { lastLog: now, lastS: strengthScore, lastP: paceScore };
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StrengthPaceDartboard.tsx',message:'dartboard props',data:{strengthScore,paceScore,strengthDirection,paceDirection,targetX,targetY},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    }
-  }, [strengthScore, paceScore, strengthDirection, paceDirection, targetX, targetY]);
-  // #endregion
-
-  const rawTargetRef = useRef({ x: targetX, y: targetY });
-  rawTargetRef.current = { x: targetX, y: targetY };
+export function StrengthPaceDartboard({ targetX, targetY }: StrengthPaceDartboardProps) {
+  // target ref so animation loop always reads latest without restarting
   const targetRef = useRef({ x: 0, y: 0 });
-  const posRef = useRef({ x: 0, y: 0 });
-  const velRef = useRef({ x: 0, y: 0 });
-  const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
+  targetRef.current.x = targetX;
+  targetRef.current.y = targetY;
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      dampVelocityOnVoiceDrop() {
-        velRef.current.x *= 0.4;
-        velRef.current.y *= 0.4;
-      },
-      resetOnSilenceSettled() {
-        targetRef.current.x = 0;
-        targetRef.current.y = 0;
-        rawTargetRef.current.x = 0;
-        rawTargetRef.current.y = 0;
-        velRef.current.x *= 0.3;
-        velRef.current.y *= 0.3;
-      },
-    }),
-    []
-  );
+  const [display, setDisplay] = useState({
+    x: 0,
+    y: 0,
+    isCoherent: false,
+    hasAuthority: false,
+    tension: 0,
+  });
 
-  const isCoherent =
-    strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE;
-  const coherentStartRef = useRef<number | null>(null);
-  const [coherent, setCoherent] = useState(false);
-  const [authority, setAuthority] = useState(false);
+  const spring = useRef({ px: 0, py: 0, vx: 0, vy: 0, cohSince: null as number | null });
+  const rafRef = useRef(0);
 
   useEffect(() => {
-    const now = Date.now();
-    if (isCoherent) {
-      if (coherentStartRef.current === null) coherentStartRef.current = now;
-      const elapsed = now - (coherentStartRef.current ?? now);
-      setCoherent(elapsed >= COHERENCE_MS);
-      setAuthority(elapsed >= AUTHORITY_MS);
-    } else {
-      coherentStartRef.current = null;
-      setCoherent(false);
-      setAuthority(false);
-    }
-  }, [isCoherent]);
-
-  useEffect(() => {
-    let rafId: number;
-    let frameCount = 0;
-    const tick = () => {
-      frameCount += 1;
-      const raw = rawTargetRef.current;
+    const animate = () => {
+      rafRef.current = requestAnimationFrame(animate);
+      const s = spring.current;
       const t = targetRef.current;
-      const p = posRef.current;
-      const v = velRef.current;
+      const now = performance.now();
 
-      // #region agent log
-      if (frameCount === 1 || frameCount % 90 === 0) fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StrengthPaceDartboard.tsx:raf',message:'animation tick',data:{frame:frameCount,rawX:raw.x,rawY:raw.y,posX:p.x,posY:p.y},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
+      // spring physics
+      const fx = (t.x - s.px) * STIFFNESS;
+      const fy = (t.y - s.py) * STIFFNESS;
+      s.vx = (s.vx + fx) * DAMPING;
+      s.vy = (s.vy + fy) * DAMPING;
 
-      // Rate-limit target: move toward raw by at most maxDelta per frame so sustained speech "slowly fades" to the top (no sudden jumps)
-      const moveToward = (current: number, goal: number, towardEdge: boolean): number => {
-        const d = goal - current;
-        const maxDelta = towardEdge ? MAX_TARGET_DELTA_TOWARD_EDGE : MAX_TARGET_DELTA_TOWARD_CENTER;
-        if (Math.abs(d) <= maxDelta) return goal;
-        return current + Math.sign(d) * maxDelta;
-      };
-      const towardEdgeX = Math.abs(raw.x) >= Math.abs(t.x);
-      const towardEdgeY = Math.abs(raw.y) >= Math.abs(t.y);
-      t.x = moveToward(t.x, raw.x, towardEdgeX);
-      t.y = moveToward(t.y, raw.y, towardEdgeY);
+      const speed = Math.hypot(s.vx, s.vy);
+      if (speed > MAX_VEL) {
+        const sc = MAX_VEL / speed;
+        s.vx *= sc;
+        s.vy *= sc;
+      }
 
-      // Spring: ball eases toward target (smooth motion, no jumps)
-      const dx = t.x - p.x;
-      const dy = t.y - p.y;
-      const combinedMagnitude = Math.sqrt(dx * dx + dy * dy);
-      const axisDamp = combinedMagnitude > 0.8 ? 0.85 : 1;
-      v.x += dx * SPRING_STIFFNESS * axisDamp;
-      v.y += dy * SPRING_STIFFNESS * axisDamp;
-      v.x *= SPRING_DAMPING;
-      v.y *= SPRING_DAMPING;
-      v.x = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.x));
-      v.y = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.y));
-      p.x += v.x;
-      p.y += v.y;
-      if (Math.abs(p.x) < 0.0001) p.x = 0;
-      if (Math.abs(p.y) < 0.0001) p.y = 0;
-      setDisplayPos({ x: p.x, y: p.y });
-      rafId = requestAnimationFrame(tick);
+      s.px += s.vx;
+      s.py += s.vy;
+
+      // coherence / authority
+      const dist = Math.hypot(s.px, s.py);
+      if (dist <= COHERENCE_DIST) {
+        if (s.cohSince === null) s.cohSince = now;
+      } else {
+        s.cohSince = null;
+      }
+      const cohMs = s.cohSince !== null ? now - s.cohSince : 0;
+
+      setDisplay({
+        x: s.px,
+        y: s.py,
+        isCoherent: cohMs >= COHERENCE_MS,
+        hasAuthority: cohMs >= AUTHORITY_MS,
+        tension: Math.pow(Math.min(dist, 1), TENSION_EXP),
+      });
     };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
 
-  const ballX = displayPos.x * RADIUS;
-  const ballY = -displayPos.y * RADIUS;
-  const cx = CENTER + ballX;
-  const cy = CENTER + ballY;
-  const statusText = getBallStatus(
-    strengthScore,
-    paceScore,
-    strengthDirection,
-    paceDirection
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []); // runs once; reads targets from ref
+
+  /* ── derived visuals ── */
+  const ballCx = CENTER + display.x * RADIUS;
+  const ballCy = CENTER - display.y * RADIUS; // Y flipped: +1 (fast) is UP
+
+  const outerW = display.hasAuthority ? 2.5 : 1.5;
+  const outerOpacity = 0.15 + display.tension * 0.4;
+  const midOpacity = 0.1 + display.tension * 0.2;
+  const crossOpacity = display.isCoherent ? 0.35 : 0.12;
+
+  const statusText = useMemo(
+    () => getBallStatus(display.x, display.y),
+    // only recompute when the quadrant actually changes
+    [
+      display.x < -STATUS_THRESH ? -1 : display.x > STATUS_THRESH ? 1 : 0,
+      display.y < -STATUS_THRESH ? -1 : display.y > STATUS_THRESH ? 1 : 0,
+    ],
   );
-
-  const worstScore = Math.min(strengthScore, paceScore);
-  let t = tension(worstScore);
-  if (worstScore < 1) {
-    if (strengthDirection < 0) t *= 1.2;
-    else if (strengthDirection > 0) t *= 0.7;
-    if (paceDirection > 0) t *= 0.8;
-    t = Math.min(1, t);
-  }
-  /** Structural tension: outer ring base (gray), orange overlay when error. */
-  const outerRingBaseOpacity = coherent ? 0.45 : 0.35;
-  const outerRingOrangeOpacity = t * 0.5;
-  const crosshairOpacity = authority ? 0.22 : coherent ? 0.18 : 0.12;
-  const outerRingStrokeWidth = authority ? 1 : 0.75;
-  /** Ball stroke: soft orange when coherent, more defined when tension. */
-  const ballStrokeOpacity = coherent ? 0.6 : 0.5 + t * 0.5;
 
   return (
-    <div
-      className="flex flex-col items-center w-full"
-      role="img"
-      aria-label="Vocal presence: keep drive and pace centered"
-    >
+    <div className="relative" role="img" aria-label="Strength and pace feedback field">
+      <svg
+        viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
+        className="w-full h-full"
+        aria-hidden="true"
+      >
+        <defs>
+          <radialGradient id="spFieldGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="white" stopOpacity={0.03} />
+            <stop offset="100%" stopColor="white" stopOpacity={0.01} />
+          </radialGradient>
+        </defs>
+
+        {/* field */}
+        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#spFieldGrad)" />
+
+        {/* outer ring */}
+        <circle
+          cx={CENTER} cy={CENTER} r={RADIUS}
+          fill="none" stroke="white"
+          strokeWidth={outerW} opacity={outerOpacity}
+        />
+        {/* tension overlay */}
+        {display.tension > 0.05 && (
+          <circle
+            cx={CENTER} cy={CENTER} r={RADIUS}
+            fill="none" stroke="#F97316"
+            strokeWidth={outerW} opacity={display.tension * 0.35}
+          />
+        )}
+
+        {/* mid ring */}
+        <circle
+          cx={CENTER} cy={CENTER} r={RADIUS * 0.6}
+          fill="none" stroke="white"
+          strokeWidth={1} opacity={midOpacity}
+        />
+
+        {/* inner ring (sweet spot) */}
+        <circle
+          cx={CENTER} cy={CENTER} r={RADIUS * 0.25}
+          fill="none" stroke="white"
+          strokeWidth={1} opacity={0.08}
+        />
+
+        {/* crosshair */}
+        <line
+          x1={CENTER - RADIUS} y1={CENTER}
+          x2={CENTER + RADIUS} y2={CENTER}
+          stroke="white" strokeWidth={0.5} opacity={crossOpacity}
+        />
+        <line
+          x1={CENTER} y1={CENTER - RADIUS}
+          x2={CENTER} y2={CENTER + RADIUS}
+          stroke="white" strokeWidth={0.5} opacity={crossOpacity}
+        />
+
+        {/* ball */}
+        <circle
+          cx={ballCx} cy={ballCy} r={BALL_R}
+          fill="white"
+          fillOpacity={0.85}
+          stroke={display.isCoherent ? "white" : "rgba(255,255,255,0.3)"}
+          strokeWidth={display.isCoherent ? 2 : 1}
+        />
+      </svg>
+
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      <svg viewBox="0 0 300 300" className="w-full aspect-square" aria-hidden>
-        <defs>
-          <radialGradient id="apple-field" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="white" />
-            <stop offset="100%" stopColor="hsl(var(--np-gray-soft))" />
-          </radialGradient>
-          <filter id="apple-ball-shadow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
-            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.12} />
-          </filter>
-          <filter id="apple-ball-shadow-coherent" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
-            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.08} />
-          </filter>
-        </defs>
-
-        {/* Base field */}
-        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#apple-field)" />
-
-        {/* Outer ring: gray base; orange overlay for structural tension; thickens with authority */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RADIUS}
-          fill="none"
-          stroke="hsl(var(--np-gray-mid))"
-          strokeWidth={outerRingStrokeWidth}
-          opacity={outerRingBaseOpacity}
-          className="apple-transition"
-        />
-        {outerRingOrangeOpacity > 0 && (
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
-            fill="none"
-            stroke="hsl(var(--np-orange))"
-            strokeWidth={outerRingStrokeWidth}
-            opacity={outerRingOrangeOpacity}
-            className="apple-transition"
-          />
-        )}
-        {/* Mid ring */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={80}
-          fill="none"
-          stroke="hsl(var(--np-gray-mid))"
-          strokeWidth={0.75}
-          opacity={0.25}
-          className="apple-transition"
-        />
-        {/* Inner ring */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={40}
-          fill="none"
-          stroke="hsl(var(--np-gray-mid))"
-          strokeWidth={0.75}
-          opacity={0.2}
-          className="apple-transition"
-        />
-
-        {/* Crosshair */}
-        <line
-          x1={CENTER}
-          y1={30}
-          x2={CENTER}
-          y2={270}
-          stroke="hsl(var(--np-gray-deep))"
-          strokeWidth={0.5}
-          opacity={crosshairOpacity}
-          className="apple-transition"
-        />
-        <line
-          x1={30}
-          y1={CENTER}
-          x2={270}
-          y2={CENTER}
-          stroke="hsl(var(--np-gray-deep))"
-          strokeWidth={0.5}
-          opacity={crosshairOpacity}
-          className="apple-transition"
-        />
-
-        {/* Ball: white, thin orange ring, soft shadow */}
-        <circle
-          cx={cx}
-          cy={cy}
-          r={BALL_R}
-          fill="white"
-          stroke="hsl(var(--np-orange))"
-          strokeWidth={1.25}
-          strokeOpacity={ballStrokeOpacity}
-          filter={coherent ? "url(#apple-ball-shadow-coherent)" : "url(#apple-ball-shadow)"}
-          className="apple-transition"
-        />
-      </svg>
     </div>
   );
-});
+}
