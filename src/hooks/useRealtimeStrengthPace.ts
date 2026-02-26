@@ -147,7 +147,7 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
       if (!s.analyser || !s.buf || !s.ctx) return;
       if (s.ctx.state === "suspended") { s.ctx.resume(); return; }
 
-      s.analyser.getFloatTimeDomainData(s.buf);
+      s.analyser.getFloatTimeDomainData(s.buf as Float32Array<ArrayBuffer>);
 
       // ── overall RMS → dB ──
       let sum = 0;
