@@ -19,13 +19,13 @@ import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
 
 /* ─── constants ──────────────────────────────────────────────── */
 
-// strength (perceptual loudness)
+// strength (perceptual loudness): wider tolerance = ball centered more often
 const TARGET_DB = -20;
-const DB_TOLERANCE = 8;
+const DB_TOLERANCE = 10;
 
-// pace (syllable rate → WPM)
+// pace (syllable rate → WPM): wider tolerance = less leaning
 const TARGET_SYL = 3.5;     // syl/s ≈ 150 WPM
-const SYL_TOLERANCE = 1.5;  // ±1.5 syl/s ≈ ±65 WPM
+const SYL_TOLERANCE = 2.0;  // ±2 syl/s ≈ ±85 WPM
 const SYL_PER_WORD = 1.4;
 
 // timing
@@ -33,10 +33,9 @@ const TICK_MS = 50;          // 20 Hz
 const FFT_SIZE = 4096;
 const SUB_FRAMES = 2;        // → 40 Hz envelope
 
-// voice activity
+// voice activity: center ball quickly on pause so it doesn’t lean outside
 const VOICE_RMS = 0.006;
-const SILENCE_GRACE_MS = 600;
-const SILENCE_FADE_MS = 2000;
+const SILENCE_GRACE_MS = 350;
 
 // 1€ filter tuning
 const STR_MIN_CUT = 0.8;
@@ -44,8 +43,8 @@ const STR_BETA = 0.004;
 const PACE_MIN_CUT = 0.4;
 const PACE_BETA = 0.002;
 
-// display
-const DEADZONE = 0.06;
+// display: wider deadzone = ball stays centered unless clearly off target
+const DEADZONE = 0.14;
 
 /* ─── types ──────────────────────────────────────────────────── */
 
@@ -188,25 +187,40 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         rawPace = Math.max(-1, Math.min(1, (sylRate - TARGET_SYL) / SYL_TOLERANCE));
       }
 
-      // silence fade: don't punish natural pauses
+      // ── silence = center lock (A2: grounded, intentional) ──
       if (silenceMs > SILENCE_GRACE_MS) {
-        const retain = 1 - Math.min((silenceMs - SILENCE_GRACE_MS) / SILENCE_FADE_MS, 1);
-        rawStr *= retain;
-        rawPace *= retain;
+        const t = now / 1000;
+        s.strF.filter(0, t);
+        s.paceF.filter(0, t);
+        setState({
+          targetX: 0,
+          targetY: 0,
+          strengthDb: dB,
+          wpmEstimate: Math.round(wpm),
+          score: 1,
+          isActive: true,
+        });
+        return;
       }
 
       // ── 1€ adaptive smoothing ──
       const t = now / 1000;
-      const sx = s.strF.filter(rawStr, t);
-      const sy = s.paceF.filter(rawPace, t);
+      let sx = s.strF.filter(rawStr, t);
+      let sy = s.paceF.filter(rawPace, t);
 
       // ── continuous deadzone ──
-      const x = deadzone(sx, DEADZONE);
-      const y = deadzone(sy, DEADZONE);
+      let x = deadzone(sx, DEADZONE);
+      let y = deadzone(sy, DEADZONE);
 
       // ── composite score ──
       const dist = Math.hypot(x, y);
       const score = Math.max(0, 1 - dist / Math.SQRT2);
+
+      // kill micro drift: near-perfect = exact center (Apple removes unnecessary motion)
+      if (score > 0.94) {
+        x = 0;
+        y = 0;
+      }
 
       setState({
         targetX: x,

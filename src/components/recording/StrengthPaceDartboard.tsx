@@ -1,11 +1,9 @@
 "use client";
 
 /**
- * Strength + Pace sniper field.
- *
- * Takes pre-filtered signed positions from the hook.
- * Animates with a spring for 60fps visual smoothness.
- * White + orange on-brand. Feedback via structural tension only.
+ * A2-Light Apple-style strength + pace field.
+ * Calm, visible, subtle depth. No drama, no punishment.
+ * Silence = grounded center. Motion = magnetic glide.
  */
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -15,20 +13,10 @@ import { useRef, useState, useEffect, useMemo } from "react";
 const VIEWBOX = 300;
 const CENTER = 150;
 const RADIUS = 120;
-const BALL_R = 10;
+const BALL_R = 12;
 
-// spring
-const STIFFNESS = 0.045;
-const DAMPING = 0.86;
-const MAX_VEL = 1.5;
+const LERP = 0.075;
 
-// coherence detection
-const COHERENCE_DIST = 0.15;
-const COHERENCE_MS = 1200;
-const AUTHORITY_MS = 4000;
-const TENSION_EXP = 2.0;
-
-// accessibility
 const STATUS_THRESH = 0.2;
 
 /* ─── accessibility ──────────────────────────────────────────── */
@@ -45,159 +33,147 @@ function getBallStatus(x: number, y: number): string {
 /* ─── types ──────────────────────────────────────────────────── */
 
 export interface StrengthPaceDartboardProps {
-  /** Signed X: −1 too quiet … 0 perfect … +1 too loud */
   targetX: number;
-  /** Signed Y: −1 too slow … 0 perfect … +1 too fast */
   targetY: number;
 }
 
 /* ─── component ──────────────────────────────────────────────── */
 
 export function StrengthPaceDartboard({ targetX, targetY }: StrengthPaceDartboardProps) {
-  // target ref so animation loop always reads latest without restarting
   const targetRef = useRef({ x: 0, y: 0 });
   targetRef.current.x = targetX;
   targetRef.current.y = targetY;
 
-  const [display, setDisplay] = useState({
-    x: 0,
-    y: 0,
-    isCoherent: false,
-    hasAuthority: false,
-    tension: 0,
-  });
-
-  const spring = useRef({ px: 0, py: 0, vx: 0, vy: 0, cohSince: null as number | null });
-  const rafRef = useRef(0);
+  const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
+    let frame: number;
+
     const animate = () => {
-      rafRef.current = requestAnimationFrame(animate);
-      const s = spring.current;
-      const t = targetRef.current;
-      const now = performance.now();
+      setDisplayPos((prev) => {
+        const tx = targetRef.current.x;
+        const ty = targetRef.current.y;
+        const dx = tx - prev.x;
+        const dy = ty - prev.y;
 
-      // spring physics
-      const fx = (t.x - s.px) * STIFFNESS;
-      const fy = (t.y - s.py) * STIFFNESS;
-      s.vx = (s.vx + fx) * DAMPING;
-      s.vy = (s.vy + fy) * DAMPING;
+        const nextX = Math.abs(dx) < 0.001 ? tx : prev.x + dx * LERP;
+        const nextY = Math.abs(dy) < 0.001 ? ty : prev.y + dy * LERP;
 
-      const speed = Math.hypot(s.vx, s.vy);
-      if (speed > MAX_VEL) {
-        const sc = MAX_VEL / speed;
-        s.vx *= sc;
-        s.vy *= sc;
-      }
-
-      s.px += s.vx;
-      s.py += s.vy;
-
-      // coherence / authority
-      const dist = Math.hypot(s.px, s.py);
-      if (dist <= COHERENCE_DIST) {
-        if (s.cohSince === null) s.cohSince = now;
-      } else {
-        s.cohSince = null;
-      }
-      const cohMs = s.cohSince !== null ? now - s.cohSince : 0;
-
-      setDisplay({
-        x: s.px,
-        y: s.py,
-        isCoherent: cohMs >= COHERENCE_MS,
-        hasAuthority: cohMs >= AUTHORITY_MS,
-        tension: Math.pow(Math.min(dist, 1), TENSION_EXP),
+        return { x: nextX, y: nextY };
       });
+
+      frame = requestAnimationFrame(animate);
     };
 
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []); // runs once; reads targets from ref
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
-  /* ── derived visuals ── */
-  const ballCx = CENTER + display.x * RADIUS;
-  const ballCy = CENTER - display.y * RADIUS; // Y flipped: +1 (fast) is UP
-
-  const outerW = display.hasAuthority ? 2.5 : 1.5;
-  const outerOpacity = 0.15 + display.tension * 0.4;
-  const midOpacity = 0.1 + display.tension * 0.2;
-  const crossOpacity = display.isCoherent ? 0.35 : 0.12;
+  const ballX = displayPos.x * RADIUS;
+  const ballY = -displayPos.y * RADIUS;
 
   const statusText = useMemo(
-    () => getBallStatus(display.x, display.y),
-    // only recompute when the quadrant actually changes
+    () => getBallStatus(displayPos.x, displayPos.y),
     [
-      display.x < -STATUS_THRESH ? -1 : display.x > STATUS_THRESH ? 1 : 0,
-      display.y < -STATUS_THRESH ? -1 : display.y > STATUS_THRESH ? 1 : 0,
+      displayPos.x < -STATUS_THRESH ? -1 : displayPos.x > STATUS_THRESH ? 1 : 0,
+      displayPos.y < -STATUS_THRESH ? -1 : displayPos.y > STATUS_THRESH ? 1 : 0,
     ],
   );
 
   return (
-    <div className="relative" role="img" aria-label="Strength and pace feedback field">
+    <div
+      className="relative rounded-full"
+      style={{ background: "#F5F5F7" }}
+      role="img"
+      aria-label="Strength and pace feedback field"
+    >
       <svg
         viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
         className="w-full h-full"
         aria-hidden="true"
       >
         <defs>
-          <radialGradient id="spFieldGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="white" stopOpacity={0.03} />
-            <stop offset="100%" stopColor="white" stopOpacity={0.01} />
+          <radialGradient id="fieldGradient" cx="50%" cy="48%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
+            <stop offset="65%" stopColor="rgba(255,255,255,0.65)" />
+            <stop offset="100%" stopColor="rgba(230,230,235,0.9)" />
           </radialGradient>
         </defs>
 
         {/* field */}
-        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#spFieldGrad)" />
-
-        {/* outer ring */}
         <circle
-          cx={CENTER} cy={CENTER} r={RADIUS}
-          fill="none" stroke="white"
-          strokeWidth={outerW} opacity={outerOpacity}
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          fill="url(#fieldGradient)"
+          stroke="rgba(0,0,0,0.06)"
+          strokeWidth={1}
         />
-        {/* tension overlay */}
-        {display.tension > 0.05 && (
-          <circle
-            cx={CENTER} cy={CENTER} r={RADIUS}
-            fill="none" stroke="#F97316"
-            strokeWidth={outerW} opacity={display.tension * 0.35}
-          />
-        )}
+
+        {/* outer ring — softer so focus stays on ball */}
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          fill="none"
+          stroke="rgba(0,0,0,0.06)"
+          strokeWidth={2}
+        />
 
         {/* mid ring */}
         <circle
-          cx={CENTER} cy={CENTER} r={RADIUS * 0.6}
-          fill="none" stroke="white"
-          strokeWidth={1} opacity={midOpacity}
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS * 0.6}
+          fill="none"
+          stroke="rgba(0,0,0,0.05)"
+          strokeWidth={1.5}
         />
 
-        {/* inner ring (sweet spot) */}
+        {/* inner ring */}
         <circle
-          cx={CENTER} cy={CENTER} r={RADIUS * 0.25}
-          fill="none" stroke="white"
-          strokeWidth={1} opacity={0.08}
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS * 0.25}
+          fill="none"
+          stroke="rgba(0,0,0,0.04)"
+          strokeWidth={1}
         />
 
         {/* crosshair */}
         <line
-          x1={CENTER - RADIUS} y1={CENTER}
-          x2={CENTER + RADIUS} y2={CENTER}
-          stroke="white" strokeWidth={0.5} opacity={crossOpacity}
+          x1={CENTER - RADIUS}
+          y1={CENTER}
+          x2={CENTER + RADIUS}
+          y2={CENTER}
+          stroke="rgba(0,0,0,0.18)"
+          strokeWidth={1.2}
         />
         <line
-          x1={CENTER} y1={CENTER - RADIUS}
-          x2={CENTER} y2={CENTER + RADIUS}
-          stroke="white" strokeWidth={0.5} opacity={crossOpacity}
+          x1={CENTER}
+          y1={CENTER - RADIUS}
+          x2={CENTER}
+          y2={CENTER + RADIUS}
+          stroke="rgba(0,0,0,0.18)"
+          strokeWidth={1.2}
         />
 
-        {/* ball */}
+        {/* ball: size 12, premium feel — confidently visible for coaching */}
         <circle
-          cx={ballCx} cy={ballCy} r={BALL_R}
-          fill="white"
-          fillOpacity={0.85}
-          stroke={display.isCoherent ? "white" : "rgba(255,255,255,0.3)"}
-          strokeWidth={display.isCoherent ? 2 : 1}
+          cx={CENTER + ballX}
+          cy={CENTER - ballY}
+          r={12}
+          fill="#FF6A00"
+          stroke="#FFFFFF"
+          strokeWidth={2.5}
+        />
+        {/* subtle highlight — physical depth, no glow */}
+        <circle
+          cx={CENTER + ballX - 2}
+          cy={CENTER - ballY - 2}
+          r={4}
+          fill="rgba(255,255,255,0.45)"
+          pointerEvents="none"
         />
       </svg>
 
