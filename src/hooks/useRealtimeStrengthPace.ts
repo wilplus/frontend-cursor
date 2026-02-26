@@ -1,16 +1,14 @@
 "use client";
 
 /**
- * Real-time strength (volume) + pace (syllable rate) feedback.
+ * Behavioral strength + pace feedback (deviation accumulator).
  *
- * Outputs signed ball positions (targetX, targetY) in [-1, +1]:
- *   targetX: −1 too quiet … 0 on target … +1 too loud
- *   targetY: −1 too slow  … 0 on target … +1 too fast
+ * The sniper reflects sustained pattern deviation, not instantaneous audio.
+ * - Stay centered while within healthy range.
+ * - Only start drifting if deviation persists.
+ * - Drift slowly. Recover quickly when behavior returns to healthy.
  *
- * Pipeline:
- *   mic → HP 80Hz + HS 2kHz → analyser
- *   → RMS → dB → signed distance from target → 1€ filter → deadzone → targetX
- *   → sub-frame RMS → syllable peaks → rate → signed distance → 1€ filter → deadzone → targetY
+ * Outputs targetX, targetY in [-1, +1] from drift accumulators.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -19,67 +17,60 @@ import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
 
 /* ─── constants ──────────────────────────────────────────────── */
 
-// strength (perceptual loudness): target low enough so normal/loud speech reaches center (was -20 → ball leaned weak)
+// strength (perceptual loudness)
 const TARGET_DB = -26;
 const DB_TOLERANCE = 10;
-/** Softer penalty for "too quiet" so the ball doesn't always lean left when speaking at normal volume */
 const STRENGTH_QUIET_SOFTEN = 0.5;
+/** Within this normalized band = healthy (no drift) */
+const HEALTHY_STRENGTH = 0.6;
 
-// pace (syllable rate → WPM): wider tolerance = less leaning
-const TARGET_SYL = 3.5;     // syl/s ≈ 150 WPM
-const SYL_TOLERANCE = 2.0;  // ±2 syl/s ≈ ±85 WPM
+// pace (syllable rate)
+const TARGET_SYL = 3.5;
+const SYL_TOLERANCE = 2.0;
 const SYL_PER_WORD = 1.4;
+/** Healthy pace zone (syl/s) — ball stays centered */
+const SYL_HEALTHY_LO = 3.6;
+const SYL_HEALTHY_HI = 4.4;
 
 // timing
-const TICK_MS = 50;          // 20 Hz
+const TICK_MS = 50;
 const FFT_SIZE = 4096;
-const SUB_FRAMES = 2;        // → 40 Hz envelope
+const SUB_FRAMES = 2;
 
-// voice activity: center ball quickly on pause so it doesn’t lean outside
+// voice activity
 const VOICE_RMS = 0.006;
 const SILENCE_GRACE_MS = 350;
-/** After this much silence, ball starts drifting down slowly (signal: time for pause) */
-const SILENCE_DROP_AFTER_MS = 2500;
-const SILENCE_DROP_DURATION_MS = 3500;
-const SILENCE_DROP_AMOUNT = 0.45;
+/** Pause shorter than this = healthy (no drift). Longer = start drifting down. */
+const SILENCE_HEALTHY_MS = 1500;
 
-/** How fast the displayed target drifts toward the raw error — slow = no jump, calm drift */
-const TARGET_LERP = 0.04;
+// accumulator: drift rate per second when outside healthy zone (~4 s to reach edge)
+const DRIFT_STRENGTH_PER_S = 0.25;
+const DRIFT_PACE_PER_S = 0.20;
+const DRIFT_SILENCE_PER_S = 0.15;
+/** When in healthy zone: decay per tick (fast recovery) */
+const RECOVERY_DECAY = 0.85;
 
-// 1€ filter tuning
+// 1€ filter (light smoothing for zone decisions only)
 const STR_MIN_CUT = 0.8;
 const STR_BETA = 0.004;
 const PACE_MIN_CUT = 0.4;
 const PACE_BETA = 0.002;
 
-// display: wider deadzone = ball stays centered unless clearly off target
-const DEADZONE = 0.14;
-
 /* ─── types ──────────────────────────────────────────────────── */
 
 export interface UseRealtimeStrengthPaceResult {
-  /** Signed ball X: −1 too quiet … 0 perfect … +1 too loud */
   targetX: number;
-  /** Signed ball Y: −1 too slow … 0 perfect … +1 too fast */
   targetY: number;
-  /** Raw dB for UI display */
   strengthDb: number;
-  /** Estimated WPM for UI display */
   wpmEstimate: number;
-  /** Composite score 0–1 (1 = on target) */
   score: number;
   isActive: boolean;
   start: (stream: MediaStream) => void;
   stop: () => void;
 }
 
-/* ─── helpers ────────────────────────────────────────────────── */
-
-/** Continuous deadzone: values below zone smoothly snap to 0, no discontinuity. */
-function deadzone(v: number, z: number): number {
-  const a = Math.abs(v);
-  if (a < z) return 0;
-  return Math.sign(v) * (a - z) / (1 - z);
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
 }
 
 /* ─── hook ───────────────────────────────────────────────────── */
@@ -104,14 +95,13 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     strF: new OneEuroFilter(STR_MIN_CUT, STR_BETA),
     paceF: new OneEuroFilter(PACE_MIN_CUT, PACE_BETA),
     syl: new SyllableRateDetector(SUB_FRAMES * (1000 / TICK_MS), 3),
-    smoothTargetX: 0,
-    smoothTargetY: 0,
+    driftX: 0,
+    driftY: 0,
   });
 
   const start = useCallback((stream: MediaStream) => {
     const s = r.current;
 
-    // tear down previous
     if (s.ctx) {
       cancelAnimationFrame(s.raf);
       s.ctx.close();
@@ -120,7 +110,6 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     const ctx = new AudioContext();
     const src = ctx.createMediaStreamSource(stream);
 
-    // K-weight-inspired filter chain
     const hp = ctx.createBiquadFilter();
     hp.type = "highpass";
     hp.frequency.value = 80;
@@ -145,23 +134,27 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     s.strF.reset();
     s.paceF.reset();
     s.syl.reset();
-    s.smoothTargetX = 0;
-    s.smoothTargetY = 0;
+    s.driftX = 0;
+    s.driftY = 0;
 
     setState(prev => ({ ...prev, isActive: true }));
 
     const loop = () => {
       s.raf = requestAnimationFrame(loop);
       const now = performance.now();
-      if (now - s.lastTick < TICK_MS) return;
+      const elapsed = now - s.lastTick;
+      if (elapsed < TICK_MS) return;
       s.lastTick = now;
+      const dt = elapsed / 1000;
 
       if (!s.analyser || !s.buf || !s.ctx) return;
-      if (s.ctx.state === "suspended") { s.ctx.resume(); return; }
+      if (s.ctx.state === "suspended") {
+        s.ctx.resume();
+        return;
+      }
 
       s.analyser.getFloatTimeDomainData(s.buf as Float32Array<ArrayBuffer>);
 
-      // ── overall RMS → dB ──
       let sum = 0;
       const d = s.buf;
       const len = d.length;
@@ -169,7 +162,6 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
       const rms = Math.sqrt(sum / len);
       const dB = 20 * Math.log10(rms + 1e-8);
 
-      // ── sub-frame RMS → syllable detector ──
       const fSz = (len / SUB_FRAMES) | 0;
       for (let f = 0; f < SUB_FRAMES; f++) {
         let fs = 0;
@@ -180,68 +172,68 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
       const sylRate = s.syl.getRate();
       const wpm = sylRate * (60 / SYL_PER_WORD);
 
-      // ── VAD ──
       const voiced = rms > VOICE_RMS;
       if (voiced) s.lastVoice = now;
       const silenceMs = now - s.lastVoice;
 
-      // ── signed distance from target ──
-      let rawStr: number;
-      if (dB < -50) {
-        rawStr = 0; // no meaningful signal yet
-      } else {
-        rawStr = Math.max(-1, Math.min(1, (dB - TARGET_DB) / DB_TOLERANCE));
-        // soften "too quiet" side so ball doesn't always lean left when speaking at normal volume
+      // ── normalized signals for zone decisions (light 1€ so zone doesn't flicker) ──
+      let rawStr = 0;
+      if (dB >= -50) {
+        rawStr = (dB - TARGET_DB) / DB_TOLERANCE;
         if (rawStr < 0) rawStr *= STRENGTH_QUIET_SOFTEN;
+        rawStr = clamp(rawStr, -1, 1);
       }
+      const t = now / 1000;
+      const zStr = s.strF.filter(rawStr, t);
 
-      let rawPace: number;
-      if (sylRate <= 0) {
-        rawPace = 0; // not enough data yet
-      } else {
-        rawPace = Math.max(-1, Math.min(1, (sylRate - TARGET_SYL) / SYL_TOLERANCE));
+      let rawPace = 0;
+      if (sylRate > 0) {
+        rawPace = (sylRate - TARGET_SYL) / SYL_TOLERANCE;
+        rawPace = clamp(rawPace, -1, 1);
       }
+      const zPace = s.paceF.filter(rawPace, t);
 
-      let rawX: number;
-      let rawY: number;
+      // ── behavioral accumulator: only drift when sustained outside healthy zone ──
 
-      // ── silence: good pause = stay center; too long = ball slowly drifts down ──
       if (silenceMs > SILENCE_GRACE_MS) {
-        const t = now / 1000;
-        s.strF.filter(0, t);
-        s.paceF.filter(0, t);
-        rawX = 0;
-        if (silenceMs <= SILENCE_DROP_AFTER_MS) {
-          rawY = 0; // good pause, stay centered
+        // Pause mode: strength drifts back to center; silence length drives Y
+        s.driftX *= RECOVERY_DECAY;
+        if (silenceMs < SILENCE_HEALTHY_MS) {
+          s.driftY *= RECOVERY_DECAY;
         } else {
-          const ramp = Math.min(1, (silenceMs - SILENCE_DROP_AFTER_MS) / SILENCE_DROP_DURATION_MS);
-          rawY = -SILENCE_DROP_AMOUNT * ramp; // drift down slowly: "pause getting long"
+          s.driftY -= dt * DRIFT_SILENCE_PER_S;
         }
       } else {
-        // ── speaking: 1€ + deadzone, then drift target slowly (no jump) ──
-        const t = now / 1000;
-        const sx = s.strF.filter(rawStr, t);
-        const sy = s.paceF.filter(rawPace, t);
-        rawX = deadzone(sx, DEADZONE);
-        rawY = deadzone(sy, DEADZONE);
-        // near-perfect = exact center so we don't micro-drift
-        const dist = Math.hypot(rawX, rawY);
-        if (dist < 0.08) {
-          rawX = 0;
-          rawY = 0;
+        // Speaking: strength accumulator
+        if (Math.abs(zStr) < HEALTHY_STRENGTH) {
+          s.driftX *= RECOVERY_DECAY;
+        } else if (zStr > HEALTHY_STRENGTH) {
+          s.driftX += dt * DRIFT_STRENGTH_PER_S;
+        } else {
+          s.driftX -= dt * DRIFT_STRENGTH_PER_S;
+        }
+
+        // Pace accumulator (only when we have pace data)
+        if (sylRate <= 0) {
+          s.driftY *= RECOVERY_DECAY;
+        } else if (sylRate >= SYL_HEALTHY_LO && sylRate <= SYL_HEALTHY_HI) {
+          s.driftY *= RECOVERY_DECAY;
+        } else if (sylRate > SYL_HEALTHY_HI) {
+          s.driftY += dt * DRIFT_PACE_PER_S;
+        } else {
+          s.driftY -= dt * DRIFT_PACE_PER_S;
         }
       }
 
-      // ── rate-limit target: ball starts leaving center slowly, never jumps ──
-      s.smoothTargetX += (rawX - s.smoothTargetX) * TARGET_LERP;
-      s.smoothTargetY += (rawY - s.smoothTargetY) * TARGET_LERP;
+      s.driftX = clamp(s.driftX, -1, 1);
+      s.driftY = clamp(s.driftY, -1, 1);
 
-      const dist = Math.hypot(s.smoothTargetX, s.smoothTargetY);
+      const dist = Math.hypot(s.driftX, s.driftY);
       const score = Math.max(0, 1 - dist / Math.SQRT2);
 
       setState({
-        targetX: s.smoothTargetX,
-        targetY: s.smoothTargetY,
+        targetX: s.driftX,
+        targetY: s.driftY,
         strengthDb: dB,
         wpmEstimate: Math.round(wpm),
         score,
@@ -255,7 +247,10 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
   const stop = useCallback(() => {
     const s = r.current;
     cancelAnimationFrame(s.raf);
-    if (s.ctx) { s.ctx.close(); s.ctx = null; }
+    if (s.ctx) {
+      s.ctx.close();
+      s.ctx = null;
+    }
     s.analyser = null;
     setState(prev => ({ ...prev, isActive: false }));
   }, []);
