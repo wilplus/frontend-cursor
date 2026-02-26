@@ -21,16 +21,16 @@ import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
 const TARGET_DB = -26;
 const DB_TOLERANCE = 10;
 const STRENGTH_QUIET_SOFTEN = 0.5;
-/** Within this normalized band = healthy (no drift) */
-const HEALTHY_STRENGTH = 0.6;
+/** Within this normalized band = healthy (no drift). Tighter = strength axis actually moves. */
+const HEALTHY_STRENGTH = 0.35;
 
 // pace (syllable rate)
 const TARGET_SYL = 3.5;
 const SYL_TOLERANCE = 2.0;
 const SYL_PER_WORD = 1.4;
-/** Healthy pace zone (syl/s) — ball stays centered */
-const SYL_HEALTHY_LO = 3.6;
-const SYL_HEALTHY_HI = 4.4;
+/** Healthy pace zone (syl/s) — slightly wider so small variation doesn't constantly drift */
+const SYL_HEALTHY_LO = 3.2;
+const SYL_HEALTHY_HI = 4.6;
 
 // timing
 const TICK_MS = 50;
@@ -43,12 +43,12 @@ const SILENCE_GRACE_MS = 350;
 /** Pause shorter than this = healthy (no drift). Longer = start drifting down. */
 const SILENCE_HEALTHY_MS = 1500;
 
-// accumulator: drift rate per second when outside healthy zone (~4 s to reach edge)
-const DRIFT_STRENGTH_PER_S = 0.25;
-const DRIFT_PACE_PER_S = 0.20;
-const DRIFT_SILENCE_PER_S = 0.15;
+// accumulator: drift rate per second when outside healthy zone — faster = more dynamic
+const DRIFT_STRENGTH_PER_S = 0.55;
+const DRIFT_PACE_PER_S = 0.50;
+const DRIFT_SILENCE_PER_S = 0.28;
 /** When in healthy zone: decay per tick (fast recovery) */
-const RECOVERY_DECAY = 0.85;
+const RECOVERY_DECAY = 0.88;
 
 // 1€ filter (light smoothing for zone decisions only)
 const STR_MIN_CUT = 0.8;
