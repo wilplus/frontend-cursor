@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
-import { StrengthPaceDartboard, type StrengthPaceDartboardHandle } from "@/components/recording/StrengthPaceDartboard";
+import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 import { debugIngest } from "@/lib/debugIngest";
 
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
@@ -119,24 +119,20 @@ export default function AudioRecorder({
   setIsRecordingRef.current = setIsRecording;
   setElapsedSecondsRef.current = setElapsedSeconds;
 
-  const dartboardRef = useRef<StrengthPaceDartboardHandle>(null);
-  const realtimeStrengthPace = useRealtimeStrengthPace({
-    onVoiceDrop: () => dartboardRef.current?.dampVelocityOnVoiceDrop?.(),
-    onSilenceSettled: () => dartboardRef.current?.resetOnSilenceSettled?.(),
-  });
+  const realtimeStrengthPace = useRealtimeStrengthPace();
   const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
   stopRealtimeRef.current = realtimeStrengthPace.stop;
 
   // #region agent log
   const parentLogRef = useRef({ last: 0, lastActive: false });
   useEffect(() => {
-    const { isActive, strengthScore, paceScore } = realtimeStrengthPace;
+    const { isActive, targetX, targetY, score } = realtimeStrengthPace;
     const now = Date.now();
     if (isActive !== parentLogRef.current.lastActive || now - parentLogRef.current.last > 1500) {
       parentLogRef.current = { last: now, lastActive: isActive };
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx:render',message:'parent passing to dartboard',data:{isActive,strengthScore,paceScore},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx:render',message:'parent passing to dartboard',data:{isActive,targetX,targetY,score},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
     }
-  }, [realtimeStrengthPace.isActive, realtimeStrengthPace.strengthScore, realtimeStrengthPace.paceScore]);
+  }, [realtimeStrengthPace.isActive, realtimeStrengthPace.targetX, realtimeStrengthPace.targetY, realtimeStrengthPace.score]);
   // #endregion
 
   // Detect MIME support on mount
@@ -642,12 +638,9 @@ export default function AudioRecorder({
           <div className="flex justify-center w-full">
             <div className="w-[clamp(420px,60vw,680px)]">
               <StrengthPaceDartboard
-              ref={dartboardRef}
-              strengthScore={realtimeStrengthPace.strengthScore}
-              paceScore={realtimeStrengthPace.paceScore}
-              strengthDirection={realtimeStrengthPace.strengthDirection}
-              paceDirection={realtimeStrengthPace.paceDirection}
-            />
+                targetX={realtimeStrengthPace.targetX}
+                targetY={realtimeStrengthPace.targetY}
+              />
             </div>
           </div>
         {realtimeStrengthPace.isActive ? (
