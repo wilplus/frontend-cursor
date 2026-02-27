@@ -1309,6 +1309,10 @@ export default function HomeworkFlowCard() {
                 <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               )}
               <p className="text-sm text-muted-foreground">Loading report…</p>
+              <p className="text-xs text-muted-foreground">Taking too long? You can start a new homework below.</p>
+              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
+                {resetting ? "Resetting…" : "Start new homework"}
+              </Button>
             </div>
           </Card>
         </div>
@@ -1333,6 +1337,10 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-foreground text-center">
                 Your report is being generated. This usually takes a minute after your recording is processed. We’ll refresh automatically.
               </p>
+              <p className="text-xs text-muted-foreground text-center">You can also start a new homework below if you don't want to wait.</p>
+              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
+                {resetting ? "Resetting…" : "Start new homework"}
+              </Button>
             </div>
           </Card>
         </div>
