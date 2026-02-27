@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { Mic, Play, X } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { debugIngest } from "@/lib/debugIngest";
@@ -1051,116 +1051,60 @@ export default function HomeworkFlowCard() {
 
   // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
   if (step === 0) {
+    const step0Exercises = assignedExercises.length > 0 ? assignedExercises : [DEFAULT_INTRO_EXERCISE];
+    const ex = step0Exercises[0];
+    const videoUrl = ex?.video_url?.trim();
+    const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
+    const displayTitle = ex ? exerciseDisplayTitle(ex) : "Video";
+
     return (
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-16 w-full">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
-          {tutorFeedbackMessage && (
-            <div className="w-full max-w-md mx-auto mb-4 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 p-4 text-left">
-              <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{tutorFeedbackMessage}</p>
-            </div>
-          )}
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
-          <div className="flex flex-col items-center text-center space-y-5">
-            <div
-              className="flex h-20 w-20 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-full bg-orange-50"
-              aria-hidden
-            >
-              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-orange-100">
-                <Mic className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500" strokeWidth={2} />
-              </div>
-            </div>
-            <h2 className="text-xl font-bold text-foreground sm:text-2xl">Practice</h2>
-            <p className="text-sm text-muted-foreground max-w-md">
-                Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
-              </p>
-            {error && (
-              <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
-                <p>{error}</p>
-                <Button variant="outline" size="sm" onClick={handleStart} disabled={loading}>
-                  Try again
-                </Button>
-              </div>
-            )}
-            <Button
-              onClick={handleStart}
-              disabled={loading}
-              className="w-full max-w-md rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
-            >
-              {loading ? "Starting…" : "Start Your Practice"}
-            </Button>
-            {tutorFeedbackDeadlineMs != null && (
-              <div className="w-full max-w-md rounded-xl bg-amber-50 dark:bg-amber-950/30 p-4 text-center space-y-2">
-                {tutorFeedbackMessage ? (
-                  <p className="text-sm text-orange-700 dark:text-orange-400 font-mono tabular-nums">
-                    Time remaining: {formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}
-                  </p>
+            <div className="flex flex-col items-center w-full max-w-md mx-auto space-y-8">
+              <p className="text-sm font-medium text-foreground w-full text-center">An Excercise Before Your Practice</p>
+
+              <div className="w-full max-w-[280px] mx-auto">
+                {videoUrl ? (
+                  vimeoId ? (
+                    <div className="aspect-[9/16] w-full overflow-hidden rounded-lg bg-black">
+                      <iframe
+                        src={`https://player.vimeo.com/video/${vimeoId}`}
+                        title={displayTitle}
+                        className="h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setVideoModalUrl(videoUrl)}
+                      className="relative flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
+                        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg">
+                          <Play className="h-7 w-7 ml-1" fill="currentColor" />
+                        </span>
+                      </span>
+                    </button>
+                  )
                 ) : (
-                  <>
-                    <p className="text-sm text-orange-700 dark:text-orange-400">
-                      Your tutor has <span className="font-mono font-semibold tabular-nums">{formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}</span> to send you feedback and a new practice on your email address.
-                    </p>
-                    <p className="text-sm text-orange-700 dark:text-orange-400">
-                      You can start the lesson now though it will be awkwardly similar to the previous one!
-                    </p>
-                  </>
+                  <div className="flex aspect-[9/16] w-full items-center justify-center rounded-lg bg-muted/50 border border-border">
+                    <p className="text-sm text-muted-foreground">No video</p>
+                  </div>
                 )}
               </div>
-            )}
-            {(() => {
-              const step0Exercises = assignedExercises.length > 0 ? assignedExercises : [DEFAULT_INTRO_EXERCISE];
-              return (
-              <div className="w-full max-w-md mt-6 pt-6 border-t border-border space-y-4">
-                <div className="text-center space-y-1">
-                  <p className="text-sm font-medium text-foreground">An Excercise Before Your Practice</p>
-                  <p className="text-sm font-medium text-foreground">Start Your Practice</p>
-                </div>
-                <ul className="space-y-4" role="list">
-                  {step0Exercises.map((ex) => {
-                    const videoUrl = ex.video_url?.trim();
-                    const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
-                    const displayTitle = exerciseDisplayTitle(ex);
-                    return (
-                      <li key={ex.id} className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-                        <p className="text-sm font-medium text-foreground">{displayTitle}</p>
-                        {videoUrl ? (
-                          vimeoId ? (
-                            <div className="aspect-[9/16] w-full max-w-[280px] mx-auto overflow-hidden rounded-lg bg-black">
-                              <iframe
-                                src={`https://player.vimeo.com/video/${vimeoId}`}
-                                title={displayTitle}
-                                className="h-full w-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                                allowFullScreen
-                              />
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setVideoModalUrl(videoUrl)}
-                              className="relative flex aspect-[9/16] w-full max-w-[280px] mx-auto items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
-                            >
-                              <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
-                                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg">
-                                  <Play className="h-7 w-7 ml-1" fill="currentColor" />
-                                </span>
-                              </span>
-                            </button>
-                          )
-                        ) : (
-                          <div className="flex aspect-[9/16] w-full max-w-[280px] mx-auto items-center justify-center rounded-lg bg-muted/50 border border-border">
-                            <p className="text-sm text-muted-foreground">No video for this exercise</p>
-                          </div>
-                        )}
-                        {ex.description?.trim() ? (
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{ex.description.trim()}</p>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              );
-            })()}
+
+              <Button
+                onClick={handleStart}
+                disabled={loading}
+                className="w-full rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
+              >
+                {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
+              </Button>
+            </div>
+
             {videoModalUrl ? (
               <div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -1193,8 +1137,7 @@ export default function HomeworkFlowCard() {
                 </div>
               </div>
             ) : null}
-          </div>
-        </Card>
+          </Card>
         </StepFlowWrapper>
       </div>
     );
