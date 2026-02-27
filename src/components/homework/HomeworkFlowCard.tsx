@@ -1124,7 +1124,7 @@ export default function HomeworkFlowCard() {
                         <p className="text-sm font-medium text-foreground">{displayTitle}</p>
                         {videoUrl ? (
                           vimeoId ? (
-                            <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                            <div className="aspect-[9/16] w-full max-w-[280px] mx-auto overflow-hidden rounded-lg bg-black">
                               <iframe
                                 src={`https://player.vimeo.com/video/${vimeoId}`}
                                 title={displayTitle}
@@ -1137,7 +1137,7 @@ export default function HomeworkFlowCard() {
                             <button
                               type="button"
                               onClick={() => setVideoModalUrl(videoUrl)}
-                              className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
+                              className="relative flex aspect-[9/16] w-full max-w-[280px] mx-auto items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                               <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
                                 <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg">
@@ -1147,7 +1147,7 @@ export default function HomeworkFlowCard() {
                             </button>
                           )
                         ) : (
-                          <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-muted/50 border border-border">
+                          <div className="flex aspect-[9/16] w-full max-w-[280px] mx-auto items-center justify-center rounded-lg bg-muted/50 border border-border">
                             <p className="text-sm text-muted-foreground">No video for this exercise</p>
                           </div>
                         )}
@@ -1170,7 +1170,7 @@ export default function HomeworkFlowCard() {
                 onClick={() => setVideoModalUrl(null)}
               >
                 <div
-                  className="relative flex w-full max-w-4xl flex-col rounded-xl bg-background shadow-xl"
+                  className="relative flex w-full max-w-[280px] flex-col rounded-xl bg-background shadow-xl"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
@@ -1181,7 +1181,7 @@ export default function HomeworkFlowCard() {
                   >
                     <X className="h-5 w-5" />
                   </button>
-                  <div className="aspect-video w-full overflow-hidden rounded-t-xl bg-black">
+                  <div className="aspect-[9/16] w-full overflow-hidden rounded-t-xl bg-black">
                     <iframe
                       src={videoModalUrl}
                       title="Video"
