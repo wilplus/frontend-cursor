@@ -419,7 +419,7 @@ export default function HomeworkFlowCard() {
         applyStatusToState({ status: "none" });
         return;
       }
-      const msg = e instanceof Error ? e.message : "Failed to start homework";
+      const msg = e instanceof Error ? e.message : "Failed to start practice";
       const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
       if (isBackendUnavailable) {
         applyStatusToState({ status: "recording_1_required", session_id: "mock-session" });
@@ -599,7 +599,7 @@ export default function HomeworkFlowCard() {
           setError(null);
           applyStatusToState({ status: "none" });
         } else {
-          setError("Could not load session. Click Start homework to begin.");
+          setError("Could not load session. Click Start Your Practice to begin.");
         }
       })
       .finally(() => {
@@ -1057,11 +1057,6 @@ export default function HomeworkFlowCard() {
           {tutorFeedbackMessage && (
             <div className="w-full max-w-md mx-auto mb-4 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 p-4 text-left">
               <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{tutorFeedbackMessage}</p>
-              {tutorFeedbackDeadlineMs != null && (
-                <p className="text-sm text-blue-700 dark:text-blue-300 mt-2 font-mono tabular-nums">
-                  Time remaining: {formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}
-                </p>
-              )}
             </div>
           )}
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
@@ -1074,21 +1069,10 @@ export default function HomeworkFlowCard() {
                 <Mic className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500" strokeWidth={2} />
               </div>
             </div>
-            <h2 className="text-xl font-bold text-foreground sm:text-2xl">Homework</h2>
-            {tutorFeedbackDeadlineMs != null && !tutorFeedbackMessage ? (
-              <div className="w-full max-w-md rounded-xl bg-amber-50 dark:bg-amber-950/30 p-4 text-left space-y-2">
-                <p className="text-sm text-orange-700 dark:text-orange-400">
-                  Your tutor has <span className="font-mono font-semibold tabular-nums">{formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}</span> to send you feedback and a new homework on your email address.
-                </p>
-                <p className="text-sm text-orange-700 dark:text-orange-400">
-                  You can start the lesson now though it will be awkwardly similar to the previous one!
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground max-w-md">
+            <h2 className="text-xl font-bold text-foreground sm:text-2xl">Practice</h2>
+            <p className="text-sm text-muted-foreground max-w-md">
                 Complete your warm-up recording, then the metric questions and main recording. You’ll get a report at the end.
               </p>
-            )}
             {error && (
               <div className="w-full max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2 text-left">
                 <p>{error}</p>
@@ -1102,13 +1086,34 @@ export default function HomeworkFlowCard() {
               disabled={loading}
               className="w-full max-w-md rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
             >
-              {loading ? "Starting…" : "Start homework"}
+              {loading ? "Starting…" : "Start Your Practice"}
             </Button>
+            {tutorFeedbackDeadlineMs != null && (
+              <div className="w-full max-w-md rounded-xl bg-amber-50 dark:bg-amber-950/30 p-4 text-center space-y-2">
+                {tutorFeedbackMessage ? (
+                  <p className="text-sm text-orange-700 dark:text-orange-400 font-mono tabular-nums">
+                    Time remaining: {formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm text-orange-700 dark:text-orange-400">
+                      Your tutor has <span className="font-mono font-semibold tabular-nums">{formatCountdown(Math.max(0, tutorFeedbackDeadlineMs - Date.now()))}</span> to send you feedback and a new practice on your email address.
+                    </p>
+                    <p className="text-sm text-orange-700 dark:text-orange-400">
+                      You can start the lesson now though it will be awkwardly similar to the previous one!
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             {(() => {
               const step0Exercises = assignedExercises.length > 0 ? assignedExercises : [DEFAULT_INTRO_EXERCISE];
               return (
               <div className="w-full max-w-md mt-6 pt-6 border-t border-border space-y-4">
-                <p className="text-sm font-medium text-foreground">An exercise before you start the homework!</p>
+                <div className="text-center space-y-1">
+                  <p className="text-sm font-medium text-foreground">An Excercise Before Your Practice</p>
+                  <p className="text-sm font-medium text-foreground">Start Your Practice</p>
+                </div>
                 <ul className="space-y-4" role="list">
                   {step0Exercises.map((ex) => {
                     const videoUrl = ex.video_url?.trim();
@@ -1240,7 +1245,7 @@ export default function HomeworkFlowCard() {
               size="sm"
               onClick={() => {
                 startOverFromScratch();
-                toast.info("Click Start homework to begin a new session.");
+                toast.info("Click Start Your Practice to begin a new session.");
               }}
             >
               Start over
@@ -1255,7 +1260,7 @@ export default function HomeworkFlowCard() {
               size="sm"
               onClick={() => {
                 startOverFromScratch();
-                toast.info("Click Start homework to begin a new session.");
+                toast.info("Click Start Your Practice to begin a new session.");
               }}
             >
               Start over
@@ -1309,9 +1314,9 @@ export default function HomeworkFlowCard() {
                 <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               )}
               <p className="text-sm text-muted-foreground">Loading report…</p>
-              <p className="text-xs text-muted-foreground">Taking too long? You can start a new homework below.</p>
+              <p className="text-xs text-muted-foreground">Taking too long? You can start a new practice below.</p>
               <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start new homework"}
+                {resetting ? "Resetting…" : "Start New Practice"}
               </Button>
             </div>
           </Card>
@@ -1337,9 +1342,9 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-foreground text-center">
                 Your report is being generated. This usually takes a minute after your recording is processed. We’ll refresh automatically.
               </p>
-              <p className="text-xs text-muted-foreground text-center">You can also start a new homework below if you don't want to wait.</p>
+              <p className="text-xs text-muted-foreground text-center">You can also start a new practice below if you don't want to wait.</p>
               <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start new homework"}
+                {resetting ? "Resetting…" : "Start New Practice"}
               </Button>
             </div>
           </Card>
@@ -1356,12 +1361,12 @@ export default function HomeworkFlowCard() {
             <h3 className="text-center text-lg font-semibold">Your report</h3>
             <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
               <p className="text-sm text-foreground">
-                We couldn’t load your report right now. This can happen if the report is still being generated—try again in a moment, or start a new homework below.
+                We couldn’t load your report right now. This can happen if the report is still being generated—try again in a moment, or start a new practice below.
               </p>
               <p className="text-sm text-destructive">{reportError}</p>
             </div>
             <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Send the homework to the coach!"}
+              {resetting ? "Resetting…" : "Send Your Practice to the Coach!"}
             </Button>
           </Card>
         </div>
@@ -1370,7 +1375,7 @@ export default function HomeworkFlowCard() {
 
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
     const displayReportText = reportData?.report_text ?? reportText;
-    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Send the homework to the coach!";
+    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Send Your Practice to the Coach!";
 
     // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
     const performanceHistory = reportData?.performance_history;
@@ -1386,7 +1391,7 @@ export default function HomeworkFlowCard() {
           ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
           : [];
 
-    const coachMessageFallback = "Your coach has 24 hours to analyse your homework and send a feedback on your email!";
+    const coachMessageFallback = "Your coach has 24 hours to analyse your practice and send a feedback on your email!";
 
     // Playback: final_recording.audio_url or recording.audio_url (same when one recording) or recording_1 (legacy).
     const playbackUrl =
