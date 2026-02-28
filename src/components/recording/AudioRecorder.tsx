@@ -8,7 +8,9 @@ import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
+import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
+import { SniperWheel } from "@/components/recording/SniperWheel";
 import { debugIngest } from "@/lib/debugIngest";
 
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
@@ -74,6 +76,8 @@ interface AudioRecorderProps {
   minDurationSeconds?: number;
   /** Optional prompt/question shown at top of card (e.g. "How was your day so far?") */
   prompt?: string;
+  /** When true, show Sniper Wheel (5-segment voice alignment) instead of strength/pace dartboard */
+  sniperMode?: boolean;
 }
 
 export default function AudioRecorder({
@@ -87,6 +91,7 @@ export default function AudioRecorder({
   uploading = false,
   minDurationSeconds = DEFAULT_MIN_DURATION_SECONDS,
   prompt,
+  sniperMode = false,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -120,8 +125,15 @@ export default function AudioRecorder({
   setElapsedSecondsRef.current = setElapsedSeconds;
 
   const realtimeStrengthPace = useRealtimeStrengthPace();
-  const stopRealtimeRef = useRef(realtimeStrengthPace.stop);
-  stopRealtimeRef.current = realtimeStrengthPace.stop;
+  const sniperMetrics = useSniperMetrics(startTimeRef);
+  const stopRealtimeRef = useRef(() => {
+    if (sniperMode) sniperMetrics.stop();
+    else realtimeStrengthPace.stop();
+  });
+  stopRealtimeRef.current = () => {
+    if (sniperMode) sniperMetrics.stop();
+    else realtimeStrengthPace.stop();
+  };
 
   // #region agent log
   const parentLogRef = useRef({ last: 0, lastActive: false });
@@ -290,7 +302,8 @@ export default function AudioRecorder({
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx',message:'parent calling realtimeStrengthPace.start(stream)',data:{isRecording:true,hasStream:!!stream},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
       // #endregion
-      realtimeStrengthPace.start(stream);
+      if (sniperMode) sniperMetrics.start(stream);
+      else realtimeStrengthPace.start(stream);
 
       timerIntervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
@@ -324,7 +337,7 @@ export default function AudioRecorder({
           : "Failed to access microphone"
       );
     }
-  }, [mimeType, onRecordingStart, attachOnStop, realtimeStrengthPace.start]);
+  }, [mimeType, onRecordingStart, attachOnStop, sniperMode, sniperMetrics.start, realtimeStrengthPace.start]);
 
   const stopRecording = useCallback(() => {
     stopRealtimeRef.current?.();
@@ -395,7 +408,8 @@ export default function AudioRecorder({
       console.log("[rec] calling recorder.start()", Date.now());
     }
     recorder.start();
-    realtimeStrengthPace.start(stream);
+    if (sniperMode) sniperMetrics.start(stream);
+    else realtimeStrengthPace.start(stream);
     setIsPaused(false);
     timerIntervalRef.current = setInterval(() => {
       if (startTimeRef.current) {
@@ -410,7 +424,7 @@ export default function AudioRecorder({
         }
       }
     }, 100);
-  }, [mimeType, elapsedSeconds, attachOnStop, realtimeStrengthPace.start]);
+  }, [mimeType, elapsedSeconds, attachOnStop, sniperMode, sniperMetrics.start, realtimeStrengthPace.start]);
 
   const handleStartAgain = useCallback(() => {
     if (isPaused) {
@@ -636,19 +650,29 @@ export default function AudioRecorder({
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex justify-center w-full">
-            <div className="w-[clamp(420px,60vw,680px)]">
-              <StrengthPaceDartboard
-                targetX={realtimeStrengthPace.targetX}
-                targetY={realtimeStrengthPace.targetY}
-              />
+            <div className={sniperMode ? "w-full max-w-md" : "w-[clamp(420px,60vw,680px)]"}>
+              {sniperMode ? (
+                <SniperWheel
+                  scores={sniperMetrics.scores}
+                  overallScore={sniperMetrics.overallScore}
+                  tier={sniperMetrics.tier}
+                  coachingCue={sniperMetrics.coachingCue}
+                  metrics={sniperMetrics.metrics}
+                />
+              ) : (
+                <StrengthPaceDartboard
+                  targetX={realtimeStrengthPace.targetX}
+                  targetY={realtimeStrengthPace.targetY}
+                />
+              )}
             </div>
           </div>
-        {realtimeStrengthPace.isActive ? (
+        {!sniperMode && realtimeStrengthPace.isActive ? (
           <p className="text-sm text-muted-foreground">
             Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB   Pace: {Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
         ) : null}
-        {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
+        {!sniperMode && !realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             {micPreviewError}
           </p>

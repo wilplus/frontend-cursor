@@ -626,6 +626,42 @@ export default function HomeworkFlowCard() {
   const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
   // Steps 2–4 effects removed (task block fetch, skip-to-report, step 4 questions).
 
+  // Ensure admin is notified when lesson is complete (step 5), even if report takes long or fails to load.
+  // Fire as soon as we land on step 5 and retry with backoff so the email is sent even on transient errors.
+  useEffect(() => {
+    if (step !== 5 || !sessionId || sessionId === "mock-session") return;
+    if (notifiedLessonCompleteRef.current.has(sessionId)) return;
+    const delays = [0, 2000, 5000, 10000]; // immediate, then 2s, 5s, 10s
+    let cancelled = false;
+    const tryNotify = (attempt: number) => {
+      if (cancelled || notifiedLessonCompleteRef.current.has(sessionId)) return;
+      homeworkApi
+        .notifyLessonComplete(sessionId)
+        .then((ok) => {
+          if (cancelled) return;
+          if (ok) {
+            notifiedLessonCompleteRef.current.add(sessionId);
+            return;
+          }
+          if (attempt < delays.length - 1) {
+            const delay = delays[attempt + 1] - delays[attempt];
+            setTimeout(() => tryNotify(attempt + 1), delay);
+          }
+        })
+        .catch(() => {
+          if (cancelled) return;
+          if (attempt < delays.length - 1) {
+            const delay = delays[attempt + 1] - delays[attempt];
+            setTimeout(() => tryNotify(attempt + 1), delay);
+          }
+        });
+    };
+    tryNotify(0);
+    return () => {
+      cancelled = true;
+    };
+  }, [step, sessionId]);
+
   // Fetch report when on step 5 with a real session (single source of truth for player + scores + text)
   useEffect(() => {
     if (step !== 5 || !sessionId || sessionId === "mock-session") return;
@@ -644,10 +680,11 @@ export default function HomeworkFlowCard() {
           const ms = new Date(deadlineIso).getTime();
           if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
         }
-        // Notify admin (e.g. artur@willonski.com) once per session when report is ready
+        // Fallback: ensure admin notified when report has loaded (in case step-5 notify hadn't succeeded yet)
         if (!notifiedLessonCompleteRef.current.has(sessionId)) {
-          notifiedLessonCompleteRef.current.add(sessionId);
-          homeworkApi.notifyLessonComplete(sessionId).catch(() => {});
+          homeworkApi.notifyLessonComplete(sessionId).then((ok) => {
+            if (ok) notifiedLessonCompleteRef.current.add(sessionId);
+          });
         }
       })
       .catch((e) => {
@@ -1062,7 +1099,7 @@ export default function HomeworkFlowCard() {
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
             <div className="flex flex-col items-center w-full max-w-md mx-auto space-y-8">
-              <p className="text-sm font-medium text-foreground w-full text-center">An Excercise Before Your Practice</p>
+              <p className="text-sm font-medium text-foreground w-full text-center">An excercise before you start</p>
 
               <div className="w-full max-w-[280px] mx-auto">
                 {videoUrl ? (
@@ -1217,6 +1254,7 @@ export default function HomeworkFlowCard() {
             stopAndSend
             uploading={isUploadingRec1}
             minDurationSeconds={RECORDING_1_DURATION_MIN}
+            sniperMode
           />
         )}
         {sessionId && sessionId !== "mock-session" && (
