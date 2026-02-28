@@ -323,15 +323,15 @@ export const homeworkApi = {
 
   /**
    * Notify that lesson is complete (report generated). Backend should send email to admin (e.g. artur@willonski.com).
-   * Fire-and-forget; call once when student reaches report step.
+   * Returns true if the request succeeded (2xx), false otherwise, so callers can retry.
    */
-  async notifyLessonComplete(sessionId: string): Promise<void> {
+  async notifyLessonComplete(sessionId: string): Promise<boolean> {
     const { headers, credentials } = await getAuthFetchOptions();
-    await fetch(`${BASE}/session/${sessionId}/notify-lesson-complete`, {
+    const res = await fetch(`${BASE}/session/${sessionId}/notify-lesson-complete`, {
       method: "POST",
       headers,
       credentials,
     });
-    // Intentionally not throwing on non-2xx so student UX is unaffected
+    return res.ok;
   },
 };
