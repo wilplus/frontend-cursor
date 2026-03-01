@@ -401,12 +401,18 @@ export default function HomeworkFlowCard() {
     }
   };
 
+  const START_TIMEOUT_MS = 15_000;
   const handleStart = async () => {
     setLoading(true);
     setError(null);
     setStatusUnknown(false);
     try {
-      const startRes = await homeworkApi.start();
+      const startRes = await Promise.race([
+        homeworkApi.start(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Start request timed out. Check your connection and try again.")), START_TIMEOUT_MS)
+        ),
+      ]);
       const warmUpTextFromStart =
         (startRes.warm_up_task && "text" in startRes.warm_up_task ? startRes.warm_up_task.text : null) ??
         (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
@@ -575,17 +581,24 @@ export default function HomeworkFlowCard() {
     );
   };
 
-  // Cold load: GET status only (mount). Never downgrade step; missing payload handled by Option B (e.g. fetch task-block for step 2).
+  // Cold load: GET status only (mount). Timeout so a hanging API never blocks the Start button.
+  const COLD_LOAD_TIMEOUT_MS = 12_000;
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
     autoStartAttempted = true;
     setLoading(true);
     let cancelled = false;
-    homeworkApi
-      .getStatus()
+    const timeoutPromise = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), COLD_LOAD_TIMEOUT_MS)
+    );
+    Promise.race([homeworkApi.getStatus(), timeoutPromise])
       .then((statusRes) => {
         if (cancelled) return;
-        if (!statusRes || statusRes.has_active_session === false) {
+        if (statusRes === null || statusRes === undefined) {
+          applyStatusToState({ status: "none" });
+          return;
+        }
+        if (statusRes.has_active_session === false) {
           applyStatusToState({ status: "none" });
           if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
             const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
@@ -605,6 +618,9 @@ export default function HomeworkFlowCard() {
           setNoWarmupConfigured(true);
           setError(null);
           applyStatusToState({ status: "none" });
+        } else if (e instanceof Error && e.message === "timeout") {
+          applyStatusToState({ status: "none" });
+          setError("Could not load session. Click Start Your Practice to begin.");
         } else {
           setError("Could not load session. Click Start Your Practice to begin.");
         }
