@@ -1126,9 +1126,7 @@ export default function HomeworkFlowCard() {
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-16 w-full">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
-            <div className="flex flex-col items-center w-full max-w-md mx-auto space-y-8">
-              <p className="text-sm font-medium text-foreground w-full text-center">An excercise before you start</p>
-
+            <div className="flex flex-col items-center w-full max-w-md mx-auto space-y-6">
               <div className="w-full max-w-[280px] mx-auto">
                 {videoUrl ? (
                   vimeoId ? (
