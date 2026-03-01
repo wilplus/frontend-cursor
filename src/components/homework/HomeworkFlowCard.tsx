@@ -596,8 +596,17 @@ export default function HomeworkFlowCard() {
           }
           return;
         }
-        const resp = getStatusToHomeworkResponse(statusRes);
-        applyStatusToState(resp);
+        // Do not auto-advance to step 1: always show step 0 first; user must click "Start Your Practice" to go to recording.
+        if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
+          const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
+          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
+        }
+        if (typeof statusRes?.tutor_feedback_message === "string" && statusRes.tutor_feedback_message.trim()) {
+          setTutorFeedbackMessage(statusRes.tutor_feedback_message.trim());
+        }
+        if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
+          setAssignedExercises(statusRes.assigned_exercises);
+        }
       })
       .catch((e) => {
         if (cancelled) return;
@@ -618,14 +627,14 @@ export default function HomeworkFlowCard() {
     };
   }, [authReady, step]);
 
-  // Tab refocus: GET status and apply. No downgrade.
+  // Tab refocus: GET status and apply only when not on step 0 (so we don't jump to sniper without user clicking Start).
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        homeworkApi.getStatus().then((res) => {
-          if (res) applyStatusToState(getStatusToHomeworkResponse(res));
-        });
-      }
+      if (document.visibilityState !== "visible") return;
+      if (stepRef.current === 0) return;
+      homeworkApi.getStatus().then((res) => {
+        if (res) applyStatusToState(getStatusToHomeworkResponse(res));
+      });
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -1114,13 +1123,12 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 0: No session — show Start homework so next run starts from step 1 (first recording)
+  // Step 0: No session — show Start homework so next run starts from step 1 (first recording). User must click to proceed.
   if (step === 0) {
     const step0Exercises = assignedExercises.length > 0 ? assignedExercises : [DEFAULT_INTRO_EXERCISE];
     const ex = step0Exercises[0];
     const videoUrl = ex?.video_url?.trim();
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
-    const displayTitle = ex ? exerciseDisplayTitle(ex) : "Video";
 
     return (
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-16 w-full">
@@ -1133,7 +1141,7 @@ export default function HomeworkFlowCard() {
                     <div className="aspect-[9/16] w-full overflow-hidden rounded-lg bg-black">
                       <iframe
                         src={`https://player.vimeo.com/video/${vimeoId}`}
-                        title={displayTitle}
+                        title="Video"
                         className="h-full w-full"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                         allowFullScreen
