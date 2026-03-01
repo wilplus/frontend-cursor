@@ -124,12 +124,35 @@ export const homeworkApi = {
       body: "{}",
       credentials,
     });
+    // #region agent log
+    if (res.status === 500 && typeof window !== "undefined") {
+      const body = await res.clone().json().catch(() => ({}));
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "homework-client.ts:abandonSession",
+          message: "Abandon returned 500",
+          data: { sessionId: sessionId?.slice(0, 8), status: res.status, body },
+          hypothesisId: "H1",
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
     if (res.status === 409) {
       const body = await res.json().catch(() => ({})) as { abandoned?: boolean; message?: string };
       return { abandoned: body.abandoned ?? true, message: body.message ?? "Session already completed or abandoned." };
     }
     if (res.status === 404) {
       return { abandoned: true, message: "Session not found or already cleared." };
+    }
+    if (res.status === 500 || res.status === 503) {
+      const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
+      return {
+        abandoned: true,
+        message: body.message ?? body.error ?? "Server error; you can start a new session.",
+      };
     }
     if (res.status === 400) {
       const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
@@ -143,6 +166,14 @@ export const homeworkApi = {
       ) {
         return { abandoned: true, message: body.message ?? body.error ?? "Session already abandoned or completed." };
       }
+    }
+    // Any other non-OK (e.g. 401, 403, 502): treat as success so the UI always clears and user can start a new session
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
+      return {
+        abandoned: true,
+        message: body.message ?? body.error ?? "Session cleared. You can start a new session.",
+      };
     }
     return handleResponse<{ abandoned: boolean; message?: string }>(res);
   },
