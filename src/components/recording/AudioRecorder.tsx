@@ -159,13 +159,18 @@ export default function AudioRecorder({
   }, [realtimeStrengthPace.isActive, realtimeStrengthPace.targetX, realtimeStrengthPace.targetY, realtimeStrengthPace.score]);
   // #endregion
 
-  // Detect MIME support on mount
+  // Detect MIME support on mount — always resolve so we never stick on "Checking audio support..."
   useEffect(() => {
-    const detected = detectSupportedMimeType();
-    if (detected) {
-      setIsSupported(true);
-      setMimeType(detected);
-    } else {
+    try {
+      const detected = detectSupportedMimeType();
+      if (detected) {
+        setIsSupported(true);
+        setMimeType(detected);
+      } else {
+        setIsSupported(false);
+        setIsFileUploadMode(true);
+      }
+    } catch {
       setIsSupported(false);
       setIsFileUploadMode(true);
     }
