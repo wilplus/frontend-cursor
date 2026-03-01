@@ -730,15 +730,24 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
 
-  // Fetch sniper profile when on recording step (for adaptive baseline / growth)
+  // Fetch sniper profile when on recording step (for adaptive baseline / growth).
+  // Deferred and with timeout so a slow/hanging API never blocks the Record button.
   useEffect(() => {
     if (step !== 1) return;
-    fetch("/api/user/sniper-profile")
-      .then((r) => (r.status === 404 ? null : r.json()))
-      .then((data) => {
-        if (data && typeof data.user_id === "string") setSniperProfile(data);
-      })
-      .catch(() => {});
+    const timeoutMs = 8000;
+    const delayMs = 300;
+    const tid = setTimeout(() => {
+      const ac = new AbortController();
+      const timeoutId = setTimeout(() => ac.abort(), timeoutMs);
+      fetch("/api/user/sniper-profile", { signal: ac.signal })
+        .then((r) => (r.status === 404 ? null : r.json()))
+        .then((data) => {
+          if (data && typeof data.user_id === "string") setSniperProfile(data);
+        })
+        .catch(() => {})
+        .finally(() => clearTimeout(timeoutId));
+    }, delayMs);
+    return () => clearTimeout(tid);
   }, [step]);
 
   const RECORDING_1_DURATION_MIN = 30;
