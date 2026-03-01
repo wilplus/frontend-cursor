@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, Settings } from "lucide-react";
 import WillabLogo from "@/components/WillabLogo";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const CAL_LESSON_URL = "https://cal.com/artur-willonski-zywzu7/lesson";
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
+const ADMIN_EMAIL = "artur@willonski.com";
 
 export default function DashboardHeader() {
   const router = useRouter();
@@ -86,12 +87,24 @@ export default function DashboardHeader() {
   return (
     <header className="border-b bg-card">
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
-        <Link
-          href="/dashboard"
-          className="shrink-0 hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-        >
-          <WillabLogo size="md" />
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+          >
+            <WillabLogo size="md" />
+          </Link>
+          {userEmail === ADMIN_EMAIL && (
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              title="Admin"
+            >
+              <Settings className="h-4 w-4" aria-hidden />
+              Admin
+            </Link>
+          )}
+        </div>
         <div className="relative flex shrink-0" ref={menuRef}>
           <Button
             ref={buttonRef}

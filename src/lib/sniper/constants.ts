@@ -18,6 +18,11 @@ export const PACE_CAP_BELOW = 130;
 export const PACE_CAP_ABOVE = 165;
 /** Variance bonus: if segment WPM spread ≥ this, +5 to pace score (capped 100). */
 export const PACE_VARIANCE_BONUS_WPM = 40;
+/** Soft floor: no score below this unless catastrophic. Pace 55. */
+export const PACE_SOFT_FLOOR = 55;
+/** Catastrophic zone: WPM outside this bypasses soft floor; score clamped to 30–40. */
+export const PACE_CATASTROPHIC_LO = 110;
+export const PACE_CATASTROPHIC_HI = 190;
 
 /** Pause (avg ms): ideal and tolerance. */
 export const PAUSE_IDEAL_MS = 440;
@@ -31,6 +36,8 @@ export const PAUSE_DENSITY_PENALTY_ABOVE = 0.82;
 /** No pause > this in 3 min → -15 structural penalty. */
 export const PAUSE_LONG_PAUSE_MS = 1500;
 export const PAUSE_LONG_PAUSE_WINDOW_SEC = 180;
+/** Soft floor for pause. */
+export const PAUSE_SOFT_FLOOR = 55;
 
 /** Dynamic range (dB): ideal and tolerance. */
 export const DYNAMIC_IDEAL_DB = 14;
@@ -43,6 +50,10 @@ export const DYNAMIC_YELLOW_HI = 18;
 export const DYNAMIC_CAP_SCORE = 35;
 /** RMS instability > this (dB) → -10. */
 export const DYNAMIC_RMS_INSTABILITY_DB = 5;
+/** Soft floor for dynamic. */
+export const DYNAMIC_SOFT_FLOOR = 60;
+/** Catastrophic: dynamic range below this bypasses soft floor; score 30–40. */
+export const DYNAMIC_CATASTROPHIC_LO = 6;
 
 /** Emphasis (true rhetorical spikes/min): ideal and tolerance. */
 export const EMPHASIS_IDEAL_PER_MIN = 35;
@@ -55,6 +66,10 @@ export const EMPHASIS_YELLOW_HI = 60;
 export const EMPHASIS_CAP_BELOW = 15;
 /** Low clustering / monotone → -5 naturalness. */
 export const EMPHASIS_MONOTONE_PENALTY = 5;
+/** Soft floor for emphasis. */
+export const EMPHASIS_SOFT_FLOOR = 60;
+/** Catastrophic: emphasis below this bypasses soft floor; score 30–40. */
+export const EMPHASIS_CATASTROPHIC_LO = 8;
 
 /** Energy arc: minimum session duration (sec) before energy score is computed. */
 export const ENERGY_MIN_SESSION_SEC = 120;
@@ -75,6 +90,15 @@ export const WEIGHTS = {
   energy: 0.3,
 } as const;
 
+/** When energy is unavailable (<2 min), reweight the other four so they sum to 1. */
+const WEIGHT_SUM_WITHOUT_ENERGY = WEIGHTS.pace + WEIGHTS.pause + WEIGHTS.dynamic + WEIGHTS.emphasis;
+export const WEIGHTS_WITHOUT_ENERGY = {
+  pace: WEIGHTS.pace / WEIGHT_SUM_WITHOUT_ENERGY,
+  pause: WEIGHTS.pause / WEIGHT_SUM_WITHOUT_ENERGY,
+  dynamic: WEIGHTS.dynamic / WEIGHT_SUM_WITHOUT_ENERGY,
+  emphasis: WEIGHTS.emphasis / WEIGHT_SUM_WITHOUT_ENERGY,
+} as const;
+
 /** Tier boundaries (inclusive) and labels. */
 export const TIER_BOUNDS: Array<{ min: number; max: number; tier: SniperTier }> = [
   { min: 92, max: 100, tier: "executive_calibrated" },
@@ -86,3 +110,14 @@ export const TIER_BOUNDS: Array<{ min: number; max: number; tier: SniperTier }> 
 
 /** Hysteresis: require score to stay in new tier for this many updates before switching (reduces flicker). */
 export const TIER_HYSTERESIS_UPDATES = 3;
+
+/** Adaptive layer: blend stage (benchmark) + growth (vs personal baseline). */
+export const BLEND_STAGE_WEIGHT = 0.7;
+export const BLEND_GROWTH_WEIGHT = 0.3;
+/** EMA for baseline update: new = (1 - EMA_ALPHA) * old + EMA_ALPHA * session_mean. */
+export const EMA_ALPHA = 0.2;
+/** Baseline "ready" when session_count >= this and at least one session had energy. */
+export const MIN_SESSIONS_FOR_BASELINE = 3;
+/** Only update baseline when session stage score and voiced duration meet these (anti-gaming). */
+export const MIN_STAGE_SCORE_FOR_BASELINE_UPDATE = 60;
+export const MIN_VOICED_SEC_FOR_BASELINE_UPDATE = 60;

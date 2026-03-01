@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
+import { SniperReviewSummary } from "@/components/recording/SniperReviewSummary";
+import type { SniperSessionSnapshot, UserSniperProfile } from "@/lib/sniper/types";
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -225,6 +227,10 @@ export default function HomeworkFlowCard() {
   const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
   /** When set, show modal with iframe for this video URL (non-Vimeo links). */
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+  /** Sniper (voice alignment) session summary when recording completed with sniperMode. Shown on report step. */
+  const [sniperSnapshot, setSniperSnapshot] = useState<SniperSessionSnapshot | null>(null);
+  /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
+  const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
   useEffect(() => {
     if (!videoModalUrl) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setVideoModalUrl(null);
@@ -439,6 +445,7 @@ export default function HomeworkFlowCard() {
   const handleStartOver = async () => {
     if (resetting) return;
     setResetting(true);
+    setSniperSnapshot(null);
     try {
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
@@ -722,6 +729,17 @@ export default function HomeworkFlowCard() {
     const id = setInterval(() => setReportRetryCount((c) => c + 1), intervalMs);
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
+
+  // Fetch sniper profile when on recording step (for adaptive baseline / growth)
+  useEffect(() => {
+    if (step !== 1) return;
+    fetch("/api/user/sniper-profile")
+      .then((r) => (r.status === 404 ? null : r.json()))
+      .then((data) => {
+        if (data && typeof data.user_id === "string") setSniperProfile(data);
+      })
+      .catch(() => {});
+  }, [step]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1251,6 +1269,23 @@ export default function HomeworkFlowCard() {
           <AudioRecorder
             prompt={warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
             onRecordingComplete={handleRecording1Complete}
+            onSniperSnapshot={(snapshot) => {
+              setSniperSnapshot(snapshot);
+              fetch("/api/user/sniper-profile", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  session_means: snapshot.sessionMeans,
+                  stage_score: snapshot.overallScore,
+                  voiced_duration_sec: snapshot.sessionMeans.voicedDurationSec,
+                }),
+              })
+                .then((r) => r.json())
+                .then((data) => {
+                  if (data && typeof data.session_count === "number") setSniperProfile(data);
+                })
+                .catch(() => {});
+            }}
             stopAndSend
             uploading={isUploadingRec1}
             minDurationSeconds={RECORDING_1_DURATION_MIN}
@@ -1406,6 +1441,9 @@ export default function HomeworkFlowCard() {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           {coachMessageBlock}
+          {sniperSnapshot ? (
+            <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+          ) : null}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
             {reportError && (
@@ -1481,6 +1519,9 @@ export default function HomeworkFlowCard() {
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         {coachMessageBlock}
+        {sniperSnapshot ? (
+          <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+        ) : null}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>
           {reportError && (
