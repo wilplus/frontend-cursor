@@ -1,31 +1,34 @@
 "use client";
 
 /**
- * Sniper Wheel — Elite Performance Coach (Public Speaking).
- * 5 radial segments: Pace, Pause, Dynamic, Emphasis, Energy.
- * Center: Voice Alignment %, tier label, single coaching cue.
- * Restrained, data-driven; no flashing.
+ * Sniper Wheel — Light theme: premium performance dashboard.
+ * Apple Health + Notion + F1 telemetry, minimal. Clean, intelligent, calm.
  */
 
 import type { SniperScores, SniperTier } from "@/lib/sniper/types";
 import type { SniperMetricState } from "@/lib/sniper/types";
 
-const VIEWBOX = 400;
-const CENTER = 200;
-const INNER_R = 52;
-const MID_R = 85;
-const OUTER_R = 120;
+const VIEWBOX = 360;
+const CENTER = 180;
+const INNER_R = 50;
+const OUTER_R = 115;
 const SEGMENTS = 5;
 const ANGLE_PER = 360 / SEGMENTS;
 
-const COLORS = {
-  bg: "#111315",
-  green: "#1DBE88",
-  amber: "#D9A441",
-  red: "#B34E4E",
-  text: "#EDEDED",
-  subtext: "#8A8F98",
-  stroke: "rgba(255,255,255,0.08)",
+const LIGHT = {
+  bgPage: "#F7F8FA",
+  card: "#FFFFFF",
+  primaryText: "#1F2933",
+  secondaryText: "#6B7280",
+  microLabel: "#9CA3AF",
+  border: "#E5E7EB",
+  green: "#2E9E6F",
+  amber: "#D6A23D",
+  red: "#C94F4F",
+  greenFill: "rgba(46, 158, 111, 0.15)",
+  amberFill: "rgba(214, 162, 61, 0.18)",
+  redFill: "rgba(201, 79, 79, 0.15)",
+  shadow: "0 4px 20px rgba(0,0,0,0.05)",
 } as const;
 
 const TIER_LABELS: Record<SniperTier, string> = {
@@ -36,12 +39,16 @@ const TIER_LABELS: Record<SniperTier, string> = {
   unstable_delivery: "Unstable Delivery",
 };
 
-const SEGMENT_LABELS: Array<{ key: keyof SniperScores; label: string }> = [
-  { key: "pace", label: "PACE" },
-  { key: "pause", label: "PAUSE" },
-  { key: "dynamic", label: "DYNAMIC" },
-  { key: "emphasis", label: "EMPHASIS" },
-  { key: "energy", label: "ENERGY" },
+const SEGMENT_METADATA: Array<{
+  key: keyof SniperScores;
+  label: string;
+  target: string;
+}> = [
+  { key: "pace", label: "Pace", target: "140–155" },
+  { key: "pause", label: "Pause", target: "400–480 ms" },
+  { key: "dynamic", label: "Dynamic", target: "12–16 dB" },
+  { key: "emphasis", label: "Emphasis", target: "30–40" },
+  { key: "energy", label: "Energy", target: "High–Low–High" },
 ];
 
 function polarToCart(cx: number, cy: number, r: number, deg: number) {
@@ -49,20 +56,6 @@ function polarToCart(cx: number, cy: number, r: number, deg: number) {
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-function describeArc(
-  cx: number,
-  cy: number,
-  r: number,
-  startDeg: number,
-  endDeg: number
-): string {
-  const start = polarToCart(cx, cy, r, startDeg);
-  const end = polarToCart(cx, cy, r, endDeg);
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
-}
-
-/** Wedge from center to arc at r from startDeg to endDeg (closed path). */
 function describeWedge(
   cx: number,
   cy: number,
@@ -76,7 +69,6 @@ function describeWedge(
   return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y} Z`;
 }
 
-/** Annular wedge (ring segment) between rInner and rOuter. */
 function describeAnnularWedge(
   cx: number,
   cy: number,
@@ -99,6 +91,27 @@ function getSegmentZone(score: number): "green" | "amber" | "red" {
   return "red";
 }
 
+function getScoreColorClass(score: number): string {
+  if (score >= 90) return "text-[#2E9E6F]";
+  if (score >= 75) return "text-[#1F2933]";
+  if (score >= 60) return "text-[#D6A23D]";
+  return "text-[#C94F4F]";
+}
+
+function getCoachingAccentClass(scores: SniperScores, hasCue: boolean): string {
+  if (!hasCue) return "bg-[#2E9E6F]";
+  const min = Math.min(
+    scores.pace,
+    scores.pause,
+    scores.dynamic,
+    scores.emphasis,
+    scores.energy
+  );
+  if (min < 50) return "bg-[#C94F4F]";
+  if (min < 75) return "bg-[#D6A23D]";
+  return "bg-[#2E9E6F]";
+}
+
 export interface SniperWheelProps {
   scores: SniperScores;
   overallScore: number;
@@ -114,200 +127,190 @@ export function SniperWheel({
   coachingCue,
   metrics,
 }: SniperWheelProps) {
-  const segmentValues = [
-    { score: scores.pace, value: `${metrics.paceWpm} WPM`, target: "140–155" },
-    {
-      score: scores.pause,
-      value: `${metrics.avgPauseMs} ms`,
-      target: "400–480 ms",
-    },
-    {
-      score: scores.dynamic,
-      value: `${metrics.dynamicRangeDb} dB`,
-      target: "12–16 dB",
-    },
-    {
-      score: scores.emphasis,
-      value: `${metrics.emphasisPerMin}/min`,
-      target: "30–40",
-    },
-    {
-      score: scores.energy,
-      value:
-        metrics.energyByThird &&
-        metrics.energyByThird.e3 >= metrics.energyByThird.e2
+  const segmentValues = SEGMENT_METADATA.map((meta) => {
+    const score = scores[meta.key];
+    let value: string;
+    if (meta.key === "pace") value = `${metrics.paceWpm} WPM`;
+    else if (meta.key === "pause") value = `${metrics.avgPauseMs} ms`;
+    else if (meta.key === "dynamic") value = `${metrics.dynamicRangeDb} dB`;
+    else if (meta.key === "emphasis") value = `${metrics.emphasisPerMin}/min`;
+    else
+      value =
+        metrics.energyByThird && metrics.energyByThird.e3 >= metrics.energyByThird.e2
           ? "Stable Build"
           : metrics.energyByThird
             ? "Declining"
-            : "—",
-      target: "High–Low–High",
-    },
-  ];
+            : "—";
+    return { ...meta, score, value };
+  });
+
+  const scoreColorClass = getScoreColorClass(overallScore);
+  const coachingAccentClass = getCoachingAccentClass(scores, !!coachingCue);
+  const coachingMessage = coachingCue || "Delivery calibrated.";
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden"
-      style={{ background: COLORS.bg }}
+      className="w-full flex flex-col items-center py-6 sm:py-8"
+      style={{ background: LIGHT.bgPage }}
       role="img"
-      aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingCue || "Delivery calibrated."}`}
+      aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingMessage}`}
     >
-      <svg
-        viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
-        className="w-full h-full min-h-[320px]"
-        aria-hidden="true"
+      <div
+        className="w-full max-w-4xl px-4 sm:px-6"
+        style={{ boxShadow: LIGHT.shadow }}
       >
-        <defs>
-          <linearGradient
-            id="sniperGreen"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
-          >
-            <stop offset="0%" stopColor={COLORS.green} stopOpacity={0.25} />
-            <stop offset="100%" stopColor={COLORS.green} stopOpacity={0.05} />
-          </linearGradient>
-          <linearGradient
-            id="sniperAmber"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
-          >
-            <stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.2} />
-            <stop offset="100%" stopColor={COLORS.amber} stopOpacity={0.05} />
-          </linearGradient>
-          <linearGradient
-            id="sniperRed"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
-          >
-            <stop offset="0%" stopColor={COLORS.red} stopOpacity={0.15} />
-            <stop offset="100%" stopColor={COLORS.red} stopOpacity={0.03} />
-          </linearGradient>
-        </defs>
+        <div
+          className="bg-white rounded-2xl p-5 sm:p-8 flex flex-col items-center"
+          style={{ boxShadow: LIGHT.shadow }}
+        >
+          <div className="mb-6 text-center">
+            <p
+              className="text-xs tracking-widest uppercase"
+              style={{ color: LIGHT.microLabel }}
+            >
+              Live Voice Alignment
+            </p>
+          </div>
 
-        {/* Segment wedges: outline and fill from center by score */}
-        {SEGMENT_LABELS.map((seg, i) => {
-          const startDeg = i * ANGLE_PER;
-          const endDeg = (i + 1) * ANGLE_PER;
-          const score = segmentValues[i].score;
-          const zone = getSegmentZone(score);
-          const fillR = INNER_R + (OUTER_R - INNER_R) * (score / 100);
-          const pathOuter = describeWedge(CENTER, CENTER, OUTER_R, startDeg, endDeg);
-          const pathFill = describeAnnularWedge(CENTER, CENTER, INNER_R, Math.max(INNER_R, fillR), startDeg, endDeg);
-          const fillUrl =
-            zone === "green"
-              ? "url(#sniperGreen)"
-              : zone === "amber"
-                ? "url(#sniperAmber)"
-                : "url(#sniperRed)";
-          return (
-            <g key={seg.key}>
-              <path
-                d={pathOuter}
+          <div className="relative w-[300px] h-[300px] sm:w-[360px] sm:h-[360px]">
+            <svg
+              viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
+              className="w-full h-full"
+              aria-hidden="true"
+            >
+              {/* Radial divider lines */}
+              {Array.from({ length: SEGMENTS }, (_, i) => {
+                const deg = i * ANGLE_PER;
+                const pt = polarToCart(CENTER, CENTER, OUTER_R, deg);
+                return (
+                  <line
+                    key={i}
+                    x1={CENTER}
+                    y1={CENTER}
+                    x2={pt.x}
+                    y2={pt.y}
+                    stroke={LIGHT.border}
+                    strokeWidth={1}
+                  />
+                );
+              })}
+
+              {/* Segment wedges: pale fill + thin colored stroke */}
+              {segmentValues.map((sv, i) => {
+                const startDeg = i * ANGLE_PER;
+                const endDeg = (i + 1) * ANGLE_PER;
+                const zone = getSegmentZone(sv.score);
+                const fillR =
+                  INNER_R + (OUTER_R - INNER_R) * (sv.score / 100);
+                const pathFill = describeAnnularWedge(
+                  CENTER,
+                  CENTER,
+                  INNER_R,
+                  Math.max(INNER_R, fillR),
+                  startDeg,
+                  endDeg
+                );
+                const fill =
+                  zone === "green"
+                    ? LIGHT.greenFill
+                    : zone === "amber"
+                      ? LIGHT.amberFill
+                      : LIGHT.redFill;
+                const stroke =
+                  zone === "green"
+                    ? LIGHT.green
+                    : zone === "amber"
+                      ? LIGHT.amber
+                      : LIGHT.red;
+                return (
+                  <path
+                    key={sv.key}
+                    d={pathFill}
+                    fill={fill}
+                    stroke={stroke}
+                    strokeWidth={1.5}
+                  />
+                );
+              })}
+
+              {/* Outer ring stroke */}
+              <circle
+                cx={CENTER}
+                cy={CENTER}
+                r={OUTER_R}
                 fill="none"
-                stroke={COLORS.stroke}
-                strokeWidth={1.5}
-              />
-              <path
-                d={pathFill}
-                fill={fillUrl}
-                stroke={zone === "green" ? COLORS.green : zone === "amber" ? COLORS.amber : COLORS.red}
-                strokeOpacity={0.35}
+                stroke={LIGHT.border}
                 strokeWidth={1}
               />
-            </g>
-          );
-        })}
+            </svg>
 
-        {/* Center circle */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={INNER_R - 4}
-          fill={COLORS.bg}
-          stroke={COLORS.stroke}
-          strokeWidth={1}
-        />
-
-        {/* Segment labels at outer edge */}
-        {SEGMENT_LABELS.map((seg, i) => {
-          const midDeg = (i + 0.5) * ANGLE_PER;
-          const pt = polarToCart(CENTER, CENTER, OUTER_R + 18, midDeg);
-          return (
-            <text
-              key={seg.key}
-              x={pt.x}
-              y={pt.y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={COLORS.subtext}
-              fontSize={10}
-              fontWeight={600}
-              className="uppercase"
-            >
-              {seg.label}
-            </text>
-          );
-        })}
-      </svg>
-
-      {/* Center content overlay */}
-      <div
-        className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-        style={{ paddingTop: "0.5rem" }}
-      >
-        <p
-          className="text-[10px] uppercase tracking-wider font-medium"
-          style={{ color: COLORS.subtext }}
-        >
-          Live voice alignment
-        </p>
-        <p
-          className="text-4xl sm:text-5xl font-semibold tabular-nums mt-0.5"
-          style={{ color: COLORS.text }}
-        >
-          {overallScore}%
-        </p>
-        <p
-          className="text-xs font-medium mt-0.5"
-          style={{ color: COLORS.subtext }}
-        >
-          {TIER_LABELS[tier]}
-        </p>
-        {coachingCue ? (
-          <p
-            className="text-xs max-w-[72%] text-center mt-2 px-2"
-            style={{ color: COLORS.amber }}
-          >
-            {coachingCue}
-          </p>
-        ) : (
-          <p
-            className="text-xs mt-2"
-            style={{ color: COLORS.subtext }}
-          >
-            Delivery calibrated.
-          </p>
-        )}
-      </div>
-
-      {/* Live values under wheel (compact) */}
-      <div
-        className="grid grid-cols-5 gap-1 px-2 pb-3 pt-1 text-center"
-        style={{ color: COLORS.subtext }}
-      >
-        {segmentValues.map((sv, i) => (
-          <div key={i} className="text-[10px]">
-            <div className="font-mono font-medium" style={{ color: COLORS.text }}>
-              {sv.value}
+            {/* Center core: white disc with shadow */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div
+                className="bg-white rounded-full w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] flex flex-col items-center justify-center"
+                style={{ boxShadow: LIGHT.shadow }}
+              >
+                <p
+                  className={`text-3xl sm:text-4xl font-semibold tabular-nums ${scoreColorClass}`}
+                >
+                  {overallScore}%
+                </p>
+                <p
+                  className="mt-1 text-xs sm:text-sm"
+                  style={{ color: LIGHT.secondaryText }}
+                >
+                  {TIER_LABELS[tier]}
+                </p>
+              </div>
             </div>
-            <div className="opacity-75">Target: {sv.target}</div>
           </div>
-        ))}
+
+          {/* Metrics grid: clear hierarchy */}
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-6 w-full max-w-md">
+            {segmentValues.map((sv) => (
+              <div key={sv.key} className="flex flex-col">
+                <span
+                  className="text-xs uppercase tracking-wide"
+                  style={{ color: LIGHT.microLabel }}
+                >
+                  {sv.label}
+                </span>
+                <span
+                  className="text-base font-medium mt-0.5"
+                  style={{ color: LIGHT.primaryText }}
+                >
+                  {sv.value}
+                </span>
+                <span
+                  className="text-xs mt-0.5"
+                  style={{ color: LIGHT.secondaryText }}
+                >
+                  Target: {sv.target}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Coaching strip: left accent + message */}
+          <div className="mt-10 w-full max-w-2xl">
+            <div
+              className="bg-white border rounded-xl flex overflow-hidden"
+              style={{ borderColor: LIGHT.border }}
+            >
+              <div
+                className={`w-1 flex-shrink-0 rounded-l-xl ${coachingAccentClass}`}
+              />
+              <div className="p-4">
+                <p
+                  className="text-sm"
+                  style={{ color: LIGHT.primaryText }}
+                >
+                  {coachingMessage}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

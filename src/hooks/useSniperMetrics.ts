@@ -25,8 +25,18 @@ const ENERGY_MIN_SESSION_SEC = 120;
 const PAUSE_LONG_MS = 1500;
 const EMPHASIS_BASELINE_SEC = 3;
 const EMPHASIS_DB_ABOVE = 6;
-const EMPHASIS_MIN_GAP_MS = 400;
+/** Spec: ≥300 ms between emphasis events. */
+const EMPHASIS_MIN_GAP_MS = 300;
 const ROLLING_BASELINE_SAMPLES = Math.round((EMPHASIS_BASELINE_SEC * 1000) / SAMPLE_INTERVAL_MS);
+
+/** 95th − 5th percentile of values (robust dynamic range). Returns 0 if insufficient data. */
+function percentileRange(values: number[], pLo: number, pHi: number): number {
+  if (values.length < 2) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const iLo = Math.max(0, Math.floor((sorted.length - 1) * pLo));
+  const iHi = Math.min(sorted.length - 1, Math.ceil((sorted.length - 1) * pHi));
+  return sorted[iHi] - sorted[iLo];
+}
 
 interface Sample {
   t: number;
@@ -63,6 +73,7 @@ function defaultSniperState(): SniperState {
     tier: "structured",
     coachingCue: "",
     coachingSegment: null,
+    energyAvailable: false,
     isActive: false,
   };
 }
@@ -209,10 +220,7 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
       const hasLongPauseInWindow = longestPauseMs >= PAUSE_LONG_MS;
 
       const voicedDbs = samples.filter((x) => x.voiced).map((x) => x.db);
-      const dynamicRangeDb =
-        voicedDbs.length >= 2
-          ? Math.max(...voicedDbs) - Math.min(...voicedDbs)
-          : 0;
+      const dynamicRangeDb = percentileRange(voicedDbs, 0.05, 0.95);
 
       const baselineLen = Math.min(ROLLING_BASELINE_SAMPLES, samples.length - 1);
       let emphasisCount = 0;
@@ -285,12 +293,14 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
         confidence,
       };
 
+      const energyAvailable =
+        sessionDurationSec >= ENERGY_MIN_SESSION_SEC && energyByThird != null;
       const paceVarianceWpm = 0;
       const scores = computeScores(metrics, {
         hasLongPauseInWindow,
         paceVarianceWpm,
       });
-      const overallScore = computeOverallScore(scores);
+      const overallScore = computeOverallScore(scores, energyAvailable);
       const newTier = getTierFromScore(overallScore);
       let tier = s.lastTier;
       if (s.tierCandidate === newTier) {
@@ -315,6 +325,7 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
         tier,
         coachingCue: cue,
         coachingSegment: segment,
+        energyAvailable,
         isActive: true,
       });
     };

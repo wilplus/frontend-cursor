@@ -552,6 +552,11 @@ export default function AdminStudentProfilePage() {
   const [warmUpTasksError, setWarmUpTasksError] = useState<string | null>(null);
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
 
+  /** Pending list selections (not saved yet). Null = use server state. */
+  const [pendingWarmUpIds, setPendingWarmUpIds] = useState<string[] | null>(null);
+  const [pendingFocusIds, setPendingFocusIds] = useState<string[] | null>(null);
+  const [pendingPostQuestionIds, setPendingPostQuestionIds] = useState<string[] | null>(null);
+
   const [contextDraft, setContextDraft] = useState("");
   const [assignmentVideoDescription, setAssignmentVideoDescription] = useState("");
   /** Exercises pool (global). Assigned ones are in overrides.assigned_exercise_ids. */
@@ -593,6 +598,9 @@ export default function AdminStudentProfilePage() {
           sp.coach_notes,
         ].filter(Boolean);
         setContextDraft(parts.join("\n\n"));
+        setPendingWarmUpIds(null);
+        setPendingFocusIds(null);
+        setPendingPostQuestionIds(null);
         return Promise.allSettled([
           adminApi.getPostRecordingQuestionsPool(),
           adminApi.getWarmUpTasks(id),
@@ -667,16 +675,35 @@ export default function AdminStudentProfilePage() {
       .finally(() => setFocusPoolLoading(false));
   }, [modalFocus, id]);
 
-  const saveSpeakerProfile = () => {
+  /** Save all batched changes (speaker profile, metrics, overrides, list syncs). */
+  const saveAllChanges = async () => {
     setSaving(true);
-    adminApi
-      .putSpeakerProfile(id, { coach_notes: contextDraft })
-      .then(() => {
-        toast.success("Profile saved");
-        load();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
+    try {
+      await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
+      await patchUserMetricQuestions(userMetricQuestions);
+      await adminApi.putOverrides(id, {
+        assigned_exercise_ids: assignedExerciseIds.length > 0 ? assignedExerciseIds : null,
+        assigned_next_exercise_id: assignedExerciseIds[0] ?? null,
+      });
+      if (pendingWarmUpIds !== null) {
+        await adminApi.putStudentWarmUpTasksSync(id, { pool_task_ids: pendingWarmUpIds });
+        setPendingWarmUpIds(null);
+      }
+      if (pendingFocusIds !== null) {
+        await adminApi.putStudentFocusTasksSync(id, { pool_task_ids: pendingFocusIds });
+        setPendingFocusIds(null);
+      }
+      if (pendingPostQuestionIds !== null) {
+        await adminApi.putStudentPostRecordingQuestionsSync(id, { pool_question_ids: pendingPostQuestionIds });
+        setPendingPostQuestionIds(null);
+      }
+      toast.success("All changes saved");
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const sendAssignment = () => {
@@ -707,18 +734,16 @@ export default function AdminStudentProfilePage() {
       .map((t) => t.pool_task_id ?? warmUpPoolTasks.find((p) => p.text === t.text)?.id)
       .filter((x): x is string => Boolean(x));
   })();
+  /** Display list: pending selection or server list. When pending, show tasks from pool. */
+  const displayWarmUpTasks = pendingWarmUpIds !== null
+    ? pendingWarmUpIds
+        .map((pid) => warmUpPoolTasks.find((p) => p.id === pid))
+        .filter((x): x is WarmUpPoolTask => x != null)
+    : warmUpTasks;
   const handleWarmUpConfirm = (selectedIds: string[]) => {
     setModalWarmUp(false);
-    const ordered = warmUpPoolTasks.map((p) => p.id).filter((id) => selectedIds.includes(id));
-    setSaving(true);
-    adminApi
-      .putStudentWarmUpTasksSync(id, { pool_task_ids: ordered })
-      .then(() => {
-        load();
-        toast.success("Warm-up tasks updated");
-      })
-      .catch((e) => toast.error(e?.message ?? "Failed to save"))
-      .finally(() => setSaving(false));
+    const ordered = warmUpPoolTasks.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
+    setPendingWarmUpIds(ordered);
   };
   const handleWarmUpCreate = async (text: string): Promise<PoolItem | void> => {
     try {
@@ -807,15 +832,7 @@ export default function AdminStudentProfilePage() {
   const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
   const handleQuestionsConfirm = (selectedIds: string[]) => {
     setModalQuestions(false);
-    setSaving(true);
-    adminApi
-      .putStudentPostRecordingQuestionsSync(id, { pool_question_ids: selectedIds })
-      .then(() => {
-        load();
-        toast.success("Post-recording questions updated");
-      })
-      .catch((e) => toast.error(e?.message ?? "Failed to save"))
-      .finally(() => setSaving(false));
+    setPendingPostQuestionIds(selectedIds);
   };
   const handleQuestionsCreate = async (text: string): Promise<PoolItem> => {
     const res = await adminApi.createPostQuestion({ text, answer_type: "text" });
@@ -824,6 +841,12 @@ export default function AdminStudentProfilePage() {
     return { id: question.id, label: question.text };
   };
   const postRecordingSelectedIds: string[] = postRecordingQuestions.map((q) => q.id);
+  const displayPostRecordingQuestions =
+    pendingPostQuestionIds !== null
+      ? pendingPostQuestionIds
+          .map((pid) => postQuestions.find((q) => q.id === pid))
+          .filter((x): x is PostQuestion => x != null)
+      : postRecordingQuestions;
 
   // Assigned exercises: pool = all exercises; selected = overrides.assigned_exercise_ids; save on confirm.
   const assignedExercisesPool: PoolItem[] = exercises.map((ex) => ({
@@ -834,40 +857,10 @@ export default function AdminStudentProfilePage() {
   const handleAssignedExercisesConfirm = (selectedIds: string[]) => {
     setModalAssignedExercises(false);
     setAssignedExerciseIds(selectedIds);
-    setSaving(true);
-    const body: Record<string, unknown> = {
-      assigned_exercise_ids: selectedIds.length > 0 ? selectedIds : null,
-      assigned_next_exercise_id: selectedIds[0] ?? null,
-    };
-    adminApi
-      .putOverrides(id, body)
-      .then(() => {
-        toast.success("Exercises updated");
-        load();
-      })
-      .catch((e) => {
-        toast.error(e?.message ?? "Failed to save");
-        setAssignedExerciseIds(assignedExerciseIds);
-      })
-      .finally(() => setSaving(false));
   };
 
   const removeExerciseFromAssignment = (exerciseId: string) => {
-    const nextIds = assignedExerciseIds.filter((id) => id !== exerciseId);
-    setAssignedExerciseIds(nextIds);
-    setSaving(true);
-    const body: Record<string, unknown> = {
-      assigned_exercise_ids: nextIds.length > 0 ? nextIds : null,
-      assigned_next_exercise_id: nextIds[0] ?? null,
-    };
-    adminApi
-      .putOverrides(id, body)
-      .then(() => {
-        toast.success("Removed from list");
-        load();
-      })
-      .catch((e) => toast.error(e?.message ?? "Failed to update"))
-      .finally(() => setSaving(false));
+    setAssignedExerciseIds((prev) => prev.filter((id) => id !== exerciseId));
   };
 
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
@@ -930,18 +923,15 @@ export default function AdminStudentProfilePage() {
       .map((t) => t.pool_task_id ?? focusPoolTasks.find((p) => p.text === t.text)?.id)
       .filter((x): x is string => Boolean(x));
   })();
+  const displayFocusTasks = pendingFocusIds !== null
+    ? pendingFocusIds
+        .map((pid) => focusPoolTasks.find((p) => p.id === pid))
+        .filter((x): x is FocusTaskPoolItem => x != null)
+    : [...focusTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
   const handleFocusConfirm = (selectedIds: string[]) => {
     setModalFocus(false);
     const ordered = focusPoolTasks.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
-    setSaving(true);
-    adminApi
-      .putStudentFocusTasksSync(id, { pool_task_ids: ordered })
-      .then(() => {
-        load();
-        toast.success("Focus tasks updated");
-      })
-      .catch((e) => toast.error(e?.message ?? "Failed to save"))
-      .finally(() => setSaving(false));
+    setPendingFocusIds(ordered);
   };
   const handleFocusCreate = async (text: string): Promise<PoolItem | void> => {
     try {
@@ -1003,22 +993,12 @@ export default function AdminStudentProfilePage() {
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
     .slice(0, 10);
 
-  const saveUserMetricQuestions = async (data: {
+  /** Metrics are batched; onSave only updates local state. Persisted on "Save all changes". */
+  const setMetricsDraft = (data: {
     metric_question_1: string;
     metric_question_2: string;
     metric_question_3: string;
-  }) => {
-    setSaving(true);
-    try {
-      await patchUserMetricQuestions(data);
-      setUserMetricQuestions(data);
-      toast.success("Metric questions saved");
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  }) => setUserMetricQuestions(data);
 
   if (loading || !profile) {
     return <p className="text-muted-foreground">Loading…</p>;
@@ -1161,30 +1141,36 @@ export default function AdminStudentProfilePage() {
             )}
             <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
             <ul className="space-y-2">
-              {warmUpTasks.map((t) => (
+              {displayWarmUpTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
                   <span className="min-w-0 flex-1 text-sm">{t.text}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     Max score: {t.max_performance_score ?? 1}
                   </span>
                   <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {pendingWarmUpIds === null && "pool_task_id" in t && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWarmUpEditTask(t as WarmUpTask);
+                          setWarmUpEditOpen(true);
+                        }}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => {
-                        setWarmUpEditTask(t);
-                        setWarmUpEditOpen(true);
-                      }}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label="Edit"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteWarmUpTask(t.id)}
+                      onClick={() =>
+                        pendingWarmUpIds !== null
+                          ? setPendingWarmUpIds((prev) => (prev ?? []).filter((pid) => pid !== t.id))
+                          : deleteWarmUpTask(t.id)
+                      }
                       disabled={saving}
                       className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label="Delete"
+                      aria-label={pendingWarmUpIds !== null ? "Remove from list" : "Delete"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1192,7 +1178,7 @@ export default function AdminStudentProfilePage() {
                 </li>
               ))}
             </ul>
-            {warmUpTasks.length === 0 && (
+            {displayWarmUpTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
             </div>
@@ -1227,32 +1213,36 @@ export default function AdminStudentProfilePage() {
             )}
             <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
             <ul className="space-y-2">
-              {[...focusTasks]
-                .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-                .map((t) => (
+              {displayFocusTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
                   <span className="min-w-0 flex-1 text-sm">{t.text}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     Max score: {t.max_performance_score ?? 1}
                   </span>
                   <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {pendingFocusIds === null && "order_index" in t && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFocusEditTask(t as FocusTask);
+                          setFocusEditOpen(true);
+                        }}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => {
-                        setFocusEditTask(t);
-                        setFocusEditOpen(true);
-                      }}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label="Edit"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteFocusTask(t.id)}
+                      onClick={() =>
+                        pendingFocusIds !== null
+                          ? setPendingFocusIds((prev) => (prev ?? []).filter((pid) => pid !== t.id))
+                          : deleteFocusTask(t.id)
+                      }
                       disabled={saving}
                       className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label="Delete"
+                      aria-label={pendingFocusIds !== null ? "Remove from list" : "Delete"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1260,7 +1250,7 @@ export default function AdminStudentProfilePage() {
                 </li>
               ))}
             </ul>
-            {focusTasks.length === 0 && (
+            {displayFocusTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
             </div>
@@ -1294,28 +1284,34 @@ export default function AdminStudentProfilePage() {
               </p>
             )}
             <ul className="space-y-2">
-              {assignedQuestions.map((q) => (
+              {displayPostRecordingQuestions.map((q) => (
                 <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
                   <span className="min-w-0 flex-1 text-sm">{q.text}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">{q.answer_type || "text"}</span>
                   <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {pendingPostQuestionIds === null && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPostQuestionEdit(q);
+                          setPostQuestionEditOpen(true);
+                        }}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => {
-                        setPostQuestionEdit(q);
-                        setPostQuestionEditOpen(true);
-                      }}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      aria-label="Edit"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deletePostRecordingQuestion(q.id)}
+                      onClick={() =>
+                        pendingPostQuestionIds !== null
+                          ? setPendingPostQuestionIds((prev) => (prev ?? []).filter((pid) => pid !== q.id))
+                          : deletePostRecordingQuestion(q.id)
+                      }
                       disabled={saving}
                       className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label="Delete"
+                      aria-label={pendingPostQuestionIds !== null ? "Remove from list" : "Delete"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1323,7 +1319,7 @@ export default function AdminStudentProfilePage() {
                 </li>
               ))}
             </ul>
-            {assignedQuestions.length === 0 && (
+            {displayPostRecordingQuestions.length === 0 && (
               <p className="text-sm text-muted-foreground">No post-recording questions. Click + Add to create one.</p>
             )}
           </div>
@@ -1333,21 +1329,16 @@ export default function AdminStudentProfilePage() {
             metric_question_1={userMetricQuestions.metric_question_1}
             metric_question_2={userMetricQuestions.metric_question_2}
             metric_question_3={userMetricQuestions.metric_question_3}
-            onSave={saveUserMetricQuestions}
+            onSave={setMetricsDraft}
             saving={saving}
           />
         </div>
       </SectionCard>
 
-      {/* Speaker Profile */}
+      {/* Speaker Profile — changes saved with "Save all changes" below */}
       <SectionCard
         title="Speaker Profile"
         description="Goals, motivation, and coach notes."
-        action={
-          <Button type="button" onClick={saveSpeakerProfile} disabled={saving}>
-            Save
-          </Button>
-        }
       >
         <label className="block text-sm font-medium mb-2">Context</label>
         <textarea
@@ -1386,6 +1377,13 @@ export default function AdminStudentProfilePage() {
         </div>
       </div>
 
+      {/* Save all batched changes — at the end of the page */}
+      <div className="sticky bottom-0 flex justify-end border-t bg-card/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <Button type="button" onClick={saveAllChanges} disabled={saving} size="lg">
+          {saving ? "Saving…" : "Save all changes"}
+        </Button>
+      </div>
+
       {/* Modals */}
       <WarmUpTaskEditModal
         open={warmUpEditOpen}
@@ -1412,7 +1410,7 @@ export default function AdminStudentProfilePage() {
         onOpenChange={setModalWarmUp}
         title="Select Warm-up Tasks"
         pool={warmUpPool}
-        selectedIds={warmUpSelectedIds}
+        selectedIds={pendingWarmUpIds ?? warmUpSelectedIds}
         onConfirm={handleWarmUpConfirm}
         allowCreate
         onCreateNew={handleWarmUpCreate}
@@ -1433,7 +1431,7 @@ export default function AdminStudentProfilePage() {
         onOpenChange={setModalFocus}
         title="Select Focus Tasks"
         pool={focusPool}
-        selectedIds={focusSelectedIds}
+        selectedIds={pendingFocusIds ?? focusSelectedIds}
         onConfirm={handleFocusConfirm}
         allowCreate
         onCreateNew={handleFocusCreate}
@@ -1444,7 +1442,7 @@ export default function AdminStudentProfilePage() {
         onOpenChange={setModalQuestions}
         title="Select Post-recording Questions"
         pool={questionsPool}
-        selectedIds={postRecordingSelectedIds}
+        selectedIds={pendingPostQuestionIds ?? postRecordingSelectedIds}
         onConfirm={handleQuestionsConfirm}
         allowCreate
         onCreateNew={handleQuestionsCreate}

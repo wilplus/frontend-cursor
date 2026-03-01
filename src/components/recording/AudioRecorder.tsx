@@ -11,6 +11,8 @@ import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 import { SniperWheel } from "@/components/recording/SniperWheel";
+import { buildSniperSnapshot } from "@/lib/sniper/types";
+import type { SniperSessionSnapshot } from "@/lib/sniper/types";
 import { debugIngest } from "@/lib/debugIngest";
 
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
@@ -78,6 +80,8 @@ interface AudioRecorderProps {
   prompt?: string;
   /** When true, show Sniper Wheel (5-segment voice alignment) instead of strength/pace dartboard */
   sniperMode?: boolean;
+  /** When sniperMode and recording completes, called with session summary snapshot for Review. */
+  onSniperSnapshot?: (snapshot: SniperSessionSnapshot) => void;
 }
 
 export default function AudioRecorder({
@@ -92,6 +96,7 @@ export default function AudioRecorder({
   minDurationSeconds = DEFAULT_MIN_DURATION_SECONDS,
   prompt,
   sniperMode = false,
+  onSniperSnapshot,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -126,6 +131,7 @@ export default function AudioRecorder({
 
   const realtimeStrengthPace = useRealtimeStrengthPace();
   const sniperMetrics = useSniperMetrics(startTimeRef);
+  const lastSniperSnapshotRef = useRef<SniperSessionSnapshot | null>(null);
   const stopRealtimeRef = useRef(() => {
     if (sniperMode) sniperMetrics.stop();
     else realtimeStrengthPace.stop();
@@ -134,6 +140,12 @@ export default function AudioRecorder({
     if (sniperMode) sniperMetrics.stop();
     else realtimeStrengthPace.stop();
   };
+
+  useEffect(() => {
+    if (sniperMode && sniperMetrics.isActive) {
+      lastSniperSnapshotRef.current = buildSniperSnapshot(sniperMetrics);
+    }
+  }, [sniperMode, sniperMetrics.isActive, sniperMetrics.overallScore, sniperMetrics.tier, sniperMetrics.scores, sniperMetrics.metrics, sniperMetrics.energyAvailable]);
 
   // #region agent log
   const parentLogRef = useRef({ last: 0, lastActive: false });
@@ -241,6 +253,9 @@ export default function AudioRecorder({
               })
               .catch(() => {});
             // #endregion
+            if (lastSniperSnapshotRef.current != null && onSniperSnapshot) {
+              onSniperSnapshot(lastSniperSnapshotRef.current);
+            }
             onRecordingComplete(blob, durationSeconds);
           }
         }
@@ -254,7 +269,7 @@ export default function AudioRecorder({
         }
       };
     },
-    [onRecordingComplete, onStartAgain, minDurationSeconds]
+    [onRecordingComplete, onStartAgain, minDurationSeconds, onSniperSnapshot]
   );
 
   const startRecording = useCallback(async () => {
@@ -350,6 +365,9 @@ export default function AudioRecorder({
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const durationSeconds = elapsedSeconds;
         if (durationSeconds >= minDurationSeconds) {
+          if (sniperMode && lastSniperSnapshotRef.current != null && onSniperSnapshot) {
+            onSniperSnapshot(lastSniperSnapshotRef.current);
+          }
           onRecordingComplete(blob, durationSeconds);
         } else {
           toast.error("Session must be at least 1 minute. Please record again.");
