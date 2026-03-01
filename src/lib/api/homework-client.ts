@@ -115,7 +115,7 @@ export const homeworkApi = {
     return handleResponse<HomeworkStartResponse>(res);
   },
 
-  /** Abandon the current session so it is no longer active; user can start a new session. Returns 200, 409 (already completed/abandoned), or 404 (session not found e.g. cleaned up) — 404 is treated as success so the UI can redirect to step 0. */
+  /** Abandon the current session so it is no longer active; user can start a new session. Returns 200, 400/409 (already completed/abandoned), or 404 (session not found) — all treated as success so the UI can redirect to step 0. */
   async abandonSession(sessionId: string): Promise<{ abandoned: boolean; message?: string }> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/abandon`, {
@@ -130,6 +130,19 @@ export const homeworkApi = {
     }
     if (res.status === 404) {
       return { abandoned: true, message: "Session not found or already cleared." };
+    }
+    if (res.status === 400) {
+      const body = await res.json().catch(() => ({})) as { message?: string; error?: string };
+      const msg = (body.message ?? body.error ?? "").toLowerCase();
+      if (
+        msg.includes("already") ||
+        msg.includes("abandoned") ||
+        msg.includes("completed") ||
+        msg.includes("not found") ||
+        msg.includes("no active session")
+      ) {
+        return { abandoned: true, message: body.message ?? body.error ?? "Session already abandoned or completed." };
+      }
     }
     return handleResponse<{ abandoned: boolean; message?: string }>(res);
   },

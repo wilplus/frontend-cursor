@@ -85,7 +85,7 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="border-b bg-card">
+    <header className="bg-background">
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
         <div className="flex shrink-0 items-center gap-2">
           <Link
