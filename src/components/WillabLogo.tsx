@@ -1,6 +1,9 @@
+import { Pacifico } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-/** Willab. logo: bold serif "Willab" in dark blue/charcoal with orange period. */
+const pacifico = Pacifico({ weight: "400", subsets: ["latin"] });
+
+/** Willab. logo: Pacifico "Willab" in dark blue/charcoal with orange period. */
 export default function WillabLogo({
   className,
   size = "md",
@@ -9,13 +12,13 @@ export default function WillabLogo({
   size?: "sm" | "md" | "lg";
 }) {
   const sizeClasses = {
-    sm: "text-lg",
-    md: "text-xl sm:text-2xl",
-    lg: "text-2xl sm:text-3xl",
+    sm: "text-base",
+    md: "text-lg sm:text-xl",
+    lg: "text-xl sm:text-2xl",
   };
   return (
     <span
-      className={cn("font-serif font-bold tracking-tight", sizeClasses[size], className)}
+      className={cn(pacifico.className, "tracking-tight", sizeClasses[size], className)}
       style={{ color: "hsl(220 25% 25%)" }}
       aria-label="Willab"
     >

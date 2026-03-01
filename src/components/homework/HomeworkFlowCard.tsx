@@ -529,13 +529,13 @@ export default function HomeworkFlowCard() {
         toast.success("Session abandoned. You can start a new session.");
       }
     } catch (e) {
-      if (!isSessionGoneError(e)) {
-        setError(e instanceof Error ? e.message : "Failed to abandon session");
-        toast.error("Could not abandon session");
-        setLoading(false);
-        return;
+      if (isSessionGoneError(e)) {
+        toast.success("Session was already cleared. You can start a new session.");
+      } else {
+        // Optimistic abandon: clear local state so user can always start a new session even if the server errors
+        toast.success("Session cleared. You can start a new session.");
+        setError(null);
       }
-      toast.success("Session was already cleared. You can start a new session.");
     }
     postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
