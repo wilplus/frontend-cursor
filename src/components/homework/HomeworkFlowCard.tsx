@@ -1131,11 +1131,11 @@ export default function HomeworkFlowCard() {
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
 
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-16 w-full">
+      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-8 w-full">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
-            <div className="flex flex-col items-center w-full max-w-md mx-auto space-y-6">
-              <div className="w-full max-w-[280px] mx-auto">
+            <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-6">
+              <div className="w-full">
                 {videoUrl ? (
                   vimeoId ? (
                     <div className="aspect-[9/16] w-full overflow-hidden rounded-lg bg-black">
@@ -1170,7 +1170,7 @@ export default function HomeworkFlowCard() {
               <Button
                 onClick={handleStart}
                 disabled={loading}
-                className="w-full rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
+                className="w-full max-w-[280px] rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
               >
                 {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
               </Button>
