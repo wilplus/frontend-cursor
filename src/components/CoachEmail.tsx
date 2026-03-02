@@ -2,6 +2,7 @@
 
 import { Play, ArrowRight, BookOpen } from "lucide-react";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
+import WillabLogo from "@/components/WillabLogo";
 
 const dmSans = DM_Sans({ subsets: ["latin"], display: "swap" });
 const dmSerif = DM_Serif_Display({ weight: "400", subsets: ["latin"], display: "swap" });
@@ -57,8 +58,8 @@ export default function CoachEmail({
       <div className="mx-auto max-w-[600px]">
         {/* Brand header */}
         <div className="text-center mb-6">
-          <p className="text-lg font-bold text-foreground">
-            Willab<span className="text-primary">.</span>
+          <p className="text-foreground">
+            <WillabLogo size="md" />
           </p>
           <p className="text-sm text-muted-foreground mt-0.5">
             Homework tool for public speaking
