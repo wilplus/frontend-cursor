@@ -22,7 +22,6 @@ import {
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ProgressStepBullets } from "@/components/ui/progress-step-bullets";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { SniperReviewSummary } from "@/components/recording/SniperReviewSummary";
 import type { SniperSessionSnapshot, UserSniperProfile } from "@/lib/sniper/types";
@@ -142,9 +141,7 @@ function isReportNotReadyError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "REPORT_NOT_READY";
 }
 
-/** Progress bar only on step 1 (record). Hidden on step 0 and step 5 (report). Steps 2–4 removed. */
 function StepFlowWrapper({
-  step,
   syncingBehind,
   children,
 }: {
@@ -152,18 +149,8 @@ function StepFlowWrapper({
   syncingBehind?: boolean;
   children: React.ReactNode;
 }) {
-  const showProgressBar = step === 1;
-  const flowStepIndex = step === 1 ? 0 : 0;
   return (
       <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
-      {showProgressBar && (
-        <ProgressStepBullets
-          total={TOTAL_STEPS}
-          currentIndex={flowStepIndex}
-          aria-label={`Step ${step} of ${TOTAL_STEPS}`}
-          variant="minimal"
-        />
-      )}
       {syncingBehind && (
         <p className="text-center text-sm text-muted-foreground">Syncing…</p>
       )}
