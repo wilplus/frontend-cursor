@@ -153,18 +153,15 @@ export function SniperWheel({
 
   return (
     <div
-      className="w-full flex flex-col items-center py-6 sm:py-8 bg-transparent"
+      className="w-full flex flex-col items-center py-4 sm:py-5 bg-transparent"
       role="img"
       aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingMessage}`}
     >
       <div className="w-full max-w-4xl">
         <div className="flex flex-col items-center">
           {taskLabel ? (
-            <div className="mb-6 text-center">
-              <p
-                className="text-xs tracking-widest uppercase"
-                style={{ color: LIGHT.microLabel }}
-              >
+            <div className="mb-3 text-center">
+              <p className="text-lg sm:text-xl font-bold leading-snug text-foreground">
                 {taskLabel}
               </p>
             </div>
