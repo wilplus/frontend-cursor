@@ -153,7 +153,7 @@ export function SniperWheel({
 
   return (
     <div
-      className="w-full flex flex-col items-center py-4 sm:py-5 bg-transparent"
+      className="w-full flex flex-col items-center pt-2 sm:pt-3 pb-4 sm:pb-5 bg-transparent"
       role="img"
       aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingMessage}`}
     >
@@ -258,7 +258,7 @@ export function SniperWheel({
           </div>
 
           {/* Metrics grid: clear hierarchy */}
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-6 w-full max-w-md">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-6 w-full max-w-md">
             {segmentValues.map((sv) => (
               <div key={sv.key} className="flex flex-col">
                 <span
