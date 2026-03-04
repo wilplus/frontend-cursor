@@ -153,14 +153,14 @@ export function SniperWheel({
 
   return (
     <div
-      className="w-full flex flex-col items-center pt-2 sm:pt-3 pb-4 sm:pb-5 bg-transparent"
+      className="w-full flex flex-col items-center pt-1 sm:pt-2 pb-3 sm:pb-4 bg-transparent"
       role="img"
       aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingMessage}`}
     >
       <div className="w-full max-w-4xl">
         <div className="flex flex-col items-center">
           {taskLabel ? (
-            <div className="mb-3 text-center">
+            <div className="mb-2 text-center">
               <p className="text-lg sm:text-xl font-bold leading-snug text-foreground">
                 {taskLabel}
               </p>
@@ -258,7 +258,7 @@ export function SniperWheel({
           </div>
 
           {/* Metrics grid: clear hierarchy */}
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-6 w-full max-w-md">
+          <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-4 sm:gap-y-5 w-full max-w-md">
             {segmentValues.map((sv) => (
               <div key={sv.key} className="flex flex-col">
                 <span
@@ -284,7 +284,7 @@ export function SniperWheel({
           </div>
 
           {/* Coaching strip: left accent + message */}
-          <div className="mt-10 w-full max-w-2xl">
+          <div className="mt-4 sm:mt-5 w-full max-w-2xl">
             <div
               className="bg-white border rounded-xl flex overflow-hidden"
               style={{ borderColor: LIGHT.border }}
