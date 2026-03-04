@@ -22,6 +22,7 @@ import {
 } from "@/lib/api/types-homework";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
+import HomeworkReportsModal from "@/components/homework/HomeworkReportsModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
@@ -232,6 +233,8 @@ export default function HomeworkFlowCard() {
   }, [videoModalUrl]);
   /** Ticker so countdown re-renders every second when tutor deadline is shown. */
   const [countdownTick, setCountdownTick] = useState(0);
+  /** When true, show modal to browse past reports (same UX as admin: click to open, browse in modal). */
+  const [reportsModalOpen, setReportsModalOpen] = useState(false);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
   const taskBlockFetchStartedRef = useRef(false);
   /** When step 2 fails to load questions, we auto-skip to step 5 (report) once; this ref prevents doing it more than once. */
@@ -1158,10 +1161,10 @@ export default function HomeworkFlowCard() {
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
 
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-start pt-8 w-full">
+      <div className="flex flex-col items-center w-full pt-2 sm:pt-4">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
-            <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-6">
+            <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-4">
               <div className="w-full">
                 {videoUrl ? (
                   vimeoId ? (
@@ -1201,6 +1204,15 @@ export default function HomeworkFlowCard() {
               >
                 {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
               </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => setReportsModalOpen(true)}
+              >
+                View reports
+              </Button>
             </div>
 
             {videoModalUrl ? (
@@ -1236,6 +1248,10 @@ export default function HomeworkFlowCard() {
               </div>
             ) : null}
           </Card>
+          <HomeworkReportsModal
+            open={reportsModalOpen}
+            onOpenChange={setReportsModalOpen}
+          />
         </StepFlowWrapper>
       </div>
     );
