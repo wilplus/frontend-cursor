@@ -16,10 +16,12 @@ import type {
 import {
   mapStatusToStep,
   getStatusToHomeworkResponse,
+  toPublicStatus,
   type Step as StepType,
   type PublicHomeworkStatus,
 } from "@/lib/api/types-homework";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
+import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
@@ -218,6 +220,10 @@ export default function HomeworkFlowCard() {
   const [sniperSnapshot, setSniperSnapshot] = useState<SniperSessionSnapshot | null>(null);
   /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
   const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
+  /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
+  const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
+  /** Loading state when submitting student speech rating. */
+  const [savingStudentRating, setSavingStudentRating] = useState(false);
   useEffect(() => {
     if (!videoModalUrl) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setVideoModalUrl(null);
@@ -297,15 +303,43 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [authReady, step, tutorFeedbackDeadlineMs]);
 
-  /** Show navbar on step 0 (start) and step 5 (report); hide from step 1–4. */
+  /** Show navbar on step 0 (start), step 4 (reflective questions), and step 5 (report); hide from step 1. */
   useEffect(() => {
-    setShowNavbar(step === 0 || step === 5);
+    setShowNavbar(step === 0 || step === 4 || step === 5);
   }, [step, setShowNavbar]);
 
   /** Clear recording context when not on step 1 (record). Step 3 removed. */
   useEffect(() => {
     if (step !== 1) setRecordingActive(false);
   }, [step, setRecordingActive]);
+
+  /** When on step 4 (post-recording questions) and questions not yet loaded, fetch GET questions. */
+  useEffect(() => {
+    if (step !== 4 || !sessionId || sessionId === "mock-session" || questions.length > 0 || questionsStep4Settled) return;
+    let cancelled = false;
+    setError(null);
+    homeworkApi
+      .getQuestions(sessionId)
+      .then((r) => {
+        if (cancelled) return;
+        const list = Array.isArray(r.questions) ? r.questions : [];
+        const normalized = list.map((q) => ({
+          ...q,
+          id: toId(q.id) || crypto.randomUUID(),
+          text: toText(q.text),
+        }));
+        setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+        setQuestionsStep4Settled(true);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Could not load questions");
+        setQuestionsStep4Settled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, sessionId, questions.length, questionsStep4Settled]);
 
   /** Single state projection from backend response. Step is only updated when status is "none" (go to 0) or when the backend step is >= current step (never downgrade). */
   const applyStatusToState = (res: HomeworkResponse) => {
@@ -326,6 +360,7 @@ export default function HomeworkFlowCard() {
       setTaskBlock(null);
       setFinalTaskText("");
       setQuestions([]);
+      setQuestionsStep4Settled(false);
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
@@ -433,6 +468,8 @@ export default function HomeworkFlowCard() {
     if (resetting) return;
     setResetting(true);
     setSniperSnapshot(null);
+    setStudentSpeechRatingSubmitted(false);
+    setSavingStudentRating(false);
     try {
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
@@ -783,11 +820,14 @@ export default function HomeworkFlowCard() {
     abortRef.current = new AbortController();
     try {
       const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      const backendStatus = (res as { status?: string }).status;
+      const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "task_block";
       applyStatusToState({
-        status: "task_block",
+        status,
         session_id: sessionId,
         task_block: (res as { task_block?: TaskBlockV2 }).task_block ?? null,
         task_text: (res as { task_text?: string }).task_text ?? undefined,
+        ...(Array.isArray((res as { questions?: HomeworkQuestion[] }).questions) && { questions: (res as { questions: HomeworkQuestion[] }).questions }),
       });
     } catch (e) {
       // #region agent log
@@ -1274,14 +1314,21 @@ export default function HomeworkFlowCard() {
             onRecordingComplete={handleRecording1Complete}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
+              const body: {
+                session_means: typeof snapshot.sessionMeans;
+                stage_score: number;
+                voiced_duration_sec: number;
+                session_id?: string;
+              } = {
+                session_means: snapshot.sessionMeans,
+                stage_score: snapshot.overallScore,
+                voiced_duration_sec: snapshot.sessionMeans.voicedDurationSec,
+              };
+              if (sessionId && sessionId !== "mock-session") body.session_id = sessionId;
               fetch("/api/user/sniper-profile", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  session_means: snapshot.sessionMeans,
-                  stage_score: snapshot.overallScore,
-                  voiced_duration_sec: snapshot.sessionMeans.voicedDurationSec,
-                }),
+                body: JSON.stringify(body),
               })
                 .then((r) => r.json())
                 .then((data) => {
@@ -1312,7 +1359,44 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Steps 2–4 temporarily removed. Flow: 0 → 1 (record) → 5 (report).
+  // Step 4: Reflective questions (next step after recording) — always shown when backend returns post_questions
+  if (step === 4) {
+    const questionsLoading = !questionsStep4Settled && questions.length === 0;
+    return (
+      <StepFlowWrapper step={4} syncingBehind={syncingBehind}>
+        {coachMessageBlock}
+        {questionsLoading ? (
+          <Card className="w-full max-w-md mx-auto p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm text-muted-foreground">Loading questions…</p>
+            </div>
+          </Card>
+        ) : questions.length === 0 ? (
+          <Card className="w-full max-w-md mx-auto p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <p className="text-sm text-muted-foreground">No questions this time.</p>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button
+                onClick={() => handlePostAnswersSubmit({})}
+                disabled={loading}
+                className="w-full max-w-xs rounded-xl h-12 font-semibold"
+              >
+                {loading ? "Submitting…" : "Continue to report"}
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <PostQuestionsStepScreen
+            questions={questions}
+            onSubmit={handlePostAnswersSubmit}
+            loading={loading}
+            error={error}
+          />
+        )}
+      </StepFlowWrapper>
+    );
+  }
 
   // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
   if (step === 5) {
@@ -1447,6 +1531,62 @@ export default function HomeworkFlowCard() {
           {sniperSnapshot ? (
             <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
           ) : null}
+          {/* Student speech rating (1–10): optional; when submitted, feeds into Sniper baseline. */}
+          {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
+            <Card className="border-0 bg-transparent p-6 shadow-none">
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                How did that recording feel for you?
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <Button
+                    key={n}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={savingStudentRating}
+                    onClick={() => {
+                      setSavingStudentRating(true);
+                      fetch("/api/user/sniper-profile/session-rating", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          session_id: sessionId,
+                          student_rating_1_10: n,
+                        }),
+                      })
+                        .then((r) => r.json())
+                        .then((data) => {
+                          if (data?.profile && typeof data.profile.session_count === "number") {
+                            setSniperProfile(data.profile);
+                          }
+                        })
+                        .finally(() => {
+                          setSavingStudentRating(false);
+                          setStudentSpeechRatingSubmitted(true);
+                        });
+                    }}
+                    className="min-w-[2.25rem]"
+                  >
+                    {n}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={savingStudentRating}
+                onClick={() => setStudentSpeechRatingSubmitted(true)}
+                className="text-muted-foreground"
+              >
+                Skip
+              </Button>
+            </Card>
+          ) : null}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
             {reportError && (
@@ -1524,6 +1664,61 @@ export default function HomeworkFlowCard() {
         {coachMessageBlock}
         {sniperSnapshot ? (
           <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+        ) : null}
+        {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
+          <Card className="border-0 bg-transparent p-6 shadow-none">
+            <p className="text-sm font-medium text-muted-foreground mb-2">
+              How did that recording feel for you?
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={savingStudentRating}
+                  onClick={() => {
+                    setSavingStudentRating(true);
+                    fetch("/api/user/sniper-profile/session-rating", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        student_rating_1_10: n,
+                      }),
+                    })
+                      .then((r) => r.json())
+                      .then((data) => {
+                        if (data?.profile && typeof data.profile.session_count === "number") {
+                          setSniperProfile(data.profile);
+                        }
+                      })
+                      .finally(() => {
+                        setSavingStudentRating(false);
+                        setStudentSpeechRatingSubmitted(true);
+                      });
+                  }}
+                  className="min-w-[2.25rem]"
+                >
+                  {n}
+                </Button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={savingStudentRating}
+              onClick={() => setStudentSpeechRatingSubmitted(true)}
+              className="text-muted-foreground"
+            >
+              Skip
+            </Button>
+          </Card>
         ) : null}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>

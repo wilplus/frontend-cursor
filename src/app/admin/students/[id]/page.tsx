@@ -988,10 +988,16 @@ export default function AdminStudentProfilePage() {
 
   const assignedQuestions = postRecordingQuestions;
 
+  // Show sessions that have a report or are completed (so reports appear even if backend hasn't set report_preview yet)
   const reports = (profile?.sessions ?? [])
-    .filter((s) => s.report_preview?.report_text_preview)
+    .filter(
+      (s) =>
+        (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
+        s.status === "completed" ||
+        !!s.recording_id
+    )
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
-    .slice(0, 10);
+    .slice(0, 20);
 
   /** Metrics are batched; onSave only updates local state. Persisted on "Save all changes". */
   const setMetricsDraft = (data: {
@@ -1364,11 +1370,18 @@ export default function AdminStudentProfilePage() {
                 onClick={() => setReportModalSession(s)}
                 className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
               >
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
-                </p>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
+                  </p>
+                  {s.status === "completed" && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
+                    </span>
+                  )}
+                </div>
                 <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
-                  {s.report_preview?.report_text_preview ?? ""}
+                  {s.report_preview?.report_text_preview?.trim() || "View full report and recording."}
                 </p>
                 <p className="text-xs text-primary mt-2">View full report and recording →</p>
               </button>
@@ -1473,6 +1486,7 @@ export default function AdminStudentProfilePage() {
         userId={id}
         studentEmail={profile?.email ?? null}
         session={reportModalSession}
+        onGradeSaved={load}
       />
     </div>
   );

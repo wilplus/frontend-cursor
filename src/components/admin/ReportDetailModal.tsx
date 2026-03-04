@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { adminApi, type AdminSessionReportResponse } from "@/lib/api/admin-client";
 import { Button } from "@/components/ui/button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { toast } from "sonner";
 
 function formatFillerBreakdown(breakdown: Record<string, number> | undefined): string {
   if (!breakdown || typeof breakdown !== "object") return "";
@@ -20,6 +21,8 @@ type SessionWithPreview = {
   created_at?: string;
   report_preview?: { report_text_preview?: string };
   recording_id?: string;
+  coach_grade?: number | null;
+  status?: string;
 };
 
 interface ReportDetailModalProps {
@@ -28,6 +31,8 @@ interface ReportDetailModalProps {
   userId: string;
   studentEmail: string | null;
   session: SessionWithPreview | null;
+  /** Called after coach grade is saved so parent can refresh profile (e.g. load()). */
+  onGradeSaved?: () => void;
 }
 
 export default function ReportDetailModal({
@@ -36,11 +41,14 @@ export default function ReportDetailModal({
   userId,
   studentEmail,
   session,
+  onGradeSaved,
 }: ReportDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AdminSessionReportResponse | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [coachGrade, setCoachGrade] = useState<number | null>(null);
+  const [savingGrade, setSavingGrade] = useState(false);
 
   useBodyScrollLock(open);
 
@@ -49,6 +57,7 @@ export default function ReportDetailModal({
       setReport(null);
       setError(null);
       setPlaybackUrl(null);
+      setCoachGrade(null);
       return;
     }
     setLoading(true);
@@ -59,6 +68,9 @@ export default function ReportDetailModal({
       .then((data) => {
         setReport(data);
         setError(null);
+        setCoachGrade(
+          data.coach_grade != null ? data.coach_grade : session.coach_grade ?? null
+        );
         if (data.final_recording?.audio_url) {
           setPlaybackUrl(data.final_recording.audio_url);
         }
@@ -80,6 +92,29 @@ export default function ReportDetailModal({
       .then((r) => r.audio_url && setPlaybackUrl(r.audio_url))
       .catch(() => {});
   }, [open, loading, playbackUrl, session?.recording_id]);
+
+  // Sync coach grade from session when report hasn't loaded yet
+  useEffect(() => {
+    if (report == null && session?.coach_grade != null) {
+      setCoachGrade(session.coach_grade);
+    }
+  }, [report, session?.coach_grade]);
+
+  const handleSaveGrade = async () => {
+    if (!session) return;
+    setSavingGrade(true);
+    try {
+      await adminApi.patchSession(userId, session.id, { coach_grade: coachGrade });
+      setReport((prev) => (prev ? { ...prev, coach_grade: coachGrade } : null));
+      toast.success("Grade saved.");
+      onGradeSaved?.();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save grade";
+      toast.error(msg);
+    } finally {
+      setSavingGrade(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -262,6 +297,54 @@ export default function ReportDetailModal({
                   </p>
                 </div>
               ) : null}
+
+              {session?.status === "completed" && (
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Grade this recording (1–10)
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCoachGrade(null)}
+                    className={`rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition-colors ${
+                      coachGrade === null
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background hover:border-primary/50"
+                    }`}
+                  >
+                    Not graded
+                  </button>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setCoachGrade(n)}
+                      className={`min-w-[2.25rem] rounded-lg border-2 px-2 py-1.5 text-sm font-medium transition-colors ${
+                        coachGrade === n
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background hover:border-primary/50"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveGrade}
+                    disabled={savingGrade}
+                  >
+                    {savingGrade ? "Saving…" : "Save grade"}
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                      {coachGrade != null ? `Current: ${coachGrade}/10` : "Not graded"}
+                    </span>
+                </div>
+              </div>
+              )}
             </>
           )}
         </div>

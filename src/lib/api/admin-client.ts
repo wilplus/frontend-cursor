@@ -89,7 +89,10 @@ export interface StudentProfile {
     recording_id?: string;
     report_id?: string;
     task_score?: number;
+    /** Coach grade 1–10 or null (not graded). */
+    coach_grade?: number | null;
     recording_preview?: { performance_score_v2?: number; transcription_preview?: string };
+    /** Full report text (backend returns full, not truncated). */
     report_preview?: { report_text_preview?: string };
   }>;
 }
@@ -112,6 +115,8 @@ export interface AdminSessionReportResponse {
   strength_metric?: string | null;
   pace_metric?: string | null;
   coach_insight?: string | null;
+  /** Coach grade 1–10 or null (not graded). */
+  coach_grade?: number | null;
 }
 
 export interface Exercise {
@@ -218,6 +223,17 @@ export const adminApi = {
   /** Playback URL for a recording (admin). Use when report modal has recording_id but no audio_url. */
   getRecordingPlaybackUrl: (recordingId: string) =>
     adminFetch<{ audio_url: string }>(`/recordings/${recordingId}/playback-url`),
+
+  /** PATCH session: set or clear coach_grade (1–10 or null). Proxies to PATCH /v2/admin/students/:id/sessions/:sessionId. */
+  patchSession: (
+    userId: string,
+    sessionId: string,
+    body: { coach_grade: number | null }
+  ) =>
+    adminFetch<{ status: string; coach_grade?: number | null }>(
+      `/students/${userId}/sessions/${sessionId}`,
+      { method: "PATCH", body }
+    ),
 
   putOverrides: (userId: string, data: Record<string, unknown>) =>
     adminFetch<{ status: string }>(`/students/${userId}/overrides`, { method: "PUT", body: data }),
