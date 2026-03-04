@@ -162,6 +162,17 @@ export const homeworkApi = {
     return handleResponse<{ abandoned: boolean; message?: string }>(res);
   },
 
+  /** List current user's completed sessions (for "View reports" modal). Returns [] if backend does not implement. */
+  async getSessions(): Promise<{ sessions: Array<{ id: string; created_at?: string; report_preview?: { report_text_preview?: string } }> }> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/sessions`, { method: "GET", headers, credentials });
+    if (res.status === 404 || res.status === 501) return { sessions: [] };
+    if (!res.ok) throw new Error((await parseErrorBody(res)).message);
+    const data = await res.json().catch(() => ({}));
+    const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+    return { sessions };
+  },
+
   /** Get current session status (for resuming). Returns session_id, optional status, recording IDs, and restored payload to derive step. */
   async getStatus(): Promise<HomeworkSessionStatus | null> {
     const { headers, credentials } = await getAuthFetchOptions();
