@@ -648,7 +648,7 @@ export default function AudioRecorder({
   return (
     <div className="w-full max-w-lg mx-auto px-0 sm:px-2 py-5 space-y-5">
       <div className="p-2 sm:p-6 space-y-5">
-        {prompt ? (
+        {prompt && !sniperMode ? (
           <div className="relative w-full">
             <p
               ref={promptMeasureRef}
@@ -673,7 +673,7 @@ export default function AudioRecorder({
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex justify-center w-full">
-            <div className={sniperMode ? "w-full max-w-md" : "w-[clamp(420px,60vw,680px)]"}>
+            <div className={sniperMode ? "w-full" : "w-[clamp(420px,60vw,680px)]"}>
               {sniperMode ? (
                 <SniperWheel
                   scores={sniperMetrics.scores}
@@ -681,6 +681,7 @@ export default function AudioRecorder({
                   tier={sniperMetrics.tier}
                   coachingCue={sniperMetrics.coachingCue}
                   metrics={sniperMetrics.metrics}
+                  taskLabel={prompt || undefined}
                 />
               ) : (
                 <StrengthPaceDartboard

@@ -46,7 +46,7 @@ export default function DashboardShell({
         <main
           className={`w-full max-w-4xl mx-auto flex flex-col min-w-0 px-[15px] pt-6 pb-8 sm:pt-8 sm:pb-10 ${isRecording ? "recording-screen" : ""}`}
         >
-          <div className="w-full max-w-2xl sm:max-w-3xl mx-auto flex flex-col items-center">
+          <div className={`w-full ${isRecording ? "max-w-lg" : "max-w-2xl sm:max-w-3xl"} mx-auto flex flex-col items-center`}>
             {children}
           </div>
         </main>
