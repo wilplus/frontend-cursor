@@ -145,3 +145,9 @@ Quick reference for what the frontend does and where edge cases or backend assum
 
 - **Report payload**  
   Optional `recording` (transcription_text, filler_words_count), `coach_insight`; frontend falls back to legacy fields and hides missing blocks.
+
+- **Admin – Reports History**  
+  Frontend shows sessions that have `report_preview.report_text_preview`, or `status === "completed"`, or a non-null `recording_id`. Backend returns **full** report text in `report_preview.report_text_preview` (no truncation). Opening a report shows the entire report in a scrollable container (max height, overflow-y auto). List row shows a short preview (line-clamp); modal shows full report.
+
+- **Admin – Coach grade (1–10)**  
+  Frontend sends **PATCH** `/v2/admin/students/:userId/sessions/:sessionId` with body `{ coach_grade: number | null }` (1–10 or null for “Not graded”). Backend returns 200 with `{ status: "ok", coach_grade }`. Completed sessions show a grade control (Not graded + 1–10) and “Save grade”; on success the profile is refreshed so the list row shows the new grade. Session type and report response include `coach_grade`.

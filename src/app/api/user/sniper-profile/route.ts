@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { copyCookies } from "@/lib/api/bff";
+import { applySniperBaselineUpdate } from "@/lib/sniper/baseline-update";
 import {
   MIN_STAGE_SCORE_FOR_BASELINE_UPDATE,
   MIN_VOICED_SEC_FOR_BASELINE_UPDATE,
-  EMA_ALPHA,
 } from "@/lib/sniper/constants";
 import type { SniperSessionMeans } from "@/lib/sniper/types";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+
+const GOOD_RATING_THRESHOLD = 8;
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +68,7 @@ export async function GET(req: NextRequest) {
   return out;
 }
 
-/** POST: update baseline from session end (EMA). Body: session_means, stage_score, voiced_duration_sec. */
+/** POST: persist session metrics and optionally update baseline (EMA). Body: session_means, stage_score, voiced_duration_sec; optional session_id, student_rating_1_10. Baseline updates only when rating >= 8 (or when no session_id for legacy). */
 export async function POST(req: NextRequest) {
   const cookieRes = NextResponse.next();
   const supabase = createSupabase(req, cookieRes);
@@ -83,13 +85,15 @@ export async function POST(req: NextRequest) {
     session_means: SniperSessionMeans;
     stage_score: number;
     voiced_duration_sec: number;
+    session_id?: string | null;
+    student_rating_1_10?: number | null;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const { session_means, stage_score, voiced_duration_sec } = body;
+  const { session_means, stage_score, voiced_duration_sec, session_id, student_rating_1_10 } = body;
   if (
     session_means == null ||
     typeof stage_score !== "number" ||
@@ -105,102 +109,64 @@ export async function POST(req: NextRequest) {
     stage_score >= MIN_STAGE_SCORE_FOR_BASELINE_UPDATE &&
     voiced_duration_sec >= MIN_VOICED_SEC_FOR_BASELINE_UPDATE;
 
-  const { data: existing } = await supabase
-    .from("user_sniper_profile")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
+  // Persist to session_sniper_metrics when session_id provided (for later coach rating and student rating)
+  if (session_id && typeof session_id === "string") {
+    const rating =
+      student_rating_1_10 != null && student_rating_1_10 >= 1 && student_rating_1_10 <= 10
+        ? student_rating_1_10
+        : null;
+    await supabase.from("session_sniper_metrics").upsert(
+      {
+        session_id,
+        user_id: user.id,
+        wpm: session_means.paceWpm,
+        pause_ms: session_means.avgPauseMs,
+        dynamic_db: session_means.dynamicRangeDb,
+        emphasis_per_min: session_means.emphasisPerMin,
+        energy_ratio: session_means.energyRatio ?? null,
+        stage_score,
+        voiced_duration_sec,
+        student_rating_1_10: rating,
+      },
+      { onConflict: "session_id" }
+    );
+  }
 
-  const alpha = EMA_ALPHA;
-  const oneMinusAlpha = 1 - alpha;
+  // Baseline update: only when (legacy: no session_id) or (session_id + student_rating_1_10 >= 8)
+  const shouldUpdateBaseline =
+    !session_id
+      ? qualityOk
+      : qualityOk &&
+        student_rating_1_10 != null &&
+        student_rating_1_10 >= GOOD_RATING_THRESHOLD;
 
-  const hadEnergy = session_means.energyRatio != null;
-
-  if (!existing) {
-    if (!qualityOk) {
+  if (shouldUpdateBaseline) {
+    const result = await applySniperBaselineUpdate(
+      supabase,
+      user.id,
+      session_means,
+      qualityOk
+    );
+    if (result.error) {
       const out = NextResponse.json(
-        { updated: false, message: "Session below quality threshold" },
-        { status: 200 }
+        { error: "Failed to update profile", updated: false },
+        { status: 500 }
       );
       copyCookies(cookieRes, out);
       return out;
     }
-    const { error: insertErr } = await supabase.from("user_sniper_profile").insert({
-      user_id: user.id,
-      session_count: 1,
-      sessions_with_energy_count: hadEnergy ? 1 : 0,
-      baseline_wpm: session_means.paceWpm,
-      baseline_pause_ms: session_means.avgPauseMs,
-      baseline_dynamic_db: session_means.dynamicRangeDb,
-      baseline_emphasis_per_min: session_means.emphasisPerMin,
-      baseline_energy_ratio: session_means.energyRatio ?? null,
-    });
-    if (insertErr) {
-      console.error("[sniper-profile POST insert]", insertErr.message);
-      const out = NextResponse.json({ error: "Failed to create profile" }, { status: 500 });
-      copyCookies(cookieRes, out);
-      return out;
-    }
-    const { data: created } = await supabase
-      .from("user_sniper_profile")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-    const out = NextResponse.json(created ?? { updated: true });
-    copyCookies(cookieRes, out);
-    return out;
   }
 
-  if (!qualityOk) {
-    const out = NextResponse.json(existing, { status: 200 });
-    copyCookies(cookieRes, out);
-    return out;
-  }
-
-  const prevWpm = existing.baseline_wpm ?? session_means.paceWpm;
-  const prevPause = existing.baseline_pause_ms ?? session_means.avgPauseMs;
-  const prevDynamic = existing.baseline_dynamic_db ?? session_means.dynamicRangeDb;
-  const prevEmphasis = existing.baseline_emphasis_per_min ?? session_means.emphasisPerMin;
-  const prevEnergy =
-    existing.baseline_energy_ratio ?? session_means.energyRatio ?? 1;
-
-  const newWpm = oneMinusAlpha * prevWpm + alpha * session_means.paceWpm;
-  const newPause = oneMinusAlpha * prevPause + alpha * session_means.avgPauseMs;
-  const newDynamic = oneMinusAlpha * prevDynamic + alpha * session_means.dynamicRangeDb;
-  const newEmphasis =
-    oneMinusAlpha * prevEmphasis + alpha * session_means.emphasisPerMin;
-  const newEnergy =
-    session_means.energyRatio != null
-      ? oneMinusAlpha * prevEnergy + alpha * session_means.energyRatio
-      : prevEnergy;
-
-  const { error: updateErr } = await supabase
-    .from("user_sniper_profile")
-    .update({
-      session_count: existing.session_count + 1,
-      sessions_with_energy_count:
-        existing.sessions_with_energy_count + (hadEnergy ? 1 : 0),
-      baseline_wpm: newWpm,
-      baseline_pause_ms: newPause,
-      baseline_dynamic_db: newDynamic,
-      baseline_emphasis_per_min: newEmphasis,
-      baseline_energy_ratio: newEnergy,
-    })
-    .eq("user_id", user.id);
-
-  if (updateErr) {
-    console.error("[sniper-profile POST update]", updateErr.message);
-    const out = NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
-    copyCookies(cookieRes, out);
-    return out;
-  }
-
-  const { data: updated } = await supabase
+  // Return current profile (or existing response when no baseline update)
+  const { data: profile } = await supabase
     .from("user_sniper_profile")
     .select("*")
     .eq("user_id", user.id)
     .single();
-  const out = NextResponse.json(updated ?? { updated: true });
+
+  const out = NextResponse.json(
+    profile ?? { updated: shouldUpdateBaseline }
+  );
   copyCookies(cookieRes, out);
   return out;
 }
