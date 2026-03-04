@@ -830,7 +830,7 @@ export default function HomeworkFlowCard() {
         session_id: sessionId,
         task_block: (res as { task_block?: TaskBlockV2 }).task_block ?? null,
         task_text: (res as { task_text?: string }).task_text ?? undefined,
-        ...(Array.isArray((res as { questions?: HomeworkQuestion[] }).questions) && { questions: (res as { questions: HomeworkQuestion[] }).questions }),
+        ...(Array.isArray((res as { questions?: HomeworkQuestion[] }).questions) && { questions: (res as { questions?: HomeworkQuestion[] }).questions }),
       });
     } catch (e) {
       // #region agent log
