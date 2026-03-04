@@ -118,6 +118,8 @@ export interface SniperWheelProps {
   tier: SniperTier;
   coachingCue: string;
   metrics: SniperMetricState;
+  /** Task/prompt text shown in place of "Live Voice Alignment" (same font) */
+  taskLabel?: string;
 }
 
 export function SniperWheel({
@@ -126,6 +128,7 @@ export function SniperWheel({
   tier,
   coachingCue,
   metrics,
+  taskLabel,
 }: SniperWheelProps) {
   const segmentValues = SEGMENT_METADATA.map((meta) => {
     const score = scores[meta.key];
@@ -150,27 +153,22 @@ export function SniperWheel({
 
   return (
     <div
-      className="w-full flex flex-col items-center py-6 sm:py-8"
-      style={{ background: LIGHT.bgPage }}
+      className="w-full flex flex-col items-center py-6 sm:py-8 bg-transparent"
       role="img"
       aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingMessage}`}
     >
-      <div
-        className="w-full max-w-4xl px-4 sm:px-6"
-        style={{ boxShadow: LIGHT.shadow }}
-      >
-        <div
-          className="bg-white rounded-2xl p-5 sm:p-8 flex flex-col items-center"
-          style={{ boxShadow: LIGHT.shadow }}
-        >
-          <div className="mb-6 text-center">
-            <p
-              className="text-xs tracking-widest uppercase"
-              style={{ color: LIGHT.microLabel }}
-            >
-              Live Voice Alignment
-            </p>
-          </div>
+      <div className="w-full max-w-4xl">
+        <div className="flex flex-col items-center">
+          {taskLabel ? (
+            <div className="mb-6 text-center">
+              <p
+                className="text-xs tracking-widest uppercase"
+                style={{ color: LIGHT.microLabel }}
+              >
+                {taskLabel}
+              </p>
+            </div>
+          ) : null}
 
           <div className="relative w-[300px] h-[300px] sm:w-[360px] sm:h-[360px]">
             <svg
@@ -244,12 +242,9 @@ export function SniperWheel({
               />
             </svg>
 
-            {/* Center core: white disc with shadow */}
+            {/* Center core: white disc */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div
-                className="bg-white rounded-full w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] flex flex-col items-center justify-center"
-                style={{ boxShadow: LIGHT.shadow }}
-              >
+              <div className="bg-white rounded-full w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] flex flex-col items-center justify-center">
                 <p
                   className={`text-3xl sm:text-4xl font-semibold tabular-nums ${scoreColorClass}`}
                 >
