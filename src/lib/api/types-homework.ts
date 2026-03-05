@@ -16,7 +16,7 @@ export type PublicHomeworkStatus =
 
 export type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
-/** Single mapping: backend status → UI step. post_questions shows the reflective-questions step (4); task_block/final_task_ready/completed show report (step 5). */
+/** Single mapping: backend status → UI step. No metric-answers/recording-2/questions; self-rate is step 2; task_block/final_task_ready/post_questions/completed → report (step 5). */
 export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   switch (status) {
     case "none":
@@ -25,9 +25,7 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
       return 1;
     case "task_block":
     case "final_task_ready":
-      return 5;
     case "post_questions":
-      return 4;
     case "completed":
       return 5;
     default: {

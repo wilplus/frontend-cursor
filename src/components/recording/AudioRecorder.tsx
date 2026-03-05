@@ -13,8 +13,6 @@ import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartbo
 import { SniperWheel } from "@/components/recording/SniperWheel";
 import { buildSniperSnapshot } from "@/lib/sniper/types";
 import type { SniperSessionSnapshot } from "@/lib/sniper/types";
-import { debugIngest } from "@/lib/debugIngest";
-
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 
@@ -251,13 +249,6 @@ export default function AudioRecorder({
             startTimeRef.current = null;
             setElapsedSecondsRef.current?.(0);
           } else {
-            // #region agent log
-            measureBlobDurationSeconds(blob)
-              .then((measured) => {
-                debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "AudioRecorder.tsx:onstop", message: "duration ui vs blob", data: { uiDurationSeconds: durationSeconds, measuredBlobSeconds: measured, startTime: startTimeRef.current, endTime, blobSize: blob.size }, timestamp: Date.now(), hypothesisId: "H1" });
-              })
-              .catch(() => {});
-            // #endregion
             if (lastSniperSnapshotRef.current != null && onSniperSnapshot) {
               onSniperSnapshot(lastSniperSnapshotRef.current);
             }
@@ -311,17 +302,12 @@ export default function AudioRecorder({
 
       recorder.onstart = () => {
         startTimeRef.current = Date.now();
-        debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "AudioRecorder.tsx:recorder.onstart", message: "timer started when capture started", data: { startTime: startTimeRef.current }, timestamp: Date.now(), hypothesisId: "H1" });
       };
       recorder.start();
       setIsRecording(true);
       setIsPaused(false);
       setElapsedSeconds(0);
       onRecordingStart?.();
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx',message:'parent calling realtimeStrengthPace.start(stream)',data:{isRecording:true,hasStream:!!stream},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       if (sniperMode) sniperMetrics.start(stream);
       else realtimeStrengthPace.start(stream);
 
