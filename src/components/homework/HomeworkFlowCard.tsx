@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import { homeworkApi, type HomeworkApiError } from "@/lib/api/homework-client";
+import { homeworkApi, type HomeworkApiError, type SelfRatingResponse } from "@/lib/api/homework-client";
 import type {
   HomeworkQuestion,
   HomeworkSessionStatus,
@@ -221,6 +221,10 @@ export default function HomeworkFlowCard() {
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
   const [savingStudentRating, setSavingStudentRating] = useState(false);
+  /** When self-rating returned session_completed: false, retry POST self-rating after job is done (poll status then call again). */
+  const [pendingRetrySelfRating, setPendingRetrySelfRating] = useState<
+    { sessionId: string; rating: number } | { sessionId: string; skipped: true } | null
+  >(null);
   useEffect(() => {
     if (!videoModalUrl) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setVideoModalUrl(null);
@@ -400,6 +404,7 @@ export default function HomeworkFlowCard() {
       // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
+      setPendingRetrySelfRating(null);
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -712,6 +717,7 @@ export default function HomeworkFlowCard() {
         setReportData(data);
         setReportError(null);
         setReportNotReady(false);
+        setPendingRetrySelfRating(null);
         // So the tutor countdown can show on step 0 after "Send homework to coach" (incl. first-time completers if backend sends deadline in report)
         const deadlineIso = (data as { tutor_feedback_deadline?: string | null }).tutor_feedback_deadline;
         if (deadlineIso && typeof deadlineIso === "string") {
@@ -754,6 +760,41 @@ export default function HomeworkFlowCard() {
     const id = setInterval(() => setReportRetryCount((c) => c + 1), intervalMs);
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
+
+  // When session_completed was false: poll GET session/status until job is done, then call POST self-rating again to trigger completion
+  useEffect(() => {
+    if (step !== 5 || !pendingRetrySelfRating) return;
+    const { sessionId: sid } = pendingRetrySelfRating;
+    const intervalMs = 5000;
+    const maxWaitMs = 120000; // 2 min then retry anyway
+    const startedAt = Date.now();
+    const poll = async () => {
+      try {
+        const statusRes = await homeworkApi.getStatus();
+        const raw = statusRes as HomeworkSessionStatus & { recording_1_processing_status?: string };
+        const processingStatus = raw?.recording_1_processing_status;
+        const status = raw?.status ?? (raw as { session?: { status?: string } }).session?.status;
+        const jobDone =
+          (typeof processingStatus === "string" && processingStatus !== "pending") ||
+          status === "completed" ||
+          Date.now() - startedAt >= maxWaitMs;
+        if (!jobDone) return;
+        const payload = pendingRetrySelfRating;
+        setPendingRetrySelfRating(null);
+        if (payload && "rating" in payload) {
+          await homeworkApi.submitSelfRating(sid, payload.rating);
+        } else {
+          await homeworkApi.submitSelfRatingSkipped(sid);
+        }
+        setReportRetryCount((c) => c + 1);
+      } catch {
+        // keep polling
+      }
+    };
+    const id = setInterval(poll, intervalMs);
+    poll();
+    return () => clearInterval(id);
+  }, [step, pendingRetrySelfRating]);
 
   // Fetch sniper profile when on recording step (for adaptive baseline / growth).
   // Deferred and with timeout so a slow/hanging API never blocks the Record button.
@@ -1436,9 +1477,12 @@ export default function HomeworkFlowCard() {
                   if (!sessionId || sessionId === "mock-session") return;
                   setSavingStudentRating(true);
                   try {
-                    await homeworkApi.submitSelfRating(sessionId, n);
+                    const res = await homeworkApi.submitSelfRating(sessionId, n);
                     setStudentSpeechRatingSubmitted(true);
                     setStep(5);
+                    if (res.session_completed === false) {
+                      setPendingRetrySelfRating({ sessionId, rating: n });
+                    }
                   } catch (e) {
                     toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
                   } finally {
@@ -1464,9 +1508,12 @@ export default function HomeworkFlowCard() {
               }
               setSavingStudentRating(true);
               try {
-                await homeworkApi.submitSelfRatingSkipped(sessionId);
+                const res = await homeworkApi.submitSelfRatingSkipped(sessionId);
                 setStudentSpeechRatingSubmitted(true);
                 setStep(5);
+                if (res.session_completed === false) {
+                  setPendingRetrySelfRating({ sessionId, skipped: true });
+                }
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
               } finally {
