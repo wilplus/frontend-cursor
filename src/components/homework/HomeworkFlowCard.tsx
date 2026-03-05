@@ -383,13 +383,11 @@ export default function HomeworkFlowCard() {
     };
   }, [step, sessionId, questions.length, questionsStep4Settled]);
 
-  /** Single state projection from backend response. Step is only updated when status is "none" (go to 0) or when the backend step is >= current step (never downgrade). */
+  /** Single state projection from backend response. Step is only set to 0 when status is "none". Steps 1, 2, 5 are only reached by user flow: Start → 1, recording done → 2, self-rating done → 5. */
   const applyStatusToState = (res: HomeworkResponse) => {
     const status: PublicHomeworkStatus = res.status ?? "none";
-    const newStep = mapStatusToStep(status);
-    const currentStep = stepRef.current;
-    if (status === "none" || newStep >= currentStep) {
-      setStep(newStep);
+    if (status === "none") {
+      setStep(0);
     }
     setStatusUnknown(false);
     setError(null);
@@ -485,6 +483,7 @@ export default function HomeworkFlowCard() {
         warm_up_task: (startRes as { warm_up_task?: { id: string; text: string } }).warm_up_task ?? null,
         warm_up_task_text: warmUpTextFromStart || null,
       });
+      setStep(1);
     } catch (e) {
       if (isNoWarmupError(e)) {
         setNoWarmupConfigured(true);
@@ -499,6 +498,7 @@ export default function HomeworkFlowCard() {
         setWarmUpText("");
         setError(null);
         setStatusUnknown(false);
+        setStep(1);
       } else {
         setError(msg);
         toast.error(msg);
