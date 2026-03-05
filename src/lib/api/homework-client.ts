@@ -393,6 +393,23 @@ export const homeworkApi = {
     return handleResponse<{ audio_url: string }>(res);
   },
 
+  /** Submit self-rating (1–10) for the session. Optional; does not block report or coach email. */
+  async submitSelfRating(sessionId: string, rating: number): Promise<void> {
+    const r = Math.round(rating);
+    if (r < 1 || r > 10) return;
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/session/${sessionId}/self-rating`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ rating: r }),
+      credentials,
+    });
+    if (!res.ok) {
+      // Optional: log but don't block flow
+      if (typeof window !== "undefined") console.warn("[HomeworkFlow] self-rating failed", res.status);
+    }
+  },
+
   /**
    * Notify that lesson is complete (report generated). Backend should send email to admin (e.g. artur@willonski.com).
    * Returns true if the request succeeded (2xx), false otherwise, so callers can retry.

@@ -12,11 +12,13 @@ export type PublicHomeworkStatus =
   | "task_block"
   | "final_task_ready"
   | "post_questions"
-  | "completed";
+  | "completed"
+  | "completing_from_recording_1"
+  | "report_generating";
 
 export type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
-/** Single mapping: backend status → UI step. No metric-answers/recording-2/questions; self-rate is step 2; task_block/final_task_ready/post_questions/completed → report (step 5). */
+/** Single mapping: backend status → UI step. completing_from_recording_1/report_generating = report in progress → step 5. */
 export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   switch (status) {
     case "none":
@@ -27,6 +29,8 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
     case "final_task_ready":
     case "post_questions":
     case "completed":
+    case "completing_from_recording_1":
+    case "report_generating":
       return 5;
     default: {
       const _exhaustive: never = status;
@@ -63,7 +67,7 @@ export interface HomeworkResponse {
 export function toPublicStatus(s: unknown): PublicHomeworkStatus {
   if (typeof s !== "string") return "none";
   const t = s.toLowerCase().trim().replace(/\s+/g, "_");
-  const allowed: PublicHomeworkStatus[] = ["none", "recording_1_required", "task_block", "final_task_ready", "post_questions", "completed"];
+  const allowed: PublicHomeworkStatus[] = ["none", "recording_1_required", "task_block", "final_task_ready", "post_questions", "completed", "completing_from_recording_1", "report_generating"];
   if (allowed.includes(t as PublicHomeworkStatus)) return t as PublicHomeworkStatus;
   return "none";
 }
