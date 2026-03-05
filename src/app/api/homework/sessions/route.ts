@@ -1,13 +1,17 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
+import { getV2AccessToken, getBackendUrl, getCurrentUserId } from "@/app/api/getAuth";
 
 export const dynamic = "force-dynamic";
 
-/** List current user's completed homework sessions (for "View reports" modal). Backend may not implement; 404 returns []. */
+/**
+ * List current user's completed sessions — same source as admin panel.
+ * Backend must allow GET /v2/admin/students/:id when id === token's user id (in addition to admin-for-any-user).
+ */
 export async function GET(req: NextRequest) {
   const token = await getV2AccessToken(req);
-  if (!token) {
+  const userId = await getCurrentUserId(req);
+  if (!token || !userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const backend = getBackendUrl();
@@ -15,32 +19,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ sessions: [] }, { status: 200 });
   }
   try {
-    let sessions: unknown[] = [];
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
-
-    const res = await fetch(`${backend}/v2/homework/sessions`, {
+    const res = await fetch(`${backend}/v2/admin/students/${userId}`, {
       method: "GET",
-      headers,
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) {
-      const data = await res.json().catch(() => ({}));
-      sessions = Array.isArray(data.sessions) ? data.sessions : [];
-    }
-    if (sessions.length === 0) {
-      const meRes = await fetch(`${backend}/v2/homework/me`, { method: "GET", headers });
-      if (meRes.ok) {
-        const meData = (await meRes.json().catch(() => ({}))) as { sessions?: unknown[]; profile?: { sessions?: unknown[] } };
-        const fromMe = Array.isArray(meData.sessions) ? meData.sessions : (Array.isArray(meData.profile?.sessions) ? meData.profile.sessions : []);
-        if (fromMe.length > 0) sessions = fromMe;
-      }
-    }
-    if (sessions.length === 0 && !res.ok && res.status !== 404 && res.status !== 501) {
+    if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
       return NextResponse.json(errBody as object, { status: res.status });
     }
+    const data = (await res.json().catch(() => ({}))) as { sessions?: unknown[] };
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     return NextResponse.json({ sessions }, { status: 200 });
   } catch {
     return NextResponse.json({ sessions: [] }, { status: 200 });

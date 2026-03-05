@@ -46,3 +46,28 @@ export async function getV2AccessToken(req: NextRequest): Promise<string | null>
   } = await supabase.auth.getSession();
   return session?.access_token ?? null;
 }
+
+/**
+ * Get the current user's id (for BFF routes that need to call backend as "current user").
+ * Uses Supabase session from cookies. Requires backend to allow GET /v2/admin/students/:id
+ * when id === token's user id (in addition to admin-for-any-user).
+ */
+export async function getCurrentUserId(req: NextRequest): Promise<string | null> {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set() {},
+        remove() {},
+      },
+    }
+  );
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
+}
