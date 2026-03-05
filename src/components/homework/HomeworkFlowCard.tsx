@@ -233,8 +233,13 @@ export default function HomeworkFlowCard() {
   }, [videoModalUrl]);
   /** Ticker so countdown re-renders every second when tutor deadline is shown. */
   const [countdownTick, setCountdownTick] = useState(0);
-  /** When true, show modal to browse past reports (same UX as admin: click to open, browse in modal). */
+  /** When true, show modal with a single report (list is on the page). */
   const [reportsModalOpen, setReportsModalOpen] = useState(false);
+  /** Session id for the report shown in the modal (from clicking a report card). */
+  const [reportModalSessionId, setReportModalSessionId] = useState<string | null>(null);
+  /** Step 0: list of past sessions for Reports History (same shape as admin). */
+  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
+  const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
   const taskBlockFetchStartedRef = useRef(false);
   /** When step 2 fails to load questions, we auto-skip to step 5 (report) once; this ref prevents doing it more than once. */
@@ -268,6 +273,26 @@ export default function HomeworkFlowCard() {
       }
     });
   }, [authReady, step]);
+
+  /** Load past sessions for Reports History when on step 0. */
+  useEffect(() => {
+    if (step !== 0) return;
+    setStep0SessionsLoading(true);
+    homeworkApi
+      .getSessions()
+      .then((data) => {
+        const list = (data.sessions ?? []).filter(
+          (s) =>
+            (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
+            s.status === "completed" ||
+            !!s.recording_id
+        );
+        list.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+        setStep0Sessions(list.slice(0, 20));
+      })
+      .catch(() => setStep0Sessions([]))
+      .finally(() => setStep0SessionsLoading(false));
+  }, [step]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {
@@ -1160,8 +1185,10 @@ export default function HomeworkFlowCard() {
     const videoUrl = ex?.video_url?.trim();
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
 
+    const step0ReportsListId = "step0-reports-history";
+
     return (
-      <div className="flex flex-col items-center w-full pt-2 sm:pt-4">
+      <div className="flex flex-col items-center w-full pt-0 -mt-8 sm:-mt-10">
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
             <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-4">
@@ -1205,14 +1232,51 @@ export default function HomeworkFlowCard() {
                 {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
               </Button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => setReportsModalOpen(true)}
+              <a
+                href={`#${step0ReportsListId}`}
+                className="text-sm text-muted-foreground hover:text-destructive transition-colors"
               >
                 View reports
-              </Button>
+              </a>
+            </div>
+
+            {/* Reports History: list on page like admin; click card opens modal with report */}
+            <div id={step0ReportsListId} className="w-full mt-8 space-y-4">
+              <h2 className="text-lg font-semibold">Reports History</h2>
+              {step0SessionsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : step0Sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No reports yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {step0Sessions.map((s) => (
+                    <button
+                      type="button"
+                      key={s.id}
+                      onClick={() => {
+                        setReportModalSessionId(s.id);
+                        setReportsModalOpen(true);
+                      }}
+                      className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
+                        </p>
+                        {s.status === "completed" && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
+                          </span>
+                        )}
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
+                        {s.report_preview?.report_text_preview?.trim() || "View full report and recording."}
+                      </p>
+                      <p className="text-xs text-primary mt-2">View full report and recording →</p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {videoModalUrl ? (
@@ -1250,7 +1314,11 @@ export default function HomeworkFlowCard() {
           </Card>
           <HomeworkReportsModal
             open={reportsModalOpen}
-            onOpenChange={setReportsModalOpen}
+            onOpenChange={(open) => {
+              setReportsModalOpen(open);
+              if (!open) setReportModalSessionId(null);
+            }}
+            sessionId={reportModalSessionId}
           />
         </StepFlowWrapper>
       </div>
