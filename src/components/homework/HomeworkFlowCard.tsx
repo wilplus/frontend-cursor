@@ -1239,18 +1239,21 @@ export default function HomeworkFlowCard() {
                 size="sm"
                 className="text-muted-foreground hover:text-destructive"
                 onClick={() => {
-                  setShowReportsList(true);
-                  fetchStep0Reports();
+                  if (showReportsList) {
+                    setShowReportsList(false);
+                  } else {
+                    setShowReportsList(true);
+                    fetchStep0Reports();
+                  }
                 }}
               >
-                View reports
+                {showReportsList ? "Hide reports" : "View reports"}
               </Button>
             </div>
 
-            {/* Reports History: visible only after "View reports" click; same source as admin */}
+            {/* Reports list: same width as video; toggled by View reports / Hide reports */}
             {showReportsList && (
-              <div id={step0ReportsListId} className="w-full mt-8 space-y-4">
-                <h2 className="text-lg font-semibold">Reports History</h2>
+              <div id={step0ReportsListId} className="w-full max-w-[280px] mx-auto mt-8 space-y-4">
                 {step0SessionsLoading ? (
                   <p className="text-sm text-muted-foreground">Loading…</p>
                 ) : step0Sessions.length === 0 ? (
