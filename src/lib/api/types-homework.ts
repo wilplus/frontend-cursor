@@ -156,6 +156,8 @@ export interface HomeworkSessionStatus {
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
+  /** Backend: recording-1 job state. When not "pending", safe to call POST self-rating again to trigger completion. */
+  recording_1_processing_status?: string | null;
 }
 
 /** Exercise item returned in GET session/status when no active session (from assigned_exercises). */

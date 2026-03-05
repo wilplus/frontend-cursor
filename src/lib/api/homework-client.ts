@@ -394,11 +394,11 @@ export const homeworkApi = {
   },
 
   /**
-   * Submit self-rating (1–10) for the session. Backend uses this to mark session complete; only advance to report after success.
+   * Submit self-rating (1–10). Returns backend response; if session_completed is false, call again after job is done.
    */
-  async submitSelfRating(sessionId: string, rating: number): Promise<void> {
+  async submitSelfRating(sessionId: string, rating: number): Promise<SelfRatingResponse> {
     const r = Math.round(rating);
-    if (r < 1 || r > 10) return;
+    if (r < 1 || r > 10) return { status: "ok", session_completed: false };
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/self-rating`, {
       method: "POST",
@@ -410,12 +410,14 @@ export const homeworkApi = {
       const { message } = await parseErrorBody(res).catch(() => ({ message: res.statusText }));
       throw new Error(message || `Self-rating failed (${res.status})`);
     }
+    const body = await safeParseJson<SelfRatingResponse>(res);
+    return { status: "ok", session_completed: body?.session_completed === true, student_rating_1_10: r, ...body };
   },
 
   /**
-   * Record that the user skipped self-rating. Backend uses this to mark session complete so the report becomes available.
+   * Record that the user skipped self-rating. Returns backend response; if session_completed is false, call again after job is done.
    */
-  async submitSelfRatingSkipped(sessionId: string): Promise<void> {
+  async submitSelfRatingSkipped(sessionId: string): Promise<SelfRatingResponse> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/self-rating`, {
       method: "POST",
@@ -427,5 +429,15 @@ export const homeworkApi = {
       const { message } = await parseErrorBody(res).catch(() => ({ message: res.statusText }));
       throw new Error(message || `Could not save skip (${res.status})`);
     }
+    const body = await safeParseJson<SelfRatingResponse>(res);
+    return { status: "ok", session_completed: body?.session_completed === true, skipped: true, ...body };
   },
 };
+
+/** Response from POST .../self-rating. If session_completed is false, backend is still processing; call self-rating again after job completes. */
+export interface SelfRatingResponse {
+  status?: string;
+  session_completed: boolean;
+  student_rating_1_10?: number;
+  skipped?: true;
+}
