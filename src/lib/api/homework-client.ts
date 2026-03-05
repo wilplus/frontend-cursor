@@ -264,6 +264,7 @@ export const homeworkApi = {
       if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status} ${putRes.statusText}`);
       return storage_path;
     }
+    if (!("bucket" in result) || !result.bucket) throw new Error("Invalid recording-upload-url response");
     const { bucket } = result;
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
