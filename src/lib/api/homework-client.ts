@@ -13,8 +13,6 @@ import type {
   HomeworkReportResponse,
   TaskBlockV2,
 } from "@/lib/api/types-homework";
-import { debugIngest } from "@/lib/debugIngest";
-
 async function getAuthFetchOptions(
   extra: Record<string, string> = {}
 ): Promise<{ headers: Record<string, string>; credentials: RequestCredentials }> {
@@ -224,10 +222,11 @@ export const homeworkApi = {
       credentials,
     });
     const body = await safeParseJson<{
-      bucket?: string;
-      storage_path?: string;
+      bucket?: string | null;
+      storage_path?: string | null;
       upload_url?: string;
       already_past_step?: boolean;
+      already_submitted?: boolean;
       status?: string;
       task_block?: TaskBlockV2;
     }>(res);
@@ -237,6 +236,10 @@ export const homeworkApi = {
     if (!res.ok) return handleResponse<never>(res) as Promise<never>;
     if (body.already_past_step === true && body.task_block) {
       return { already_past_step: true, status: body.status, task_block: body.task_block };
+    }
+    if (body.already_submitted === true) {
+      // Backend "already past recording 1" (200 + storage_path: null): skip upload, advance to step 2
+      return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as TaskBlockV2 };
     }
     if (body.upload_url && body.storage_path) {
       return { upload_url: body.upload_url, storage_path: body.storage_path };
@@ -344,9 +347,6 @@ export const homeworkApi = {
       | { bucket: string; storage_path: string };
     const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    // #region agent log
-    debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "homework-client.ts:uploadRecording2", message: "sending recording-2", data: { duration_seconds_sent: durationSeconds, storage_path_len: storage_path?.length }, timestamp: Date.now(), hypothesisId: "H2" });
-    // #endregion
     const res = await fetch(`${BASE}/session/${sessionId}/recording-2`, {
       method: "POST",
       headers,

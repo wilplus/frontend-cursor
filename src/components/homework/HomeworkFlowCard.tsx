@@ -21,7 +21,6 @@ import {
   type PublicHomeworkStatus,
 } from "@/lib/api/types-homework";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
-import PostQuestionsStepScreen from "@/components/homework/PostQuestionsStepScreen";
 import HomeworkReportsModal from "@/components/homework/HomeworkReportsModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,7 +30,6 @@ import type { SniperSessionSnapshot, UserSniperProfile } from "@/lib/sniper/type
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { debugIngest } from "@/lib/debugIngest";
 import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 import Lottie from "lottie-react";
 
@@ -333,10 +331,15 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [authReady, step, tutorFeedbackDeadlineMs]);
 
-  /** Show navbar on step 0 (start), step 4 (reflective questions), and step 5 (report); hide from step 1. */
+  /** Show navbar on step 0 (start), step 2 (self-rate), and step 5 (report); hide from step 1. */
   useEffect(() => {
-    setShowNavbar(step === 0 || step === 4 || step === 5);
+    setShowNavbar(step === 0 || step === 2 || step === 5);
   }, [step, setShowNavbar]);
+
+  /** Step 4 removed: if we ever land on 4 (e.g. stale state), go to report. */
+  useEffect(() => {
+    if (step === 4) setStep(5);
+  }, [step]);
 
   /** Clear recording context when not on step 1 (record). Step 3 removed. */
   useEffect(() => {
@@ -825,9 +828,6 @@ export default function HomeworkFlowCard() {
       toast.error(msg);
       return;
     }
-    // #region agent log
-    debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete:entry", message: "rec1 complete handler entered", data: { hasSessionId: !!sessionId, uploadInProgress: uploadRecording1InProgressRef.current, uploadingRecording, step, durationSeconds }, timestamp: Date.now(), hypothesisId: "H5" });
-    // #endregion
     if (!sessionId) return;
     if (uploadRecording1InProgressRef.current) return;
     uploadRecording1InProgressRef.current = true;
@@ -859,10 +859,9 @@ export default function HomeworkFlowCard() {
         task_text: (res as { task_text?: string }).task_text ?? undefined,
         ...(Array.isArray((res as { questions?: HomeworkQuestion[] }).questions) && { questions: (res as { questions?: HomeworkQuestion[] }).questions }),
       });
+      // Next: self-rate step only (no metric-answers, recording-2, or post-answers). Then report.
+      setStep(2);
     } catch (e) {
-      // #region agent log
-      debugIngest("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { location: "HomeworkFlowCard.tsx:handleRecording1Complete catch", message: "rec1 error", data: { error: String((e as Error)?.message), code: (e as { code?: string })?.code }, timestamp: Date.now(), hypothesisId: "H4" });
-      // #endregion
       if (isSessionGoneError(e)) {
         toast.info("Your session is gone. You can start a new lesson.");
         startOverFromScratch();
@@ -1455,44 +1454,74 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4: Reflective questions (next step after recording) — always shown when backend returns post_questions
-  if (step === 4) {
-    const questionsLoading = !questionsStep4Settled && questions.length === 0;
+  // Step 2: Post-recording self-rate 1–10 only (no metric-answers, recording-2, or post-answers). Then report.
+  if (step === 2) {
     return (
-      <StepFlowWrapper step={4} syncingBehind={syncingBehind}>
+      <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
-        {questionsLoading ? (
-          <Card className="w-full max-w-md mx-auto p-6 border-0 bg-transparent shadow-none">
-            <div className="text-center space-y-4">
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-              <p className="text-sm text-muted-foreground">Loading questions…</p>
-            </div>
-          </Card>
-        ) : questions.length === 0 ? (
-          <Card className="w-full max-w-md mx-auto p-6 border-0 bg-transparent shadow-none">
-            <div className="text-center space-y-4">
-              <p className="text-sm text-muted-foreground">No questions this time.</p>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+        <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
+          <p className="text-sm font-medium text-muted-foreground mb-2">
+            How did that recording feel for you?
+          </p>
+          <p className="text-xs text-muted-foreground mb-3">
+            1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
               <Button
-                onClick={() => handlePostAnswersSubmit({})}
-                disabled={loading}
-                className="w-full max-w-xs rounded-xl h-12 font-semibold"
+                key={n}
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={savingStudentRating}
+                onClick={() => {
+                  if (!sessionId || sessionId === "mock-session") return;
+                  setSavingStudentRating(true);
+                  fetch("/api/user/sniper-profile/session-rating", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      session_id: sessionId,
+                      student_rating_1_10: n,
+                    }),
+                  })
+                    .then((r) => r.json())
+                    .then((data) => {
+                      if (data?.profile && typeof data.profile.session_count === "number") {
+                        setSniperProfile(data.profile);
+                      }
+                    })
+                    .finally(() => {
+                      setSavingStudentRating(false);
+                      setStudentSpeechRatingSubmitted(true);
+                      setStep(5);
+                    });
+                }}
+                className="min-w-[2.25rem]"
               >
-                {loading ? "Submitting…" : "Continue to report"}
+                {n}
               </Button>
-            </div>
-          </Card>
-        ) : (
-          <PostQuestionsStepScreen
-            questions={questions}
-            onSubmit={handlePostAnswersSubmit}
-            loading={loading}
-            error={error}
-          />
-        )}
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={savingStudentRating}
+            onClick={() => {
+              setStudentSpeechRatingSubmitted(true);
+              setStep(5);
+            }}
+            className="text-muted-foreground"
+          >
+            Skip
+          </Button>
+        </Card>
       </StepFlowWrapper>
     );
   }
+
+  // Step 4 unused: no reflective questions; flow is record → self-rate (step 2) → report (step 5).
 
   // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
   if (step === 5) {
@@ -1512,7 +1541,7 @@ export default function HomeworkFlowCard() {
               ) : (
                 <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               )}
-              <p className="text-sm text-muted-foreground">Loading report…</p>
+              <p className="text-sm text-muted-foreground">Your report is being generated.</p>
               <p className="text-xs text-muted-foreground">Taking too long? You can start a new practice below.</p>
               <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
                 {resetting ? "Resetting…" : "Start New Practice"}
@@ -1754,67 +1783,12 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    // Full report (both recordings): playback from final_recording/recording, chart, transcript when present, report text, coach insight when present.
+    // Full report: playback, chart, transcript when present, report text, coach insight when present. Self-rate is step 2 only.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         {coachMessageBlock}
         {sniperSnapshot ? (
           <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
-        ) : null}
-        {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
-          <Card className="border-0 bg-transparent p-6 shadow-none">
-            <p className="text-sm font-medium text-muted-foreground mb-2">
-              How did that recording feel for you?
-            </p>
-            <p className="text-xs text-muted-foreground mb-3">
-              1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
-            </p>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <Button
-                  key={n}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={savingStudentRating}
-                  onClick={() => {
-                    setSavingStudentRating(true);
-                    fetch("/api/user/sniper-profile/session-rating", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        session_id: sessionId,
-                        student_rating_1_10: n,
-                      }),
-                    })
-                      .then((r) => r.json())
-                      .then((data) => {
-                        if (data?.profile && typeof data.profile.session_count === "number") {
-                          setSniperProfile(data.profile);
-                        }
-                      })
-                      .finally(() => {
-                        setSavingStudentRating(false);
-                        setStudentSpeechRatingSubmitted(true);
-                      });
-                  }}
-                  className="min-w-[2.25rem]"
-                >
-                  {n}
-                </Button>
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={savingStudentRating}
-              onClick={() => setStudentSpeechRatingSubmitted(true)}
-              className="text-muted-foreground"
-            >
-              Skip
-            </Button>
-          </Card>
         ) : null}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <h3 className="text-center text-lg font-semibold">Your report</h3>
