@@ -15,7 +15,7 @@ export async function POST(
   const unauth = await requireAuth(req);
   if (unauth) return unauth;
 
-  let body: { rating?: number } = {};
+  let body: { rating?: number; skipped?: boolean } = {};
   try {
     if (req.headers.get("content-type")?.includes("application/json")) {
       body = await req.json();
@@ -27,11 +27,13 @@ export async function POST(
   const rating = typeof body.rating === "number" && body.rating >= 1 && body.rating <= 10
     ? Math.round(body.rating)
     : undefined;
+  const skipped = body.skipped === true;
 
   const { sessionId } = params;
+  const payload = rating != null ? { rating } : skipped ? { skipped: true } : {};
   return proxyJson(
     `/v2/homework/session/${sessionId}/self-rating`,
-    { method: "POST", body: rating != null ? { rating } : {} },
+    { method: "POST", body: payload },
     req
   );
 }

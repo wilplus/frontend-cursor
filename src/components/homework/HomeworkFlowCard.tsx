@@ -1474,16 +1474,18 @@ export default function HomeworkFlowCard() {
                 variant="outline"
                 size="sm"
                 disabled={savingStudentRating}
-                onClick={() => {
+                onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
                   setSavingStudentRating(true);
-                  homeworkApi
-                    .submitSelfRating(sessionId, n)
-                    .finally(() => {
-                      setSavingStudentRating(false);
-                      setStudentSpeechRatingSubmitted(true);
-                      setStep(5);
-                    });
+                  try {
+                    await homeworkApi.submitSelfRating(sessionId, n);
+                    setStudentSpeechRatingSubmitted(true);
+                    setStep(5);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
+                  } finally {
+                    setSavingStudentRating(false);
+                  }
                 }}
                 className="min-w-[2.25rem]"
               >
@@ -1496,9 +1498,22 @@ export default function HomeworkFlowCard() {
             variant="ghost"
             size="sm"
             disabled={savingStudentRating}
-            onClick={() => {
-              setStudentSpeechRatingSubmitted(true);
-              setStep(5);
+            onClick={async () => {
+              if (!sessionId || sessionId === "mock-session") {
+                setStudentSpeechRatingSubmitted(true);
+                setStep(5);
+                return;
+              }
+              setSavingStudentRating(true);
+              try {
+                await homeworkApi.submitSelfRatingSkipped(sessionId);
+                setStudentSpeechRatingSubmitted(true);
+                setStep(5);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
+              } finally {
+                setSavingStudentRating(false);
+              }
             }}
             className="text-muted-foreground"
           >
