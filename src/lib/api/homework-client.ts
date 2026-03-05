@@ -393,7 +393,9 @@ export const homeworkApi = {
     return handleResponse<{ audio_url: string }>(res);
   },
 
-  /** Submit self-rating (1–10) for the session. Optional; does not block report or coach email. */
+  /**
+   * Submit self-rating (1–10) for the session. Backend uses this to mark session complete; only advance to report after success.
+   */
   async submitSelfRating(sessionId: string, rating: number): Promise<void> {
     const r = Math.round(rating);
     if (r < 1 || r > 10) return;
@@ -405,8 +407,25 @@ export const homeworkApi = {
       credentials,
     });
     if (!res.ok) {
-      // Optional: log but don't block flow
-      if (typeof window !== "undefined") console.warn("[HomeworkFlow] self-rating failed", res.status);
+      const { message } = await parseErrorBody(res).catch(() => ({ message: res.statusText }));
+      throw new Error(message || `Self-rating failed (${res.status})`);
+    }
+  },
+
+  /**
+   * Record that the user skipped self-rating. Backend uses this to mark session complete so the report becomes available.
+   */
+  async submitSelfRatingSkipped(sessionId: string): Promise<void> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/session/${sessionId}/self-rating`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ skipped: true }),
+      credentials,
+    });
+    if (!res.ok) {
+      const { message } = await parseErrorBody(res).catch(() => ({ message: res.statusText }));
+      throw new Error(message || `Could not save skip (${res.status})`);
     }
   },
 
