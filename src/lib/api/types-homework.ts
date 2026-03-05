@@ -158,6 +158,8 @@ export interface HomeworkSessionStatus {
   assigned_exercises?: AssignedExercise[];
   /** Backend: recording-1 job state. When not "pending", safe to call POST self-rating again to trigger completion. */
   recording_1_processing_status?: string | null;
+  /** Backend: when true, show the 1–10 self-rating step and allow POST self-rating. */
+  ready_for_self_rating?: boolean | null;
 }
 
 /** Exercise item returned in GET session/status when no active session (from assigned_exercises). */
