@@ -248,7 +248,7 @@ export const homeworkApi = {
   },
 
   /** Upload blob: PUT to upload_url when present, else Supabase SDK with bucket + storage_path. Returns storage_path for the recording-1/2 POST. */
-  private async uploadBlob(
+  async uploadBlob(
     result: { upload_url: string; storage_path: string } | { bucket: string; storage_path: string },
     blob: Blob,
     signal?: AbortSignal
