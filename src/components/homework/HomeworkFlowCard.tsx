@@ -203,8 +203,6 @@ export default function HomeworkFlowCard() {
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
   const postAnswersAutoSubmitDoneRef = useRef(false);
-  /** Session IDs we have already triggered notify-lesson-complete for (admin email). */
-  const notifiedLessonCompleteRef = useRef<Set<string>>(new Set());
   /** When set, user just finished a lesson (step 5 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
@@ -700,41 +698,7 @@ export default function HomeworkFlowCard() {
   const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
   // Steps 2–4 effects removed (task block fetch, skip-to-report, step 4 questions).
 
-  // Ensure admin is notified when lesson is complete (step 5), even if report takes long or fails to load.
-  // Fire as soon as we land on step 5 and retry with backoff so the email is sent even on transient errors.
-  useEffect(() => {
-    if (step !== 5 || !sessionId || sessionId === "mock-session") return;
-    if (notifiedLessonCompleteRef.current.has(sessionId)) return;
-    const delays = [0, 2000, 5000, 10000]; // immediate, then 2s, 5s, 10s
-    let cancelled = false;
-    const tryNotify = (attempt: number) => {
-      if (cancelled || notifiedLessonCompleteRef.current.has(sessionId)) return;
-      homeworkApi
-        .notifyLessonComplete(sessionId)
-        .then((ok) => {
-          if (cancelled) return;
-          if (ok) {
-            notifiedLessonCompleteRef.current.add(sessionId);
-            return;
-          }
-          if (attempt < delays.length - 1) {
-            const delay = delays[attempt + 1] - delays[attempt];
-            setTimeout(() => tryNotify(attempt + 1), delay);
-          }
-        })
-        .catch(() => {
-          if (cancelled) return;
-          if (attempt < delays.length - 1) {
-            const delay = delays[attempt + 1] - delays[attempt];
-            setTimeout(() => tryNotify(attempt + 1), delay);
-          }
-        });
-    };
-    tryNotify(0);
-    return () => {
-      cancelled = true;
-    };
-  }, [step, sessionId]);
+  // Coach is notified by the backend when self-rating (or skip) is saved; no separate notify-lesson-complete call.
 
   // Fetch report when on step 5 with a real session (single source of truth for player + scores + text)
   useEffect(() => {
@@ -753,12 +717,6 @@ export default function HomeworkFlowCard() {
         if (deadlineIso && typeof deadlineIso === "string") {
           const ms = new Date(deadlineIso).getTime();
           if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
-        }
-        // Fallback: ensure admin notified when report has loaded (in case step-5 notify hadn't succeeded yet)
-        if (!notifiedLessonCompleteRef.current.has(sessionId)) {
-          homeworkApi.notifyLessonComplete(sessionId).then((ok) => {
-            if (ok) notifiedLessonCompleteRef.current.add(sessionId);
-          });
         }
       })
       .catch((e) => {

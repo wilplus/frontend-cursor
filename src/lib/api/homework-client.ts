@@ -428,18 +428,4 @@ export const homeworkApi = {
       throw new Error(message || `Could not save skip (${res.status})`);
     }
   },
-
-  /**
-   * Notify that lesson is complete (report generated). Backend should send email to admin (e.g. artur@willonski.com).
-   * Returns true if the request succeeded (2xx), false otherwise, so callers can retry.
-   */
-  async notifyLessonComplete(sessionId: string): Promise<boolean> {
-    const { headers, credentials } = await getAuthFetchOptions();
-    const res = await fetch(`${BASE}/session/${sessionId}/notify-lesson-complete`, {
-      method: "POST",
-      headers,
-      credentials,
-    });
-    return res.ok;
-  },
 };
