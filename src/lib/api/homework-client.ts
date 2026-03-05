@@ -294,7 +294,10 @@ export const homeworkApi = {
         status: uploadUrlResult.status,
       };
     }
-    const storage_path = await this.uploadBlob(uploadUrlResult, blob, signal);
+    const uploadTarget = uploadUrlResult as
+      | { upload_url: string; storage_path: string }
+      | { bucket: string; storage_path: string };
+    const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/recording-1`, {
       method: "POST",
@@ -336,7 +339,10 @@ export const homeworkApi = {
     signal?: AbortSignal
   ): Promise<HomeworkRecording2Response> {
     const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
-    const storage_path = await this.uploadBlob(uploadUrlResult, blob, signal);
+    const uploadTarget = uploadUrlResult as
+      | { upload_url: string; storage_path: string }
+      | { bucket: string; storage_path: string };
+    const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     // #region agent log
     debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "homework-client.ts:uploadRecording2", message: "sending recording-2", data: { duration_seconds_sent: durationSeconds, storage_path_len: storage_path?.length }, timestamp: Date.now(), hypothesisId: "H2" });
