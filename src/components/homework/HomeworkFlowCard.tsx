@@ -1477,20 +1477,8 @@ export default function HomeworkFlowCard() {
                 onClick={() => {
                   if (!sessionId || sessionId === "mock-session") return;
                   setSavingStudentRating(true);
-                  fetch("/api/user/sniper-profile/session-rating", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      session_id: sessionId,
-                      student_rating_1_10: n,
-                    }),
-                  })
-                    .then((r) => r.json())
-                    .then((data) => {
-                      if (data?.profile && typeof data.profile.session_count === "number") {
-                        setSniperProfile(data.profile);
-                      }
-                    })
+                  homeworkApi
+                    .submitSelfRating(sessionId, n)
                     .finally(() => {
                       setSavingStudentRating(false);
                       setStudentSpeechRatingSubmitted(true);
@@ -1656,7 +1644,7 @@ export default function HomeworkFlowCard() {
           {sniperSnapshot ? (
             <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
           ) : null}
-          {/* Student speech rating (1–10): optional; when submitted, feeds into Sniper baseline. */}
+          {/* Self-rate (1–10) fallback if user landed on report without doing step 2; uses same homework self-rating API. */}
           {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
             <Card className="border-0 bg-transparent p-6 shadow-none">
               <p className="text-sm font-medium text-muted-foreground mb-2">
@@ -1675,20 +1663,8 @@ export default function HomeworkFlowCard() {
                     disabled={savingStudentRating}
                     onClick={() => {
                       setSavingStudentRating(true);
-                      fetch("/api/user/sniper-profile/session-rating", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          session_id: sessionId,
-                          student_rating_1_10: n,
-                        }),
-                      })
-                        .then((r) => r.json())
-                        .then((data) => {
-                          if (data?.profile && typeof data.profile.session_count === "number") {
-                            setSniperProfile(data.profile);
-                          }
-                        })
+                      homeworkApi
+                        .submitSelfRating(sessionId, n)
                         .finally(() => {
                           setSavingStudentRating(false);
                           setStudentSpeechRatingSubmitted(true);
