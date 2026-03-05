@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { copyCookies } from "@/lib/api/bff";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { copyCookies, proxyJson } from "@/lib/api/bff";
 import { applySniperBaselineUpdate } from "@/lib/sniper/baseline-update";
 import {
   MIN_STAGE_SCORE_FOR_BASELINE_UPDATE,
@@ -32,40 +33,9 @@ function createSupabase(req: NextRequest, cookieRes: NextResponse) {
   );
 }
 
-/** GET: return current user's sniper profile or 404. */
+/** GET: proxy to backend GET /user/sniper-profile. Pass-through of backend status and body (200 with {} stays 200, 500 stays 500). */
 export async function GET(req: NextRequest) {
-  const cookieRes = NextResponse.next();
-  const supabase = createSupabase(req, cookieRes);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    const out = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    copyCookies(cookieRes, out);
-    return out;
-  }
-
-  const { data, error } = await supabase
-    .from("user_sniper_profile")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-
-  if (error) {
-    if (error.code === "PGRST116") {
-      const out = NextResponse.json(null, { status: 404 });
-      copyCookies(cookieRes, out);
-      return out;
-    }
-    console.error("[sniper-profile GET]", error.message);
-    const out = NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
-    copyCookies(cookieRes, out);
-    return out;
-  }
-
-  const out = NextResponse.json(data);
-  copyCookies(cookieRes, out);
-  return out;
+  return proxyJson("/user/sniper-profile", undefined, req);
 }
 
 /** POST: persist session metrics and optionally update baseline (EMA). Body: session_means, stage_score, voiced_duration_sec; optional session_id, student_rating_1_10. Baseline updates only when rating >= 8 (or when no session_id for legacy). */
