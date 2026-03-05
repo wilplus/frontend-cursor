@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -237,9 +237,11 @@ export default function HomeworkFlowCard() {
   const [reportsModalOpen, setReportsModalOpen] = useState(false);
   /** Session id for the report shown in the modal (from clicking a report card). */
   const [reportModalSessionId, setReportModalSessionId] = useState<string | null>(null);
-  /** Step 0: list of past sessions for Reports History (same shape as admin). */
+  /** Step 0: list of past sessions for Reports History (same source as admin). Hidden until "View reports" is clicked. */
   const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
+  /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
+  const [showReportsList, setShowReportsList] = useState(false);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
   const taskBlockFetchStartedRef = useRef(false);
   /** When step 2 fails to load questions, we auto-skip to step 5 (report) once; this ref prevents doing it more than once. */
@@ -274,9 +276,9 @@ export default function HomeworkFlowCard() {
     });
   }, [authReady, step]);
 
-  /** Load past sessions for Reports History when on step 0. */
-  useEffect(() => {
-    if (step !== 0) return;
+  /** Fetch reports list (same source as admin). Called when user first clicks "View reports". */
+  const fetchStep0Reports = useCallback(() => {
+    if (step0SessionsLoading || step0Sessions.length > 0) return;
     setStep0SessionsLoading(true);
     homeworkApi
       .getSessions()
@@ -292,7 +294,7 @@ export default function HomeworkFlowCard() {
       })
       .catch(() => setStep0Sessions([]))
       .finally(() => setStep0SessionsLoading(false));
-  }, [step]);
+  }, [step0SessionsLoading, step0Sessions.length]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {
@@ -1232,52 +1234,59 @@ export default function HomeworkFlowCard() {
                 {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
               </Button>
 
-              <a
-                href={`#${step0ReportsListId}`}
-                className="text-sm text-muted-foreground hover:text-destructive transition-colors"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  setShowReportsList(true);
+                  fetchStep0Reports();
+                }}
               >
                 View reports
-              </a>
+              </Button>
             </div>
 
-            {/* Reports History: list on page like admin; click card opens modal with report */}
-            <div id={step0ReportsListId} className="w-full mt-8 space-y-4">
-              <h2 className="text-lg font-semibold">Reports History</h2>
-              {step0SessionsLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : step0Sessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No reports yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {step0Sessions.map((s) => (
-                    <button
-                      type="button"
-                      key={s.id}
-                      onClick={() => {
-                        setReportModalSessionId(s.id);
-                        setReportsModalOpen(true);
-                      }}
-                      className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
+            {/* Reports History: visible only after "View reports" click; same source as admin */}
+            {showReportsList && (
+              <div id={step0ReportsListId} className="w-full mt-8 space-y-4">
+                <h2 className="text-lg font-semibold">Reports History</h2>
+                {step0SessionsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : step0Sessions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reports yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {step0Sessions.map((s) => (
+                      <button
+                        type="button"
+                        key={s.id}
+                        onClick={() => {
+                          setReportModalSessionId(s.id);
+                          setReportsModalOpen(true);
+                        }}
+                        className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
+                          </p>
+                          {s.status === "completed" && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
+                          {s.report_preview?.report_text_preview?.trim() || "View full report and recording."}
                         </p>
-                        {s.status === "completed" && (
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
-                          </span>
-                        )}
-                      </div>
-                      <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
-                        {s.report_preview?.report_text_preview?.trim() || "View full report and recording."}
-                      </p>
-                      <p className="text-xs text-primary mt-2">View full report and recording →</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <p className="text-xs text-primary mt-2">View full report and recording →</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {videoModalUrl ? (
               <div
