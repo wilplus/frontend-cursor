@@ -221,10 +221,17 @@ export default function HomeworkFlowCard() {
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
   const [savingStudentRating, setSavingStudentRating] = useState(false);
+  /** When GET session/status returns ready_for_self_rating: true, show the 1–10 self-rating UI on step 2. */
+  const [readyForSelfRating, setReadyForSelfRating] = useState<boolean | null>(null);
   /** When self-rating returned session_completed: false, retry POST self-rating after job is done (poll status then call again). */
   const [pendingRetrySelfRating, setPendingRetrySelfRating] = useState<
     { sessionId: string; rating: number } | { sessionId: string; skipped: true } | null
   >(null);
+  /** Last rating/skip we sent on step 2; used to retry self-rating when GET report returns 409 REPORT_NOT_READY (session still completing_from_recording_1). */
+  const lastSelfRatingPayloadRef = useRef<
+    { sessionId: string; rating: number } | { sessionId: string; skipped: true } | null
+  >(null);
+  const hasSetPendingRetryFrom409Ref = useRef(false);
   useEffect(() => {
     if (!videoModalUrl) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setVideoModalUrl(null);
@@ -405,6 +412,8 @@ export default function HomeworkFlowCard() {
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
       setPendingRetrySelfRating(null);
+      hasSetPendingRetryFrom409Ref.current = false;
+      setReadyForSelfRating(null);
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -718,6 +727,7 @@ export default function HomeworkFlowCard() {
         setReportError(null);
         setReportNotReady(false);
         setPendingRetrySelfRating(null);
+        hasSetPendingRetryFrom409Ref.current = false;
         // So the tutor countdown can show on step 0 after "Send homework to coach" (incl. first-time completers if backend sends deadline in report)
         const deadlineIso = (data as { tutor_feedback_deadline?: string | null }).tutor_feedback_deadline;
         if (deadlineIso && typeof deadlineIso === "string") {
@@ -735,6 +745,11 @@ export default function HomeworkFlowCard() {
           setReportNotReady(true);
           setReportError(null);
           setReportData(null);
+          const payload = lastSelfRatingPayloadRef.current;
+          if (payload && payload.sessionId === sessionId && !hasSetPendingRetryFrom409Ref.current) {
+            hasSetPendingRetryFrom409Ref.current = true;
+            setPendingRetrySelfRating(payload);
+          }
           return;
         }
         const msg = e instanceof Error ? e.message : "Failed to load report";
@@ -760,6 +775,40 @@ export default function HomeworkFlowCard() {
     const id = setInterval(() => setReportRetryCount((c) => c + 1), intervalMs);
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
+
+  // When on step 2, poll GET session/status until ready_for_self_rating: true so we show the 1–10 self-rating UI only when backend is ready
+  useEffect(() => {
+    if (step !== 2 || !sessionId || sessionId === "mock-session") return;
+    let cancelled = false;
+    const fallbackMs = 30000; // If backend never sends ready_for_self_rating, show form after 30s
+    const fallbackId = setTimeout(() => {
+      if (!cancelled) setReadyForSelfRating(true);
+    }, fallbackMs);
+    const poll = async () => {
+      try {
+        const statusRes = await homeworkApi.getStatus();
+        if (cancelled) return;
+        const raw = statusRes as HomeworkSessionStatus & { ready_for_self_rating?: boolean };
+        const ready = raw?.ready_for_self_rating === true;
+        if (ready) setReadyForSelfRating(true);
+      } catch {
+        if (!cancelled) setReadyForSelfRating(false);
+      }
+    };
+    poll();
+    const intervalMs = 4000;
+    const id = setInterval(poll, intervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      clearTimeout(fallbackId);
+    };
+  }, [step, sessionId]);
+
+  // When leaving step 2, reset so next time we re-poll for ready_for_self_rating
+  useEffect(() => {
+    if (step !== 2) setReadyForSelfRating(null);
+  }, [step]);
 
   // When session_completed was false: poll GET session/status until job is done, then call POST self-rating again to trigger completion
   useEffect(() => {
@@ -1453,12 +1502,22 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: Post-recording self-rate 1–10 only (no metric-answers, recording-2, or post-answers). Then report.
+  // Step 2: Show 1–10 self-rating only when GET session/status returns ready_for_self_rating: true; then POST self-rating, then poll GET report until 200.
   if (step === 2) {
+    const showRatingForm = readyForSelfRating === true;
     return (
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
         <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
+          {!showRatingForm ? (
+            <div className="text-center space-y-4 py-4">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <p className="text-sm font-medium text-muted-foreground">
+                Your recording is being processed. We&apos;ll show the next step shortly.
+              </p>
+            </div>
+          ) : (
+            <>
           <p className="text-sm font-medium text-muted-foreground mb-2">
             How did that recording feel for you?
           </p>
@@ -1477,6 +1536,7 @@ export default function HomeworkFlowCard() {
                   if (!sessionId || sessionId === "mock-session") return;
                   setSavingStudentRating(true);
                   try {
+                    lastSelfRatingPayloadRef.current = { sessionId, rating: n };
                     const res = await homeworkApi.submitSelfRating(sessionId, n);
                     setStudentSpeechRatingSubmitted(true);
                     setStep(5);
@@ -1508,6 +1568,7 @@ export default function HomeworkFlowCard() {
               }
               setSavingStudentRating(true);
               try {
+                lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
                 const res = await homeworkApi.submitSelfRatingSkipped(sessionId);
                 setStudentSpeechRatingSubmitted(true);
                 setStep(5);
@@ -1524,6 +1585,8 @@ export default function HomeworkFlowCard() {
           >
             Skip
           </Button>
+            </>
+          )}
         </Card>
       </StepFlowWrapper>
     );
