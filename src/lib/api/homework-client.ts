@@ -202,12 +202,13 @@ export const homeworkApi = {
     return { task_block: {} };
   },
 
-  /** Get Supabase Storage upload target for a recording. Backend returns { bucket, storage_path }, or 200 with already_past_step + task_block when session is already at step 2 (only for recording "1"). */
+  /** Get upload target for a recording. Backend returns upload_url (signed) + storage_path when signed; else bucket + storage_path for SDK upload. Or already_past_step + task_block when session already at step 2 (recording "1" only). */
   async getRecordingUploadUrl(
     sessionId: string,
     recording: "1" | "2",
     signal?: AbortSignal
   ): Promise<
+    | { upload_url: string; storage_path: string }
     | { bucket: string; storage_path: string }
     | { already_past_step: true; status?: string; task_block: TaskBlockV2 }
   > {
@@ -225,6 +226,7 @@ export const homeworkApi = {
     const body = await safeParseJson<{
       bucket?: string;
       storage_path?: string;
+      upload_url?: string;
       already_past_step?: boolean;
       status?: string;
       task_block?: TaskBlockV2;
@@ -236,13 +238,44 @@ export const homeworkApi = {
     if (body.already_past_step === true && body.task_block) {
       return { already_past_step: true, status: body.status, task_block: body.task_block };
     }
+    if (body.upload_url && body.storage_path) {
+      return { upload_url: body.upload_url, storage_path: body.storage_path };
+    }
     if (body.bucket && body.storage_path) {
       return { bucket: body.bucket, storage_path: body.storage_path };
     }
     throw new Error("Invalid recording-upload-url response");
   },
 
-  /** Upload recording_1 (warm-up): get upload URL → upload blob to Supabase Storage → POST recording-1 with JSON { storage_path, duration_seconds }. Returns alreadyAtStep2 + task_block when backend responds 200 with already_past_step (session already at step 2). */
+  /** Upload blob: PUT to upload_url when present, else Supabase SDK with bucket + storage_path. Returns storage_path for the recording-1/2 POST. */
+  private async uploadBlob(
+    result: { upload_url: string; storage_path: string } | { bucket: string; storage_path: string },
+    blob: Blob,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const storage_path = result.storage_path;
+    if ("upload_url" in result && result.upload_url) {
+      const putRes = await fetch(result.upload_url, {
+        method: "PUT",
+        body: blob,
+        headers: { "Content-Type": blob.type || "audio/webm" },
+        signal,
+      });
+      if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status} ${putRes.statusText}`);
+      return storage_path;
+    }
+    const { bucket } = result;
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
+      contentType: blob.type || "audio/webm",
+      upsert: true,
+    });
+    if (uploadError) throw new Error(uploadError.message);
+    return storage_path;
+  },
+
+  /** Upload recording_1 (warm-up): get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-1 with JSON { storage_path, duration_seconds }. Returns alreadyAtStep2 + task_block when backend responds 200 with already_past_step (session already at step 2). */
   async uploadRecording1(
     sessionId: string,
     blob: Blob,
@@ -260,15 +293,7 @@ export const homeworkApi = {
         status: uploadUrlResult.status,
       };
     }
-    const { bucket, storage_path } = uploadUrlResult as { bucket: string; storage_path: string };
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    const contentType = blob.type || "audio/webm";
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
-      contentType,
-      upsert: true,
-    });
-    if (uploadError) throw new Error(uploadError.message);
+    const storage_path = await this.uploadBlob(uploadUrlResult, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/recording-1`, {
       method: "POST",
@@ -302,7 +327,7 @@ export const homeworkApi = {
     }
   },
 
-  /** Upload recording_2: get upload URL → upload blob to Supabase Storage → POST recording-2 with JSON { storage_path, duration_seconds }. */
+  /** Upload recording_2: get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-2 with JSON { storage_path, duration_seconds }. */
   async uploadRecording2(
     sessionId: string,
     blob: Blob,
@@ -310,15 +335,7 @@ export const homeworkApi = {
     signal?: AbortSignal
   ): Promise<HomeworkRecording2Response> {
     const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
-    const { bucket, storage_path } = uploadUrlResult as { bucket: string; storage_path: string };
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    const contentType = blob.type || "audio/webm";
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
-      contentType,
-      upsert: true,
-    });
-    if (uploadError) throw new Error(uploadError.message);
+    const storage_path = await this.uploadBlob(uploadUrlResult, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     // #region agent log
     debugIngest("http://127.0.0.1:7243/ingest/a80925dc-2945-4903-8e64-721670fa17b4", { location: "homework-client.ts:uploadRecording2", message: "sending recording-2", data: { duration_seconds_sent: durationSeconds, storage_path_len: storage_path?.length }, timestamp: Date.now(), hypothesisId: "H2" });
