@@ -411,7 +411,7 @@ export const homeworkApi = {
       throw new Error(message || `Self-rating failed (${res.status})`);
     }
     const body = await safeParseJson<SelfRatingResponse>(res);
-    return { status: "ok", session_completed: body?.session_completed === true, student_rating_1_10: r, ...body };
+    return { ...body, status: "ok", session_completed: body?.session_completed === true, student_rating_1_10: r };
   },
 
   /**
@@ -430,7 +430,7 @@ export const homeworkApi = {
       throw new Error(message || `Could not save skip (${res.status})`);
     }
     const body = await safeParseJson<SelfRatingResponse>(res);
-    return { status: "ok", session_completed: body?.session_completed === true, skipped: true, ...body };
+    return { ...body, status: "ok", session_completed: body?.session_completed === true, skipped: true };
   },
 };
 
