@@ -15,21 +15,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ sessions: [] }, { status: 200 });
   }
   try {
+    let sessions: unknown[] = [];
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
     const res = await fetch(`${backend}/v2/homework/sessions`, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
-    if (res.status === 404 || res.status === 501) {
-      return NextResponse.json({ sessions: [] }, { status: 200 });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      sessions = Array.isArray(data.sessions) ? data.sessions : [];
     }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return NextResponse.json(data, { status: res.status });
+    if (sessions.length === 0) {
+      const meRes = await fetch(`${backend}/v2/homework/me`, { method: "GET", headers });
+      if (meRes.ok) {
+        const meData = (await meRes.json().catch(() => ({}))) as { sessions?: unknown[]; profile?: { sessions?: unknown[] } };
+        const fromMe = Array.isArray(meData.sessions) ? meData.sessions : (Array.isArray(meData.profile?.sessions) ? meData.profile.sessions : []);
+        if (fromMe.length > 0) sessions = fromMe;
+      }
     }
-    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    if (sessions.length === 0 && !res.ok && res.status !== 404 && res.status !== 501) {
+      const errBody = await res.json().catch(() => ({}));
+      return NextResponse.json(errBody as object, { status: res.status });
+    }
     return NextResponse.json({ sessions }, { status: 200 });
   } catch {
     return NextResponse.json({ sessions: [] }, { status: 200 });
