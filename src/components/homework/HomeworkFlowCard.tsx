@@ -785,14 +785,8 @@ export default function HomeworkFlowCard() {
     if (step !== 2 || !sessionId || sessionId === "mock-session") return;
     let cancelled = false;
     const fallbackMs = 30000;
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-effect", message: "step2 effect run, setting 30s fallback", data: { step, hasSessionId: !!sessionId }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
-    // #endregion
     const fallbackId = setTimeout(() => {
       if (!cancelled) {
-        // #region agent log
-        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-fallback", message: "30s fallback fired, enabling buttons", data: {}, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
-        // #endregion
         setReadyForSelfRating(true);
         setBackendReadyForSelfRating(true);
       }
@@ -1533,11 +1527,6 @@ export default function HomeworkFlowCard() {
   // Step 2: Show 1–10 self-rating only when GET session/status returns ready_for_self_rating: true; then POST self-rating, then poll GET report until 200.
   if (step === 2) {
     const showRatingForm = readyForSelfRating === true;
-    // #region agent log
-    if (showRatingForm) {
-      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-render", message: "step2 form visible", data: { backendReadyForSelfRating }, timestamp: Date.now(), hypothesisId: "H3" }) }).catch(() => {});
-    }
-    // #endregion
     return (
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
