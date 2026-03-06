@@ -223,6 +223,8 @@ export default function HomeworkFlowCard() {
   const [savingStudentRating, setSavingStudentRating] = useState(false);
   /** When GET session/status returns ready_for_self_rating: true, show the 1–10 self-rating UI on step 2. */
   const [readyForSelfRating, setReadyForSelfRating] = useState<boolean | null>(null);
+  /** True only when the API has returned ready_for_self_rating: true. Submit/Skip must stay disabled until this is true so we never send self-rating before the recording-1 job has finished. */
+  const [backendReadyForSelfRating, setBackendReadyForSelfRating] = useState(false);
   /** When self-rating returned session_completed: false, retry POST self-rating after job is done (poll status then call again). */
   const [pendingRetrySelfRating, setPendingRetrySelfRating] = useState<
     { sessionId: string; rating: number } | { sessionId: string; skipped: true } | null
@@ -412,6 +414,7 @@ export default function HomeworkFlowCard() {
       setPendingRetrySelfRating(null);
       hasSetPendingRetryFrom409Ref.current = false;
       setReadyForSelfRating(null);
+      setBackendReadyForSelfRating(false);
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -777,11 +780,11 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
 
-  // When on step 2, poll GET session/status until ready_for_self_rating: true so we show the 1–10 self-rating UI only when backend is ready
+  // When on step 2, poll GET session/status until ready_for_self_rating: true. Only set backendReadyForSelfRating when API returns true so Submit/Skip stay disabled until then.
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session") return;
     let cancelled = false;
-    const fallbackMs = 30000; // If backend never sends ready_for_self_rating, show form after 30s
+    const fallbackMs = 30000; // If backend never sends ready_for_self_rating, show form after 30s (buttons stay disabled until API says ready)
     const fallbackId = setTimeout(() => {
       if (!cancelled) setReadyForSelfRating(true);
     }, fallbackMs);
@@ -791,7 +794,13 @@ export default function HomeworkFlowCard() {
         if (cancelled) return;
         const raw = statusRes as HomeworkSessionStatus & { ready_for_self_rating?: boolean };
         const ready = raw?.ready_for_self_rating === true;
-        if (ready) setReadyForSelfRating(true);
+        // #region agent log
+        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-poll", message: "GET status ready_for_self_rating", data: { ready, rawReady: !!raw?.ready_for_self_rating }, timestamp: Date.now(), hypothesisId: "A" }) }).catch(() => {});
+        // #endregion
+        if (ready) {
+          setReadyForSelfRating(true);
+          setBackendReadyForSelfRating(true);
+        }
       } catch {
         if (!cancelled) setReadyForSelfRating(false);
       }
@@ -808,7 +817,10 @@ export default function HomeworkFlowCard() {
 
   // When leaving step 2, reset so next time we re-poll for ready_for_self_rating
   useEffect(() => {
-    if (step !== 2) setReadyForSelfRating(null);
+    if (step !== 2) {
+      setReadyForSelfRating(null);
+      setBackendReadyForSelfRating(false);
+    }
   }, [step]);
 
   // When session_completed was false: poll GET session/status until job is done, then call POST self-rating again to trigger completion
@@ -1525,6 +1537,11 @@ export default function HomeworkFlowCard() {
           <p className="text-xs text-muted-foreground mb-3">
             1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
           </p>
+          {!backendReadyForSelfRating && (
+            <p className="text-xs text-muted-foreground mb-2">
+              Waiting for your recording to be processed… You can submit once this is complete.
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
               <Button
@@ -1532,9 +1549,10 @@ export default function HomeworkFlowCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={savingStudentRating}
+                disabled={savingStudentRating || !backendReadyForSelfRating}
                 onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
+                  if (!backendReadyForSelfRating) return;
                   setSavingStudentRating(true);
                   try {
                     lastSelfRatingPayloadRef.current = { sessionId, rating: n };
@@ -1560,13 +1578,14 @@ export default function HomeworkFlowCard() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={savingStudentRating}
+            disabled={savingStudentRating || !backendReadyForSelfRating}
             onClick={async () => {
               if (!sessionId || sessionId === "mock-session") {
                 setStudentSpeechRatingSubmitted(true);
                 setStep(5);
                 return;
               }
+              if (!backendReadyForSelfRating) return;
               setSavingStudentRating(true);
               try {
                 lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
