@@ -741,7 +741,8 @@ export default function HomeworkFlowCard() {
           startOverFromScratch();
           return;
         }
-        if (isReportNotReadyError(e)) {
+        const is404 = (e as HomeworkApiError).status === 404;
+        if (isReportNotReadyError(e) || is404) {
           setReportNotReady(true);
           setReportError(null);
           setReportData(null);
@@ -1651,7 +1652,7 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    // Report API failed (e.g. other 404 or network error): show clear end state so "report" is still displayed
+    // Report API failed (e.g. network or 5xx): show clear end state with Try again + Start over
     if (reportError != null && reportData == null) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
@@ -1664,9 +1665,21 @@ export default function HomeworkFlowCard() {
               </p>
               <p className="text-sm text-destructive">{reportError}</p>
             </div>
-            <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Send Your Practice to the Coach!"}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={() => {
+                  setReportError(null);
+                  setReportRetryCount((c) => c + 1);
+                }}
+                disabled={reportLoading}
+                className="flex-1 rounded-xl h-12 font-semibold"
+              >
+                {reportLoading ? "Loading…" : "Try again"}
+              </Button>
+              <Button onClick={handleStartOver} disabled={resetting} variant="outline" className="flex-1 rounded-xl h-12 font-semibold">
+                {resetting ? "Resetting…" : "Start New Practice"}
+              </Button>
+            </div>
           </Card>
         </div>
       );
