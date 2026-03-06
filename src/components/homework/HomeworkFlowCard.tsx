@@ -780,23 +780,38 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
 
-  // When on step 2, poll GET session/status until ready_for_self_rating: true. Only set backendReadyForSelfRating when API returns true so Submit/Skip stay disabled until then.
+  // When on step 2, poll GET session/status until ready_for_self_rating or recording_1_processing_status === "completed". Fallback: after 30s show form and enable buttons so user is never stuck (retry flow re-POSTs if session_completed: false).
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session") return;
     let cancelled = false;
-    const fallbackMs = 30000; // If backend never sends ready_for_self_rating, show form after 30s (buttons stay disabled until API says ready)
+    const fallbackMs = 30000;
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-effect", message: "step2 effect run, setting 30s fallback", data: { step, hasSessionId: !!sessionId }, timestamp: Date.now(), hypothesisId: "H1" }) }).catch(() => {});
+    // #endregion
     const fallbackId = setTimeout(() => {
-      if (!cancelled) setReadyForSelfRating(true);
+      if (!cancelled) {
+        // #region agent log
+        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-fallback", message: "30s fallback fired, enabling buttons", data: {}, timestamp: Date.now(), hypothesisId: "H2" }) }).catch(() => {});
+        // #endregion
+        setReadyForSelfRating(true);
+        setBackendReadyForSelfRating(true);
+      }
     }, fallbackMs);
     const poll = async () => {
       try {
         const statusRes = await homeworkApi.getStatus();
         if (cancelled) return;
-        const raw = statusRes as HomeworkSessionStatus & { ready_for_self_rating?: boolean };
-        const ready = raw?.ready_for_self_rating === true;
-        // #region agent log
-        fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-poll", message: "GET status ready_for_self_rating", data: { ready, rawReady: !!raw?.ready_for_self_rating }, timestamp: Date.now(), hypothesisId: "A" }) }).catch(() => {});
-        // #endregion
+        const raw = statusRes as HomeworkSessionStatus & {
+          session?: { ready_for_self_rating?: boolean; recording_1_processing_status?: string };
+          recording_1_processing_status?: string;
+        };
+        const explicitReady =
+          raw?.ready_for_self_rating === true ||
+          (typeof raw?.session === "object" && raw.session?.ready_for_self_rating === true);
+        const processingDone =
+          raw?.recording_1_processing_status === "completed" ||
+          (typeof raw?.session === "object" && raw.session?.recording_1_processing_status === "completed");
+        const ready = explicitReady || processingDone;
         if (ready) {
           setReadyForSelfRating(true);
           setBackendReadyForSelfRating(true);
@@ -1518,6 +1533,11 @@ export default function HomeworkFlowCard() {
   // Step 2: Show 1–10 self-rating only when GET session/status returns ready_for_self_rating: true; then POST self-rating, then poll GET report until 200.
   if (step === 2) {
     const showRatingForm = readyForSelfRating === true;
+    // #region agent log
+    if (showRatingForm) {
+      fetch("http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "HomeworkFlowCard.tsx:step2-render", message: "step2 form visible", data: { backendReadyForSelfRating }, timestamp: Date.now(), hypothesisId: "H3" }) }).catch(() => {});
+    }
+    // #endregion
     return (
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
