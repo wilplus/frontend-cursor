@@ -28,6 +28,14 @@ const EMPHASIS_DB_ABOVE = 6;
 /** Spec: ≥300 ms between emphasis events. */
 const EMPHASIS_MIN_GAP_MS = 300;
 const ROLLING_BASELINE_SAMPLES = Math.round((EMPHASIS_BASELINE_SEC * 1000) / SAMPLE_INTERVAL_MS);
+/**
+ * WPM above this threshold indicates garbage data from an AudioContext hardware error.
+ * Fastest sustained human speech is ~250 WPM; 380 gives generous headroom while catching
+ * the 429+ WPM spikes produced when the WebAudio renderer encounters an audio device error.
+ */
+const GARBAGE_WPM_THRESHOLD = 380;
+/** How many consecutive garbage-WPM updates before we surface the audioError flag. */
+const STALE_COUNT_THRESH = 2;
 
 /** 95th − 5th percentile of values (robust dynamic range). Returns 0 if insufficient data. */
 function percentileRange(values: number[], pLo: number, pHi: number): number {
@@ -80,6 +88,7 @@ function defaultSniperState(): SniperState {
 
 export function useSniperMetrics(sessionStartTimeRef: { current: number | null }) {
   const [state, setState] = useState<SniperState>(defaultSniperState);
+  const [audioError, setAudioError] = useState(false);
 
   const r = useRef({
     ctx: null as AudioContext | null,
@@ -95,6 +104,9 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     tierCandidate: null as SniperState["tier"] | null,
     tierCandidateCount: 0,
     lastTier: "structured" as SniperState["tier"],
+    /** Consecutive update-intervals with garbage WPM (> GARBAGE_WPM_THRESHOLD). */
+    staleCount: 0,
+    audioError: false,
   });
 
   const start = useCallback((stream: MediaStream) => {
@@ -130,8 +142,11 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     s.sessionRmsCount = 0;
     s.tierCandidate = null;
     s.tierCandidateCount = 0;
+    s.staleCount = 0;
+    s.audioError = false;
 
     setState(defaultSniperState());
+    setAudioError(false);
 
     const loop = () => {
       s.raf = requestAnimationFrame(loop);
@@ -293,6 +308,27 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
         confidence,
       };
 
+      // Sanity-check: paceWpm above GARBAGE_WPM_THRESHOLD means the AudioContext is
+      // delivering garbage data (hardware error, Bluetooth profile switch, etc.).
+      // Freeze the displayed metrics at their last-good values and surface the
+      // audioError flag so the UI can show a warning instead of a bogus low score.
+      if (metrics.paceWpm > GARBAGE_WPM_THRESHOLD) {
+        s.staleCount++;
+        if (s.staleCount >= STALE_COUNT_THRESH && !s.audioError) {
+          s.audioError = true;
+          setAudioError(true);
+        }
+        // Do NOT call setState — freeze the display at last good values.
+        return;
+      } else {
+        s.staleCount = 0;
+        if (s.audioError) {
+          // Signal recovered — clear the error flag.
+          s.audioError = false;
+          setAudioError(false);
+        }
+      }
+
       const energyAvailable =
         sessionDurationSec >= ENERGY_MIN_SESSION_SEC && energyByThird != null;
       const paceVarianceWpm = 0;
@@ -344,5 +380,5 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     setState((prev) => ({ ...prev, isActive: false }));
   }, []);
 
-  return { ...state, start, stop };
+  return { ...state, audioError, start, stop };
 }

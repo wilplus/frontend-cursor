@@ -668,6 +668,7 @@ export default function AudioRecorder({
                   coachingCue={sniperMetrics.coachingCue}
                   metrics={sniperMetrics.metrics}
                   taskLabel={prompt || undefined}
+                  audioError={sniperMetrics.audioError}
                 />
               ) : (
                 <StrengthPaceDartboard
