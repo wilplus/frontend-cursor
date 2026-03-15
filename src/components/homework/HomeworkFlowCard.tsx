@@ -181,6 +181,8 @@ export default function HomeworkFlowCard() {
   /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
+  /** True when the <audio> element fires onError (valid URL but file unplayable/missing). */
+  const [audioPlaybackError, setAudioPlaybackError] = useState(false);
   /** Loading Lottie animation data (fetched once for step 5). */
   const [loadingLottieData, setLoadingLottieData] = useState<object | null>(null);
 
@@ -723,6 +725,7 @@ export default function HomeworkFlowCard() {
     setReportLoading(true);
     setReportError(null);
     setReportNotReady(false);
+    setAudioPlaybackError(false);
     homeworkApi
       .getReport(sessionId)
       .then((data) => {
@@ -1821,8 +1824,15 @@ export default function HomeworkFlowCard() {
               {/* 1. Recording playback */}
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                {playbackUrl ? (
-                  <audio controls src={playbackUrl} className="w-full max-w-md" />
+                {playbackUrl && !audioPlaybackError ? (
+                  <audio
+                    controls
+                    src={playbackUrl}
+                    className="w-full max-w-md"
+                    onError={() => setAudioPlaybackError(true)}
+                  />
+                ) : audioPlaybackError ? (
+                  <p className="text-sm text-muted-foreground">Recording playback failed. The audio may be unavailable.</p>
                 ) : (
                   <p className="text-sm text-muted-foreground">Recording playback not available.</p>
                 )}
@@ -1898,8 +1908,15 @@ export default function HomeworkFlowCard() {
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Your final recording</p>
-              {playbackUrl ? (
-                <audio controls src={playbackUrl} className="w-full max-w-md" />
+              {playbackUrl && !audioPlaybackError ? (
+                <audio
+                  controls
+                  src={playbackUrl}
+                  className="w-full max-w-md"
+                  onError={() => setAudioPlaybackError(true)}
+                />
+              ) : audioPlaybackError ? (
+                <p className="text-sm text-muted-foreground">Recording playback failed. The audio may be unavailable.</p>
               ) : (
                 <p className="text-sm text-muted-foreground">Recording playback not available.</p>
               )}
