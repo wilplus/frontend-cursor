@@ -27,6 +27,7 @@ import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { SniperReviewSummary } from "@/components/recording/SniperReviewSummary";
 import type { SniperSessionSnapshot, UserSniperProfile } from "@/lib/sniper/types";
+import { computeAdaptiveResult } from "@/lib/sniper/adaptive";
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -1723,7 +1724,7 @@ export default function HomeworkFlowCard() {
     // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
     const performanceHistory = reportData?.performance_history;
     const lastFive = performanceHistory?.length ? performanceHistory.slice(-5) : [];
-    const progressChartData =
+    const progressChartDataRaw =
       lastFive.length > 0
         ? lastFive.map((p, i) => ({
             sessionLabel: `S${i + 1}`,
@@ -1733,8 +1734,31 @@ export default function HomeworkFlowCard() {
         : displayScores?.overall != null
           ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
           : [];
+    // Patch applied below after sniperDisplayScore is computed.
 
     const coachMessageFallback = "Your coach has 24 hours to analyse your practice and send a feedback on your email!";
+
+    // Sniper display score — same calculation as SniperReviewSummary so the chart always matches.
+    // Patches the most-recent history entry when the backend stored 0 due to the race condition.
+    const sniperDisplayScore = sniperSnapshot
+      ? Math.round(
+          computeAdaptiveResult(
+            sniperProfile,
+            sniperSnapshot.overallScore,
+            sniperSnapshot.sessionMeans,
+            sniperSnapshot.sessionMeans.energyRatio != null,
+          ).displayScore,
+        )
+      : null;
+
+    // Apply patch to full-report chart data (simplified path patched separately below).
+    const progressChartData =
+      sniperDisplayScore !== null && progressChartDataRaw.length > 0
+        ? [
+            ...progressChartDataRaw.slice(0, -1),
+            { ...progressChartDataRaw[progressChartDataRaw.length - 1], score: sniperDisplayScore },
+          ]
+        : progressChartDataRaw;
 
     // Playback: final_recording.audio_url or recording.audio_url (same when one recording) or recording_1 (legacy).
     const playbackUrl =
@@ -1758,15 +1782,25 @@ export default function HomeworkFlowCard() {
         : reportData?.scores?.overall;
       const history1 = reportData?.performance_history;
       const lastFive1 = history1?.length ? history1.slice(-5) : [];
-      const progressChartData1 =
+      const progressChartData1Raw =
         lastFive1.length > 0
           ? lastFive1.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
           : score1 != null
             ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: score1 }]
             : [];
+      // Patch the most-recent entry with the local sniper score so the chart always matches
+      // SniperReviewSummary (backend may have stored 0 due to the race condition).
+      const progressChartData1 =
+        sniperDisplayScore !== null && progressChartData1Raw.length > 0
+          ? [
+              ...progressChartData1Raw.slice(0, -1),
+              { ...progressChartData1Raw[progressChartData1Raw.length - 1], score: sniperDisplayScore },
+            ]
+          : progressChartData1Raw;
 
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          <h3 className="text-center text-xl font-semibold">Your report</h3>
           {coachMessageBlock}
           {sniperSnapshot ? (
             <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
@@ -1816,7 +1850,6 @@ export default function HomeworkFlowCard() {
             </Card>
           ) : null}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            <h3 className="text-center text-lg font-semibold">Your report</h3>
             {reportError && (
               <p className="text-sm text-destructive">{reportError}</p>
             )}
@@ -1856,7 +1889,16 @@ export default function HomeworkFlowCard() {
                   </p>
                 </div>
               )}
-              {/* 4. Strength and pace */}
+              {/* 4. AI-generated feedback (report_text from backend) */}
+              {displayReportText.trim() ? (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Feedback</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{displayReportText.trim()}</p>
+                  </div>
+                </div>
+              ) : null}
+              {/* 5. Strength and pace */}
               {(strength || pace) ? (
                 <div className="flex flex-wrap gap-6">
                   {strength ? (
@@ -1873,10 +1915,11 @@ export default function HomeworkFlowCard() {
                   ) : null}
                 </div>
               ) : null}
+              {/* 6. Progress chart */}
               {progressChartData1.length > 0 && (
                 <ProgressOverSessionsChart data={progressChartData1} />
               )}
-              {/* Coach insight (2 sentences) or fallback message */}
+              {/* 7. Coach insight (2 sentences) or fallback message */}
               {(coachInsight || coachMessageFallback) && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className="text-sm text-foreground leading-relaxed">
@@ -1896,12 +1939,12 @@ export default function HomeworkFlowCard() {
     // Full report: playback, chart, transcript when present, report text, coach insight when present. Self-rate is step 2 only.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+        <h3 className="text-center text-xl font-semibold">Your report</h3>
         {coachMessageBlock}
         {sniperSnapshot ? (
           <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
         ) : null}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-          <h3 className="text-center text-lg font-semibold">Your report</h3>
           {reportError && (
             <p className="text-sm text-destructive">{reportError}</p>
           )}
