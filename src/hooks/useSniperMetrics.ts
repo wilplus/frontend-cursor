@@ -116,7 +116,26 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
       s.ctx.close();
     }
 
-    const ctx = new AudioContext();
+    // Match the AudioContext sample rate to the actual track rate so the WebAudio
+    // renderer never encounters a mismatch. On macOS with Bluetooth devices the OS
+    // switches from A2DP (48 kHz) to HFP (8–16 kHz) when the mic activates; if the
+    // context was created at 48 kHz, that mismatch is what triggers
+    // "AudioContext encountered an error from the audio device or the WebAudio renderer."
+    const trackSampleRate = stream.getAudioTracks()[0]?.getSettings().sampleRate;
+    const ctx = new AudioContext(trackSampleRate ? { sampleRate: trackSampleRate } : undefined);
+
+    // Surface track-level interruptions (device disconnected, OS muted the track)
+    // before the WPM sanity-check even fires.
+    const audioTrack = stream.getAudioTracks()[0];
+    const onTrackEnded = () => {
+      if (!s.audioError) {
+        s.audioError = true;
+        setAudioError(true);
+      }
+    };
+    audioTrack?.addEventListener("ended", onTrackEnded);
+    audioTrack?.addEventListener("mute", onTrackEnded);
+
     const src = ctx.createMediaStreamSource(stream);
     const hp = ctx.createBiquadFilter();
     hp.type = "highpass";
