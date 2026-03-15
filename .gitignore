@@ -55,4 +55,14 @@ dev-debug.log
 # Task Master: canonical tasks live in .taskmaster/tasks/tasks.json (tracked)
 # Root-level tasks.json / tasks/ kept ignored for legacy/alternate usage
 tasks.json
-tasks/ 
+tasks/
+
+# Backend (Python / Flask)
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/.env
+backend/instance/
