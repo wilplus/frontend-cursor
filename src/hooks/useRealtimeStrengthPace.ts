@@ -107,7 +107,10 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
       s.ctx.close();
     }
 
-    const ctx = new AudioContext();
+    // Match sample rate to the actual track so the WebAudio renderer never gets a
+    // mismatch (same root cause as the Bluetooth A2DP→HFP switch error in sniper mode).
+    const trackSampleRate = stream.getAudioTracks()[0]?.getSettings().sampleRate;
+    const ctx = new AudioContext(trackSampleRate ? { sampleRate: trackSampleRate } : undefined);
     const src = ctx.createMediaStreamSource(stream);
 
     const hp = ctx.createBiquadFilter();
