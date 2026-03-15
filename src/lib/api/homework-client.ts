@@ -168,6 +168,7 @@ export const homeworkApi = {
       status?: string;
       coach_grade?: number | null;
       recording_id?: string;
+      recording_1_id?: string;
       report_preview?: { report_text_preview?: string };
     }>;
   }> {

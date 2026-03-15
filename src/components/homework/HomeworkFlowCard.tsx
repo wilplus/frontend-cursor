@@ -250,7 +250,7 @@ export default function HomeworkFlowCard() {
   /** Session id for the report shown in the modal (from clicking a report card). */
   const [reportModalSessionId, setReportModalSessionId] = useState<string | null>(null);
   /** Step 0: list of past sessions for Reports History (same source as admin). Hidden until "View reports" is clicked. */
-  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
+  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; recording_1_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
@@ -299,7 +299,8 @@ export default function HomeworkFlowCard() {
           (s) =>
             (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
             s.status === "completed" ||
-            !!s.recording_id
+            !!s.recording_id ||
+            !!(s as { recording_1_id?: string }).recording_1_id
         );
         list.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
         setStep0Sessions(list.slice(0, 20));
@@ -1345,18 +1346,22 @@ export default function HomeworkFlowCard() {
                       >
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
+                            {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
                           </p>
-                          {s.status === "completed" && (
+                          {s.status === "completed" ? (
                             <span className="text-xs text-muted-foreground shrink-0">
                               {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
                             </span>
-                          )}
+                          ) : (!!s.recording_id || !!(s as { recording_1_id?: string }).recording_1_id) ? (
+                            <span className="text-xs font-medium text-primary shrink-0">🎙 Recording</span>
+                          ) : null}
                         </div>
                         <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
-                          {s.report_preview?.report_text_preview?.trim() || "View full report and recording."}
+                          {s.report_preview?.report_text_preview?.trim() || "Recording available — tap to listen."}
                         </p>
-                        <p className="text-xs text-primary mt-2">View full report and recording →</p>
+                        <p className="text-xs text-primary mt-2">
+                          {s.report_preview?.report_text_preview?.trim() ? "View full report and recording →" : "View recording →"}
+                        </p>
                       </button>
                     ))}
                   </div>
