@@ -120,6 +120,12 @@ export interface SniperWheelProps {
   metrics: SniperMetricState;
   /** Task/prompt text shown in place of "Live Voice Alignment" (same font) */
   taskLabel?: string;
+  /**
+   * True when the AudioContext reported a hardware error (e.g. Bluetooth profile
+   * switch, audio device disconnect). Displayed metrics are frozen at last-good
+   * values; show a warning strip instead of the coaching cue.
+   */
+  audioError?: boolean;
 }
 
 export function SniperWheel({
@@ -129,6 +135,7 @@ export function SniperWheel({
   coachingCue,
   metrics,
   taskLabel,
+  audioError = false,
 }: SniperWheelProps) {
   const segmentValues = SEGMENT_METADATA.map((meta) => {
     const score = scores[meta.key];
@@ -283,24 +290,39 @@ export function SniperWheel({
             ))}
           </div>
 
-          {/* Coaching strip: left accent + message */}
+          {/* Coaching strip: left accent + message (or mic-error warning) */}
           <div className="mt-4 sm:mt-5 w-full max-w-2xl">
-            <div
-              className="bg-white border rounded-xl flex overflow-hidden"
-              style={{ borderColor: LIGHT.border }}
-            >
+            {audioError ? (
               <div
-                className={`w-1 flex-shrink-0 rounded-l-xl ${coachingAccentClass}`}
-              />
-              <div className="p-4">
-                <p
-                  className="text-sm"
-                  style={{ color: LIGHT.primaryText }}
-                >
-                  {coachingMessage}
-                </p>
+                className="bg-white border rounded-xl flex overflow-hidden"
+                style={{ borderColor: LIGHT.border }}
+              >
+                <div className="w-1 flex-shrink-0 rounded-l-xl bg-[#D6A23D]" />
+                <div className="p-4 flex items-center gap-2">
+                  <span style={{ color: LIGHT.amber }} aria-hidden>⚠</span>
+                  <p className="text-sm" style={{ color: LIGHT.primaryText }}>
+                    Mic signal interrupted — check your audio device. Scores are paused.
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div
+                className="bg-white border rounded-xl flex overflow-hidden"
+                style={{ borderColor: LIGHT.border }}
+              >
+                <div
+                  className={`w-1 flex-shrink-0 rounded-l-xl ${coachingAccentClass}`}
+                />
+                <div className="p-4">
+                  <p
+                    className="text-sm"
+                    style={{ color: LIGHT.primaryText }}
+                  >
+                    {coachingMessage}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
