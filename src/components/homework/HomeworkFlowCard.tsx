@@ -1642,19 +1642,63 @@ export default function HomeworkFlowCard() {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           <Card className="border-0 bg-transparent p-6 shadow-none">
-            <div className="text-center space-y-4 flex flex-col items-center">
-              {loadingLottieData ? (
-                <div className="w-24 h-24">
-                  <Lottie animationData={loadingLottieData} loop />
+            <div className="space-y-6">
+              {/* Self-rating while report generates */}
+              {sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">How did that recording feel for you?</p>
+                  <p className="text-xs text-muted-foreground">1 = Really off · 5 = Okay · 10 = This is how I want to sound.</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                      <Button
+                        key={n}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={savingStudentRating}
+                        onClick={() => {
+                          setSavingStudentRating(true);
+                          homeworkApi.submitSelfRating(sessionId, n)
+                            .catch(() => {})
+                            .finally(() => {
+                              setSavingStudentRating(false);
+                              setStudentSpeechRatingSubmitted(true);
+                            });
+                        }}
+                        className="min-w-[2.25rem]"
+                      >
+                        {n}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={savingStudentRating}
+                    onClick={() => setStudentSpeechRatingSubmitted(true)}
+                    className="text-muted-foreground"
+                  >
+                    Skip
+                  </Button>
                 </div>
-              ) : (
-                <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              )}
-              <p className="text-sm text-muted-foreground">Your report is being generated.</p>
-              <p className="text-xs text-muted-foreground">Taking too long? You can start a new practice below.</p>
-              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start New Practice"}
-              </Button>
+              ) : studentSpeechRatingSubmitted ? (
+                <p className="text-sm text-center text-muted-foreground">Rating saved ✓</p>
+              ) : null}
+              <div className="text-center space-y-4 flex flex-col items-center">
+                {loadingLottieData ? (
+                  <div className="w-24 h-24">
+                    <Lottie animationData={loadingLottieData} loop />
+                  </div>
+                ) : (
+                  <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                )}
+                <p className="text-sm text-muted-foreground">Your report is being generated.</p>
+                <p className="text-xs text-muted-foreground">Taking too long? You can start a new practice below.</p>
+                <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
+                  {resetting ? "Resetting…" : "Start New Practice"}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
@@ -1668,6 +1712,48 @@ export default function HomeworkFlowCard() {
           {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <h3 className="text-center text-lg font-semibold">Your report</h3>
+            {/* Self-rating while report generates */}
+            {sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">How did that recording feel for you?</p>
+                <p className="text-xs text-muted-foreground">1 = Really off · 5 = Okay · 10 = This is how I want to sound.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <Button
+                      key={n}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={savingStudentRating}
+                      onClick={() => {
+                        setSavingStudentRating(true);
+                        homeworkApi.submitSelfRating(sessionId, n)
+                          .catch(() => {})
+                          .finally(() => {
+                            setSavingStudentRating(false);
+                            setStudentSpeechRatingSubmitted(true);
+                          });
+                      }}
+                      className="min-w-[2.25rem]"
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={savingStudentRating}
+                  onClick={() => setStudentSpeechRatingSubmitted(true)}
+                  className="text-muted-foreground"
+                >
+                  Skip
+                </Button>
+              </div>
+            ) : studentSpeechRatingSubmitted ? (
+              <p className="text-sm text-center text-muted-foreground">Rating saved ✓</p>
+            ) : null}
             <div className="flex flex-col items-center rounded-xl border border-border bg-muted/30 p-4 space-y-3">
               {loadingLottieData ? (
                 <div className="w-24 h-24">
@@ -1679,7 +1765,7 @@ export default function HomeworkFlowCard() {
               <p className="text-sm text-foreground text-center">
                 Your report is being generated. This usually takes a minute after your recording is processed. We’ll refresh automatically.
               </p>
-              <p className="text-xs text-muted-foreground text-center">You can also start a new practice below if you don't want to wait.</p>
+              <p className="text-xs text-muted-foreground text-center">You can also start a new practice below if you don’t want to wait.</p>
               <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
                 {resetting ? "Resetting…" : "Start New Practice"}
               </Button>
