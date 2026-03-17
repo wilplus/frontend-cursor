@@ -299,6 +299,8 @@ export interface HomeworkReportResponse {
   recording_1?: { id: string | null; audio_url: string | null };
   /** Transcript of recording 1 (legacy; prefer recording.transcription_text when present). */
   transcript?: string | null;
+  /** Top-level transcription text — some backend versions omit the `recording` wrapper and return this directly. */
+  transcription_text?: string | null;
   /** Filler words count (legacy; prefer recording.filler_words_count when present). */
   filler_word_count?: number | null;
   /** Strength metric label or value (e.g. "7/10" or "Good"). */
