@@ -768,19 +768,19 @@ export default function HomeworkFlowCard() {
       .finally(() => setReportLoading(false));
   }, [step, sessionId, reportRetryCount]);
 
-  // Load Lottie animation for report loading / generating states
+  // Preload Lottie animation on mount so it's ready by the time step 5 shows (no CSS-spinner flash)
   useEffect(() => {
-    if (step !== 5 || loadingLottieData != null) return;
+    if (loadingLottieData != null) return;
     fetch("/animations/loading.json")
       .then((r) => r.json())
       .then(setLoadingLottieData)
       .catch(() => {});
-  }, [step, loadingLottieData]);
+  }, [loadingLottieData]);
 
   // When report is still being generated, poll automatically (no user click)
   useEffect(() => {
     if (!reportNotReady || !sessionId) return;
-    const intervalMs = 5000;
+    const intervalMs = 3000;
     const id = setInterval(() => setReportRetryCount((c) => c + 1), intervalMs);
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
@@ -789,7 +789,7 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session") return;
     let cancelled = false;
-    const fallbackMs = 30000;
+    const fallbackMs = 12000;
     const fallbackId = setTimeout(() => {
       if (!cancelled) {
         setReadyForSelfRating(true);
@@ -820,7 +820,7 @@ export default function HomeworkFlowCard() {
       }
     };
     poll();
-    const intervalMs = 4000;
+    const intervalMs = 2000;
     const id = setInterval(poll, intervalMs);
     return () => {
       cancelled = true;
@@ -1022,7 +1022,7 @@ export default function HomeworkFlowCard() {
         setError(errMessage || "Still analyzing your recording. Please wait a moment.");
         toast.info(errMessage || "Still analyzing your recording. Please wait a moment.");
         const maxWaitMs = 60000;
-        const pollIntervalMs = 2500;
+        const pollIntervalMs = 1200;
         const start = Date.now();
         while (Date.now() - start < maxWaitMs && sessionId) {
           await new Promise((r) => setTimeout(r, pollIntervalMs));
