@@ -12,7 +12,7 @@ const VIEWBOX = 360;
 const CENTER = 180;
 const INNER_R = 50;
 const OUTER_R = 115;
-const SEGMENTS = 5;
+const SEGMENTS = 6;
 const ANGLE_PER = 360 / SEGMENTS;
 
 const LIGHT = {
@@ -49,6 +49,7 @@ const SEGMENT_METADATA: Array<{
   { key: "dynamic", label: "Dynamic", target: "12–16 dB" },
   { key: "emphasis", label: "Emphasis", target: "30–40" },
   { key: "energy", label: "Energy", target: "High–Low–High" },
+  { key: "pitch", label: "Pitch", target: "6–12 st" },
 ];
 
 function polarToCart(cx: number, cy: number, r: number, deg: number) {
@@ -105,7 +106,8 @@ function getCoachingAccentClass(scores: SniperScores, hasCue: boolean): string {
     scores.pause,
     scores.dynamic,
     scores.emphasis,
-    scores.energy
+    scores.energy,
+    scores.pitch
   );
   if (min < 50) return "bg-[#C94F4F]";
   if (min < 75) return "bg-[#D6A23D]";
@@ -144,13 +146,15 @@ export function SniperWheel({
     else if (meta.key === "pause") value = `${metrics.avgPauseMs} ms`;
     else if (meta.key === "dynamic") value = `${metrics.dynamicRangeDb} dB`;
     else if (meta.key === "emphasis") value = `${metrics.emphasisPerMin}/min`;
-    else
+    else if (meta.key === "energy")
       value =
         metrics.energyByThird && metrics.energyByThird.e3 >= metrics.energyByThird.e2
           ? "Stable Build"
           : metrics.energyByThird
             ? "Declining"
             : "—";
+    else
+      value = metrics.pitchRangeSt !== null ? `${metrics.pitchRangeSt.toFixed(1)} st` : "—";
     return { ...meta, score, value };
   });
 

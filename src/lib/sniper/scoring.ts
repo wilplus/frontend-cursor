@@ -4,7 +4,7 @@
  * All functions are pure and testable.
  */
 
-import type { SniperMetricState, SniperScores, SniperTier } from "./types";
+import type { MetricConfidence, SniperMetricState, SniperScores, SniperTier } from "./types";
 import {
   PACE_IDEAL_WPM,
   PACE_TOLERANCE_WPM,
@@ -37,6 +37,11 @@ import {
   ENERGY_DECLINE_PENALTY_RATIO,
   ENERGY_DECLINE_PENALTY,
   ENERGY_BASE_SCORE,
+  PITCH_IDEAL_RANGE_ST,
+  PITCH_TOLERANCE_ST,
+  PITCH_CAP_BELOW,
+  PITCH_SOFT_FLOOR,
+  PITCH_CATASTROPHIC_LO,
   WEIGHTS,
   WEIGHTS_WITHOUT_ENERGY,
   TIER_BOUNDS,
@@ -198,6 +203,30 @@ export function scoreEnergy(metrics: SniperMetricState): number {
 }
 
 /**
+ * Pitch range score: Gaussian around 8 semitones, tolerance 2.
+ * Returns neutral 70 when confidence is insufficient (not enough voiced frames yet).
+ * Cap at 40 when < 3 st; catastrophic (< 2 st = functionally monotone) → score 30–40.
+ * Soft floor 60.
+ */
+export function scorePitch(
+  pitchRangeSt: number | null,
+  confidence: MetricConfidence
+): number {
+  if (pitchRangeSt === null || confidence === "insufficient") return 70;
+  let raw: number;
+  if (pitchRangeSt < PITCH_CAP_BELOW) {
+    raw = Math.min(40, gaussianScore(pitchRangeSt, PITCH_IDEAL_RANGE_ST, PITCH_TOLERANCE_ST));
+  } else {
+    raw = gaussianScore(pitchRangeSt, PITCH_IDEAL_RANGE_ST, PITCH_TOLERANCE_ST);
+  }
+  raw = Math.max(0, raw);
+  if (pitchRangeSt < PITCH_CATASTROPHIC_LO) {
+    return clampCatastrophic(raw);
+  }
+  return applySoftFloor(raw, PITCH_SOFT_FLOOR);
+}
+
+/**
  * Compute all segment scores from current metrics.
  * Caller provides optional extras: paceVarianceWpm, rmsInstabilityDb, hasLongPauseInWindow, emphasisMonotone.
  */
@@ -225,13 +254,14 @@ export function computeScores(
     opts.emphasisMonotone
   );
   const energy = scoreEnergy(metrics);
+  const pitch = scorePitch(metrics.pitchRangeSt, metrics.confidence.pitch);
 
-  return { pace, pause, dynamic, emphasis, energy };
+  return { pace, pause, dynamic, emphasis, energy, pitch };
 }
 
 /**
  * Weighted overall score 0–100.
- * When energyAvailable is false (session <2 min), energy is excluded and the other four metrics are reweighted to sum to 1.
+ * When energyAvailable is false (session <2 min), energy is excluded and the other five metrics are reweighted to sum to 1.
  */
 export function computeOverallScore(
   scores: SniperScores,
@@ -243,14 +273,16 @@ export function computeOverallScore(
       scores.pause * WEIGHTS.pause +
       scores.dynamic * WEIGHTS.dynamic +
       scores.emphasis * WEIGHTS.emphasis +
-      scores.energy * WEIGHTS.energy;
+      scores.energy * WEIGHTS.energy +
+      scores.pitch * WEIGHTS.pitch;
     return clampScore(raw);
   }
   const raw =
     scores.pace * WEIGHTS_WITHOUT_ENERGY.pace +
     scores.pause * WEIGHTS_WITHOUT_ENERGY.pause +
     scores.dynamic * WEIGHTS_WITHOUT_ENERGY.dynamic +
-    scores.emphasis * WEIGHTS_WITHOUT_ENERGY.emphasis;
+    scores.emphasis * WEIGHTS_WITHOUT_ENERGY.emphasis +
+    scores.pitch * WEIGHTS_WITHOUT_ENERGY.pitch;
   return clampScore(raw);
 }
 

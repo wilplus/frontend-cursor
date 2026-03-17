@@ -29,6 +29,7 @@ const SEGMENT_LABELS: Record<keyof SniperScores, string> = {
   dynamic: "Dynamic Strength",
   emphasis: "Emphasis Precision",
   energy: "Energy Structure",
+  pitch: "Pitch Variety",
 };
 
 export interface SniperReviewSummaryProps {
