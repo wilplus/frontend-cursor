@@ -21,6 +21,10 @@ import {
   EMPHASIS_IDEAL_PER_MIN,
   EMPHASIS_GREEN_LO,
   EMPHASIS_GREEN_HI,
+  PITCH_GREEN_LO,
+  PITCH_GREEN_HI,
+  PITCH_YELLOW_LO,
+  PITCH_YELLOW_HI,
 } from "./constants";
 
 /** Returns zone for a value given green and optional yellow bounds. */
@@ -75,7 +79,33 @@ export function getPrimaryCoachingCue(
     }
   }
 
-  // 2) Pause
+  // 2) Pitch range (monotone or over-varied)
+  if (
+    metrics.pitchRangeSt !== null &&
+    metrics.confidence.pitch !== "insufficient"
+  ) {
+    const pitchZone = getZone(
+      metrics.pitchRangeSt,
+      PITCH_GREEN_LO,
+      PITCH_GREEN_HI,
+      PITCH_YELLOW_LO,
+      PITCH_YELLOW_HI
+    );
+    if (pitchZone !== "green") {
+      if (metrics.pitchRangeSt < PITCH_GREEN_LO) {
+        return {
+          cue: "Vary your pitch more — rise and fall to keep listeners engaged.",
+          segment: "pitch",
+        };
+      }
+      return {
+        cue: "Steady your pitch. Focus variation on key words, not every phrase.",
+        segment: "pitch",
+      };
+    }
+  }
+
+  // 3) Pause
   const pauseZone = getZone(
     metrics.avgPauseMs,
     PAUSE_GREEN_LO,
@@ -100,7 +130,7 @@ export function getPrimaryCoachingCue(
     };
   }
 
-  // 3) Pace
+  // 4) Pace
   const paceZone = getZone(
     metrics.paceWpm,
     PACE_GREEN_LO,
@@ -126,7 +156,7 @@ export function getPrimaryCoachingCue(
     };
   }
 
-  // 4) Dynamic
+  // 5) Dynamic
   const dynZone = getZone(
     metrics.dynamicRangeDb,
     DYNAMIC_GREEN_LO,
@@ -151,7 +181,7 @@ export function getPrimaryCoachingCue(
     };
   }
 
-  // 5) Emphasis
+  // 6) Emphasis
   const emphZone = getZone(
     metrics.emphasisPerMin,
     EMPHASIS_GREEN_LO,
