@@ -8,6 +8,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
+import { detectPitchHz, hzToSemitones } from "@/lib/audio/pitch-detector";
 import type { MetricConfidence, SniperMetricState, SniperState } from "@/lib/sniper/types";
 import { computeScores, computeOverallScore, getTierFromScore } from "@/lib/sniper/scoring";
 import { getPrimaryCoachingCue } from "@/lib/sniper/coaching";
@@ -36,6 +37,8 @@ const ROLLING_BASELINE_SAMPLES = Math.round((EMPHASIS_BASELINE_SEC * 1000) / SAM
 const GARBAGE_WPM_THRESHOLD = 380;
 /** How many consecutive garbage-WPM updates before we surface the audioError flag. */
 const STALE_COUNT_THRESH = 2;
+/** Run pitch detection every 200 ms to keep CPU load manageable (~500K muls/call). */
+const PITCH_DETECT_INTERVAL_MS = 200;
 
 /** 95th − 5th percentile of values (robust dynamic range). Returns 0 if insufficient data. */
 function percentileRange(values: number[], pLo: number, pHi: number): number {
@@ -51,6 +54,8 @@ interface Sample {
   rms: number;
   db: number;
   voiced: boolean;
+  /** Detected fundamental frequency in Hz, or null when unvoiced / low confidence. */
+  pitchHz: number | null;
 }
 
 function defaultMetricState(sessionDurationSec: number): SniperMetricState {
@@ -62,6 +67,7 @@ function defaultMetricState(sessionDurationSec: number): SniperMetricState {
     dynamicRangeDb: 0,
     emphasisPerMin: 0,
     energyByThird: null,
+    pitchRangeSt: null,
     sessionDurationSec,
     confidence: {
       pace: "insufficient",
@@ -69,6 +75,7 @@ function defaultMetricState(sessionDurationSec: number): SniperMetricState {
       dynamic: "insufficient",
       emphasis: "insufficient",
       energy: "insufficient",
+      pitch: "insufficient",
     },
   };
 }
@@ -76,7 +83,7 @@ function defaultMetricState(sessionDurationSec: number): SniperMetricState {
 function defaultSniperState(): SniperState {
   return {
     metrics: defaultMetricState(0),
-    scores: { pace: 70, pause: 70, dynamic: 70, emphasis: 70, energy: 70 },
+    scores: { pace: 70, pause: 70, dynamic: 70, emphasis: 70, energy: 70, pitch: 70 },
     overallScore: 70,
     tier: "structured",
     coachingCue: "",
@@ -107,6 +114,10 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     /** Consecutive update-intervals with garbage WPM (> GARBAGE_WPM_THRESHOLD). */
     staleCount: 0,
     audioError: false,
+    /** Last successfully detected pitch (Hz), reset to null on silence. */
+    lastPitchHz: null as number | null,
+    /** Timestamp of last pitch detection call (ms). */
+    lastPitchDetectT: 0,
   });
 
   const start = useCallback((stream: MediaStream) => {
@@ -163,6 +174,8 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     s.tierCandidateCount = 0;
     s.staleCount = 0;
     s.audioError = false;
+    s.lastPitchHz = null;
+    s.lastPitchDetectT = 0;
 
     setState(defaultSniperState());
     setAudioError(false);
@@ -188,6 +201,15 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
       const db = 20 * Math.log10(rms + 1e-8);
       const voiced = rms > VOICE_RMS;
 
+      // Pitch detection: run every PITCH_DETECT_INTERVAL_MS on voiced frames.
+      // Uses Hamming-windowed autocorrelation on the same time-domain buffer.
+      if (voiced && now - s.lastPitchDetectT >= PITCH_DETECT_INTERVAL_MS) {
+        s.lastPitchHz = detectPitchHz(s.buf as Float32Array, s.ctx.sampleRate);
+        s.lastPitchDetectT = now;
+      } else if (!voiced) {
+        s.lastPitchHz = null; // reset on silence so stale Hz values don't persist
+      }
+
       const fSz = (len / SUB_FRAMES) | 0;
       for (let f = 0; f < SUB_FRAMES; f++) {
         let fs = 0;
@@ -202,7 +224,7 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
       }
 
       if (now - (s.samples[0]?.t ?? 0) >= SAMPLE_INTERVAL_MS || s.samples.length === 0) {
-        s.samples.push({ t: now, rms, db, voiced });
+        s.samples.push({ t: now, rms, db, voiced, pitchHz: voiced ? s.lastPitchHz : null });
         const maxSamples = (WINDOW_SEC * 1000) / SAMPLE_INTERVAL_MS;
         while (s.samples.length > maxSamples) s.samples.shift();
       }
@@ -306,13 +328,24 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
         };
       }
 
+      // Pitch range: p90 − p10 of voiced pitch samples in the window (semitones).
+      const pitchedSamples = samples.filter((x) => x.pitchHz !== null && x.voiced);
+      const pitchRangeSt =
+        pitchedSamples.length >= 5
+          ? percentileRange(
+              pitchedSamples.map((x) => hzToSemitones(x.pitchHz!)),
+              0.1,
+              0.9
+            )
+          : null;
+
       const confidence: SniperMetricState["confidence"] = {
         pace: windowDurationSec >= 10 ? "high" : windowDurationSec >= 5 ? "low" : "insufficient",
         pause: totalFrames >= 30 ? "high" : totalFrames >= 10 ? "low" : "insufficient",
         dynamic: voicedDbs.length >= 20 ? "high" : voicedDbs.length >= 5 ? "low" : "insufficient",
         emphasis: windowDurationSec >= 15 ? "high" : windowDurationSec >= 5 ? "low" : "insufficient",
-        energy:
-          sessionDurationSec >= ENERGY_MIN_SESSION_SEC ? "high" : "insufficient",
+        energy: sessionDurationSec >= ENERGY_MIN_SESSION_SEC ? "high" : "insufficient",
+        pitch: pitchedSamples.length >= 20 ? "high" : pitchedSamples.length >= 5 ? "low" : "insufficient",
       };
 
       const metrics: SniperMetricState = {
@@ -323,6 +356,7 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
         dynamicRangeDb: Math.round(dynamicRangeDb * 10) / 10,
         emphasisPerMin: Math.round(emphasisPerMin * 10) / 10,
         energyByThird,
+        pitchRangeSt: pitchRangeSt !== null ? Math.round(pitchRangeSt * 10) / 10 : null,
         sessionDurationSec,
         confidence,
       };

@@ -33,6 +33,12 @@ export interface SniperMetricState {
   emphasisPerMin: number;
   /** Relative energy by third (0–1 normalized to session baseline). Only set after ~2 min. */
   energyByThird: { e1: number; e2: number; e3: number } | null;
+  /**
+   * Pitch (F0) range in semitones — p90 minus p10 of voiced pitch values in the 30s window.
+   * Null until enough voiced+pitched samples (≥5) are collected.
+   * 8 st ≈ major 6th; expressive speakers sit in 6–12 st; monotone < 3 st.
+   */
+  pitchRangeSt: number | null;
   /** Session total duration so far (seconds). Used for energy normalization. */
   sessionDurationSec: number;
   /** Confidence per metric for graceful degradation. */
@@ -42,6 +48,7 @@ export interface SniperMetricState {
     dynamic: MetricConfidence;
     emphasis: MetricConfidence;
     energy: MetricConfidence;
+    pitch: MetricConfidence;
   };
 }
 
@@ -52,6 +59,7 @@ export interface SniperScores {
   dynamic: number;
   emphasis: number;
   energy: number;
+  pitch: number;
 }
 
 /** Full state exposed to the Sniper Wheel and coaching UI. */
@@ -79,6 +87,8 @@ export interface SniperSessionMeans {
   energyRatio: number | null;
   /** voiced_duration_sec for quality gate (sessionDurationSec * speechDensity). */
   voicedDurationSec: number;
+  /** Pitch range in semitones (p90−p10). Null when session was too short to compute. */
+  pitchRangeSt?: number | null;
 }
 
 /** Snapshot for post-session Review Summary (strongest area, needs work, fatigue). */
@@ -102,6 +112,7 @@ export interface UserSniperProfile {
   baseline_dynamic_db: number | null;
   baseline_emphasis_per_min: number | null;
   baseline_energy_ratio: number | null;
+  baseline_pitch_range_st?: number | null;
   baseline_fatigue_sec?: number | null;
   created_at: string;
   updated_at: string;
@@ -116,7 +127,7 @@ export interface SniperGrowthResult {
   sessionCount: number;
 }
 
-const SEGMENT_KEYS: (keyof SniperScores)[] = ["pace", "pause", "dynamic", "emphasis", "energy"];
+const SEGMENT_KEYS: (keyof SniperScores)[] = ["pace", "pause", "dynamic", "emphasis", "energy", "pitch"];
 
 /** Build snapshot from current state for Review Summary (includes session means for baseline/growth). */
 export function buildSniperSnapshot(state: SniperState): SniperSessionSnapshot {
@@ -144,6 +155,7 @@ export function buildSniperSnapshot(state: SniperState): SniperSessionSnapshot {
     emphasisPerMin: m.emphasisPerMin,
     energyRatio,
     voicedDurationSec,
+    pitchRangeSt: m.pitchRangeSt ?? null,
   };
   return {
     overallScore: state.overallScore,
