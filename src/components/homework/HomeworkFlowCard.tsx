@@ -179,6 +179,9 @@ export default function HomeworkFlowCard() {
   const [reportData, setReportData] = useState<HomeworkReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  /** Claude-generated coaching insight for step 5 (replaces backend AI feedback). */
+  const [claudeInsight, setClaudeInsight] = useState<string | null>(null);
+  const [claudeLoading, setClaudeLoading] = useState(false);
   /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
@@ -891,6 +894,55 @@ export default function HomeworkFlowCard() {
     }, delayMs);
     return () => clearTimeout(tid);
   }, [step]);
+
+  // Call Claude for AI coaching insight when step-5 report data or sniper snapshot arrives.
+  // Fires once per session: tracks the sessionId that was last analysed.
+  const claudeSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (step !== 5) return;
+    if (!reportData && !sniperSnapshot) return;
+    if (!sessionId || claudeSessionRef.current === sessionId) return;
+    claudeSessionRef.current = sessionId;
+
+    const transcript = (
+      reportData?.recording?.transcription_text ??
+      reportData?.transcription_text ??
+      reportData?.transcript ??
+      ""
+    ).trim();
+
+    const body = {
+      transcript: transcript || undefined,
+      taskLabel: finalTaskText || taskText || undefined,
+      sniperOverallScore: sniperSnapshot?.overallScore,
+      sniperTier: sniperSnapshot?.tier,
+      sniperMetrics: sniperSnapshot
+        ? {
+            paceWpm: sniperSnapshot.sessionMeans.paceWpm,
+            avgPauseMs: sniperSnapshot.sessionMeans.avgPauseMs,
+            dynamicRangeDb: sniperSnapshot.sessionMeans.dynamicRangeDb,
+            emphasisPerMin: sniperSnapshot.sessionMeans.emphasisPerMin,
+            pitchRangeSt: sniperSnapshot.sessionMeans.pitchRangeSt ?? null,
+          }
+        : undefined,
+    };
+
+    if (!body.transcript && !body.sniperOverallScore) return;
+
+    setClaudeLoading(true);
+    setClaudeInsight(null);
+    fetch("/api/ai/coaching-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => r.json())
+      .then((data: { insight?: string; error?: string }) => {
+        if (data.insight) setClaudeInsight(data.insight);
+      })
+      .catch(() => {})
+      .finally(() => setClaudeLoading(false));
+  }, [step, reportData, sniperSnapshot, sessionId, finalTaskText, taskText]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1771,7 +1823,12 @@ export default function HomeworkFlowCard() {
       reportData?.recording?.audio_url ??
       reportData?.recording_1?.audio_url;
     // Full transcription: recording.transcription_text (new) or legacy transcript.
-    const transcriptionText = (reportData?.recording?.transcription_text ?? reportData?.transcript ?? "").trim();
+    const transcriptionText = (
+      reportData?.recording?.transcription_text ??
+      reportData?.transcription_text ??
+      reportData?.transcript ??
+      ""
+    ).trim();
     // Filler: recording.filler_words_count (new) or legacy filler_word_count.
     const fillerTotal =
       reportData?.recording?.filler_words_count?.total ?? reportData?.filler_word_count ?? null;
@@ -1875,16 +1932,21 @@ export default function HomeworkFlowCard() {
                   <p className="text-sm text-muted-foreground">Recording playback not available.</p>
                 )}
               </div>
-              {/* 2. Transcript (only when we have data; hide if recording missing and no legacy) */}
+              {/* 2. Transcript */}
               {transcriptionText ? (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
                     <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
                   </div>
                 </div>
+              ) : reportData ? (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+                  <p className="text-sm text-muted-foreground italic">Transcript not available for this session.</p>
+                </div>
               ) : null}
-              {/* 3. Filler words (total + breakdown when present) */}
+              {/* 3. Filler words */}
               {fillerTotal != null && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
@@ -1894,12 +1956,16 @@ export default function HomeworkFlowCard() {
                   </p>
                 </div>
               )}
-              {/* 4. AI-generated feedback (report_text from backend) */}
-              {displayReportText.trim() ? (
+              {/* 4. Claude AI coaching (replaces backend report_text) */}
+              {(claudeInsight || claudeLoading) ? (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Feedback</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
                   <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{displayReportText.trim()}</p>
+                    {claudeLoading ? (
+                      <p className="text-sm text-muted-foreground animate-pulse">Analysing your session…</p>
+                    ) : (
+                      <p className="text-sm text-foreground leading-relaxed">{claudeInsight}</p>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -1924,7 +1990,7 @@ export default function HomeworkFlowCard() {
               {progressChartData1.length > 0 && (
                 <ProgressOverSessionsChart data={progressChartData1} />
               )}
-              {/* 7. Coach insight (2 sentences) or fallback message */}
+              {/* 7. Human coach block or fallback */}
               {(coachInsight || coachMessageFallback) && (
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className="text-sm text-foreground leading-relaxed">
@@ -1975,9 +2041,14 @@ export default function HomeworkFlowCard() {
             {transcriptionText ? (
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
                   <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
                 </div>
+              </div>
+            ) : reportData ? (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+                <p className="text-sm text-muted-foreground italic">Transcript not available for this session.</p>
               </div>
             ) : null}
             {(fillerTotal != null || formatFillerBreakdown(fillerBreakdown)) ? (
@@ -1990,11 +2061,26 @@ export default function HomeworkFlowCard() {
                 </p>
               </div>
             ) : null}
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-                {displayReportText.trim() || "Report pending."}
-              </p>
-            </div>
+            {/* Claude AI coaching — replaces backend report_text */}
+            {(claudeInsight || claudeLoading) ? (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  {claudeLoading ? (
+                    <p className="text-sm text-muted-foreground animate-pulse">Analysing your session…</p>
+                  ) : (
+                    <p className="text-sm text-foreground leading-relaxed">{claudeInsight}</p>
+                  )}
+                </div>
+              </div>
+            ) : displayReportText.trim() ? (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{displayReportText.trim()}</p>
+                </div>
+              </div>
+            ) : null}
             {coachInsight ? (
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm font-medium text-muted-foreground mb-1">Coach insight</p>
