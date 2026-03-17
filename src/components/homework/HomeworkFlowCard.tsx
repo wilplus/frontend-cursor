@@ -1778,184 +1778,22 @@ export default function HomeworkFlowCard() {
     const fillerBreakdown = reportData?.recording?.filler_words_count?.breakdown;
     const coachInsight = (reportData?.coach_insight ?? "").trim();
 
-    // Simplified report when we skipped from step 2 (recording-1 only): recording + transcript + filler + strength/pace + chart + coach block.
-    if (reportFromRecording1Only) {
-      const strength = (reportData?.strength_metric ?? "").trim();
-      const pace = (reportData?.pace_metric ?? "").trim();
-      const score1 = reportData?.performance_score_1 != null
-        ? Math.round(reportData.performance_score_1 * 100)
-        : reportData?.scores?.overall;
-      const history1 = reportData?.performance_history;
-      const lastFive1 = history1?.length ? history1.slice(-5) : [];
-      const progressChartData1Raw =
-        lastFive1.length > 0
-          ? lastFive1.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
-          : score1 != null
-            ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: score1 }]
-            : [];
-      // Patch the most-recent entry with the local sniper score so the chart always matches
-      // SniperReviewSummary (backend may have stored 0 due to the race condition).
-      const progressChartData1 =
-        sniperDisplayScore !== null && progressChartData1Raw.length > 0
-          ? [
-              ...progressChartData1Raw.slice(0, -1),
-              { ...progressChartData1Raw[progressChartData1Raw.length - 1], score: sniperDisplayScore },
-            ]
-          : progressChartData1Raw;
-
-      return (
-        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          <h3 className="text-center text-xl font-semibold">Your report</h3>
-          {coachMessageBlock}
-          {sniperSnapshot ? (
-            <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
-          ) : null}
-          {/* Self-rate (1–10) fallback if user landed on report without doing step 2; uses same homework self-rating API. */}
-          {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
-            <Card className="border-0 bg-transparent p-6 shadow-none">
-              <p className="text-sm font-medium text-muted-foreground mb-2">
-                How did that recording feel for you?
-              </p>
-              <p className="text-xs text-muted-foreground mb-3">
-                1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                  <Button
-                    key={n}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={savingStudentRating}
-                    onClick={() => {
-                      setSavingStudentRating(true);
-                      homeworkApi
-                        .submitSelfRating(sessionId, n)
-                        .finally(() => {
-                          setSavingStudentRating(false);
-                          setStudentSpeechRatingSubmitted(true);
-                        });
-                    }}
-                    className="min-w-[2.25rem]"
-                  >
-                    {n}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={savingStudentRating}
-                onClick={() => setStudentSpeechRatingSubmitted(true)}
-                className="text-muted-foreground"
-              >
-                Skip
-              </Button>
-            </Card>
-          ) : null}
-          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            {reportError && (
-              <p className="text-sm text-destructive">{reportError}</p>
-            )}
-            <div className="space-y-4">
-              {/* 1. Recording playback */}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                {playbackUrl && !audioPlaybackError ? (
-                  <audio
-                    controls
-                    src={playbackUrl}
-                    className="w-full max-w-md"
-                    onError={() => setAudioPlaybackError(true)}
-                  />
-                ) : audioPlaybackError ? (
-                  <p className="text-sm text-muted-foreground">Recording playback failed. The audio may be unavailable.</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Recording playback not available.</p>
-                )}
-              </div>
-              {/* 2. Transcript (only when we have data; hide if recording missing and no legacy) */}
-              {transcriptionText ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
-                  </div>
-                </div>
-              ) : null}
-              {/* 3. Filler words (total + breakdown when present) */}
-              {fillerTotal != null && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                  <p className="text-sm text-foreground">
-                    {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
-                    {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
-                  </p>
-                </div>
-              )}
-              {/* 4. AI-generated feedback (report_text from backend) */}
-              {displayReportText.trim() ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Feedback</p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{displayReportText.trim()}</p>
-                  </div>
-                </div>
-              ) : null}
-              {/* 5. Strength and pace */}
-              {(strength || pace) ? (
-                <div className="flex flex-wrap gap-6">
-                  {strength ? (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Strength</p>
-                      <p className="text-sm text-foreground">{strength}</p>
-                    </div>
-                  ) : null}
-                  {pace ? (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Pace</p>
-                      <p className="text-sm text-foreground">{pace}</p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {/* 6. Progress chart */}
-              {progressChartData1.length > 0 && (
-                <ProgressOverSessionsChart data={progressChartData1} />
-              )}
-              {/* 7. Coach insight (2 sentences) or fallback message */}
-              {(coachInsight || coachMessageFallback) && (
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {coachInsight || coachMessageFallback}
-                  </p>
-                </div>
-              )}
-            </div>
-            <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : reportCtaLabel}
-            </Button>
-          </Card>
-        </div>
-      );
-    }
-
-    // Full report: playback, chart, transcript when present, report text, coach insight when present. Self-rate is step 2 only.
+    // Report: progress chart → playback → filler words → transcript → coaching message.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         {coachMessageBlock}
-        {sniperSnapshot ? (
-          <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
-        ) : null}
+        {progressChartData.length > 0 && (
+          <ProgressOverSessionsChart data={progressChartData} />
+        )}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           {reportError && (
             <p className="text-sm text-destructive">{reportError}</p>
           )}
           <div className="space-y-4">
+            {/* 1. Playback */}
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Your final recording</p>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
               {playbackUrl && !audioPlaybackError ? (
                 <audio
                   controls
@@ -1969,9 +1807,17 @@ export default function HomeworkFlowCard() {
                 <p className="text-sm text-muted-foreground">Recording playback not available.</p>
               )}
             </div>
-            {progressChartData.length > 0 && (
-              <ProgressOverSessionsChart data={progressChartData} />
+            {/* 2. Filler words */}
+            {fillerTotal != null && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+                <p className="text-sm text-foreground">
+                  {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
+                  {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
+                </p>
+              </div>
             )}
+            {/* 3. Transcript */}
             {transcriptionText ? (
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
@@ -1980,27 +1826,12 @@ export default function HomeworkFlowCard() {
                 </div>
               </div>
             ) : null}
-            {(fillerTotal != null || formatFillerBreakdown(fillerBreakdown)) ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                <p className="text-sm text-foreground">
-                  {fillerTotal != null
-                    ? `${fillerTotal} filler word${fillerTotal !== 1 ? "s" : ""} detected${formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.`
-                    : formatFillerBreakdown(fillerBreakdown)}
-                </p>
-              </div>
-            ) : null}
+            {/* 4. Coaching message */}
             <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-                {displayReportText.trim() || "Report pending."}
+              <p className="text-sm text-foreground leading-relaxed">
+                {coachInsight || coachMessageFallback}
               </p>
             </div>
-            {coachInsight ? (
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Coach insight</p>
-                <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
-              </div>
-            ) : null}
           </div>
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
             {resetting ? "Resetting…" : reportCtaLabel}
