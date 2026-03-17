@@ -11,6 +11,7 @@ import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 import { SniperWheel } from "@/components/recording/SniperWheel";
+import { SniperGame } from "@/components/recording/SniperGame";
 import { buildSniperSnapshot } from "@/lib/sniper/types";
 import type { SniperSessionSnapshot } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
@@ -109,6 +110,7 @@ export default function AudioRecorder({
   const [manualDuration, setManualDuration] = useState<string>("");
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [micPreviewError, setMicPreviewError] = useState<string | null>(null);
+  const [sniperViewMode, setSniperViewMode] = useState<"coach" | "game">("coach");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -658,18 +660,56 @@ export default function AudioRecorder({
           </div>
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
+          {sniperMode ? (
+            <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 mb-1">
+              <button
+                type="button"
+                onClick={() => setSniperViewMode("coach")}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  sniperViewMode === "coach"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Coach
+              </button>
+              <button
+                type="button"
+                onClick={() => setSniperViewMode("game")}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  sniperViewMode === "game"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Game
+              </button>
+            </div>
+          ) : null}
           <div className="flex justify-center w-full">
             <div className={sniperMode ? "w-full" : "w-[clamp(420px,60vw,680px)]"}>
               {sniperMode ? (
-                <SniperWheel
-                  scores={sniperMetrics.scores}
-                  overallScore={sniperMetrics.overallScore}
-                  tier={sniperMetrics.tier}
-                  coachingCue={sniperMetrics.coachingCue}
-                  metrics={sniperMetrics.metrics}
-                  taskLabel={prompt || undefined}
-                  audioError={sniperMetrics.audioError}
-                />
+                sniperViewMode === "game" ? (
+                  <SniperGame
+                    scores={sniperMetrics.scores}
+                    overallScore={sniperMetrics.overallScore}
+                    tier={sniperMetrics.tier}
+                    coachingCue={sniperMetrics.coachingCue}
+                    metrics={sniperMetrics.metrics}
+                    taskLabel={prompt || undefined}
+                    audioError={sniperMetrics.audioError}
+                  />
+                ) : (
+                  <SniperWheel
+                    scores={sniperMetrics.scores}
+                    overallScore={sniperMetrics.overallScore}
+                    tier={sniperMetrics.tier}
+                    coachingCue={sniperMetrics.coachingCue}
+                    metrics={sniperMetrics.metrics}
+                    taskLabel={prompt || undefined}
+                    audioError={sniperMetrics.audioError}
+                  />
+                )
               ) : (
                 <StrengthPaceDartboard
                   targetX={realtimeStrengthPace.targetX}
