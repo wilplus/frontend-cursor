@@ -10,8 +10,8 @@ import {
   PAUSE_IDEAL_MS,
   DYNAMIC_IDEAL_DB,
   EMPHASIS_IDEAL_PER_MIN,
+  PITCH_IDEAL_RANGE_ST,
   WEIGHTS,
-  WEIGHTS_WITHOUT_ENERGY,
   BLEND_STAGE_WEIGHT,
   BLEND_GROWTH_WEIGHT,
   MIN_SESSIONS_FOR_BASELINE,
@@ -57,8 +57,10 @@ function hasRequiredBaselines(profile: UserSniperProfile, energyAvailable: boole
 
 /**
  * Compute growth score 0–100 from baseline vs current session means.
- * Uses same weights as stage. If energy unavailable, reweights remaining four.
- * Returns 0 when any required baseline is null.
+ * Uses same weights as stage scoring. Each metric contributes only when both a baseline
+ * and a session value exist — the sum of active weights is used to normalize, so the
+ * score always sits in [0, 100] regardless of which optional metrics are available.
+ * Returns 0 when required core baselines (pace, pause, dynamic, emphasis) are null.
  */
 export function computeGrowthScore(
   profile: UserSniperProfile,
@@ -67,48 +69,37 @@ export function computeGrowthScore(
 ): number {
   if (!hasRequiredBaselines(profile, energyAvailable)) return 0;
 
-  const impPace = improvementRatio(
-    profile.baseline_wpm!,
-    sessionMeans.paceWpm,
-    PACE_IDEAL_WPM
-  );
-  const impPause = improvementRatio(
-    profile.baseline_pause_ms!,
-    sessionMeans.avgPauseMs,
-    PAUSE_IDEAL_MS
-  );
-  const impDynamic = improvementRatio(
-    profile.baseline_dynamic_db!,
-    sessionMeans.dynamicRangeDb,
-    DYNAMIC_IDEAL_DB
-  );
-  const impEmphasis = improvementRatio(
-    profile.baseline_emphasis_per_min!,
-    sessionMeans.emphasisPerMin,
-    EMPHASIS_IDEAL_PER_MIN
-  );
+  let raw = 0;
+  let totalWeight = 0;
 
-  let raw: number;
+  // Core metrics (always present when baselines are ready)
+  const impPace = improvementRatio(profile.baseline_wpm!, sessionMeans.paceWpm, PACE_IDEAL_WPM);
+  raw += WEIGHTS.pace * impPace; totalWeight += WEIGHTS.pace;
+
+  const impPause = improvementRatio(profile.baseline_pause_ms!, sessionMeans.avgPauseMs, PAUSE_IDEAL_MS);
+  raw += WEIGHTS.pause * impPause; totalWeight += WEIGHTS.pause;
+
+  const impDynamic = improvementRatio(profile.baseline_dynamic_db!, sessionMeans.dynamicRangeDb, DYNAMIC_IDEAL_DB);
+  raw += WEIGHTS.dynamic * impDynamic; totalWeight += WEIGHTS.dynamic;
+
+  const impEmphasis = improvementRatio(profile.baseline_emphasis_per_min!, sessionMeans.emphasisPerMin, EMPHASIS_IDEAL_PER_MIN);
+  raw += WEIGHTS.emphasis * impEmphasis; totalWeight += WEIGHTS.emphasis;
+
+  // Energy (optional — requires 2+ min session and an energy baseline)
   if (energyAvailable && sessionMeans.energyRatio != null && profile.baseline_energy_ratio != null) {
-    const impEnergy = improvementEnergy(
-      profile.baseline_energy_ratio,
-      sessionMeans.energyRatio
-    );
-    raw =
-      WEIGHTS.pace * impPace +
-      WEIGHTS.pause * impPause +
-      WEIGHTS.dynamic * impDynamic +
-      WEIGHTS.emphasis * impEmphasis +
-      WEIGHTS.energy * impEnergy;
-  } else {
-    raw =
-      WEIGHTS_WITHOUT_ENERGY.pace * impPace +
-      WEIGHTS_WITHOUT_ENERGY.pause * impPause +
-      WEIGHTS_WITHOUT_ENERGY.dynamic * impDynamic +
-      WEIGHTS_WITHOUT_ENERGY.emphasis * impEmphasis;
+    const impEnergy = improvementEnergy(profile.baseline_energy_ratio, sessionMeans.energyRatio);
+    raw += WEIGHTS.energy * impEnergy; totalWeight += WEIGHTS.energy;
   }
 
-  return Math.round(Math.max(0, Math.min(100, raw * 100)) * 10) / 10;
+  // Pitch (optional — requires pitch baseline from a prior session)
+  if (sessionMeans.pitchRangeSt != null && profile.baseline_pitch_range_st != null) {
+    const impPitch = improvementRatio(profile.baseline_pitch_range_st, sessionMeans.pitchRangeSt, PITCH_IDEAL_RANGE_ST);
+    raw += WEIGHTS.pitch * impPitch; totalWeight += WEIGHTS.pitch;
+  }
+
+  // Normalize by sum of active weights so the score is always 0–100.
+  const normalizedRaw = totalWeight > EPS ? raw / totalWeight : 0;
+  return Math.round(Math.max(0, Math.min(100, normalizedRaw * 100)) * 10) / 10;
 }
 
 /** Blend: display_score = BLEND_STAGE_WEIGHT * stage + BLEND_GROWTH_WEIGHT * growth. */

@@ -71,6 +71,20 @@ export const EMPHASIS_SOFT_FLOOR = 60;
 /** Catastrophic: emphasis below this bypasses soft floor; score 30–40. */
 export const EMPHASIS_CATASTROPHIC_LO = 8;
 
+/** Pitch range (semitones, p90−p10 over voiced frames in 30s window). */
+/** Ideal pitch range: 8 semitones (~a major 6th) — expressive without theatrical excess. */
+export const PITCH_IDEAL_RANGE_ST = 8;
+export const PITCH_TOLERANCE_ST = 2;
+export const PITCH_GREEN_LO = 6;   // 6–12 st = green zone
+export const PITCH_GREEN_HI = 12;
+export const PITCH_YELLOW_LO = 3;  // 3–6 or 12–20 st = yellow
+export const PITCH_YELLOW_HI = 20;
+/** Below this → cap score at 40. */
+export const PITCH_CAP_BELOW = 3;
+export const PITCH_SOFT_FLOOR = 60;
+/** Catastrophic: < 2 semitones = functionally monotone; score 30–40. */
+export const PITCH_CATASTROPHIC_LO = 2;
+
 /** Energy arc: minimum session duration (sec) before energy score is computed. */
 export const ENERGY_MIN_SESSION_SEC = 120;
 /** E3 ≥ E2 → +20 structural bonus. */
@@ -83,20 +97,23 @@ export const ENERGY_BASE_SCORE = 70;
 
 /** Segment weights for overall score (sum = 1). */
 export const WEIGHTS = {
-  pace: 0.18,
-  pause: 0.18,
-  dynamic: 0.18,
-  emphasis: 0.16,
-  energy: 0.3,
+  pace: 0.16,
+  pause: 0.16,
+  dynamic: 0.12,
+  emphasis: 0.14,
+  energy: 0.26,
+  pitch: 0.16,
 } as const;
 
-/** When energy is unavailable (<2 min), reweight the other four so they sum to 1. */
-const WEIGHT_SUM_WITHOUT_ENERGY = WEIGHTS.pace + WEIGHTS.pause + WEIGHTS.dynamic + WEIGHTS.emphasis;
+/** When energy is unavailable (<2 min), reweight the other five so they sum to 1. */
+const WEIGHT_SUM_WITHOUT_ENERGY =
+  WEIGHTS.pace + WEIGHTS.pause + WEIGHTS.dynamic + WEIGHTS.emphasis + WEIGHTS.pitch;
 export const WEIGHTS_WITHOUT_ENERGY = {
   pace: WEIGHTS.pace / WEIGHT_SUM_WITHOUT_ENERGY,
   pause: WEIGHTS.pause / WEIGHT_SUM_WITHOUT_ENERGY,
   dynamic: WEIGHTS.dynamic / WEIGHT_SUM_WITHOUT_ENERGY,
   emphasis: WEIGHTS.emphasis / WEIGHT_SUM_WITHOUT_ENERGY,
+  pitch: WEIGHTS.pitch / WEIGHT_SUM_WITHOUT_ENERGY,
 } as const;
 
 /** Tier boundaries (inclusive) and labels. */
