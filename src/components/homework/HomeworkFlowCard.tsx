@@ -182,6 +182,10 @@ export default function HomeworkFlowCard() {
   /** Claude-generated coaching insight for step 5 (replaces backend AI feedback). */
   const [claudeInsight, setClaudeInsight] = useState<string | null>(null);
   const [claudeLoading, setClaudeLoading] = useState(false);
+  /** Live-transcribed text from Web Speech API (set immediately when recording stops). */
+  const [localTranscript, setLocalTranscript] = useState("");
+  /** Claude-analysed filler word counts (returned when analyzeFillers: true in coaching-report). */
+  const [claudeFillerWords, setClaudeFillerWords] = useState<{ total: number; breakdown: Record<string, number> } | null>(null);
   /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
@@ -422,6 +426,10 @@ export default function HomeworkFlowCard() {
       hasSetPendingRetryFrom409Ref.current = false;
       setReadyForSelfRating(null);
       setBackendReadyForSelfRating(false);
+      setLocalTranscript("");
+      setClaudeFillerWords(null);
+      setClaudeInsight(null);
+      claudeSessionRef.current = null;
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -895,23 +903,35 @@ export default function HomeworkFlowCard() {
     return () => clearTimeout(tid);
   }, [step]);
 
-  // Call Claude for AI coaching insight when step-5 report data or sniper snapshot arrives.
-  // Fires once per session: tracks the sessionId that was last analysed.
+  // Call Claude for AI coaching insight as soon as we have transcript or sniper metrics.
+  // Fires once per session (claudeSessionRef tracks the last analysed sessionId).
+  // Does NOT require step === 5 — starts the request the moment recording stops so
+  // the result is ready (or already loading) when the user reaches the report step.
   const claudeSessionRef = useRef<string | null>(null);
   useEffect(() => {
-    if (step !== 5) return;
-    if (!reportData && !sniperSnapshot) return;
+    // Need at least a local transcript or sniper snapshot to analyse
+    const hasTranscript = localTranscript.trim().length > 10;
+    const hasMetrics = !!sniperSnapshot;
+    if (!hasTranscript && !hasMetrics) return;
     if (!sessionId || claudeSessionRef.current === sessionId) return;
     claudeSessionRef.current = sessionId;
 
-    const transcript = (
+    // Prefer live Web Speech transcript; fall back to backend transcript (if report loaded early)
+    const transcript = localTranscript.trim() || (
       reportData?.recording?.transcription_text ??
       reportData?.transcription_text ??
       reportData?.transcript ??
       ""
     ).trim();
 
-    const body = {
+    const body: {
+      transcript?: string;
+      taskLabel?: string;
+      sniperOverallScore?: number;
+      sniperTier?: string;
+      sniperMetrics?: object;
+      analyzeFillers?: boolean;
+    } = {
       transcript: transcript || undefined,
       taskLabel: finalTaskText || taskText || undefined,
       sniperOverallScore: sniperSnapshot?.overallScore,
@@ -925,24 +945,30 @@ export default function HomeworkFlowCard() {
             pitchRangeSt: sniperSnapshot.sessionMeans.pitchRangeSt ?? null,
           }
         : undefined,
+      // Ask Claude to count filler words whenever we have a real transcript
+      analyzeFillers: transcript.length > 10,
     };
 
     if (!body.transcript && !body.sniperOverallScore) return;
 
     setClaudeLoading(true);
     setClaudeInsight(null);
+    setClaudeFillerWords(null);
     fetch("/api/ai/coaching-report", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
       .then((r) => r.json())
-      .then((data: { insight?: string; error?: string }) => {
+      .then((data: { insight?: string; fillerWords?: { total: number; breakdown: Record<string, number> }; error?: string }) => {
         if (data.insight) setClaudeInsight(data.insight);
+        if (data.fillerWords && typeof data.fillerWords.total === "number") {
+          setClaudeFillerWords(data.fillerWords);
+        }
       })
       .catch(() => {})
       .finally(() => setClaudeLoading(false));
-  }, [step, reportData, sniperSnapshot, sessionId, finalTaskText, taskText]);
+  }, [localTranscript, sniperSnapshot, sessionId, finalTaskText, taskText, reportData]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1535,6 +1561,7 @@ export default function HomeworkFlowCard() {
           <AudioRecorder
             prompt={warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
             onRecordingComplete={handleRecording1Complete}
+            onTranscriptAvailable={(t) => { if (t) setLocalTranscript(t); }}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
               const body: {
@@ -1819,17 +1846,18 @@ export default function HomeworkFlowCard() {
       reportData?.final_recording?.audio_url ??
       reportData?.recording?.audio_url ??
       reportData?.recording_1?.audio_url;
-    // Full transcription: recording.transcription_text (new) or legacy transcript.
+    // Full transcription: prefer live Web Speech transcript; fall back to backend field.
     const transcriptionText = (
+      localTranscript ||
       reportData?.recording?.transcription_text ??
       reportData?.transcription_text ??
       reportData?.transcript ??
       ""
     ).trim();
-    // Filler: recording.filler_words_count (new) or legacy filler_word_count.
+    // Filler: prefer Claude-analysed counts (from live transcript); fall back to backend.
     const fillerTotal =
-      reportData?.recording?.filler_words_count?.total ?? reportData?.filler_word_count ?? null;
-    const fillerBreakdown = reportData?.recording?.filler_words_count?.breakdown;
+      claudeFillerWords?.total ?? reportData?.recording?.filler_words_count?.total ?? reportData?.filler_word_count ?? null;
+    const fillerBreakdown = claudeFillerWords?.breakdown ?? reportData?.recording?.filler_words_count?.breakdown;
     const coachInsight = (reportData?.coach_insight ?? "").trim();
 
     // Simplified report when we skipped from step 2 (recording-1 only): recording + transcript + filler + strength/pace + chart + coach block.
