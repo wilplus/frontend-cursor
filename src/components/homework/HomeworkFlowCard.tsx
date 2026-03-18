@@ -989,18 +989,17 @@ export default function HomeworkFlowCard() {
       // Next: self-rate step only (no metric-answers, recording-2, or post-answers). Then report.
       setStep(2);
     } catch (e) {
+      console.error("[HomeworkFlow] handleRecording1Complete error", e);
       if (isSessionGoneError(e)) {
         toast.info("Your session is gone. You can start a new lesson.");
         startOverFromScratch();
         return;
       }
-      if (isInvalidSessionStateError(e)) {
-        setError("Session state conflict. Please refresh the page or switch tab and back.");
-        toast.error("Session state conflict. Please refresh the page or switch tab and back.");
-      } else {
-        setError(e instanceof Error ? e.message : "Upload failed");
-        toast.error(e instanceof Error ? e.message : "Upload failed");
-      }
+      const msg = isInvalidSessionStateError(e)
+        ? "Session state conflict. Please refresh the page or switch tab and back."
+        : (e instanceof Error ? e.message : "Upload failed. Please try again.");
+      setError(msg);
+      toast.error(msg, { duration: 8000 });
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
@@ -1168,19 +1167,17 @@ export default function HomeworkFlowCard() {
         ...(res.performance_score_2 !== undefined && { performance_score_2: res.performance_score_2 }),
       });
     } catch (e) {
+      console.error("[HomeworkFlow] handleRecording2Complete error", e);
       if (isSessionGoneError(e)) {
         toast.info("Your session is gone. You can start a new lesson.");
         startOverFromScratch();
         return;
       }
-      if (isInvalidSessionStateError(e)) {
-        setError("Session state conflict. Please refresh the page or switch tab and back.");
-        toast.error("Session state conflict. Please refresh the page or switch tab and back.");
-      } else {
-        const msg = e instanceof Error ? e.message : "Upload failed";
-        setError(msg);
-        toast.error(msg);
-      }
+      const msg = isInvalidSessionStateError(e)
+        ? "Session state conflict. Please refresh the page or switch tab and back."
+        : (e instanceof Error ? e.message : "Upload failed. Please try again.");
+      setError(msg);
+      toast.error(msg, { duration: 8000 });
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;

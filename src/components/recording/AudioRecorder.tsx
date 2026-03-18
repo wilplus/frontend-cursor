@@ -147,17 +147,6 @@ export default function AudioRecorder({
     }
   }, [sniperMode, sniperMetrics.isActive, sniperMetrics.overallScore, sniperMetrics.tier, sniperMetrics.scores, sniperMetrics.metrics, sniperMetrics.energyAvailable]);
 
-  // #region agent log
-  const parentLogRef = useRef({ last: 0, lastActive: false });
-  useEffect(() => {
-    const { isActive, targetX, targetY, score } = realtimeStrengthPace;
-    const now = Date.now();
-    if (isActive !== parentLogRef.current.lastActive || now - parentLogRef.current.last > 1500) {
-      parentLogRef.current = { last: now, lastActive: isActive };
-      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx:render',message:'parent passing to dartboard',data:{isActive,targetX,targetY,score},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    }
-  }, [realtimeStrengthPace.isActive, realtimeStrengthPace.targetX, realtimeStrengthPace.targetY, realtimeStrengthPace.score]);
-  // #endregion
 
   // Detect MIME support on mount — always resolve so we never stick on "Checking audio support..."
   useEffect(() => {
