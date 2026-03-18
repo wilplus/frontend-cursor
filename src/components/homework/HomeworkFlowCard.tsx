@@ -831,7 +831,7 @@ export default function HomeworkFlowCard() {
       }
     };
     poll();
-    const intervalMs = 4000;
+    const intervalMs = 2000; // 2s for faster ready detection
     const id = setInterval(poll, intervalMs);
     return () => {
       cancelled = true;
@@ -1001,6 +1001,11 @@ export default function HomeworkFlowCard() {
     setUploadingRecording(1);
     setError(null);
     abortRef.current = new AbortController();
+
+    // Move to step 2 immediately so the user sees the self-rating form while the
+    // upload runs in the background. Buttons stay disabled until backendReadyForSelfRating.
+    setStep(2);
+
     try {
       const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
       const backendStatus = (res as { status?: string }).status;
@@ -1012,8 +1017,7 @@ export default function HomeworkFlowCard() {
         task_text: (res as { task_text?: string }).task_text ?? undefined,
         ...(Array.isArray((res as { questions?: HomeworkQuestion[] }).questions) && { questions: (res as { questions?: HomeworkQuestion[] }).questions }),
       });
-      // Next: self-rate step only (no metric-answers, recording-2, or post-answers). Then report.
-      setStep(2);
+      // step is already 2; keep it there so the self-rating form stays visible
     } catch (e) {
       console.error("[HomeworkFlow] handleRecording1Complete error", e);
       if (isSessionGoneError(e)) {
@@ -1024,6 +1028,8 @@ export default function HomeworkFlowCard() {
       const msg = isInvalidSessionStateError(e)
         ? "Session state conflict. Please refresh the page or switch tab and back."
         : (e instanceof Error ? e.message : "Upload failed. Please try again.");
+      // Return to recording step on failure so the user can retry
+      setStep(1);
       setError(msg);
       toast.error(msg, { duration: 8000 });
     } finally {
@@ -1609,32 +1615,28 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: Show 1–10 self-rating only when GET session/status returns ready_for_self_rating: true; then POST self-rating, then poll GET report until 200.
+  // Step 2: Self-rating — shown immediately after recording stops (form visible right away;
+  // buttons enabled once backendReadyForSelfRating flips true via polling).
   if (step === 2) {
-    const showRatingForm = readyForSelfRating === true;
+    const processingDone = backendReadyForSelfRating;
     return (
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
         <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
-          {!showRatingForm ? (
-            <div className="text-center space-y-4 py-4">
-              <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
-              <p className="text-sm font-medium text-muted-foreground">
-                Your recording is being processed. We&apos;ll show the next step shortly.
-              </p>
-            </div>
-          ) : (
-            <>
           <p className="text-sm font-medium text-muted-foreground mb-2">
             How did that recording feel for you?
           </p>
           <p className="text-xs text-muted-foreground mb-3">
             1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
           </p>
-          {!backendReadyForSelfRating && (
-            <p className="text-xs text-muted-foreground mb-2">
-              Waiting for your recording to be processed… You can submit once this is complete.
-            </p>
+          {/* Subtle inline status — no full-screen spinner */}
+          {!processingDone && (
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent flex-shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                {uploadingRecording === 1 ? "Uploading your recording…" : "Analysing your recording…"}
+              </p>
+            </div>
           )}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
@@ -1643,10 +1645,10 @@ export default function HomeworkFlowCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={savingStudentRating || !backendReadyForSelfRating}
+                disabled={savingStudentRating || !processingDone}
                 onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
-                  if (!backendReadyForSelfRating) return;
+                  if (!processingDone) return;
                   setSavingStudentRating(true);
                   try {
                     lastSelfRatingPayloadRef.current = { sessionId, rating: n };
@@ -1672,14 +1674,14 @@ export default function HomeworkFlowCard() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={savingStudentRating || !backendReadyForSelfRating}
+            disabled={savingStudentRating || !processingDone}
             onClick={async () => {
               if (!sessionId || sessionId === "mock-session") {
                 setStudentSpeechRatingSubmitted(true);
                 setStep(5);
                 return;
               }
-              if (!backendReadyForSelfRating) return;
+              if (!processingDone) return;
               setSavingStudentRating(true);
               try {
                 lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
@@ -1699,8 +1701,6 @@ export default function HomeworkFlowCard() {
           >
             Skip
           </Button>
-            </>
-          )}
         </Card>
       </StepFlowWrapper>
     );
@@ -1715,6 +1715,43 @@ export default function HomeworkFlowCard() {
       (reportError != null && !reportLoading) ||
       reportNotReady;
     if (!step5DataReady) {
+      // If we already have Sniper or Claude data, show a rich partial report instead of a blank spinner.
+      const hasLocalContent = sniperSnapshot != null || claudeInsight != null || claudeLoading;
+      if (hasLocalContent) {
+        return (
+          <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+            <h3 className="text-center text-xl font-semibold">Your report</h3>
+            {coachMessageBlock}
+            {sniperSnapshot ? (
+              <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+            ) : null}
+            <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+              {/* Claude coaching available immediately from live transcript */}
+              {(claudeInsight || claudeLoading) ? (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    {claudeLoading ? (
+                      <p className="text-sm text-muted-foreground animate-pulse">Analysing your session…</p>
+                    ) : (
+                      <p className="text-sm text-foreground leading-relaxed">{claudeInsight}</p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+              {/* Report details still loading */}
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent flex-shrink-0" />
+                <p className="text-xs">Loading full report…</p>
+              </div>
+              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
+                {resetting ? "Resetting…" : "Start New Practice"}
+              </Button>
+            </Card>
+          </div>
+        );
+      }
+      // No local content yet — show minimal spinner
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           <Card className="border-0 bg-transparent p-6 shadow-none">
