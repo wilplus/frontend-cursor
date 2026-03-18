@@ -7,10 +7,23 @@ export const dynamic = "force-dynamic";
 
 const client = new Anthropic();
 
+/** Filler words Claude will count in the transcript. */
+const FILLER_LIST = ["um", "uh", "er", "ah", "hmm", "like", "you know", "basically", "literally", "actually", "right", "okay", "so", "well", "I mean", "kind of", "sort of"];
+
+export interface FillerWords {
+  total: number;
+  breakdown: Record<string, number>;
+}
+
+export interface CoachingReportResponse {
+  insight: string;
+  fillerWords?: FillerWords;
+  transcript?: string;
+}
+
 interface CoachingReportBody {
   transcript?: string;
   taskLabel?: string;
-  sniperScores?: Record<string, number>;
   sniperOverallScore?: number;
   sniperTier?: string;
   sniperMetrics?: {
@@ -21,6 +34,8 @@ interface CoachingReportBody {
     pitchRangeSt?: number | null;
     energyByThird?: { e1: number; e2: number; e3: number } | null;
   };
+  /** When true, Claude also returns filler word counts from the transcript. */
+  analyzeFillers?: boolean;
 }
 
 const TIER_LABELS: Record<string, string> = {
@@ -32,51 +47,27 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 function buildPrompt(body: CoachingReportBody): string {
-  const {
-    transcript,
-    taskLabel,
-    sniperScores,
-    sniperOverallScore,
-    sniperTier,
-    sniperMetrics,
-  } = body;
+  const { transcript, taskLabel, sniperOverallScore, sniperTier, sniperMetrics, analyzeFillers } = body;
 
   const task = (taskLabel ?? "").trim() || "a speaking exercise";
   const tierLabel = sniperTier ? (TIER_LABELS[sniperTier] ?? sniperTier) : null;
 
   const lines: string[] = [
     `You are a professional executive communication coach specialising in vocal delivery.`,
-    `Analyse this student's speaking practice and give direct, specific, actionable coaching.`,
+    `Analyse this student's speaking practice session and provide a complete assessment.`,
     ``,
     `Task they were practising: "${task}"`,
   ];
 
   if (sniperOverallScore != null) {
-    lines.push(
-      `Voice alignment score: ${sniperOverallScore}/100${tierLabel ? ` — ${tierLabel}` : ""}`
-    );
-  }
-
-  if (sniperScores && Object.keys(sniperScores).length > 0) {
-    lines.push(`\nMetric scores (0–100, higher = closer to ideal):`);
-    const labels: Record<string, string> = {
-      pace: "Pace",
-      pause: "Pause",
-      dynamic: "Dynamic Range",
-      emphasis: "Emphasis",
-      energy: "Energy Arc",
-      pitch: "Pitch Variety",
-    };
-    for (const [k, v] of Object.entries(sniperScores)) {
-      lines.push(`  ${labels[k] ?? k}: ${v}/100`);
-    }
+    lines.push(`Voice alignment score: ${sniperOverallScore}/100${tierLabel ? ` — ${tierLabel}` : ""}`);
   }
 
   if (sniperMetrics) {
     const m = sniperMetrics;
     const metricDetails: string[] = [];
     if (m.paceWpm != null) metricDetails.push(`Pace: ${Math.round(m.paceWpm)} WPM (ideal 140–155)`);
-    if (m.avgPauseMs != null) metricDetails.push(`Avg pause: ${Math.round(m.avgPauseMs)}ms (ideal 400–480ms)`);
+    if (m.avgPauseMs != null) metricDetails.push(`Avg pause gap: ${Math.round(m.avgPauseMs)}ms (ideal 400–480ms)`);
     if (m.dynamicRangeDb != null) metricDetails.push(`Dynamic range: ${m.dynamicRangeDb.toFixed(1)}dB (ideal 12–16dB)`);
     if (m.emphasisPerMin != null) metricDetails.push(`Emphasis events: ${Math.round(m.emphasisPerMin)}/min (ideal 30–40)`);
     if (m.pitchRangeSt != null) metricDetails.push(`Pitch variety: ${m.pitchRangeSt.toFixed(1)} semitones (ideal 6–12st)`);
@@ -89,37 +80,67 @@ function buildPrompt(body: CoachingReportBody): string {
       }
     }
     if (metricDetails.length > 0) {
-      lines.push(`\nMeasured values:`);
+      lines.push(`\nReal-time measured values:`);
       metricDetails.forEach((d) => lines.push(`  ${d}`));
     }
   }
 
   if (transcript && transcript.trim().length > 10) {
-    const truncated = transcript.trim().slice(0, 2500);
+    const truncated = transcript.trim().slice(0, 3000);
     lines.push(`\nTranscript of their recording:\n"""\n${truncated}\n"""`);
   }
 
-  lines.push(
-    ``,
-    `Write 3–5 sentences of coaching feedback in continuous prose.`,
-    `Be specific to their actual numbers and what they said (if transcript provided).`,
-    `Identify their single biggest opportunity and one genuine strength.`,
-    `Do NOT use bullet points. Do NOT start with "Great job", "Fantastic", "Great", or any generic opener.`,
-    `Speak directly to the student as "you".`
-  );
+  lines.push(`\nCoaching instructions:`);
+  lines.push(`- Write 3–5 sentences of coaching in continuous prose. Be specific to their numbers and what they actually said.`);
+  lines.push(`- Identify their single biggest opportunity to improve and one genuine strength.`);
+  lines.push(`- Do NOT use bullet points. Do NOT start with "Great job", "Fantastic", or any generic opener.`);
+  lines.push(`- Speak directly to the student as "you". Be direct and warm.`);
+
+  if (analyzeFillers && transcript && transcript.trim().length > 10) {
+    lines.push(`\nFiller word instructions:`);
+    lines.push(`- Count every occurrence of these filler words in the transcript: ${FILLER_LIST.join(", ")}`);
+    lines.push(`- Only count words that are clearly used as fillers (not meaningful use, e.g. "like" as a verb or adjective is NOT a filler).`);
+    lines.push(`- Return the total count and a breakdown by word in the tool call.`);
+  }
 
   return lines.join("\n");
 }
+
+/** Claude tool schema for structured analysis output. */
+const ANALYSIS_TOOL: Anthropic.Tool = {
+  name: "session_analysis",
+  description: "Return the complete session analysis with coaching feedback and optional filler word counts.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      coaching: {
+        type: "string",
+        description: "3–5 sentences of specific, actionable coaching in continuous prose. No bullets.",
+      },
+      fillers: {
+        type: "object",
+        description: "Filler word analysis. Only include when you have analyzed the transcript for fillers.",
+        properties: {
+          total: { type: "integer", description: "Total number of filler word occurrences" },
+          breakdown: {
+            type: "object",
+            description: "Count per filler word (only include words with count > 0)",
+            additionalProperties: { type: "integer" },
+          },
+        },
+        required: ["total", "breakdown"],
+      },
+    },
+    required: ["coaching"],
+  },
+};
 
 export async function POST(req: NextRequest) {
   const unauth = await requireAuth(req);
   if (unauth) return unauth;
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not configured" },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 503 });
   }
 
   let body: CoachingReportBody;
@@ -129,8 +150,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const hasData =
-    body.transcript || body.sniperScores || body.sniperOverallScore != null;
+  const hasData = body.transcript || body.sniperOverallScore != null;
   if (!hasData) {
     return NextResponse.json(
       { error: "Insufficient data — provide transcript or sniper metrics" },
@@ -140,18 +160,40 @@ export async function POST(req: NextRequest) {
 
   try {
     const message = await client.messages.create({
-      model: "claude-3-5-haiku-20241022",
-      max_tokens: 300,
+      // Sonnet for better analysis quality on filler detection + coaching
+      model: "claude-sonnet-4-5",
+      max_tokens: 700,
+      tools: [ANALYSIS_TOOL],
+      tool_choice: { type: "tool", name: "session_analysis" },
       messages: [{ role: "user", content: buildPrompt(body) }],
     });
 
-    const insight = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
+    // Extract the tool_use block (guaranteed by tool_choice: { type: "tool" })
+    const toolUse = message.content.find(
+      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+    );
 
-    return NextResponse.json({ insight });
+    if (!toolUse) {
+      return NextResponse.json({ error: "No structured output from Claude" }, { status: 502 });
+    }
+
+    const output = toolUse.input as {
+      coaching: string;
+      fillers?: { total: number; breakdown: Record<string, number> };
+    };
+
+    const response: CoachingReportResponse = {
+      insight: output.coaching?.trim() ?? "",
+    };
+
+    if (output.fillers && typeof output.fillers.total === "number") {
+      response.fillerWords = {
+        total: output.fillers.total,
+        breakdown: output.fillers.breakdown ?? {},
+      };
+    }
+
+    return NextResponse.json(response);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Claude API error";
     console.error("[ai/coaching-report] Claude error:", msg);

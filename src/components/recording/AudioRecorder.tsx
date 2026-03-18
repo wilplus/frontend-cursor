@@ -81,6 +81,8 @@ interface AudioRecorderProps {
   sniperMode?: boolean;
   /** When sniperMode and recording completes, called with session summary snapshot for Review. */
   onSniperSnapshot?: (snapshot: SniperSessionSnapshot) => void;
+  /** Called with the live-transcribed text when recording stops (Web Speech API; Chrome/Edge only). */
+  onTranscriptAvailable?: (transcript: string) => void;
 }
 
 export default function AudioRecorder({
@@ -96,6 +98,7 @@ export default function AudioRecorder({
   prompt,
   sniperMode = false,
   onSniperSnapshot,
+  onTranscriptAvailable,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -122,6 +125,11 @@ export default function AudioRecorder({
   const pauseRequestedRef = useRef(false);
   /** Start mic request on pointer down so the permission prompt runs in the same user gesture (helps Safari/iOS). */
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
+  /** Web Speech API recognition instance (Chrome/Edge only). Null on unsupported browsers. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const speechRecognitionRef = useRef<any | null>(null);
+  /** Accumulated final transcript from Web Speech API. */
+  const speechTranscriptRef = useRef<string>("");
   const setIsPausedRef = useRef(setIsPaused);
   const setIsRecordingRef = useRef(setIsRecording);
   const setElapsedSecondsRef = useRef(setElapsedSeconds);
@@ -234,12 +242,20 @@ export default function AudioRecorder({
             Math.floor((endTime - startTimeRef.current) / 1000)
           );
           setIsRecordingRef.current(false);
+          // Stop speech recognition and harvest transcript
+          try {
+            speechRecognitionRef.current?.stop();
+          } catch { /* ignore */ }
+          speechRecognitionRef.current = null;
+          const transcript = speechTranscriptRef.current.trim();
+
           if (durationSeconds < minDurationSeconds) {
             toast.error("Session must be at least 1 minute. Please record again.");
             chunksRef.current = [];
             startTimeRef.current = null;
             setElapsedSecondsRef.current?.(0);
           } else {
+            if (transcript) onTranscriptAvailable?.(transcript);
             if (lastSniperSnapshotRef.current != null && onSniperSnapshot) {
               onSniperSnapshot(lastSniperSnapshotRef.current);
             }
@@ -301,6 +317,32 @@ export default function AudioRecorder({
       onRecordingStart?.();
       if (sniperMode) sniperMetrics.start(stream);
       else realtimeStrengthPace.start(stream);
+
+      // Start Web Speech API live transcription (Chrome/Edge; graceful no-op elsewhere)
+      speechTranscriptRef.current = "";
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const SR = (typeof window !== "undefined") ? ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) : null;
+        if (SR) {
+          const recog = new SR();
+          recog.continuous = true;
+          recog.interimResults = false;
+          recog.lang = "en-US";
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          recog.onresult = (e: any) => {
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              if (e.results[i].isFinal) {
+                speechTranscriptRef.current += e.results[i][0].transcript + " ";
+              }
+            }
+          };
+          recog.onerror = () => { /* ignore: transcript is best-effort */ };
+          recog.start();
+          speechRecognitionRef.current = recog;
+        }
+      } catch {
+        // Speech API unavailable — transcript will be empty, Claude will work from metrics only
+      }
 
       timerIntervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
