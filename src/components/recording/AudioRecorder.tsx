@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
-import { SniperWheel } from "@/components/recording/SniperWheel";
+import { BiofeedbackMode } from "@/components/recording/BiofeedbackMode";
 import { SniperGame } from "@/components/recording/SniperGame";
 import { buildSniperSnapshot } from "@/lib/sniper/types";
 import type { SniperSessionSnapshot } from "@/lib/sniper/types";
@@ -731,7 +731,7 @@ export default function AudioRecorder({
                     audioError={sniperMetrics.audioError}
                   />
                 ) : (
-                  <SniperWheel
+                  <BiofeedbackMode
                     scores={sniperMetrics.scores}
                     overallScore={sniperMetrics.overallScore}
                     tier={sniperMetrics.tier}

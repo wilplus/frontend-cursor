@@ -50,6 +50,9 @@ export interface SniperGameProps {
   audioError?: boolean;
 }
 
+// Max trail positions kept (each renders as a fading circle).
+const TRAIL_LEN = 7;
+
 export function SniperGame({
   scores,
   overallScore,
@@ -59,17 +62,30 @@ export function SniperGame({
   taskLabel,
   audioError = false,
 }: SniperGameProps) {
-  const physRef = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
-  const comboRef = useRef({ frameCount: 0, count: 0 });
-  const targetRef = useRef({ x: 0, y: 0 });
-  const rafRef = useRef<number | null>(null);
+  const physRef     = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
+  const comboRef    = useRef({ frameCount: 0, count: 0 });
+  const targetRef   = useRef({ x: 0, y: 0 });
+  const rafRef      = useRef<number | null>(null);
   const frameCountRef = useRef(0);
+
+  // Trail: ring-buffer of last TRAIL_LEN positions (pixel coords relative to center)
+  const trailRef    = useRef<Array<{ x: number; y: number }>>([]);
+  // Pulse ring tracking
+  const pulseRef    = useRef<{ startMs: number; active: boolean }>({ startMs: 0, active: false });
+  // Zone / combo change detection
+  const prevZoneRef  = useRef<"bull" | "stab" | "outer">("outer");
+  const burstKeyRef  = useRef(0);
+  const prevComboRef = useRef(0);
 
   const [display, setDisplay] = useState({
     x: 0,
     y: 0,
     combo: 0,
     zone: "outer" as "bull" | "stab" | "outer",
+    trail: [] as Array<{ x: number; y: number }>,
+    pulseR: 0,
+    pulseOpacity: 0,
+    burstKey: 0,
   });
 
   // Recompute target position whenever metrics change
@@ -103,9 +119,11 @@ export function SniperGame({
   // RAF physics loop
   useEffect(() => {
     function tick() {
-      const p = physRef.current;
-      const t = targetRef.current;
+      const now = performance.now();
+      const p   = physRef.current;
+      const t   = targetRef.current;
 
+      // Spring step
       p.vx = p.vx * DAMPING + (t.x - p.x) * SPRING_K;
       p.vy = p.vy * DAMPING + (t.y - p.y) * SPRING_K;
       p.x += p.vx;
@@ -115,6 +133,7 @@ export function SniperGame({
       const zone: "bull" | "stab" | "outer" =
         dist <= R_BULL ? "bull" : dist <= R_STAB ? "stab" : "outer";
 
+      // Combo counter
       const c = comboRef.current;
       if (zone === "bull") {
         c.frameCount++;
@@ -124,10 +143,48 @@ export function SniperGame({
         c.count = 0;
       }
 
+      // Bullseye entry → trigger pulse ring
+      if (zone === "bull" && prevZoneRef.current !== "bull") {
+        pulseRef.current = { startMs: now, active: true };
+      }
+      prevZoneRef.current = zone;
+
+      // Combo milestone burst (every 3 s)
+      if (c.count > 0 && c.count !== prevComboRef.current && c.count % 3 === 0) {
+        burstKeyRef.current++;
+      }
+      prevComboRef.current = c.count;
+
+      // Trail
+      trailRef.current.push({ x: p.x, y: p.y });
+      if (trailRef.current.length > TRAIL_LEN) trailRef.current.shift();
+
+      // Pulse ring radius/opacity derived from time since pulse started
+      let pulseR = 0;
+      let pulseOpacity = 0;
+      const PR = pulseRef.current;
+      if (PR.active) {
+        const elapsed = now - PR.startMs;
+        const dur = 700;
+        if (elapsed < dur) {
+          const progress   = elapsed / dur;
+          pulseR           = R_BULL + R_BULL * 1.6 * progress;
+          pulseOpacity     = 0.85 * (1 - progress);
+        } else {
+          PR.active = false;
+        }
+      }
+
       frameCountRef.current++;
-      // Render at ~30fps (every 2 frames)
+      // Render at ~30 fps (every 2 frames)
       if (frameCountRef.current % 2 === 0) {
-        setDisplay({ x: p.x, y: p.y, combo: c.count, zone });
+        setDisplay({
+          x: p.x, y: p.y, combo: c.count, zone,
+          trail: [...trailRef.current],
+          pulseR,
+          pulseOpacity,
+          burstKey: burstKeyRef.current,
+        });
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -233,6 +290,32 @@ export function SniperGame({
             stroke="#E5E7EB"
             strokeWidth={0.8}
           />
+          {/* Ball trail (fading circles behind ball) */}
+          {display.trail.map((pt, i) => {
+            const opacity = ((i + 1) / display.trail.length) * 0.22;
+            const r = 4 + (i / display.trail.length) * 5;
+            return (
+              <circle
+                key={i}
+                cx={CX + pt.x}
+                cy={CY + pt.y}
+                r={r}
+                fill={ringColor}
+                opacity={opacity}
+              />
+            );
+          })}
+          {/* Bullseye pulse ring (expanding on zone entry) */}
+          {display.pulseOpacity > 0 && (
+            <circle
+              cx={CX} cy={CY}
+              r={display.pulseR}
+              fill="none"
+              stroke="#2E9E6F"
+              strokeWidth={2}
+              opacity={display.pulseOpacity}
+            />
+          )}
           {/* Ball glow */}
           <circle cx={ballX} cy={ballY} r={13} fill={ringColor} opacity={0.15} />
           {/* Ball */}
@@ -252,9 +335,21 @@ export function SniperGame({
           </div>
         </div>
 
+        {/* Combo burst keyframe (re-mount on burstKey change triggers animation) */}
+        <style>{`
+          @keyframes sniper-burst {
+            0%   { transform: scale(0.75); opacity: 0.7; }
+            40%  { transform: scale(1.35); opacity: 1;   }
+            100% { transform: scale(1);    opacity: 1;   }
+          }
+        `}</style>
         {/* Combo badge */}
         {display.combo > 0 ? (
-          <div className="absolute top-2 right-2 bg-[#2E9E6F] text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-sm">
+          <div
+            key={display.burstKey}
+            className="absolute top-2 right-2 bg-[#2E9E6F] text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-sm"
+            style={{ animation: "sniper-burst 0.35s ease-out" }}
+          >
             {display.combo}s
           </div>
         ) : null}
