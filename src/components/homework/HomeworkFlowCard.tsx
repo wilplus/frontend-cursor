@@ -1886,9 +1886,9 @@ export default function HomeworkFlowCard() {
     // Full transcription: prefer live Web Speech transcript; fall back to backend field.
     const transcriptionText = (
       localTranscript ||
-      reportData?.recording?.transcription_text ??
-      reportData?.transcription_text ??
-      reportData?.transcript ??
+      reportData?.recording?.transcription_text ||
+      reportData?.transcription_text ||
+      reportData?.transcript ||
       ""
     ).trim();
     // Filler: prefer Claude-analysed counts (from live transcript); fall back to backend.
