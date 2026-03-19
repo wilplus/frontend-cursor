@@ -24,16 +24,16 @@ export interface CoachingReportResponse {
 interface CoachingReportBody {
   transcript?: string;
   taskLabel?: string;
+  /** Live Coach performance score 0–100. */
   sniperOverallScore?: number;
+  /** Rolling pause ratio 0–1 from the Live Coach session. */
+  pauseRatio?: number;
+  /** Syllable-onset WPM from the Live Coach session. Null during warm-up. */
+  wpm?: number | null;
+  /** @deprecated Legacy tier label — ignored. */
   sniperTier?: string;
-  sniperMetrics?: {
-    paceWpm?: number;
-    avgPauseMs?: number;
-    dynamicRangeDb?: number;
-    emphasisPerMin?: number;
-    pitchRangeSt?: number | null;
-    energyByThird?: { e1: number; e2: number; e3: number } | null;
-  };
+  /** @deprecated Legacy 6-metric data — ignored if all zeros. */
+  sniperMetrics?: Record<string, unknown>;
   /** When true, also return filler word counts from the transcript. */
   analyzeFillers?: boolean;
 }
@@ -47,10 +47,9 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 function buildPrompt(body: CoachingReportBody): string {
-  const { transcript, taskLabel, sniperOverallScore, sniperTier, sniperMetrics, analyzeFillers } = body;
+  const { transcript, taskLabel, sniperOverallScore, pauseRatio, wpm, analyzeFillers } = body;
 
   const task = (taskLabel ?? "").trim() || "a speaking exercise";
-  const tierLabel = sniperTier ? (TIER_LABELS[sniperTier] ?? sniperTier) : null;
 
   const lines: string[] = [
     `You are a professional executive communication coach specialising in vocal delivery.`,
@@ -60,29 +59,20 @@ function buildPrompt(body: CoachingReportBody): string {
   ];
 
   if (sniperOverallScore != null) {
-    lines.push(`Voice alignment score: ${sniperOverallScore}/100${tierLabel ? ` — ${tierLabel}` : ""}`);
+    lines.push(`Live coach performance score: ${sniperOverallScore}/100 (100 = perfect flow and pace, 0 = needs significant work)`);
   }
 
-  if (sniperMetrics) {
-    const m = sniperMetrics;
-    const metricDetails: string[] = [];
-    if (m.paceWpm != null) metricDetails.push(`Pace: ${Math.round(m.paceWpm)} WPM (ideal 140–155)`);
-    if (m.avgPauseMs != null) metricDetails.push(`Avg pause gap: ${Math.round(m.avgPauseMs)}ms (ideal 400–480ms)`);
-    if (m.dynamicRangeDb != null) metricDetails.push(`Dynamic range: ${m.dynamicRangeDb.toFixed(1)}dB (ideal 12–16dB)`);
-    if (m.emphasisPerMin != null) metricDetails.push(`Emphasis events: ${Math.round(m.emphasisPerMin)}/min (ideal 30–40)`);
-    if (m.pitchRangeSt != null) metricDetails.push(`Pitch variety: ${m.pitchRangeSt.toFixed(1)} semitones (ideal 6–12st)`);
-    if (m.energyByThird) {
-      const { e1, e2, e3 } = m.energyByThird;
-      const total = e1 + e2 + e3;
-      if (total > 0) {
-        const pct = (v: number) => Math.round((v / total) * 100);
-        metricDetails.push(`Energy arc: start ${pct(e1)}% → mid ${pct(e2)}% → end ${pct(e3)}% (ideal: consistent or building)`);
-      }
-    }
-    if (metricDetails.length > 0) {
-      lines.push(`\nReal-time measured values:`);
-      metricDetails.forEach((d) => lines.push(`  ${d}`));
-    }
+  const metricDetails: string[] = [];
+  if (wpm != null && wpm > 0) {
+    metricDetails.push(`Speaking pace: ${Math.round(wpm)} WPM (ideal 125–165 WPM)`);
+  }
+  if (pauseRatio != null) {
+    const pausePct = Math.round(pauseRatio * 100);
+    metricDetails.push(`Pause ratio: ${pausePct}% of recording was pauses (ideal 15–30% — enough breathing room without dragging)`);
+  }
+  if (metricDetails.length > 0) {
+    lines.push(`\nReal-time measured values:`);
+    metricDetails.forEach((d) => lines.push(`  ${d}`));
   }
 
   if (transcript && transcript.trim().length > 10) {
@@ -95,6 +85,7 @@ function buildPrompt(body: CoachingReportBody): string {
   lines.push(`- Identify their single biggest opportunity to improve and one genuine strength.`);
   lines.push(`- Do NOT use bullet points. Do NOT start with "Great job", "Fantastic", or any generic opener.`);
   lines.push(`- Speak directly to the student as "you". Be direct and warm.`);
+  lines.push(`- Only reference metrics that were actually provided. Do not invent or assume values for metrics not listed above.`);
 
   if (analyzeFillers && transcript && transcript.trim().length > 10) {
     lines.push(`\nFiller word instructions:`);
