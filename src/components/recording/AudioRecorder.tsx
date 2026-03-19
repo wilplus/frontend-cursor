@@ -633,8 +633,8 @@ export default function AudioRecorder({
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
-    <div className="w-full max-w-lg mx-auto px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5">
-      <div className={`space-y-5 ${sniperMode ? "px-2 sm:px-6 pt-0" : "p-2 sm:p-6"}`}>
+    <div className={`w-full mx-auto ${sniperMode ? "max-w-xl px-0 pt-1 pb-2 space-y-2" : "max-w-lg px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5"}`}>
+      <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
         {prompt && !sniperMode ? (
           <div className="relative w-full">
             <p
@@ -720,8 +720,8 @@ export default function AudioRecorder({
           </p>
         ) : null}
         </div>
-        <div className="space-y-1.5">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className={sniperMode ? "space-y-1" : "space-y-1.5"}>
+          <div className={`w-full overflow-hidden rounded-full bg-muted ${sniperMode ? "h-1.5" : "h-2"}`}>
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -737,7 +737,7 @@ export default function AudioRecorder({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className={sniperMode ? "space-y-2" : "space-y-3"}>
           {!isRecording ? (
             <Button
               onPointerDown={() => {
