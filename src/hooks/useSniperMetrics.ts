@@ -36,7 +36,7 @@ const WINDOW_SEC = 5;
 const SAMPLE_INTERVAL_MS = 100;
 const UPDATE_INTERVAL_MS = 500;
 /** Minimum window before we start scoring (avoids noisy first read). */
-const MIN_WINDOW_SEC = 3;
+const MIN_WINDOW_SEC = 2;
 /** Voiced ratio below this → silence gate (return gray). */
 const VOICED_RATIO_GATE = 0.06;
 
@@ -165,7 +165,7 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
       if (isSpeaking) s.voicedTotal++;
 
       // ── Flow samples ──────────────────────────────────────────────────────
-      if (now - (s.samples[0]?.t ?? 0) >= SAMPLE_INTERVAL_MS || s.samples.length === 0) {
+      if (s.samples.length === 0 || now - s.samples[s.samples.length - 1].t >= SAMPLE_INTERVAL_MS) {
         s.samples.push({ t: now, voiced: isSpeaking });
         const maxSamples = (WINDOW_SEC * 1000) / SAMPLE_INTERVAL_MS;
         while (s.samples.length > maxSamples) s.samples.shift();
