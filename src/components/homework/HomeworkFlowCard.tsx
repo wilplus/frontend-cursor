@@ -931,23 +931,15 @@ export default function HomeworkFlowCard() {
       transcript?: string;
       taskLabel?: string;
       sniperOverallScore?: number;
-      sniperTier?: string;
-      sniperMetrics?: object;
+      pauseRatio?: number;
+      wpm?: number | null;
       analyzeFillers?: boolean;
     } = {
       transcript: transcript || undefined,
       taskLabel: finalTaskText || taskText || undefined,
       sniperOverallScore: sniperSnapshot?.performanceScore,
-      sniperTier: undefined,
-      sniperMetrics: sniperSnapshot
-        ? {
-            paceWpm: sniperSnapshot.wpm ?? 0,
-            avgPauseMs: 0,
-            dynamicRangeDb: 0,
-            emphasisPerMin: 0,
-            pitchRangeSt: null,
-          }
-        : undefined,
+      pauseRatio: sniperSnapshot?.pauseRatio,
+      wpm: sniperSnapshot?.wpm ?? undefined,
       // Ask Claude to count filler words whenever we have a real transcript
       analyzeFillers: transcript.length > 10,
     };
