@@ -170,7 +170,9 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content: buildPrompt(body) }],
     });
 
-    const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
+    const toolCall = completion.choices[0]?.message?.tool_calls?.[0] as
+      | { function: { name: string; arguments: string } }
+      | undefined;
     if (!toolCall || toolCall.function.name !== "session_analysis") {
       return NextResponse.json({ error: "No structured output from model" }, { status: 502 });
     }
