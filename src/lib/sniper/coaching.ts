@@ -14,8 +14,8 @@ export function getCoachingCue(
 ): string {
   if (silenceGated) return "Speak to start…";
 
-  const flowOk = pauseRatio >= 0.15 && pauseRatio <= 0.30;
-  const paceOk = wpm !== null && wpm >= 125 && wpm <= 165;
+  const flowOk = pauseRatio >= 0.10 && pauseRatio <= 0.35;
+  const paceOk = wpm !== null && wpm >= 115 && wpm <= 170;
 
   // Both good → locked in
   if (flowOk && (wpm === null || paceOk)) return "Locked in. Keep it up.";
@@ -23,15 +23,15 @@ export function getCoachingCue(
   // Pace issues take priority when WPM is available
   if (wpm !== null && !paceOk) {
     if (wpm < 100) return "Way too slow. Pick up the pace.";
-    if (wpm < 125) return "A little slow. Speak a touch faster.";
+    if (wpm < 115) return "A little slow. Speak a touch faster.";
     if (wpm > 190) return "Too fast. Slow down and let ideas land.";
-    if (wpm > 165) return "Slightly fast. Ease the pace.";
+    if (wpm > 170) return "Slightly fast. Ease the pace.";
   }
 
   // Flow issues
   if (pauseRatio < 0.05) return "No pauses at all. Let your ideas breathe.";
-  if (pauseRatio < 0.15) return "Too rushed. Add pauses between ideas.";
-  if (pauseRatio > 0.45) return "Too many pauses. Keep the momentum going.";
+  if (pauseRatio < 0.10) return "Too rushed. Add pauses between ideas.";
+  if (pauseRatio > 0.50) return "Too many pauses. Keep the momentum going.";
   return "Slightly choppy. Smooth out the pauses.";
 }
 
