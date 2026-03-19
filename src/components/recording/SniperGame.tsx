@@ -2,10 +2,10 @@
 
 /**
  * Live Coach — Game Mode.
- * Physics ball on a 2D target.
- * Y-axis = flow (choppy ↕ good ↕ rushed).
- * X-axis = pace (always 0 until live WPM is wired).
- * Ball color = coach color (green / yellow / red).
+ * Physics ball on a 2D target. Center = perfect on both axes.
+ * Y-axis = flow:  up = too rushed (few pauses), down = too choppy (many pauses).
+ * X-axis = pace:  right = too fast, left = too slow.
+ * Ball color = coach color (green / yellow / red / gray).
  */
 
 import { useRef, useEffect, useState } from "react";
@@ -102,15 +102,17 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
   const ballX = CX + display.x;
   const ballY = CY + display.y;
   const ringColor = audioError ? COLOR.yellow : COLOR[state.coachColor] ?? COLOR.gray;
+  const isGreen = !audioError && state.coachColor === "green";
+  const isGray = state.coachColor === "gray" || state.silenceGated;
 
   const cueText = audioError
     ? "Mic signal interrupted — check your audio device."
     : state.coachingCue || "Good flow — hold it.";
 
   return (
-    <div className="w-full flex flex-col items-center pt-1 sm:pt-2 pb-3 sm:pb-4">
+    <div className="w-full flex flex-col items-center py-1">
       {taskLabel ? (
-        <p className="mb-3 text-lg sm:text-xl font-bold leading-snug text-foreground text-center">
+        <p className="mb-2 text-lg sm:text-xl font-bold leading-snug text-foreground text-center px-2">
           {taskLabel}
         </p>
       ) : null}
@@ -119,7 +121,7 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
       <div className="relative">
         <svg
           viewBox={`0 0 ${VB} ${VB}`}
-          className="w-[240px] h-[240px] sm:w-[300px] sm:h-[300px]"
+          style={{ width: "min(92vw, 56svh, 480px)", height: "min(92vw, 56svh, 480px)" }}
           aria-label={`Flow score ${state.performanceScore}%. ${cueText}`}
         >
           {/* Outer ring */}
@@ -138,8 +140,27 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
           {/* Crosshairs — only Y line visible (X always 0) */}
           <line x1={CX} y1={CY - R_OUTER} x2={CX} y2={CY + R_OUTER} stroke="#E5E7EB" strokeWidth={0.8} />
           <line x1={CX - R_OUTER} y1={CY} x2={CX + R_OUTER} y2={CY} stroke="#E5E7EB" strokeWidth={0.8} />
-          {/* Ball glow */}
-          <circle cx={ballX} cy={ballY} r={13} fill={ringColor} opacity={0.15} />
+          {/* Ball glow — idle pulse when gray, bigger + brighter when green */}
+          <circle
+            cx={ballX}
+            cy={ballY}
+            r={isGreen ? 18 : 13}
+            fill={ringColor}
+            opacity={isGreen ? 0.22 : 0.15}
+          >
+            {isGray && (
+              <>
+                <animate attributeName="r" values="10;18;10" dur="2.6s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.08;0.2;0.08" dur="2.6s" repeatCount="indefinite" />
+              </>
+            )}
+            {isGreen && (
+              <>
+                <animate attributeName="r" values="16;22;16" dur="1.8s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.18;0.28;0.18" dur="1.8s" repeatCount="indefinite" />
+              </>
+            )}
+          </circle>
           {/* Ball */}
           <circle cx={ballX} cy={ballY} r={9} fill={ringColor} opacity={0.9} />
           <circle cx={ballX} cy={ballY} r={3.5} fill="white" opacity={0.95} />
@@ -148,8 +169,8 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
         {/* Score overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <p
-            className="text-2xl font-semibold tabular-nums"
-            style={{ color: ringColor, opacity: 0.25 }}
+            className="text-4xl font-semibold tabular-nums"
+            style={{ color: ringColor, opacity: 0.22 }}
           >
             {state.silenceGated ? "—" : `${state.performanceScore}%`}
           </p>
@@ -164,7 +185,7 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
       </div>
 
       {/* Coaching strip */}
-      <div className="mt-4 w-full max-w-sm">
+      <div className="mt-3 w-full px-1">
         <div className="bg-white border border-[#E5E7EB] rounded-xl flex overflow-hidden">
           <div
             className="w-1 flex-shrink-0 rounded-l-xl"

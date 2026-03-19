@@ -1,13 +1,15 @@
 "use client";
 
 /**
- * Live Coach — flow-only real-time metrics.
- * Tracks voiced/silent from PCM (via WebAudio EnergyVAD) over a rolling 30 s window.
- * Computes pause_ratio, flow_score, performance_score, flow_offset, coach_color.
- * Smooths score with IIR filter. No WPM, no dynamic, no emphasis, no pitch.
+ * Live Coach — 2D real-time metrics.
  *
- * When live WPM is added (X-WPM header): plug in scoreFlow + scorePace → combineScores
- * and set paceOffset from WPM deviation. Everything else stays unchanged.
+ * Flow  (Y-axis): pause_ratio over a 30 s rolling window of VAD samples.
+ * Pace  (X-axis): syllable-onset WPM over a 10 s rolling window.
+ *   Each silent→voiced transition ≈ one syllable onset.
+ *   wpm = (onsets_in_window / PACE_WINDOW_SEC) × 60 / AVG_SYLLABLES_PER_WORD
+ *
+ * Performance score = 0.5 × flowScore + 0.5 × paceScore
+ *   Falls back to flowScore-only during the pace warm-up (< PACE_MIN_ONSETS).
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -15,12 +17,19 @@ import { EnergyVAD } from "@/lib/audio/vad";
 import type { LiveCoachState } from "@/lib/sniper/types";
 import {
   scoreFlow,
+  scorePace,
   computeFlowOffset,
+  computePaceOffset,
   computePerformanceScore,
   getCoachColor,
 } from "@/lib/sniper/scoring";
-import { getFlowCoachingCue } from "@/lib/sniper/coaching";
-import { SMOOTH_ALPHA } from "@/lib/sniper/constants";
+import { getCoachingCue } from "@/lib/sniper/coaching";
+import {
+  SMOOTH_ALPHA,
+  PACE_WINDOW_SEC,
+  AVG_SYLLABLES_PER_WORD,
+  PACE_MIN_ONSETS,
+} from "@/lib/sniper/constants";
 
 const TICK_MS = 50;
 const FFT_SIZE = 4096;
@@ -43,6 +52,7 @@ function defaultState(): LiveCoachState {
     flowScore: null,
     flowOffset: 0,
     paceOffset: 0,
+    wpm: null,
     coachColor: "gray",
     pauseRatio: 0,
     silenceGated: true,
@@ -69,6 +79,9 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     audioError: false,
     voicedTotal: 0,
     totalFrames: 0,
+    // ── Pace: syllable-onset tracking ────────────────────────────────────────
+    prevVoiced: false,
+    onsets: [] as number[],   // timestamps (ms) of silent→voiced transitions
   });
 
   const start = useCallback((stream: MediaStream) => {
@@ -113,6 +126,8 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     s.audioError = false;
     s.voicedTotal = 0;
     s.totalFrames = 0;
+    s.prevVoiced = false;
+    s.onsets = [];
 
     setState(defaultState());
     setAudioError(false);
@@ -142,12 +157,26 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
       s.totalFrames++;
       if (isSpeaking) s.voicedTotal++;
 
+      // ── Flow samples ──────────────────────────────────────────────────────
       if (now - (s.samples[0]?.t ?? 0) >= SAMPLE_INTERVAL_MS || s.samples.length === 0) {
         s.samples.push({ t: now, voiced: isSpeaking });
         const maxSamples = (WINDOW_SEC * 1000) / SAMPLE_INTERVAL_MS;
         while (s.samples.length > maxSamples) s.samples.shift();
       }
 
+      // ── Pace: onset detection (silent → voiced transition) ────────────────
+      if (isSpeaking && !s.prevVoiced) {
+        s.onsets.push(now);
+      }
+      s.prevVoiced = isSpeaking;
+
+      // Prune onsets outside the 10 s window continuously
+      const paceWindowMs = PACE_WINDOW_SEC * 1000;
+      while (s.onsets.length > 0 && now - s.onsets[0] > paceWindowMs) {
+        s.onsets.shift();
+      }
+
+      // ── State update every 2 s ────────────────────────────────────────────
       if (now - s.lastUpdate < UPDATE_INTERVAL_MS) return;
       s.lastUpdate = now;
 
@@ -161,6 +190,7 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
         return;
       }
 
+      // ── Flow ──────────────────────────────────────────────────────────────
       const totalSamples = samples.length;
       const silentSamples = samples.filter((x) => !x.voiced).length;
       const voicedSamples = totalSamples - silentSamples;
@@ -169,7 +199,16 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
 
       const pauseRatio = totalSamples > 0 ? silentSamples / totalSamples : 0;
 
+      // ── Pace: WPM from onset count in rolling 10 s window ─────────────────
+      // wpm = (onsets / window_sec) × 60 / avg_syllables_per_word
+      const wpm =
+        s.onsets.length >= PACE_MIN_ONSETS
+          ? (s.onsets.length / PACE_WINDOW_SEC) * 60 / AVG_SYLLABLES_PER_WORD
+          : null;
+
+      // ── Scoring ───────────────────────────────────────────────────────────
       let flowScore: number | null = null;
+      let paceScore: number | null = null;
       let performanceScore: number = s.smoothedScore ?? 0;
       let flowOffset = 0;
       let paceOffset = 0;
@@ -177,29 +216,31 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
 
       if (!silenceGated) {
         flowScore = scoreFlow(pauseRatio);
-        const rawPerf = computePerformanceScore(flowScore) ?? flowScore;
+        paceScore = wpm !== null ? scorePace(wpm) : null;
+        const rawPerf = computePerformanceScore(flowScore, paceScore) ?? flowScore;
+
         // IIR smooth
         s.smoothedScore =
           s.smoothedScore === null
             ? rawPerf
             : s.smoothedScore * (1 - SMOOTH_ALPHA) + rawPerf * SMOOTH_ALPHA;
+
         performanceScore = Math.round(s.smoothedScore);
         flowOffset = computeFlowOffset(pauseRatio);
+        paceOffset = wpm !== null ? computePaceOffset(wpm) : 0;
         coachColor = getCoachColor(performanceScore);
       } else {
         s.smoothedScore = null;
       }
 
-      const voicedDurationSec = (s.voicedTotal / s.totalFrames) * (s.totalFrames * TICK_MS / 1000);
-      void voicedDurationSec; // used externally via snapshot
-
-      const coachingCue = getFlowCoachingCue(pauseRatio, silenceGated);
+      const coachingCue = getCoachingCue(pauseRatio, silenceGated, wpm);
 
       setState({
         performanceScore,
         flowScore,
         flowOffset,
         paceOffset,
+        wpm,
         coachColor,
         pauseRatio,
         silenceGated,
@@ -224,7 +265,6 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
 
   /**
    * Snapshot for session end — capture current state for Review Summary and backend.
-   * voicedDurationSec estimated from running voiced/total frame ratio × elapsed.
    */
   const getSnapshot = useCallback(() => {
     const s = r.current;
@@ -234,8 +274,9 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
       performanceScore: state.performanceScore,
       pauseRatio: state.pauseRatio,
       voicedDurationSec: Math.round(voicedFraction * elapsedSec),
+      wpm: state.wpm,
     };
-  }, [state.performanceScore, state.pauseRatio]);
+  }, [state.performanceScore, state.pauseRatio, state.wpm]);
 
   return { ...state, audioError, start, stop, getSnapshot };
 }

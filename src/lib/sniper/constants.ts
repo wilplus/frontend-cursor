@@ -1,7 +1,8 @@
 /**
- * Live Coach — flow scoring constants.
- * Good speaking pause ratio: 0.15–0.30 of window time.
+ * Live Coach — scoring constants for flow (pause ratio) and pace (syllable-onset WPM).
  */
+
+// ── Flow ────────────────────────────────────────────────────────────────────
 
 /** Ideal pause ratio band (100 points inside). */
 export const FLOW_IDEAL_LO = 0.15;
@@ -12,6 +13,28 @@ export const FLOW_IDEAL_CENTER = 0.225;
 export const FLOW_MAX_RATIO = 0.60;
 /** Max deviation for offset normalisation (±1 at this distance from center). */
 export const FLOW_OFFSET_MAX_DEV = 0.18;
+
+// ── Pace ────────────────────────────────────────────────────────────────────
+
+/** Ideal WPM band (100 points inside). */
+export const PACE_IDEAL_LO = 125;
+export const PACE_IDEAL_HI = 165;
+/** Center of the ideal WPM band. */
+export const PACE_IDEAL_CENTER = 145;
+/** WPM below this → score 0. */
+export const PACE_SLOW_MIN = 80;
+/** WPM above this → score 0. */
+export const PACE_FAST_MAX = 210;
+/** paceOffset ±1 at this deviation from center. */
+export const PACE_OFFSET_MAX_DEV = 45;
+/** Rolling window (seconds) for onset-based WPM estimate. */
+export const PACE_WINDOW_SEC = 10;
+/** Average syllables per word in conversational English. */
+export const AVG_SYLLABLES_PER_WORD = 1.5;
+/** Minimum onsets in window before we report WPM. */
+export const PACE_MIN_ONSETS = 5;
+
+// ── Coach UI ─────────────────────────────────────────────────────────────────
 
 /** Coach color thresholds. */
 export const COACH_GREEN_THRESHOLD = 75;

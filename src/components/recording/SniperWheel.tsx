@@ -15,6 +15,13 @@ const COLOR_MAP: Record<string, string> = {
   gray: "#9CA3AF",
 };
 
+function wpmColor(wpm: number): string {
+  if (wpm >= 125 && wpm <= 165) return COLOR_MAP.green;
+  if (wpm >= 100 && wpm < 125) return COLOR_MAP.yellow;
+  if (wpm > 165 && wpm <= 190) return COLOR_MAP.yellow;
+  return COLOR_MAP.red;
+}
+
 export interface SniperWheelProps {
   state: LiveCoachState;
   taskLabel?: string;
@@ -33,41 +40,54 @@ export function SniperWheel({ state, taskLabel, audioError = false }: SniperWhee
   const pausePct = Math.round(state.pauseRatio * 100);
 
   return (
-    <div className="w-full flex flex-col items-center pt-1 sm:pt-2 pb-3 sm:pb-4">
+    <div className="w-full flex flex-col items-center py-2">
       {taskLabel ? (
-        <p className="mb-3 text-lg sm:text-xl font-bold leading-snug text-foreground text-center">
+        <p className="mb-2 text-lg sm:text-xl font-bold leading-snug text-foreground text-center px-2">
           {taskLabel}
         </p>
       ) : null}
 
-      {/* Score */}
-      <div className="flex flex-col items-center mb-6">
-        <p
-          className="text-5xl font-semibold tabular-nums"
-          style={{ color }}
-        >
-          {state.silenceGated ? "—" : `${state.performanceScore}`}
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">Flow score</p>
+      {/* Score + WPM row */}
+      <div className="flex items-end justify-center gap-6 mb-4">
+        <div className="flex flex-col items-center">
+          <p
+            className="text-7xl font-semibold tabular-nums"
+            style={{ color }}
+          >
+            {state.silenceGated ? "—" : `${state.performanceScore}`}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">Score</p>
+        </div>
+        {!state.silenceGated && (
+          <div className="flex flex-col items-center pb-1">
+            <p
+              className="text-3xl font-semibold tabular-nums"
+              style={{ color: state.wpm !== null ? wpmColor(state.wpm) : COLOR_MAP.gray }}
+            >
+              {state.wpm !== null ? Math.round(state.wpm) : "…"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">WPM</p>
+          </div>
+        )}
       </div>
 
-      {/* Flow bar */}
-      <div className="w-full max-w-xs px-2 mb-6">
-        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-          <span>Choppy</span>
-          <span>Good</span>
+      {/* Flow bar — left = Rushed (low pauseRatio), right = Choppy (high pauseRatio) */}
+      <div className="w-full max-w-sm px-4 mb-5">
+        <div className="flex justify-between text-xs text-muted-foreground mb-2">
           <span>Rushed</span>
+          <span>Good</span>
+          <span>Choppy</span>
         </div>
 
-        {/* Track */}
-        <div className="relative h-3 rounded-full overflow-hidden"
+        {/* Track — needle maps 0→0.45 to 0→100% so good band (0.15–0.30) lands at ~33–67% */}
+        <div className="relative h-4 rounded-full overflow-hidden"
           style={{ background: "linear-gradient(to right, #C94F4F 0%, #D6A23D 20%, #2E9E6F 40%, #2E9E6F 60%, #D6A23D 80%, #C94F4F 100%)" }}>
-          {/* Good-zone overlay */}
+          {/* Good-zone overlay at 33–67% */}
           <div
             className="absolute inset-y-0"
             style={{
-              left: "35%",
-              width: "30%",
+              left: "33%",
+              width: "34%",
               background: "rgba(255,255,255,0.15)",
               borderLeft: "1px solid rgba(255,255,255,0.4)",
               borderRight: "1px solid rgba(255,255,255,0.4)",
@@ -76,36 +96,36 @@ export function SniperWheel({ state, taskLabel, audioError = false }: SniperWhee
           {/* Indicator needle */}
           {!state.silenceGated && (
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-white shadow-sm"
+              className="absolute top-0 bottom-0 w-1 bg-white shadow-sm rounded-full"
               style={{
-                // Map pauseRatio 0–0.60 → 0–100%
-                left: `${Math.min(100, Math.max(0, (state.pauseRatio / 0.60) * 100))}%`,
+                // pauseRatio 0 (no pauses = rushed) → left, 0.45+ (very choppy) → right
+                left: `${Math.min(100, Math.max(0, (state.pauseRatio / 0.45) * 100))}%`,
                 transition: "left 0.4s ease",
               }}
             />
           )}
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-2">
-          {state.silenceGated ? "Speak to start…" : `${pausePct}% pause time`}
+        <p className="text-center text-sm text-muted-foreground mt-2">
+          {state.silenceGated ? "Speak to start…" : `${pausePct}% pauses`}
         </p>
       </div>
 
       {/* Coaching strip */}
-      <div className="w-full max-w-xs">
+      <div className="w-full px-1">
         <div className="bg-white border border-[#E5E7EB] rounded-xl flex overflow-hidden">
           <div
-            className="w-1 flex-shrink-0 rounded-l-xl"
+            className="w-1.5 flex-shrink-0 rounded-l-xl"
             style={{ backgroundColor: color }}
           />
-          <div className="p-3">
+          <div className="p-4">
             {audioError ? (
-              <p className="text-sm text-[#1F2933] flex items-center gap-1.5">
+              <p className="text-base text-[#1F2933] flex items-center gap-1.5">
                 <span style={{ color: COLOR_MAP.yellow }} aria-hidden>⚠</span>
                 {cue}
               </p>
             ) : (
-              <p className="text-sm text-[#1F2933]">{cue}</p>
+              <p className="text-base text-[#1F2933]">{cue}</p>
             )}
           </div>
         </div>
