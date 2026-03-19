@@ -28,6 +28,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
   const [report, setReport] = useState<HomeworkReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [fallbackAudioUrl, setFallbackAudioUrl] = useState<string | null>(null);
 
   useBodyScrollLock(open);
 
@@ -35,15 +36,25 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
     if (!open || !sessionId) {
       setReport(null);
       setReportError(null);
+      setFallbackAudioUrl(null);
       return;
     }
     setReportLoading(true);
     setReportError(null);
+    setFallbackAudioUrl(null);
     homeworkApi
       .getReport(sessionId)
       .then((data) => {
         setReport(data);
         setReportError(null);
+        // If the report came back without a playable URL, fetch a fresh one via the recording endpoint.
+        const reportAudioUrl = data.final_recording?.audio_url ?? data.recording?.audio_url ?? data.recording_1?.audio_url;
+        const recordingId = data.final_recording?.id ?? data.recording_1?.id;
+        if (!reportAudioUrl && recordingId) {
+          homeworkApi.getRecordingPlaybackUrl(recordingId).then((r) => {
+            if (r.audio_url) setFallbackAudioUrl(r.audio_url);
+          }).catch(() => {});
+        }
       })
       .catch((e) => {
         setReport(null);
@@ -91,7 +102,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
             </p>
           )}
           {report && !reportLoading && (() => {
-            const audioUrl = report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url;
+            const audioUrl = report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url ?? fallbackAudioUrl;
             const transcriptionText = (report.recording?.transcription_text ?? report.transcript ?? "").trim();
             const fillerTotal = report.recording?.filler_words_count?.total ?? report.filler_word_count ?? null;
             const fillerBreakdown = report.recording?.filler_words_count?.breakdown;
