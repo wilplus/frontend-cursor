@@ -33,6 +33,23 @@
  * Call vad.reset() whenever recording starts to clear the noise floor history.
  */
 
+/**
+ * Hard minimum absolute level for speech.
+ * If the frame RMS is below this (dBFS), energyVote is forced to 0
+ * regardless of relative SNR above the adaptive floor.
+ * This prevents ambient noise (fans, AC, keyboard) from being classified as
+ * voiced when the adaptive floor itself is very low.
+ *
+ * Typical levels:
+ *   Room ambiance / fan: –70 to –50 dBFS
+ *   Keyboard / chair:    –50 to –42 dBFS
+ *   Soft speech at mic:  –42 to –30 dBFS
+ *   Normal speech:       –30 to –15 dBFS
+ *
+ * –45 dBFS gives a safe buffer between ambient noise and quiet speech.
+ */
+const MIN_SPEECH_DBFS = -45;
+
 /** Lower edge of the speech band (Hz). */
 const SPEECH_LOW_HZ = 300;
 /** Upper edge of the speech band (Hz). */
@@ -122,15 +139,20 @@ export class EnergyVAD {
     const zcr = (zeroCrossings / timeData.length) * sampleRate;
 
     // ── 5. Feature votes (each 0–1) ──────────────────────────────────────────
-    // Energy above noise floor: need > 8 dB for a confident voice
+    // Energy above noise floor: need > 8 dB for a confident voice.
+    // Gate: if the raw level is below the absolute speech minimum, no vote —
+    // this prevents ambient noise from accumulating voiced samples when the
+    // adaptive floor is very low (e.g. dead-quiet room).
     const energyVote =
-      snrAboveFloor > 14
-        ? 1.0
-        : snrAboveFloor > 8
-          ? 0.65
-          : snrAboveFloor > 4
-            ? 0.25
-            : 0.0;
+      rmsDb < MIN_SPEECH_DBFS
+        ? 0.0
+        : snrAboveFloor > 14
+          ? 1.0
+          : snrAboveFloor > 8
+            ? 0.65
+            : snrAboveFloor > 4
+              ? 0.25
+              : 0.0;
 
     // Speech-band ratio: real speech occupies > 35% of energy in speech band
     const spectralVote =
