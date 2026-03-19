@@ -1903,21 +1903,6 @@ export default function HomeworkFlowCard() {
                 </p>
               </div>
             )}
-            {/* 3. Transcript */}
-            {transcriptionText ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
-                </div>
-              </div>
-            ) : null}
-            {/* 4. Coaching message */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <p className="text-sm text-foreground leading-relaxed">
-                {coachInsight || coachMessageFallback}
-              </p>
-            </div>
           </div>
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
             {resetting ? "Resetting…" : reportCtaLabel}
