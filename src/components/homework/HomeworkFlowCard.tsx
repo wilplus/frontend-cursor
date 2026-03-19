@@ -45,7 +45,7 @@ const DEFAULT_INTRO_EXERCISE: AssignedExercise = {
   id: "0-intro",
   title: "Intro",
   description: null,
-  video_url: "https://vimeo.com/1167696503?fl=ip&fe=ec",
+  video_url: "https://vimeo.com/1169874052?fl=ip&fe=ec",
 };
 
 function formatCountdown(ms: number): string {
