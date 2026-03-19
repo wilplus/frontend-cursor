@@ -379,40 +379,24 @@ export function BiofeedbackMode({
           </p>
         )}
 
-        {/* Radar + metric cards */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start w-full">
-          {/* LEFT — radar */}
-          <div className="flex flex-col items-center gap-2 flex-shrink-0">
-            <RadarPolygon
-              displayScores={displayScores}
-              overallScore={displayOverall}
-              tier={tier}
-            />
-            {/* tier badge */}
-            <span
-              className="text-xs font-medium px-3 py-1 rounded-full border"
-              style={{
-                color: zoneColor(displayOverall),
-                background: zoneFill(displayOverall),
-                borderColor: zoneColor(displayOverall) + "44",
-              }}
-            >
-              {zoneLabel(displayOverall)} · {TIER_LABELS[tier]}
-            </span>
-          </div>
-
-          {/* RIGHT — metric cards 2-col */}
-          <div className="grid grid-cols-2 gap-2 flex-1 w-full sm:w-auto">
-            {METRIC_DEFS.map(({ key, label, target }) => (
-              <MetricCard
-                key={key}
-                label={label}
-                value={metricValue(key, metrics)}
-                target={target}
-                score={displayScores[key as keyof SniperScores]}
-              />
-            ))}
-          </div>
+        {/* Radar */}
+        <div className="flex flex-col items-center gap-2 flex-shrink-0">
+          <RadarPolygon
+            displayScores={displayScores}
+            overallScore={displayOverall}
+            tier={tier}
+          />
+          {/* tier badge */}
+          <span
+            className="text-xs font-medium px-3 py-1 rounded-full border"
+            style={{
+              color: zoneColor(displayOverall),
+              background: zoneFill(displayOverall),
+              borderColor: zoneColor(displayOverall) + "44",
+            }}
+          >
+            {zoneLabel(displayOverall)} · {TIER_LABELS[tier]}
+          </span>
         </div>
 
         {/* Live pressure bars */}
