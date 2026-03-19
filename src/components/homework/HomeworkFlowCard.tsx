@@ -1549,7 +1549,7 @@ export default function HomeworkFlowCard() {
             </div>
           ) : (
             <>
-          <p className="text-sm font-medium text-muted-foreground mb-2">
+          <p className="text-base font-semibold text-foreground mb-2">
             How did that recording feel for you?
           </p>
           <p className="text-xs text-muted-foreground mb-3">
@@ -1646,8 +1646,8 @@ export default function HomeworkFlowCard() {
               {/* Self-rating while report generates */}
               {sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
                 <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                  <p className="text-sm font-medium text-muted-foreground">How did that recording feel for you?</p>
-                  <p className="text-xs text-muted-foreground">1 = Really off · 5 = Okay · 10 = This is how I want to sound.</p>
+                  <p className="text-base font-semibold text-foreground">How did that recording feel for you?</p>
+                  <p className="text-xs text-muted-foreground">1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.</p>
                   <div className="flex flex-wrap items-center gap-2">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                       <Button
@@ -1711,12 +1711,12 @@ export default function HomeworkFlowCard() {
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            <h3 className="text-center text-lg font-semibold">Your report</h3>
+            <h3 className="text-center text-xl font-semibold">Your report</h3>
             {/* Self-rating while report generates */}
             {sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
               <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">How did that recording feel for you?</p>
-                <p className="text-xs text-muted-foreground">1 = Really off · 5 = Okay · 10 = This is how I want to sound.</p>
+                <p className="text-base font-semibold text-foreground">How did that recording feel for you?</p>
+                <p className="text-xs text-muted-foreground">1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.</p>
                 <div className="flex flex-wrap items-center gap-2">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <Button
@@ -1781,7 +1781,7 @@ export default function HomeworkFlowCard() {
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
           {coachMessageBlock}
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            <h3 className="text-center text-lg font-semibold">Your report</h3>
+            <h3 className="text-center text-xl font-semibold">Your report</h3>
             <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
               <p className="text-sm text-foreground">
                 We couldn’t load your report right now. This can happen if the report is still being generated—try again in a moment, or start a new practice below.

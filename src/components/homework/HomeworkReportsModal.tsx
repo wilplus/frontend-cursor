@@ -137,7 +137,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
                 {/* 5. Coaching message */}
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
                   <p className="text-sm text-foreground leading-relaxed">
-                    {coachInsight || "Your coach will review this recording and send feedback to your email."}
+                    {coachInsight || "Your coach has 24 hours to analyse your practice and send feedback to your email!"}
                   </p>
                 </div>
               </div>
