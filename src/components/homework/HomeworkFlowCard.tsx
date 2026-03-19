@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import { SniperReviewSummary } from "@/components/recording/SniperReviewSummary";
-import type { SniperSessionSnapshot, UserSniperProfile } from "@/lib/sniper/types";
+import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 import { computeAdaptiveResult } from "@/lib/sniper/adaptive";
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
@@ -225,10 +225,11 @@ export default function HomeworkFlowCard() {
   const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
   /** When set, show modal with iframe for this video URL (non-Vimeo links). */
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
-  /** Sniper (voice alignment) session summary when recording completed with sniperMode. Shown on report step. */
-  const [sniperSnapshot, setSniperSnapshot] = useState<SniperSessionSnapshot | null>(null);
+  /** Live coach snapshot captured when recording completed with sniperMode. Shown on report step. */
+  const [sniperSnapshot, setSniperSnapshot] = useState<LiveCoachSnapshot | null>(null);
   /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
-  const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [sniperProfile, setSniperProfile] = useState<any>(null);
   /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
@@ -936,15 +937,15 @@ export default function HomeworkFlowCard() {
     } = {
       transcript: transcript || undefined,
       taskLabel: finalTaskText || taskText || undefined,
-      sniperOverallScore: sniperSnapshot?.overallScore,
-      sniperTier: sniperSnapshot?.tier,
+      sniperOverallScore: sniperSnapshot?.performanceScore,
+      sniperTier: undefined,
       sniperMetrics: sniperSnapshot
         ? {
-            paceWpm: sniperSnapshot.sessionMeans.paceWpm,
-            avgPauseMs: sniperSnapshot.sessionMeans.avgPauseMs,
-            dynamicRangeDb: sniperSnapshot.sessionMeans.dynamicRangeDb,
-            emphasisPerMin: sniperSnapshot.sessionMeans.emphasisPerMin,
-            pitchRangeSt: sniperSnapshot.sessionMeans.pitchRangeSt ?? null,
+            paceWpm: sniperSnapshot.wpm ?? 0,
+            avgPauseMs: 0,
+            dynamicRangeDb: 0,
+            emphasisPerMin: 0,
+            pitchRangeSt: null,
           }
         : undefined,
       // Ask Claude to count filler words whenever we have a real transcript
@@ -1569,18 +1570,17 @@ export default function HomeworkFlowCard() {
           <AudioRecorder
             prompt={warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
             onRecordingComplete={handleRecording1Complete}
-            onTranscriptAvailable={(t) => { if (t) { localTranscriptRef.current = t; setLocalTranscript(t); } }}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
               const body: {
-                session_means: typeof snapshot.sessionMeans;
+                session_means: { paceWpm: number; avgPauseMs: number; dynamicRangeDb: number; emphasisPerMin: number; energyRatio: null; voicedDurationSec: number };
                 stage_score: number;
                 voiced_duration_sec: number;
                 session_id?: string;
               } = {
-                session_means: snapshot.sessionMeans,
-                stage_score: snapshot.overallScore,
-                voiced_duration_sec: snapshot.sessionMeans.voicedDurationSec,
+                session_means: { paceWpm: snapshot.wpm ?? 0, avgPauseMs: 0, dynamicRangeDb: 0, emphasisPerMin: 0, energyRatio: null, voicedDurationSec: snapshot.voicedDurationSec },
+                stage_score: snapshot.performanceScore,
+                voiced_duration_sec: snapshot.voicedDurationSec,
               };
               if (sessionId && sessionId !== "mock-session") body.session_id = sessionId;
               fetch("/api/user/sniper-profile", {
@@ -1725,7 +1725,7 @@ export default function HomeworkFlowCard() {
             <h3 className="text-center text-xl font-semibold">Your report</h3>
             {coachMessageBlock}
             {sniperSnapshot ? (
-              <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+              <SniperReviewSummary snapshot={sniperSnapshot} />
             ) : null}
             <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
               {/* Claude coaching available immediately from live transcript */}
@@ -1861,14 +1861,7 @@ export default function HomeworkFlowCard() {
     // Sniper display score — same calculation as SniperReviewSummary so the chart always matches.
     // Patches the most-recent history entry when the backend stored 0 due to the race condition.
     const sniperDisplayScore = sniperSnapshot
-      ? Math.round(
-          computeAdaptiveResult(
-            sniperProfile,
-            sniperSnapshot.overallScore,
-            sniperSnapshot.sessionMeans,
-            sniperSnapshot.sessionMeans.energyRatio != null,
-          ).displayScore,
-        )
+      ? Math.round(computeAdaptiveResult(sniperSnapshot.performanceScore).displayScore)
       : null;
 
     // Apply patch to full-report chart data (simplified path patched separately below).
@@ -1929,7 +1922,7 @@ export default function HomeworkFlowCard() {
           <h3 className="text-center text-xl font-semibold">Your report</h3>
           {coachMessageBlock}
           {sniperSnapshot ? (
-            <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+            <SniperReviewSummary snapshot={sniperSnapshot} />
           ) : null}
           {/* Self-rate (1–10) fallback if user landed on report without doing step 2; uses same homework self-rating API. */}
           {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
@@ -2077,7 +2070,7 @@ export default function HomeworkFlowCard() {
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         {coachMessageBlock}
         {sniperSnapshot ? (
-          <SniperReviewSummary snapshot={sniperSnapshot} profile={sniperProfile} />
+          <SniperReviewSummary snapshot={sniperSnapshot} />
         ) : null}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           {reportError && (
