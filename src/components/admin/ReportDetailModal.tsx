@@ -200,7 +200,7 @@ export default function ReportDetailModal({
 
               {/* 2. Playback */}
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Recording</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
                 {audioUrl ? (
                   <audio controls src={audioUrl} className="w-full max-w-md rounded-lg border border-border" />
                 ) : (
@@ -232,7 +232,7 @@ export default function ReportDetailModal({
               {/* 5. Coaching message */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm text-foreground leading-relaxed">
-                  {coachInsight || "No coaching message yet."}
+                  {coachInsight || "Your coach has 24 hours to analyse your practice and send feedback to your email!"}
                 </p>
               </div>
 

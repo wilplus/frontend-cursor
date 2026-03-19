@@ -9,6 +9,7 @@
 import { useCallback, useRef, useState } from "react";
 import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
 import { detectPitchHz, hzToSemitones } from "@/lib/audio/pitch-detector";
+import { EnergyVAD } from "@/lib/audio/vad";
 import type { MetricConfidence, SniperMetricState, SniperState } from "@/lib/sniper/types";
 import { computeScores, computeOverallScore, getTierFromScore } from "@/lib/sniper/scoring";
 import { getPrimaryCoachingCue } from "@/lib/sniper/coaching";
@@ -18,7 +19,6 @@ const TICK_MS = 50;
 const FFT_SIZE = 4096;
 const SUB_FRAMES = 2;
 const SYL_PER_WORD = 1.4;
-const VOICE_RMS = 0.006;
 const WINDOW_SEC = 30;
 const UPDATE_INTERVAL_MS = 2000;
 const SAMPLE_INTERVAL_MS = 100;
@@ -104,6 +104,9 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     lastTick: 0,
     lastUpdate: 0,
     buf: null as Float32Array | null,
+    /** Frequency-domain buffer for EnergyVAD (length = FFT_SIZE / 2). */
+    bufFreq: null as Float32Array | null,
+    vad: new EnergyVAD(),
     syl: new SyllableRateDetector(SUB_FRAMES * (1000 / TICK_MS), 3),
     samples: [] as Sample[],
     sessionRmsSum: 0,
@@ -164,6 +167,8 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
     s.ctx = ctx;
     s.analyser = an;
     s.buf = new Float32Array(FFT_SIZE);
+    s.bufFreq = new Float32Array(FFT_SIZE / 2);
+    s.vad.reset();
     s.lastTick = performance.now();
     s.lastUpdate = performance.now();
     s.syl.reset();
@@ -187,19 +192,29 @@ export function useSniperMetrics(sessionStartTimeRef: { current: number | null }
       if (elapsed < TICK_MS) return;
       s.lastTick = now;
 
-      if (!s.analyser || !s.buf || !s.ctx) return;
+      if (!s.analyser || !s.buf || !s.bufFreq || !s.ctx) return;
       if (s.ctx.state === "suspended") {
         s.ctx.resume();
         return;
       }
 
       s.analyser.getFloatTimeDomainData(s.buf as Float32Array<ArrayBuffer>);
+      s.analyser.getFloatFrequencyData(s.bufFreq as Float32Array<ArrayBuffer>);
+
       const len = s.buf.length;
       let sum = 0;
       for (let i = 0; i < len; i++) sum += s.buf[i] * s.buf[i];
       const rms = Math.sqrt(sum / len);
       const db = 20 * Math.log10(rms + 1e-8);
-      const voiced = rms > VOICE_RMS;
+
+      // Multi-feature VAD: gates voiced flag so tremor/noise don't corrupt metrics.
+      const { isSpeaking } = s.vad.process(
+        s.bufFreq as Float32Array,
+        s.buf as Float32Array,
+        s.ctx.sampleRate,
+        FFT_SIZE,
+      );
+      const voiced = isSpeaking;
 
       // Pitch detection: run every PITCH_DETECT_INTERVAL_MS on voiced frames.
       // Uses Hamming-windowed autocorrelation on the same time-domain buffer.
