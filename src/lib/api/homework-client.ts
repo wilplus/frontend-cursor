@@ -301,12 +301,13 @@ export const homeworkApi = {
     sessionId: string,
     blob: Blob,
     durationSeconds: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    transcriptText?: string
   ): Promise<
     | HomeworkRecording1Response
     | { alreadyAtStep2: true; task_block: TaskBlockV2; status?: string }
   > {
-    console.info("[HomeworkFlow] uploadRecording1 start", { sessionId: sessionId.slice(0, 8) + "…", blobSize: blob.size, blobType: blob.type, durationSeconds });
+    console.info("[HomeworkFlow] uploadRecording1 start", { sessionId: sessionId.slice(0, 8) + "…", blobSize: blob.size, blobType: blob.type, durationSeconds, hasTranscript: !!transcriptText });
     const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "1", signal);
     if ("already_past_step" in uploadUrlResult && uploadUrlResult.already_past_step && uploadUrlResult.task_block) {
       console.info("[HomeworkFlow] uploadRecording1 already_past_step — skipping blob upload");
@@ -320,12 +321,14 @@ export const homeworkApi = {
       | { upload_url: string; storage_path: string }
       | { bucket: string; storage_path: string };
     const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
-    console.info("[HomeworkFlow] uploadRecording1 POSTing recording-1", { storage_path, durationSeconds });
+    console.info("[HomeworkFlow] uploadRecording1 POSTing recording-1", { storage_path, durationSeconds, hasTranscript: !!transcriptText });
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const postBody: Record<string, unknown> = { storage_path, duration_seconds: durationSeconds };
+    if (transcriptText) postBody.transcript_text = transcriptText;
     const res = await fetch(`${BASE}/session/${sessionId}/recording-1`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ storage_path, duration_seconds: durationSeconds }),
+      body: JSON.stringify(postBody),
       signal,
       credentials,
     });

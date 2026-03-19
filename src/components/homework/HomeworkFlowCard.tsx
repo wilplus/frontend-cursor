@@ -184,6 +184,8 @@ export default function HomeworkFlowCard() {
   const [claudeLoading, setClaudeLoading] = useState(false);
   /** Live-transcribed text from Web Speech API (set immediately when recording stops). */
   const [localTranscript, setLocalTranscript] = useState("");
+  /** Ref mirror of localTranscript — readable synchronously inside handleRecording1Complete (state is batched). */
+  const localTranscriptRef = useRef("");
   /** Claude-analysed filler word counts (returned when analyzeFillers: true in coaching-report). */
   const [claudeFillerWords, setClaudeFillerWords] = useState<{ total: number; breakdown: Record<string, number> } | null>(null);
   /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
@@ -1007,7 +1009,7 @@ export default function HomeworkFlowCard() {
     setStep(2);
 
     try {
-      const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal);
+      const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal, localTranscriptRef.current || undefined);
       const backendStatus = (res as { status?: string }).status;
       const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "task_block";
       applyStatusToState({
@@ -1567,7 +1569,7 @@ export default function HomeworkFlowCard() {
           <AudioRecorder
             prompt={warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
             onRecordingComplete={handleRecording1Complete}
-            onTranscriptAvailable={(t) => { if (t) setLocalTranscript(t); }}
+            onTranscriptAvailable={(t) => { if (t) { localTranscriptRef.current = t; setLocalTranscript(t); } }}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
               const body: {
