@@ -115,6 +115,7 @@ export interface AdminSessionReportResponse {
   strength_metric?: string | null;
   pace_metric?: string | null;
   coach_insight?: string | null;
+  performance_history?: Array<{ date: string; score: number }>;
   /** Coach grade 1–10 or null (not graded). */
   coach_grade?: number | null;
 }

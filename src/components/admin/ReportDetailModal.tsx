@@ -7,6 +7,7 @@ import { adminApi, type AdminSessionReportResponse } from "@/lib/api/admin-clien
 import { Button } from "@/components/ui/button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { toast } from "sonner";
+import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 
 function formatFillerBreakdown(breakdown: Record<string, number> | undefined): string {
   if (!breakdown || typeof breakdown !== "object") return "";
@@ -186,117 +187,38 @@ export default function ReportDetailModal({
 
           {!loading && (
             <>
-              {/* Final recording — same as student "Your recording" */}
+              {/* 1. Progress chart */}
+              {(() => {
+                const lastFive = report?.performance_history?.length ? report.performance_history.slice(-5) : [];
+                const chartData = lastFive.length > 0
+                  ? lastFive.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
+                  : scores?.overall != null
+                    ? [{ sessionLabel: "S1", date: session?.created_at ?? new Date().toISOString(), score: Math.round(scores.overall) }]
+                    : [];
+                return chartData.length > 0 ? <ProgressOverSessionsChart data={chartData} /> : null;
+              })()}
+
+              {/* 2. Playback */}
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">
-                  Final recording
-                </p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
                 {audioUrl ? (
-                  <audio
-                    controls
-                    src={audioUrl}
-                    className="w-full max-w-md rounded-lg border border-border"
-                  />
+                  <audio controls src={audioUrl} className="w-full max-w-md rounded-lg border border-border" />
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Recording playback not available.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Recording playback not available.</p>
                 )}
               </div>
 
-              {/* Transcript */}
-              {transcriptionText ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Transcript
-                  </p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[40vh] overflow-y-auto">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-                      {transcriptionText}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Filler words */}
+              {/* 3. Filler words */}
               {fillerTotal != null && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Filler words
-                  </p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
                   <p className="text-sm text-foreground">
                     {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
-                    {formatFillerBreakdown(fillerBreakdown)
-                      ? ` (${formatFillerBreakdown(fillerBreakdown)})`
-                      : ""}
-                    .
+                    {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
                   </p>
                 </div>
               )}
 
-              {/* Metrics: Pace & Strength — same as student */}
-              {(pace || strength) ? (
-                <div className="flex flex-wrap gap-6">
-                  {pace ? (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Pace
-                      </p>
-                      <p className="text-sm text-foreground">{pace}</p>
-                    </div>
-                  ) : null}
-                  {strength ? (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
-                        Strength
-                      </p>
-                      <p className="text-sm text-foreground">{strength}</p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {/* Scores */}
-              {scores && (
-                <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
-                  <span>
-                    <span className="text-muted-foreground">Warm-up:</span>{" "}
-                    {scores.warmup != null ? Math.round(scores.warmup * 100) : "—"}
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">Final:</span>{" "}
-                    {scores.final != null ? Math.round(scores.final * 100) : "—"}
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">Overall:</span>{" "}
-                    {scores.overall != null ? Math.round(scores.overall * 100) : "—"}
-                  </span>
-                </div>
-              )}
-
-              {/* Report text — main content (same as student) */}
-              <div className="min-h-0">
-                <p className="text-sm font-medium text-muted-foreground mb-2">
-                  Report
-                </p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[50vh] overflow-y-auto">
-                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed break-words">
-                    {reportText || "No report text available."}
-                  </p>
-                </div>
-              </div>
-
-              {/* Coach insight */}
-              {coachInsight ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Coach insight
-                  </p>
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {coachInsight}
-                  </p>
-                </div>
-              ) : null}
 
               {session?.status === "completed" && (
               <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
