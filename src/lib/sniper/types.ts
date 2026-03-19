@@ -46,3 +46,82 @@ export interface LiveCoachSnapshot {
   voicedDurationSec: number;
   wpm: number | null;
 }
+
+// ── Legacy types — kept for API routes and HomeworkFlowCard compatibility ─────
+
+/** Per-session acoustic means sent to the adaptive-baseline API routes. */
+export interface SniperSessionMeans {
+  paceWpm: number;
+  avgPauseMs: number;
+  dynamicRangeDb: number;
+  emphasisPerMin: number;
+  energyRatio: number | null;
+  voicedDurationSec: number;
+  pitchRangeSt?: number | null;
+}
+
+/** Tier labels used by the legacy 6-metric sniper wheel. */
+export type SniperTier =
+  | "executive_calibrated"
+  | "stage_ready"
+  | "structured"
+  | "developing_control"
+  | "unstable_delivery";
+
+/** Per-segment scores from the legacy 6-metric wheel. */
+export interface SniperScores {
+  pace: number;
+  pause: number;
+  dynamic: number;
+  emphasis: number;
+  energy: number;
+  pitch: number;
+}
+
+/** Snapshot used by HomeworkFlowCard review step (legacy). */
+export interface SniperSessionSnapshot {
+  overallScore: number;
+  tier: SniperTier;
+  strongestSegment: keyof SniperScores;
+  needsWorkSegment: keyof SniperScores;
+  fatigueDetected: boolean;
+  sessionMeans: SniperSessionMeans;
+}
+
+/** Per-user adaptive baseline stored in user_sniper_profile. */
+export interface UserSniperProfile {
+  user_id: string;
+  session_count: number;
+  sessions_with_energy_count: number;
+  baseline_wpm: number | null;
+  baseline_pause_ms: number | null;
+  baseline_dynamic_db: number | null;
+  baseline_emphasis_per_min: number | null;
+  baseline_energy_ratio: number | null;
+  baseline_pitch_range_st?: number | null;
+  baseline_fatigue_sec?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Growth computation result (legacy). */
+export interface SniperGrowthResult {
+  growthScore: number;
+  displayScore: number;
+  stageScore: number;
+  baselineReady: boolean;
+  sessionCount: number;
+}
+
+/** Per-metric real-time state from the legacy 6-metric hook (used by BiofeedbackMode). */
+export interface SniperMetricState {
+  paceWpm: number;
+  avgPauseMs: number;
+  longestPauseMs: number;
+  speechDensity: number;
+  dynamicRangeDb: number;
+  emphasisPerMin: number;
+  energyByThird: { e1: number; e2: number; e3: number } | null;
+  pitchRangeSt: number | null;
+  sessionDurationSec: number;
+}
