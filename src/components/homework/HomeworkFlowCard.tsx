@@ -25,9 +25,7 @@ import HomeworkReportsModal from "@/components/homework/HomeworkReportsModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { SniperReviewSummary } from "@/components/recording/SniperReviewSummary";
-import type { SniperSessionSnapshot, UserSniperProfile } from "@/lib/sniper/types";
-import { computeAdaptiveResult } from "@/lib/sniper/adaptive";
+import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -216,10 +214,8 @@ export default function HomeworkFlowCard() {
   const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
   /** When set, show modal with iframe for this video URL (non-Vimeo links). */
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
-  /** Sniper (voice alignment) session summary when recording completed with sniperMode. Shown on report step. */
-  const [sniperSnapshot, setSniperSnapshot] = useState<SniperSessionSnapshot | null>(null);
-  /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
-  const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
+  /** Live coach snapshot captured when recording completed. Used to patch report chart. */
+  const [sniperSnapshot, setSniperSnapshot] = useState<LiveCoachSnapshot | null>(null);
   /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
@@ -872,25 +868,6 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [step, pendingRetrySelfRating]);
 
-  // Fetch sniper profile when on recording step (for adaptive baseline / growth).
-  // Deferred and with timeout so a slow/hanging API never blocks the Record button.
-  useEffect(() => {
-    if (step !== 1) return;
-    const timeoutMs = 8000;
-    const delayMs = 300;
-    const tid = setTimeout(() => {
-      const ac = new AbortController();
-      const timeoutId = setTimeout(() => ac.abort(), timeoutMs);
-      fetch("/api/user/sniper-profile", { signal: ac.signal })
-        .then((r) => (r.status === 404 ? null : r.json()))
-        .then((data) => {
-          if (data && typeof data.user_id === "string") setSniperProfile(data);
-        })
-        .catch(() => {})
-        .finally(() => clearTimeout(timeoutId));
-    }, delayMs);
-    return () => clearTimeout(tid);
-  }, [step]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1488,27 +1465,6 @@ export default function HomeworkFlowCard() {
             onRecordingComplete={handleRecording1Complete}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
-              const body: {
-                session_means: typeof snapshot.sessionMeans;
-                stage_score: number;
-                voiced_duration_sec: number;
-                session_id?: string;
-              } = {
-                session_means: snapshot.sessionMeans,
-                stage_score: snapshot.overallScore,
-                voiced_duration_sec: snapshot.sessionMeans.voicedDurationSec,
-              };
-              if (sessionId && sessionId !== "mock-session") body.session_id = sessionId;
-              fetch("/api/user/sniper-profile", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-              })
-                .then((r) => r.json())
-                .then((data) => {
-                  if (data && typeof data.session_count === "number") setSniperProfile(data);
-                })
-                .catch(() => {});
             }}
             stopAndSend
             uploading={isUploadingRec1}
@@ -1829,17 +1785,9 @@ export default function HomeworkFlowCard() {
 
     const coachMessageFallback = "Your coach has 24 hours to analyse your practice and send a feedback on your email!";
 
-    // Sniper display score — same calculation as SniperReviewSummary so the chart always matches.
-    // Patches the most-recent history entry when the backend stored 0 due to the race condition.
+    // Sniper display score — patch the chart's most-recent entry when backend stored 0.
     const sniperDisplayScore = sniperSnapshot
-      ? Math.round(
-          computeAdaptiveResult(
-            sniperProfile,
-            sniperSnapshot.overallScore,
-            sniperSnapshot.sessionMeans,
-            sniperSnapshot.sessionMeans.energyRatio != null,
-          ).displayScore,
-        )
+      ? Math.round(sniperSnapshot.performanceScore)
       : null;
 
     // Apply patch to full-report chart data (simplified path patched separately below).

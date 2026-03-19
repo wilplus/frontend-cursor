@@ -12,8 +12,7 @@ import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
 import { SniperWheel } from "@/components/recording/SniperWheel";
 import { SniperGame } from "@/components/recording/SniperGame";
-import { buildSniperSnapshot } from "@/lib/sniper/types";
-import type { SniperSessionSnapshot } from "@/lib/sniper/types";
+import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 
@@ -80,7 +79,7 @@ interface AudioRecorderProps {
   /** When true, show Sniper Wheel (5-segment voice alignment) instead of strength/pace dartboard */
   sniperMode?: boolean;
   /** When sniperMode and recording completes, called with session summary snapshot for Review. */
-  onSniperSnapshot?: (snapshot: SniperSessionSnapshot) => void;
+  onSniperSnapshot?: (snapshot: LiveCoachSnapshot) => void;
 }
 
 export default function AudioRecorder({
@@ -131,7 +130,7 @@ export default function AudioRecorder({
 
   const realtimeStrengthPace = useRealtimeStrengthPace();
   const sniperMetrics = useSniperMetrics(startTimeRef);
-  const lastSniperSnapshotRef = useRef<SniperSessionSnapshot | null>(null);
+  const lastSniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   const stopRealtimeRef = useRef(() => {
     if (sniperMode) sniperMetrics.stop();
     else realtimeStrengthPace.stop();
@@ -143,9 +142,9 @@ export default function AudioRecorder({
 
   useEffect(() => {
     if (sniperMode && sniperMetrics.isActive) {
-      lastSniperSnapshotRef.current = buildSniperSnapshot(sniperMetrics);
+      lastSniperSnapshotRef.current = sniperMetrics.getSnapshot();
     }
-  }, [sniperMode, sniperMetrics.isActive, sniperMetrics.overallScore, sniperMetrics.tier, sniperMetrics.scores, sniperMetrics.metrics, sniperMetrics.energyAvailable]);
+  }, [sniperMode, sniperMetrics.isActive, sniperMetrics.performanceScore, sniperMetrics.pauseRatio]);
 
   // #region agent log
   const parentLogRef = useRef({ last: 0, lastActive: false });
@@ -691,21 +690,13 @@ export default function AudioRecorder({
               {sniperMode ? (
                 sniperViewMode === "game" ? (
                   <SniperGame
-                    scores={sniperMetrics.scores}
-                    overallScore={sniperMetrics.overallScore}
-                    tier={sniperMetrics.tier}
-                    coachingCue={sniperMetrics.coachingCue}
-                    metrics={sniperMetrics.metrics}
+                    state={sniperMetrics}
                     taskLabel={prompt || undefined}
                     audioError={sniperMetrics.audioError}
                   />
                 ) : (
                   <SniperWheel
-                    scores={sniperMetrics.scores}
-                    overallScore={sniperMetrics.overallScore}
-                    tier={sniperMetrics.tier}
-                    coachingCue={sniperMetrics.coachingCue}
-                    metrics={sniperMetrics.metrics}
+                    state={sniperMetrics}
                     taskLabel={prompt || undefined}
                     audioError={sniperMetrics.audioError}
                   />
