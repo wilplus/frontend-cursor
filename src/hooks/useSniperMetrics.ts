@@ -32,11 +32,11 @@ import {
 
 const TICK_MS = 50;
 const FFT_SIZE = 4096;
-const WINDOW_SEC = 5;
+const WINDOW_SEC = 12;
 const SAMPLE_INTERVAL_MS = 100;
 const UPDATE_INTERVAL_MS = 500;
 /** Minimum window before we start scoring (avoids noisy first read). */
-const MIN_WINDOW_SEC = 2;
+const MIN_WINDOW_SEC = 3;
 /** Voiced ratio below this → silence gate (return gray). */
 const VOICED_RATIO_GATE = 0.06;
 
