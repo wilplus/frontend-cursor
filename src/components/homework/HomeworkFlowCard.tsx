@@ -1625,10 +1625,10 @@ export default function HomeworkFlowCard() {
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
         <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
-          <p className="text-sm font-medium text-muted-foreground mb-2">
+          <p className="text-lg font-bold leading-snug text-foreground mb-2">
             How did that recording feel for you?
           </p>
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="text-sm text-muted-foreground mb-3">
             1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
           </p>
           {/* Subtle inline status — no full-screen spinner */}
