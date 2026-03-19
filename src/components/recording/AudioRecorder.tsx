@@ -10,10 +10,9 @@ import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
-import { BiofeedbackMode } from "@/components/recording/BiofeedbackMode";
+import { SniperWheel } from "@/components/recording/SniperWheel";
 import { SniperGame } from "@/components/recording/SniperGame";
-import { buildSniperSnapshot } from "@/lib/sniper/types";
-import type { SniperSessionSnapshot } from "@/lib/sniper/types";
+import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 
@@ -80,9 +79,7 @@ interface AudioRecorderProps {
   /** When true, show Sniper Wheel (5-segment voice alignment) instead of strength/pace dartboard */
   sniperMode?: boolean;
   /** When sniperMode and recording completes, called with session summary snapshot for Review. */
-  onSniperSnapshot?: (snapshot: SniperSessionSnapshot) => void;
-  /** Called with the live-transcribed text when recording stops (Web Speech API; Chrome/Edge only). */
-  onTranscriptAvailable?: (transcript: string) => void;
+  onSniperSnapshot?: (snapshot: LiveCoachSnapshot) => void;
 }
 
 export default function AudioRecorder({
@@ -98,7 +95,6 @@ export default function AudioRecorder({
   prompt,
   sniperMode = false,
   onSniperSnapshot,
-  onTranscriptAvailable,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -125,11 +121,6 @@ export default function AudioRecorder({
   const pauseRequestedRef = useRef(false);
   /** Start mic request on pointer down so the permission prompt runs in the same user gesture (helps Safari/iOS). */
   const streamPromiseRef = useRef<Promise<MediaStream> | null>(null);
-  /** Web Speech API recognition instance (Chrome/Edge only). Null on unsupported browsers. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const speechRecognitionRef = useRef<any | null>(null);
-  /** Accumulated final transcript from Web Speech API. */
-  const speechTranscriptRef = useRef<string>("");
   const setIsPausedRef = useRef(setIsPaused);
   const setIsRecordingRef = useRef(setIsRecording);
   const setElapsedSecondsRef = useRef(setElapsedSeconds);
@@ -139,7 +130,7 @@ export default function AudioRecorder({
 
   const realtimeStrengthPace = useRealtimeStrengthPace();
   const sniperMetrics = useSniperMetrics(startTimeRef);
-  const lastSniperSnapshotRef = useRef<SniperSessionSnapshot | null>(null);
+  const lastSniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   const stopRealtimeRef = useRef(() => {
     if (sniperMode) sniperMetrics.stop();
     else realtimeStrengthPace.stop();
@@ -151,10 +142,21 @@ export default function AudioRecorder({
 
   useEffect(() => {
     if (sniperMode && sniperMetrics.isActive) {
-      lastSniperSnapshotRef.current = buildSniperSnapshot(sniperMetrics);
+      lastSniperSnapshotRef.current = sniperMetrics.getSnapshot();
     }
-  }, [sniperMode, sniperMetrics.isActive, sniperMetrics.overallScore, sniperMetrics.tier, sniperMetrics.scores, sniperMetrics.metrics, sniperMetrics.energyAvailable]);
+  }, [sniperMode, sniperMetrics.isActive, sniperMetrics.performanceScore, sniperMetrics.pauseRatio]);
 
+  // #region agent log
+  const parentLogRef = useRef({ last: 0, lastActive: false });
+  useEffect(() => {
+    const { isActive, targetX, targetY, score } = realtimeStrengthPace;
+    const now = Date.now();
+    if (isActive !== parentLogRef.current.lastActive || now - parentLogRef.current.last > 1500) {
+      parentLogRef.current = { last: now, lastActive: isActive };
+      fetch('http://127.0.0.1:7242/ingest/9fb51955-8d8a-45a5-8be0-0c14c26dafe1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AudioRecorder.tsx:render',message:'parent passing to dartboard',data:{isActive,targetX,targetY,score},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    }
+  }, [realtimeStrengthPace.isActive, realtimeStrengthPace.targetX, realtimeStrengthPace.targetY, realtimeStrengthPace.score]);
+  // #endregion
 
   // Detect MIME support on mount — always resolve so we never stick on "Checking audio support..."
   useEffect(() => {
@@ -242,20 +244,12 @@ export default function AudioRecorder({
             Math.floor((endTime - startTimeRef.current) / 1000)
           );
           setIsRecordingRef.current(false);
-          // Stop speech recognition and harvest transcript
-          try {
-            speechRecognitionRef.current?.stop();
-          } catch { /* ignore */ }
-          speechRecognitionRef.current = null;
-          const transcript = speechTranscriptRef.current.trim();
-
           if (durationSeconds < minDurationSeconds) {
             toast.error("Session must be at least 1 minute. Please record again.");
             chunksRef.current = [];
             startTimeRef.current = null;
             setElapsedSecondsRef.current?.(0);
           } else {
-            if (transcript) onTranscriptAvailable?.(transcript);
             if (lastSniperSnapshotRef.current != null && onSniperSnapshot) {
               onSniperSnapshot(lastSniperSnapshotRef.current);
             }
@@ -317,32 +311,6 @@ export default function AudioRecorder({
       onRecordingStart?.();
       if (sniperMode) sniperMetrics.start(stream);
       else realtimeStrengthPace.start(stream);
-
-      // Start Web Speech API live transcription (Chrome/Edge; graceful no-op elsewhere)
-      speechTranscriptRef.current = "";
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SR = (typeof window !== "undefined") ? ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) : null;
-        if (SR) {
-          const recog = new SR();
-          recog.continuous = true;
-          recog.interimResults = false;
-          recog.lang = "en-US";
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          recog.onresult = (e: any) => {
-            for (let i = e.resultIndex; i < e.results.length; i++) {
-              if (e.results[i].isFinal) {
-                speechTranscriptRef.current += e.results[i][0].transcript + " ";
-              }
-            }
-          };
-          recog.onerror = () => { /* ignore: transcript is best-effort */ };
-          recog.start();
-          speechRecognitionRef.current = recog;
-        }
-      } catch {
-        // Speech API unavailable — transcript will be empty, Claude will work from metrics only
-      }
 
       timerIntervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
@@ -665,8 +633,8 @@ export default function AudioRecorder({
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
-    <div className="w-full max-w-lg mx-auto px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5">
-      <div className={`space-y-5 ${sniperMode ? "px-2 sm:px-6 pt-0" : "p-2 sm:p-6"}`}>
+    <div className={`w-full mx-auto ${sniperMode ? "max-w-xl px-0 pt-1 pb-2 space-y-2" : "max-w-lg px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5"}`}>
+      <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
         {prompt && !sniperMode ? (
           <div className="relative w-full">
             <p
@@ -722,21 +690,13 @@ export default function AudioRecorder({
               {sniperMode ? (
                 sniperViewMode === "game" ? (
                   <SniperGame
-                    scores={sniperMetrics.scores}
-                    overallScore={sniperMetrics.overallScore}
-                    tier={sniperMetrics.tier}
-                    coachingCue={sniperMetrics.coachingCue}
-                    metrics={sniperMetrics.metrics}
+                    state={sniperMetrics}
                     taskLabel={prompt || undefined}
                     audioError={sniperMetrics.audioError}
                   />
                 ) : (
-                  <BiofeedbackMode
-                    scores={sniperMetrics.scores}
-                    overallScore={sniperMetrics.overallScore}
-                    tier={sniperMetrics.tier}
-                    coachingCue={sniperMetrics.coachingCue}
-                    metrics={sniperMetrics.metrics}
+                  <SniperWheel
+                    state={sniperMetrics}
                     taskLabel={prompt || undefined}
                     audioError={sniperMetrics.audioError}
                   />
@@ -760,8 +720,8 @@ export default function AudioRecorder({
           </p>
         ) : null}
         </div>
-        <div className="space-y-1.5">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className={sniperMode ? "space-y-1" : "space-y-1.5"}>
+          <div className={`w-full overflow-hidden rounded-full bg-muted ${sniperMode ? "h-1.5" : "h-2"}`}>
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -777,7 +737,7 @@ export default function AudioRecorder({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className={sniperMode ? "space-y-2" : "space-y-3"}>
           {!isRecording ? (
             <Button
               onPointerDown={() => {

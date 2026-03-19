@@ -1,331 +1,131 @@
 "use client";
 
 /**
- * Sniper Wheel — Light theme: premium performance dashboard.
- * Apple Health + Notion + F1 telemetry, minimal. Clean, intelligent, calm.
+ * Live Coach — Coach Mode.
+ * Shows a single Flow bar (Choppy ↔ Good ↔ Rushed) + overall score + coaching cue.
+ * Simple, readable, no wheel.
  */
 
-import type { SniperScores, SniperTier } from "@/lib/sniper/types";
-import type { SniperMetricState } from "@/lib/sniper/types";
+import type { LiveCoachState } from "@/lib/sniper/types";
 
-const VIEWBOX = 360;
-const CENTER = 180;
-const INNER_R = 50;
-const OUTER_R = 115;
-const SEGMENTS = 6;
-const ANGLE_PER = 360 / SEGMENTS;
-
-const LIGHT = {
-  bgPage: "#F7F8FA",
-  card: "#FFFFFF",
-  primaryText: "#1F2933",
-  secondaryText: "#6B7280",
-  microLabel: "#9CA3AF",
-  border: "#E5E7EB",
+const COLOR_MAP: Record<string, string> = {
   green: "#2E9E6F",
-  amber: "#D6A23D",
+  yellow: "#D6A23D",
   red: "#C94F4F",
-  greenFill: "rgba(46, 158, 111, 0.15)",
-  amberFill: "rgba(214, 162, 61, 0.18)",
-  redFill: "rgba(201, 79, 79, 0.15)",
-  shadow: "0 4px 20px rgba(0,0,0,0.05)",
-} as const;
-
-const TIER_LABELS: Record<SniperTier, string> = {
-  executive_calibrated: "Executive Calibrated",
-  stage_ready: "Stage Ready",
-  structured: "Structured",
-  developing_control: "Developing Control",
-  unstable_delivery: "Unstable Delivery",
+  gray: "#9CA3AF",
 };
 
-const SEGMENT_METADATA: Array<{
-  key: keyof SniperScores;
-  label: string;
-  target: string;
-}> = [
-  { key: "pace", label: "Pace", target: "140–155" },
-  { key: "pause", label: "Pause", target: "400–480 ms" },
-  { key: "dynamic", label: "Dynamic", target: "12–16 dB" },
-  { key: "emphasis", label: "Emphasis", target: "30–40" },
-  { key: "energy", label: "Energy", target: "High–Low–High" },
-  { key: "pitch", label: "Pitch", target: "6–12 st" },
-];
-
-function polarToCart(cx: number, cy: number, r: number, deg: number) {
-  const rad = ((deg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function describeWedge(
-  cx: number,
-  cy: number,
-  r: number,
-  startDeg: number,
-  endDeg: number
-): string {
-  const start = polarToCart(cx, cy, r, startDeg);
-  const end = polarToCart(cx, cy, r, endDeg);
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y} Z`;
-}
-
-function describeAnnularWedge(
-  cx: number,
-  cy: number,
-  rInner: number,
-  rOuter: number,
-  startDeg: number,
-  endDeg: number
-): string {
-  const startInner = polarToCart(cx, cy, rInner, startDeg);
-  const endInner = polarToCart(cx, cy, rInner, endDeg);
-  const startOuter = polarToCart(cx, cy, rOuter, startDeg);
-  const endOuter = polarToCart(cx, cy, rOuter, endDeg);
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${startInner.x} ${startInner.y} L ${startOuter.x} ${startOuter.y} A ${rOuter} ${rOuter} 0 ${large} 1 ${endOuter.x} ${endOuter.y} L ${endInner.x} ${endInner.y} A ${rInner} ${rInner} 0 ${large} 0 ${startInner.x} ${startInner.y} Z`;
-}
-
-function getSegmentZone(score: number): "green" | "amber" | "red" {
-  if (score >= 75) return "green";
-  if (score >= 50) return "amber";
-  return "red";
-}
-
-function getScoreColorClass(score: number): string {
-  if (score >= 90) return "text-[#2E9E6F]";
-  if (score >= 75) return "text-[#1F2933]";
-  if (score >= 60) return "text-[#D6A23D]";
-  return "text-[#C94F4F]";
-}
-
-function getCoachingAccentClass(scores: SniperScores, hasCue: boolean): string {
-  if (!hasCue) return "bg-[#2E9E6F]";
-  const min = Math.min(
-    scores.pace,
-    scores.pause,
-    scores.dynamic,
-    scores.emphasis,
-    scores.energy,
-    scores.pitch
-  );
-  if (min < 50) return "bg-[#C94F4F]";
-  if (min < 75) return "bg-[#D6A23D]";
-  return "bg-[#2E9E6F]";
+function wpmColor(wpm: number): string {
+  if (wpm >= 125 && wpm <= 165) return COLOR_MAP.green;
+  if (wpm >= 100 && wpm < 125) return COLOR_MAP.yellow;
+  if (wpm > 165 && wpm <= 190) return COLOR_MAP.yellow;
+  return COLOR_MAP.red;
 }
 
 export interface SniperWheelProps {
-  scores: SniperScores;
-  overallScore: number;
-  tier: SniperTier;
-  coachingCue: string;
-  metrics: SniperMetricState;
-  /** Task/prompt text shown in place of "Live Voice Alignment" (same font) */
+  state: LiveCoachState;
   taskLabel?: string;
-  /**
-   * True when the AudioContext reported a hardware error (e.g. Bluetooth profile
-   * switch, audio device disconnect). Displayed metrics are frozen at last-good
-   * values; show a warning strip instead of the coaching cue.
-   */
   audioError?: boolean;
 }
 
-export function SniperWheel({
-  scores,
-  overallScore,
-  tier,
-  coachingCue,
-  metrics,
-  taskLabel,
-  audioError = false,
-}: SniperWheelProps) {
-  const segmentValues = SEGMENT_METADATA.map((meta) => {
-    const score = scores[meta.key];
-    let value: string;
-    if (meta.key === "pace") value = `${metrics.paceWpm} WPM`;
-    else if (meta.key === "pause") value = `${metrics.avgPauseMs} ms`;
-    else if (meta.key === "dynamic") value = `${metrics.dynamicRangeDb} dB`;
-    else if (meta.key === "emphasis") value = `${metrics.emphasisPerMin}/min`;
-    else if (meta.key === "energy")
-      value =
-        metrics.energyByThird && metrics.energyByThird.e3 >= metrics.energyByThird.e2
-          ? "Stable Build"
-          : metrics.energyByThird
-            ? "Declining"
-            : "—";
-    else
-      value = metrics.pitchRangeSt !== null ? `${metrics.pitchRangeSt.toFixed(1)} st` : "—";
-    return { ...meta, score, value };
-  });
+export function SniperWheel({ state, taskLabel, audioError = false }: SniperWheelProps) {
+  const color = COLOR_MAP[audioError ? "yellow" : state.coachColor] ?? COLOR_MAP.gray;
+  const cue = audioError
+    ? "Mic signal interrupted — check your audio device."
+    : state.coachingCue || "Good flow — hold it.";
 
-  const scoreColorClass = getScoreColorClass(overallScore);
-  const coachingAccentClass = getCoachingAccentClass(scores, !!coachingCue);
-  const coachingMessage = coachingCue || "Delivery calibrated.";
+  // Flow bar: pauseRatio mapped to 0–100% fill, centered on the good band (0.15–0.30)
+  // We display a 3-zone bar: Choppy | Good | Rushed
+  // Choppy = pauseRatio > 0.30, Good = 0.15–0.30, Rushed = pauseRatio < 0.15
+  const pausePct = Math.round(state.pauseRatio * 100);
 
   return (
-    <div
-      className="w-full flex flex-col items-center pt-1 sm:pt-2 pb-3 sm:pb-4 bg-transparent"
-      role="img"
-      aria-label={`Voice alignment ${overallScore}%. ${TIER_LABELS[tier]}. ${coachingMessage}`}
-    >
-      <div className="w-full max-w-4xl">
+    <div className="w-full flex flex-col items-center py-2">
+      {taskLabel ? (
+        <p className="mb-2 text-lg sm:text-xl font-bold leading-snug text-foreground text-center px-2">
+          {taskLabel}
+        </p>
+      ) : null}
+
+      {/* Score + WPM row */}
+      <div className="flex items-end justify-center gap-6 mb-4">
         <div className="flex flex-col items-center">
-          {taskLabel ? (
-            <div className="mb-2 text-center">
-              <p className="text-lg sm:text-xl font-bold leading-snug text-foreground">
-                {taskLabel}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="relative w-[300px] h-[300px] sm:w-[360px] sm:h-[360px]">
-            <svg
-              viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
-              className="w-full h-full"
-              aria-hidden="true"
+          <p
+            className="text-7xl font-semibold tabular-nums"
+            style={{ color }}
+          >
+            {state.silenceGated ? "—" : `${state.performanceScore}`}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">Score</p>
+        </div>
+        {!state.silenceGated && (
+          <div className="flex flex-col items-center pb-1">
+            <p
+              className="text-3xl font-semibold tabular-nums"
+              style={{ color: state.wpm !== null ? wpmColor(state.wpm) : COLOR_MAP.gray }}
             >
-              {/* Radial divider lines */}
-              {Array.from({ length: SEGMENTS }, (_, i) => {
-                const deg = i * ANGLE_PER;
-                const pt = polarToCart(CENTER, CENTER, OUTER_R, deg);
-                return (
-                  <line
-                    key={i}
-                    x1={CENTER}
-                    y1={CENTER}
-                    x2={pt.x}
-                    y2={pt.y}
-                    stroke={LIGHT.border}
-                    strokeWidth={1}
-                  />
-                );
-              })}
-
-              {/* Segment wedges: pale fill + thin colored stroke */}
-              {segmentValues.map((sv, i) => {
-                const startDeg = i * ANGLE_PER;
-                const endDeg = (i + 1) * ANGLE_PER;
-                const zone = getSegmentZone(sv.score);
-                const fillR =
-                  INNER_R + (OUTER_R - INNER_R) * (sv.score / 100);
-                const pathFill = describeAnnularWedge(
-                  CENTER,
-                  CENTER,
-                  INNER_R,
-                  Math.max(INNER_R, fillR),
-                  startDeg,
-                  endDeg
-                );
-                const fill =
-                  zone === "green"
-                    ? LIGHT.greenFill
-                    : zone === "amber"
-                      ? LIGHT.amberFill
-                      : LIGHT.redFill;
-                const stroke =
-                  zone === "green"
-                    ? LIGHT.green
-                    : zone === "amber"
-                      ? LIGHT.amber
-                      : LIGHT.red;
-                return (
-                  <path
-                    key={sv.key}
-                    d={pathFill}
-                    fill={fill}
-                    stroke={stroke}
-                    strokeWidth={1.5}
-                  />
-                );
-              })}
-
-              {/* Outer ring stroke */}
-              <circle
-                cx={CENTER}
-                cy={CENTER}
-                r={OUTER_R}
-                fill="none"
-                stroke={LIGHT.border}
-                strokeWidth={1}
-              />
-            </svg>
-
-            {/* Center core: white disc */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="bg-white rounded-full w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] flex flex-col items-center justify-center">
-                <p
-                  className={`text-3xl sm:text-4xl font-semibold tabular-nums ${scoreColorClass}`}
-                >
-                  {overallScore}%
-                </p>
-                <p
-                  className="mt-1 text-xs sm:text-sm"
-                  style={{ color: LIGHT.secondaryText }}
-                >
-                  {TIER_LABELS[tier]}
-                </p>
-              </div>
-            </div>
+              {state.wpm !== null ? Math.round(state.wpm) : "…"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">WPM</p>
           </div>
+        )}
+      </div>
 
-          {/* Metrics grid: clear hierarchy */}
-          <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 sm:gap-x-8 gap-y-4 sm:gap-y-5 w-full max-w-md">
-            {segmentValues.map((sv) => (
-              <div key={sv.key} className="flex flex-col">
-                <span
-                  className="text-xs uppercase tracking-wide"
-                  style={{ color: LIGHT.microLabel }}
-                >
-                  {sv.label}
-                </span>
-                <span
-                  className="text-base font-medium mt-0.5"
-                  style={{ color: LIGHT.primaryText }}
-                >
-                  {sv.value}
-                </span>
-                <span
-                  className="text-xs mt-0.5"
-                  style={{ color: LIGHT.secondaryText }}
-                >
-                  Target: {sv.target}
-                </span>
-              </div>
-            ))}
-          </div>
+      {/* Flow bar — left = Rushed (low pauseRatio), right = Choppy (high pauseRatio) */}
+      <div className="w-full max-w-sm px-4 mb-5">
+        <div className="flex justify-between text-xs text-muted-foreground mb-2">
+          <span>Rushed</span>
+          <span>Good</span>
+          <span>Choppy</span>
+        </div>
 
-          {/* Coaching strip: left accent + message (or mic-error warning) */}
-          <div className="mt-4 sm:mt-5 w-full max-w-2xl">
+        {/* Track — needle maps 0→0.45 to 0→100% so good band (0.15–0.30) lands at ~33–67% */}
+        <div className="relative h-4 rounded-full overflow-hidden"
+          style={{ background: "linear-gradient(to right, #C94F4F 0%, #D6A23D 20%, #2E9E6F 40%, #2E9E6F 60%, #D6A23D 80%, #C94F4F 100%)" }}>
+          {/* Good-zone overlay at 33–67% */}
+          <div
+            className="absolute inset-y-0"
+            style={{
+              left: "33%",
+              width: "34%",
+              background: "rgba(255,255,255,0.15)",
+              borderLeft: "1px solid rgba(255,255,255,0.4)",
+              borderRight: "1px solid rgba(255,255,255,0.4)",
+            }}
+          />
+          {/* Indicator needle */}
+          {!state.silenceGated && (
+            <div
+              className="absolute top-0 bottom-0 w-1 bg-white shadow-sm rounded-full"
+              style={{
+                // pauseRatio 0 (no pauses = rushed) → left, 0.45+ (very choppy) → right
+                left: `${Math.min(100, Math.max(0, (state.pauseRatio / 0.45) * 100))}%`,
+                transition: "left 0.4s ease",
+              }}
+            />
+          )}
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground mt-2">
+          {state.silenceGated ? "Speak to start…" : `${pausePct}% pauses`}
+        </p>
+      </div>
+
+      {/* Coaching strip */}
+      <div className="w-full px-1">
+        <div className="bg-white border border-[#E5E7EB] rounded-xl flex overflow-hidden">
+          <div
+            className="w-1.5 flex-shrink-0 rounded-l-xl"
+            style={{ backgroundColor: color }}
+          />
+          <div className="p-4">
             {audioError ? (
-              <div
-                className="bg-white border rounded-xl flex overflow-hidden"
-                style={{ borderColor: LIGHT.border }}
-              >
-                <div className="w-1 flex-shrink-0 rounded-l-xl bg-[#D6A23D]" />
-                <div className="p-4 flex items-center gap-2">
-                  <span style={{ color: LIGHT.amber }} aria-hidden>⚠</span>
-                  <p className="text-sm" style={{ color: LIGHT.primaryText }}>
-                    Mic signal interrupted — check your audio device. Scores are paused.
-                  </p>
-                </div>
-              </div>
+              <p className="text-base text-[#1F2933] flex items-center gap-1.5">
+                <span style={{ color: COLOR_MAP.yellow }} aria-hidden>⚠</span>
+                {cue}
+              </p>
             ) : (
-              <div
-                className="bg-white border rounded-xl flex overflow-hidden"
-                style={{ borderColor: LIGHT.border }}
-              >
-                <div
-                  className={`w-1 flex-shrink-0 rounded-l-xl ${coachingAccentClass}`}
-                />
-                <div className="p-4">
-                  <p
-                    className="text-sm"
-                    style={{ color: LIGHT.primaryText }}
-                  >
-                    {coachingMessage}
-                  </p>
-                </div>
-              </div>
+              <p className="text-base text-[#1F2933]">{cue}</p>
             )}
           </div>
         </div>

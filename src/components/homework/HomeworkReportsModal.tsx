@@ -7,6 +7,7 @@ import { homeworkApi } from "@/lib/api/homework-client";
 import type { HomeworkReportResponse } from "@/lib/api/types-homework";
 import { Button } from "@/components/ui/button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 
 function formatFillerBreakdown(breakdown: Record<string, number> | undefined): string {
   if (!breakdown || typeof breakdown !== "object") return "";
@@ -27,6 +28,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
   const [report, setReport] = useState<HomeworkReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [fallbackAudioUrl, setFallbackAudioUrl] = useState<string | null>(null);
 
   useBodyScrollLock(open);
 
@@ -34,15 +36,25 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
     if (!open || !sessionId) {
       setReport(null);
       setReportError(null);
+      setFallbackAudioUrl(null);
       return;
     }
     setReportLoading(true);
     setReportError(null);
+    setFallbackAudioUrl(null);
     homeworkApi
       .getReport(sessionId)
       .then((data) => {
         setReport(data);
         setReportError(null);
+        // If the report came back without a playable URL, fetch a fresh one via the recording endpoint.
+        const reportAudioUrl = data.final_recording?.audio_url ?? data.recording?.audio_url ?? data.recording_1?.audio_url;
+        const recordingId = data.final_recording?.id ?? data.recording_1?.id;
+        if (!reportAudioUrl && recordingId) {
+          homeworkApi.getRecordingPlaybackUrl(recordingId).then((r) => {
+            if (r.audio_url) setFallbackAudioUrl(r.audio_url);
+          }).catch(() => {});
+        }
       })
       .catch((e) => {
         setReport(null);
@@ -89,76 +101,44 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
               {reportError}
             </p>
           )}
-          {report && !reportLoading && (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                    {(report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url) ? (
-                      <audio
-                        controls
-                        src={
-                          report.final_recording?.audio_url ??
-                          report.recording?.audio_url ??
-                          report.recording_1?.audio_url ??
-                          ""
-                        }
-                        className="w-full max-w-md rounded-lg border border-border"
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Recording playback not available.</p>
-                    )}
-                  </div>
-                  {(report.recording?.transcription_text ?? report.transcript) && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                      <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[40vh] overflow-y-auto">
-                        <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-                          {(report.recording?.transcription_text ?? report.transcript ?? "").trim()}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {(report.recording?.filler_words_count?.total ?? report.filler_word_count) != null && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                      <p className="text-sm text-foreground">
-                        {(report.recording?.filler_words_count?.total ?? report.filler_word_count ?? 0)} filler word
-                        {(report.recording?.filler_words_count?.total ?? report.filler_word_count) !== 1 ? "s" : ""} detected
-                        {formatFillerBreakdown(report.recording?.filler_words_count?.breakdown)
-                          ? ` (${formatFillerBreakdown(report.recording?.filler_words_count?.breakdown)})`
-                          : ""}
-                        .
-                      </p>
-                    </div>
-                  )}
-                  {(report.report_text ?? "").trim() && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-2">Report</p>
-                      <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[50vh] overflow-y-auto">
-                        <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed break-words">
-                          {report.report_text}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {report.scores && (
-                    <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
-                      <span>
-                        <span className="text-muted-foreground">Warm-up:</span>{" "}
-                        {report.scores.warmup != null ? Math.round(report.scores.warmup * 100) : "—"}
-                      </span>
-                      <span>
-                        <span className="text-muted-foreground">Final:</span>{" "}
-                        {report.scores.final != null ? Math.round(report.scores.final * 100) : "—"}
-                      </span>
-                      <span>
-                        <span className="text-muted-foreground">Overall:</span>{" "}
-                        {report.scores.overall != null ? Math.round(report.scores.overall * 100) : "—"}
-                      </span>
-                    </div>
+          {report && !reportLoading && (() => {
+            const audioUrl = report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url ?? fallbackAudioUrl;
+            const transcriptionText = (report.recording?.transcription_text ?? report.transcript ?? "").trim();
+            const fillerTotal = report.recording?.filler_words_count?.total ?? report.filler_word_count ?? null;
+            const fillerBreakdown = report.recording?.filler_words_count?.breakdown;
+            const coachInsight = (report.coach_insight ?? "").trim();
+            const lastFive = report.performance_history?.length ? report.performance_history.slice(-5) : [];
+            const chartData = lastFive.length > 0
+              ? lastFive.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
+              : report.scores?.overall != null
+                ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: Math.round(report.scores.overall) }]
+                : [];
+            return (
+              <div className="space-y-4">
+                {/* 1. Progress chart */}
+                {chartData.length > 0 && <ProgressOverSessionsChart data={chartData} />}
+                {/* 2. Playback */}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
+                  {audioUrl ? (
+                    <audio controls src={audioUrl} className="w-full max-w-md rounded-lg border border-border" />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Recording playback not available.</p>
                   )}
                 </div>
-              )}
+                {/* 3. Filler words */}
+                {fillerTotal != null && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+                    <p className="text-sm text-foreground">
+                      {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
+                      {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="shrink-0 border-t border-border px-4 py-3">

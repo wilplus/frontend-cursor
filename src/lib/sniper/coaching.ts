@@ -1,210 +1,44 @@
 /**
- * Sniper Wheel — Coaching cue logic.
- * Single primary cue; structural over micro; actionable tone.
- * Only show when drift >10% tolerance and sustained (caller manages sustain).
+ * Live Coach — coaching cue.
+ * Prioritises the worst dimension: pace first if severely off, then flow.
  */
-
-import type { SniperMetricState, SniperScores, Zone } from "./types";
-import {
-  PACE_IDEAL_WPM,
-  PACE_TOLERANCE_WPM,
-  PACE_GREEN_LO,
-  PACE_GREEN_HI,
-  PAUSE_IDEAL_MS,
-  PAUSE_GREEN_LO,
-  PAUSE_GREEN_HI,
-  PAUSE_YELLOW_LO,
-  PAUSE_YELLOW_HI,
-  DYNAMIC_IDEAL_DB,
-  DYNAMIC_GREEN_LO,
-  DYNAMIC_GREEN_HI,
-  EMPHASIS_IDEAL_PER_MIN,
-  EMPHASIS_GREEN_LO,
-  EMPHASIS_GREEN_HI,
-  PITCH_GREEN_LO,
-  PITCH_GREEN_HI,
-  PITCH_YELLOW_LO,
-  PITCH_YELLOW_HI,
-} from "./constants";
-
-/** Returns zone for a value given green and optional yellow bounds. */
-function getZone(
-  value: number,
-  greenLo: number,
-  greenHi: number,
-  yellowLo: number,
-  yellowHi: number
-): Zone {
-  if (value >= greenLo && value <= greenHi) return "green";
-  if (value >= yellowLo && value <= yellowHi) return "yellow";
-  return "red";
-}
-
-/** Drift beyond 10% of tolerance from ideal (e.g. for pace: 10% of 8 ≈ 0.8 WPM). */
-function isDriftSignificant(
-  value: number,
-  ideal: number,
-  tolerance: number,
-  pct = 0.1
-): boolean {
-  return Math.abs(value - ideal) > tolerance * pct;
-}
-
-export type CoachingResult = {
-  cue: string;
-  segment: keyof SniperScores | null;
-};
 
 /**
- * Returns the single primary coaching cue.
- * Priority: energy (structural) > pause > pace > dynamic > emphasis.
- * Tone: actionable, calm, e.g. "Slow by 6 WPM for stronger authority."
- * Returns empty cue when all in green or no significant drift.
+ * Returns a short, actionable coaching cue from current flow + pace state.
+ * wpm is null during the pace warm-up window (first ~10 s).
  */
-export function getPrimaryCoachingCue(
-  metrics: SniperMetricState,
-  scores: SniperScores
-): CoachingResult {
-  const e = metrics.energyByThird;
-  const sessionLongEnough = metrics.sessionDurationSec >= 120;
+export function getCoachingCue(
+  pauseRatio: number,
+  silenceGated: boolean,
+  wpm: number | null
+): string {
+  if (silenceGated) return "Speak to start…";
 
-  // 1) Structural: energy decline (highest priority)
-  if (sessionLongEnough && e && e.e3 < e.e2) {
-    const declinePct = ((e.e2 - e.e3) / (e.e2 + 1e-8)) * 100;
-    if (declinePct > 10) {
-      return {
-        cue: "Rebuild intensity in the final third. Energy tapering.",
-        segment: "energy",
-      };
-    }
+  const flowOk = pauseRatio >= 0.15 && pauseRatio <= 0.30;
+  const paceOk = wpm !== null && wpm >= 125 && wpm <= 165;
+
+  // Both good → locked in
+  if (flowOk && (wpm === null || paceOk)) return "Locked in. Keep it up.";
+
+  // Pace issues take priority when WPM is available
+  if (wpm !== null && !paceOk) {
+    if (wpm < 100) return "Way too slow. Pick up the pace.";
+    if (wpm < 125) return "A little slow. Speak a touch faster.";
+    if (wpm > 190) return "Too fast. Slow down and let ideas land.";
+    if (wpm > 165) return "Slightly fast. Ease the pace.";
   }
 
-  // 2) Pitch range (monotone or over-varied)
-  if (
-    metrics.pitchRangeSt !== null &&
-    metrics.confidence.pitch !== "insufficient"
-  ) {
-    const pitchZone = getZone(
-      metrics.pitchRangeSt,
-      PITCH_GREEN_LO,
-      PITCH_GREEN_HI,
-      PITCH_YELLOW_LO,
-      PITCH_YELLOW_HI
-    );
-    if (pitchZone !== "green") {
-      if (metrics.pitchRangeSt < PITCH_GREEN_LO) {
-        return {
-          cue: "Vary your pitch more — rise and fall to keep listeners engaged.",
-          segment: "pitch",
-        };
-      }
-      return {
-        cue: "Steady your pitch. Focus variation on key words, not every phrase.",
-        segment: "pitch",
-      };
-    }
-  }
+  // Flow issues
+  if (pauseRatio < 0.05) return "No pauses at all. Let your ideas breathe.";
+  if (pauseRatio < 0.15) return "Too rushed. Add pauses between ideas.";
+  if (pauseRatio > 0.45) return "Too many pauses. Keep the momentum going.";
+  return "Slightly choppy. Smooth out the pauses.";
+}
 
-  // 3) Pause
-  const pauseZone = getZone(
-    metrics.avgPauseMs,
-    PAUSE_GREEN_LO,
-    PAUSE_GREEN_HI,
-    PAUSE_YELLOW_LO,
-    PAUSE_YELLOW_HI
-  );
-  if (
-    pauseZone !== "green" &&
-    metrics.confidence.pause !== "insufficient" &&
-    isDriftSignificant(metrics.avgPauseMs, PAUSE_IDEAL_MS, 70, 0.1)
-  ) {
-    if (metrics.avgPauseMs < PAUSE_GREEN_LO) {
-      return {
-        cue: "Extend sentence-end pauses by ~200 ms. Let ideas land.",
-        segment: "pause",
-      };
-    }
-    return {
-      cue: "Shorten pauses slightly for better flow.",
-      segment: "pause",
-    };
-  }
-
-  // 4) Pace
-  const paceZone = getZone(
-    metrics.paceWpm,
-    PACE_GREEN_LO,
-    PACE_GREEN_HI,
-    130,
-    165
-  );
-  if (
-    paceZone !== "green" &&
-    metrics.confidence.pace !== "insufficient" &&
-    isDriftSignificant(metrics.paceWpm, PACE_IDEAL_WPM, PACE_TOLERANCE_WPM, 0.1)
-  ) {
-    const d = Math.round(metrics.paceWpm - PACE_IDEAL_WPM);
-    if (d > 0) {
-      return {
-        cue: `Slow by ${Math.min(15, d)} WPM for stronger authority.`,
-        segment: "pace",
-      };
-    }
-    return {
-      cue: "Increase pace slightly so delivery stays engaging.",
-      segment: "pace",
-    };
-  }
-
-  // 5) Dynamic
-  const dynZone = getZone(
-    metrics.dynamicRangeDb,
-    DYNAMIC_GREEN_LO,
-    DYNAMIC_GREEN_HI,
-    9,
-    18
-  );
-  if (
-    dynZone !== "green" &&
-    metrics.confidence.dynamic !== "insufficient" &&
-    isDriftSignificant(metrics.dynamicRangeDb, DYNAMIC_IDEAL_DB, 2)
-  ) {
-    if (metrics.dynamicRangeDb < DYNAMIC_GREEN_LO) {
-      return {
-        cue: "Vary volume more. Add contrast on key phrases.",
-        segment: "dynamic",
-      };
-    }
-    return {
-      cue: "Smooth out volume swings for a more controlled delivery.",
-      segment: "dynamic",
-    };
-  }
-
-  // 6) Emphasis
-  const emphZone = getZone(
-    metrics.emphasisPerMin,
-    EMPHASIS_GREEN_LO,
-    EMPHASIS_GREEN_HI,
-    15,
-    60
-  );
-  if (
-    emphZone !== "green" &&
-    metrics.confidence.emphasis !== "insufficient" &&
-    isDriftSignificant(metrics.emphasisPerMin, EMPHASIS_IDEAL_PER_MIN, 8)
-  ) {
-    if (metrics.emphasisPerMin < EMPHASIS_GREEN_LO) {
-      return {
-        cue: "Stress key words more. Add emphasis on important phrases.",
-        segment: "emphasis",
-      };
-    }
-    return {
-      cue: "Ease off on emphasis. Not every phrase needs a spike.",
-      segment: "emphasis",
-    };
-  }
-
-  return { cue: "", segment: null };
+/** @deprecated Use getCoachingCue instead. */
+export function getFlowCoachingCue(
+  pauseRatio: number,
+  silenceGated: boolean
+): string {
+  return getCoachingCue(pauseRatio, silenceGated, null);
 }
