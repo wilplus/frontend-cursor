@@ -125,21 +125,6 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
                     </p>
                   </div>
                 )}
-                {/* 4. Transcript */}
-                {transcriptionText ? (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                    <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[40vh] overflow-y-auto">
-                      <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
-                    </div>
-                  </div>
-                ) : null}
-                {/* 5. Coaching message */}
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {coachInsight || "Your coach has 24 hours to analyse your practice and send feedback to your email!"}
-                  </p>
-                </div>
               </div>
             );
           })()}
