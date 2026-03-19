@@ -1,13 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { requireAuth } from "@/lib/api/homework-mock";
 
 export const dynamic = "force-dynamic";
 
-const client = new Anthropic();
+const client = new OpenAI();
 
-/** Filler words Claude will count in the transcript. */
+/** Filler words to count in the transcript. */
 const FILLER_LIST = ["um", "uh", "er", "ah", "hmm", "like", "you know", "basically", "literally", "actually", "right", "okay", "so", "well", "I mean", "kind of", "sort of"];
 
 export interface FillerWords {
@@ -34,7 +34,7 @@ interface CoachingReportBody {
     pitchRangeSt?: number | null;
     energyByThird?: { e1: number; e2: number; e3: number } | null;
   };
-  /** When true, Claude also returns filler word counts from the transcript. */
+  /** When true, also return filler word counts from the transcript. */
   analyzeFillers?: boolean;
 }
 
@@ -100,38 +100,41 @@ function buildPrompt(body: CoachingReportBody): string {
     lines.push(`\nFiller word instructions:`);
     lines.push(`- Count every occurrence of these filler words in the transcript: ${FILLER_LIST.join(", ")}`);
     lines.push(`- Only count words that are clearly used as fillers (not meaningful use, e.g. "like" as a verb or adjective is NOT a filler).`);
-    lines.push(`- Return the total count and a breakdown by word in the tool call.`);
+    lines.push(`- Return the total count and a breakdown by word in the function call.`);
   }
 
   return lines.join("\n");
 }
 
-/** Claude tool schema for structured analysis output. */
-const ANALYSIS_TOOL: Anthropic.Tool = {
-  name: "session_analysis",
-  description: "Return the complete session analysis with coaching feedback and optional filler word counts.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      coaching: {
-        type: "string",
-        description: "3–5 sentences of specific, actionable coaching in continuous prose. No bullets.",
-      },
-      fillers: {
-        type: "object",
-        description: "Filler word analysis. Only include when you have analyzed the transcript for fillers.",
-        properties: {
-          total: { type: "integer", description: "Total number of filler word occurrences" },
-          breakdown: {
-            type: "object",
-            description: "Count per filler word (only include words with count > 0)",
-            additionalProperties: { type: "integer" },
-          },
+/** OpenAI function schema for structured analysis output. */
+const ANALYSIS_FUNCTION: OpenAI.Chat.ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "session_analysis",
+    description: "Return the complete session analysis with coaching feedback and optional filler word counts.",
+    parameters: {
+      type: "object",
+      properties: {
+        coaching: {
+          type: "string",
+          description: "3–5 sentences of specific, actionable coaching in continuous prose. No bullets.",
         },
-        required: ["total", "breakdown"],
+        fillers: {
+          type: "object",
+          description: "Filler word analysis. Only include when you have analyzed the transcript for fillers.",
+          properties: {
+            total: { type: "integer", description: "Total number of filler word occurrences" },
+            breakdown: {
+              type: "object",
+              description: "Count per filler word (only include words with count > 0)",
+              additionalProperties: { type: "integer" },
+            },
+          },
+          required: ["total", "breakdown"],
+        },
       },
+      required: ["coaching"],
     },
-    required: ["coaching"],
   },
 };
 
@@ -139,8 +142,8 @@ export async function POST(req: NextRequest) {
   const unauth = await requireAuth(req);
   if (unauth) return unauth;
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 503 });
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json({ error: "OPENAI_API_KEY not configured" }, { status: 503 });
   }
 
   let body: CoachingReportBody;
@@ -159,25 +162,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const message = await client.messages.create({
-      // Sonnet for better analysis quality on filler detection + coaching
-      model: "claude-sonnet-4-5",
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
       max_tokens: 700,
-      tools: [ANALYSIS_TOOL],
-      tool_choice: { type: "tool", name: "session_analysis" },
+      tools: [ANALYSIS_FUNCTION],
+      tool_choice: { type: "function", function: { name: "session_analysis" } },
       messages: [{ role: "user", content: buildPrompt(body) }],
     });
 
-    // Extract the tool_use block (guaranteed by tool_choice: { type: "tool" })
-    const toolUse = message.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-    );
-
-    if (!toolUse) {
-      return NextResponse.json({ error: "No structured output from Claude" }, { status: 502 });
+    const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== "session_analysis") {
+      return NextResponse.json({ error: "No structured output from model" }, { status: 502 });
     }
 
-    const output = toolUse.input as {
+    const output = JSON.parse(toolCall.function.arguments) as {
       coaching: string;
       fillers?: { total: number; breakdown: Record<string, number> };
     };
@@ -195,8 +193,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Claude API error";
-    console.error("[ai/coaching-report] Claude error:", msg);
+    const msg = err instanceof Error ? err.message : "OpenAI API error";
+    console.error("[ai/coaching-report] OpenAI error:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
