@@ -3,13 +3,14 @@
 /**
  * Live Coach — 2D real-time metrics.
  *
- * Flow  (Y-axis): pause_ratio over a 30 s rolling window of VAD samples.
- * Pace  (X-axis): syllable-onset WPM over a 10 s rolling window.
+ * Flow  (Y-axis): pause_ratio over a 5 s rolling window of VAD samples.
+ * Pace  (X-axis): syllable-onset WPM over a 5 s rolling window.
  *   Each silent→voiced transition ≈ one syllable onset.
  *   wpm = (onsets_in_window / PACE_WINDOW_SEC) × 60 / AVG_SYLLABLES_PER_WORD
  *
- * Performance score = 0.5 × flowScore + 0.5 × paceScore
- *   Falls back to flowScore-only during the pace warm-up (< PACE_MIN_ONSETS).
+ * Live score:    fast IIR blend (0.65*prev + 0.35*raw) → drives ball + coach color.
+ * Session score: credit integral sqrt(live/100)*dt → drives displayed % + final report.
+ *   Accumulated only while speaking; silence halts (not resets) accumulation.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -20,12 +21,10 @@ import {
   scorePace,
   computeFlowOffset,
   computePaceOffset,
-  computePerformanceScore,
   getCoachColor,
 } from "@/lib/sniper/scoring";
 import { getCoachingCue } from "@/lib/sniper/coaching";
 import {
-  SMOOTH_ALPHA,
   PACE_WINDOW_SEC,
   AVG_SYLLABLES_PER_WORD,
   PACE_MIN_ONSETS,
@@ -33,11 +32,11 @@ import {
 
 const TICK_MS = 50;
 const FFT_SIZE = 4096;
-const WINDOW_SEC = 30;
+const WINDOW_SEC = 5;
 const SAMPLE_INTERVAL_MS = 100;
-const UPDATE_INTERVAL_MS = 2000;
+const UPDATE_INTERVAL_MS = 500;
 /** Minimum window before we start scoring (avoids noisy first read). */
-const MIN_WINDOW_SEC = 5;
+const MIN_WINDOW_SEC = 3;
 /** Voiced ratio below this → silence gate (return gray). */
 const VOICED_RATIO_GATE = 0.06;
 
@@ -75,7 +74,13 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     bufFreq: null as Float32Array | null,
     vad: new EnergyVAD(),
     samples: [] as Sample[],
-    smoothedScore: null as number | null,
+    // ── Dual-score state ─────────────────────────────────────────────────────
+    /** Fast IIR-smoothed live score (0–100). Drives ball position and coach color. */
+    displayLiveScore: null as number | null,
+    /** Accumulated speaking-time credits. Session score = 100 * earned / possible. */
+    earnedPoints: 0,
+    possiblePoints: 0,
+    // ── Audio error tracking ─────────────────────────────────────────────────
     audioError: false,
     voicedTotal: 0,
     totalFrames: 0,
@@ -122,7 +127,9 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     s.lastTick = performance.now();
     s.lastUpdate = performance.now();
     s.samples = [];
-    s.smoothedScore = null;
+    s.displayLiveScore = null;
+    s.earnedPoints = 0;
+    s.possiblePoints = 0;
     s.audioError = false;
     s.voicedTotal = 0;
     s.totalFrames = 0;
@@ -170,14 +177,15 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
       }
       s.prevVoiced = isSpeaking;
 
-      // Prune onsets outside the 10 s window continuously
+      // Prune onsets outside the 5 s window continuously
       const paceWindowMs = PACE_WINDOW_SEC * 1000;
       while (s.onsets.length > 0 && now - s.onsets[0] > paceWindowMs) {
         s.onsets.shift();
       }
 
-      // ── State update every 2 s ────────────────────────────────────────────
+      // ── State update every 500 ms ─────────────────────────────────────────
       if (now - s.lastUpdate < UPDATE_INTERVAL_MS) return;
+      const dt = Math.min((now - s.lastUpdate) / 1000, 2); // seconds, capped at 2 s
       s.lastUpdate = now;
 
       const samples = s.samples;
@@ -199,7 +207,7 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
 
       const pauseRatio = totalSamples > 0 ? silentSamples / totalSamples : 0;
 
-      // ── Pace: WPM from onset count in rolling 10 s window ─────────────────
+      // ── Pace: WPM from onset count in rolling 5 s window ──────────────────
       // wpm = (onsets / window_sec) × 60 / avg_syllables_per_word
       const wpm =
         s.onsets.length >= PACE_MIN_ONSETS
@@ -209,29 +217,43 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
       // ── Scoring ───────────────────────────────────────────────────────────
       let flowScore: number | null = null;
       let paceScore: number | null = null;
-      let performanceScore: number = s.smoothedScore ?? 0;
       let flowOffset = 0;
       let paceOffset = 0;
-      let coachColor = getCoachColor(null);
 
       if (!silenceGated) {
         flowScore = scoreFlow(pauseRatio);
         paceScore = wpm !== null ? scorePace(wpm) : null;
-        const rawPerf = computePerformanceScore(flowScore, paceScore) ?? flowScore;
 
-        // IIR smooth
-        s.smoothedScore =
-          s.smoothedScore === null
-            ? rawPerf
-            : s.smoothedScore * (1 - SMOOTH_ALPHA) + rawPerf * SMOOTH_ALPHA;
+        // ── Live score: fast IIR (drives ball + coach color) ─────────────────
+        const rawLive = paceScore !== null
+          ? 0.6 * paceScore + 0.4 * flowScore
+          : flowScore;
+        s.displayLiveScore =
+          s.displayLiveScore === null
+            ? rawLive
+            : 0.65 * s.displayLiveScore + 0.35 * rawLive;
 
-        performanceScore = Math.round(s.smoothedScore);
+        // ── Session accumulation: credited with sqrt curve (forgiving) ────────
+        // Only accumulates while speaking — silence halts but does not erase.
+        const credited = Math.sqrt(s.displayLiveScore / 100);
+        s.earnedPoints += credited * dt;
+        s.possiblePoints += dt;
+
         flowOffset = computeFlowOffset(pauseRatio);
         paceOffset = wpm !== null ? computePaceOffset(wpm) : 0;
-        coachColor = getCoachColor(performanceScore);
-      } else {
-        s.smoothedScore = null;
       }
+      // Silence: displayLiveScore kept (ball stays); earnedPoints/possiblePoints unchanged
+
+      // Session score: time-weighted average over speaking time only
+      const performanceScore =
+        s.possiblePoints > 0
+          ? Math.round(100 * s.earnedPoints / s.possiblePoints)
+          : 0;
+
+      // Coach color derived from LIVE score (fast-reacting), not session score
+      const coachColor = getCoachColor(
+        s.displayLiveScore !== null && !silenceGated ? s.displayLiveScore : null
+      );
 
       const coachingCue = getCoachingCue(pauseRatio, silenceGated, wpm);
 

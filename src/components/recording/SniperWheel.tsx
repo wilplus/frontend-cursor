@@ -16,9 +16,9 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 function wpmColor(wpm: number): string {
-  if (wpm >= 125 && wpm <= 165) return COLOR_MAP.green;
-  if (wpm >= 100 && wpm < 125) return COLOR_MAP.yellow;
-  if (wpm > 165 && wpm <= 190) return COLOR_MAP.yellow;
+  if (wpm >= 115 && wpm <= 170) return COLOR_MAP.green;
+  if (wpm >= 100 && wpm < 115) return COLOR_MAP.yellow;
+  if (wpm > 170 && wpm <= 190) return COLOR_MAP.yellow;
   return COLOR_MAP.red;
 }
 
@@ -34,9 +34,9 @@ export function SniperWheel({ state, taskLabel, audioError = false }: SniperWhee
     ? "Mic signal interrupted — check your audio device."
     : state.coachingCue || "Good flow — hold it.";
 
-  // Flow bar: pauseRatio mapped to 0–100% fill, centered on the good band (0.15–0.30)
-  // We display a 3-zone bar: Choppy | Good | Rushed
-  // Choppy = pauseRatio > 0.30, Good = 0.15–0.30, Rushed = pauseRatio < 0.15
+  // Flow bar: pauseRatio mapped to 0–100% fill, centered on the good band (0.10–0.35)
+  // We display a 3-zone bar: Rushed | Good | Choppy
+  // Choppy = pauseRatio > 0.35, Good = 0.10–0.35, Rushed = pauseRatio < 0.10
   const pausePct = Math.round(state.pauseRatio * 100);
 
   return (
@@ -79,15 +79,15 @@ export function SniperWheel({ state, taskLabel, audioError = false }: SniperWhee
           <span>Choppy</span>
         </div>
 
-        {/* Track — needle maps 0→0.45 to 0→100% so good band (0.15–0.30) lands at ~33–67% */}
+        {/* Track — needle maps 0→0.45 to 0→100% so good band (0.10–0.35) lands at ~22–78% */}
         <div className="relative h-4 rounded-full overflow-hidden"
           style={{ background: "linear-gradient(to right, #C94F4F 0%, #D6A23D 20%, #2E9E6F 40%, #2E9E6F 60%, #D6A23D 80%, #C94F4F 100%)" }}>
-          {/* Good-zone overlay at 33–67% */}
+          {/* Good-zone overlay at 22–78% */}
           <div
             className="absolute inset-y-0"
             style={{
-              left: "33%",
-              width: "34%",
+              left: "22%",
+              width: "56%",
               background: "rgba(255,255,255,0.15)",
               borderLeft: "1px solid rgba(255,255,255,0.4)",
               borderRight: "1px solid rgba(255,255,255,0.4)",

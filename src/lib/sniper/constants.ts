@@ -5,30 +5,30 @@
 // ── Flow ────────────────────────────────────────────────────────────────────
 
 /** Ideal pause ratio band (100 points inside). */
-export const FLOW_IDEAL_LO = 0.15;
-export const FLOW_IDEAL_HI = 0.30;
-/** Center of the ideal band (used for offset calculation). */
+export const FLOW_IDEAL_LO = 0.10;
+export const FLOW_IDEAL_HI = 0.35;
+/** Center of the ideal band (used for offset calculation). Midpoint of 0.10–0.35. */
 export const FLOW_IDEAL_CENTER = 0.225;
 /** Pause ratio above this → score hits 0. */
-export const FLOW_MAX_RATIO = 0.60;
+export const FLOW_MAX_RATIO = 0.55;
 /** Max deviation for offset normalisation (±1 at this distance from center). */
-export const FLOW_OFFSET_MAX_DEV = 0.18;
+export const FLOW_OFFSET_MAX_DEV = 0.20;
 
 // ── Pace ────────────────────────────────────────────────────────────────────
 
 /** Ideal WPM band (100 points inside). */
-export const PACE_IDEAL_LO = 125;
-export const PACE_IDEAL_HI = 165;
+export const PACE_IDEAL_LO = 115;
+export const PACE_IDEAL_HI = 170;
 /** Center of the ideal WPM band. */
-export const PACE_IDEAL_CENTER = 145;
+export const PACE_IDEAL_CENTER = 142.5;
 /** WPM below this → score 0. */
 export const PACE_SLOW_MIN = 80;
 /** WPM above this → score 0. */
-export const PACE_FAST_MAX = 210;
+export const PACE_FAST_MAX = 200;
 /** paceOffset ±1 at this deviation from center. */
-export const PACE_OFFSET_MAX_DEV = 45;
+export const PACE_OFFSET_MAX_DEV = 50;
 /** Rolling window (seconds) for onset-based WPM estimate. */
-export const PACE_WINDOW_SEC = 10;
+export const PACE_WINDOW_SEC = 5;
 /** Average syllables per word in conversational English. */
 export const AVG_SYLLABLES_PER_WORD = 1.5;
 /** Minimum onsets in window before we report WPM. */
@@ -36,12 +36,12 @@ export const PACE_MIN_ONSETS = 5;
 
 // ── Coach UI ─────────────────────────────────────────────────────────────────
 
-/** Coach color thresholds. */
+/** Coach color thresholds (applied to live score). */
 export const COACH_GREEN_THRESHOLD = 75;
 export const COACH_YELLOW_THRESHOLD = 50;
 
-/** IIR smoothing factor for performance score display. */
-export const SMOOTH_ALPHA = 0.2;
+/** IIR alpha for live score: displayLiveScore = 0.65*prev + 0.35*raw. */
+export const SMOOTH_ALPHA = 0.35;
 
 // ── Legacy 6-metric wheel constants (used by control-signals + BiofeedbackMode) ─
 
