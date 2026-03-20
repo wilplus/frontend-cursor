@@ -23,7 +23,8 @@ export default function CoachEmail({
   videoThumbSrc = "/coach-video-thumb.jpg",
   videoDuration = "4:32",
   metaLabel = "Week 3 · Session Recap",
-  title = "Great progress this week, Sarah!",
+  title,
+  studentName = "there",
   coachMessage = null,
   hasAssignedExercise = false,
   homeworkTitle = "New Homework Available",
@@ -36,7 +37,10 @@ export default function CoachEmail({
   videoThumbSrc?: string | null;
   videoDuration?: string | null;
   metaLabel?: string;
+  /** Optional explicit title. If omitted, uses "Great progress, <studentName>!" */
   title?: string;
+  /** Student name from DB; used in default title. */
+  studentName?: string;
   /** Coach message body. If null/empty, shows default: "Good work. It is a small step for you, but a huge step for your progress!" */
   coachMessage?: string | null;
   /** If true, show a line that assigned exercise will appear on the main screen after following the link. */
@@ -48,6 +52,7 @@ export default function CoachEmail({
   coachRole?: string;
 }) {
   const hasVideo = Boolean(videoUrl?.trim());
+  const resolvedTitle = title?.trim() || `Great progress, ${studentName}!`;
   const bodyParagraphs = (coachMessage?.trim() || DEFAULT_COACH_MESSAGE)
     .split(/\n\n+/)
     .map((p) => p.trim())
@@ -59,7 +64,7 @@ export default function CoachEmail({
         {/* Brand header */}
         <div className="text-center mb-6">
           <p className="text-foreground">
-            <WillabLogo size="md" />
+            <WillabLogo size="sm" />
           </p>
           <p className="text-sm text-muted-foreground mt-0.5">
             Homework tool for public speaking
@@ -117,7 +122,7 @@ export default function CoachEmail({
           <div className="px-10 py-10">
             <p className="text-sm font-medium text-muted-foreground">{metaLabel}</p>
             <h1 className={`${dmSerif.className} text-[28px] text-foreground mt-1 mb-6`}>
-              {title}
+              {resolvedTitle}
             </h1>
             <div className="space-y-4 text-[15px] text-foreground/80">
               {bodyParagraphs.map((para, i) => (

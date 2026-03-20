@@ -522,6 +522,8 @@ export default function AdminStudentProfilePage() {
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [studentName, setStudentName] = useState("");
+  const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
   const [userMetricQuestions, setUserMetricQuestions] = useState({
@@ -581,6 +583,19 @@ export default function AdminStudentProfilePage() {
       .getStudentProfile(id)
       .then((p) => {
         setProfile(p);
+        const rawName = (p as { name?: string | null; display_name?: string | null }).name
+          ?? (p as { name?: string | null; display_name?: string | null }).display_name
+          ?? "";
+        setStudentName(rawName);
+        const rawPrice =
+          (p as { price_per_live_lesson?: number | string | null }).price_per_live_lesson ?? null;
+        setPricePerLiveLessonUsd(
+          rawPrice == null || rawPrice === ""
+            ? ""
+            : Number.isFinite(Number(rawPrice))
+              ? String(Number(rawPrice))
+              : ""
+        );
         const ids = p.overrides?.assigned_exercise_ids;
         setAssignedExerciseIds(
           Array.isArray(ids) && ids.length > 0
@@ -677,8 +692,20 @@ export default function AdminStudentProfilePage() {
 
   /** Save all batched changes (speaker profile, metrics, overrides, list syncs). */
   const saveAllChanges = async () => {
+    const normalizedName = studentName.trim();
+    const normalizedPrice = pricePerLiveLessonUsd.trim();
+    if (normalizedPrice !== "" && !Number.isFinite(Number(normalizedPrice))) {
+      toast.error("Live lesson price must be a valid number in USD.");
+      return;
+    }
+
     setSaving(true);
     try {
+      await adminApi.patchStudent(id, {
+        name: normalizedName === "" ? null : normalizedName,
+        price_per_live_lesson:
+          normalizedPrice === "" ? null : Math.max(0, Number(normalizedPrice)),
+      });
       await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
       await patchUserMetricQuestions(userMetricQuestions);
       await adminApi.putOverrides(id, {
@@ -1019,8 +1046,38 @@ export default function AdminStudentProfilePage() {
         >
           <ChevronLeft className="h-4 w-4" /> Students
         </Link>
-        <h1 className="mt-2 text-3xl font-bold">{profile.email || profile.user_id}</h1>
+        <h1 className="mt-2 text-3xl font-bold">{studentName.trim() || profile.email || profile.user_id}</h1>
+        {profile.email ? <p className="mt-1 text-sm text-muted-foreground">{profile.email}</p> : null}
       </div>
+
+      <SectionCard
+        title="Student Details"
+        description="Basic student fields managed by admin."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Name</label>
+            <Input
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              placeholder="Student name"
+              disabled={saving}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Price per live lesson (USD)</label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={pricePerLiveLessonUsd}
+              onChange={(e) => setPricePerLiveLessonUsd(e.target.value)}
+              placeholder="e.g. 49.99"
+              disabled={saving}
+            />
+          </div>
+        </div>
+      </SectionCard>
 
       {/* Homework Configuration */}
       <SectionCard
