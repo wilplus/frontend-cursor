@@ -158,6 +158,48 @@ export function StrengthPaceDartboard({ targetX, targetY }: StrengthPaceDartboar
           strokeWidth={1.2}
         />
 
+        {/* axis labels */}
+        <text
+          x={CENTER}
+          y={CENTER - RADIUS + 16}
+          textAnchor="middle"
+          fontSize="11"
+          fill="rgba(31,41,55,0.72)"
+          fontWeight="600"
+        >
+          Too fast
+        </text>
+        <text
+          x={CENTER}
+          y={CENTER + RADIUS - 10}
+          textAnchor="middle"
+          fontSize="11"
+          fill="rgba(31,41,55,0.72)"
+          fontWeight="600"
+        >
+          Too slow
+        </text>
+        <text
+          x={CENTER - RADIUS + 12}
+          y={CENTER + 4}
+          textAnchor="start"
+          fontSize="11"
+          fill="rgba(31,41,55,0.72)"
+          fontWeight="600"
+        >
+          Too quiet
+        </text>
+        <text
+          x={CENTER + RADIUS - 12}
+          y={CENTER + 4}
+          textAnchor="end"
+          fontSize="11"
+          fill="rgba(31,41,55,0.72)"
+          fontWeight="600"
+        >
+          Too loud
+        </text>
+
         {/* ball: size 12, premium feel — confidently visible for coaching */}
         <circle
           cx={CENTER + ballX}

@@ -53,6 +53,9 @@ export interface LiveCoachSnapshot {
   pauseRatio: number;
   voicedDurationSec: number;
   wpm: number | null;
+  centerHoldRatio?: number;
+  centerHoldMs?: number;
+  totalActiveMs?: number;
 }
 
 // ── Legacy types — kept for API routes and HomeworkFlowCard compatibility ─────

@@ -303,7 +303,9 @@ export const homeworkApi = {
     durationSeconds: number,
     signal?: AbortSignal,
     transcriptText?: string,
-    pauseRatio?: number
+    centerHoldRatio?: number,
+    centerHoldMs?: number,
+    totalActiveMs?: number
   ): Promise<
     | HomeworkRecording1Response
     | { alreadyAtStep2: true; task_block: TaskBlockV2; status?: string }
@@ -326,9 +328,14 @@ export const homeworkApi = {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const postBody: Record<string, unknown> = { storage_path, duration_seconds: durationSeconds };
     if (transcriptText) postBody.transcript_text = transcriptText;
-    if (typeof pauseRatio === "number" && Number.isFinite(pauseRatio)) {
-      postBody.pause_ratio = pauseRatio;
-      postBody.pauseRatio = pauseRatio;
+    if (typeof centerHoldRatio === "number" && Number.isFinite(centerHoldRatio)) {
+      postBody.center_hold_ratio = Math.max(0, Math.min(1, centerHoldRatio));
+    }
+    if (typeof centerHoldMs === "number" && Number.isFinite(centerHoldMs)) {
+      postBody.center_hold_ms = Math.max(0, Math.round(centerHoldMs));
+    }
+    if (typeof totalActiveMs === "number" && Number.isFinite(totalActiveMs)) {
+      postBody.total_active_ms = Math.max(0, Math.round(totalActiveMs));
     }
     const res = await fetch(`${BASE}/session/${sessionId}/recording-1`, {
       method: "POST",

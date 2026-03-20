@@ -8,10 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
-import { useSniperMetrics } from "@/hooks/useSniperMetrics";
 import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
-import { SniperWheel } from "@/components/recording/SniperWheel";
-import { SniperGame } from "@/components/recording/SniperGame";
 import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
@@ -76,7 +73,7 @@ interface AudioRecorderProps {
   minDurationSeconds?: number;
   /** Optional prompt/question shown at top of card (e.g. "How was your day so far?") */
   prompt?: string;
-  /** When true, show Sniper Wheel (5-segment voice alignment) instead of strength/pace dartboard */
+  /** When true, run the Feb-26 sniper dartboard mode. */
   sniperMode?: boolean;
   /** When sniperMode and recording completes, called with session summary snapshot for Review. */
   onSniperSnapshot?: (snapshot: LiveCoachSnapshot) => void;
@@ -109,7 +106,6 @@ export default function AudioRecorder({
   const [manualDuration, setManualDuration] = useState<string>("");
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [micPreviewError, setMicPreviewError] = useState<string | null>(null);
-  const [sniperViewMode, setSniperViewMode] = useState<"coach" | "game">("coach");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -129,22 +125,32 @@ export default function AudioRecorder({
   setElapsedSecondsRef.current = setElapsedSeconds;
 
   const realtimeStrengthPace = useRealtimeStrengthPace();
-  const sniperMetrics = useSniperMetrics(startTimeRef);
   const lastSniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
-  const stopRealtimeRef = useRef(() => {
-    if (sniperMode) sniperMetrics.stop();
-    else realtimeStrengthPace.stop();
-  });
-  stopRealtimeRef.current = () => {
-    if (sniperMode) sniperMetrics.stop();
-    else realtimeStrengthPace.stop();
-  };
+  const stopRealtimeRef = useRef(() => realtimeStrengthPace.stop());
+  stopRealtimeRef.current = () => realtimeStrengthPace.stop();
 
   useEffect(() => {
-    if (sniperMode && sniperMetrics.isActive) {
-      lastSniperSnapshotRef.current = sniperMetrics.getSnapshot();
+    if (sniperMode && realtimeStrengthPace.isActive) {
+      lastSniperSnapshotRef.current = {
+        performanceScore: Math.round(Math.max(0, Math.min(1, realtimeStrengthPace.score)) * 100),
+        pauseRatio: 0.5,
+        voicedDurationSec: Math.max(0, elapsedSeconds),
+        wpm: Number.isFinite(realtimeStrengthPace.wpmEstimate) ? Math.round(realtimeStrengthPace.wpmEstimate) : null,
+        centerHoldRatio: realtimeStrengthPace.centerHoldRatio,
+        centerHoldMs: realtimeStrengthPace.centerHoldMs,
+        totalActiveMs: realtimeStrengthPace.totalActiveMs,
+      };
     }
-  }, [sniperMode, sniperMetrics.isActive, sniperMetrics.performanceScore, sniperMetrics.pauseRatio]);
+  }, [
+    sniperMode,
+    realtimeStrengthPace.isActive,
+    realtimeStrengthPace.score,
+    realtimeStrengthPace.wpmEstimate,
+    realtimeStrengthPace.centerHoldRatio,
+    realtimeStrengthPace.centerHoldMs,
+    realtimeStrengthPace.totalActiveMs,
+    elapsedSeconds,
+  ]);
 
   // Detect MIME support on mount — always resolve so we never stick on "Checking audio support..."
   useEffect(() => {
@@ -297,8 +303,7 @@ export default function AudioRecorder({
       setIsPaused(false);
       setElapsedSeconds(0);
       onRecordingStart?.();
-      if (sniperMode) sniperMetrics.start(stream);
-      else realtimeStrengthPace.start(stream);
+      realtimeStrengthPace.start(stream);
 
       timerIntervalRef.current = setInterval(() => {
         if (startTimeRef.current) {
@@ -332,7 +337,7 @@ export default function AudioRecorder({
           : "Failed to access microphone"
       );
     }
-  }, [mimeType, onRecordingStart, attachOnStop, sniperMode, sniperMetrics.start, realtimeStrengthPace.start]);
+  }, [mimeType, onRecordingStart, attachOnStop, realtimeStrengthPace.start]);
 
   const stopRecording = useCallback(() => {
     stopRealtimeRef.current?.();
@@ -406,8 +411,7 @@ export default function AudioRecorder({
       console.log("[rec] calling recorder.start()", Date.now());
     }
     recorder.start();
-    if (sniperMode) sniperMetrics.start(stream);
-    else realtimeStrengthPace.start(stream);
+    realtimeStrengthPace.start(stream);
     setIsPaused(false);
     timerIntervalRef.current = setInterval(() => {
       if (startTimeRef.current) {
@@ -422,7 +426,7 @@ export default function AudioRecorder({
         }
       }
     }, 100);
-  }, [mimeType, elapsedSeconds, attachOnStop, sniperMode, sniperMetrics.start, realtimeStrengthPace.start]);
+  }, [mimeType, elapsedSeconds, attachOnStop, realtimeStrengthPace.start]);
 
   const handleStartAgain = useCallback(() => {
     if (isPaused) {
@@ -647,62 +651,20 @@ export default function AudioRecorder({
           </div>
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
-          {sniperMode ? (
-            <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 mb-1">
-              <button
-                type="button"
-                onClick={() => setSniperViewMode("coach")}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  sniperViewMode === "coach"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Coach
-              </button>
-              <button
-                type="button"
-                onClick={() => setSniperViewMode("game")}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  sniperViewMode === "game"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Game
-              </button>
-            </div>
-          ) : null}
           <div className="flex justify-center w-full">
             <div className={sniperMode ? "w-full" : "w-[clamp(420px,60vw,680px)]"}>
-              {sniperMode ? (
-                sniperViewMode === "game" ? (
-                  <SniperGame
-                    state={sniperMetrics}
-                    taskLabel={prompt || undefined}
-                    audioError={sniperMetrics.audioError}
-                  />
-                ) : (
-                  <SniperWheel
-                    state={sniperMetrics}
-                    taskLabel={prompt || undefined}
-                    audioError={sniperMetrics.audioError}
-                  />
-                )
-              ) : (
-                <StrengthPaceDartboard
-                  targetX={realtimeStrengthPace.targetX}
-                  targetY={realtimeStrengthPace.targetY}
-                />
-              )}
+              <StrengthPaceDartboard
+                targetX={realtimeStrengthPace.targetX}
+                targetY={realtimeStrengthPace.targetY}
+              />
             </div>
           </div>
-        {!sniperMode && realtimeStrengthPace.isActive ? (
+        {realtimeStrengthPace.isActive ? (
           <p className="text-sm text-muted-foreground">
             Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB   Pace: {Math.round(realtimeStrengthPace.wpmEstimate)} WPM
           </p>
         ) : null}
-        {!sniperMode && !realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
+        {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             {micPreviewError}
           </p>

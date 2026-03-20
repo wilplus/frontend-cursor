@@ -901,7 +901,9 @@ export default function HomeworkFlowCard() {
         durationSeconds,
         abortRef.current.signal,
         localTranscriptRef.current || undefined,
-        sniperSnapshotRef.current?.pauseRatio
+        sniperSnapshotRef.current?.centerHoldRatio,
+        sniperSnapshotRef.current?.centerHoldMs,
+        sniperSnapshotRef.current?.totalActiveMs
       );
       const backendStatus = (res as { status?: string }).status;
       const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "task_block";
@@ -1623,58 +1625,14 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    if (reportNotReady || (reportData == null && reportError == null)) {
-      return (
-        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          <h3 className="text-center text-xl font-semibold">Your report</h3>
-          <Card className="border-0 bg-transparent p-6 shadow-none">
-            <div className="text-center space-y-4 flex flex-col items-center">
-              {loadingLottieData ? (
-                <div className="w-24 h-24">
-                  <Lottie animationData={loadingLottieData} loop />
-                </div>
-              ) : (
-                <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              )}
-              <p className="text-sm text-muted-foreground">Generating your report…</p>
-              <p className="text-xs text-muted-foreground">This can take up to a minute.</p>
-              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start New Practice"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      );
-    }
-
-    if (reportError != null && reportData == null) {
-      return (
-        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          <h3 className="text-center text-xl font-semibold">Your report</h3>
-          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            <p className="text-sm text-foreground">We couldn&apos;t load your report right now.</p>
-            <p className="text-sm text-destructive">{reportError}</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                onClick={() => {
-                  setReportError(null);
-                  setReportRetryCount((c) => c + 1);
-                }}
-                disabled={reportLoading}
-                className="flex-1 rounded-xl h-12 font-semibold"
-              >
-                {reportLoading ? "Loading…" : "Try again"}
-              </Button>
-              <Button onClick={handleStartOver} disabled={resetting} variant="outline" className="flex-1 rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start New Practice"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      );
-    }
-
-    const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
+    const waitingForFullReport = reportNotReady || (reportData == null && reportError == null);
+    const displayScores =
+      reportData?.scores ??
+      (performanceScoreEnd != null
+        ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) }
+        : sniperSnapshot != null
+          ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
+          : undefined);
     const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Start New Practice";
     const currentPerformanceScore1 =
       typeof reportData?.performance_score_1 === "number"
@@ -1735,6 +1693,36 @@ export default function HomeworkFlowCard() {
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         {coachMessageBlock}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+          {waitingForFullReport ? (
+            <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center gap-3">
+              {loadingLottieData ? (
+                <div className="w-10 h-10 shrink-0">
+                  <Lottie animationData={loadingLottieData} loop />
+                </div>
+              ) : (
+                <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              )}
+              <p className="text-sm text-muted-foreground">
+                Report details are still generating. Showing available results now.
+              </p>
+            </div>
+          ) : null}
+          {reportError != null && reportData == null ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 space-y-3">
+              <p className="text-sm text-foreground">We couldn&apos;t load full report details yet.</p>
+              <p className="text-sm text-destructive">{reportError}</p>
+              <Button
+                onClick={() => {
+                  setReportError(null);
+                  setReportRetryCount((c) => c + 1);
+                }}
+                disabled={reportLoading}
+                className="w-full rounded-xl h-11 font-semibold"
+              >
+                {reportLoading ? "Loading…" : "Try again"}
+              </Button>
+            </div>
+          ) : null}
           {performanceResult != null ? (
             <p className="text-sm text-muted-foreground text-center">
               Performance result: <span className="font-semibold text-foreground">{performanceResult}%</span>
