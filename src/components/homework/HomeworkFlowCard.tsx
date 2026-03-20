@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { homeworkApi, type HomeworkApiError, type SelfRatingResponse } from "@/lib/api/homework-client";
 import type {
@@ -158,6 +158,7 @@ function StepFlowWrapper({
 
 export default function HomeworkFlowCard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const authReady = useAuthReady();
   const { setRecordingActive, setShowNavbar } = useRecordingContext();
   const [step, setStep] = useState<Step>(0);
@@ -253,6 +254,8 @@ export default function HomeworkFlowCard() {
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
+  /** Deep-link guard: handle query-triggered report auto-open only once per page load. */
+  const reportDeepLinkHandledRef = useRef(false);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
   const taskBlockFetchStartedRef = useRef(false);
   /** Legacy ref kept for compatibility with old status payloads. */
@@ -307,6 +310,28 @@ export default function HomeworkFlowCard() {
       .catch(() => setStep0Sessions([]))
       .finally(() => setStep0SessionsLoading(false));
   }, [step0SessionsLoading]);
+
+  /** Deep-link support from completion email:
+   *  /dashboard?showReports=1&openReportSessionId=<sessionId>
+   *  - force step 0 reports list visible
+   *  - fetch reports
+   *  - auto-open the target report modal
+   */
+  useEffect(() => {
+    if (step !== 0 || reportDeepLinkHandledRef.current) return;
+    const shouldShowReports = searchParams.get("showReports");
+    const targetSessionId = searchParams.get("openReportSessionId");
+    if (shouldShowReports !== "1" && !targetSessionId) return;
+
+    reportDeepLinkHandledRef.current = true;
+    setShowReportsList(true);
+    fetchStep0Reports();
+
+    if (targetSessionId && targetSessionId.trim()) {
+      setReportModalSessionId(targetSessionId.trim());
+      setReportsModalOpen(true);
+    }
+  }, [step, searchParams, fetchStep0Reports]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {

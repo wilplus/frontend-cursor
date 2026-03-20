@@ -50,6 +50,8 @@ export interface StudentListItem {
   /** When present, shown as primary label on the students list */
   email?: string | null;
   user_email?: string | null;
+  name?: string | null;
+  price_per_live_lesson?: number | null;
   sessions_count?: number;
   last_session_at?: string | null;
   avg_performance?: number | null;
@@ -58,6 +60,8 @@ export interface StudentListItem {
 export interface StudentProfile {
   user_id: string;
   email: string | null;
+  name?: string | null;
+  price_per_live_lesson?: number | null;
   overrides: {
     show_exercise_step?: boolean;
     intended_emotion_prompt?: string;
@@ -214,6 +218,14 @@ export const adminApi = {
 
   getStudentProfile: (userId: string) =>
     adminFetch<StudentProfile>(`/students/${userId}`),
+
+  patchStudent: (
+    userId: string,
+    body: { name?: string | null; price_per_live_lesson?: number | null }
+  ) => adminFetch<{ status?: string }>(`/students/${userId}`, { method: "PATCH", body }),
+
+  deleteStudent: (userId: string) =>
+    adminFetch<{ status?: string }>(`/students/${userId}`, { method: "DELETE" }),
 
   /** Full report for a student's completed session (for admin report modal). */
   getStudentSessionReport: (userId: string, sessionId: string) =>

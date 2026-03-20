@@ -12,6 +12,7 @@ import { toast } from "sonner";
 export default function SignupForm() {
   const router = useRouter();
   const supabase = createClient();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -30,6 +31,11 @@ export default function SignupForm() {
       return;
     }
 
+    if (!name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -37,6 +43,10 @@ export default function SignupForm() {
         email,
         password,
         options: {
+          data: {
+            name: name.trim(),
+            display_name: name.trim(),
+          },
           // Disable email confirmation for testing (if enabled in Supabase)
           emailRedirectTo: undefined,
         },
@@ -113,6 +123,17 @@ export default function SignupForm() {
   return (
     <Card className="p-6">
       <form onSubmit={handleSignup} className="space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium">Name</label>
+          <Input
+            type="text"
+            placeholder="Your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            disabled={loading}
+          />
+        </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Email</label>
           <Input
