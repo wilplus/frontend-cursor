@@ -218,8 +218,9 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         let nextStrengthDirection: number;
         if (voiceActiveRef.current) {
           let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
-          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.9;
-          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.3);
+          // Asymmetric bias (opposite side, but milder): favor quieter side over louder side.
+          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.45;
+          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.75);
           const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
           const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
           fastStrengthRef.current = fastStr;
