@@ -29,6 +29,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [fallbackAudioUrl, setFallbackAudioUrl] = useState<string | null>(null);
+  const [audioPlaybackError, setAudioPlaybackError] = useState(false);
 
   useBodyScrollLock(open);
 
@@ -37,11 +38,13 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
       setReport(null);
       setReportError(null);
       setFallbackAudioUrl(null);
+      setAudioPlaybackError(false);
       return;
     }
     setReportLoading(true);
     setReportError(null);
     setFallbackAudioUrl(null);
+    setAudioPlaybackError(false);
     homeworkApi
       .getReport(sessionId)
       .then((data) => {
@@ -103,39 +106,96 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
           )}
           {report && !reportLoading && (() => {
             const audioUrl = report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url ?? fallbackAudioUrl;
-            const transcriptionText = (report.recording?.transcription_text ?? report.transcript ?? "").trim();
-            const fillerTotal = report.recording?.filler_words_count?.total ?? report.filler_word_count ?? null;
-            const fillerBreakdown = report.recording?.filler_words_count?.breakdown;
+            const displayScores = report.scores;
+            const currentPerformanceScore1 =
+              typeof report.performance_score_1 === "number"
+                ? Math.round(report.performance_score_1 <= 1 ? report.performance_score_1 * 100 : report.performance_score_1)
+                : undefined;
+            const performanceResult = currentPerformanceScore1 ?? displayScores?.overall;
+            const transcriptionText = (
+              report.recording?.transcription_text ??
+              report.transcription_text ??
+              report.transcript ??
+              ""
+            ).trim();
+            const backendBreakdown =
+              report.recording?.filler_words_count?.breakdown ??
+              (report as { filler_words_breakdown?: Record<string, number> | null }).filler_words_breakdown ??
+              null;
+            const backendTotalRaw =
+              report.recording?.filler_words_count?.total ??
+              report.filler_word_count ??
+              (report as { filler_words_total?: number | null }).filler_words_total ??
+              null;
+            const computedTotalFromBreakdown = backendBreakdown
+              ? Object.values(backendBreakdown).reduce((sum, v) => sum + (Number.isFinite(v) ? Number(v) : 0), 0)
+              : 0;
+            const fillerTotal =
+              typeof backendTotalRaw === "number"
+                ? (backendTotalRaw === 0 && computedTotalFromBreakdown > 0 ? computedTotalFromBreakdown : backendTotalRaw)
+                : (computedTotalFromBreakdown > 0 ? computedTotalFromBreakdown : null);
+            const fillerBreakdown = backendBreakdown ?? undefined;
             const coachInsight = (report.coach_insight ?? "").trim();
             const lastFive = report.performance_history?.length ? report.performance_history.slice(-5) : [];
             const chartData = lastFive.length > 0
               ? lastFive.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
-              : report.scores?.overall != null
-                ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: Math.round(report.scores.overall) }]
+              : performanceResult != null
+                ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: Math.round(performanceResult) }]
                 : [];
             return (
               <div className="space-y-4">
-                {/* 1. Progress chart */}
+                {performanceResult != null ? (
+                  <p className="text-sm text-muted-foreground text-center">
+                    Performance result: <span className="font-semibold text-foreground">{performanceResult}%</span>
+                  </p>
+                ) : null}
                 {chartData.length > 0 && <ProgressOverSessionsChart data={chartData} />}
-                {/* 2. Playback */}
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                  {audioUrl ? (
-                    <audio controls src={audioUrl} className="w-full max-w-md rounded-lg border border-border" />
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Playback</p>
+                  {audioUrl && !audioPlaybackError ? (
+                    <audio
+                      controls
+                      src={audioUrl}
+                      className="w-full max-w-md rounded-lg border border-border"
+                      onError={() => setAudioPlaybackError(true)}
+                    />
+                  ) : audioPlaybackError ? (
+                    <p className="text-sm text-muted-foreground">Playback failed. The audio may be unavailable.</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Recording playback not available.</p>
+                    <p className="text-sm text-muted-foreground">Playback not available for this session yet.</p>
                   )}
                 </div>
-                {/* 3. Filler words */}
-                {fillerTotal != null && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+                  {transcriptionText ? (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
+                      <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Transcript not available for this session yet.</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+                  {fillerTotal != null ? (
                     <p className="text-sm text-foreground">
                       {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
                       {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
                     </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Filler word analysis is not available yet.</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Coach Insight</p>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    {coachInsight ? (
+                      <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">AI Coach Insight is still loading…</p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             );
           })()}
