@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
-import { StrengthPaceDartboard } from "@/components/recording/StrengthPaceDartboard";
+import { StrengthPaceDartboard, type StrengthPaceDartboardHandle } from "@/components/recording/StrengthPaceDartboard";
 import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
@@ -124,31 +124,31 @@ export default function AudioRecorder({
   setIsRecordingRef.current = setIsRecording;
   setElapsedSecondsRef.current = setElapsedSeconds;
 
-  const realtimeStrengthPace = useRealtimeStrengthPace();
+  const dartboardRef = useRef<StrengthPaceDartboardHandle>(null);
+  const realtimeStrengthPace = useRealtimeStrengthPace({
+    onVoiceDrop: () => dartboardRef.current?.dampVelocityOnVoiceDrop?.(),
+    onSilenceSettled: () => dartboardRef.current?.resetOnSilenceSettled?.(),
+  });
   const lastSniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   const stopRealtimeRef = useRef(() => realtimeStrengthPace.stop());
   stopRealtimeRef.current = () => realtimeStrengthPace.stop();
 
   useEffect(() => {
     if (sniperMode && realtimeStrengthPace.isActive) {
+      const estimatedScore = Math.round(((realtimeStrengthPace.strengthScore + realtimeStrengthPace.paceScore) / 2) * 100);
       lastSniperSnapshotRef.current = {
-        performanceScore: Math.round(Math.max(0, Math.min(1, realtimeStrengthPace.score)) * 100),
+        performanceScore: Math.max(0, Math.min(100, estimatedScore)),
         pauseRatio: 0.5,
         voicedDurationSec: Math.max(0, elapsedSeconds),
         wpm: Number.isFinite(realtimeStrengthPace.wpmEstimate) ? Math.round(realtimeStrengthPace.wpmEstimate) : null,
-        centerHoldRatio: realtimeStrengthPace.centerHoldRatio,
-        centerHoldMs: realtimeStrengthPace.centerHoldMs,
-        totalActiveMs: realtimeStrengthPace.totalActiveMs,
       };
     }
   }, [
     sniperMode,
     realtimeStrengthPace.isActive,
-    realtimeStrengthPace.score,
+    realtimeStrengthPace.strengthScore,
+    realtimeStrengthPace.paceScore,
     realtimeStrengthPace.wpmEstimate,
-    realtimeStrengthPace.centerHoldRatio,
-    realtimeStrengthPace.centerHoldMs,
-    realtimeStrengthPace.totalActiveMs,
     elapsedSeconds,
   ]);
 
@@ -654,8 +654,11 @@ export default function AudioRecorder({
           <div className="flex justify-center w-full">
             <div className={sniperMode ? "w-full" : "w-[clamp(420px,60vw,680px)]"}>
               <StrengthPaceDartboard
-                targetX={realtimeStrengthPace.targetX}
-                targetY={realtimeStrengthPace.targetY}
+                ref={dartboardRef}
+                strengthScore={realtimeStrengthPace.strengthScore}
+                paceScore={realtimeStrengthPace.paceScore}
+                strengthDirection={realtimeStrengthPace.strengthDirection}
+                paceDirection={realtimeStrengthPace.paceDirection}
               />
             </div>
           </div>
