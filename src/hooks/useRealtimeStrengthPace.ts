@@ -8,7 +8,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
 const UPDATE_MS = 100;
-const TARGET_DB = -18;
+const TARGET_DB = -16;
 const TOLERANCE_DB = 5;
 const TARGET_WPM = 165;
 const TOLERANCE_WPM = 60;
@@ -218,8 +218,8 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         let nextStrengthDirection: number;
         if (voiceActiveRef.current) {
           let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
-          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
-          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.45);
+          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.9;
+          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.3);
           const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
           const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
           fastStrengthRef.current = fastStr;

@@ -1725,7 +1725,7 @@ export default function HomeworkFlowCard() {
           ) : null}
           {performanceResult != null ? (
             <p className="text-sm text-muted-foreground text-center">
-              Performance result: <span className="font-semibold text-foreground">{performanceResult}%</span>
+              Initial performance score: <span className="font-semibold text-foreground">{performanceResult}%</span>
             </p>
           ) : null}
 
