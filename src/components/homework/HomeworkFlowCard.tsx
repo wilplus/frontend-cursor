@@ -96,6 +96,11 @@ function exerciseDisplayTitle(ex: AssignedExercise): string {
   return t || ex.id || "Exercise";
 }
 
+function normalizePercentScore(v: number | null | undefined): number | undefined {
+  if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
+  return Math.round(v <= 1 ? v * 100 : v);
+}
+
 type Step = StepType;
 
 /** Coerce API value to string; backend may send { id, text } instead of a plain string. */
@@ -1662,6 +1667,7 @@ export default function HomeworkFlowCard() {
         : sniperSnapshot != null
           ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
           : undefined);
+    const canonicalFinalScore = normalizePercentScore(reportData?.score_for_display);
     const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Start New Practice";
     const currentPerformanceScore1 =
       typeof reportData?.performance_score_1 === "number"
@@ -1674,7 +1680,7 @@ export default function HomeworkFlowCard() {
       date: p.date,
       score: p.score,
     }));
-    const progressChartData =
+    const provisionalChartData =
       chartFromHistory.length > 0
         ? chartFromHistory
         : currentPerformanceScore1 != null
@@ -1682,7 +1688,20 @@ export default function HomeworkFlowCard() {
           : displayScores?.overall != null
             ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
             : [];
-    const performanceResult = currentPerformanceScore1 ?? displayScores?.overall;
+    const progressChartData = (() => {
+      if (waitingForFullReport || canonicalFinalScore == null) return provisionalChartData;
+      // Finalized report: keep history bars from backend, but force current session point/bar to canonical score_for_display.
+      if (chartFromHistory.length > 0) {
+        const updated = [...chartFromHistory];
+        const last = updated[updated.length - 1];
+        if (last) updated[updated.length - 1] = { ...last, score: canonicalFinalScore };
+        return updated;
+      }
+      return [{ sessionLabel: "S1", date: new Date().toISOString(), score: canonicalFinalScore }];
+    })();
+    const initialPerformanceResult = currentPerformanceScore1 ?? displayScores?.overall;
+    const finalPerformanceResult = canonicalFinalScore ?? currentPerformanceScore1 ?? displayScores?.overall;
+    const performanceResult = waitingForFullReport ? initialPerformanceResult : finalPerformanceResult;
 
     const playbackUrl =
       reportData?.final_recording?.audio_url ??
@@ -1754,7 +1773,8 @@ export default function HomeworkFlowCard() {
           ) : null}
           {performanceResult != null ? (
             <p className="text-sm text-muted-foreground text-center">
-              Initial performance score: <span className="font-semibold text-foreground">{performanceResult}%</span>
+              {waitingForFullReport ? "Initial performance score" : "Final performance score"}:{" "}
+              <span className="font-semibold text-foreground">{performanceResult}%</span>
             </p>
           ) : null}
 

@@ -286,6 +286,8 @@ export interface ReportRecording {
 export interface HomeworkReportResponse {
   report_text: string;
   scores: { warmup: number; final: number; overall: number };
+  /** Canonical backend score for UI display (0–100). */
+  score_for_display?: number | null;
   final_recording: { id: string | null; audio_url: string | null };
   /** Last 5 sessions' performance (oldest first). When absent, frontend may derive a single point from scores.overall. */
   performance_history?: PerformanceHistoryPoint[];
