@@ -48,6 +48,7 @@ export default function ReportDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<AdminSessionReportResponse | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [audioPlaybackError, setAudioPlaybackError] = useState(false);
   const [coachGrade, setCoachGrade] = useState<number | null>(null);
   const [savingGrade, setSavingGrade] = useState(false);
 
@@ -58,12 +59,14 @@ export default function ReportDetailModal({
       setReport(null);
       setError(null);
       setPlaybackUrl(null);
+      setAudioPlaybackError(false);
       setCoachGrade(null);
       return;
     }
     setLoading(true);
     setError(null);
     setPlaybackUrl(null);
+    setAudioPlaybackError(false);
     adminApi
       .getStudentSessionReport(userId, session.id)
       .then((data) => {
@@ -137,6 +140,12 @@ export default function ReportDetailModal({
   const pace = (report?.pace_metric ?? "").trim();
   const coachInsight = (report?.coach_insight ?? "").trim();
   const scores = report?.scores;
+  const maybePerformanceScore1 = (report as { performance_score_1?: number | null } | null)?.performance_score_1;
+  const currentPerformanceScore1 =
+    typeof maybePerformanceScore1 === "number"
+      ? Math.round(maybePerformanceScore1 <= 1 ? maybePerformanceScore1 * 100 : maybePerformanceScore1)
+      : undefined;
+  const performanceResult = currentPerformanceScore1 ?? scores?.overall ?? null;
   const dateLabel = session?.created_at
     ? new Date(session.created_at).toLocaleDateString(undefined, {
         dateStyle: "medium",
@@ -187,37 +196,74 @@ export default function ReportDetailModal({
 
           {!loading && (
             <>
+              {performanceResult != null ? (
+                <p className="text-sm text-muted-foreground text-center">
+                  Performance result: <span className="font-semibold text-foreground">{Math.round(performanceResult)}%</span>
+                </p>
+              ) : null}
               {/* 1. Progress chart */}
               {(() => {
                 const lastFive = report?.performance_history?.length ? report.performance_history.slice(-5) : [];
                 const chartData = lastFive.length > 0
                   ? lastFive.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
-                  : scores?.overall != null
-                    ? [{ sessionLabel: "S1", date: session?.created_at ?? new Date().toISOString(), score: Math.round(scores.overall) }]
+                  : performanceResult != null
+                    ? [{ sessionLabel: "S1", date: session?.created_at ?? new Date().toISOString(), score: Math.round(performanceResult) }]
                     : [];
                 return chartData.length > 0 ? <ProgressOverSessionsChart data={chartData} /> : null;
               })()}
 
               {/* 2. Playback */}
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                {audioUrl ? (
-                  <audio controls src={audioUrl} className="w-full max-w-md rounded-lg border border-border" />
+                <p className="text-sm font-medium text-muted-foreground mb-2">Playback</p>
+                {audioUrl && !audioPlaybackError ? (
+                  <audio
+                    controls
+                    src={audioUrl}
+                    className="w-full max-w-md rounded-lg border border-border"
+                    onError={() => setAudioPlaybackError(true)}
+                  />
+                ) : audioPlaybackError ? (
+                  <p className="text-sm text-muted-foreground">Playback failed. The audio may be unavailable.</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Recording playback not available.</p>
+                  <p className="text-sm text-muted-foreground">Playback not available for this session yet.</p>
                 )}
               </div>
 
-              {/* 3. Filler words */}
-              {fillerTotal != null && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+                {transcriptionText ? (
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
+                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Transcript not available for this session yet.</p>
+                )}
+              </div>
+
+              <div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                  <p className="text-sm text-foreground">
-                    {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
-                    {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
-                  </p>
+                  {fillerTotal != null ? (
+                    <p className="text-sm text-foreground">
+                      {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
+                      {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Filler word analysis is not available yet.</p>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">AI Coach Insight</p>
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  {coachInsight ? (
+                    <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">AI Coach Insight is still loading…</p>
+                  )}
+                </div>
+              </div>
 
 
               {session?.status === "completed" && (
