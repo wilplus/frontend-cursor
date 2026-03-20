@@ -625,7 +625,13 @@ export default function AudioRecorder({
 
   // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
   return (
-    <div className={`w-full mx-auto ${sniperMode ? "max-w-xl px-0 pt-1 pb-2 space-y-2" : "max-w-lg px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5"}`}>
+    <div
+      className={`w-full mx-auto ${
+        sniperMode
+          ? "max-w-xl px-0 py-2 space-y-2 min-h-[calc(100svh-12rem)] flex flex-col justify-center"
+          : "max-w-lg px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5"
+      }`}
+    >
       <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
         {prompt ? (
           <div className="relative w-full">
