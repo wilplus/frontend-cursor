@@ -55,6 +55,7 @@ const STR_MIN_CUT = 0.8;
 const STR_BETA = 0.004;
 const PACE_MIN_CUT = 0.4;
 const PACE_BETA = 0.002;
+const CENTER_HOLD_RADIUS = 0.2;
 
 /* ─── types ──────────────────────────────────────────────────── */
 
@@ -64,6 +65,12 @@ export interface UseRealtimeStrengthPaceResult {
   strengthDb: number;
   wpmEstimate: number;
   score: number;
+  /** Ratio 0..1 of voiced time spent near center. */
+  centerHoldRatio: number;
+  /** Voiced milliseconds spent near center. */
+  centerHoldMs: number;
+  /** Total voiced milliseconds used for center-hold ratio. */
+  totalActiveMs: number;
   isActive: boolean;
   start: (stream: MediaStream) => void;
   stop: () => void;
@@ -82,6 +89,9 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     strengthDb: -60,
     wpmEstimate: 0,
     score: 1,
+    centerHoldRatio: 0,
+    centerHoldMs: 0,
+    totalActiveMs: 0,
     isActive: false,
   });
 
@@ -97,6 +107,8 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     syl: new SyllableRateDetector(SUB_FRAMES * (1000 / TICK_MS), 3),
     driftX: 0,
     driftY: 0,
+    centerHoldMs: 0,
+    totalActiveMs: 0,
   });
 
   const start = useCallback((stream: MediaStream) => {
@@ -139,6 +151,8 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     s.syl.reset();
     s.driftX = 0;
     s.driftY = 0;
+    s.centerHoldMs = 0;
+    s.totalActiveMs = 0;
 
     setState(prev => ({ ...prev, isActive: true }));
 
@@ -233,6 +247,12 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
 
       const dist = Math.hypot(s.driftX, s.driftY);
       const score = Math.max(0, 1 - dist / Math.SQRT2);
+      if (silenceMs <= SILENCE_GRACE_MS) {
+        s.totalActiveMs += elapsed;
+        if (dist <= CENTER_HOLD_RADIUS) s.centerHoldMs += elapsed;
+      }
+      const centerHoldRatio =
+        s.totalActiveMs > 0 ? clamp(s.centerHoldMs / s.totalActiveMs, 0, 1) : 0;
 
       setState({
         targetX: s.driftX,
@@ -240,6 +260,9 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
         strengthDb: dB,
         wpmEstimate: Math.round(wpm),
         score,
+        centerHoldRatio,
+        centerHoldMs: Math.round(s.centerHoldMs),
+        totalActiveMs: Math.round(s.totalActiveMs),
         isActive: true,
       });
     };
@@ -264,6 +287,9 @@ export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
     strengthDb: state.strengthDb,
     wpmEstimate: state.wpmEstimate,
     score: state.score,
+    centerHoldRatio: state.centerHoldRatio,
+    centerHoldMs: state.centerHoldMs,
+    totalActiveMs: state.totalActiveMs,
     isActive: state.isActive,
     start,
     stop,
