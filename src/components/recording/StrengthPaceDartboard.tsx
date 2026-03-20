@@ -1,227 +1,284 @@
 "use client";
 
 /**
- * A2-Light Apple-style strength + pace field.
- * Calm, visible, subtle depth. No drama, no punishment.
- * Silence = grounded center. Motion = magnetic glide.
+ * Apple-precision strength + pace field (Feb 24 behavior).
  */
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect } from "react";
 
-import { useRef, useState, useEffect, useMemo } from "react";
-
-/* ─── constants ──────────────────────────────────────────────── */
-
-const VIEWBOX = 300;
+const VIEWBOX_SIZE = 300;
 const CENTER = 150;
 const RADIUS = 120;
-const BALL_R = 12;
+const BALL_R = 10;
+const SPRING_STIFFNESS = 0.045;
+const SPRING_DAMPING = 0.86;
+const MAX_VELOCITY = 1.5;
+const MAX_TARGET_DELTA_TOWARD_EDGE = 0.014;
+const MAX_TARGET_DELTA_TOWARD_CENTER = 0.035;
+const SOFT_DEADZONE = 0.1;
+const MIN_DIRECTION_ERROR = 0.12;
+const TARGET_SCALE_EXP = 1.4;
+const COHERENCE_STRENGTH = 0.88;
+const COHERENCE_PACE = 0.85;
+const COHERENCE_MS = 1200;
+const AUTHORITY_MS = 4000;
+const TENSION_EXP = 2.0;
 
-const LERP = 0.075;
+function tension(score: number): number {
+  return Math.pow(Math.max(0, 1 - score), TENSION_EXP);
+}
 
-const STATUS_THRESH = 0.2;
+function ballPosition(score: number, direction: number): number {
+  const error = 1 - score;
+  if (error < SOFT_DEADZONE) return 0;
+  const effectiveDirection = error < MIN_DIRECTION_ERROR ? 0 : direction;
+  let scaledError = (error - SOFT_DEADZONE) / (1 - SOFT_DEADZONE);
+  scaledError = Math.pow(scaledError, TARGET_SCALE_EXP);
+  const signed = effectiveDirection * scaledError;
+  return Math.max(-1, Math.min(1, signed));
+}
 
-/* ─── accessibility ──────────────────────────────────────────── */
-
-function getBallStatus(x: number, y: number): string {
+function getBallStatus(
+  strengthScore: number,
+  paceScore: number,
+  strengthDirection: number,
+  paceDirection: number
+): string {
+  if (strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE) return "Presence stable.";
   const parts: string[] = [];
-  if (x < -STATUS_THRESH) parts.push("Low activation");
-  else if (x > STATUS_THRESH) parts.push("High activation");
-  if (y < -STATUS_THRESH) parts.push("Slower pace");
-  else if (y > STATUS_THRESH) parts.push("Faster pace");
+  if (strengthScore < COHERENCE_STRENGTH && strengthDirection !== 0) {
+    parts.push(strengthDirection < 0 ? "Low activation" : "High activation");
+  }
+  if (paceScore < COHERENCE_PACE) parts.push(paceDirection < 0 ? "Slower pace" : "Faster pace");
   return parts.length ? parts.join(", ") + "." : "Presence stable.";
 }
 
-/* ─── types ──────────────────────────────────────────────────── */
-
 export interface StrengthPaceDartboardProps {
-  targetX: number;
-  targetY: number;
+  strengthScore: number;
+  paceScore: number;
+  strengthDirection: number;
+  paceDirection: number;
 }
 
-/* ─── component ──────────────────────────────────────────────── */
+export interface StrengthPaceDartboardHandle {
+  dampVelocityOnVoiceDrop: () => void;
+  resetOnSilenceSettled: () => void;
+}
 
-export function StrengthPaceDartboard({ targetX, targetY }: StrengthPaceDartboardProps) {
+export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, StrengthPaceDartboardProps>(function StrengthPaceDartboard(
+  { strengthScore, paceScore, strengthDirection, paceDirection },
+  ref
+) {
+  const targetX = useMemo(() => ballPosition(strengthScore, strengthDirection), [strengthScore, strengthDirection]);
+  const targetY = useMemo(() => ballPosition(paceScore, paceDirection), [paceScore, paceDirection]);
+
+  const rawTargetRef = useRef({ x: targetX, y: targetY });
+  rawTargetRef.current = { x: targetX, y: targetY };
   const targetRef = useRef({ x: 0, y: 0 });
-  targetRef.current.x = targetX;
-  targetRef.current.y = targetY;
-
+  const posRef = useRef({ x: 0, y: 0 });
+  const velRef = useRef({ x: 0, y: 0 });
   const [displayPos, setDisplayPos] = useState({ x: 0, y: 0 });
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      dampVelocityOnVoiceDrop() {
+        velRef.current.x *= 0.4;
+        velRef.current.y *= 0.4;
+      },
+      resetOnSilenceSettled() {
+        targetRef.current.x = 0;
+        targetRef.current.y = 0;
+        rawTargetRef.current.x = 0;
+        rawTargetRef.current.y = 0;
+        velRef.current.x *= 0.3;
+        velRef.current.y *= 0.3;
+      },
+    }),
+    []
+  );
+
+  const isCoherent = strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE;
+  const coherentStartRef = useRef<number | null>(null);
+  const [coherent, setCoherent] = useState(false);
+  const [authority, setAuthority] = useState(false);
+
   useEffect(() => {
-    let frame: number;
+    const now = Date.now();
+    if (isCoherent) {
+      if (coherentStartRef.current === null) coherentStartRef.current = now;
+      const elapsed = now - (coherentStartRef.current ?? now);
+      setCoherent(elapsed >= COHERENCE_MS);
+      setAuthority(elapsed >= AUTHORITY_MS);
+    } else {
+      coherentStartRef.current = null;
+      setCoherent(false);
+      setAuthority(false);
+    }
+  }, [isCoherent]);
 
-    const animate = () => {
-      setDisplayPos((prev) => {
-        const tx = targetRef.current.x;
-        const ty = targetRef.current.y;
-        const dx = tx - prev.x;
-        const dy = ty - prev.y;
+  useEffect(() => {
+    let rafId: number;
+    const tick = () => {
+      const raw = rawTargetRef.current;
+      const t = targetRef.current;
+      const p = posRef.current;
+      const v = velRef.current;
 
-        const nextX = Math.abs(dx) < 0.001 ? tx : prev.x + dx * LERP;
-        const nextY = Math.abs(dy) < 0.001 ? ty : prev.y + dy * LERP;
+      const moveToward = (current: number, goal: number, towardEdge: boolean): number => {
+        const d = goal - current;
+        const maxDelta = towardEdge ? MAX_TARGET_DELTA_TOWARD_EDGE : MAX_TARGET_DELTA_TOWARD_CENTER;
+        if (Math.abs(d) <= maxDelta) return goal;
+        return current + Math.sign(d) * maxDelta;
+      };
+      const towardEdgeX = Math.abs(raw.x) >= Math.abs(t.x);
+      const towardEdgeY = Math.abs(raw.y) >= Math.abs(t.y);
+      t.x = moveToward(t.x, raw.x, towardEdgeX);
+      t.y = moveToward(t.y, raw.y, towardEdgeY);
 
-        return { x: nextX, y: nextY };
-      });
-
-      frame = requestAnimationFrame(animate);
+      const dx = t.x - p.x;
+      const dy = t.y - p.y;
+      const combinedMagnitude = Math.sqrt(dx * dx + dy * dy);
+      const axisDamp = combinedMagnitude > 0.8 ? 0.85 : 1;
+      v.x += dx * SPRING_STIFFNESS * axisDamp;
+      v.y += dy * SPRING_STIFFNESS * axisDamp;
+      v.x *= SPRING_DAMPING;
+      v.y *= SPRING_DAMPING;
+      v.x = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.x));
+      v.y = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, v.y));
+      p.x += v.x;
+      p.y += v.y;
+      if (Math.abs(p.x) < 0.0001) p.x = 0;
+      if (Math.abs(p.y) < 0.0001) p.y = 0;
+      setDisplayPos({ x: p.x, y: p.y });
+      rafId = requestAnimationFrame(tick);
     };
-
-    frame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame);
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   const ballX = displayPos.x * RADIUS;
   const ballY = -displayPos.y * RADIUS;
+  const cx = CENTER + ballX;
+  const cy = CENTER + ballY;
+  const statusText = getBallStatus(strengthScore, paceScore, strengthDirection, paceDirection);
 
-  const statusText = useMemo(
-    () => getBallStatus(displayPos.x, displayPos.y),
-    [
-      displayPos.x < -STATUS_THRESH ? -1 : displayPos.x > STATUS_THRESH ? 1 : 0,
-      displayPos.y < -STATUS_THRESH ? -1 : displayPos.y > STATUS_THRESH ? 1 : 0,
-    ],
-  );
+  const worstScore = Math.min(strengthScore, paceScore);
+  let t = tension(worstScore);
+  if (worstScore < 1) {
+    if (strengthDirection < 0) t *= 1.2;
+    else if (strengthDirection > 0) t *= 0.7;
+    if (paceDirection > 0) t *= 0.8;
+    t = Math.min(1, t);
+  }
+  const outerRingBaseOpacity = coherent ? 0.45 : 0.35;
+  const outerRingOrangeOpacity = t * 0.5;
+  const crosshairOpacity = authority ? 0.22 : coherent ? 0.18 : 0.12;
+  const outerRingStrokeWidth = authority ? 1 : 0.75;
+  const ballStrokeOpacity = coherent ? 0.6 : 0.5 + t * 0.5;
 
   return (
     <div
-      className="relative rounded-full"
-      style={{ background: "#F5F5F7" }}
+      className="flex flex-col items-center w-full"
       role="img"
-      aria-label="Strength and pace feedback field"
+      aria-label="Vocal presence: keep drive and pace centered"
     >
-      <svg
-        viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
-        className="w-full h-full"
-        aria-hidden="true"
-      >
-        <defs>
-          <radialGradient id="fieldGradient" cx="50%" cy="48%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
-            <stop offset="65%" stopColor="rgba(255,255,255,0.65)" />
-            <stop offset="100%" stopColor="rgba(230,230,235,0.9)" />
-          </radialGradient>
-        </defs>
-
-        {/* field */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RADIUS}
-          fill="url(#fieldGradient)"
-          stroke="rgba(0,0,0,0.06)"
-          strokeWidth={1}
-        />
-
-        {/* outer ring — softer so focus stays on ball */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RADIUS}
-          fill="none"
-          stroke="rgba(0,0,0,0.06)"
-          strokeWidth={2}
-        />
-
-        {/* mid ring */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RADIUS * 0.6}
-          fill="none"
-          stroke="rgba(0,0,0,0.05)"
-          strokeWidth={1.5}
-        />
-
-        {/* inner ring */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RADIUS * 0.25}
-          fill="none"
-          stroke="rgba(0,0,0,0.04)"
-          strokeWidth={1}
-        />
-
-        {/* crosshair */}
-        <line
-          x1={CENTER - RADIUS}
-          y1={CENTER}
-          x2={CENTER + RADIUS}
-          y2={CENTER}
-          stroke="rgba(0,0,0,0.18)"
-          strokeWidth={1.2}
-        />
-        <line
-          x1={CENTER}
-          y1={CENTER - RADIUS}
-          x2={CENTER}
-          y2={CENTER + RADIUS}
-          stroke="rgba(0,0,0,0.18)"
-          strokeWidth={1.2}
-        />
-
-        {/* axis labels */}
-        <text
-          x={CENTER}
-          y={CENTER - RADIUS + 16}
-          textAnchor="middle"
-          fontSize="11"
-          fill="rgba(31,41,55,0.72)"
-          fontWeight="600"
-        >
-          Too fast
-        </text>
-        <text
-          x={CENTER}
-          y={CENTER + RADIUS - 10}
-          textAnchor="middle"
-          fontSize="11"
-          fill="rgba(31,41,55,0.72)"
-          fontWeight="600"
-        >
-          Too slow
-        </text>
-        <text
-          x={CENTER - RADIUS + 12}
-          y={CENTER + 4}
-          textAnchor="start"
-          fontSize="11"
-          fill="rgba(31,41,55,0.72)"
-          fontWeight="600"
-        >
-          Too quiet
-        </text>
-        <text
-          x={CENTER + RADIUS - 12}
-          y={CENTER + 4}
-          textAnchor="end"
-          fontSize="11"
-          fill="rgba(31,41,55,0.72)"
-          fontWeight="600"
-        >
-          Too loud
-        </text>
-
-        {/* ball: size 12, premium feel — confidently visible for coaching */}
-        <circle
-          cx={CENTER + ballX}
-          cy={CENTER - ballY}
-          r={12}
-          fill="#FF6A00"
-          stroke="#FFFFFF"
-          strokeWidth={2.5}
-        />
-        {/* subtle highlight — physical depth, no glow */}
-        <circle
-          cx={CENTER + ballX - 2}
-          cy={CENTER - ballY - 2}
-          r={4}
-          fill="rgba(255,255,255,0.45)"
-          pointerEvents="none"
-        />
-      </svg>
-
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
+      <svg
+        viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
+        className="w-full aspect-square"
+        aria-hidden
+      >
+        <defs>
+          <radialGradient id="apple-field" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stopColor="white" />
+            <stop offset="100%" stopColor="hsl(var(--np-gray-soft))" />
+          </radialGradient>
+          <filter id="apple-ball-shadow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.12} />
+          </filter>
+          <filter id="apple-ball-shadow-coherent" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.08} />
+          </filter>
+        </defs>
+
+        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#apple-field)" />
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={RADIUS}
+          fill="none"
+          stroke="hsl(var(--np-gray-mid))"
+          strokeWidth={outerRingStrokeWidth}
+          opacity={outerRingBaseOpacity}
+          className="apple-transition"
+        />
+        {outerRingOrangeOpacity > 0 && (
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={RADIUS}
+            fill="none"
+            stroke="hsl(var(--np-orange))"
+            strokeWidth={outerRingStrokeWidth}
+            opacity={outerRingOrangeOpacity}
+            className="apple-transition"
+          />
+        )}
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={80}
+          fill="none"
+          stroke="hsl(var(--np-gray-mid))"
+          strokeWidth={0.75}
+          opacity={0.25}
+          className="apple-transition"
+        />
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={40}
+          fill="none"
+          stroke="hsl(var(--np-gray-mid))"
+          strokeWidth={0.75}
+          opacity={0.2}
+          className="apple-transition"
+        />
+
+        <line
+          x1={CENTER}
+          y1={30}
+          x2={CENTER}
+          y2={270}
+          stroke="hsl(var(--np-gray-deep))"
+          strokeWidth={0.5}
+          opacity={crosshairOpacity}
+          className="apple-transition"
+        />
+        <line
+          x1={30}
+          y1={CENTER}
+          x2={270}
+          y2={CENTER}
+          stroke="hsl(var(--np-gray-deep))"
+          strokeWidth={0.5}
+          opacity={crosshairOpacity}
+          className="apple-transition"
+        />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={BALL_R}
+          fill="white"
+          stroke="hsl(var(--np-orange))"
+          strokeWidth={1.25}
+          strokeOpacity={ballStrokeOpacity}
+          filter={coherent ? "url(#apple-ball-shadow-coherent)" : "url(#apple-ball-shadow)"}
+          className="apple-transition"
+        />
+      </svg>
     </div>
   );
-}
+});

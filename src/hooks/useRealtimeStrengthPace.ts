@@ -1,296 +1,274 @@
 "use client";
 
 /**
- * Behavioral strength + pace feedback (deviation accumulator).
- *
- * The sniper reflects sustained pattern deviation, not instantaneous audio.
- * - Stay centered while within healthy range.
- * - Only start drifting if deviation persists.
- * - Drift slowly. Recover quickly when behavior returns to healthy.
- *
- * Outputs targetX, targetY in [-1, +1] from drift accumulators.
+ * Real-time Strength (volume) + Pace feedback.
+ * Uses mic -> AnalyserNode; 100ms loop -> RMS/dB, voiced ratio -> WPM,
+ * band scores + dual EMA.
  */
+import { useState, useCallback, useRef, useEffect } from "react";
 
-import { useCallback, useRef, useState } from "react";
-import { OneEuroFilter } from "@/lib/audio/one-euro-filter";
-import { SyllableRateDetector } from "@/lib/audio/syllable-rate";
+const UPDATE_MS = 100;
+const TARGET_DB = -18;
+const TOLERANCE_DB = 5;
+const TARGET_WPM = 165;
+const TOLERANCE_WPM = 60;
+const PACE_FAST_THRESHOLD = TARGET_WPM + 5;
+const PACE_SLOW_THRESHOLD = TARGET_WPM - 5;
+const VOICED_RMS_THRESHOLD = 0.004;
+const WINDOW_SAMPLES = 30;
+const VOICE_RMS_THRESHOLD = 0.005;
+const VOICE_ON_MIN_FRAMES = 2;
+const VOICE_OFF_MIN_FRAMES = 3;
+const STRENGTH_CENTER_DRIFT_ALPHA = 0.04;
+const PACE_ERROR_EXP = 1.4;
+const EMA_STRENGTH_FAST = 0.28;
+const EMA_STRENGTH_SLOW = 0.09;
+const EMA_PACE_FAST = 0.14;
+const EMA_PACE_SLOW = 0.05;
+const ADAPTIVE_RAW_THRESHOLD = 0.85;
+const PACE_DISPLAY_EMA = 0.08;
+const WPM_MIN = 60;
+const WPM_MAX = 220;
+const SILENCE_SETTLED_MS = 500;
 
-/* ─── constants ──────────────────────────────────────────────── */
+function rmsToDb(rms: number): number {
+  return 20 * Math.log10(rms + 1e-8);
+}
 
-// strength (perceptual loudness)
-const TARGET_DB = -26;
-const DB_TOLERANCE = 10;
-const STRENGTH_QUIET_SOFTEN = 0.5;
-/** Within this normalized band = healthy (no drift). Tighter = strength axis actually moves. */
-const HEALTHY_STRENGTH = 0.35;
+function bandScore(value: number, target: number, tolerance: number): number {
+  const error = Math.abs(value - target);
+  if (error >= tolerance) return 0;
+  return 1 - error / tolerance;
+}
 
-// pace (syllable rate)
-const TARGET_SYL = 3.5;
-const SYL_TOLERANCE = 2.0;
-const SYL_PER_WORD = 1.4;
-/** Healthy pace zone (syl/s) — slightly wider so small variation doesn't constantly drift */
-const SYL_HEALTHY_LO = 3.2;
-const SYL_HEALTHY_HI = 4.6;
-
-// timing
-const TICK_MS = 50;
-const FFT_SIZE = 4096;
-const SUB_FRAMES = 2;
-
-// voice activity
-const VOICE_RMS = 0.006;
-const SILENCE_GRACE_MS = 350;
-/** Pause shorter than this = healthy (no drift). Longer = start drifting down. */
-const SILENCE_HEALTHY_MS = 1500;
-
-// accumulator: drift rate per second when outside healthy zone — faster = more dynamic
-const DRIFT_STRENGTH_PER_S = 0.55;
-const DRIFT_PACE_PER_S = 0.50;
-const DRIFT_SILENCE_PER_S = 0.28;
-/** When in healthy zone: decay per tick (fast recovery) */
-const RECOVERY_DECAY = 0.88;
-
-// 1€ filter (light smoothing for zone decisions only)
-const STR_MIN_CUT = 0.8;
-const STR_BETA = 0.004;
-const PACE_MIN_CUT = 0.4;
-const PACE_BETA = 0.002;
-const CENTER_HOLD_RADIUS = 0.2;
-
-/* ─── types ──────────────────────────────────────────────────── */
+export interface UseRealtimeStrengthPaceOptions {
+  onVoiceDrop?: () => void;
+  onSilenceSettled?: () => void;
+}
 
 export interface UseRealtimeStrengthPaceResult {
-  targetX: number;
-  targetY: number;
+  strengthScore: number;
+  paceScore: number;
   strengthDb: number;
   wpmEstimate: number;
-  score: number;
-  /** Ratio 0..1 of voiced time spent near center. */
-  centerHoldRatio: number;
-  /** Voiced milliseconds spent near center. */
-  centerHoldMs: number;
-  /** Total voiced milliseconds used for center-hold ratio. */
-  totalActiveMs: number;
+  strengthDirection: number;
+  paceDirection: number;
   isActive: boolean;
   start: (stream: MediaStream) => void;
   stop: () => void;
 }
 
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v));
-}
+export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions): UseRealtimeStrengthPaceResult {
+  const [strengthScore, setStrengthScore] = useState(0.5);
+  const [paceScore, setPaceScore] = useState(0.5);
+  const [strengthDb, setStrengthDb] = useState(-60);
+  const [wpmEstimate, setWpmEstimate] = useState(TARGET_WPM);
+  const [strengthDirection, setStrengthDirection] = useState(0);
+  const [paceDirection, setPaceDirection] = useState(0);
+  const [isActive, setIsActive] = useState(false);
 
-/* ─── hook ───────────────────────────────────────────────────── */
-
-export function useRealtimeStrengthPace(): UseRealtimeStrengthPaceResult {
-  const [state, setState] = useState({
-    targetX: 0,
-    targetY: 0,
-    strengthDb: -60,
-    wpmEstimate: 0,
-    score: 1,
-    centerHoldRatio: 0,
-    centerHoldMs: 0,
-    totalActiveMs: 0,
-    isActive: false,
-  });
-
-  const r = useRef({
-    ctx: null as AudioContext | null,
-    analyser: null as AnalyserNode | null,
-    raf: 0,
-    lastTick: 0,
-    lastVoice: 0,
-    buf: null as Float32Array | null,
-    strF: new OneEuroFilter(STR_MIN_CUT, STR_BETA),
-    paceF: new OneEuroFilter(PACE_MIN_CUT, PACE_BETA),
-    syl: new SyllableRateDetector(SUB_FRAMES * (1000 / TICK_MS), 3),
-    driftX: 0,
-    driftY: 0,
-    centerHoldMs: 0,
-    totalActiveMs: 0,
-  });
-
-  const start = useCallback((stream: MediaStream) => {
-    const s = r.current;
-
-    if (s.ctx) {
-      cancelAnimationFrame(s.raf);
-      s.ctx.close();
-    }
-
-    // Match sample rate to the actual track so the WebAudio renderer never gets a
-    // mismatch (same root cause as the Bluetooth A2DP→HFP switch error in sniper mode).
-    const trackSampleRate = stream.getAudioTracks()[0]?.getSettings().sampleRate;
-    const ctx = new AudioContext(trackSampleRate ? { sampleRate: trackSampleRate } : undefined);
-    const src = ctx.createMediaStreamSource(stream);
-
-    const hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = 80;
-    hp.Q.value = 0.707;
-
-    const hs = ctx.createBiquadFilter();
-    hs.type = "highshelf";
-    hs.frequency.value = 2000;
-    hs.gain.value = 3;
-
-    const an = ctx.createAnalyser();
-    an.fftSize = FFT_SIZE;
-    an.smoothingTimeConstant = 0;
-
-    src.connect(hp).connect(hs).connect(an);
-
-    s.ctx = ctx;
-    s.analyser = an;
-    s.buf = new Float32Array(FFT_SIZE);
-    s.lastTick = performance.now();
-    s.lastVoice = performance.now();
-    s.strF.reset();
-    s.paceF.reset();
-    s.syl.reset();
-    s.driftX = 0;
-    s.driftY = 0;
-    s.centerHoldMs = 0;
-    s.totalActiveMs = 0;
-
-    setState(prev => ({ ...prev, isActive: true }));
-
-    const loop = () => {
-      s.raf = requestAnimationFrame(loop);
-      const now = performance.now();
-      const elapsed = now - s.lastTick;
-      if (elapsed < TICK_MS) return;
-      s.lastTick = now;
-      const dt = elapsed / 1000;
-
-      if (!s.analyser || !s.buf || !s.ctx) return;
-      if (s.ctx.state === "suspended") {
-        s.ctx.resume();
-        return;
-      }
-
-      s.analyser.getFloatTimeDomainData(s.buf as Float32Array<ArrayBuffer>);
-
-      let sum = 0;
-      const d = s.buf;
-      const len = d.length;
-      for (let i = 0; i < len; i++) sum += d[i] * d[i];
-      const rms = Math.sqrt(sum / len);
-      const dB = 20 * Math.log10(rms + 1e-8);
-
-      const fSz = (len / SUB_FRAMES) | 0;
-      for (let f = 0; f < SUB_FRAMES; f++) {
-        let fs = 0;
-        const off = f * fSz;
-        for (let i = 0; i < fSz; i++) fs += d[off + i] * d[off + i];
-        s.syl.push(Math.sqrt(fs / fSz));
-      }
-      const sylRate = s.syl.getRate();
-      const wpm = sylRate * (60 / SYL_PER_WORD);
-
-      const voiced = rms > VOICE_RMS;
-      if (voiced) s.lastVoice = now;
-      const silenceMs = now - s.lastVoice;
-
-      // ── normalized signals for zone decisions (light 1€ so zone doesn't flicker) ──
-      let rawStr = 0;
-      if (dB >= -50) {
-        rawStr = (dB - TARGET_DB) / DB_TOLERANCE;
-        if (rawStr < 0) rawStr *= STRENGTH_QUIET_SOFTEN;
-        rawStr = clamp(rawStr, -1, 1);
-      }
-      const t = now / 1000;
-      const zStr = s.strF.filter(rawStr, t);
-
-      let rawPace = 0;
-      if (sylRate > 0) {
-        rawPace = (sylRate - TARGET_SYL) / SYL_TOLERANCE;
-        rawPace = clamp(rawPace, -1, 1);
-      }
-      const zPace = s.paceF.filter(rawPace, t);
-
-      // ── behavioral accumulator: only drift when sustained outside healthy zone ──
-
-      if (silenceMs > SILENCE_GRACE_MS) {
-        // Pause mode: strength drifts back to center; silence length drives Y
-        s.driftX *= RECOVERY_DECAY;
-        if (silenceMs < SILENCE_HEALTHY_MS) {
-          s.driftY *= RECOVERY_DECAY;
-        } else {
-          s.driftY -= dt * DRIFT_SILENCE_PER_S;
-        }
-      } else {
-        // Speaking: strength accumulator
-        if (Math.abs(zStr) < HEALTHY_STRENGTH) {
-          s.driftX *= RECOVERY_DECAY;
-        } else if (zStr > HEALTHY_STRENGTH) {
-          s.driftX += dt * DRIFT_STRENGTH_PER_S;
-        } else {
-          s.driftX -= dt * DRIFT_STRENGTH_PER_S;
-        }
-
-        // Pace accumulator (only when we have pace data)
-        if (sylRate <= 0) {
-          s.driftY *= RECOVERY_DECAY;
-        } else if (sylRate >= SYL_HEALTHY_LO && sylRate <= SYL_HEALTHY_HI) {
-          s.driftY *= RECOVERY_DECAY;
-        } else if (sylRate > SYL_HEALTHY_HI) {
-          s.driftY += dt * DRIFT_PACE_PER_S;
-        } else {
-          s.driftY -= dt * DRIFT_PACE_PER_S;
-        }
-      }
-
-      s.driftX = clamp(s.driftX, -1, 1);
-      s.driftY = clamp(s.driftY, -1, 1);
-
-      const dist = Math.hypot(s.driftX, s.driftY);
-      const score = Math.max(0, 1 - dist / Math.SQRT2);
-      if (silenceMs <= SILENCE_GRACE_MS) {
-        s.totalActiveMs += elapsed;
-        if (dist <= CENTER_HOLD_RADIUS) s.centerHoldMs += elapsed;
-      }
-      const centerHoldRatio =
-        s.totalActiveMs > 0 ? clamp(s.centerHoldMs / s.totalActiveMs, 0, 1) : 0;
-
-      setState({
-        targetX: s.driftX,
-        targetY: s.driftY,
-        strengthDb: dB,
-        wpmEstimate: Math.round(wpm),
-        score,
-        centerHoldRatio,
-        centerHoldMs: Math.round(s.centerHoldMs),
-        totalActiveMs: Math.round(s.totalActiveMs),
-        isActive: true,
-      });
-    };
-
-    s.raf = requestAnimationFrame(loop);
-  }, []);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const fastStrengthRef = useRef(0.5);
+  const slowStrengthRef = useRef(0.5);
+  const fastPaceRef = useRef(0.5);
+  const slowPaceRef = useRef(0.5);
+  const displayPaceRef = useRef(0.5);
+  const voicedWindowRef = useRef<number[]>([]);
+  const voiceActiveRef = useRef(false);
+  const voiceAboveCountRef = useRef(0);
+  const voiceBelowCountRef = useRef(0);
+  const paceDirectionRef = useRef(0);
+  const silenceSettledTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const stop = useCallback(() => {
-    const s = r.current;
-    cancelAnimationFrame(s.raf);
-    if (s.ctx) {
-      s.ctx.close();
-      s.ctx = null;
+    if (silenceSettledTimeoutRef.current) {
+      clearTimeout(silenceSettledTimeoutRef.current);
+      silenceSettledTimeoutRef.current = null;
     }
-    s.analyser = null;
-    setState(prev => ({ ...prev, isActive: false }));
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (sourceRef.current && analyserRef.current) {
+      try {
+        sourceRef.current.disconnect(analyserRef.current);
+      } catch {}
+      sourceRef.current = null;
+    }
+    analyserRef.current = null;
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    voicedWindowRef.current = [];
+    voiceActiveRef.current = false;
+    voiceAboveCountRef.current = 0;
+    voiceBelowCountRef.current = 0;
+    fastStrengthRef.current = 1.0;
+    slowStrengthRef.current = 1.0;
+    displayPaceRef.current = 0.5;
+    setIsActive(false);
+    setStrengthScore(0.5);
+    setPaceScore(0.5);
+    setStrengthDb(-60);
+    setWpmEstimate(TARGET_WPM);
+    setStrengthDirection(0);
+    paceDirectionRef.current = 0;
+    setPaceDirection(0);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
+
+  const start = useCallback((stream: MediaStream) => {
+    if (!stream?.active) return;
+    stop();
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    audioContextRef.current = ctx;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.5;
+    analyserRef.current = analyser;
+    const source = ctx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    sourceRef.current = source;
+
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Float32Array(bufferLength);
+    voicedWindowRef.current = [];
+    fastStrengthRef.current = 1.0;
+    slowStrengthRef.current = 1.0;
+    fastPaceRef.current = 0.5;
+    slowPaceRef.current = 0.5;
+    displayPaceRef.current = 0.5;
+    voiceActiveRef.current = false;
+    voiceAboveCountRef.current = 0;
+    voiceBelowCountRef.current = 0;
+
+    ctx.resume().then(() => {
+      if (audioContextRef.current !== ctx) return;
+      setIsActive(true);
+      setStrengthScore(1.0);
+      setStrengthDirection(0);
+      intervalRef.current = setInterval(() => {
+        const ctxNow = audioContextRef.current;
+        const a = analyserRef.current;
+        if (!a || !ctxNow) return;
+        if (ctxNow.state !== "running") {
+          ctxNow.resume().catch(() => {});
+          return;
+        }
+        a.getFloatTimeDomainData(dataArray);
+
+        let sumSq = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const s = dataArray[i];
+          sumSq += s * s;
+        }
+        const rms = Math.sqrt(sumSq / dataArray.length);
+        const db = rmsToDb(rms);
+        setStrengthDb(db);
+
+        const above = rms >= VOICE_RMS_THRESHOLD;
+        if (above) {
+          voiceAboveCountRef.current += 1;
+          voiceBelowCountRef.current = 0;
+        } else {
+          voiceBelowCountRef.current += 1;
+          voiceAboveCountRef.current = 0;
+        }
+        const wasVoiceActive = voiceActiveRef.current;
+        if (!voiceActiveRef.current && voiceAboveCountRef.current >= VOICE_ON_MIN_FRAMES) {
+          if (silenceSettledTimeoutRef.current) {
+            clearTimeout(silenceSettledTimeoutRef.current);
+            silenceSettledTimeoutRef.current = null;
+          }
+          voiceActiveRef.current = true;
+        }
+        if (voiceActiveRef.current && voiceBelowCountRef.current >= VOICE_OFF_MIN_FRAMES) {
+          voiceActiveRef.current = false;
+          if (wasVoiceActive) {
+            optionsRef.current?.onVoiceDrop?.();
+            silenceSettledTimeoutRef.current = setTimeout(() => {
+              silenceSettledTimeoutRef.current = null;
+              optionsRef.current?.onSilenceSettled?.();
+            }, SILENCE_SETTLED_MS);
+          }
+        }
+
+        const voiced = rms > VOICED_RMS_THRESHOLD ? 1 : 0;
+        const win = voicedWindowRef.current;
+        win.push(voiced);
+        if (win.length > WINDOW_SAMPLES) win.shift();
+        const voicedRatio = win.length === 0 ? 0 : win.reduce((a, b) => a + b, 0) / win.length;
+        const wpm = Math.max(WPM_MIN, Math.min(WPM_MAX, 60 + voicedRatio * 160));
+        setWpmEstimate(wpm);
+
+        const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
+
+        let nextStrengthScore: number;
+        let nextStrengthDirection: number;
+        if (voiceActiveRef.current) {
+          let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
+          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.78;
+          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.45);
+          const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
+          const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
+          fastStrengthRef.current = fastStr;
+          slowStrengthRef.current = slowStr;
+          const strengthFastWeight = rawStrengthScore >= ADAPTIVE_RAW_THRESHOLD ? 0.3 : 0.5;
+          const blend = strengthFastWeight * fastStr + (1 - strengthFastWeight) * slowStr;
+          nextStrengthScore = 1 - Math.pow(1 - blend, 1.6);
+          nextStrengthDirection = db < TARGET_DB ? -1 : 1;
+        } else {
+          const fastStr = (1 - STRENGTH_CENTER_DRIFT_ALPHA) * fastStrengthRef.current + STRENGTH_CENTER_DRIFT_ALPHA * 1.0;
+          const slowStr = (1 - STRENGTH_CENTER_DRIFT_ALPHA) * slowStrengthRef.current + STRENGTH_CENTER_DRIFT_ALPHA * 1.0;
+          fastStrengthRef.current = fastStr;
+          slowStrengthRef.current = slowStr;
+          const blend = 0.3 * fastStr + 0.7 * slowStr;
+          nextStrengthScore = 1 - Math.pow(1 - blend, 1.6);
+          nextStrengthDirection = 0;
+        }
+        setStrengthScore(nextStrengthScore);
+        setStrengthDirection(nextStrengthDirection);
+
+        const fastPace = EMA_PACE_FAST * rawPaceScore + (1 - EMA_PACE_FAST) * fastPaceRef.current;
+        const slowPace = EMA_PACE_SLOW * rawPaceScore + (1 - EMA_PACE_SLOW) * slowPaceRef.current;
+        fastPaceRef.current = fastPace;
+        slowPaceRef.current = slowPace;
+        const isFast = wpm >= TARGET_WPM;
+        const paceFastWeight = isFast ? 0.2 : (rawPaceScore >= ADAPTIVE_RAW_THRESHOLD ? 0.4 : 0.55);
+        const paceBlend = (1 - paceFastWeight) * slowPace + paceFastWeight * fastPace;
+        const paceError = Math.pow(Math.max(0, 1 - paceBlend), PACE_ERROR_EXP);
+        const displayPaceRaw = 1 - paceError;
+        displayPaceRef.current = PACE_DISPLAY_EMA * displayPaceRaw + (1 - PACE_DISPLAY_EMA) * displayPaceRef.current;
+        setPaceScore(displayPaceRef.current);
+
+        let nextPaceDir = paceDirectionRef.current;
+        if (wpm > PACE_FAST_THRESHOLD) nextPaceDir = 1;
+        else if (wpm < PACE_SLOW_THRESHOLD) nextPaceDir = -1;
+        paceDirectionRef.current = nextPaceDir;
+        setPaceDirection(nextPaceDir);
+      }, UPDATE_MS);
+    }).catch(() => {});
+  }, [stop]);
+
   return {
-    targetX: state.targetX,
-    targetY: state.targetY,
-    strengthDb: state.strengthDb,
-    wpmEstimate: state.wpmEstimate,
-    score: state.score,
-    centerHoldRatio: state.centerHoldRatio,
-    centerHoldMs: state.centerHoldMs,
-    totalActiveMs: state.totalActiveMs,
-    isActive: state.isActive,
+    strengthScore,
+    paceScore,
+    strengthDb,
+    wpmEstimate,
+    strengthDirection,
+    paceDirection,
+    isActive,
     start,
     stop,
   };
