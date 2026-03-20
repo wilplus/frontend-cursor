@@ -17,9 +17,9 @@ const CY = 120;
 const R_BULL = 24;
 const R_STAB = 56;
 const R_OUTER = 90;
-
-const SPRING_K = 0.055;
-const DAMPING = 0.84;
+const DEAD_ZONE_RADIUS_NORM = 0.2;
+const LOCK_HOLD_MS = 1500;
+const MAX_X_DELTA_PX = R_OUTER * 0.08;
 
 const COLOR: Record<string, string> = {
   green: "#2E9E6F",
@@ -39,11 +39,13 @@ export interface SniperGameProps {
 }
 
 export function SniperGame({ state, taskLabel, audioError = false }: SniperGameProps) {
-  const physRef = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
+  const physRef = useRef({ x: 0, y: 0 });
   const comboRef = useRef({ frameCount: 0, count: 0 });
+  const lockSinceRef = useRef<number | null>(null);
   const targetRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
   const frameCountRef = useRef(0);
+  const fillerFadeTimerRef = useRef<number | null>(null);
 
   const [display, setDisplay] = useState({
     x: 0,
@@ -51,13 +53,20 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
     combo: 0,
     zone: "outer" as "bull" | "stab" | "outer",
   });
+  const [lockedVisual, setLockedVisual] = useState(false);
+  const [fillerFlashVisible, setFillerFlashVisible] = useState(false);
 
   // Recompute target position whenever state changes
   useEffect(() => {
     // Y: flowOffset (+1 = rushed = ball up, -1 = choppy = ball down)
-    const ty = clamp(-state.flowOffset * R_OUTER, -R_OUTER, R_OUTER);
+    let ty = clamp(-state.flowOffset * R_OUTER, -R_OUTER, R_OUTER);
     // X: paceOffset (always 0 until WPM wired)
-    const tx = clamp(state.paceOffset * R_OUTER, -R_OUTER, R_OUTER);
+    let tx = clamp(state.paceOffset * R_OUTER, -R_OUTER, R_OUTER);
+    const radialNorm = Math.sqrt((tx / R_OUTER) ** 2 + (ty / R_OUTER) ** 2);
+    if (radialNorm < DEAD_ZONE_RADIUS_NORM) {
+      tx = 0;
+      ty = 0;
+    }
     targetRef.current = { x: tx, y: ty };
   }, [state.flowOffset, state.paceOffset]);
 
@@ -66,11 +75,16 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
     function tick() {
       const p = physRef.current;
       const t = targetRef.current;
+      const now = performance.now();
 
-      p.vx = p.vx * DAMPING + (t.x - p.x) * SPRING_K;
-      p.vy = p.vy * DAMPING + (t.y - p.y) * SPRING_K;
-      p.x += p.vx;
-      p.y += p.vy;
+      const currDist = Math.sqrt(p.x * p.x + p.y * p.y);
+      const targetDist = Math.sqrt(t.x * t.x + t.y * t.y);
+      const alpha = targetDist < currDist ? 0.3 : 0.12;
+
+      const dx = clamp((t.x - p.x) * alpha, -MAX_X_DELTA_PX, MAX_X_DELTA_PX);
+      const dy = (t.y - p.y) * alpha;
+      p.x += dx;
+      p.y += dy;
 
       const dist = Math.sqrt(p.x * p.x + p.y * p.y);
       const zone: "bull" | "stab" | "outer" =
@@ -85,6 +99,14 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
         c.count = 0;
       }
 
+      if (dist <= R_OUTER * DEAD_ZONE_RADIUS_NORM) {
+        if (lockSinceRef.current == null) lockSinceRef.current = now;
+        if (now - lockSinceRef.current >= LOCK_HOLD_MS) setLockedVisual(true);
+      } else {
+        lockSinceRef.current = null;
+        if (lockedVisual) setLockedVisual(false);
+      }
+
       frameCountRef.current++;
       if (frameCountRef.current % 2 === 0) {
         setDisplay({ x: p.x, y: p.y, combo: c.count, zone });
@@ -97,13 +119,30 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [lockedVisual]);
+
+  useEffect(() => {
+    if (!state.fillerFlashNonce) return;
+    setFillerFlashVisible(true);
+    if (fillerFadeTimerRef.current !== null) window.clearTimeout(fillerFadeTimerRef.current);
+    fillerFadeTimerRef.current = window.setTimeout(() => {
+      setFillerFlashVisible(false);
+      fillerFadeTimerRef.current = null;
+    }, 800);
+    return () => {
+      if (fillerFadeTimerRef.current !== null) {
+        window.clearTimeout(fillerFadeTimerRef.current);
+        fillerFadeTimerRef.current = null;
+      }
+    };
+  }, [state.fillerFlashNonce]);
 
   const ballX = CX + display.x;
   const ballY = CY + display.y;
   const ringColor = audioError ? COLOR.yellow : COLOR[state.coachColor] ?? COLOR.gray;
   const isGreen = !audioError && state.coachColor === "green";
   const isGray = state.coachColor === "gray" || state.silenceGated;
+  const isLocked = state.locked || lockedVisual;
 
   const cueText = audioError
     ? "Mic signal interrupted — check your audio device."
@@ -144,10 +183,16 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
           <circle
             cx={ballX}
             cy={ballY}
-            r={isGreen ? 18 : 13}
+            r={isLocked ? 22 : isGreen ? 18 : 13}
             fill={ringColor}
-            opacity={isGreen ? 0.22 : 0.15}
+            opacity={isLocked ? 0.34 : isGreen ? 0.22 : 0.15}
           >
+            {isLocked && (
+              <>
+                <animate attributeName="r" values="18;26;18" dur="0.9s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.25;0.4;0.25" dur="0.9s" repeatCount="indefinite" />
+              </>
+            )}
             {isGray && (
               <>
                 <animate attributeName="r" values="10;18;10" dur="2.6s" repeatCount="indefinite" />
@@ -161,6 +206,12 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
               </>
             )}
           </circle>
+          {fillerFlashVisible && (
+            <circle cx={ballX} cy={ballY} r={17} fill="none" stroke="#FACC15" strokeWidth={2.5} opacity={0.9}>
+              <animate attributeName="r" values="12;22" dur="0.8s" fill="freeze" />
+              <animate attributeName="opacity" values="0.9;0" dur="0.8s" fill="freeze" />
+            </circle>
+          )}
           {/* Ball */}
           <circle cx={ballX} cy={ballY} r={9} fill={ringColor} opacity={0.9} />
           <circle cx={ballX} cy={ballY} r={3.5} fill="white" opacity={0.95} />
@@ -170,6 +221,16 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
         {display.combo > 0 ? (
           <div className="absolute top-2 right-2 bg-[#2E9E6F] text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-sm">
             {display.combo}s
+          </div>
+        ) : null}
+        {fillerFlashVisible ? (
+          <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-950 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm animate-pulse">
+            filler
+          </div>
+        ) : null}
+        {isLocked ? (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-emerald-600 text-white rounded-full px-2.5 py-0.5 text-[11px] font-semibold shadow-sm">
+            locked in
           </div>
         ) : null}
       </div>

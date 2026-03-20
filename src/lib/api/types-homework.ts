@@ -16,9 +16,9 @@ export type PublicHomeworkStatus =
   | "completing_from_recording_1"
   | "report_generating";
 
-export type Step = 0 | 1 | 2 | 3 | 4 | 5;
+export type Step = 0 | 1 | 2 | 3;
 
-/** Single mapping: backend status → UI step. completing_from_recording_1/report_generating = report in progress → step 5. */
+/** Single mapping: backend status → UI step. completing_from_recording_1/report_generating = report in progress → step 3. */
 export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   switch (status) {
     case "none":
@@ -31,7 +31,7 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
     case "completed":
     case "completing_from_recording_1":
     case "report_generating":
-      return 5;
+      return 3;
     default: {
       const _exhaustive: never = status;
       return 0;

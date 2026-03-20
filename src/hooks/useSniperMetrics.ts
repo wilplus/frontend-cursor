@@ -39,6 +39,8 @@ const UPDATE_INTERVAL_MS = 500;
 const MIN_WINDOW_SEC = 3;
 /** Voiced ratio below this → silence gate (return gray). */
 const VOICED_RATIO_GATE = 0.06;
+const DEAD_ZONE_RADIUS = 0.2;
+const LOCK_HOLD_MS = 1500;
 
 interface Sample {
   t: number;
@@ -52,6 +54,10 @@ function defaultState(): LiveCoachState {
     flowOffset: 0,
     paceOffset: 0,
     wpm: null,
+    paceConfidence: 0,
+    recentPauseRatios: [],
+    locked: false,
+    fillerFlashNonce: 0,
     coachColor: "gray",
     pauseRatio: 0,
     silenceGated: true,
@@ -87,6 +93,23 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     // ── Pace: syllable-onset tracking ────────────────────────────────────────
     prevVoiced: false,
     onsets: [] as number[],   // timestamps (ms) of silent→voiced transitions
+    recentPauseRatios: [] as number[],
+    deadZoneSinceMs: null as number | null,
+    locked: false,
+    fillerFlashNonce: 0,
+    speechRecognition: null as null | {
+      stop: () => void;
+      abort: () => void;
+      onresult: ((event: Event) => void) | null;
+      onerror: ((event: Event) => void) | null;
+      onend: (() => void) | null;
+      continuous?: boolean;
+      interimResults?: boolean;
+      lang?: string;
+      maxAlternatives?: number;
+      start: () => void;
+    },
+    shouldRunSpeechRecognition: false,
   });
 
   const start = useCallback((stream: MediaStream) => {
@@ -135,9 +158,77 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     s.totalFrames = 0;
     s.prevVoiced = false;
     s.onsets = [];
+    s.recentPauseRatios = [];
+    s.deadZoneSinceMs = null;
+    s.locked = false;
+    s.fillerFlashNonce = 0;
+    s.shouldRunSpeechRecognition = true;
 
     setState(defaultState());
     setAudioError(false);
+
+    if (typeof window !== "undefined") {
+      type SpeechCtor = new () => {
+        continuous?: boolean;
+        interimResults?: boolean;
+        lang?: string;
+        maxAlternatives?: number;
+        onresult: ((event: Event) => void) | null;
+        onerror: ((event: Event) => void) | null;
+        onend: (() => void) | null;
+        start: () => void;
+        stop: () => void;
+        abort: () => void;
+      };
+      const SpeechRecognitionCtor = (window as Window & {
+        SpeechRecognition?: SpeechCtor;
+        webkitSpeechRecognition?: SpeechCtor;
+      }).SpeechRecognition
+        ?? (window as Window & { webkitSpeechRecognition?: SpeechCtor }).webkitSpeechRecognition;
+
+      if (SpeechRecognitionCtor) {
+        try {
+          const recognition = new SpeechRecognitionCtor();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = "en-US";
+          recognition.maxAlternatives = 1;
+          recognition.onresult = (event: Event) => {
+            const speechEvent = event as Event & {
+              results?: ArrayLike<ArrayLike<{ transcript: string }>>;
+            };
+            const results = speechEvent.results;
+            if (!results || results.length === 0) return;
+            const idx = results.length - 1;
+            const alt = results[idx]?.[0];
+            const transcript = (alt?.transcript ?? "").toLowerCase();
+            if (!transcript) return;
+            if (/\b(um+|uh+|like|you know)\b/.test(transcript)) {
+              s.fillerFlashNonce += 1;
+            }
+          };
+          recognition.onerror = () => {
+            s.shouldRunSpeechRecognition = false;
+          };
+          recognition.onend = () => {
+            if (!s.shouldRunSpeechRecognition) return;
+            try {
+              recognition.start();
+            } catch {
+              s.shouldRunSpeechRecognition = false;
+            }
+          };
+          try {
+            recognition.start();
+            s.speechRecognition = recognition;
+          } catch {
+            s.speechRecognition = null;
+          }
+        } catch {
+          s.speechRecognition = null;
+        }
+      }
+    }
 
     const loop = () => {
       s.raf = requestAnimationFrame(loop);
@@ -206,6 +297,8 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
       const silenceGated = voicedRatio < VOICED_RATIO_GATE;
 
       const pauseRatio = totalSamples > 0 ? silentSamples / totalSamples : 0;
+      s.recentPauseRatios.push(pauseRatio);
+      if (s.recentPauseRatios.length > 5) s.recentPauseRatios.shift();
 
       // ── Pace: WPM from onset count in rolling 5 s window ──────────────────
       // wpm = (onsets / window_sec) × 60 / avg_syllables_per_word
@@ -213,6 +306,7 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
         s.onsets.length >= PACE_MIN_ONSETS
           ? (s.onsets.length / PACE_WINDOW_SEC) * 60 / AVG_SYLLABLES_PER_WORD
           : null;
+      const paceConfidence = Math.max(0, Math.min(1, s.onsets.length / Math.max(1, PACE_MIN_ONSETS)));
 
       // ── Scoring ───────────────────────────────────────────────────────────
       let flowScore: number | null = null;
@@ -240,7 +334,16 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
         s.possiblePoints += dt;
 
         flowOffset = computeFlowOffset(pauseRatio);
-        paceOffset = wpm !== null ? computePaceOffset(wpm) : 0;
+        paceOffset = wpm !== null ? computePaceOffset(wpm) * paceConfidence : 0;
+
+        const radial = Math.sqrt(flowOffset * flowOffset + paceOffset * paceOffset);
+        if (radial < DEAD_ZONE_RADIUS) {
+          if (s.deadZoneSinceMs == null) s.deadZoneSinceMs = now;
+          if (now - s.deadZoneSinceMs >= LOCK_HOLD_MS) s.locked = true;
+        } else {
+          s.deadZoneSinceMs = null;
+          s.locked = false;
+        }
       }
       // Silence: displayLiveScore kept (ball stays); earnedPoints/possiblePoints unchanged
 
@@ -263,6 +366,10 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
         flowOffset,
         paceOffset,
         wpm,
+        paceConfidence,
+        recentPauseRatios: [...s.recentPauseRatios],
+        locked: s.locked,
+        fillerFlashNonce: s.fillerFlashNonce,
         coachColor,
         pauseRatio,
         silenceGated,
@@ -280,6 +387,19 @@ export function useSniperMetrics(_sessionStartTimeRef: { current: number | null 
     if (s.ctx) {
       s.ctx.close();
       s.ctx = null;
+    }
+    s.shouldRunSpeechRecognition = false;
+    if (s.speechRecognition) {
+      try {
+        s.speechRecognition.onend = null;
+        s.speechRecognition.onresult = null;
+        s.speechRecognition.onerror = null;
+        s.speechRecognition.stop();
+      } catch {}
+      try {
+        s.speechRecognition.abort();
+      } catch {}
+      s.speechRecognition = null;
     }
     s.analyser = null;
     setState((prev) => ({ ...prev, isActive: false }));

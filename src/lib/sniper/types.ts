@@ -32,6 +32,14 @@ export interface LiveCoachState {
    * Null during warm-up (< 5 onsets detected).
    */
   wpm: number | null;
+  /** Confidence 0..1 for pace estimate reliability (onset warm-up). */
+  paceConfidence: number;
+  /** Last few pause ratios for future trend visualization/debug. */
+  recentPauseRatios: number[];
+  /** True after holding inside the dead zone long enough. */
+  locked: boolean;
+  /** Monotonic counter incremented when a filler is detected live. */
+  fillerFlashNonce: number;
   /** True when voiced ratio is too low to score (user not speaking). */
   silenceGated: boolean;
   /** Human-readable coaching cue (worst dimension). */
