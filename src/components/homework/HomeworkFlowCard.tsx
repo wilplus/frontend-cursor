@@ -25,17 +25,12 @@ import HomeworkReportsModal from "@/components/homework/HomeworkReportsModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import { SniperReviewSummary } from "@/components/recording/SniperReviewSummary";
 import type { LiveCoachSnapshot } from "@/lib/sniper/types";
-import { computeAdaptiveResult } from "@/lib/sniper/adaptive";
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 import Lottie from "lottie-react";
-
-/** Temporarily only 2 steps: record (1) and report (5). Steps 2–4 removed. */
-const TOTAL_STEPS = 2;
 
 /** Default warm-up question when the backend assigns none. */
 const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
@@ -175,25 +170,20 @@ export default function HomeworkFlowCard() {
   const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
   const [reportText, setReportText] = useState("");
   const [performanceScoreEnd, setPerformanceScoreEnd] = useState<number | null>(null);
-  /** Fetched report for step 5 (player + graph + text). Fresh on load so audio_url is valid. */
+  /** Fetched report for final score step (step 3). */
   const [reportData, setReportData] = useState<HomeworkReportResponse | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  /** Claude-generated coaching insight for step 5 (replaces backend AI feedback). */
-  const [claudeInsight, setClaudeInsight] = useState<string | null>(null);
-  const [claudeLoading, setClaudeLoading] = useState(false);
   /** Live-transcribed text from Web Speech API (set immediately when recording stops). */
   const [localTranscript, setLocalTranscript] = useState("");
   /** Ref mirror of localTranscript — readable synchronously inside handleRecording1Complete (state is batched). */
   const localTranscriptRef = useRef("");
-  /** Claude-analysed filler word counts (returned when analyzeFillers: true in coaching-report). */
-  const [claudeFillerWords, setClaudeFillerWords] = useState<{ total: number; breakdown: Record<string, number> } | null>(null);
   /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
   /** True when the <audio> element fires onError (valid URL but file unplayable/missing). */
   const [audioPlaybackError, setAudioPlaybackError] = useState(false);
-  /** Loading Lottie animation data (fetched once for step 5). */
+  /** Loading Lottie animation data (fetched once for step 3). */
   const [loadingLottieData, setLoadingLottieData] = useState<object | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -202,7 +192,7 @@ export default function HomeworkFlowCard() {
   const [metricStepBlockedByRecordingFailure, setMetricStepBlockedByRecordingFailure] = useState(false);
   /** On step 2 when taskBlock was null, we fetch it; this becomes true when that fetch settles (success or fail). Used to show error if questions still missing after fetch. */
   const [taskBlockFetchSettled, setTaskBlockFetchSettled] = useState(false);
-  /** On step 4 when questions were [], we fetch GET questions; this becomes true when that fetch settles so we only show the form once questions are loaded (or show error). */
+  /** Legacy unused state kept for compatibility with old status payloads. */
   const [questionsStep4Settled, setQuestionsStep4Settled] = useState(false);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
@@ -215,7 +205,7 @@ export default function HomeworkFlowCard() {
   const uploadRecording1InProgressRef = useRef(false);
   const uploadRecording2InProgressRef = useRef(false);
   const postAnswersAutoSubmitDoneRef = useRef(false);
-  /** When set, user just finished a lesson (step 5 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
+  /** When set, user just finished a lesson (step 3 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
   const [tutorFeedbackMessage, setTutorFeedbackMessage] = useState<string | null>(null);
@@ -227,6 +217,7 @@ export default function HomeworkFlowCard() {
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
   /** Live coach snapshot captured when recording completed with sniperMode. Shown on report step. */
   const [sniperSnapshot, setSniperSnapshot] = useState<LiveCoachSnapshot | null>(null);
+  const sniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [sniperProfile, setSniperProfile] = useState<any>(null);
@@ -234,10 +225,8 @@ export default function HomeworkFlowCard() {
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
   const [savingStudentRating, setSavingStudentRating] = useState(false);
-  /** When GET session/status returns ready_for_self_rating: true, show the 1–10 self-rating UI on step 2. */
-  const [readyForSelfRating, setReadyForSelfRating] = useState<boolean | null>(null);
-  /** True only when the API has returned ready_for_self_rating: true. Submit/Skip must stay disabled until this is true so we never send self-rating before the recording-1 job has finished. */
-  const [backendReadyForSelfRating, setBackendReadyForSelfRating] = useState(false);
+  /** Terminal state from backend: recording_1 processing failed, so report cannot be generated for this session. */
+  const [recordingProcessingFailed, setRecordingProcessingFailed] = useState(false);
   /** When self-rating returned session_completed: false, retry POST self-rating after job is done (poll status then call again). */
   const [pendingRetrySelfRating, setPendingRetrySelfRating] = useState<
     { sessionId: string; rating: number } | { sessionId: string; skipped: true } | null
@@ -266,7 +255,7 @@ export default function HomeworkFlowCard() {
   const [showReportsList, setShowReportsList] = useState(false);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
   const taskBlockFetchStartedRef = useRef(false);
-  /** When step 2 fails to load questions, we auto-skip to step 5 (report) once; this ref prevents doing it more than once. */
+  /** Legacy ref kept for compatibility with old status payloads. */
   const skipStep2ToReportDoneRef = useRef(false);
   /** Mirror of step for use inside applyStatusToState (so we never downgrade step when applying backend response). */
   const stepRef = useRef(step);
@@ -356,50 +345,18 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [authReady, step, tutorFeedbackDeadlineMs]);
 
-  /** Show navbar on step 0 (start), step 2 (self-rate), and step 5 (report); hide from step 1. */
+  /** Show navbar on step 0 (start), step 2 (self-rate), and step 3 (score); hide on step 1. */
   useEffect(() => {
-    setShowNavbar(step === 0 || step === 2 || step === 5);
+    setShowNavbar(step === 0 || step === 2 || step === 3);
   }, [step, setShowNavbar]);
-
-  /** Step 4 removed: if we ever land on 4 (e.g. stale state), go to report. */
-  useEffect(() => {
-    if (step === 4) setStep(5);
-  }, [step]);
 
   /** Clear recording context when not on step 1 (record). Step 3 removed. */
   useEffect(() => {
     if (step !== 1) setRecordingActive(false);
   }, [step, setRecordingActive]);
 
-  /** When on step 4 (post-recording questions) and questions not yet loaded, fetch GET questions. */
-  useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session" || questions.length > 0 || questionsStep4Settled) return;
-    let cancelled = false;
-    setError(null);
-    homeworkApi
-      .getQuestions(sessionId)
-      .then((r) => {
-        if (cancelled) return;
-        const list = Array.isArray(r.questions) ? r.questions : [];
-        const normalized = list.map((q) => ({
-          ...q,
-          id: toId(q.id) || crypto.randomUUID(),
-          text: toText(q.text),
-        }));
-        setQuestions(normalized.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-        setQuestionsStep4Settled(true);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Could not load questions");
-        setQuestionsStep4Settled(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [step, sessionId, questions.length, questionsStep4Settled]);
 
-  /** Single state projection from backend response. Step is only set to 0 when status is "none". Steps 1, 2, 5 are only reached by user flow: Start → 1, recording done → 2, self-rating done → 5. */
+  /** Single state projection from backend response. Step is only set to 0 when status is "none". Steps 1, 2, 3 are only reached by user flow: Start → 1, recording done → 2, self-rating done → 3. */
   const applyStatusToState = (res: HomeworkResponse) => {
     const status: PublicHomeworkStatus = res.status ?? "none";
     if (status === "none") {
@@ -420,19 +377,15 @@ export default function HomeworkFlowCard() {
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
-      // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 5 report)
+      // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 3 score)
       setCoachMessageAfterHomework(null);
       // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
       setPendingRetrySelfRating(null);
       hasSetPendingRetryFrom409Ref.current = false;
-      setReadyForSelfRating(null);
-      setBackendReadyForSelfRating(false);
+      setRecordingProcessingFailed(false);
       setLocalTranscript("");
-      setClaudeFillerWords(null);
-      setClaudeInsight(null);
-      claudeSessionRef.current = null;
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
@@ -534,6 +487,7 @@ export default function HomeworkFlowCard() {
     if (resetting) return;
     setResetting(true);
     setSniperSnapshot(null);
+    sniperSnapshotRef.current = null;
     setStudentSpeechRatingSubmitted(false);
     setSavingStudentRating(false);
     try {
@@ -731,13 +685,13 @@ export default function HomeworkFlowCard() {
   }, []);
 
   const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
-  // Steps 2–4 effects removed (task block fetch, skip-to-report, step 4 questions).
+  // Legacy step-4/old-flow effects removed; active flow is step 0 → 1 → 2 → 3.
 
   // Coach is notified by the backend when self-rating (or skip) is saved; no separate notify-lesson-complete call.
 
-  // Fetch report when on step 5 with a real session (single source of truth for player + scores + text)
+  // Fetch report when on step 3 with a real session (single source of truth for player + scores + text)
   useEffect(() => {
-    if (step !== 5 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
     setReportLoading(true);
     setReportError(null);
     setReportNotReady(false);
@@ -784,76 +738,69 @@ export default function HomeworkFlowCard() {
 
   // Load Lottie animation for report loading / generating states
   useEffect(() => {
-    if (step !== 5 || loadingLottieData != null) return;
+    if (step !== 3 || loadingLottieData != null) return;
     fetch("/animations/loading.json")
       .then((r) => r.json())
       .then(setLoadingLottieData)
       .catch(() => {});
   }, [step, loadingLottieData]);
 
-  // When report is still being generated, poll automatically (no user click)
+  // When report is still being generated, poll automatically (no user click).
+  // Also check session/status for terminal recording_1 failure so we can stop spinning forever.
   useEffect(() => {
-    if (!reportNotReady || !sessionId) return;
+    if (!reportNotReady || !sessionId || sessionId === "mock-session") return;
     const intervalMs = 5000;
-    const id = setInterval(() => setReportRetryCount((c) => c + 1), intervalMs);
+    const id = setInterval(async () => {
+      setReportRetryCount((c) => c + 1);
+      try {
+        const statusRes = await homeworkApi.getStatus();
+        const raw = statusRes as HomeworkSessionStatus & {
+          session?: { recording_1_processing_status?: string };
+          recording_1_processing_status?: string;
+        };
+        const processingFailed =
+          raw?.recording_1_processing_status === "failed" ||
+          (typeof raw?.session === "object" && raw.session?.recording_1_processing_status === "failed");
+        if (processingFailed) setRecordingProcessingFailed(true);
+      } catch {
+        // ignore transient status errors while polling
+      }
+    }, intervalMs);
     return () => clearInterval(id);
   }, [reportNotReady, sessionId]);
 
-  // When on step 2, poll GET session/status until ready_for_self_rating or recording_1_processing_status === "completed". Fallback: after 30s show form and enable buttons so user is never stuck (retry flow re-POSTs if session_completed: false).
+  // Step 2 is intentionally actionable right away (rate now, backend can complete asynchronously).
+  // We only poll status here to detect terminal failure in recording_1 processing.
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session") return;
     let cancelled = false;
-    const fallbackMs = 30000;
-    const fallbackId = setTimeout(() => {
-      if (!cancelled) {
-        setReadyForSelfRating(true);
-        setBackendReadyForSelfRating(true);
-      }
-    }, fallbackMs);
     const poll = async () => {
       try {
         const statusRes = await homeworkApi.getStatus();
         if (cancelled) return;
         const raw = statusRes as HomeworkSessionStatus & {
-          session?: { ready_for_self_rating?: boolean; recording_1_processing_status?: string };
+          session?: { recording_1_processing_status?: string };
           recording_1_processing_status?: string;
         };
-        const explicitReady =
-          raw?.ready_for_self_rating === true ||
-          (typeof raw?.session === "object" && raw.session?.ready_for_self_rating === true);
-        const processingDone =
-          raw?.recording_1_processing_status === "completed" ||
-          (typeof raw?.session === "object" && raw.session?.recording_1_processing_status === "completed");
-        const ready = explicitReady || processingDone;
-        if (ready) {
-          setReadyForSelfRating(true);
-          setBackendReadyForSelfRating(true);
-        }
+        const processingFailed =
+          raw?.recording_1_processing_status === "failed" ||
+          (typeof raw?.session === "object" && raw.session?.recording_1_processing_status === "failed");
+        if (processingFailed) setRecordingProcessingFailed(true);
       } catch {
-        if (!cancelled) setReadyForSelfRating(false);
+        // ignore transient status errors on step 2
       }
     };
     poll();
-    const intervalMs = 2000; // 2s for faster ready detection
-    const id = setInterval(poll, intervalMs);
+    const id = setInterval(poll, 3000);
     return () => {
       cancelled = true;
       clearInterval(id);
-      clearTimeout(fallbackId);
     };
   }, [step, sessionId]);
 
-  // When leaving step 2, reset so next time we re-poll for ready_for_self_rating
-  useEffect(() => {
-    if (step !== 2) {
-      setReadyForSelfRating(null);
-      setBackendReadyForSelfRating(false);
-    }
-  }, [step]);
-
   // When session_completed was false: poll GET session/status until job is done, then call POST self-rating again to trigger completion
   useEffect(() => {
-    if (step !== 5 || !pendingRetrySelfRating) return;
+    if (step !== 3 || !pendingRetrySelfRating) return;
     const { sessionId: sid } = pendingRetrySelfRating;
     const intervalMs = 5000;
     const maxWaitMs = 120000; // 2 min then retry anyway
@@ -864,6 +811,11 @@ export default function HomeworkFlowCard() {
         const raw = statusRes as HomeworkSessionStatus & { recording_1_processing_status?: string };
         const processingStatus = raw?.recording_1_processing_status;
         const status = raw?.status ?? (raw as { session?: { status?: string } }).session?.status;
+        if (processingStatus === "failed") {
+          setRecordingProcessingFailed(true);
+          setPendingRetrySelfRating(null);
+          return;
+        }
         const jobDone =
           (typeof processingStatus === "string" && processingStatus !== "pending") ||
           status === "completed" ||
@@ -906,65 +858,6 @@ export default function HomeworkFlowCard() {
     return () => clearTimeout(tid);
   }, [step]);
 
-  // Call Claude for AI coaching insight as soon as we have transcript or sniper metrics.
-  // Fires once per session (claudeSessionRef tracks the last analysed sessionId).
-  // Does NOT require step === 5 — starts the request the moment recording stops so
-  // the result is ready (or already loading) when the user reaches the report step.
-  const claudeSessionRef = useRef<string | null>(null);
-  useEffect(() => {
-    // Need at least a local transcript or sniper snapshot to analyse
-    const hasTranscript = localTranscript.trim().length > 10;
-    const hasMetrics = !!sniperSnapshot;
-    if (!hasTranscript && !hasMetrics) return;
-    if (!sessionId || claudeSessionRef.current === sessionId) return;
-    claudeSessionRef.current = sessionId;
-
-    // Prefer live Web Speech transcript; fall back to backend transcript (if report loaded early)
-    const transcript = localTranscript.trim() || (
-      reportData?.recording?.transcription_text ??
-      reportData?.transcription_text ??
-      reportData?.transcript ??
-      ""
-    ).trim();
-
-    const body: {
-      transcript?: string;
-      taskLabel?: string;
-      sniperOverallScore?: number;
-      pauseRatio?: number;
-      wpm?: number | null;
-      analyzeFillers?: boolean;
-    } = {
-      transcript: transcript || undefined,
-      taskLabel: finalTaskText || taskText || undefined,
-      sniperOverallScore: sniperSnapshot?.performanceScore,
-      pauseRatio: sniperSnapshot?.pauseRatio,
-      wpm: sniperSnapshot?.wpm ?? undefined,
-      // Ask Claude to count filler words whenever we have a real transcript
-      analyzeFillers: transcript.length > 10,
-    };
-
-    if (!body.transcript && !body.sniperOverallScore) return;
-
-    setClaudeLoading(true);
-    setClaudeInsight(null);
-    setClaudeFillerWords(null);
-    fetch("/api/ai/coaching-report", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
-      .then((r) => r.json())
-      .then((data: { insight?: string; fillerWords?: { total: number; breakdown: Record<string, number> }; error?: string }) => {
-        if (data.insight) setClaudeInsight(data.insight);
-        if (data.fillerWords && typeof data.fillerWords.total === "number") {
-          setClaudeFillerWords(data.fillerWords);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setClaudeLoading(false));
-  }, [localTranscript, sniperSnapshot, sessionId, finalTaskText, taskText, reportData]);
-
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
   const RECORDING_2_DURATION_MAX = 300;
@@ -1002,7 +895,14 @@ export default function HomeworkFlowCard() {
     setStep(2);
 
     try {
-      const res = await homeworkApi.uploadRecording1(sessionId, blob, durationSeconds, abortRef.current.signal, localTranscriptRef.current || undefined);
+      const res = await homeworkApi.uploadRecording1(
+        sessionId,
+        blob,
+        durationSeconds,
+        abortRef.current.signal,
+        localTranscriptRef.current || undefined,
+        sniperSnapshotRef.current?.pauseRatio
+      );
       const backendStatus = (res as { status?: string }).status;
       const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "task_block";
       applyStatusToState({
@@ -1564,6 +1464,7 @@ export default function HomeworkFlowCard() {
             onRecordingComplete={handleRecording1Complete}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
+              sniperSnapshotRef.current = snapshot;
               const body: {
                 session_means: { paceWpm: number; avgPauseMs: number; dynamicRangeDb: number; emphasisPerMin: number; energyRatio: null; voicedDurationSec: number };
                 stage_score: number;
@@ -1609,10 +1510,25 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 2: Self-rating — shown immediately after recording stops (form visible right away;
-  // buttons enabled once backendReadyForSelfRating flips true via polling).
+  // Step 2: Self-rating — actionable immediately after recording is sent for analysis.
   if (step === 2) {
-    const processingDone = backendReadyForSelfRating;
+    if (recordingProcessingFailed) {
+      return (
+        <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
+          {coachMessageBlock}
+          <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
+            <h3 className="text-lg font-semibold mb-2">We couldn&apos;t process this recording.</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your recording analysis failed, so this session can&apos;t be completed. Start a new practice and try recording again.
+            </p>
+            <Button onClick={handleStartOver} disabled={resetting} className="w-full rounded-xl h-12 font-semibold">
+              {resetting ? "Resetting…" : "Start New Practice"}
+            </Button>
+          </Card>
+        </StepFlowWrapper>
+      );
+    }
+
     return (
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
@@ -1623,15 +1539,6 @@ export default function HomeworkFlowCard() {
           <p className="text-sm text-muted-foreground mb-3">
             1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
           </p>
-          {/* Subtle inline status — no full-screen spinner */}
-          {!processingDone && (
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent flex-shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                {uploadingRecording === 1 ? "Uploading your recording…" : "Analysing your recording…"}
-              </p>
-            </div>
-          )}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
               <Button
@@ -1639,16 +1546,15 @@ export default function HomeworkFlowCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={savingStudentRating || !processingDone}
+                disabled={savingStudentRating}
                 onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
-                  if (!processingDone) return;
                   setSavingStudentRating(true);
                   try {
                     lastSelfRatingPayloadRef.current = { sessionId, rating: n };
                     const res = await homeworkApi.submitSelfRating(sessionId, n);
                     setStudentSpeechRatingSubmitted(true);
-                    setStep(5);
+                    setStep(3);
                     if (res.session_completed === false) {
                       setPendingRetrySelfRating({ sessionId, rating: n });
                     }
@@ -1668,20 +1574,19 @@ export default function HomeworkFlowCard() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={savingStudentRating || !processingDone}
+            disabled={savingStudentRating}
             onClick={async () => {
               if (!sessionId || sessionId === "mock-session") {
                 setStudentSpeechRatingSubmitted(true);
-                setStep(5);
+                setStep(3);
                 return;
               }
-              if (!processingDone) return;
               setSavingStudentRating(true);
               try {
                 lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
                 const res = await homeworkApi.submitSelfRatingSkipped(sessionId);
                 setStudentSpeechRatingSubmitted(true);
-                setStep(5);
+                setStep(3);
                 if (res.session_completed === false) {
                   setPendingRetrySelfRating({ sessionId, skipped: true });
                 }
@@ -1700,54 +1605,28 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 4 unused: no reflective questions; flow is record → self-rate (step 2) → report (step 5).
-
-  // Step 5: Report — only show report content when data (or error) is loaded; otherwise show loading
-  if (step === 5) {
-    const step5DataReady =
-      reportData != null ||
-      (reportError != null && !reportLoading) ||
-      reportNotReady;
-    if (!step5DataReady) {
-      // If we already have Sniper or Claude data, show a rich partial report instead of a blank spinner.
-      const hasLocalContent = sniperSnapshot != null || claudeInsight != null || claudeLoading;
-      if (hasLocalContent) {
-        return (
-          <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-            <h3 className="text-center text-xl font-semibold">Your report</h3>
-            {coachMessageBlock}
-            {sniperSnapshot ? (
-              <SniperReviewSummary snapshot={sniperSnapshot} />
-            ) : null}
-            <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-              {/* Claude coaching available immediately from live transcript */}
-              {(claudeInsight || claudeLoading) ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    {claudeLoading ? (
-                      <p className="text-sm text-muted-foreground animate-pulse">Analysing your session…</p>
-                    ) : (
-                      <p className="text-sm text-foreground leading-relaxed">{claudeInsight}</p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-              {/* Report details still loading */}
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent flex-shrink-0" />
-                <p className="text-xs">Loading full report…</p>
-              </div>
-              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start New Practice"}
-              </Button>
-            </Card>
-          </div>
-        );
-      }
-      // No local content yet — show minimal spinner
+  // Step 3: Score/report
+  if (step === 3) {
+    if (recordingProcessingFailed) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          <h3 className="text-center text-xl font-semibold">Your report</h3>
+          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+            <p className="text-sm text-foreground">
+              We couldn&apos;t process this recording, so a report can&apos;t be generated for this session.
+            </p>
+            <Button onClick={handleStartOver} disabled={resetting} className="w-full rounded-xl h-12 font-semibold">
+              {resetting ? "Resetting…" : "Start New Practice"}
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
+    if (reportNotReady || (reportData == null && reportError == null)) {
+      return (
+        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+          <h3 className="text-center text-xl font-semibold">Your report</h3>
           <Card className="border-0 bg-transparent p-6 shadow-none">
             <div className="text-center space-y-4 flex flex-col items-center">
               {loadingLottieData ? (
@@ -1757,8 +1636,8 @@ export default function HomeworkFlowCard() {
               ) : (
                 <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               )}
-              <p className="text-sm text-muted-foreground">Your report is being generated.</p>
-              <p className="text-xs text-muted-foreground">Taking too long? You can start a new practice below.</p>
+              <p className="text-sm text-muted-foreground">Generating your report…</p>
+              <p className="text-xs text-muted-foreground">This can take up to a minute.</p>
               <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
                 {resetting ? "Resetting…" : "Start New Practice"}
               </Button>
@@ -1768,47 +1647,13 @@ export default function HomeworkFlowCard() {
       );
     }
 
-    // Backend returned REPORT_NOT_READY (404): report is still being generated — show Lottie and auto-refresh
-    if (reportNotReady) {
-      return (
-        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          {coachMessageBlock}
-          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            <h3 className="text-center text-lg font-semibold">Your report</h3>
-            <div className="flex flex-col items-center rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-              {loadingLottieData ? (
-                <div className="w-24 h-24">
-                  <Lottie animationData={loadingLottieData} loop />
-                </div>
-              ) : (
-                <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              )}
-              <p className="text-sm text-foreground text-center">
-                Your report is being generated. This usually takes a minute after your recording is processed. We’ll refresh automatically.
-              </p>
-              <p className="text-xs text-muted-foreground text-center">You can also start a new practice below if you don't want to wait.</p>
-              <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full max-w-xs rounded-xl h-12 font-semibold">
-                {resetting ? "Resetting…" : "Start New Practice"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      );
-    }
-
-    // Report API failed (e.g. network or 5xx): show clear end state with Try again + Start over
     if (reportError != null && reportData == null) {
       return (
         <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          {coachMessageBlock}
+          <h3 className="text-center text-xl font-semibold">Your report</h3>
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            <h3 className="text-center text-lg font-semibold">Your report</h3>
-            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-              <p className="text-sm text-foreground">
-                We couldn’t load your report right now. This can happen if the report is still being generated—try again in a moment, or start a new practice below.
-              </p>
-              <p className="text-sm text-destructive">{reportError}</p>
-            </div>
+            <p className="text-sm text-foreground">We couldn&apos;t load your report right now.</p>
+            <p className="text-sm text-destructive">{reportError}</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={() => {
@@ -1830,47 +1675,33 @@ export default function HomeworkFlowCard() {
     }
 
     const displayScores = reportData?.scores ?? (performanceScoreEnd != null ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) } : undefined);
-    const displayReportText = reportData?.report_text ?? reportText;
-    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Send Your Practice to the Coach!";
-
-    // Progress chart needs performance_history from GET report (oldest first). Cap at last 5.
-    const performanceHistory = reportData?.performance_history;
-    const lastFive = performanceHistory?.length ? performanceHistory.slice(-5) : [];
-    const progressChartDataRaw =
-      lastFive.length > 0
-        ? lastFive.map((p, i) => ({
-            sessionLabel: `S${i + 1}`,
-            date: p.date,
-            score: p.score,
-          }))
-        : displayScores?.overall != null
-          ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
-          : [];
-    // Patch applied below after sniperDisplayScore is computed.
-
-    const coachMessageFallback = "Your coach has 24 hours to analyse your practice and send a feedback on your email!";
-
-    // Sniper display score — same calculation as SniperReviewSummary so the chart always matches.
-    // Patches the most-recent history entry when the backend stored 0 due to the race condition.
-    const sniperDisplayScore = sniperSnapshot
-      ? Math.round(computeAdaptiveResult(sniperSnapshot.performanceScore).displayScore)
-      : null;
-
-    // Apply patch to full-report chart data (simplified path patched separately below).
+    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Start New Practice";
+    const currentPerformanceScore1 =
+      typeof reportData?.performance_score_1 === "number"
+        ? Math.round(reportData.performance_score_1 <= 1 ? reportData.performance_score_1 * 100 : reportData.performance_score_1)
+        : undefined;
+    const performanceHistory = reportData?.performance_history ?? [];
+    const lastFiveHistory = performanceHistory.length > 0 ? performanceHistory.slice(-5) : [];
+    const chartFromHistory = lastFiveHistory.map((p, i) => ({
+      sessionLabel: `S${i + 1}`,
+      date: p.date,
+      score: p.score,
+    }));
     const progressChartData =
-      sniperDisplayScore !== null && progressChartDataRaw.length > 0
-        ? [
-            ...progressChartDataRaw.slice(0, -1),
-            { ...progressChartDataRaw[progressChartDataRaw.length - 1], score: sniperDisplayScore },
-          ]
-        : progressChartDataRaw;
+      chartFromHistory.length > 0
+        ? chartFromHistory
+        : currentPerformanceScore1 != null
+          ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: currentPerformanceScore1 }]
+          : displayScores?.overall != null
+            ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
+            : [];
+    const performanceResult = currentPerformanceScore1 ?? displayScores?.overall;
 
-    // Playback: final_recording.audio_url or recording.audio_url (same when one recording) or recording_1 (legacy).
     const playbackUrl =
       reportData?.final_recording?.audio_url ??
       reportData?.recording?.audio_url ??
       reportData?.recording_1?.audio_url;
-    // Full transcription: prefer live Web Speech transcript; fall back to backend field.
+
     const transcriptionText = (
       localTranscript ||
       reportData?.recording?.transcription_text ||
@@ -1878,265 +1709,92 @@ export default function HomeworkFlowCard() {
       reportData?.transcript ||
       ""
     ).trim();
-    // Filler: prefer Claude-analysed counts (from live transcript); fall back to backend.
+
+    const backendBreakdown =
+      reportData?.recording?.filler_words_count?.breakdown ??
+      (reportData as { filler_words_breakdown?: Record<string, number> | null })?.filler_words_breakdown ??
+      null;
+    const backendTotalRaw =
+      reportData?.recording?.filler_words_count?.total ??
+      reportData?.filler_word_count ??
+      (reportData as { filler_words_total?: number | null })?.filler_words_total ??
+      null;
+    const computedTotalFromBreakdown = backendBreakdown
+      ? Object.values(backendBreakdown).reduce((sum, v) => sum + (Number.isFinite(v) ? Number(v) : 0), 0)
+      : 0;
     const fillerTotal =
-      claudeFillerWords?.total ?? reportData?.recording?.filler_words_count?.total ?? reportData?.filler_word_count ?? null;
-    const fillerBreakdown = claudeFillerWords?.breakdown ?? reportData?.recording?.filler_words_count?.breakdown;
+      typeof backendTotalRaw === "number"
+        ? (backendTotalRaw === 0 && computedTotalFromBreakdown > 0 ? computedTotalFromBreakdown : backendTotalRaw)
+        : (computedTotalFromBreakdown > 0 ? computedTotalFromBreakdown : null);
+    const fillerBreakdown = backendBreakdown ?? undefined;
+
     const coachInsight = (reportData?.coach_insight ?? "").trim();
 
-    // Simplified report when we skipped from step 2 (recording-1 only): recording + transcript + filler + strength/pace + chart + coach block.
-    if (reportFromRecording1Only) {
-      const strength = (reportData?.strength_metric ?? "").trim();
-      const pace = (reportData?.pace_metric ?? "").trim();
-      const score1 = reportData?.performance_score_1 != null
-        ? Math.round(reportData.performance_score_1 * 100)
-        : reportData?.scores?.overall;
-      const history1 = reportData?.performance_history;
-      const lastFive1 = history1?.length ? history1.slice(-5) : [];
-      const progressChartData1Raw =
-        lastFive1.length > 0
-          ? lastFive1.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
-          : score1 != null
-            ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: score1 }]
-            : [];
-      // Patch the most-recent entry with the local sniper score so the chart always matches
-      // SniperReviewSummary (backend may have stored 0 due to the race condition).
-      const progressChartData1 =
-        sniperDisplayScore !== null && progressChartData1Raw.length > 0
-          ? [
-              ...progressChartData1Raw.slice(0, -1),
-              { ...progressChartData1Raw[progressChartData1Raw.length - 1], score: sniperDisplayScore },
-            ]
-          : progressChartData1Raw;
-
-      return (
-        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
-          <h3 className="text-center text-xl font-semibold">Your report</h3>
-          {coachMessageBlock}
-          {sniperSnapshot ? (
-            <SniperReviewSummary snapshot={sniperSnapshot} />
-          ) : null}
-          {/* Self-rate (1–10) fallback if user landed on report without doing step 2; uses same homework self-rating API. */}
-          {sniperSnapshot && sessionId && sessionId !== "mock-session" && !studentSpeechRatingSubmitted ? (
-            <Card className="border-0 bg-transparent p-6 shadow-none">
-              <p className="text-sm font-medium text-muted-foreground mb-2">
-                How did that recording feel for you?
-              </p>
-              <p className="text-xs text-muted-foreground mb-3">
-                1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                  <Button
-                    key={n}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={savingStudentRating}
-                    onClick={() => {
-                      setSavingStudentRating(true);
-                      homeworkApi
-                        .submitSelfRating(sessionId, n)
-                        .finally(() => {
-                          setSavingStudentRating(false);
-                          setStudentSpeechRatingSubmitted(true);
-                        });
-                    }}
-                    className="min-w-[2.25rem]"
-                  >
-                    {n}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={savingStudentRating}
-                onClick={() => setStudentSpeechRatingSubmitted(true)}
-                className="text-muted-foreground"
-              >
-                Skip
-              </Button>
-            </Card>
-          ) : null}
-          <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-            {reportError && (
-              <p className="text-sm text-destructive">{reportError}</p>
-            )}
-            <div className="space-y-4">
-              {/* 1. Recording playback */}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Your recording</p>
-                {playbackUrl && !audioPlaybackError ? (
-                  <audio
-                    controls
-                    src={playbackUrl}
-                    className="w-full max-w-md"
-                    onError={() => setAudioPlaybackError(true)}
-                  />
-                ) : audioPlaybackError ? (
-                  <p className="text-sm text-muted-foreground">Recording playback failed. The audio may be unavailable.</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Recording playback not available.</p>
-                )}
-              </div>
-              {/* 2. Transcript */}
-              {transcriptionText ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
-                    <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
-                  </div>
-                </div>
-              ) : reportData ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                  <p className="text-sm text-muted-foreground italic">Transcript not available for this session.</p>
-                </div>
-              ) : null}
-              {/* 3. Filler words */}
-              {fillerTotal != null && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                  <p className="text-sm text-foreground">
-                    {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
-                    {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
-                  </p>
-                </div>
-              )}
-              {/* 4. Claude AI coaching (replaces backend report_text) */}
-              {(claudeInsight || claudeLoading) ? (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
-                  <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    {claudeLoading ? (
-                      <p className="text-sm text-muted-foreground animate-pulse">Analysing your session…</p>
-                    ) : (
-                      <p className="text-sm text-foreground leading-relaxed">{claudeInsight}</p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-              {/* 5. Strength and pace */}
-              {(strength || pace) ? (
-                <div className="flex flex-wrap gap-6">
-                  {strength ? (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Strength</p>
-                      <p className="text-sm text-foreground">{strength}</p>
-                    </div>
-                  ) : null}
-                  {pace ? (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Pace</p>
-                      <p className="text-sm text-foreground">{pace}</p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {/* 6. Progress chart */}
-              {progressChartData1.length > 0 && (
-                <ProgressOverSessionsChart data={progressChartData1} />
-              )}
-              {/* 7. Human coach block or fallback */}
-              {(coachInsight || coachMessageFallback) && (
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {coachInsight || coachMessageFallback}
-                  </p>
-                </div>
-              )}
-            </div>
-            <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : reportCtaLabel}
-            </Button>
-          </Card>
-        </div>
-      );
-    }
-
-    // Full report: playback, chart, transcript when present, report text, coach insight when present. Self-rate is step 2 only.
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         {coachMessageBlock}
-        {sniperSnapshot ? (
-          <SniperReviewSummary snapshot={sniperSnapshot} />
-        ) : null}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-          {reportError && (
-            <p className="text-sm text-destructive">{reportError}</p>
+          {performanceResult != null ? (
+            <p className="text-sm text-muted-foreground text-center">
+              Performance result: <span className="font-semibold text-foreground">{performanceResult}%</span>
+            </p>
+          ) : null}
+
+          {progressChartData.length > 0 && (
+            <ProgressOverSessionsChart data={progressChartData} />
           )}
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Your final recording</p>
-              {playbackUrl && !audioPlaybackError ? (
-                <audio
-                  controls
-                  src={playbackUrl}
-                  className="w-full max-w-md"
-                  onError={() => setAudioPlaybackError(true)}
-                />
-              ) : audioPlaybackError ? (
-                <p className="text-sm text-muted-foreground">Recording playback failed. The audio may be unavailable.</p>
+
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-2">Playback</p>
+            {playbackUrl && !audioPlaybackError ? (
+              <audio
+                controls
+                src={playbackUrl}
+                className="w-full max-w-md"
+                onError={() => setAudioPlaybackError(true)}
+              />
+            ) : audioPlaybackError ? (
+              <p className="text-sm text-muted-foreground">Playback failed. The audio may be unavailable.</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Playback not available for this session yet.</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
+            {transcriptionText ? (
+              <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
+                <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Transcript not available for this session yet.</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
+            {fillerTotal != null ? (
+              <p className="text-sm text-foreground">
+                {fillerTotal} filler word{fillerTotal !== 1 ? "s" : ""} detected
+                {formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Filler word analysis is not available yet.</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-2">AI Coach Insight</p>
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              {coachInsight ? (
+                <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">Recording playback not available.</p>
+                <p className="text-sm text-muted-foreground">AI Coach Insight is still loading…</p>
               )}
             </div>
-            {progressChartData.length > 0 && (
-              <ProgressOverSessionsChart data={progressChartData} />
-            )}
-            {transcriptionText ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
-                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
-                </div>
-              </div>
-            ) : reportData ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Transcript</p>
-                <p className="text-sm text-muted-foreground italic">Transcript not available for this session.</p>
-              </div>
-            ) : null}
-            {(fillerTotal != null || formatFillerBreakdown(fillerBreakdown)) ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Filler words</p>
-                <p className="text-sm text-foreground">
-                  {fillerTotal != null
-                    ? `${fillerTotal} filler word${fillerTotal !== 1 ? "s" : ""} detected${formatFillerBreakdown(fillerBreakdown) ? ` (${formatFillerBreakdown(fillerBreakdown)})` : ""}.`
-                    : formatFillerBreakdown(fillerBreakdown)}
-                </p>
-              </div>
-            ) : null}
-            {/* Claude AI coaching — replaces backend report_text */}
-            {(claudeInsight || claudeLoading) ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  {claudeLoading ? (
-                    <p className="text-sm text-muted-foreground animate-pulse">Analysing your session…</p>
-                  ) : (
-                    <p className="text-sm text-foreground leading-relaxed">{claudeInsight}</p>
-                  )}
-                </div>
-              </div>
-            ) : displayReportText.trim() ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">AI Coaching</p>
-                <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{displayReportText.trim()}</p>
-                </div>
-              </div>
-            ) : null}
-            {coachInsight ? (
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Coach insight</p>
-                <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
-              </div>
-            ) : null}
           </div>
+
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
             {resetting ? "Resetting…" : reportCtaLabel}
           </Button>
