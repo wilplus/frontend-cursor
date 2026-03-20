@@ -289,7 +289,7 @@ export default function HomeworkFlowCard() {
 
   /** Fetch reports list (same source as admin). Called when user first clicks "View reports". */
   const fetchStep0Reports = useCallback(() => {
-    if (step0SessionsLoading || step0Sessions.length > 0) return;
+    if (step0SessionsLoading) return;
     setStep0SessionsLoading(true);
     homeworkApi
       .getSessions()
@@ -306,7 +306,7 @@ export default function HomeworkFlowCard() {
       })
       .catch(() => setStep0Sessions([]))
       .finally(() => setStep0SessionsLoading(false));
-  }, [step0SessionsLoading, step0Sessions.length]);
+  }, [step0SessionsLoading]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {
@@ -495,7 +495,11 @@ export default function HomeworkFlowCard() {
         sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
-      if (sessionId && sessionId !== "mock-session") {
+      // Do not abandon a finished session when user leaves the final report screen,
+      // otherwise some backends may mark it as abandoned and hide it from report lists.
+      const shouldAbandonActiveSession =
+        step !== 3 || reportData == null;
+      if (shouldAbandonActiveSession && sessionId && sessionId !== "mock-session") {
         try {
           await homeworkApi.abandonSession(sessionId);
         } catch (e) {
@@ -1524,7 +1528,7 @@ export default function HomeworkFlowCard() {
               Your recording analysis failed, so this session can&apos;t be completed. Start a new practice and try recording again.
             </p>
             <Button onClick={handleStartOver} disabled={resetting} className="w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Start New Practice"}
+              {resetting ? "Sending…" : "Start New Practice"}
             </Button>
           </Card>
         </StepFlowWrapper>
@@ -1618,7 +1622,7 @@ export default function HomeworkFlowCard() {
               We couldn&apos;t process this recording, so a report can&apos;t be generated for this session.
             </p>
             <Button onClick={handleStartOver} disabled={resetting} className="w-full rounded-xl h-12 font-semibold">
-              {resetting ? "Resetting…" : "Start New Practice"}
+              {resetting ? "Sending…" : "Start New Practice"}
             </Button>
           </Card>
         </div>
@@ -1784,7 +1788,7 @@ export default function HomeworkFlowCard() {
           </div>
 
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-            {resetting ? "Resetting…" : reportCtaLabel}
+            {resetting ? "Sending…" : reportCtaLabel}
           </Button>
         </Card>
       </div>

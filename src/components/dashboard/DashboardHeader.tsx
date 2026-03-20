@@ -137,30 +137,23 @@ export default function DashboardHeader() {
               >
                 Book a lesson
               </a>
-              <div className="px-4 py-2.5 text-left">
-                <div className="font-medium text-foreground">Support &amp; settings</div>
-                <a
-                  href={`mailto:${SUPPORT_EMAIL}`}
-                  className="text-sm text-muted-foreground hover:text-foreground hover:underline focus:outline-none focus:underline"
-                >
-                  {SUPPORT_EMAIL}
-                </a>
-              </div>
-              <div className="border-t px-4 py-2.5">
-                <div className="min-w-0 truncate text-sm font-medium text-foreground">
-                  {userEmail ?? "…"}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={loading}
-                  className={cn(
-                    "text-sm text-muted-foreground hover:text-foreground hover:underline focus:outline-none focus:underline disabled:opacity-50"
-                  )}
-                >
-                  {loading ? "Logging out…" : "Logout"}
-                </button>
-              </div>
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                onClick={() => setMenuOpen(false)}
+              >
+                Support
+              </a>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loading}
+                className={cn(
+                  "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:opacity-50"
+                )}
+              >
+                {loading ? "Logging out…" : "Log out"}
+              </button>
             </div>
           )}
         </div>
