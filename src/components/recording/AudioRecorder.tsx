@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,50 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
+function sanitizePromptHtml(input: string): string {
+  if (!input) return "";
+  if (typeof window === "undefined") return input;
+  const container = document.createElement("div");
+  container.innerHTML = input;
+  const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "UL", "OL", "LI", "A"]);
+
+  const sanitizeNode = (node: Node): Node | null => {
+    if (node.nodeType === Node.TEXT_NODE) return node.cloneNode(true);
+    if (node.nodeType !== Node.ELEMENT_NODE) return document.createTextNode("");
+    const el = node as HTMLElement;
+    const tag = el.tagName.toUpperCase();
+    if (!allowedTags.has(tag)) {
+      const fragment = document.createDocumentFragment();
+      Array.from(el.childNodes).forEach((child) => {
+        const cleanChild = sanitizeNode(child);
+        if (cleanChild) fragment.appendChild(cleanChild);
+      });
+      return fragment;
+    }
+    const cleanEl = document.createElement(tag.toLowerCase());
+    if (tag === "A") {
+      const hrefRaw = (el.getAttribute("href") || "").trim();
+      if (/^(https?:|mailto:|tel:|\/|#)/i.test(hrefRaw)) {
+        cleanEl.setAttribute("href", hrefRaw);
+      }
+      cleanEl.setAttribute("target", "_blank");
+      cleanEl.setAttribute("rel", "noopener noreferrer");
+    }
+    Array.from(el.childNodes).forEach((child) => {
+      const cleanChild = sanitizeNode(child);
+      if (cleanChild) cleanEl.appendChild(cleanChild);
+    });
+    return cleanEl;
+  };
+
+  const output = document.createElement("div");
+  Array.from(container.childNodes).forEach((child) => {
+    const clean = sanitizeNode(child);
+    if (clean) output.appendChild(clean);
+  });
+  return output.innerHTML;
+}
+
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob, durationSeconds: number) => void;
   onRecordingStart?: () => void;
@@ -106,6 +150,8 @@ export default function AudioRecorder({
   const [manualDuration, setManualDuration] = useState<string>("");
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [micPreviewError, setMicPreviewError] = useState<string | null>(null);
+  const sanitizedPromptHtml = useMemo(() => sanitizePromptHtml(prompt ?? ""), [prompt]);
+  const hasPrompt = sanitizedPromptHtml.trim().length > 0;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -197,7 +243,7 @@ export default function AudioRecorder({
 
   // Measure prompt at base size; shrink font when >3 lines (-2px) or >5 lines (-4px)
   useLayoutEffect(() => {
-    if (!prompt || !promptMeasureRef.current) {
+    if (!hasPrompt || !promptMeasureRef.current) {
       setPromptSizeClass("default");
       return;
     }
@@ -210,7 +256,7 @@ export default function AudioRecorder({
     if (lines > 5) setPromptSizeClass("small");
     else if (lines > 3) setPromptSizeClass("medium");
     else setPromptSizeClass("default");
-  }, [prompt]);
+  }, [hasPrompt, sanitizedPromptHtml]);
 
   const attachOnStop = useCallback(
     (rec: MediaRecorder, mime: string) => {
@@ -633,27 +679,25 @@ export default function AudioRecorder({
       }`}
     >
       <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
-        {prompt ? (
+        {hasPrompt ? (
           <div className="relative w-full">
-            <p
+            <div
               ref={promptMeasureRef}
               aria-hidden
               className="absolute left-0 top-0 w-full text-center text-lg font-bold leading-snug text-foreground sm:text-xl"
               style={{ visibility: "hidden" }}
-            >
-              {prompt}
-            </p>
-            <p
-              className={`w-full text-center font-bold leading-snug text-foreground ${
+              dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
+            />
+            <div
+              className={`w-full text-center font-bold leading-snug text-foreground [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_p+*]:mt-1 ${
                 promptSizeClass === "medium"
                   ? "text-base sm:text-lg"
                   : promptSizeClass === "small"
                     ? "text-sm sm:text-base"
                     : "text-lg sm:text-xl"
               }`}
-            >
-              {prompt}
-            </p>
+              dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
+            />
           </div>
         ) : null}
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">

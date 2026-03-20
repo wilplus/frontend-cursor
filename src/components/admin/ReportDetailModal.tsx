@@ -23,6 +23,7 @@ type SessionWithPreview = {
   report_preview?: { report_text_preview?: string };
   recording_id?: string;
   coach_grade?: number | null;
+  coach_message?: string | null;
   status?: string;
 };
 
@@ -50,6 +51,7 @@ export default function ReportDetailModal({
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [audioPlaybackError, setAudioPlaybackError] = useState(false);
   const [coachGrade, setCoachGrade] = useState<number | null>(null);
+  const [coachMessage, setCoachMessage] = useState("");
   const [savingGrade, setSavingGrade] = useState(false);
 
   useBodyScrollLock(open);
@@ -61,6 +63,7 @@ export default function ReportDetailModal({
       setPlaybackUrl(null);
       setAudioPlaybackError(false);
       setCoachGrade(null);
+      setCoachMessage("");
       return;
     }
     setLoading(true);
@@ -75,6 +78,7 @@ export default function ReportDetailModal({
         setCoachGrade(
           data.coach_grade != null ? data.coach_grade : session.coach_grade ?? null
         );
+        setCoachMessage((data.coach_message ?? session.coach_message ?? "").trim());
         if (data.final_recording?.audio_url) {
           setPlaybackUrl(data.final_recording.audio_url);
         }
@@ -102,14 +106,25 @@ export default function ReportDetailModal({
     if (report == null && session?.coach_grade != null) {
       setCoachGrade(session.coach_grade);
     }
-  }, [report, session?.coach_grade]);
+    if (report == null && session?.coach_message != null) {
+      setCoachMessage((session.coach_message ?? "").trim());
+    }
+  }, [report, session?.coach_grade, session?.coach_message]);
 
   const handleSaveGrade = async () => {
     if (!session) return;
     setSavingGrade(true);
     try {
-      await adminApi.patchSession(userId, session.id, { coach_grade: coachGrade });
-      setReport((prev) => (prev ? { ...prev, coach_grade: coachGrade } : null));
+      const normalizedCoachMessage = coachMessage.trim();
+      await adminApi.patchSession(userId, session.id, {
+        coach_grade: coachGrade,
+        coach_message: normalizedCoachMessage || null,
+      });
+      setReport((prev) =>
+        prev
+          ? { ...prev, coach_grade: coachGrade, coach_message: normalizedCoachMessage || null }
+          : null
+      );
       toast.success("Grade saved.");
       onGradeSaved?.();
     } catch (e) {
@@ -310,6 +325,18 @@ export default function ReportDetailModal({
                   <span className="text-sm text-muted-foreground">
                       {coachGrade != null ? `Current: ${coachGrade}/10` : "Not graded"}
                     </span>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-muted-foreground">
+                    Message to student (shown in report)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={coachMessage}
+                    onChange={(e) => setCoachMessage(e.target.value)}
+                    placeholder="Great pacing improvement. Keep your pauses smooth."
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+                  />
                 </div>
               </div>
               )}

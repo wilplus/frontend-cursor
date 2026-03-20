@@ -95,6 +95,8 @@ export interface StudentProfile {
     task_score?: number;
     /** Coach grade 1–10 or null (not graded). */
     coach_grade?: number | null;
+    /** Optional short coach message attached to session grade. */
+    coach_message?: string | null;
     recording_preview?: { performance_score_v2?: number; transcription_preview?: string };
     /** Full report text (backend returns full, not truncated). */
     report_preview?: { report_text_preview?: string };
@@ -122,6 +124,8 @@ export interface AdminSessionReportResponse {
   performance_history?: Array<{ date: string; score: number }>;
   /** Coach grade 1–10 or null (not graded). */
   coach_grade?: number | null;
+  /** Optional coach message attached to the session grade. */
+  coach_message?: string | null;
 }
 
 export interface Exercise {
@@ -241,9 +245,9 @@ export const adminApi = {
   patchSession: (
     userId: string,
     sessionId: string,
-    body: { coach_grade: number | null }
+    body: { coach_grade: number | null; coach_message?: string | null }
   ) =>
-    adminFetch<{ status: string; coach_grade?: number | null }>(
+    adminFetch<{ status: string; coach_grade?: number | null; coach_message?: string | null }>(
       `/students/${userId}/sessions/${sessionId}`,
       { method: "PATCH", body }
     ),

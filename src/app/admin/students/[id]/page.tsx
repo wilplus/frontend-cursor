@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -24,6 +24,14 @@ import {
 import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
+
+function stripHtmlToText(input: string | null | undefined): string {
+  if (!input) return "";
+  if (typeof window === "undefined") return input;
+  const div = document.createElement("div");
+  div.innerHTML = input;
+  return (div.textContent || div.innerText || "").trim();
+}
 
 // —— Editable list row: text + hover Edit/Delete; edit = inline input + Check/X ——
 function EditableListItem({
@@ -127,6 +135,7 @@ function WarmUpTaskEditModal({
 }) {
   const [text, setText] = useState("");
   const [scoreInput, setScoreInput] = useState("1");
+  const editorRef = useRef<HTMLDivElement | null>(null);
 
   useBodyScrollLock(open);
 
@@ -137,19 +146,30 @@ function WarmUpTaskEditModal({
     }
   }, [open, task?.text, task?.max_performance_score]);
 
+  useEffect(() => {
+    if (!open || !editorRef.current) return;
+    editorRef.current.innerHTML = text;
+  }, [open, text]);
+
   const handleSave = async () => {
-    const trimmedText = text.trim();
-    if (!trimmedText) {
-      toast.error("Question text is required.");
+    const plainText = stripHtmlToText(text);
+    if (!plainText) {
+      toast.error("Task text is required.");
       return;
     }
     const clampedScore = Math.min(1, Math.max(0, Number(scoreInput) || 1));
     try {
-      await onSave({ text: trimmedText, max_performance_score: clampedScore });
+      await onSave({ text, max_performance_score: clampedScore });
       onOpenChange(false);
     } catch {
       // onSave already toasts error
     }
+  };
+
+  const applyEditorCommand = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    setText(editorRef.current?.innerHTML ?? "");
   };
 
   if (!open) return null;
@@ -163,7 +183,7 @@ function WarmUpTaskEditModal({
       aria-labelledby="warm-up-edit-title"
     >
       <div
-        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
+        className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-lg p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="warm-up-edit-title" className="text-lg font-semibold mb-4">
@@ -171,13 +191,50 @@ function WarmUpTaskEditModal({
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Question text</label>
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="e.g. How are you doing today?"
-              className="w-full"
-            />
+            <label className="block text-sm font-medium mb-1">Task text</label>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => applyEditorCommand("bold")}>
+                  Bold
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => applyEditorCommand("italic")}>
+                  Italic
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => applyEditorCommand("insertUnorderedList")}>
+                  Bullet list
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => applyEditorCommand("insertOrderedList")}>
+                  Numbered list
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const url = window.prompt("Enter link URL");
+                    if (!url) return;
+                    applyEditorCommand("createLink", url);
+                  }}
+                >
+                  Link
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => applyEditorCommand("removeFormat")}>
+                  Clear format
+                </Button>
+              </div>
+              <div
+                ref={editorRef}
+                className="min-h-[180px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed focus-within:ring-2 focus-within:ring-ring [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
+                role="textbox"
+                aria-label="Task text"
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => setText((e.currentTarget as HTMLDivElement).innerHTML)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Rich text supported. This text is shown to the student in the Task step.
+              </p>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Max score (0–1)</label>
@@ -553,6 +610,33 @@ export default function AdminStudentProfilePage() {
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
   const [warmUpTasksError, setWarmUpTasksError] = useState<string | null>(null);
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
+  const [queuedWarmUpUpserts, setQueuedWarmUpUpserts] = useState<Array<{
+    id: string;
+    text: string;
+    max_performance_score: number;
+    order_index: number;
+  }>>([]);
+  const [queuedWarmUpDeletes, setQueuedWarmUpDeletes] = useState<string[]>([]);
+  const [queuedFocusUpserts, setQueuedFocusUpserts] = useState<Array<{
+    id: string;
+    text: string;
+    max_performance_score: number;
+    order_index: number;
+  }>>([]);
+  const [queuedFocusDeletes, setQueuedFocusDeletes] = useState<string[]>([]);
+  const [queuedPostQuestionUpserts, setQueuedPostQuestionUpserts] = useState<Array<{
+    id: string;
+    text: string;
+    answer_type: string;
+  }>>([]);
+  const [queuedPostQuestionDeletes, setQueuedPostQuestionDeletes] = useState<string[]>([]);
+  const [queuedExerciseUpserts, setQueuedExerciseUpserts] = useState<Array<{
+    id: string;
+    title: string;
+    video_url?: string;
+    description?: string;
+  }>>([]);
+  const [queuedExerciseDeletes, setQueuedExerciseDeletes] = useState<string[]>([]);
 
   /** Pending list selections (not saved yet). Null = use server state. */
   const [pendingWarmUpIds, setPendingWarmUpIds] = useState<string[] | null>(null);
@@ -616,6 +700,14 @@ export default function AdminStudentProfilePage() {
         setPendingWarmUpIds(null);
         setPendingFocusIds(null);
         setPendingPostQuestionIds(null);
+        setQueuedWarmUpUpserts([]);
+        setQueuedWarmUpDeletes([]);
+        setQueuedFocusUpserts([]);
+        setQueuedFocusDeletes([]);
+        setQueuedPostQuestionUpserts([]);
+        setQueuedPostQuestionDeletes([]);
+        setQueuedExerciseUpserts([]);
+        setQueuedExerciseDeletes([]);
         return Promise.allSettled([
           adminApi.getPostRecordingQuestionsPool(),
           adminApi.getWarmUpTasks(id),
@@ -701,6 +793,76 @@ export default function AdminStudentProfilePage() {
 
     setSaving(true);
     try {
+      for (const exerciseId of queuedExerciseDeletes) {
+        await adminApi.deleteExercise(exerciseId);
+      }
+      for (const exercise of queuedExerciseUpserts) {
+        if (exercise.id.startsWith("draft-")) {
+          await adminApi.createExercise({
+            title: exercise.title,
+            video_url: exercise.video_url,
+            description: exercise.description,
+          });
+        } else {
+          await adminApi.updateExercise(exercise.id, {
+            title: exercise.title,
+            video_url: exercise.video_url,
+            description: exercise.description,
+          });
+        }
+      }
+      for (const warmUpId of queuedWarmUpDeletes) {
+        await adminApi.deleteWarmUpTask(id, warmUpId);
+      }
+      for (const warmUp of queuedWarmUpUpserts) {
+        if (warmUp.id.startsWith("draft-")) {
+          await adminApi.createWarmUpTask(id, {
+            text: warmUp.text,
+            order_index: warmUp.order_index,
+            max_performance_score: warmUp.max_performance_score,
+          });
+        } else {
+          await adminApi.updateWarmUpTask(id, warmUp.id, {
+            text: warmUp.text,
+            order_index: warmUp.order_index,
+            max_performance_score: warmUp.max_performance_score,
+          });
+        }
+      }
+      for (const focusId of queuedFocusDeletes) {
+        await adminApi.deleteFocusTask(id, focusId);
+      }
+      for (const focus of queuedFocusUpserts) {
+        if (focus.id.startsWith("draft-")) {
+          await adminApi.createFocusTask(id, {
+            text: focus.text,
+            order_index: focus.order_index,
+            max_performance_score: focus.max_performance_score,
+          });
+        } else {
+          await adminApi.updateFocusTask(id, focus.id, {
+            text: focus.text,
+            order_index: focus.order_index,
+            max_performance_score: focus.max_performance_score,
+          });
+        }
+      }
+      for (const questionId of queuedPostQuestionDeletes) {
+        await adminApi.deletePostRecordingQuestion(id, questionId);
+      }
+      for (const question of queuedPostQuestionUpserts) {
+        if (question.id.startsWith("draft-")) {
+          await adminApi.createPostRecordingQuestion(id, {
+            text: question.text,
+            answer_type: question.answer_type,
+          });
+        } else {
+          await adminApi.updatePostRecordingQuestion(id, question.id, {
+            text: question.text,
+            answer_type: question.answer_type,
+          });
+        }
+      }
       await adminApi.patchStudent(id, {
         name: normalizedName === "" ? null : normalizedName,
         price_per_live_lesson:
@@ -724,6 +886,14 @@ export default function AdminStudentProfilePage() {
         await adminApi.putStudentPostRecordingQuestionsSync(id, { pool_question_ids: pendingPostQuestionIds });
         setPendingPostQuestionIds(null);
       }
+      setQueuedWarmUpUpserts([]);
+      setQueuedWarmUpDeletes([]);
+      setQueuedFocusUpserts([]);
+      setQueuedFocusDeletes([]);
+      setQueuedPostQuestionUpserts([]);
+      setQueuedPostQuestionDeletes([]);
+      setQueuedExerciseUpserts([]);
+      setQueuedExerciseDeletes([]);
       toast.success("All changes saved");
       load();
     } catch (e) {
@@ -793,29 +963,39 @@ export default function AdminStudentProfilePage() {
   };
 
   const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {
-    setSaving(true);
-    try {
+    const targetId = warmUpEditTask?.id ?? `draft-${crypto.randomUUID()}`;
+    const orderIndex = warmUpEditTask?.order_index ?? warmUpTasks.length;
+    setWarmUpTasks((prev) => {
       if (warmUpEditTask) {
-        await adminApi.updateWarmUpTask(id, warmUpEditTask.id, {
-          text: data.text,
-          max_performance_score: data.max_performance_score,
-        });
-        toast.success("Updated");
-      } else {
-        await adminApi.createWarmUpTask(id, {
-          text: data.text,
-          order_index: warmUpTasks.length,
-          max_performance_score: data.max_performance_score,
-        });
-        toast.success("Added");
+        return prev.map((t) =>
+          t.id === warmUpEditTask.id
+            ? { ...t, text: data.text, max_performance_score: data.max_performance_score, order_index: orderIndex }
+            : t
+        );
       }
-      load();
-    } catch (e) {
-      toast.error((e as Error).message);
-      throw e;
-    } finally {
-      setSaving(false);
-    }
+      return [
+        ...prev,
+        {
+          id: targetId,
+          user_id: id,
+          text: data.text,
+          order_index: orderIndex,
+          max_performance_score: data.max_performance_score,
+        },
+      ];
+    });
+    setQueuedWarmUpDeletes((prev) => prev.filter((qid) => qid !== targetId));
+    setQueuedWarmUpUpserts((prev) => {
+      const next = prev.filter((q) => q.id !== targetId);
+      next.push({
+        id: targetId,
+        text: data.text,
+        max_performance_score: data.max_performance_score,
+        order_index: orderIndex,
+      });
+      return next;
+    });
+    toast.success("Queued. Click Save all changes.");
   };
 
   const handleExerciseEditModalSave = async (data: {
@@ -823,36 +1003,46 @@ export default function AdminStudentProfilePage() {
     video_url?: string;
     description?: string;
   }) => {
-    setSaving(true);
-    try {
+    const targetId = exerciseEditExercise?.id ?? `draft-${crypto.randomUUID()}`;
+    setExercises((prev) => {
       if (exerciseEditExercise) {
-        await adminApi.updateExercise(exerciseEditExercise.id, data);
-        toast.success("Exercise updated");
-      } else {
-        await adminApi.createExercise(data);
-        toast.success("Exercise added");
+        return prev.map((ex) =>
+          ex.id === exerciseEditExercise.id ? { ...ex, ...data } : ex
+        );
       }
-      load();
-    } catch (e) {
-      toast.error((e as Error).message);
-      throw e;
-    } finally {
-      setSaving(false);
-    }
+      return [
+        ...prev,
+        {
+          id: targetId,
+          title: data.title,
+          video_url: data.video_url ?? null,
+          description: data.description ?? null,
+        },
+      ];
+    });
+    setQueuedExerciseDeletes((prev) => prev.filter((eid) => eid !== targetId));
+    setQueuedExerciseUpserts((prev) => {
+      const next = prev.filter((e) => e.id !== targetId);
+      next.push({
+        id: targetId,
+        title: data.title,
+        video_url: data.video_url,
+        description: data.description,
+      });
+      return next;
+    });
+    toast.success("Queued. Click Save all changes.");
   };
 
   const deleteExerciseHandler = async (exerciseId: string) => {
     if (!confirm("Delete this exercise? Students will no longer see it in their exercises.")) return;
-    setSaving(true);
-    try {
-      await adminApi.deleteExercise(exerciseId);
-      toast.success("Exercise deleted");
-      setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
+    setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
+    setAssignedExerciseIds((prev) => prev.filter((id) => id !== exerciseId));
+    setQueuedExerciseUpserts((prev) => prev.filter((e) => e.id !== exerciseId));
+    if (!exerciseId.startsWith("draft-")) {
+      setQueuedExerciseDeletes((prev) => (prev.includes(exerciseId) ? prev : [...prev, exerciseId]));
     }
+    toast.success("Queued. Click Save all changes.");
   };
 
   // Post-recording questions (per-student list + pool); sync via putStudentPostRecordingQuestionsSync.
@@ -891,51 +1081,40 @@ export default function AdminStudentProfilePage() {
   };
 
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
-    setSaving(true);
-    try {
+    const targetId = postQuestionEdit?.id ?? `draft-${crypto.randomUUID()}`;
+    setPostRecordingQuestions((prev) => {
       if (postQuestionEdit) {
-        await adminApi.updatePostRecordingQuestion(id, postQuestionEdit.id, {
-          text: data.text,
-          answer_type: data.answer_type,
-        });
-        toast.success("Question updated");
-      } else {
-        const res = await adminApi.createPostRecordingQuestion(id, {
-          text: data.text,
-          answer_type: data.answer_type,
-        });
-        const created = res.post_recording_question ?? (res as { question?: PostQuestion }).question;
-        if (created) setPostRecordingQuestions((prev) => [...prev, created]);
-        toast.success("Question added");
+        return prev.map((q) =>
+          q.id === postQuestionEdit.id ? { ...q, text: data.text, answer_type: data.answer_type } : q
+        );
       }
-      load();
-    } catch (e) {
-      toast.error((e as Error).message);
-      throw e;
-    } finally {
-      setSaving(false);
-    }
+      return [...prev, { id: targetId, text: data.text, answer_type: data.answer_type }];
+    });
+    setQueuedPostQuestionDeletes((prev) => prev.filter((qid) => qid !== targetId));
+    setQueuedPostQuestionUpserts((prev) => {
+      const next = prev.filter((q) => q.id !== targetId);
+      next.push({ id: targetId, text: data.text, answer_type: data.answer_type });
+      return next;
+    });
+    toast.success("Queued. Click Save all changes.");
   };
 
   const deletePostRecordingQuestion = (questionId: string) => {
-    setSaving(true);
-    adminApi
-      .deletePostRecordingQuestion(id, questionId)
-      .then(() => {
-        load();
-        toast.success("Deleted");
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
+    setPostRecordingQuestions((prev) => prev.filter((q) => q.id !== questionId));
+    setQueuedPostQuestionUpserts((prev) => prev.filter((q) => q.id !== questionId));
+    if (!questionId.startsWith("draft-")) {
+      setQueuedPostQuestionDeletes((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
+    }
+    toast.success("Queued. Click Save all changes.");
   };
 
   const deleteWarmUpTask = (taskId: string) => {
-    setSaving(true);
-    adminApi
-      .deleteWarmUpTask(id, taskId)
-      .then(() => { load(); toast.success("Deleted"); })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
+    setWarmUpTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setQueuedWarmUpUpserts((prev) => prev.filter((q) => q.id !== taskId));
+    if (!taskId.startsWith("draft-")) {
+      setQueuedWarmUpDeletes((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+    }
+    toast.success("Queued. Click Save all changes.");
   };
 
   // Focus tasks (canonical). Warm-up and post-recording mirror this pattern.
@@ -980,37 +1159,47 @@ export default function AdminStudentProfilePage() {
     }
   };
   const handleFocusEditModalSave = async (data: { text: string; max_performance_score: number }) => {
-    setSaving(true);
-    try {
+    const targetId = focusEditTask?.id ?? `draft-${crypto.randomUUID()}`;
+    const orderIndex = focusEditTask?.order_index ?? focusTasks.length;
+    setFocusTasks((prev) => {
       if (focusEditTask) {
-        await adminApi.updateFocusTask(id, focusEditTask.id, {
-          text: data.text,
-          max_performance_score: data.max_performance_score,
-        });
-        toast.success("Updated");
-      } else {
-        await adminApi.createFocusTask(id, {
-          text: data.text,
-          order_index: focusTasks.length,
-          max_performance_score: data.max_performance_score,
-        });
-        toast.success("Added");
+        return prev.map((t) =>
+          t.id === focusEditTask.id
+            ? { ...t, text: data.text, max_performance_score: data.max_performance_score, order_index: orderIndex }
+            : t
+        );
       }
-      load();
-    } catch (e) {
-      toast.error((e as Error).message);
-      throw e;
-    } finally {
-      setSaving(false);
-    }
+      return [
+        ...prev,
+        {
+          id: targetId,
+          user_id: id,
+          text: data.text,
+          order_index: orderIndex,
+          max_performance_score: data.max_performance_score,
+        },
+      ];
+    });
+    setQueuedFocusDeletes((prev) => prev.filter((qid) => qid !== targetId));
+    setQueuedFocusUpserts((prev) => {
+      const next = prev.filter((q) => q.id !== targetId);
+      next.push({
+        id: targetId,
+        text: data.text,
+        max_performance_score: data.max_performance_score,
+        order_index: orderIndex,
+      });
+      return next;
+    });
+    toast.success("Queued. Click Save all changes.");
   };
   const deleteFocusTask = (taskId: string) => {
-    setSaving(true);
-    adminApi
-      .deleteFocusTask(id, taskId)
-      .then(() => { load(); toast.success("Deleted"); })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setSaving(false));
+    setFocusTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setQueuedFocusUpserts((prev) => prev.filter((q) => q.id !== taskId));
+    if (!taskId.startsWith("draft-")) {
+      setQueuedFocusDeletes((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+    }
+    toast.success("Queued. Click Save all changes.");
   };
 
   const assignedQuestions = postRecordingQuestions;
@@ -1092,7 +1281,7 @@ export default function AdminStudentProfilePage() {
         <div className="space-y-6">
           {/* Message to the student — shown in assignment email */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium">Message to the student</label>
+            <label className="block text-sm font-medium">Message</label>
             <textarea
               value={assignmentVideoDescription}
               onChange={(e) => setAssignmentVideoDescription(e.target.value)}
@@ -1107,7 +1296,7 @@ export default function AdminStudentProfilePage() {
           {/* Exercises — shown on step 0 (no active session) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-sm font-medium">Exercises</label>
+              <label className="text-sm font-medium">Video</label>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -1170,7 +1359,7 @@ export default function AdminStudentProfilePage() {
                     ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">No exercises. Click + Add to create one or Manage list to choose from the pool.</p>
+                <p className="text-sm text-muted-foreground">No videos. Click + Add to create one or Manage list to choose from the pool.</p>
               )}
             </div>
           </div>
@@ -1178,7 +1367,7 @@ export default function AdminStudentProfilePage() {
           {/* Warm-up Tasks */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Warm-up tasks</p>
+              <p className="text-sm font-medium">Task</p>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -1206,7 +1395,7 @@ export default function AdminStudentProfilePage() {
             <ul className="space-y-2">
               {displayWarmUpTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-                  <span className="min-w-0 flex-1 text-sm">{t.text}</span>
+                  <span className="min-w-0 flex-1 text-sm">{stripHtmlToText(t.text)}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     Max score: {t.max_performance_score ?? 1}
                   </span>
@@ -1242,12 +1431,12 @@ export default function AdminStudentProfilePage() {
               ))}
             </ul>
             {displayWarmUpTasks.length === 0 && (
-              <p className="text-sm text-muted-foreground">No warm-up tasks. Click + Add to create one or Manage list to choose from the pool.</p>
+              <p className="text-sm text-muted-foreground">No tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
             </div>
           </div>
 
-          {/* Focus tasks */}
+          {false && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Focus tasks</p>
@@ -1318,8 +1507,9 @@ export default function AdminStudentProfilePage() {
             )}
             </div>
           </div>
+          )}
 
-          {/* Post-recording questions (same pattern as warm-up/focus: + Add, Manage list, Edit, Delete) */}
+          {false && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Post-recording questions</p>
@@ -1386,15 +1576,17 @@ export default function AdminStudentProfilePage() {
               <p className="text-sm text-muted-foreground">No post-recording questions. Click + Add to create one.</p>
             )}
           </div>
+          )}
 
-          {/* Metrics: 3 custom questions (user metric questions) */}
-          <MetricsSection
-            metric_question_1={userMetricQuestions.metric_question_1}
-            metric_question_2={userMetricQuestions.metric_question_2}
-            metric_question_3={userMetricQuestions.metric_question_3}
-            onSave={setMetricsDraft}
-            saving={saving}
-          />
+          {false && (
+            <MetricsSection
+              metric_question_1={userMetricQuestions.metric_question_1}
+              metric_question_2={userMetricQuestions.metric_question_2}
+              metric_question_3={userMetricQuestions.metric_question_3}
+              onSave={setMetricsDraft}
+              saving={saving}
+            />
+          )}
         </div>
       </SectionCard>
 
