@@ -166,16 +166,6 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
           <circle cx={ballX} cy={ballY} r={3.5} fill="white" opacity={0.95} />
         </svg>
 
-        {/* Score overlay */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <p
-            className="text-4xl font-semibold tabular-nums"
-            style={{ color: ringColor, opacity: 0.22 }}
-          >
-            {state.silenceGated ? "—" : `${state.performanceScore}%`}
-          </p>
-        </div>
-
         {/* Combo badge */}
         {display.combo > 0 ? (
           <div className="absolute top-2 right-2 bg-[#2E9E6F] text-white rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-sm">
