@@ -1575,7 +1575,8 @@ export default function HomeworkFlowCard() {
           <p className="text-sm text-muted-foreground mb-3">
             1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
           </p>
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="mb-3 overflow-x-auto pb-1">
+            <div className="flex w-max min-w-full items-center gap-2">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
               <Button
                 key={n}
@@ -1605,6 +1606,7 @@ export default function HomeworkFlowCard() {
                 {n}
               </Button>
             ))}
+            </div>
           </div>
           <Button
             type="button"
@@ -1735,6 +1737,18 @@ export default function HomeworkFlowCard() {
     const fillerBreakdown = backendBreakdown ?? undefined;
 
     const coachInsight = (reportData?.coach_insight ?? "").trim();
+    const coachGrade =
+      reportData?.coach_grade ??
+      (reportData as { admin_grade?: number | null })?.admin_grade ??
+      (reportData as { grade?: number | null })?.grade ??
+      null;
+    const coachGradeMessage = (
+      reportData?.coach_message ??
+      (reportData as { coach_grade_message?: string | null })?.coach_grade_message ??
+      (reportData as { coach_feedback_message?: string | null })?.coach_feedback_message ??
+      (reportData as { grade_message?: string | null })?.grade_message ??
+      ""
+    ).trim();
 
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
@@ -1831,6 +1845,22 @@ export default function HomeworkFlowCard() {
               )}
             </div>
           </div>
+
+          {(coachGrade != null || coachGradeMessage) ? (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Coach feedback</p>
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                {coachGrade != null ? (
+                  <p className="text-sm text-foreground">
+                    Grade: <span className="font-semibold">{coachGrade}/10</span>
+                  </p>
+                ) : null}
+                {coachGradeMessage ? (
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{coachGradeMessage}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
             {resetting ? "Sending…" : reportCtaLabel}

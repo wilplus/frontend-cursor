@@ -297,6 +297,10 @@ export interface HomeworkReportResponse {
   recording?: ReportRecording | null;
   /** Optional 2-sentence coach insight. Omitted for older sessions or if generation failed. */
   coach_insight?: string | null;
+  /** Coach grade 1–10 (if provided by coach/admin). */
+  coach_grade?: number | null;
+  /** Optional coach message attached to the grade. */
+  coach_message?: string | null;
   /** When report is from recording-1 only (e.g. skip from step 2): first recording playback and analysis. */
   recording_1?: { id: string | null; audio_url: string | null };
   /** Transcript of recording 1 (legacy; prefer recording.transcription_text when present). */

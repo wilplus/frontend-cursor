@@ -136,6 +136,18 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
                 : (computedTotalFromBreakdown > 0 ? computedTotalFromBreakdown : null);
             const fillerBreakdown = backendBreakdown ?? undefined;
             const coachInsight = (report.coach_insight ?? "").trim();
+            const coachGrade =
+              report.coach_grade ??
+              (report as { admin_grade?: number | null }).admin_grade ??
+              (report as { grade?: number | null }).grade ??
+              null;
+            const coachGradeMessage = (
+              report.coach_message ??
+              (report as { coach_grade_message?: string | null }).coach_grade_message ??
+              (report as { coach_feedback_message?: string | null }).coach_feedback_message ??
+              (report as { grade_message?: string | null }).grade_message ??
+              ""
+            ).trim();
             const lastFive = report.performance_history?.length ? report.performance_history.slice(-5) : [];
             const chartData = lastFive.length > 0
               ? lastFive.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
@@ -196,6 +208,21 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
                     )}
                   </div>
                 </div>
+                {(coachGrade != null || coachGradeMessage) ? (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Coach feedback</p>
+                    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                      {coachGrade != null ? (
+                        <p className="text-sm text-foreground">
+                          Grade: <span className="font-semibold">{coachGrade}/10</span>
+                        </p>
+                      ) : null}
+                      {coachGradeMessage ? (
+                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{coachGradeMessage}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             );
           })()}
