@@ -27,6 +27,10 @@ const EMA_PACE_FAST = 0.14;
 const EMA_PACE_SLOW = 0.05;
 const ADAPTIVE_RAW_THRESHOLD = 0.85;
 const PACE_DISPLAY_EMA = 0.08;
+// Horizontal (strength axis) asymmetry: lower factor = more forgiving.
+// Keep opposite-side preference from current behavior (quiet side preferred).
+const STRENGTH_QUIET_BIAS_FACTOR = 0.3;
+const STRENGTH_LOUD_BIAS_FACTOR = 0.9;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 const SILENCE_SETTLED_MS = 500;
@@ -218,9 +222,9 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         let nextStrengthDirection: number;
         if (voiceActiveRef.current) {
           let rawStrengthScore = bandScore(db, TARGET_DB, TOLERANCE_DB);
-          // Asymmetric bias (opposite side, but milder): favor quieter side over louder side.
-          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * 0.45;
-          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * 0.75);
+          // Asymmetric horizontal bias: strongly prefer quieter side over louder side.
+          if (db < TARGET_DB) rawStrengthScore = 1 - (1 - rawStrengthScore) * STRENGTH_QUIET_BIAS_FACTOR;
+          else if (db > TARGET_DB) rawStrengthScore = Math.max(0, 1 - (1 - rawStrengthScore) * STRENGTH_LOUD_BIAS_FACTOR);
           const fastStr = EMA_STRENGTH_FAST * rawStrengthScore + (1 - EMA_STRENGTH_FAST) * fastStrengthRef.current;
           const slowStr = EMA_STRENGTH_SLOW * rawStrengthScore + (1 - EMA_STRENGTH_SLOW) * slowStrengthRef.current;
           fastStrengthRef.current = fastStr;
