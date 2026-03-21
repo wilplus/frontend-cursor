@@ -166,56 +166,8 @@ function StepFlowWrapper({
   syncingBehind?: boolean;
   children: React.ReactNode;
 }) {
-  const flowSteps: Array<{ id: Step; label: string }> = [
-    { id: 0, label: "Start" },
-    { id: 1, label: "Record" },
-    { id: 2, label: "Rate" },
-    { id: 3, label: "Report" },
-  ];
-
   return (
     <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
-      <div className="w-full max-w-2xl">
-        <div className="rounded-xl border border-border bg-card/70 px-4 py-3 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            {flowSteps.map((flowStep, index) => {
-              const isActive = step >= flowStep.id;
-              const isCurrent = step === flowStep.id;
-              return (
-                <div key={flowStep.id} className="flex min-w-0 flex-1 items-center">
-                  <div className="flex min-w-0 flex-col items-center text-center">
-                    <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold transition-colors ${
-                        isCurrent
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : isActive
-                            ? "border-primary/60 bg-primary/10 text-primary"
-                            : "border-border bg-background text-muted-foreground"
-                      }`}
-                    >
-                      {flowStep.id + 1}
-                    </div>
-                    <p
-                      className={`mt-2 text-xs font-medium ${
-                        isActive ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      {flowStep.label}
-                    </p>
-                  </div>
-                  {index < flowSteps.length - 1 ? (
-                    <div
-                      className={`mx-2 mt-[-18px] h-1 flex-1 rounded-full ${
-                        step > flowStep.id ? "bg-primary/70" : "bg-border"
-                      }`}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
       {syncingBehind && (
         <p className="text-center text-sm text-muted-foreground">Syncing…</p>
       )}
