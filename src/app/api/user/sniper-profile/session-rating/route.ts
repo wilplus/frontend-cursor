@@ -10,7 +10,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export const dynamic = "force-dynamic";
 
-const GOOD_RATING_THRESHOLD = 8;
+const GOOD_RATING_THRESHOLD = 4;
 
 function createSupabase(req: NextRequest, cookieRes: NextResponse) {
   return createServerClient(
@@ -32,7 +32,7 @@ function createSupabase(req: NextRequest, cookieRes: NextResponse) {
   );
 }
 
-/** PATCH: submit student rating (1–10) for a session. Updates session_sniper_metrics and runs baseline update if rating >= 8. */
+/** PATCH: submit student rating (1–5) for a session. Updates session_sniper_metrics and runs baseline update if rating >= 4. */
 export async function PATCH(req: NextRequest) {
   const cookieRes = NextResponse.next();
   const supabase = createSupabase(req, cookieRes);
@@ -56,10 +56,10 @@ export async function PATCH(req: NextRequest) {
     !session_id ||
     typeof student_rating_1_10 !== "number" ||
     student_rating_1_10 < 1 ||
-    student_rating_1_10 > 10
+    student_rating_1_10 > 5
   ) {
     return NextResponse.json(
-      { error: "session_id and student_rating_1_10 (1–10) required" },
+      { error: "session_id and student_rating_1_10 (1–5) required" },
       { status: 400 }
     );
   }

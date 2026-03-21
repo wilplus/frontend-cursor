@@ -40,7 +40,7 @@ export function mockRecording1Response() {
   return {
     performance_score_1: 0.8,
     task_text:
-      "Based on your first recording, here is your task. Answer the three metric questions below, then complete your final recording.",
+      "Based on your first recording, here is your task. Answer the three prompts below, then complete your final recording.",
     task_block: {
       context_short: "Based on your first recording, here is your task.",
       metric_question_1: { id: "mq1", text: "What is the 1 thing you want your audience to understand?" },

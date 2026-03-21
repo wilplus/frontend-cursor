@@ -744,7 +744,7 @@ export default function AdminStudentProfilePage() {
           toast.error(msg);
         }
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
-        else toast.error(userMetricsRes.reason?.message ?? "Could not load metric questions");
+        else toast.error(userMetricsRes.reason?.message ?? "Could not load custom prompts");
         if (studentQuestionsRes.status === "fulfilled") {
           setPostRecordingQuestions(studentQuestionsRes.value);
           setPostRecordingQuestionsError(null);
@@ -1215,8 +1215,7 @@ export default function AdminStudentProfilePage() {
       (s) =>
         (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
         s.status === "completed" ||
-        !!s.recording_id ||
-        !!s.recording_1_id
+        !!s.recording_id
     )
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
     .slice(0, 20);

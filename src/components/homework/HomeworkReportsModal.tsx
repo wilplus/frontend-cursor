@@ -148,6 +148,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
               (report as { grade_message?: string | null }).grade_message ??
               ""
             ).trim();
+            const hasGradedCoachFeedback = coachGrade != null;
             const lastFive = report.performance_history?.length ? report.performance_history.slice(-5) : [];
             const chartData = lastFive.length > 0
               ? lastFive.map((p, i) => ({ sessionLabel: `S${i + 1}`, date: p.date, score: p.score }))
@@ -208,15 +209,13 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
                     )}
                   </div>
                 </div>
-                {(coachGrade != null || coachGradeMessage) ? (
+                {hasGradedCoachFeedback ? (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-2">Coach feedback</p>
                     <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
-                      {coachGrade != null ? (
-                        <p className="text-sm text-foreground">
-                          Grade: <span className="font-semibold">{coachGrade}/10</span>
-                        </p>
-                      ) : null}
+                      <p className="text-sm text-foreground">
+                        Grade: <span className="font-semibold">{coachGrade}/10</span>
+                      </p>
                       {coachGradeMessage ? (
                         <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{coachGradeMessage}</p>
                       ) : null}

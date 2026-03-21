@@ -17,68 +17,26 @@ export default function CompactReportPreviewCard({
   onOpen,
 }: CompactReportPreviewCardProps) {
   return (
-    <div className="w-full rounded-xl border border-border bg-card p-4 text-left shadow-sm">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </p>
-
-      {loading && !preview ? (
-        <p className="text-sm text-muted-foreground">Loading report preview…</p>
-      ) : preview ? (
-        <div className="space-y-4">
-          {preview.score != null ? (
-            <div className="rounded-lg bg-muted/40 px-4 py-3 text-center">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                Performance score
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-primary">{preview.score}%</p>
-            </div>
-          ) : null}
-
-          <div className="space-y-0 text-sm">
-            <div className="grid grid-cols-[88px_1fr] items-center border-b border-border py-2">
-              <p className="text-muted-foreground">Playback</p>
-              <p className="text-right text-primary">
-                {preview.playbackUrl ? "Open recording" : "Not available yet"}
-              </p>
-            </div>
-            <div className="grid grid-cols-[88px_1fr] items-center border-b border-border py-2">
-              <p className="text-muted-foreground">Transcript</p>
-              <p className="text-right italic text-muted-foreground">
-                {preview.transcriptExcerpt ? `“${preview.transcriptExcerpt}”` : "Not available yet"}
-              </p>
-            </div>
-            <div className="grid grid-cols-[88px_1fr] items-center py-2">
-              <p className="text-muted-foreground">Filler words</p>
-              <p className="text-right text-foreground">
-                {preview.fillerTotal != null ? (
-                  <>
-                    {preview.fillerTotal}
-                    {preview.fillerBreakdownText ? (
-                      <span className="text-muted-foreground"> · {preview.fillerBreakdownText}</span>
-                    ) : null}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">Not available yet</span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border-l-2 border-l-primary bg-muted/30 px-4 py-3">
-            <p className="mb-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-              AI Coach Insight
-            </p>
-            <p className="text-sm leading-relaxed text-foreground/80">
-              {preview.aiInsight || "Still loading…"}
-            </p>
-          </div>
+    <div className="w-full rounded-lg border border-border bg-muted/20 p-4 text-left">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {loading && !preview
+              ? "Preparing report preview..."
+              : preview
+                ? "Open to see the full report."
+                : "Report available."}
+          </p>
         </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">Report preview not available yet.</p>
-      )}
+        {preview?.score != null ? (
+          <div className="shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
+            {preview.score}%
+          </div>
+        ) : null}
+      </div>
 
-      <Button onClick={onOpen} className="mt-4 h-10 w-full rounded-lg font-semibold">
+      <Button onClick={onOpen} variant="outline" className="mt-4 h-9 w-full rounded-lg font-semibold">
         View full report
       </Button>
     </div>

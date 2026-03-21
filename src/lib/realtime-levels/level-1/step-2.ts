@@ -7,16 +7,17 @@ export const LEVEL_1_STEP_2: RealtimeTrainingStep = {
   title: "Pitch baseline + pace",
   description:
     "Uses the student's stored pitch baseline on X while keeping the current pace signal on Y. Falls back to center until enough confident pitch frames are available.",
+  visualId: "realtime-dartboard",
   xAxis: {
     metric: "pitch_baseline",
-    label: "Pitch",
-    negativeHint: "Lower",
-    positiveHint: "Higher",
+    label: "High - Low",
+    negativeHint: "High",
+    positiveHint: "Low",
   },
   yAxis: {
     metric: "pace",
-    label: "Pace",
-    negativeHint: "Slower",
-    positiveHint: "Faster",
+    label: "Slow - Fast",
+    negativeHint: "Slow",
+    positiveHint: "Fast",
   },
 };

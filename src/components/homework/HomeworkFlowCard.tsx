@@ -6,10 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { homeworkApi, type HomeworkApiError, type SelfRatingResponse } from "@/lib/api/homework-client";
 import type {
-  HomeworkQuestion,
   HomeworkSessionStatus,
   HomeworkReportResponse,
-  TaskBlockV2,
   HomeworkResponse,
   AssignedExercise,
 } from "@/lib/api/types-homework";
@@ -35,8 +33,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 import Lottie from "lottie-react";
 
-/** Default warm-up question when the backend assigns none. */
-const DEFAULT_WARMUP_QUESTION = "How was your day so far?";
+/** Default task prompt when the backend assigns none. */
+const DEFAULT_TASK_PROMPT = "How was your day so far?";
 
 /** Default exercise shown on step 0 when the student has no assigned exercises (e.g. new user / nothing set in admin). */
 const DEFAULT_INTRO_EXERCISE: AssignedExercise = {
@@ -54,8 +52,8 @@ function formatCountdown(ms: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function resolveWarmUpText(text: string | null | undefined): string {
-  return (text ?? "").trim() || DEFAULT_WARMUP_QUESTION;
+function resolveTaskText(text: string | null | undefined): string {
+  return (text ?? "").trim() || DEFAULT_TASK_PROMPT;
 }
 
 /** Return at most the first 2 sentences of text (by ., !, ?). */
@@ -180,12 +178,7 @@ export default function HomeworkFlowCard() {
   const { setRecordingActive, setShowNavbar } = useRecordingContext();
   const [step, setStep] = useState<Step>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [warmUpText, setWarmUpText] = useState("");
-  const [taskText, setTaskText] = useState("");
-  const [finalTaskText, setFinalTaskText] = useState("");
-  const [taskBlock, setTaskBlock] = useState<TaskBlockV2 | null>(null);
-  const [questions, setQuestions] = useState<HomeworkQuestion[]>([]);
-  const [postAnswers, setPostAnswers] = useState<Record<string, string>>({});
+  const [task, setTask] = useState("");
   const [reportText, setReportText] = useState("");
   const [performanceScoreEnd, setPerformanceScoreEnd] = useState<number | null>(null);
   /** Fetched report for final score step (step 3). */
@@ -206,12 +199,8 @@ export default function HomeworkFlowCard() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** When true, metric step Continue is disabled because recording-1 analysis failed (submitting again won't help). */
+  /** When true, the step-2 Continue action is disabled because recording-1 analysis failed. */
   const [metricStepBlockedByRecordingFailure, setMetricStepBlockedByRecordingFailure] = useState(false);
-  /** On step 2 when taskBlock was null, we fetch it; this becomes true when that fetch settles (success or fail). Used to show error if questions still missing after fetch. */
-  const [taskBlockFetchSettled, setTaskBlockFetchSettled] = useState(false);
-  /** Legacy unused state kept for compatibility with old status payloads. */
-  const [questionsStep4Settled, setQuestionsStep4Settled] = useState(false);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
   const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
@@ -219,10 +208,7 @@ export default function HomeworkFlowCard() {
   const [syncingBehind, setSyncingBehind] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
-  const postAnswersSubmitInProgress = useRef(false);
   const uploadRecording1InProgressRef = useRef(false);
-  const uploadRecording2InProgressRef = useRef(false);
-  const postAnswersAutoSubmitDoneRef = useRef(false);
   /** When set, user just finished a lesson (step 3 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
@@ -266,7 +252,7 @@ export default function HomeworkFlowCard() {
   /** Session id for the report shown in the modal (from clicking a report card). */
   const [reportModalSessionId, setReportModalSessionId] = useState<string | null>(null);
   /** Step 0: list of past sessions for Reports History (same source as admin). Hidden until "View reports" is clicked. */
-  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; recording_1_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
+  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
@@ -276,8 +262,6 @@ export default function HomeworkFlowCard() {
   const [pollReportsAfterFinish, setPollReportsAfterFinish] = useState(false);
   /** Deep-link guard: handle query-triggered report auto-open only once per page load. */
   const reportDeepLinkHandledRef = useRef(false);
-  /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
-  const taskBlockFetchStartedRef = useRef(false);
   /** Legacy ref kept for compatibility with old status payloads. */
   const skipStep2ToReportDoneRef = useRef(false);
   /** Mirror of step for use inside applyStatusToState (so we never downgrade step when applying backend response). */
@@ -321,8 +305,7 @@ export default function HomeworkFlowCard() {
           (s) =>
             (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
             s.status === "completed" ||
-            !!s.recording_id ||
-            !!(s as { recording_1_id?: string }).recording_1_id
+            !!s.recording_id
         );
         list.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
         setStep0Sessions(list.slice(0, 20));
@@ -478,12 +461,7 @@ export default function HomeworkFlowCard() {
     if (res.session_id != null) setSessionId(res.session_id);
     if (status === "none") {
       setSessionId(null);
-      setWarmUpText("");
-      setTaskText("");
-      setTaskBlock(null);
-      setFinalTaskText("");
-      setQuestions([]);
-      setQuestionsStep4Settled(false);
+      setTask("");
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
@@ -503,26 +481,12 @@ export default function HomeworkFlowCard() {
       return;
     }
 
-    if ("warm_up_task" in res && res.warm_up_task != null) {
-      setWarmUpText(resolveWarmUpText(res.warm_up_task.text ?? ""));
-    } else if ("warm_up_task_text" in res && res.warm_up_task_text != null) {
-      setWarmUpText(resolveWarmUpText(res.warm_up_task_text));
+    if ("task" in res && res.task !== undefined) {
+      setTask(resolveTaskText(res.task));
     }
-    if ("task_text" in res && res.task_text !== undefined) setTaskText(res.task_text ?? "");
-    if ("task_block" in res && res.task_block != null) setTaskBlock(res.task_block);
-    if ("final_task" in res && res.final_task != null) setFinalTaskText(res.final_task.trim());
-    else if ("final_task_text" in res && res.final_task_text != null) setFinalTaskText(res.final_task_text.trim());
     if ("performance_score_2" in res && res.performance_score_2 !== undefined) setPerformanceScoreEnd(res.performance_score_2);
     if ("report_text" in res && res.report_text !== undefined) setReportText(res.report_text ?? "");
     if ("performance_score_end" in res && res.performance_score_end !== undefined) setPerformanceScoreEnd(res.performance_score_end);
-    if ("questions" in res && Array.isArray(res.questions)) {
-      const qList = res.questions.map((q) => ({
-        ...q,
-        id: toId(q.id) || crypto.randomUUID(),
-        text: toText(q.text),
-      }));
-      setQuestions(qList.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-    }
     if ("tutor_feedback_deadline" in res) {
       const deadlineIso = res.tutor_feedback_deadline;
       if (deadlineIso && typeof deadlineIso === "string") {
@@ -556,16 +520,15 @@ export default function HomeworkFlowCard() {
     setStatusUnknown(false);
     try {
       const startRes = await homeworkApi.start();
-      const warmUpTextFromStart =
-        (startRes.warm_up_task && "text" in startRes.warm_up_task ? startRes.warm_up_task.text : null) ??
+      const taskFromStart =
+        startRes.task ??
         (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
         (startRes as { warm_up_task_text?: string }).warm_up_task_text ??
         "";
       applyStatusToState({
         status: "recording_1_required",
         session_id: startRes.session_id,
-        warm_up_task: (startRes as { warm_up_task?: { id: string; text: string } }).warm_up_task ?? null,
-        warm_up_task_text: warmUpTextFromStart || null,
+        task: taskFromStart || null,
       });
       setStep(1);
     } catch (e) {
@@ -579,7 +542,7 @@ export default function HomeworkFlowCard() {
       const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
       if (isBackendUnavailable) {
         applyStatusToState({ status: "recording_1_required", session_id: "mock-session" });
-        setWarmUpText("");
+        setTask("");
         setError(null);
         setStatusUnknown(false);
         setStep(1);
@@ -622,11 +585,8 @@ export default function HomeworkFlowCard() {
         abortRef.current.abort();
         abortRef.current = null;
       }
-      postAnswersAutoSubmitDoneRef.current = false;
       metricSubmitInProgress.current = false;
-      postAnswersSubmitInProgress.current = false;
       uploadRecording1InProgressRef.current = false;
-      uploadRecording2InProgressRef.current = false;
       applyStatusToState({ status: "none" });
       setReportLoading(false);
       setReportError(null);
@@ -636,9 +596,6 @@ export default function HomeworkFlowCard() {
       setLoading(false);
       setUploadingRecording(null);
       setMetricStepBlockedByRecordingFailure(false);
-      setTaskBlockFetchSettled(false);
-      setQuestionsStep4Settled(false);
-      setPostAnswers({});
       if (shouldPollReports) {
         setPollReportsAfterFinish(true);
       }
@@ -679,7 +636,6 @@ export default function HomeworkFlowCard() {
       abortRef.current = null;
     }
     uploadRecording1InProgressRef.current = false;
-    uploadRecording2InProgressRef.current = false;
     setLoading(true);
     setError(null);
     try {
@@ -698,11 +654,8 @@ export default function HomeworkFlowCard() {
         setError(null);
       }
     }
-    postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
-    postAnswersSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
-    uploadRecording2InProgressRef.current = false;
     applyStatusToState({ status: "none" });
     setLoading(false);
     setMetricStepBlockedByRecordingFailure(false);
@@ -714,11 +667,8 @@ export default function HomeworkFlowCard() {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    postAnswersAutoSubmitDoneRef.current = false;
     metricSubmitInProgress.current = false;
-    postAnswersSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
-    uploadRecording2InProgressRef.current = false;
     skipStep2ToReportDoneRef.current = false;
     applyStatusToState({ status: "none" });
     setMetricStepBlockedByRecordingFailure(false);
@@ -736,7 +686,7 @@ export default function HomeworkFlowCard() {
     );
   };
 
-  // Cold load: GET status only (mount). Never downgrade step; missing payload handled by Option B (e.g. fetch task-block for step 2).
+  // Cold load: GET status only (mount). Never downgrade step; missing payload handled by Option B (e.g. fetch the legacy question-block payload for step 2).
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
     autoStartAttempted = true;
@@ -981,6 +931,81 @@ export default function HomeworkFlowCard() {
   const RECORDING_2_DURATION_MIN = 62;
   const RECORDING_2_DURATION_MAX = 300;
 
+  const persistFinalSessionSummary = useCallback(
+    async (params: {
+      sessionId: string;
+      durationSeconds: number;
+      recordingId?: string | null;
+      studentRating1To10?: number | null;
+    }) => {
+      const snapshot = sniperSnapshotRef.current;
+      if (!snapshot) return;
+      const body: {
+        session_means: {
+          paceWpm: number | null;
+          avgPauseMs: number | null;
+          dynamicRangeDb: number | null;
+          emphasisPerMin: number | null;
+          energyRatio: number | null;
+          voicedDurationSec: number;
+          pitchCenterSt?: number | null;
+          pitchFrameCount?: number | null;
+        };
+        stage_score: number;
+        voiced_duration_sec: number;
+        duration_seconds: number;
+        recording_id?: string | null;
+        frontend_level?: number | null;
+        frontend_step?: number | null;
+        completed: true;
+        valid_for_progression: true;
+        session_id: string;
+        student_rating_1_10?: number | null;
+      } = {
+        session_means: {
+          paceWpm: snapshot.wpm ?? null,
+          avgPauseMs: null,
+          dynamicRangeDb: null,
+          emphasisPerMin: null,
+          energyRatio: null,
+          voicedDurationSec: snapshot.voicedDurationSec,
+          pitchCenterSt: snapshot.pitchCenterSt ?? null,
+          pitchFrameCount: snapshot.pitchFrameCount ?? null,
+        },
+        stage_score: snapshot.performanceScore,
+        voiced_duration_sec: snapshot.voicedDurationSec,
+        duration_seconds: params.durationSeconds,
+        recording_id: params.recordingId ?? null,
+        frontend_level: snapshot.realtimeLevel ?? null,
+        frontend_step: snapshot.realtimeStep ?? null,
+        completed: true,
+        valid_for_progression: true,
+        session_id: params.sessionId,
+      };
+      if (
+        typeof params.studentRating1To10 === "number" &&
+        params.studentRating1To10 >= 1 &&
+        params.studentRating1To10 <= 10
+      ) {
+        body.student_rating_1_10 = params.studentRating1To10;
+      }
+      try {
+        const response = await fetch("/api/user/sniper-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json().catch(() => null);
+        if (data && typeof data.user_id === "string") {
+          setSniperProfile(data);
+        }
+      } catch {
+        // Non-blocking: summary persistence should never block the homework flow.
+      }
+    },
+    []
+  );
+
   const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
     if (durationSeconds < RECORDING_1_DURATION_MIN) {
       const msg = `First recording must be at least ${RECORDING_1_DURATION_MIN} seconds. You recorded ${durationSeconds}s.`;
@@ -1025,13 +1050,15 @@ export default function HomeworkFlowCard() {
         sniperSnapshotRef.current?.totalActiveMs
       );
       const backendStatus = (res as { status?: string }).status;
-      const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "task_block";
+      const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "recording_1_required";
       applyStatusToState({
         status,
         session_id: sessionId,
-        task_block: (res as { task_block?: TaskBlockV2 }).task_block ?? null,
-        task_text: (res as { task_text?: string }).task_text ?? undefined,
-        ...(Array.isArray((res as { questions?: HomeworkQuestion[] }).questions) && { questions: (res as { questions?: HomeworkQuestion[] }).questions }),
+      });
+      await persistFinalSessionSummary({
+        sessionId,
+        durationSeconds,
+        recordingId: "recording_id" in res ? (res.recording_id ?? null) : null,
       });
       // step is already 2; keep it there so the self-rating form stays visible
     } catch (e) {
@@ -1054,238 +1081,6 @@ export default function HomeworkFlowCard() {
       uploadRecording1InProgressRef.current = false;
     }
   };
-
-  const METRIC_ANSWERS_VALIDATION_MSG = "Please answer all three questions before continuing.";
-
-  const handleMetricAnswersSubmit = async (answer_1: string, answer_2: string, answer_3: string) => {
-    if (!sessionId) return;
-    if (metricSubmitInProgress.current) return;
-    const a1 = answer_1.trim();
-    const a2 = answer_2.trim();
-    const a3 = answer_3.trim();
-    if (!a1 || !a2 || !a3) {
-      setError(METRIC_ANSWERS_VALIDATION_MSG);
-      toast.error(METRIC_ANSWERS_VALIDATION_MSG);
-      return;
-    }
-    metricSubmitInProgress.current = true;
-    setLoading(true);
-    setError(null);
-    if (typeof window !== "undefined") {
-      console.warn("[HomeworkFlow] metric answers submit started", { sessionId: sessionId?.slice(0, 8) + "…" });
-    }
-    try {
-      const metricResponse = await homeworkApi.submitMetricAnswers(sessionId, {
-        metric_answer_1: a1,
-        metric_answer_2: a2,
-        metric_answer_3: a3,
-      });
-      const responseErr = metricResponse && typeof (metricResponse as { error?: string }).error === "string" ? (metricResponse as { error: string }).error : null;
-      if (typeof window !== "undefined") {
-        console.warn("[HomeworkFlow] metric-answers response", {
-          hasFinalTask: !!metricResponse?.final_task,
-          hasError: !!responseErr,
-          errorMsg: responseErr ?? undefined,
-        });
-      }
-      if (metricResponse?.recording_1_fallback && metricResponse?.message?.trim()) {
-        toast.info(metricResponse.message.trim());
-      }
-      applyStatusToState({
-        status: "final_task_ready",
-        session_id: sessionId,
-        final_task: typeof metricResponse?.final_task === "string" ? metricResponse.final_task : undefined,
-      });
-      toast.success("Answers saved. Continue to the final recording.");
-    } catch (e) {
-      if (isSessionGoneError(e)) {
-        toast.info("Your session is gone. You can start a new lesson.");
-        startOverFromScratch();
-        return;
-      }
-      if (typeof window !== "undefined") {
-        console.warn("[HomeworkFlow] metric submit catch", e instanceof Error ? e.message : String(e));
-      }
-      const errCode = (e as HomeworkApiError).code;
-      const errMessage = e instanceof Error ? e.message : "Failed to submit";
-
-      if (errCode === "RECORDING_1_FAILED") {
-        setMetricStepBlockedByRecordingFailure(true);
-        setError(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
-        toast.error(errMessage || "We couldn't analyze your recording. Please try again or contact support.");
-        return;
-      }
-
-      // Approved exception: when POST metric-answers returns 409 RECORDING_1_PROCESSING, poll GET status only to decide when to retry the same mutation. Do not pass this GET response to applyStatusToState; step advances only when POST metric-answers succeeds, then applyStatusToState(retryResponse).
-      if (errCode === "RECORDING_1_PROCESSING") {
-        setError(errMessage || "Still analyzing your recording. Please wait a moment.");
-        toast.info(errMessage || "Still analyzing your recording. Please wait a moment.");
-        const maxWaitMs = 60000;
-        const pollIntervalMs = 2500;
-        const start = Date.now();
-        while (Date.now() - start < maxWaitMs && sessionId) {
-          await new Promise((r) => setTimeout(r, pollIntervalMs));
-          try {
-            // Poll GET only to decide when to retry the same mutation; step advances only when POST metric-answers succeeds below.
-            // GET status only to decide when to retry; do not call applyStatusToState(statusRes).
-            const statusRes = await homeworkApi.getStatus();
-            const session = (statusRes as { session?: { performance_score_1?: number; context_short?: string; recording_1_processing_status?: string } })?.session;
-            const ready = session?.performance_score_1 != null && (session?.context_short || session?.recording_1_processing_status === "completed");
-            if (ready) {
-              const retryResponse = await homeworkApi.submitMetricAnswers(sessionId, {
-                metric_answer_1: a1,
-                metric_answer_2: a2,
-                metric_answer_3: a3,
-              });
-              applyStatusToState({
-                status: "final_task_ready",
-                session_id: sessionId,
-                final_task: typeof retryResponse?.final_task === "string" ? retryResponse.final_task : undefined,
-              });
-              setError(null);
-              if (retryResponse?.recording_1_fallback && retryResponse?.message?.trim()) {
-                toast.info(retryResponse.message.trim());
-              }
-              toast.success("Answers saved. Continue to the final recording.");
-              return;
-            }
-          } catch (retryErr) {
-            if ((retryErr as HomeworkApiError).code === "RECORDING_1_PROCESSING") continue;
-            if ((retryErr as HomeworkApiError).code === "RECORDING_1_FAILED") {
-              setMetricStepBlockedByRecordingFailure(true);
-              setError((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
-              toast.error((retryErr as Error).message || "We couldn't analyze your recording. Please try again or contact support.");
-              return;
-            }
-            throw retryErr;
-          }
-        }
-        setError("Analysis is taking longer than usual. Please try again in a moment.");
-        toast.error("Analysis is taking longer than usual. Please try again in a moment.");
-        return;
-      }
-
-      if (isInvalidSessionStateError(e)) {
-        // Do not call GET status here (contract: no GET inside mutation handler). User can refresh or refocus.
-        // Advancing to step 3 on 409 would let the UI progress before metric-answers has actually succeeded.
-        const msg =
-          errMessage?.trim() ||
-          "Session state conflict. The system may still be processing. Please wait a moment and click Continue again.";
-        setError(msg);
-        toast.info(msg);
-      } else {
-        const displayMsg =
-          typeof errMessage === "string" && errMessage.trim()
-            ? errMessage
-            : errCode === "VALIDATION_ERROR"
-              ? METRIC_ANSWERS_VALIDATION_MSG
-              : "Failed to save answers. Please try again or refresh.";
-        setError(displayMsg);
-        toast.error(displayMsg);
-      }
-    } finally {
-      setLoading(false);
-      metricSubmitInProgress.current = false;
-    }
-  };
-
-  const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
-    if (!sessionId) return;
-    if (uploadRecording2InProgressRef.current) return;
-    uploadRecording2InProgressRef.current = true;
-    if (durationSeconds < RECORDING_2_DURATION_MIN || durationSeconds > RECORDING_2_DURATION_MAX) {
-      uploadRecording2InProgressRef.current = false;
-      const msg = `Final recording must be at least 1 minute 2 seconds (62s) and at most 5 minutes. You recorded ${durationSeconds}s.`;
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-    if (uploadingRecording === 2) {
-      uploadRecording2InProgressRef.current = false;
-      return;
-    }
-    setUploadingRecording(2);
-    setError(null);
-    abortRef.current = new AbortController();
-    try {
-      const res = await homeworkApi.uploadRecording2(sessionId, blob, durationSeconds, abortRef.current.signal);
-      applyStatusToState({
-        status: "post_questions",
-        session_id: sessionId,
-        ...(res.performance_score_2 !== undefined && { performance_score_2: res.performance_score_2 }),
-      });
-    } catch (e) {
-      console.error("[HomeworkFlow] handleRecording2Complete error", e);
-      if (isSessionGoneError(e)) {
-        toast.info("Your session is gone. You can start a new lesson.");
-        startOverFromScratch();
-        return;
-      }
-      const msg = isInvalidSessionStateError(e)
-        ? "Session state conflict. Please refresh the page or switch tab and back."
-        : (e instanceof Error ? e.message : "Upload failed. Please try again.");
-      setError(msg);
-      toast.error(msg, { duration: 8000 });
-    } finally {
-      setUploadingRecording(null);
-      abortRef.current = null;
-      uploadRecording2InProgressRef.current = false;
-    }
-  };
-
-  const handlePostAnswersSubmit = async (answersFromChild: Record<string, string>) => {
-    if (!sessionId) return;
-    if (postAnswersSubmitInProgress.current) return;
-    const missing = questions.filter((q) => !(answersFromChild[toId(q.id)] ?? "").trim());
-    if (missing.length > 0) {
-      setError("Please answer all questions before continuing.");
-      return;
-    }
-    postAnswersSubmitInProgress.current = true;
-    setLoading(true);
-    setError(null);
-    try {
-      const answers = questions.map((q) => ({
-        question_id: toId(q.id),
-        answer_text: (answersFromChild[toId(q.id)] ?? "").trim(),
-      }));
-      const res = await homeworkApi.submitPostAnswers(sessionId, answers);
-      applyStatusToState({
-        status: "completed",
-        session_id: sessionId,
-        report_text: res.report_text ?? "",
-        performance_score_end: res.performance_score_end ?? null,
-      });
-      if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem(
-          "homeworkReport",
-          JSON.stringify({ sessionId, reportText: res.report_text ?? "", performanceScoreEnd: res.performance_score_end ?? null })
-        );
-      }
-    } catch (e) {
-      if (isSessionGoneError(e)) {
-        toast.info("Your session is gone. You can start a new lesson.");
-        startOverFromScratch();
-        return;
-      }
-      const err = e as { code?: string };
-      if (err.code === "INVALID_SESSION_STATE") {
-        setError("Session state conflict. Please refresh the page or switch tab and back.");
-        toast.error("Session state conflict. Please refresh the page or switch tab and back.");
-      } else {
-        const msg = e instanceof Error ? e.message : "Failed to submit";
-        setError(msg);
-        toast.error(msg);
-      }
-    } finally {
-      setLoading(false);
-      postAnswersSubmitInProgress.current = false;
-    }
-  };
-
-  const allPostQuestionsAnswered =
-    questions.length === 0 ||
-    questions.every((q) => (postAnswers[toId(q.id)] ?? "").trim() !== "");
 
   /** User-initiated refresh: GET status and apply. No downgrade; missing payload handled per Option B. */
   const refreshStatus = async () => {
@@ -1502,7 +1297,7 @@ export default function HomeworkFlowCard() {
     </div>
   ) : null;
 
-  // Step 1: Warm-up text + recorder — show as soon as session exists (from POST start response)
+  // Step 1: Task + recorder — show as soon as session exists (from POST start response)
   if (step === 1) {
     const isUploadingRec1 = uploadingRecording === 1;
     if (isUploadingRec1) {
@@ -1519,9 +1314,9 @@ export default function HomeworkFlowCard() {
         </StepFlowWrapper>
       );
     }
-    const warmUpEmpty = sessionId && !warmUpText.trim();
+    const taskEmpty = sessionId && !task.trim();
     const showStatusUnknownBlock = statusUnknown;
-    const showWarmUpUnavailableBlock = warmUpEmpty && !statusUnknown;
+    const showTaskUnavailableBlock = taskEmpty && !statusUnknown;
 
     return (
       <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
@@ -1546,9 +1341,9 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         )}
-        {showWarmUpUnavailableBlock && (
+        {showTaskUnavailableBlock && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex flex-col gap-2">
-            <p>Warm-up prompt unavailable. Start over to begin a new session.</p>
+            <p>Task unavailable. Start over to begin a new session.</p>
             <Button
               variant="outline"
               size="sm"
@@ -1561,52 +1356,13 @@ export default function HomeworkFlowCard() {
             </Button>
           </div>
         )}
-        {!showStatusUnknownBlock && !showWarmUpUnavailableBlock && (
+        {!showStatusUnknownBlock && !showTaskUnavailableBlock && (
           <AudioRecorder
-            prompt={warmUpText.trim() || DEFAULT_WARMUP_QUESTION}
+            prompt={task.trim() || DEFAULT_TASK_PROMPT}
             onRecordingComplete={handleRecording1Complete}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
               sniperSnapshotRef.current = snapshot;
-              const body: {
-                session_means: {
-                  paceWpm: number;
-                  avgPauseMs: number;
-                  dynamicRangeDb: number;
-                  emphasisPerMin: number;
-                  energyRatio: null;
-                  voicedDurationSec: number;
-                  pitchCenterSt?: number | null;
-                  pitchFrameCount?: number | null;
-                };
-                stage_score: number;
-                voiced_duration_sec: number;
-                session_id?: string;
-              } = {
-                session_means: {
-                  paceWpm: snapshot.wpm ?? 0,
-                  avgPauseMs: 0,
-                  dynamicRangeDb: 0,
-                  emphasisPerMin: 0,
-                  energyRatio: null,
-                  voicedDurationSec: snapshot.voicedDurationSec,
-                  pitchCenterSt: snapshot.pitchCenterSt ?? null,
-                  pitchFrameCount: snapshot.pitchFrameCount ?? 0,
-                },
-                stage_score: snapshot.performanceScore,
-                voiced_duration_sec: snapshot.voicedDurationSec,
-              };
-              if (sessionId && sessionId !== "mock-session") body.session_id = sessionId;
-              fetch("/api/user/sniper-profile", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-              })
-                .then((r) => r.json())
-                .then((data) => {
-                  if (data && typeof data.user_id === "string") setSniperProfile(data);
-                })
-                .catch(() => {});
             }}
             stopAndSend
             uploading={isUploadingRec1}
@@ -1654,21 +1410,22 @@ export default function HomeworkFlowCard() {
     return (
       <StepFlowWrapper step={2} syncingBehind={syncingBehind}>
         {coachMessageBlock}
-        <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
-          <p className="text-lg font-bold leading-snug text-foreground mb-2">
-            How did that recording feel for you?
-          </p>
-          <p className="text-sm text-muted-foreground mb-3">
-            1 = Really off · 5 = Okay · 10 = This is how I want to sound. This helps us learn what your best looks like.
-          </p>
-          <div className="mb-3 overflow-x-auto pb-1">
-            <div className="flex w-max min-w-full items-center gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+        <Card className="mx-auto w-full max-w-2xl border-0 bg-transparent px-4 py-6 shadow-none sm:px-6">
+          <div className="mb-6 text-center">
+            <p className="text-2xl font-bold leading-tight text-foreground sm:text-3xl md:text-4xl">
+              How do you feel about speaking performance?
+            </p>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-base md:text-lg">
+              Choose a number from 1 to 5, with 1 being your lowest rating and 5 being your strongest.
+            </p>
+          </div>
+          <div className="mb-4">
+            <div className="grid grid-cols-5 gap-3 md:gap-4">
+            {[1, 2, 3, 4, 5].map((n) => (
               <Button
                 key={n}
                 type="button"
                 variant="outline"
-                size="sm"
                 disabled={savingStudentRating}
                 onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
@@ -1693,7 +1450,7 @@ export default function HomeworkFlowCard() {
                     setSavingStudentRating(false);
                   }
                 }}
-                className="min-w-[2.25rem]"
+                className="h-20 rounded-2xl border-2 text-2xl font-bold shadow-sm transition-all hover:scale-[1.02] hover:bg-accent/70 sm:h-24 sm:text-3xl"
               >
                 {n}
               </Button>
@@ -1732,7 +1489,7 @@ export default function HomeworkFlowCard() {
                 setSavingStudentRating(false);
               }
             }}
-            className="text-muted-foreground"
+            className="mx-auto mt-2 flex text-base text-muted-foreground"
           >
             Skip
           </Button>
@@ -1847,6 +1604,7 @@ export default function HomeworkFlowCard() {
       (reportData as { grade_message?: string | null })?.grade_message ??
       ""
     ).trim();
+    const hasGradedCoachFeedback = coachGrade != null;
 
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
@@ -1941,15 +1699,13 @@ export default function HomeworkFlowCard() {
             </div>
           </div>
 
-          {(coachGrade != null || coachGradeMessage) ? (
+          {hasGradedCoachFeedback ? (
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Coach feedback</p>
               <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
-                {coachGrade != null ? (
-                  <p className="text-sm text-foreground">
-                    Grade: <span className="font-semibold">{coachGrade}/10</span>
-                  </p>
-                ) : null}
+                <p className="text-sm text-foreground">
+                  Grade: <span className="font-semibold">{coachGrade}/10</span>
+                </p>
                 {coachGradeMessage ? (
                   <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{coachGradeMessage}</p>
                 ) : null}

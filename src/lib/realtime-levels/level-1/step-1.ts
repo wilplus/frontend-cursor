@@ -7,16 +7,17 @@ export const LEVEL_1_STEP_1: RealtimeTrainingStep = {
   title: "Current strength + pace",
   description:
     "Keeps the existing live behavior: X from strength in dB, Y from pace. Pitch telemetry is collected in the background to seed later steps.",
+  visualId: "realtime-dartboard",
   xAxis: {
     metric: "strength",
-    label: "Strength",
-    negativeHint: "Quieter",
-    positiveHint: "Louder",
+    label: "Weak - Strong",
+    negativeHint: "Weak",
+    positiveHint: "Strong",
   },
   yAxis: {
     metric: "pace",
-    label: "Pace",
-    negativeHint: "Slower",
-    positiveHint: "Faster",
+    label: "Slow - Fast",
+    negativeHint: "Slow",
+    positiveHint: "Fast",
   },
 };

@@ -5,8 +5,8 @@ import { requireAuth } from "@/lib/api/homework-mock";
 export const dynamic = "force-dynamic";
 
 /**
- * POST self-rating (1–10) for the session. Optional; does not block report generation or coach email.
- * Body: { "rating": number } (1–10).
+ * POST self-rating (1–5) for the session. Optional; does not block report generation or coach email.
+ * Body: { "rating": number } (1–5).
  */
 export async function POST(
   req: NextRequest,

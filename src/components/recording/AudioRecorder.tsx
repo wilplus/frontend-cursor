@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
 import type { RealtimeMetricDartboardHandle } from "@/components/recording/StrengthPaceDartboard";
+import { StepVisualRenderer } from "@/components/recording/step-visuals";
 import { resolveRealtimeTrainingStep } from "@/lib/realtime-levels";
 import type { LiveCoachSnapshot, UserSniperProfile } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
@@ -66,7 +67,7 @@ function sanitizePromptHtml(input: string): string {
   if (typeof window === "undefined") return input;
   const container = document.createElement("div");
   container.innerHTML = input;
-  const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "UL", "OL", "LI", "A"]);
+  const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "UL", "OL", "LI", "A", "H1", "H2", "H3", "H4", "H5", "H6"]);
 
   const sanitizeNode = (node: Node): Node | null => {
     if (node.nodeType === Node.TEXT_NODE) return node.cloneNode(true);
@@ -146,9 +147,6 @@ export default function AudioRecorder({
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  /** Prompt font size: shrink by 2px when >3 lines, by 4px when >5 lines (at base size). */
-  const [promptSizeClass, setPromptSizeClass] = useState<"default" | "medium" | "small">("default");
-  const promptMeasureRef = useRef<HTMLParagraphElement | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isFileUploadMode, setIsFileUploadMode] = useState(false);
@@ -270,23 +268,6 @@ export default function AudioRecorder({
       }
     };
   }, []);
-
-  // Measure prompt at base size; shrink font when >3 lines (-2px) or >5 lines (-4px)
-  useLayoutEffect(() => {
-    if (!hasPrompt || !promptMeasureRef.current) {
-      setPromptSizeClass("default");
-      return;
-    }
-    const el = promptMeasureRef.current;
-    const style = getComputedStyle(el);
-    const fontSize = parseFloat(style.fontSize);
-    const lineHeightVal = style.lineHeight;
-    const lhPx = lineHeightVal === "normal" ? fontSize * 1.25 : parseFloat(lineHeightVal);
-    const lines = lhPx > 0 ? el.scrollHeight / lhPx : 1;
-    if (lines > 5) setPromptSizeClass("small");
-    else if (lines > 3) setPromptSizeClass("medium");
-    else setPromptSizeClass("default");
-  }, [hasPrompt, sanitizedPromptHtml]);
 
   const attachOnStop = useCallback(
     (rec: MediaRecorder, mime: string) => {
@@ -711,38 +692,30 @@ export default function AudioRecorder({
       <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex w-full flex-col items-center text-center">
-            <p className="text-base font-semibold text-foreground">Level {currentRealtimeLevel}</p>
-            <p className="text-xs text-muted-foreground">
-              Step {currentRealtimeStep} of {LEVEL_1_TOTAL_STEPS}
-            </p>
+            <p className="text-base font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
             <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
           </div>
-        {hasPrompt ? (
-          <div className="relative w-full">
-            <div
-              ref={promptMeasureRef}
-              aria-hidden
-              className="absolute left-0 top-0 w-full text-center text-lg font-bold leading-snug text-foreground sm:text-xl"
-              style={{ visibility: "hidden" }}
-              dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
-            />
-            <div
-              className={`w-full text-center font-bold leading-snug text-foreground [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_p+*]:mt-1 ${
-                promptSizeClass === "medium"
-                  ? "text-base sm:text-lg"
-                  : promptSizeClass === "small"
-                    ? "text-sm sm:text-base"
-                    : "text-lg sm:text-xl"
-              }`}
-              dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
+          <div className="animation-div w-full">
+            <StepVisualRenderer
+              activeStep={activeRealtimeStep}
+              realtimeStrengthPace={realtimeStrengthPace}
+              dartboardRef={dartboardRef}
+              sniperMode={sniperMode}
             />
           </div>
-        ) : null}
-        {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-            {micPreviewError}
-          </p>
-        ) : null}
+          {hasPrompt ? (
+            <div className="mb-6 w-full max-w-lg rounded-lg border border-border bg-muted/30 p-5">
+              <div
+                className="text-left [&_h1]:mb-2 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-sm [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-sm [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:space-y-1 [&_ol]:text-sm [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-1 [&_ul]:text-sm [&_ul]:text-muted-foreground [&_li]:leading-6 [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
+              />
+            </div>
+          ) : null}
+          {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              {micPreviewError}
+            </p>
+          ) : null}
         </div>
         <div className={sniperMode ? "space-y-1" : "space-y-1.5"}>
           <div className={`w-full overflow-hidden rounded-full bg-muted ${sniperMode ? "h-1.5" : "h-2"}`}>
