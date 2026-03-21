@@ -1,6 +1,6 @@
-import CoachEmail from "@/components/CoachEmail";
-import CoachCompletionEmail from "@/components/CoachCompletionEmail";
-import StudentCompletionEmail from "@/components/StudentCompletionEmail";
+import { CoachEmail } from "@/components/CoachEmail";
+import { CoachCompletionEmail } from "@/components/CoachCompletionEmail";
+import { StudentCompletionEmail } from "@/components/StudentCompletionEmail";
 
 /**
  * Preview email layouts used by backend templates.
