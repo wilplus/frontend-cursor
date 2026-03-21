@@ -1624,7 +1624,7 @@ export default function HomeworkFlowCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={savingStudentRating || pendingRetrySelfRating != null}
+                disabled={savingStudentRating}
                 onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
                   setSavingStudentRating(true);
@@ -1639,7 +1639,8 @@ export default function HomeworkFlowCard() {
                   } catch (e) {
                     if (isSelfRatingNotReadyError(e)) {
                       setPendingRetrySelfRating({ sessionId, rating: n });
-                      toast.info("Recording is still processing. We will submit your rating automatically.");
+                      setStudentSpeechRatingSubmitted(true);
+                      setStep(3);
                     } else {
                       toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
                     }
@@ -1658,7 +1659,7 @@ export default function HomeworkFlowCard() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={savingStudentRating || pendingRetrySelfRating != null}
+            disabled={savingStudentRating}
             onClick={async () => {
               if (!sessionId || sessionId === "mock-session") {
                 setStudentSpeechRatingSubmitted(true);
@@ -1677,7 +1678,8 @@ export default function HomeworkFlowCard() {
               } catch (e) {
                 if (isSelfRatingNotReadyError(e)) {
                   setPendingRetrySelfRating({ sessionId, skipped: true });
-                  toast.info("Recording is still processing. We will submit this automatically.");
+                  setStudentSpeechRatingSubmitted(true);
+                  setStep(3);
                 } else {
                   toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
                 }
@@ -1689,11 +1691,6 @@ export default function HomeworkFlowCard() {
           >
             Skip
           </Button>
-          {pendingRetrySelfRating != null ? (
-            <p className="text-xs text-muted-foreground mt-2">
-              Processing your recording. Your rating will be submitted automatically in a moment.
-            </p>
-          ) : null}
         </Card>
       </StepFlowWrapper>
     );
