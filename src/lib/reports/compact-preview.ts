@@ -10,6 +10,8 @@ export type CompactReportPreview = {
   fillerTotal: number | null;
   fillerBreakdownText: string;
   aiInsight: string;
+  coachGrade: number | null;
+  coachMessage: string;
 };
 
 function firstSentenceOrExcerpt(text: string): string {
@@ -82,6 +84,20 @@ export function toCompactReportPreview(
         : null;
 
   const aiInsight = (report.coach_insight ?? "").trim();
+  const coachGrade =
+    (report as HomeworkReportResponse).coach_grade ??
+    (report as AdminSessionReportResponse).coach_grade ??
+    (report as HomeworkReportResponse & { admin_grade?: number | null }).admin_grade ??
+    (report as HomeworkReportResponse & { grade?: number | null }).grade ??
+    null;
+  const coachMessage = (
+    (report as HomeworkReportResponse).coach_message ??
+    (report as AdminSessionReportResponse).coach_message ??
+    (report as HomeworkReportResponse & { coach_grade_message?: string | null }).coach_grade_message ??
+    (report as HomeworkReportResponse & { coach_feedback_message?: string | null }).coach_feedback_message ??
+    (report as HomeworkReportResponse & { grade_message?: string | null }).grade_message ??
+    ""
+  ).trim();
 
   return {
     score,
@@ -90,5 +106,7 @@ export function toCompactReportPreview(
     fillerTotal,
     fillerBreakdownText: formatFillerBreakdown(backendBreakdown),
     aiInsight,
+    coachGrade,
+    coachMessage,
   };
 }

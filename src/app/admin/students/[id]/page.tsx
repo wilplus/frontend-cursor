@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import {
   adminApi,
   type StudentProfile,
+  type StudentSniperProgress,
   type PostQuestion,
   type WarmUpTask,
   type WarmUpPoolTask,
@@ -582,6 +583,7 @@ export default function AdminStudentProfilePage() {
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [studentSniperProgress, setStudentSniperProgress] = useState<StudentSniperProgress | null>(null);
   const [studentName, setStudentName] = useState("");
   const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
@@ -664,6 +666,7 @@ export default function AdminStudentProfilePage() {
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
+    setStudentSniperProgress(null);
     setWarmUpTasksError(null);
     setFocusTasksError(null);
     setPostRecordingQuestionsError(null);
@@ -720,6 +723,7 @@ export default function AdminStudentProfilePage() {
           getUserMetricQuestions(),
           adminApi.getStudentPostRecordingQuestions(id),
           adminApi.getExercises(),
+          adminApi.getStudentSniperProgress(id),
         ]);
       })
       .then((results) => {
@@ -755,10 +759,17 @@ export default function AdminStudentProfilePage() {
         }
         const exercisesRes = results[5];
         if (exercisesRes?.status === "fulfilled") setExercises(exercisesRes.value);
+        const sniperProgressRes = results[6];
+        if (sniperProgressRes?.status === "fulfilled") {
+          setStudentSniperProgress(sniperProgressRes.value);
+        } else {
+          setStudentSniperProgress(null);
+        }
       })
       .catch((e) => {
         toast.error(e.message);
         setProfile(null);
+        setStudentSniperProgress(null);
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -1306,6 +1317,20 @@ export default function AdminStudentProfilePage() {
               placeholder="e.g. 49.99"
               disabled={saving}
             />
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Current realtime level</label>
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+              {studentSniperProgress?.realtime_level != null ? studentSniperProgress.realtime_level : "—"}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Current realtime step</label>
+            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+              {studentSniperProgress?.realtime_step != null ? studentSniperProgress.realtime_step : "—"}
+            </div>
           </div>
         </div>
       </SectionCard>

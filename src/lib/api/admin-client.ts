@@ -103,6 +103,15 @@ export interface StudentProfile {
   }>;
 }
 
+export interface StudentSniperProgress {
+  user_id: string;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
+  sessions_with_pitch_count?: number | null;
+  realtime_pitch_baseline_st?: number | null;
+  updated_at?: string | null;
+}
+
 /** Recording with transcription and filler words (optional; aligns with homework report). */
 export interface AdminReportRecording {
   transcription_text?: string | null;
@@ -408,6 +417,11 @@ export const adminApi = {
 
   getStudentProfile: (userId: string) =>
     adminFetch<StudentProfile>(`/students/${userId}`),
+
+  getStudentSniperProgress: (userId: string) =>
+    adminFetch<{ profile: StudentSniperProgress | null }>(`/students/${userId}/sniper-profile`).then(
+      (r) => r.profile ?? null
+    ),
 
   patchStudent: (
     userId: string,

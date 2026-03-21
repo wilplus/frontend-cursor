@@ -11,7 +11,7 @@ export default function LevelProgress({ current, total }: LevelProgressProps) {
 
   return (
     <div
-      className="mt-1 mb-8 flex items-center justify-center gap-1.5"
+      className="mt-1 mb-4 flex items-center justify-center gap-1.5"
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={safeTotal}
