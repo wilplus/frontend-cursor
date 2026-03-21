@@ -29,12 +29,44 @@ export default function CompactReportPreviewCard({
                 : "Report available."}
           </p>
         </div>
-        {preview?.score != null ? (
-          <div className="shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
-            {preview.score}%
+        {preview?.score != null || preview?.coachGrade != null || preview?.coachMessage ? (
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {preview?.score != null ? (
+              <div className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
+                {preview.score}%
+              </div>
+            ) : null}
+            {preview?.coachGrade != null || preview?.coachMessage ? (
+              <div className="text-right text-xs font-medium text-foreground">
+                {preview?.coachGrade != null ? <span>{preview.coachGrade}/10</span> : null}
+                {preview?.coachMessage ? (
+                  <span className={preview?.coachGrade != null ? "ml-1" : ""} aria-label="Coach message available">
+                    📧
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
+
+      {preview && (preview.coachGrade != null || preview.coachMessage) ? (
+        <div className="mt-3 rounded-lg border border-border bg-background/70 p-3 text-left">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Coach feedback
+          </p>
+          {preview.coachGrade != null ? (
+            <p className="mt-1 text-sm text-foreground">
+              Grade: <span className="font-semibold">{preview.coachGrade}/10</span>
+            </p>
+          ) : null}
+          {preview.coachMessage ? (
+            <p className="mt-1 text-sm whitespace-pre-wrap text-foreground">
+              {preview.coachMessage}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <Button onClick={onOpen} variant="outline" className="mt-4 h-9 w-full rounded-lg font-semibold">
         View full report

@@ -12,7 +12,7 @@ import type {
   AssignedExercise,
 } from "@/lib/api/types-homework";
 import {
-  mapStatusToStep,
+  deriveHomeworkStep,
   getStatusToHomeworkResponse,
   toPublicStatus,
   type Step as StepType,
@@ -132,6 +132,10 @@ function resetAutoStartAttempted() {
   autoStartAttempted = false;
 }
 
+function maxStep(a: Step, b: Step): Step {
+  return Math.max(a, b) as Step;
+}
+
 function isNoWarmupError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "NO_WARMUP_CONFIGURED";
 }
@@ -154,6 +158,7 @@ function isSelfRatingNotReadyError(e: unknown): boolean {
 }
 
 function StepFlowWrapper({
+  step,
   syncingBehind,
   children,
 }: {
@@ -161,8 +166,56 @@ function StepFlowWrapper({
   syncingBehind?: boolean;
   children: React.ReactNode;
 }) {
+  const flowSteps: Array<{ id: Step; label: string }> = [
+    { id: 0, label: "Start" },
+    { id: 1, label: "Record" },
+    { id: 2, label: "Rate" },
+    { id: 3, label: "Report" },
+  ];
+
   return (
-      <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
+    <div className="w-full space-y-4 animate-fade-in flex flex-col items-center">
+      <div className="w-full max-w-2xl">
+        <div className="rounded-xl border border-border bg-card/70 px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            {flowSteps.map((flowStep, index) => {
+              const isActive = step >= flowStep.id;
+              const isCurrent = step === flowStep.id;
+              return (
+                <div key={flowStep.id} className="flex min-w-0 flex-1 items-center">
+                  <div className="flex min-w-0 flex-col items-center text-center">
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold transition-colors ${
+                        isCurrent
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : isActive
+                            ? "border-primary/60 bg-primary/10 text-primary"
+                            : "border-border bg-background text-muted-foreground"
+                      }`}
+                    >
+                      {flowStep.id + 1}
+                    </div>
+                    <p
+                      className={`mt-2 text-xs font-medium ${
+                        isActive ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      {flowStep.label}
+                    </p>
+                  </div>
+                  {index < flowSteps.length - 1 ? (
+                    <div
+                      className={`mx-2 mt-[-18px] h-1 flex-1 rounded-full ${
+                        step > flowStep.id ? "bg-primary/70" : "bg-border"
+                      }`}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
       {syncingBehind && (
         <p className="text-center text-sm text-muted-foreground">Syncing…</p>
       )}
@@ -686,7 +739,7 @@ export default function HomeworkFlowCard() {
     );
   };
 
-  // Cold load: GET status only (mount). Never downgrade step; missing payload handled by Option B (e.g. fetch the legacy question-block payload for step 2).
+  // Cold load: restore the visible step from backend session state.
   useEffect(() => {
     if (!authReady || step !== 0 || autoStartAttempted) return;
     autoStartAttempted = true;
@@ -707,7 +760,8 @@ export default function HomeworkFlowCard() {
           }
           return;
         }
-        // Do not auto-advance to step 1: always show step 0 first; user must click "Start Your Practice" to go to recording.
+        applyStatusToState(getStatusToHomeworkResponse(statusRes));
+        setStep(deriveHomeworkStep(statusRes));
         if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
           const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
           if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
@@ -738,13 +792,15 @@ export default function HomeworkFlowCard() {
     };
   }, [authReady, step]);
 
-  // Tab refocus: GET status and apply only when not on step 0 (so we don't jump to sniper without user clicking Start).
+  // Tab refocus: refresh data and only move the user forward in the flow.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       if (stepRef.current === 0) return;
       homeworkApi.getStatus().then((res) => {
-        if (res) applyStatusToState(getStatusToHomeworkResponse(res));
+        if (!res) return;
+        applyStatusToState(getStatusToHomeworkResponse(res));
+        setStep((prev) => maxStep(prev, deriveHomeworkStep(res)));
       });
     };
     document.addEventListener("visibilitychange", onVisible);
@@ -1604,7 +1660,7 @@ export default function HomeworkFlowCard() {
       (reportData as { grade_message?: string | null })?.grade_message ??
       ""
     ).trim();
-    const hasGradedCoachFeedback = coachGrade != null;
+    const hasCoachFeedback = coachGrade != null || coachGradeMessage.length > 0;
 
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
@@ -1699,13 +1755,15 @@ export default function HomeworkFlowCard() {
             </div>
           </div>
 
-          {hasGradedCoachFeedback ? (
+          {hasCoachFeedback ? (
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Coach feedback</p>
               <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
-                <p className="text-sm text-foreground">
-                  Grade: <span className="font-semibold">{coachGrade}/10</span>
-                </p>
+                {coachGrade != null ? (
+                  <p className="text-sm text-foreground">
+                    Grade: <span className="font-semibold">{coachGrade}/10</span>
+                  </p>
+                ) : null}
                 {coachGradeMessage ? (
                   <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{coachGradeMessage}</p>
                 ) : null}

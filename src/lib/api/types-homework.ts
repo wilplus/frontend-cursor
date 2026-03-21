@@ -39,6 +39,97 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   }
 }
 
+function normalizeStatusToken(value: unknown): string {
+  return typeof value === "string" ? value.toLowerCase().trim().replace(/\s+/g, "_") : "";
+}
+
+function getRawSession(
+  raw: HomeworkSessionStatus | HomeworkResponse
+): { id?: string; status?: string; state?: string } | null {
+  if (!("session" in raw) || raw.session == null || typeof raw.session !== "object") {
+    return null;
+  }
+  return raw.session as { id?: string; status?: string; state?: string };
+}
+
+/**
+ * Derive the visible homework UI step from backend session status.
+ * This is more specific than mapStatusToStep because it also considers
+ * active-session flags, recording presence, and self-rating readiness.
+ */
+export function deriveHomeworkStep(
+  raw: HomeworkSessionStatus | HomeworkResponse | null | undefined
+): Step {
+  if (!raw) return 0;
+  const session = getRawSession(raw);
+
+  if ("has_active_session" in raw && raw.has_active_session === false) {
+    return 0;
+  }
+
+  const normalizedStatus = toPublicStatus(
+    ("status" in raw ? raw.status : undefined) ?? session?.status
+  );
+
+  const rawStatusTokens = [
+    "status" in raw ? raw.status : undefined,
+    "session_state" in raw ? raw.session_state : undefined,
+    session?.status,
+    session?.state,
+  ].map(normalizeStatusToken);
+
+  const hasReportPayload =
+    ("report_text" in raw && typeof raw.report_text === "string" && raw.report_text.trim().length > 0) ||
+    ("performance_score_end" in raw && typeof raw.performance_score_end === "number");
+
+  if (
+    hasReportPayload ||
+    normalizedStatus === "completed" ||
+    normalizedStatus === "completing_from_recording_1" ||
+    normalizedStatus === "report_generating" ||
+    normalizedStatus === "task_block" ||
+    normalizedStatus === "final_task_ready" ||
+    normalizedStatus === "post_questions" ||
+    rawStatusTokens.includes("completed") ||
+    rawStatusTokens.includes("report_generated") ||
+    rawStatusTokens.includes("report_generating") ||
+    rawStatusTokens.includes("recording2_uploaded") ||
+    rawStatusTokens.includes("recording2_scored") ||
+    rawStatusTokens.includes("recording_2_uploaded") ||
+    rawStatusTokens.includes("recording_2_scored")
+  ) {
+    return 3;
+  }
+
+  const hasRecordingId =
+    "recording_id" in raw &&
+    typeof raw.recording_id === "string" &&
+    raw.recording_id.trim().length > 0;
+  const readyForSelfRating =
+    "ready_for_self_rating" in raw && raw.ready_for_self_rating === true;
+
+  if (readyForSelfRating || hasRecordingId) {
+    return 2;
+  }
+
+  const hasSessionId =
+    ("session_id" in raw && typeof raw.session_id === "string" && raw.session_id.trim().length > 0) ||
+    (typeof session?.id === "string" && session.id.trim().length > 0);
+
+  if (
+    normalizedStatus === "recording_1_required" ||
+    rawStatusTokens.includes("warm_up") ||
+    rawStatusTokens.includes("created") ||
+    rawStatusTokens.includes("warmup_recorded") ||
+    hasSessionId ||
+    ("has_active_session" in raw && raw.has_active_session === true)
+  ) {
+    return 1;
+  }
+
+  return 0;
+}
+
 /** Unified response shape for GET status and all mutations. Top-level status only; optional data. Matches backend exactly. Backend sends report_text, not report. */
 export interface HomeworkResponse {
   status: PublicHomeworkStatus;
