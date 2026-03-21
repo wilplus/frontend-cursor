@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { AlertTriangle, ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
+import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
 import SectionCard from "@/components/admin/SectionCard";
 import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ import {
   type FocusTaskPoolItem,
   type Exercise,
 } from "@/lib/api/admin-client";
+import type { CompactReportPreview } from "@/lib/reports/compact-preview";
+import { toCompactReportPreview } from "@/lib/reports/compact-preview";
 import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
@@ -650,6 +653,8 @@ export default function AdminStudentProfilePage() {
   /** Exercise ids assigned to this student (step 0 + email). Saved in overrides.assigned_exercise_ids. */
   const [assignedExerciseIds, setAssignedExerciseIds] = useState<string[]>([]);
   const [modalAssignedExercises, setModalAssignedExercises] = useState(false);
+  const [adminReportPreviews, setAdminReportPreviews] = useState<Record<string, CompactReportPreview | null>>({});
+  const [adminReportPreviewLoading, setAdminReportPreviewLoading] = useState<Record<string, boolean>>({});
   const [reportModalSession, setReportModalSession] = useState<
     (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
   >(null);
@@ -1216,6 +1221,43 @@ export default function AdminStudentProfilePage() {
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
     .slice(0, 20);
 
+  useEffect(() => {
+    if (!id || reports.length === 0) return;
+    reports.forEach((session) => {
+      if (adminReportPreviews[session.id] !== undefined || adminReportPreviewLoading[session.id]) return;
+      setAdminReportPreviewLoading((prev) => ({ ...prev, [session.id]: true }));
+      adminApi
+        .getStudentSessionReport(id, session.id)
+        .then((report) => {
+          setAdminReportPreviews((prev) => ({ ...prev, [session.id]: toCompactReportPreview(report) }));
+        })
+        .catch(() => {
+          setAdminReportPreviews((prev) => ({ ...prev, [session.id]: null }));
+        })
+        .finally(() => {
+          setAdminReportPreviewLoading((prev) => ({ ...prev, [session.id]: false }));
+        });
+    });
+  }, [id, reports, adminReportPreviews, adminReportPreviewLoading]);
+
+  useEffect(() => {
+    if (reports.length === 0) return;
+    const id = setInterval(() => {
+      setAdminReportPreviews((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        reports.forEach((session) => {
+          if (next[session.id] === null) {
+            delete next[session.id];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 8000);
+    return () => clearInterval(id);
+  }, [reports]);
+
   /** Metrics are batched; onSave only updates local state. Persisted on "Save all changes". */
   const setMetricsDraft = (data: {
     metric_question_1: string;
@@ -1614,27 +1656,13 @@ export default function AdminStudentProfilePage() {
             <p className="text-sm text-muted-foreground">No reports yet.</p>
           ) : (
             reports.map((s) => (
-              <button
-                type="button"
+              <CompactReportPreviewCard
                 key={s.id}
-                onClick={() => setReportModalSession(s)}
-                className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Report — {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
-                  </p>
-                  {s.status === "completed" && (
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
-                    </span>
-                  )}
-                </div>
-                <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
-                  {s.report_preview?.report_text_preview?.trim() || "View full report and recording."}
-                </p>
-                <p className="text-xs text-primary mt-2">View full report and recording →</p>
-              </button>
+                title={`Report — ${s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}`}
+                preview={adminReportPreviews[s.id] ?? null}
+                loading={!!adminReportPreviewLoading[s.id]}
+                onOpen={() => setReportModalSession(s)}
+              />
             ))
           )}
         </div>

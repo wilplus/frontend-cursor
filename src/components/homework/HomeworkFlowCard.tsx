@@ -22,10 +22,13 @@ import {
 } from "@/lib/api/types-homework";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
 import HomeworkReportsModal from "@/components/homework/HomeworkReportsModal";
+import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import type { LiveCoachSnapshot } from "@/lib/sniper/types";
+import type { LiveCoachSnapshot, UserSniperProfile } from "@/lib/sniper/types";
+import type { CompactReportPreview } from "@/lib/reports/compact-preview";
+import { toCompactReportPreview } from "@/lib/reports/compact-preview";
 import { Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -234,8 +237,7 @@ export default function HomeworkFlowCard() {
   const [sniperSnapshot, setSniperSnapshot] = useState<LiveCoachSnapshot | null>(null);
   const sniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [sniperProfile, setSniperProfile] = useState<any>(null);
+  const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
   /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
@@ -268,6 +270,8 @@ export default function HomeworkFlowCard() {
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
+  const [step0ReportPreviews, setStep0ReportPreviews] = useState<Record<string, CompactReportPreview | null>>({});
+  const [step0ReportPreviewLoading, setStep0ReportPreviewLoading] = useState<Record<string, boolean>>({});
   /** After finishing a session, briefly poll sessions list on step 0 so the new report appears without manual retries. */
   const [pollReportsAfterFinish, setPollReportsAfterFinish] = useState(false);
   /** Deep-link guard: handle query-triggered report auto-open only once per page load. */
@@ -351,10 +355,40 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     if (step !== 0 || !showReportsList) return;
     const id = setInterval(() => {
+      setStep0ReportPreviews((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        step0Sessions.forEach((session) => {
+          if (next[session.id] === null) {
+            delete next[session.id];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
       fetchStep0Reports();
     }, 8000);
     return () => clearInterval(id);
-  }, [step, showReportsList, fetchStep0Reports]);
+  }, [step, showReportsList, fetchStep0Reports, step0Sessions]);
+
+  useEffect(() => {
+    if (step !== 0 || !showReportsList || step0Sessions.length === 0) return;
+    step0Sessions.forEach((session) => {
+      if (step0ReportPreviews[session.id] !== undefined || step0ReportPreviewLoading[session.id]) return;
+      setStep0ReportPreviewLoading((prev) => ({ ...prev, [session.id]: true }));
+      homeworkApi
+        .getReport(session.id)
+        .then((report) => {
+          setStep0ReportPreviews((prev) => ({ ...prev, [session.id]: toCompactReportPreview(report) }));
+        })
+        .catch(() => {
+          setStep0ReportPreviews((prev) => ({ ...prev, [session.id]: null }));
+        })
+        .finally(() => {
+          setStep0ReportPreviewLoading((prev) => ({ ...prev, [session.id]: false }));
+        });
+    });
+  }, [step, showReportsList, step0Sessions, step0ReportPreviews, step0ReportPreviewLoading]);
 
   useEffect(() => {
     if (pollReportsAfterFinish && step0Sessions.length > 0) {
@@ -1398,34 +1432,16 @@ export default function HomeworkFlowCard() {
                 ) : (
                   <div className="space-y-3">
                     {step0Sessions.map((s) => (
-                      <button
-                        type="button"
+                      <CompactReportPreviewCard
                         key={s.id}
-                        onClick={() => {
+                        title={s.created_at ? new Date(s.created_at).toLocaleDateString() : "Report"}
+                        preview={step0ReportPreviews[s.id] ?? null}
+                        loading={!!step0ReportPreviewLoading[s.id]}
+                        onOpen={() => {
                           setReportModalSessionId(s.id);
                           setReportsModalOpen(true);
                         }}
-                        className="w-full rounded-xl border border-border bg-muted/30 p-4 shadow-sm text-left hover:border-primary/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}
-                          </p>
-                          {s.status === "completed" ? (
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {s.coach_grade != null ? `Grade: ${s.coach_grade}/10` : "Not graded"}
-                            </span>
-                          ) : (!!s.recording_id || !!(s as { recording_1_id?: string }).recording_1_id) ? (
-                            <span className="text-xs font-medium text-primary shrink-0">🎙 Recording</span>
-                          ) : null}
-                        </div>
-                        <p className="whitespace-pre-wrap text-sm text-foreground line-clamp-3">
-                          {s.report_preview?.report_text_preview?.trim() || "Recording available — tap to listen."}
-                        </p>
-                        <p className="text-xs text-primary mt-2">
-                          {s.report_preview?.report_text_preview?.trim() ? "View full report and recording →" : "View recording →"}
-                        </p>
-                      </button>
+                      />
                     ))}
                   </div>
                 )}
@@ -1553,12 +1569,30 @@ export default function HomeworkFlowCard() {
               setSniperSnapshot(snapshot);
               sniperSnapshotRef.current = snapshot;
               const body: {
-                session_means: { paceWpm: number; avgPauseMs: number; dynamicRangeDb: number; emphasisPerMin: number; energyRatio: null; voicedDurationSec: number };
+                session_means: {
+                  paceWpm: number;
+                  avgPauseMs: number;
+                  dynamicRangeDb: number;
+                  emphasisPerMin: number;
+                  energyRatio: null;
+                  voicedDurationSec: number;
+                  pitchCenterSt?: number | null;
+                  pitchFrameCount?: number | null;
+                };
                 stage_score: number;
                 voiced_duration_sec: number;
                 session_id?: string;
               } = {
-                session_means: { paceWpm: snapshot.wpm ?? 0, avgPauseMs: 0, dynamicRangeDb: 0, emphasisPerMin: 0, energyRatio: null, voicedDurationSec: snapshot.voicedDurationSec },
+                session_means: {
+                  paceWpm: snapshot.wpm ?? 0,
+                  avgPauseMs: 0,
+                  dynamicRangeDb: 0,
+                  emphasisPerMin: 0,
+                  energyRatio: null,
+                  voicedDurationSec: snapshot.voicedDurationSec,
+                  pitchCenterSt: snapshot.pitchCenterSt ?? null,
+                  pitchFrameCount: snapshot.pitchFrameCount ?? 0,
+                },
                 stage_score: snapshot.performanceScore,
                 voiced_duration_sec: snapshot.voicedDurationSec,
               };
@@ -1570,7 +1604,7 @@ export default function HomeworkFlowCard() {
               })
                 .then((r) => r.json())
                 .then((data) => {
-                  if (data && typeof data.session_count === "number") setSniperProfile(data);
+                  if (data && typeof data.user_id === "string") setSniperProfile(data);
                 })
                 .catch(() => {});
             }}
@@ -1578,6 +1612,7 @@ export default function HomeworkFlowCard() {
             uploading={isUploadingRec1}
             minDurationSeconds={RECORDING_1_DURATION_MIN}
             sniperMode
+            sniperProfile={sniperProfile}
           />
         )}
         {sessionId && sessionId !== "mock-session" && (

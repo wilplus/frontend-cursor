@@ -129,6 +129,20 @@ export interface AdminSessionReportResponse {
   coach_message?: string | null;
 }
 
+export interface RecordingReview {
+  id: string;
+  session_id: string;
+  recording_id?: string | null;
+  reviewer_id: string;
+  overall_quality: "good" | "bad" | "unclear";
+  confidence_score: number;
+  coach_style_score: number;
+  notes?: string | null;
+  rubric_version: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Exercise {
   id: string;
   title: string;
@@ -250,6 +264,30 @@ export const adminApi = {
   ) =>
     adminFetch<{ status: string; coach_grade?: number | null; coach_message?: string | null }>(
       `/students/${userId}/sessions/${sessionId}`,
+      { method: "PATCH", body }
+    ),
+
+  /** Internal ML review labels stored in Supabase; separate from student-facing coach feedback. */
+  getSessionReview: (userId: string, sessionId: string) =>
+    adminFetch<{ review: RecordingReview | null }>(
+      `/students/${userId}/sessions/${sessionId}/review`
+    ),
+
+  /** Save or update internal ML review labels for a session. */
+  patchSessionReview: (
+    userId: string,
+    sessionId: string,
+    body: {
+      recording_id?: string | null;
+      overall_quality: RecordingReview["overall_quality"];
+      confidence_score: number;
+      coach_style_score: number;
+      notes?: string | null;
+      rubric_version?: string;
+    }
+  ) =>
+    adminFetch<{ status: string; review: RecordingReview }>(
+      `/students/${userId}/sessions/${sessionId}/review`,
       { method: "PATCH", body }
     ),
 

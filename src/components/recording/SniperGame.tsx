@@ -1,10 +1,13 @@
 "use client";
 
 /**
- * Live Coach — Game Mode.
- * Physics ball on a 2D target. Center = perfect on both axes.
- * Y-axis = flow:  up = too rushed (few pauses), down = too choppy (many pauses).
- * X-axis = pace:  right = too fast, left = too slow.
+ * Live Coach — legacy flow + pace game mode.
+ * This component is not used by the current homework recorder, which renders
+ * `StrengthPaceDartboard` with X = strength and Y = pace.
+ *
+ * In this legacy view, the ball is driven by flow + pace:
+ * Y-axis = flow: up = too rushed (few pauses), down = too choppy (many pauses).
+ * X-axis = pace: right = too fast, left = too slow.
  * Ball color = coach color (green / yellow / red / gray).
  */
 
@@ -60,7 +63,7 @@ export function SniperGame({ state, taskLabel, audioError = false }: SniperGameP
   useEffect(() => {
     // Y: flowOffset (+1 = rushed = ball up, -1 = choppy = ball down)
     let ty = clamp(-state.flowOffset * R_OUTER, -R_OUTER, R_OUTER);
-    // X: paceOffset (always 0 until WPM wired)
+    // X: paceOffset for the legacy sniper game
     let tx = clamp(state.paceOffset * R_OUTER, -R_OUTER, R_OUTER);
     const radialNorm = Math.sqrt((tx / R_OUTER) ** 2 + (ty / R_OUTER) ** 2);
     if (radialNorm < DEAD_ZONE_RADIUS_NORM) {

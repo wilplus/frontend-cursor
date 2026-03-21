@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { FlowBackLink } from "@/components/ui/flow-back-button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import LevelProgress from "@/components/LevelProgress";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useRealtimeStrengthPace } from "@/hooks/useRealtimeStrengthPace";
-import { StrengthPaceDartboard, type StrengthPaceDartboardHandle } from "@/components/recording/StrengthPaceDartboard";
-import type { LiveCoachSnapshot } from "@/lib/sniper/types";
+import type { RealtimeMetricDartboardHandle } from "@/components/recording/StrengthPaceDartboard";
+import { resolveRealtimeTrainingStep } from "@/lib/realtime-levels";
+import type { LiveCoachSnapshot, UserSniperProfile } from "@/lib/sniper/types";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
+const LEVEL_1_TOTAL_STEPS = 10;
 
 async function measureBlobDurationSeconds(blob: Blob): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -121,6 +124,8 @@ interface AudioRecorderProps {
   sniperMode?: boolean;
   /** When sniperMode and recording completes, called with session summary snapshot for Review. */
   onSniperSnapshot?: (snapshot: LiveCoachSnapshot) => void;
+  /** Current student profile used to resolve the active realtime level/step. */
+  sniperProfile?: UserSniperProfile | null;
 }
 
 export default function AudioRecorder({
@@ -136,6 +141,7 @@ export default function AudioRecorder({
   prompt,
   sniperMode = false,
   onSniperSnapshot,
+  sniperProfile = null,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -170,10 +176,26 @@ export default function AudioRecorder({
   setIsRecordingRef.current = setIsRecording;
   setElapsedSecondsRef.current = setElapsedSeconds;
 
-  const dartboardRef = useRef<StrengthPaceDartboardHandle>(null);
+  const activeRealtimeStep = useMemo(
+    () => resolveRealtimeTrainingStep(sniperProfile),
+    [sniperProfile]
+  );
+  const currentRealtimeLevel = Math.max(1, sniperProfile?.realtime_level ?? activeRealtimeStep.level ?? 1);
+  const currentRealtimeStep = useMemo(() => {
+    const rawStep =
+      typeof sniperProfile?.realtime_step === "number" && sniperProfile.realtime_level === currentRealtimeLevel
+        ? sniperProfile.realtime_step
+        : activeRealtimeStep.level === currentRealtimeLevel
+          ? activeRealtimeStep.step
+          : 1;
+    return Math.min(LEVEL_1_TOTAL_STEPS, Math.max(1, Math.round(rawStep)));
+  }, [activeRealtimeStep.level, activeRealtimeStep.step, currentRealtimeLevel, sniperProfile?.realtime_level, sniperProfile?.realtime_step]);
+  const dartboardRef = useRef<RealtimeMetricDartboardHandle>(null);
   const realtimeStrengthPace = useRealtimeStrengthPace({
     onVoiceDrop: () => dartboardRef.current?.dampVelocityOnVoiceDrop?.(),
     onSilenceSettled: () => dartboardRef.current?.resetOnSilenceSettled?.(),
+    activeStep: activeRealtimeStep,
+    pitchBaselineSt: sniperProfile?.realtime_pitch_baseline_st ?? null,
   });
   const lastSniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   const stopRealtimeRef = useRef(() => realtimeStrengthPace.stop());
@@ -187,14 +209,22 @@ export default function AudioRecorder({
         pauseRatio: 0.5,
         voicedDurationSec: Math.max(0, elapsedSeconds),
         wpm: Number.isFinite(realtimeStrengthPace.wpmEstimate) ? Math.round(realtimeStrengthPace.wpmEstimate) : null,
+        pitchCenterSt: realtimeStrengthPace.pitchCenterSt,
+        pitchFrameCount: realtimeStrengthPace.pitchFrameCount,
+        realtimeLevel: activeRealtimeStep.level,
+        realtimeStep: activeRealtimeStep.step,
       };
     }
   }, [
+    activeRealtimeStep.level,
+    activeRealtimeStep.step,
     sniperMode,
     realtimeStrengthPace.isActive,
-    realtimeStrengthPace.strengthScore,
-    realtimeStrengthPace.paceScore,
+    realtimeStrengthPace.xScore,
+    realtimeStrengthPace.yScore,
     realtimeStrengthPace.wpmEstimate,
+    realtimeStrengthPace.pitchCenterSt,
+    realtimeStrengthPace.pitchFrameCount,
     elapsedSeconds,
   ]);
 
@@ -679,6 +709,14 @@ export default function AudioRecorder({
       }`}
     >
       <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
+        <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
+          <div className="flex w-full flex-col items-center text-center">
+            <p className="text-base font-semibold text-foreground">Level {currentRealtimeLevel}</p>
+            <p className="text-xs text-muted-foreground">
+              Step {currentRealtimeStep} of {LEVEL_1_TOTAL_STEPS}
+            </p>
+            <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
+          </div>
         {hasPrompt ? (
           <div className="relative w-full">
             <div
@@ -699,23 +737,6 @@ export default function AudioRecorder({
               dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
             />
           </div>
-        ) : null}
-        <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
-          <div className="flex justify-center w-full">
-            <div className={sniperMode ? "w-full" : "w-[clamp(420px,60vw,680px)]"}>
-              <StrengthPaceDartboard
-                ref={dartboardRef}
-                strengthScore={realtimeStrengthPace.strengthScore}
-                paceScore={realtimeStrengthPace.paceScore}
-                strengthDirection={realtimeStrengthPace.strengthDirection}
-                paceDirection={realtimeStrengthPace.paceDirection}
-              />
-            </div>
-          </div>
-        {realtimeStrengthPace.isActive ? (
-          <p className="text-sm text-muted-foreground">
-            Strength: {realtimeStrengthPace.strengthDb.toFixed(0)} dB   Pace: {Math.round(realtimeStrengthPace.wpmEstimate)} WPM
-          </p>
         ) : null}
         {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">

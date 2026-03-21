@@ -1,11 +1,15 @@
 "use client";
 
 /**
- * Real-time Strength (volume) + Pace feedback.
- * Uses mic -> AnalyserNode; 100ms loop -> RMS/dB, voiced ratio -> WPM,
- * band scores + dual EMA.
+ * Real-time metric field for the homework recorder.
+ * Step 1 keeps the current strength + pace behavior.
+ * Step 2 swaps the X-axis to baseline-relative pitch while preserving the same
+ * smoothing and spring-driven feel.
  */
 import { useState, useCallback, useRef, useEffect } from "react";
+import { detectPitchHz, hzToSemitones } from "@/lib/audio/pitch-detector";
+import { LEVEL_1_STEP_1 } from "@/lib/realtime-levels";
+import type { RealtimeTrainingStep } from "@/lib/realtime-levels";
 
 const UPDATE_MS = 100;
 const TARGET_DB = -16;
@@ -34,6 +38,13 @@ const STRENGTH_LOUD_BIAS_FACTOR = 0.9;
 const WPM_MIN = 60;
 const WPM_MAX = 220;
 const SILENCE_SETTLED_MS = 500;
+const PITCH_TOLERANCE_ST = 3;
+const PITCH_DIRECTION_DEADZONE_ST = 0.35;
+const PITCH_MIN_FRAMES_FOR_BOOTSTRAP = 12;
+const PITCH_CENTER_DRIFT_ALPHA = 0.05;
+const EMA_PITCH_FAST = 0.18;
+const EMA_PITCH_SLOW = 0.06;
+const PITCH_DISPLAY_EMA = 0.12;
 
 function rmsToDb(rms: number): number {
   return 20 * Math.log10(rms + 1e-8);
@@ -48,27 +59,44 @@ function bandScore(value: number, target: number, tolerance: number): number {
 export interface UseRealtimeStrengthPaceOptions {
   onVoiceDrop?: () => void;
   onSilenceSettled?: () => void;
+  activeStep?: RealtimeTrainingStep;
+  pitchBaselineSt?: number | null;
 }
 
 export interface UseRealtimeStrengthPaceResult {
+  xScore: number;
+  yScore: number;
+  xDirection: number;
+  yDirection: number;
   strengthScore: number;
   paceScore: number;
   strengthDb: number;
   wpmEstimate: number;
   strengthDirection: number;
   paceDirection: number;
+  pitchCenterSt: number | null;
+  pitchDeltaSt: number | null;
+  pitchFrameCount: number;
+  activeStep: RealtimeTrainingStep;
   isActive: boolean;
   start: (stream: MediaStream) => void;
   stop: () => void;
 }
 
 export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions): UseRealtimeStrengthPaceResult {
+  const [xScore, setXScore] = useState(0.5);
+  const [yScore, setYScore] = useState(0.5);
+  const [xDirection, setXDirection] = useState(0);
+  const [yDirection, setYDirection] = useState(0);
   const [strengthScore, setStrengthScore] = useState(0.5);
   const [paceScore, setPaceScore] = useState(0.5);
   const [strengthDb, setStrengthDb] = useState(-60);
   const [wpmEstimate, setWpmEstimate] = useState(TARGET_WPM);
   const [strengthDirection, setStrengthDirection] = useState(0);
   const [paceDirection, setPaceDirection] = useState(0);
+  const [pitchCenterSt, setPitchCenterSt] = useState<number | null>(null);
+  const [pitchDeltaSt, setPitchDeltaSt] = useState<number | null>(null);
+  const [pitchFrameCount, setPitchFrameCount] = useState(0);
   const [isActive, setIsActive] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -80,11 +108,16 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
   const fastPaceRef = useRef(0.5);
   const slowPaceRef = useRef(0.5);
   const displayPaceRef = useRef(0.5);
+  const fastPitchRef = useRef(1.0);
+  const slowPitchRef = useRef(1.0);
+  const displayPitchRef = useRef(1.0);
   const voicedWindowRef = useRef<number[]>([]);
   const voiceActiveRef = useRef(false);
   const voiceAboveCountRef = useRef(0);
   const voiceBelowCountRef = useRef(0);
   const paceDirectionRef = useRef(0);
+  const sessionPitchMeanStRef = useRef<number | null>(null);
+  const sessionPitchFrameCountRef = useRef(0);
   const silenceSettledTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const optionsRef = useRef(options);
   optionsRef.current = options;
@@ -116,7 +149,16 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     fastStrengthRef.current = 1.0;
     slowStrengthRef.current = 1.0;
     displayPaceRef.current = 0.5;
+    fastPitchRef.current = 1.0;
+    slowPitchRef.current = 1.0;
+    displayPitchRef.current = 1.0;
+    sessionPitchMeanStRef.current = null;
+    sessionPitchFrameCountRef.current = 0;
     setIsActive(false);
+    setXScore(0.5);
+    setYScore(0.5);
+    setXDirection(0);
+    setYDirection(0);
     setStrengthScore(0.5);
     setPaceScore(0.5);
     setStrengthDb(-60);
@@ -124,6 +166,9 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     setStrengthDirection(0);
     paceDirectionRef.current = 0;
     setPaceDirection(0);
+    setPitchCenterSt(null);
+    setPitchDeltaSt(null);
+    setPitchFrameCount(0);
   }, []);
 
   useEffect(() => {
@@ -153,13 +198,23 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     fastPaceRef.current = 0.5;
     slowPaceRef.current = 0.5;
     displayPaceRef.current = 0.5;
+    fastPitchRef.current = 1.0;
+    slowPitchRef.current = 1.0;
+    displayPitchRef.current = 1.0;
     voiceActiveRef.current = false;
     voiceAboveCountRef.current = 0;
     voiceBelowCountRef.current = 0;
+    sessionPitchMeanStRef.current = null;
+    sessionPitchFrameCountRef.current = 0;
 
     ctx.resume().then(() => {
       if (audioContextRef.current !== ctx) return;
+      const activeStep = optionsRef.current?.activeStep ?? LEVEL_1_STEP_1;
       setIsActive(true);
+      setXScore(1.0);
+      setYScore(0.5);
+      setXDirection(0);
+      setYDirection(0);
       setStrengthScore(1.0);
       setStrengthDirection(0);
       intervalRef.current = setInterval(() => {
@@ -217,6 +272,21 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         setWpmEstimate(wpm);
 
         const rawPaceScore = bandScore(wpm, TARGET_WPM, TOLERANCE_WPM);
+        let detectedPitchSt: number | null = null;
+        if (voiceActiveRef.current) {
+          const pitchHz = detectPitchHz(dataArray, ctxNow.sampleRate);
+          if (pitchHz !== null) {
+            detectedPitchSt = hzToSemitones(pitchHz);
+            sessionPitchFrameCountRef.current += 1;
+            const prevMean = sessionPitchMeanStRef.current;
+            sessionPitchMeanStRef.current =
+              prevMean === null
+                ? detectedPitchSt
+                : prevMean + (detectedPitchSt - prevMean) / sessionPitchFrameCountRef.current;
+          }
+        }
+        setPitchCenterSt(sessionPitchMeanStRef.current);
+        setPitchFrameCount(sessionPitchFrameCountRef.current);
 
         let nextStrengthScore: number;
         let nextStrengthDirection: number;
@@ -262,17 +332,78 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         else if (wpm < PACE_SLOW_THRESHOLD) nextPaceDir = -1;
         paceDirectionRef.current = nextPaceDir;
         setPaceDirection(nextPaceDir);
+        setYScore(displayPaceRef.current);
+        setYDirection(nextPaceDir);
+
+        const configuredBaseline = optionsRef.current?.pitchBaselineSt;
+        const hasStoredBaseline =
+          typeof configuredBaseline === "number" && Number.isFinite(configuredBaseline);
+        const bootstrappedBaselineReady =
+          sessionPitchFrameCountRef.current >= PITCH_MIN_FRAMES_FOR_BOOTSTRAP &&
+          sessionPitchMeanStRef.current != null;
+        const activePitchBaseline =
+          hasStoredBaseline
+            ? configuredBaseline!
+            : bootstrappedBaselineReady
+              ? sessionPitchMeanStRef.current
+              : null;
+
+        let nextPitchScore = displayPitchRef.current;
+        let nextPitchDirection = 0;
+        let nextPitchDeltaSt: number | null = null;
+        if (voiceActiveRef.current && detectedPitchSt != null && activePitchBaseline != null) {
+          nextPitchDeltaSt = detectedPitchSt - activePitchBaseline;
+          const rawPitchScore = bandScore(detectedPitchSt, activePitchBaseline, PITCH_TOLERANCE_ST);
+          const fastPitch = EMA_PITCH_FAST * rawPitchScore + (1 - EMA_PITCH_FAST) * fastPitchRef.current;
+          const slowPitch = EMA_PITCH_SLOW * rawPitchScore + (1 - EMA_PITCH_SLOW) * slowPitchRef.current;
+          fastPitchRef.current = fastPitch;
+          slowPitchRef.current = slowPitch;
+          const pitchBlend = 0.45 * fastPitch + 0.55 * slowPitch;
+          const displayPitchRaw = 1 - Math.pow(Math.max(0, 1 - pitchBlend), 1.35);
+          displayPitchRef.current =
+            PITCH_DISPLAY_EMA * displayPitchRaw + (1 - PITCH_DISPLAY_EMA) * displayPitchRef.current;
+          nextPitchScore = displayPitchRef.current;
+          if (nextPitchDeltaSt > PITCH_DIRECTION_DEADZONE_ST) nextPitchDirection = 1;
+          else if (nextPitchDeltaSt < -PITCH_DIRECTION_DEADZONE_ST) nextPitchDirection = -1;
+        } else {
+          const fastPitch =
+            (1 - PITCH_CENTER_DRIFT_ALPHA) * fastPitchRef.current + PITCH_CENTER_DRIFT_ALPHA * 1.0;
+          const slowPitch =
+            (1 - PITCH_CENTER_DRIFT_ALPHA) * slowPitchRef.current + PITCH_CENTER_DRIFT_ALPHA * 1.0;
+          fastPitchRef.current = fastPitch;
+          slowPitchRef.current = slowPitch;
+          const pitchBlend = 0.35 * fastPitch + 0.65 * slowPitch;
+          displayPitchRef.current =
+            PITCH_DISPLAY_EMA * pitchBlend + (1 - PITCH_DISPLAY_EMA) * displayPitchRef.current;
+          nextPitchScore = displayPitchRef.current;
+        }
+        setPitchDeltaSt(nextPitchDeltaSt);
+
+        const xMetric = (optionsRef.current?.activeStep ?? activeStep).xAxis.metric;
+        const resolvedXScore = xMetric === "pitch_baseline" ? nextPitchScore : nextStrengthScore;
+        const resolvedXDirection =
+          xMetric === "pitch_baseline" ? nextPitchDirection : nextStrengthDirection;
+        setXScore(resolvedXScore);
+        setXDirection(resolvedXDirection);
       }, UPDATE_MS);
     }).catch(() => {});
   }, [stop]);
 
   return {
+    xScore,
+    yScore,
+    xDirection,
+    yDirection,
     strengthScore,
     paceScore,
     strengthDb,
     wpmEstimate,
     strengthDirection,
     paceDirection,
+    pitchCenterSt,
+    pitchDeltaSt,
+    pitchFrameCount,
+    activeStep: options?.activeStep ?? LEVEL_1_STEP_1,
     isActive,
     start,
     stop,

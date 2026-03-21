@@ -1,12 +1,14 @@
 /**
- * Live Coach — simplified 2D voice model.
- * Real-time: flow (pause ratio) + pace (syllable-onset WPM).
+ * Live Coach — legacy flow + pace 2D voice model.
+ * These types back the older sniper-style field where flow maps to Y and pace
+ * maps to X. The current homework recorder uses `StrengthPaceDartboard`
+ * instead, with X = strength and Y = pace.
  */
 
 /** Color state for the live coach indicator. */
 export type CoachColor = "green" | "yellow" | "red" | "gray";
 
-/** Live state exposed to SniperGame, SniperWheel, and AudioRecorder. */
+/** Live state exposed to the legacy sniper game components. */
 export interface LiveCoachState {
   /** Performance score 0–100 (smoothed). Blend of flow + pace; flow-only during pace warm-up. */
   performanceScore: number;
@@ -53,6 +55,10 @@ export interface LiveCoachSnapshot {
   pauseRatio: number;
   voicedDurationSec: number;
   wpm: number | null;
+  pitchCenterSt?: number | null;
+  pitchFrameCount?: number;
+  realtimeLevel?: number;
+  realtimeStep?: number;
   centerHoldRatio?: number;
   centerHoldMs?: number;
   totalActiveMs?: number;
@@ -68,6 +74,8 @@ export interface SniperSessionMeans {
   emphasisPerMin: number;
   energyRatio: number | null;
   voicedDurationSec: number;
+  pitchCenterSt?: number | null;
+  pitchFrameCount?: number | null;
   pitchRangeSt?: number | null;
 }
 
@@ -104,11 +112,15 @@ export interface UserSniperProfile {
   user_id: string;
   session_count: number;
   sessions_with_energy_count: number;
+  sessions_with_pitch_count?: number;
   baseline_wpm: number | null;
   baseline_pause_ms: number | null;
   baseline_dynamic_db: number | null;
   baseline_emphasis_per_min: number | null;
   baseline_energy_ratio: number | null;
+  realtime_level?: number;
+  realtime_step?: number;
+  realtime_pitch_baseline_st?: number | null;
   baseline_pitch_range_st?: number | null;
   baseline_fatigue_sec?: number | null;
   created_at: string;
