@@ -74,7 +74,6 @@ export default function DashboardHeader() {
     setLoading(true);
     try {
       await supabase.auth.signOut();
-      toast.success("Logged out");
       router.push("/login");
     } catch (err) {
       console.error(err);

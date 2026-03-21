@@ -55,8 +55,6 @@ export default function LoginForm() {
         return;
       }
 
-      toast.success("Logged in successfully");
-      
       // Call server route to ensure httpOnly cookies are set server-side
       try {
         const confirmRes = await fetch("/api/auth/confirm-session", {
