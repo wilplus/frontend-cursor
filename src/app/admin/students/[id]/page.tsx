@@ -1210,7 +1210,8 @@ export default function AdminStudentProfilePage() {
       (s) =>
         (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
         s.status === "completed" ||
-        !!s.recording_id
+        !!s.recording_id ||
+        !!s.recording_1_id
     )
     .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
     .slice(0, 20);

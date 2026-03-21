@@ -143,6 +143,15 @@ function isReportNotReadyError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "REPORT_NOT_READY";
 }
 
+function isSelfRatingNotReadyError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false;
+  const msg = e.message.toLowerCase();
+  return (
+    msg.includes("self-rating") &&
+    (msg.includes("only available") || msg.includes("not ready") || msg.includes("delivered your recording"))
+  );
+}
+
 function StepFlowWrapper({
   syncingBehind,
   children,
@@ -259,6 +268,8 @@ export default function HomeworkFlowCard() {
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
+  /** After finishing a session, briefly poll sessions list on step 0 so the new report appears without manual retries. */
+  const [pollReportsAfterFinish, setPollReportsAfterFinish] = useState(false);
   /** Deep-link guard: handle query-triggered report auto-open only once per page load. */
   const reportDeepLinkHandledRef = useRef(false);
   /** True when we already started fetching task-block (e.g. in mount or step-2 effect) so we do not double-fetch. */
@@ -312,9 +323,34 @@ export default function HomeworkFlowCard() {
         list.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
         setStep0Sessions(list.slice(0, 20));
       })
-      .catch(() => setStep0Sessions([]))
+      .catch((e) => {
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn("[HomeworkFlow] reports list fetch failed", e);
+        }
+      })
       .finally(() => setStep0SessionsLoading(false));
   }, [step0SessionsLoading]);
+
+  // After finishing a session and returning to step 0, poll reports briefly so the newly completed session appears.
+  useEffect(() => {
+    if (step !== 0 || !pollReportsAfterFinish) return;
+    let attempts = 0;
+    const maxAttempts = 10; // ~30s
+    const tick = () => {
+      attempts += 1;
+      fetchStep0Reports();
+      if (attempts >= maxAttempts) setPollReportsAfterFinish(false);
+    };
+    tick();
+    const id = setInterval(tick, 3000);
+    return () => clearInterval(id);
+  }, [step, pollReportsAfterFinish, fetchStep0Reports]);
+
+  useEffect(() => {
+    if (pollReportsAfterFinish && step0Sessions.length > 0) {
+      setPollReportsAfterFinish(false);
+    }
+  }, [pollReportsAfterFinish, step0Sessions.length]);
 
   /** Deep-link support from completion email:
    *  /dashboard?showReports=1&openReportSessionId=<sessionId>
@@ -527,8 +563,8 @@ export default function HomeworkFlowCard() {
       }
       // Do not abandon a finished session when user leaves the final report screen,
       // otherwise some backends may mark it as abandoned and hide it from report lists.
-      const shouldAbandonActiveSession =
-        step !== 3 || reportData == null;
+      const shouldAbandonActiveSession = step !== 3;
+      const shouldPollReports = step === 3;
       if (shouldAbandonActiveSession && sessionId && sessionId !== "mock-session") {
         try {
           await homeworkApi.abandonSession(sessionId);
@@ -559,6 +595,9 @@ export default function HomeworkFlowCard() {
       setTaskBlockFetchSettled(false);
       setQuestionsStep4Settled(false);
       setPostAnswers({});
+      if (shouldPollReports) {
+        setPollReportsAfterFinish(true);
+      }
       // Refetch status after navigating to step 0 so the countdown (tutor_feedback_deadline) and tutor_feedback_message are set; without this the timer can't show
       homeworkApi.getStatus().then((statusRes) => {
         const deadlineIso = statusRes?.tutor_feedback_deadline;
@@ -832,9 +871,9 @@ export default function HomeworkFlowCard() {
     };
   }, [step, sessionId]);
 
-  // When session_completed was false: poll GET session/status until job is done, then call POST self-rating again to trigger completion
+  // When self-rating isn't accepted yet (or session_completed was false): poll GET session/status, then auto-submit self-rating.
   useEffect(() => {
-    if (step !== 3 || !pendingRetrySelfRating) return;
+    if ((step !== 2 && step !== 3) || !pendingRetrySelfRating) return;
     const { sessionId: sid } = pendingRetrySelfRating;
     const intervalMs = 5000;
     const maxWaitMs = 120000; // 2 min then retry anyway
@@ -862,6 +901,8 @@ export default function HomeworkFlowCard() {
         } else {
           await homeworkApi.submitSelfRatingSkipped(sid);
         }
+        setStudentSpeechRatingSubmitted(true);
+        setStep(3);
         setReportRetryCount((c) => c + 1);
       } catch {
         // keep polling
@@ -1583,7 +1624,7 @@ export default function HomeworkFlowCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={savingStudentRating}
+                disabled={savingStudentRating || pendingRetrySelfRating != null}
                 onClick={async () => {
                   if (!sessionId || sessionId === "mock-session") return;
                   setSavingStudentRating(true);
@@ -1596,7 +1637,12 @@ export default function HomeworkFlowCard() {
                       setPendingRetrySelfRating({ sessionId, rating: n });
                     }
                   } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
+                    if (isSelfRatingNotReadyError(e)) {
+                      setPendingRetrySelfRating({ sessionId, rating: n });
+                      toast.info("Recording is still processing. We will submit your rating automatically.");
+                    } else {
+                      toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
+                    }
                   } finally {
                     setSavingStudentRating(false);
                   }
@@ -1612,7 +1658,7 @@ export default function HomeworkFlowCard() {
             type="button"
             variant="ghost"
             size="sm"
-            disabled={savingStudentRating}
+            disabled={savingStudentRating || pendingRetrySelfRating != null}
             onClick={async () => {
               if (!sessionId || sessionId === "mock-session") {
                 setStudentSpeechRatingSubmitted(true);
@@ -1629,7 +1675,12 @@ export default function HomeworkFlowCard() {
                   setPendingRetrySelfRating({ sessionId, skipped: true });
                 }
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
+                if (isSelfRatingNotReadyError(e)) {
+                  setPendingRetrySelfRating({ sessionId, skipped: true });
+                  toast.info("Recording is still processing. We will submit this automatically.");
+                } else {
+                  toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
+                }
               } finally {
                 setSavingStudentRating(false);
               }
@@ -1638,6 +1689,11 @@ export default function HomeworkFlowCard() {
           >
             Skip
           </Button>
+          {pendingRetrySelfRating != null ? (
+            <p className="text-xs text-muted-foreground mt-2">
+              Processing your recording. Your rating will be submitted automatically in a moment.
+            </p>
+          ) : null}
         </Card>
       </StepFlowWrapper>
     );
