@@ -1811,20 +1811,6 @@ export default function HomeworkFlowCard() {
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         {coachMessageBlock}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-          {waitingForFullReport ? (
-            <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center gap-3">
-              {loadingLottieData ? (
-                <div className="w-10 h-10 shrink-0">
-                  <Lottie animationData={loadingLottieData} loop />
-                </div>
-              ) : (
-                <div className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              )}
-              <p className="text-sm text-muted-foreground">
-                Report details are still generating. Showing available results now.
-              </p>
-            </div>
-          ) : null}
           {reportError != null && reportData == null ? (
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 space-y-3">
               <p className="text-sm text-foreground">We couldn&apos;t load full report details yet.</p>
