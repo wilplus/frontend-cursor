@@ -1,205 +1,135 @@
 "use client";
 
-type CoachCompletionEmailProps = {
+/**
+ * Email 1 — Admin Notification: Student Homework Completed
+ *
+ * Recipient: admin / coach
+ * Trigger:   student submits homework recording
+ *
+ * Used as a visual preview at /admin/email-preview.
+ * Backend generates the same HTML structure for actual sending.
+ */
+
+export type CoachCompletionEmailProps = {
   studentEmail?: string;
-  scorePercent?: number;
-  reportPreview?: string;
-  paceLabel?: string;
-  fillerWordsCount?: number;
-  strengthLabel?: string;
+  score?: number;
   profileUrl?: string;
-  copyLinkUrl?: string;
-  brandLogoUrl?: string;
+  transcriptExcerpt?: string;
+  paceWpm?: number | null;
+  fillerCount?: number;
+  strength?: string;
 };
 
-export default function CoachCompletionEmail({
+export function CoachCompletionEmail({
   studentEmail = "a.willonski@gmail.com",
-  scorePercent = 74,
-  reportPreview = `"When I'm sad I usually just go on with my life and I, you know, I'm just chilling on the sofa. Sometimes I talk to someone, sometimes I watch movies..."`,
-  paceLabel = "119 WPM",
-  fillerWordsCount = 1,
-  strengthLabel = "Loudness (pending)",
-  profileUrl = "https://app.willonski.com/admin/students",
-  copyLinkUrl = "https://app.willonski.com/admin/students",
+  score = 74,
+  profileUrl = "https://app.willonski.com/admin/students/5e33e0f1-0945-458c-8987-eadf43acf955",
+  transcriptExcerpt = "When I'm sad I usually just go on with my life and I, you know, I'm just chilling on the sofa. Sometimes I talk to someone, sometimes I watch movies…",
+  paceWpm = 119,
+  fillerCount = 1,
+  strength = "Loudness",
 }: CoachCompletionEmailProps) {
   return (
-    <div
-      style={{
-        backgroundColor: "#fafafa",
-        padding: "48px 16px",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
-      }}
-    >
-      <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0}>
-        <tbody>
-          <tr>
-            <td align="center">
-              <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0} style={{ maxWidth: "520px" }}>
-                <tbody>
-                  <tr>
-                    <td style={{ paddingBottom: "40px" }}>
-                      <span
-                        style={{
-                          fontFamily: "Georgia, 'Times New Roman', serif",
-                          fontSize: "20px",
-                          fontWeight: 700,
-                          color: "#1e293b",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        Willab
-                        <span style={{ color: "#f97316" }}>.</span>
-                      </span>
-                    </td>
-                  </tr>
+    <table width="100%" cellPadding={0} cellSpacing={0} style={{ backgroundColor: "#fafafa", padding: "48px 16px" }}>
+      <tbody>
+        <tr>
+          <td align="center">
+            <table cellPadding={0} cellSpacing={0} style={{ maxWidth: 520, width: "100%" }}>
+              <tbody>
 
-                  <tr>
-                    <td>
-                      <table
-                        role="presentation"
-                        width="100%"
-                        cellPadding={0}
-                        cellSpacing={0}
-                        border={0}
-                        style={{ backgroundColor: "#ffffff", borderRadius: "8px" }}
-                      >
-                        <tbody>
-                          <tr>
-                            <td style={{ padding: "36px 36px 0" }}>
-                              <div
-                                style={{
-                                  fontSize: "18px",
-                                  fontWeight: 600,
-                                  color: "#1e293b",
-                                  marginBottom: "24px",
-                                  lineHeight: 1.4,
-                                }}
-                              >
-                                A student has completed a homework lesson.
-                              </div>
-                            </td>
-                          </tr>
+                {/* Logo */}
+                <tr>
+                  <td style={{ paddingBottom: 40 }}>
+                    <span style={{ fontFamily: "Georgia,'Times New Roman',serif", fontSize: 20, fontWeight: 700, color: "#1e293b", letterSpacing: "-0.3px" }}>
+                      Willab<span style={{ color: "#f97316" }}>.</span>
+                    </span>
+                  </td>
+                </tr>
 
-                          <tr>
-                            <td style={{ padding: "0 36px" }}>
-                              <table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0}>
-                                <tbody>
-                                  <tr>
-                                    <td style={{ borderTop: "1px solid #f1f5f9", padding: "14px 0", width: "100px", fontSize: "14px", color: "#94a3b8" }}>
-                                      Student
-                                    </td>
-                                    <td style={{ borderTop: "1px solid #f1f5f9", padding: "14px 0", fontSize: "14px", color: "#1e293b" }}>
-                                      {studentEmail}
-                                    </td>
-                                  </tr>
-                                  <tr>
-                                    <td style={{ borderTop: "1px solid #f1f5f9", padding: "14px 0", width: "100px", fontSize: "14px", color: "#94a3b8" }}>
-                                      Score
-                                    </td>
-                                    <td style={{ borderTop: "1px solid #f1f5f9", padding: "14px 0", fontSize: "24px", fontWeight: 600, color: "#f97316" }}>
-                                      {scorePercent}%
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
+                {/* Card */}
+                <tr>
+                  <td style={{ backgroundColor: "#ffffff", borderRadius: 8 }}>
+                    <table width="100%" cellPadding={0} cellSpacing={0}>
+                      <tbody>
 
-                          <tr>
-                            <td style={{ padding: "28px 36px" }}>
-                              <a
-                                href={profileUrl}
-                                style={{
-                                  backgroundColor: "#1e293b",
-                                  color: "#ffffff",
-                                  fontSize: "14px",
-                                  fontWeight: 600,
-                                  padding: "12px 28px",
-                                  borderRadius: "6px",
-                                  textDecoration: "none",
-                                  display: "inline-block",
-                                }}
-                              >
-                                View profile &amp; send homework
-                              </a>
-                              <div style={{ marginTop: "12px" }}>
-                                <a
-                                  href={copyLinkUrl}
-                                  style={{ fontSize: "12px", color: "#94a3b8", textDecoration: "none" }}
-                                >
-                                  Copy link →
-                                </a>
-                              </div>
-                            </td>
-                          </tr>
+                        {/* Heading + data table */}
+                        <tr>
+                          <td style={{ padding: "36px 36px 0" }}>
+                            <p style={{ margin: "0 0 24px", fontSize: 18, fontWeight: 600, color: "#1e293b", lineHeight: 1.4 }}>
+                              A student has completed a homework lesson.
+                            </p>
+                            <table width="100%" cellPadding={0} cellSpacing={0}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ padding: "14px 0", borderTop: "1px solid #f1f5f9", fontSize: 14, color: "#94a3b8", width: 100 }}>Student</td>
+                                  <td style={{ padding: "14px 0", borderTop: "1px solid #f1f5f9", fontSize: 14, color: "#1e293b" }}>{studentEmail}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: "14px 0", borderTop: "1px solid #f1f5f9", fontSize: 14, color: "#94a3b8" }}>Score</td>
+                                  <td style={{ padding: "14px 0", borderTop: "1px solid #f1f5f9", fontSize: 24, fontWeight: 600, color: "#f97316" }}>{score}%</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
 
-                          <tr>
-                            <td style={{ padding: "0 36px 36px" }}>
-                              <table
-                                role="presentation"
-                                width="100%"
-                                cellPadding={0}
-                                cellSpacing={0}
-                                border={0}
-                                style={{ backgroundColor: "#fafafa", borderRadius: "6px" }}
-                              >
-                                <tbody>
-                                  <tr>
-                                    <td style={{ padding: "20px 24px" }}>
-                                      <div
-                                        style={{
-                                          fontSize: "12px",
-                                          color: "#94a3b8",
-                                          textTransform: "uppercase",
-                                          letterSpacing: "0.8px",
-                                          marginBottom: "12px",
-                                        }}
-                                      >
-                                        Report preview
-                                      </div>
-                                      <div
-                                        style={{
-                                          fontSize: "14px",
-                                          color: "#64748b",
-                                          fontStyle: "italic",
-                                          lineHeight: 1.6,
-                                          marginBottom: "12px",
-                                        }}
-                                      >
-                                        {reportPreview}
-                                      </div>
-                                      <div style={{ fontSize: "14px", color: "#64748b", lineHeight: 2 }}>
-                                        <div>
-                                          Pace: {paceLabel} <span style={{ color: "#cbd5e1" }}>(target 120-160)</span>
-                                        </div>
-                                        <div>Filler words: {fillerWordsCount}</div>
-                                        <div>
-                                          Strength: {strengthLabel}
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
+                        {/* CTA */}
+                        <tr>
+                          <td style={{ padding: "28px 36px" }}>
+                            <a
+                              href={profileUrl}
+                              style={{ display: "inline-block", backgroundColor: "#1e293b", color: "#ffffff", fontSize: 14, fontWeight: 600, textDecoration: "none", padding: "12px 28px", borderRadius: 6 }}
+                            >
+                              View profile &amp; send homework
+                            </a>
+                            <p style={{ margin: "12px 0 0", fontSize: 12, color: "#cbd5e1" }}>
+                              <a href={profileUrl} style={{ color: "#94a3b8", wordBreak: "break-all", textDecoration: "none" }}>Copy link →</a>
+                            </p>
+                          </td>
+                        </tr>
 
-                  <tr>
-                    <td align="center" style={{ padding: "32px 0", fontSize: "12px", color: "#cbd5e1" }}>
-                      Willab
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+                        {/* Report preview */}
+                        <tr>
+                          <td style={{ padding: "0 36px 36px" }}>
+                            <table width="100%" cellPadding={0} cellSpacing={0} style={{ backgroundColor: "#fafafa", borderRadius: 6 }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ padding: "20px 24px" }}>
+                                    <p style={{ margin: "0 0 12px", fontSize: 12, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px" }}>Report preview</p>
+                                    <p style={{ margin: "0 0 16px", fontSize: 14, color: "#64748b", lineHeight: 1.6, fontStyle: "italic" }}>
+                                      &ldquo;{transcriptExcerpt}&rdquo;
+                                    </p>
+                                    <table cellPadding={0} cellSpacing={0} style={{ fontSize: 14, color: "#64748b", lineHeight: 2 }}>
+                                      <tbody>
+                                        <tr><td>Pace: {paceWpm ?? "—"} WPM <span style={{ color: "#cbd5e1" }}>(target 120–160)</span></td></tr>
+                                        <tr><td>Filler words: {fillerCount}</td></tr>
+                                        <tr><td>Strength: {strength} <span style={{ color: "#cbd5e1" }}>(pending)</span></td></tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                {/* Footer */}
+                <tr>
+                  <td style={{ padding: "32px 0", textAlign: "center" }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "#cbd5e1" }}>Willab</p>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
-
