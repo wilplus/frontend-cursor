@@ -40,8 +40,11 @@ export async function GET(req: NextRequest) {
     }
     // 404 / 501 → endpoint not implemented; fall through to admin fallback
     if (res.status !== 404 && res.status !== 501) {
-      // Any other error (401, 403, 500…) — return empty rather than crashing
-      return NextResponse.json({ sessions: [] }, { status: 200 });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      return NextResponse.json(
+        { error: "Failed to fetch sessions", source: "/v2/homework/sessions", details: data },
+        { status: res.status }
+      );
     }
   } catch {
     // Network error on first attempt — fall through
@@ -54,12 +57,19 @@ export async function GET(req: NextRequest) {
       headers: authHeader,
     });
     if (!res.ok) {
-      return NextResponse.json({ sessions: [] }, { status: 200 });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      return NextResponse.json(
+        { error: "Failed to fetch sessions", source: `/v2/admin/students/${userId}`, details: data },
+        { status: res.status }
+      );
     }
     const data = (await res.json().catch(() => ({}))) as { sessions?: unknown[] };
     const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     return NextResponse.json({ sessions }, { status: 200 });
-  } catch {
-    return NextResponse.json({ sessions: [] }, { status: 200 });
+  } catch (e) {
+    return NextResponse.json(
+      { error: "Failed to fetch sessions", details: e instanceof Error ? e.message : "Unknown error" },
+      { status: 502 }
+    );
   }
 }

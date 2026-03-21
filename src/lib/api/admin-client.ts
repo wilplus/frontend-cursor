@@ -91,6 +91,7 @@ export interface StudentProfile {
     created_at: string;
     status: string;
     recording_id?: string;
+    recording_1_id?: string;
     report_id?: string;
     task_score?: number;
     /** Coach grade 1–10 or null (not graded). */
