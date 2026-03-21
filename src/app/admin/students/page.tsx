@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { adminApi, type StudentListItem } from "@/lib/api/admin-client";
-import { ChevronRight, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Search, Trash2, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -54,9 +55,17 @@ export default function AdminStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Students</h1>
-        <p className="text-muted-foreground mt-1">Manage your students and view their progress</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Students</h1>
+          <p className="text-muted-foreground mt-1">Manage your students and view their progress</p>
+        </div>
+        <Link href="/admin/ml">
+          <Button variant="outline" className="rounded-xl">
+            <Upload className="mr-2 h-4 w-4" />
+            ML
+          </Button>
+        </Link>
       </div>
 
       <div className="relative">

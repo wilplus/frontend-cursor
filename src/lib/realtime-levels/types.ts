@@ -13,6 +13,7 @@ export interface RealtimeTrainingStep {
   step: number;
   title: string;
   description: string;
+  visualId: string;
   xAxis: RealtimeAxisDefinition;
   yAxis: RealtimeAxisDefinition;
 }

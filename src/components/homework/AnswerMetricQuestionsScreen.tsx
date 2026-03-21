@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { TaskBlockV2 } from "@/lib/api/types-homework";
+import type { QuestionBlockV2 } from "@/lib/api/types-homework";
 
 /** Coerce API value to string; backend may send { text } or plain string. */
 function toText(v: unknown): string {
@@ -15,9 +15,9 @@ function toText(v: unknown): string {
   return String(v);
 }
 
-export interface AnswerMetricQuestionsScreenProps {
+export interface AnswerQuestionPromptsScreenProps {
   sessionId: string;
-  taskBlock: TaskBlockV2 | null;
+  taskBlock: QuestionBlockV2 | null;
   /** Submit the three answers; parent does POST and then moves to final task step. */
   onSubmit: (answer_1: string, answer_2: string, answer_3: string) => void | Promise<void>;
   loading?: boolean;
@@ -28,7 +28,7 @@ export interface AnswerMetricQuestionsScreenProps {
   submitDisabled?: boolean;
 }
 
-export default function AnswerMetricQuestionsScreen({
+export default function AnswerQuestionPromptsScreen({
   sessionId,
   taskBlock,
   onSubmit,
@@ -36,7 +36,7 @@ export default function AnswerMetricQuestionsScreen({
   error: externalError = null,
   onAbandon,
   submitDisabled = false,
-}: AnswerMetricQuestionsScreenProps) {
+}: AnswerQuestionPromptsScreenProps) {
   const [answer_1, setAnswer_1] = useState("");
   const [answer_2, setAnswer_2] = useState("");
   const [answer_3, setAnswer_3] = useState("");
@@ -52,9 +52,9 @@ export default function AnswerMetricQuestionsScreen({
         b3 && { label: b3, value: answer_3, setValue: setAnswer_3 },
       ].filter(Boolean) as { label: string; value: string; setValue: (s: string) => void }[]
     : [
-        { label: "Metric question 1", value: answer_1, setValue: setAnswer_1 },
-        { label: "Metric question 2", value: answer_2, setValue: setAnswer_2 },
-        { label: "Metric question 3", value: answer_3, setValue: setAnswer_3 },
+        { label: "Question 1", value: answer_1, setValue: setAnswer_1 },
+        { label: "Question 2", value: answer_2, setValue: setAnswer_2 },
+        { label: "Question 3", value: answer_3, setValue: setAnswer_3 },
       ];
 
   const handleSubmit = () => {
@@ -68,7 +68,7 @@ export default function AnswerMetricQuestionsScreen({
   const labelClass = "block text-sm font-medium text-foreground";
 
   return (
-    <div className="answer-metric-questions w-full max-w-xl sm:max-w-2xl mx-auto">
+    <div className="answer-question-prompts w-full max-w-xl sm:max-w-2xl mx-auto">
       <div className="p-4 sm:p-6 md:p-8">
         <div className="space-y-8">
           {visibleQuestions.map((q, i) => (

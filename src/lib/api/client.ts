@@ -273,7 +273,7 @@ export async function fetchAdminRecordings(
   return handleResponse<AdminRecordingsListResponse>(res);
 }
 
-/** User metric questions (3 custom questions). */
+/** User custom prompts (3 configurable questions). */
 export interface UserMetricQuestions {
   metric_question_1: string;
   metric_question_2: string;

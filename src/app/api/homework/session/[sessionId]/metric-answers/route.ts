@@ -1,6 +1,6 @@
 /**
- * Copy to: src/app/api/homework/session/[sessionId]/metric-answers/route.ts
- * Passes through 4xx/5xx body (e.g. 409 INVALID_SESSION_STATE). Backend generates final_task (LLM); can be slow.
+ * Legacy proxy for the old metric-answers path.
+ * Prefer /task-answers in frontend code; backend still expects /metric-answers.
  */
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,7 +15,7 @@ export async function POST(
   { params }: { params: { sessionId: string } }
 ) {
   if (process.env.NODE_ENV !== "test") {
-    console.log("BFF metric-answers hit");
+    console.log("BFF legacy metric-answers hit");
   }
   const token = await getV2AccessToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

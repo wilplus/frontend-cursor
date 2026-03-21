@@ -71,7 +71,7 @@ export interface StudentProfile {
     assigned_exercise_ids?: string[];
     assigned_next_exercise_id?: string;
     assigned_next_task_ids?: string[];
-    /** When true, student skips step 2 (metric questions). Backend must transition recording_1 → final_task_ready. */
+    /** When true, student skips step 2 prompts. Backend must transition recording_1 → final_task_ready. */
     skip_metric_questions?: boolean;
     /** When true, student skips step 4 (post-questions). Backend must transition recording_2 → completed. */
     skip_post_questions?: boolean;
@@ -91,7 +91,6 @@ export interface StudentProfile {
     created_at: string;
     status: string;
     recording_id?: string;
-    recording_1_id?: string;
     report_id?: string;
     task_score?: number;
     /** Coach grade 1–10 or null (not graded). */
@@ -131,7 +130,7 @@ export interface AdminSessionReportResponse {
 
 export interface RecordingReview {
   id: string;
-  session_id: string;
+  session_id?: string | null;
   recording_id?: string | null;
   reviewer_id: string;
   overall_quality: "good" | "bad" | "unclear";
@@ -141,6 +140,178 @@ export interface RecordingReview {
   rubric_version: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdminRecordingImportResponse {
+  status: string;
+  recording_id: string;
+  review_id?: string | null;
+  playback_url?: string | null;
+  message?: string | null;
+}
+
+export interface AdminImportedRecordingSourceMetadata {
+  source_kind?: string | null;
+  source_url?: string | null;
+  source_title?: string | null;
+  speaker_label?: string | null;
+  language_code?: string | null;
+  transcript_text?: string | null;
+  import_notes?: string | null;
+  recording_origin?: string | null;
+  [key: string]: unknown;
+}
+
+export interface AdminImportedRecording {
+  recording_id: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  user_id?: string | null;
+  session_id?: string | null;
+  processing_status?: string | null;
+  original_filename?: string | null;
+  mime_type?: string | null;
+  file_size_bytes?: number | null;
+  duration_ms?: number | null;
+  source_metadata: AdminImportedRecordingSourceMetadata;
+  latest_review: RecordingReview | null;
+  playback_url?: string | null;
+}
+
+export interface AdminRecordingImportsResponse {
+  recordings: AdminImportedRecording[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeReview(value: unknown): RecordingReview | null {
+  const record = asRecord(value);
+  const id = asTrimmedString(record?.id);
+  const reviewerId = asTrimmedString(record?.reviewer_id);
+  const overallQuality = record?.overall_quality;
+  const confidenceScore = asNumber(record?.confidence_score);
+  const coachStyleScore = asNumber(record?.coach_style_score);
+  const rubricVersion = asTrimmedString(record?.rubric_version);
+  const createdAt = asTrimmedString(record?.created_at);
+  const updatedAt = asTrimmedString(record?.updated_at);
+  if (
+    !id ||
+    !reviewerId ||
+    (overallQuality !== "good" && overallQuality !== "bad" && overallQuality !== "unclear") ||
+    confidenceScore == null ||
+    coachStyleScore == null ||
+    !rubricVersion ||
+    !createdAt ||
+    !updatedAt
+  ) {
+    return null;
+  }
+  return {
+    id,
+    session_id: asTrimmedString(record?.session_id),
+    recording_id: asTrimmedString(record?.recording_id),
+    reviewer_id: reviewerId,
+    overall_quality: overallQuality,
+    confidence_score: confidenceScore,
+    coach_style_score: coachStyleScore,
+    notes: asTrimmedString(record?.notes),
+    rubric_version: rubricVersion,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+}
+
+function normalizeSourceMetadata(value: unknown): AdminImportedRecordingSourceMetadata {
+  const record = asRecord(value);
+  if (!record) return {};
+  return {
+    ...record,
+    source_kind: asTrimmedString(record.source_kind),
+    source_url: asTrimmedString(record.source_url),
+    source_title: asTrimmedString(record.source_title),
+    speaker_label: asTrimmedString(record.speaker_label),
+    language_code: asTrimmedString(record.language_code),
+    transcript_text: asTrimmedString(record.transcript_text),
+    import_notes: asTrimmedString(record.import_notes),
+    recording_origin: asTrimmedString(record.recording_origin),
+  };
+}
+
+function normalizeImportedRecording(value: unknown): AdminImportedRecording | null {
+  const record = asRecord(value);
+  const recordingId = asTrimmedString(record?.recording_id) ?? asTrimmedString(record?.id);
+  if (!record || !recordingId) return null;
+
+  const sourceMetadata = normalizeSourceMetadata(record.source_metadata);
+  return {
+    recording_id: recordingId,
+    created_at: asTrimmedString(record.created_at),
+    updated_at: asTrimmedString(record.updated_at),
+    user_id: asTrimmedString(record.user_id),
+    session_id: asTrimmedString(record.session_id),
+    processing_status: asTrimmedString(record.processing_status),
+    original_filename: asTrimmedString(record.original_filename),
+    mime_type: asTrimmedString(record.mime_type),
+    file_size_bytes: asNumber(record.file_size_bytes),
+    duration_ms: asNumber(record.duration_ms),
+    source_metadata: {
+      source_kind: sourceMetadata.source_kind ?? asTrimmedString(record.source_kind),
+      source_url: sourceMetadata.source_url ?? asTrimmedString(record.source_url),
+      source_title: sourceMetadata.source_title ?? asTrimmedString(record.source_title),
+      speaker_label: sourceMetadata.speaker_label ?? asTrimmedString(record.speaker_label),
+      language_code: sourceMetadata.language_code ?? asTrimmedString(record.language_code),
+      transcript_text: sourceMetadata.transcript_text ?? asTrimmedString(record.transcript_text),
+      import_notes: sourceMetadata.import_notes ?? asTrimmedString(record.import_notes),
+      recording_origin:
+        sourceMetadata.recording_origin ?? asTrimmedString(record.recording_origin),
+      ...sourceMetadata,
+    },
+    latest_review: normalizeReview(record.latest_review ?? record.review ?? record.latestReview),
+    playback_url:
+      asTrimmedString(record.playback_url) ??
+      asTrimmedString(record.signed_playback_url) ??
+      asTrimmedString(record.audio_url),
+  };
+}
+
+function normalizeImportedRecordingDetail(value: unknown): AdminImportedRecording {
+  const outer = asRecord(value);
+  const nested = asRecord(outer?.recording);
+  const normalized =
+    normalizeImportedRecording(nested ?? outer) ??
+    (() => {
+      throw new Error("Invalid recording detail response");
+    })();
+
+  if (!outer) return normalized;
+  return {
+    ...normalized,
+    latest_review:
+      normalized.latest_review ??
+      normalizeReview(outer.latest_review ?? outer.review ?? outer.latestReview),
+    playback_url:
+      normalized.playback_url ??
+      asTrimmedString(outer.playback_url) ??
+      asTrimmedString(outer.signed_playback_url) ??
+      asTrimmedString(outer.audio_url),
+  };
 }
 
 export interface Exercise {
@@ -255,6 +426,68 @@ export const adminApi = {
   /** Playback URL for a recording (admin). Use when report modal has recording_id but no audio_url. */
   getRecordingPlaybackUrl: (recordingId: string) =>
     adminFetch<{ audio_url: string }>(`/recordings/${recordingId}/playback-url`),
+
+  /** Import an external recording and create its initial ML label set. */
+  importRecording: (formData: FormData) =>
+    adminFetch<AdminRecordingImportResponse>("/recordings/import", {
+      method: "POST",
+      body: formData,
+    }),
+
+  getRecordingImports: (params?: { limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<unknown>(`/recordings/imports${suffix}`).then((raw) => {
+      const record = asRecord(raw);
+      const items = Array.isArray(record?.recordings)
+        ? record.recordings
+        : Array.isArray(record?.imports)
+          ? record.imports
+          : Array.isArray(record?.items)
+            ? record.items
+            : [];
+      return {
+        recordings: items
+          .map((item) => normalizeImportedRecording(item))
+          .filter((item): item is AdminImportedRecording => item != null),
+        total: asNumber(record?.total) ?? asNumber(record?.count) ?? items.length,
+        limit: asNumber(record?.limit) ?? params?.limit ?? items.length,
+        offset: asNumber(record?.offset) ?? params?.offset ?? 0,
+      } satisfies AdminRecordingImportsResponse;
+    });
+  },
+
+  getRecordingImportDetail: (recordingId: string) =>
+    adminFetch<unknown>(`/recordings/${recordingId}`).then((raw) =>
+      normalizeImportedRecordingDetail(raw)
+    ),
+
+  patchRecordingReview: (
+    recordingId: string,
+    body: {
+      overall_quality: RecordingReview["overall_quality"];
+      confidence_score: number;
+      coach_style_score: number;
+      notes?: string | null;
+      rubric_version: string;
+    }
+  ) =>
+    adminFetch<unknown>(`/recordings/${recordingId}/review`, { method: "PATCH", body }).then(
+      (raw) => {
+        const record = asRecord(raw);
+        const review =
+          normalizeReview(record?.review ?? record?.latest_review ?? record) ??
+          (() => {
+            throw new Error("Invalid review response");
+          })();
+        return {
+          status: asTrimmedString(record?.status) ?? "ok",
+          review,
+        };
+      }
+    ),
 
   /** PATCH session: set or clear coach_grade (1–10 or null). Proxies to PATCH /v2/admin/students/:id/sessions/:sessionId. */
   patchSession: (

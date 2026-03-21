@@ -6,12 +6,10 @@ import type {
   HomeworkStartResponse,
   HomeworkSessionStatus,
   HomeworkRecording1Response,
-  HomeworkMetricAnswersResponse,
+  HomeworkTaskAnswersResponse,
   HomeworkRecording2Response,
-  HomeworkQuestionsResponse,
-  HomeworkPostAnswersResponse,
   HomeworkReportResponse,
-  TaskBlockV2,
+  QuestionBlockV2,
 } from "@/lib/api/types-homework";
 async function getAuthFetchOptions(
   extra: Record<string, string> = {}
@@ -168,7 +166,6 @@ export const homeworkApi = {
       status?: string;
       coach_grade?: number | null;
       recording_id?: string;
-      recording_1_id?: string;
       report_preview?: { report_text_preview?: string };
     }>;
   }> {
@@ -196,12 +193,14 @@ export const homeworkApi = {
     return safeParseJson<HomeworkSessionStatus | null>(res);
   },
 
-  /** Step 2 removed: no-op to avoid 404 from old/cached bundles. Do not call; flow goes 0 → 1 → 5. */
-  async getTaskBlock(_sessionId: string): Promise<{ task_block: TaskBlockV2 }> {
-    return { task_block: {} };
+  /** Legacy compatibility helper for the step-2 question block. Prefer GET status when possible. */
+  async getQuestionBlock(sessionId: string): Promise<{ task_block: QuestionBlockV2 }> {
+    const { headers, credentials } = await getAuthFetchOptions();
+    const res = await fetch(`${BASE}/session/${sessionId}/question-block`, { method: "GET", headers, credentials });
+    return handleResponse<{ task_block: QuestionBlockV2 }>(res);
   },
 
-  /** Get upload target for a recording. Backend returns upload_url (signed) + storage_path when signed; else bucket + storage_path for SDK upload. Or already_past_step + task_block when session already at step 2 (recording "1" only). */
+  /** Get upload target for a recording. Backend returns upload_url (signed) + storage_path when signed; else bucket + storage_path for SDK upload. Or already_past_step + task_block when session already advanced past the first recording. */
   async getRecordingUploadUrl(
     sessionId: string,
     recording: "1" | "2",
@@ -209,7 +208,7 @@ export const homeworkApi = {
   ): Promise<
     | { upload_url: string; storage_path: string }
     | { bucket: string; storage_path: string }
-    | { already_past_step: true; status?: string; task_block: TaskBlockV2 }
+    | { already_past_step: true; status?: string; task_block: QuestionBlockV2 }
   > {
     if (typeof window !== "undefined") {
       console.warn("[HomeworkFlow] getRecordingUploadUrl", { recording, sessionId: sessionId?.slice(0, 8) + "…" });
@@ -229,10 +228,10 @@ export const homeworkApi = {
       already_past_step?: boolean;
       already_submitted?: boolean;
       status?: string;
-      task_block?: TaskBlockV2;
+      task_block?: QuestionBlockV2;
     }>(res);
     if (res.status === 409) {
-      return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as TaskBlockV2 };
+      return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as QuestionBlockV2 };
     }
     if (!res.ok) return handleResponse<never>(res) as Promise<never>;
     if (body.already_past_step === true && body.task_block) {
@@ -240,7 +239,7 @@ export const homeworkApi = {
     }
     if (body.already_submitted === true) {
       // Backend "already past recording 1" (200 + storage_path: null): skip upload, advance to step 2
-      return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as TaskBlockV2 };
+      return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as QuestionBlockV2 };
     }
     if (body.upload_url && body.storage_path) {
       return { upload_url: body.upload_url, storage_path: body.storage_path };
@@ -296,7 +295,7 @@ export const homeworkApi = {
     return storage_path;
   },
 
-  /** Upload recording_1 (warm-up): get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-1 with JSON { storage_path, duration_seconds }. Returns alreadyAtStep2 + task_block when backend responds 200 with already_past_step (session already at step 2). */
+  /** Upload recording_1 (warm-up): get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-1 with JSON { storage_path, duration_seconds }. Returns alreadyAtStep2 + task_block when backend responds 200 with already_past_step. */
   async uploadRecording1(
     sessionId: string,
     blob: Blob,
@@ -308,7 +307,7 @@ export const homeworkApi = {
     totalActiveMs?: number
   ): Promise<
     | HomeworkRecording1Response
-    | { alreadyAtStep2: true; task_block: TaskBlockV2; status?: string }
+    | { alreadyAtStep2: true; task_block: QuestionBlockV2; status?: string }
   > {
     console.info("[HomeworkFlow] uploadRecording1 start", { sessionId: sessionId.slice(0, 8) + "…", blobSize: blob.size, blobType: blob.type, durationSeconds, hasTranscript: !!transcriptText });
     const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "1", signal);
@@ -348,23 +347,23 @@ export const homeworkApi = {
     return handleResponse<HomeworkRecording1Response>(res);
   },
 
-  /** Submit metric question answers (3); returns final task for recording_2. Backend may be slow (LLM); 70s timeout. */
-  async submitMetricAnswers(
+  /** Submit the three step-2 answers; returns the final task for recording_2. Backend may be slow (LLM); 70s timeout. */
+  async submitTaskAnswers(
     sessionId: string,
     body: { metric_answer_1: string; metric_answer_2: string; metric_answer_3: string }
-  ): Promise<HomeworkMetricAnswersResponse> {
+  ): Promise<HomeworkTaskAnswersResponse> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 70_000);
     try {
-      const res = await fetch(`${BASE}/session/${sessionId}/metric-answers`, {
+      const res = await fetch(`${BASE}/session/${sessionId}/task-answers`, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
         credentials,
         signal: controller.signal,
       });
-      return await handleResponse<HomeworkMetricAnswersResponse>(res);
+      return await handleResponse<HomeworkTaskAnswersResponse>(res);
     } finally {
       clearTimeout(timeoutId);
     }
@@ -393,28 +392,6 @@ export const homeworkApi = {
     return handleResponse<HomeworkRecording2Response>(res);
   },
 
-  /** Get post-recording questions (may be empty). */
-  async getQuestions(sessionId: string): Promise<HomeworkQuestionsResponse> {
-    const { headers, credentials } = await getAuthFetchOptions();
-    const res = await fetch(`${BASE}/session/${sessionId}/questions`, { headers, credentials });
-    return handleResponse<HomeworkQuestionsResponse>(res);
-  },
-
-  /** Submit post answers and get report. Pass answers: [] if no questions. */
-  async submitPostAnswers(
-    sessionId: string,
-    answers: Array<{ question_id: string; answer_text: string }>
-  ): Promise<HomeworkPostAnswersResponse> {
-    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    const res = await fetch(`${BASE}/session/${sessionId}/post-answers`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ answers }),
-      credentials,
-    });
-    return handleResponse<HomeworkPostAnswersResponse>(res);
-  },
-
   /** Get report for completed session (step 5): report_text, scores, final_recording with fresh audio_url. */
   async getReport(sessionId: string): Promise<HomeworkReportResponse> {
     const { headers, credentials } = await getAuthFetchOptions();
@@ -430,11 +407,11 @@ export const homeworkApi = {
   },
 
   /**
-   * Submit self-rating (1–10). Returns backend response; if session_completed is false, call again after job is done.
+   * Submit self-rating (1–5). Returns backend response; if session_completed is false, call again after job is done.
    */
   async submitSelfRating(sessionId: string, rating: number): Promise<SelfRatingResponse> {
     const r = Math.round(rating);
-    if (r < 1 || r > 10) return { status: "ok", session_completed: false };
+    if (r < 1 || r > 5) return { status: "ok", session_completed: false };
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/${sessionId}/self-rating`, {
       method: "POST",
@@ -474,6 +451,7 @@ export const homeworkApi = {
 export interface SelfRatingResponse {
   status?: string;
   session_completed: boolean;
+  /** Stored in the legacy backend field name, but current scale is 1-5. */
   student_rating_1_10?: number;
   skipped?: true;
 }

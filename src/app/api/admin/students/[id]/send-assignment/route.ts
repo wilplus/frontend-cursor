@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
+import { getBackendUrl, getCurrentUserIdentity, getV2AccessToken } from "@/app/api/getAuth";
 
 export async function POST(
   request: NextRequest,
@@ -11,6 +11,7 @@ export async function POST(
   }
   const { id } = await params;
   const backend = getBackendUrl();
+  const currentUser = await getCurrentUserIdentity(request);
   let body: Record<string, unknown> | null = null;
   try {
     const parsed = await request.json().catch(() => null);
@@ -20,13 +21,20 @@ export async function POST(
   } catch {
     // no body
   }
+  const requestBody: Record<string, unknown> = { ...(body ?? {}) };
+  if (currentUser.displayName) {
+    requestBody.coach_name = currentUser.displayName;
+  }
+  if (currentUser.initials) {
+    requestBody.coach_initials = currentUser.initials;
+  }
   const res = await fetch(`${backend}/v2/admin/students/${id}/send-assignment`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: JSON.stringify(requestBody),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
