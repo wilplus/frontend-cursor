@@ -346,6 +346,16 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [step, pollReportsAfterFinish, fetchStep0Reports]);
 
+  // Keep reports fresh while the step-0 list is visible so newly completed sessions
+  // appear without requiring logout/reload.
+  useEffect(() => {
+    if (step !== 0 || !showReportsList) return;
+    const id = setInterval(() => {
+      fetchStep0Reports();
+    }, 8000);
+    return () => clearInterval(id);
+  }, [step, showReportsList, fetchStep0Reports]);
+
   useEffect(() => {
     if (pollReportsAfterFinish && step0Sessions.length > 0) {
       setPollReportsAfterFinish(false);
@@ -1806,6 +1816,17 @@ export default function HomeworkFlowCard() {
     return (
       <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
         <h3 className="text-center text-xl font-semibold">Your report</h3>
+        {waitingForFullReport && performanceResult != null ? (
+          <div className="flex justify-center -mt-1">
+            {loadingLottieData ? (
+              <div className="w-10 h-10 opacity-70">
+                <Lottie animationData={loadingLottieData} loop />
+              </div>
+            ) : (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
+            )}
+          </div>
+        ) : null}
         {coachMessageBlock}
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           {reportError != null && reportData == null ? (
