@@ -3,11 +3,17 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { adminApi, type AdminSessionReportResponse } from "@/lib/api/admin-client";
+import {
+  adminApi,
+  type AdminSessionReportResponse,
+  type RecordingReview,
+} from "@/lib/api/admin-client";
 import { Button } from "@/components/ui/button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { toast } from "sonner";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
+
+const DEFAULT_RUBRIC_VERSION = "v1";
 
 function formatFillerBreakdown(breakdown: Record<string, number> | undefined): string {
   if (!breakdown || typeof breakdown !== "object") return "";
@@ -37,6 +43,8 @@ interface ReportDetailModalProps {
   onGradeSaved?: () => void;
 }
 
+type ReviewOverallQuality = RecordingReview["overall_quality"];
+
 export default function ReportDetailModal({
   open,
   onOpenChange,
@@ -53,6 +61,14 @@ export default function ReportDetailModal({
   const [coachGrade, setCoachGrade] = useState<number | null>(null);
   const [coachMessage, setCoachMessage] = useState("");
   const [savingGrade, setSavingGrade] = useState(false);
+  const [reviewOverallQuality, setReviewOverallQuality] = useState<ReviewOverallQuality | null>(null);
+  const [reviewConfidenceScore, setReviewConfidenceScore] = useState<number | null>(null);
+  const [reviewCoachStyleScore, setReviewCoachStyleScore] = useState<number | null>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [reviewRubricVersion, setReviewRubricVersion] = useState(DEFAULT_RUBRIC_VERSION);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [savingReview, setSavingReview] = useState(false);
 
   useBodyScrollLock(open);
 
@@ -64,6 +80,13 @@ export default function ReportDetailModal({
       setAudioPlaybackError(false);
       setCoachGrade(null);
       setCoachMessage("");
+      setReviewOverallQuality(null);
+      setReviewConfidenceScore(null);
+      setReviewCoachStyleScore(null);
+      setReviewNotes("");
+      setReviewRubricVersion(DEFAULT_RUBRIC_VERSION);
+      setReviewError(null);
+      setReviewLoading(false);
       return;
     }
     setLoading(true);
@@ -88,6 +111,31 @@ export default function ReportDetailModal({
         setError(e instanceof Error ? e.message : "Failed to load report");
       })
       .finally(() => setLoading(false));
+  }, [open, userId, session?.id]);
+
+  useEffect(() => {
+    if (!open || !session) return;
+    setReviewLoading(true);
+    setReviewError(null);
+    setReviewOverallQuality(null);
+    setReviewConfidenceScore(null);
+    setReviewCoachStyleScore(null);
+    setReviewNotes("");
+    setReviewRubricVersion(DEFAULT_RUBRIC_VERSION);
+    adminApi
+      .getSessionReview(userId, session.id)
+      .then(({ review }) => {
+        if (!review) return;
+        setReviewOverallQuality(review.overall_quality);
+        setReviewConfidenceScore(review.confidence_score);
+        setReviewCoachStyleScore(review.coach_style_score);
+        setReviewNotes((review.notes ?? "").trim());
+        setReviewRubricVersion(review.rubric_version || DEFAULT_RUBRIC_VERSION);
+      })
+      .catch((e) => {
+        setReviewError(e instanceof Error ? e.message : "Failed to load ML review");
+      })
+      .finally(() => setReviewLoading(false));
   }, [open, userId, session?.id]);
 
   // When report API fails or doesn't return audio, try admin playback URL using session.recording_id
@@ -132,6 +180,39 @@ export default function ReportDetailModal({
       toast.error(msg);
     } finally {
       setSavingGrade(false);
+    }
+  };
+
+  const handleSaveReview = async () => {
+    if (!session) return;
+    if (!reviewOverallQuality || reviewConfidenceScore == null || reviewCoachStyleScore == null) {
+      toast.error("Select overall quality, confidence score, and coach-style score before saving.");
+      return;
+    }
+    setSavingReview(true);
+    setReviewError(null);
+    try {
+      const { review } = await adminApi.patchSessionReview(userId, session.id, {
+        recording_id: session.recording_id ?? null,
+        overall_quality: reviewOverallQuality,
+        confidence_score: reviewConfidenceScore,
+        coach_style_score: reviewCoachStyleScore,
+        notes: reviewNotes.trim() || null,
+        rubric_version: reviewRubricVersion || DEFAULT_RUBRIC_VERSION,
+      });
+      setReviewOverallQuality(review.overall_quality);
+      setReviewConfidenceScore(review.confidence_score);
+      setReviewCoachStyleScore(review.coach_style_score);
+      setReviewNotes((review.notes ?? "").trim());
+      setReviewRubricVersion(review.rubric_version || DEFAULT_RUBRIC_VERSION);
+      toast.success("ML review saved.");
+      onGradeSaved?.();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save ML review";
+      setReviewError(msg);
+      toast.error(msg);
+    } finally {
+      setSavingReview(false);
     }
   };
 
@@ -282,61 +363,179 @@ export default function ReportDetailModal({
 
 
               {session?.status === "completed" && (
-              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Grade this recording (1–10)
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCoachGrade(null)}
-                    className={`rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition-colors ${
-                      coachGrade === null
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-background hover:border-primary/50"
-                    }`}
-                  >
-                    Not graded
-                  </button>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Grade this recording (1–10)
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
-                      key={n}
                       type="button"
-                      onClick={() => setCoachGrade(n)}
-                      className={`min-w-[2.25rem] rounded-lg border-2 px-2 py-1.5 text-sm font-medium transition-colors ${
-                        coachGrade === n
+                      onClick={() => setCoachGrade(null)}
+                      className={`rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition-colors ${
+                        coachGrade === null
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-background hover:border-primary/50"
                       }`}
                     >
-                      {n}
+                      Not graded
                     </button>
-                  ))}
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setCoachGrade(n)}
+                        className={`min-w-[2.25rem] rounded-lg border-2 px-2 py-1.5 text-sm font-medium transition-colors ${
+                          coachGrade === n
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-background hover:border-primary/50"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveGrade}
+                      disabled={savingGrade}
+                    >
+                      {savingGrade ? "Saving…" : "Save grade"}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        {coachGrade != null ? `Current: ${coachGrade}/10` : "Not graded"}
+                      </span>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-muted-foreground">
+                      Message to student (shown in report)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={coachMessage}
+                      onChange={(e) => setCoachMessage(e.target.value)}
+                      placeholder="Great pacing improvement. Keep your pauses smooth."
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleSaveGrade}
-                    disabled={savingGrade}
-                  >
-                    {savingGrade ? "Saving…" : "Save grade"}
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                      {coachGrade != null ? `Current: ${coachGrade}/10` : "Not graded"}
+
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">ML review</p>
+                      <p className="text-xs text-muted-foreground">
+                        Internal labels only. These notes are not shown to the student.
+                      </p>
+                    </div>
+                    <span className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">
+                      Rubric {reviewRubricVersion}
                     </span>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-muted-foreground">
-                    Message to student (shown in report)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={coachMessage}
-                    onChange={(e) => setCoachMessage(e.target.value)}
-                    placeholder="Great pacing improvement. Keep your pauses smooth."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-                  />
+                  </div>
+                  {reviewLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading ML review…</p>
+                  ) : null}
+                  {reviewError ? (
+                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                      {reviewError}
+                    </p>
+                  ) : null}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-muted-foreground">
+                      Overall quality
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {(["good", "bad", "unclear"] as const).map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setReviewOverallQuality(value)}
+                          className={`rounded-lg border-2 px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                            reviewOverallQuality === value
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-background hover:border-primary/50"
+                          }`}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-muted-foreground">
+                      Confidence score (1–5)
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setReviewConfidenceScore(n)}
+                          className={`min-w-[2.25rem] rounded-lg border-2 px-2 py-1.5 text-sm font-medium transition-colors ${
+                            reviewConfidenceScore === n
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-background hover:border-primary/50"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-muted-foreground">
+                      Coach-style score (1–10)
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setReviewCoachStyleScore(n)}
+                          className={`min-w-[2.25rem] rounded-lg border-2 px-2 py-1.5 text-sm font-medium transition-colors ${
+                            reviewCoachStyleScore === n
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-background hover:border-primary/50"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-muted-foreground">
+                      Internal notes
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      placeholder="Why was this good, bad, or unclear?"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveReview}
+                      disabled={
+                        savingReview ||
+                        reviewLoading ||
+                        !reviewOverallQuality ||
+                        reviewConfidenceScore == null ||
+                        reviewCoachStyleScore == null
+                      }
+                    >
+                      {savingReview ? "Saving…" : "Save ML review"}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Used for internal labeling and future ML training.
+                    </span>
+                  </div>
                 </div>
               </div>
               )}

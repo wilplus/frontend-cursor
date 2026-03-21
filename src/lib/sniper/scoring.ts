@@ -1,6 +1,7 @@
 /**
- * Live Coach — pure scoring functions.
- * Flow score from pause ratio; pace score from syllable-onset WPM.
+ * Live Coach — pure scoring functions for the legacy sniper game.
+ * Flow score comes from pause ratio and maps to the Y-axis.
+ * Pace score comes from syllable-onset WPM and maps to the X-axis.
  * Performance score = equal blend of both (flow-only until pace warm-up completes).
  */
 
@@ -46,7 +47,7 @@ export function scoreFlow(pauseRatio: number): number {
 }
 
 /**
- * Flow offset –1 to +1 for the sniper ball Y-axis.
+ * Flow offset –1 to +1 for the legacy sniper ball Y-axis.
  * +1 = too rushed (very few pauses), 0 = balanced, –1 = too choppy (too many pauses).
  */
 export function computeFlowOffset(pauseRatio: number): number {
@@ -78,7 +79,7 @@ export function scorePace(wpm: number): number {
 }
 
 /**
- * Pace offset –1 to +1 for the sniper ball X-axis.
+ * Pace offset –1 to +1 for the legacy sniper ball X-axis.
  * +1 = too fast, 0 = ideal (145 WPM), –1 = too slow.
  */
 export function computePaceOffset(wpm: number): number {

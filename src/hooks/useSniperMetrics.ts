@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Live Coach — 2D real-time metrics.
+ * Live Coach — legacy 2D real-time metrics for `SniperGame`.
  *
- * Flow  (Y-axis): pause_ratio over a 5 s rolling window of VAD samples.
- * Pace  (X-axis): syllable-onset WPM over a 5 s rolling window.
- *   Each silent→voiced transition ≈ one syllable onset.
+ * This hook is for the older flow + pace field, not the current homework
+ * recorder dartboard. In this legacy model:
+ * Flow  (Y-axis): pause_ratio over a rolling VAD window.
+ * Pace  (X-axis): syllable-onset WPM over a rolling window.
+ *   Each silent→voiced transition is treated as an onset.
  *   wpm = (onsets_in_window / PACE_WINDOW_SEC) × 60 / AVG_SYLLABLES_PER_WORD
  *
  * Live score:    fast IIR blend (0.65*prev + 0.35*raw) → drives ball + coach color.

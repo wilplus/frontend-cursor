@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Apple-precision strength + pace field (Feb 24 behavior).
+ * Reusable two-axis realtime dartboard.
+ * The visual behavior stays fixed while the axis meanings can change by step.
  */
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect } from "react";
 
@@ -38,38 +39,61 @@ function ballPosition(score: number, direction: number): number {
 }
 
 function getBallStatus(
-  strengthScore: number,
-  paceScore: number,
-  strengthDirection: number,
-  paceDirection: number
+  xScore: number,
+  yScore: number,
+  xDirection: number,
+  yDirection: number,
+  xNegativeHint: string,
+  xPositiveHint: string,
+  yNegativeHint: string,
+  yPositiveHint: string
 ): string {
-  if (strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE) return "Presence stable.";
+  if (xScore >= COHERENCE_STRENGTH && yScore >= COHERENCE_PACE) return "Presence stable.";
   const parts: string[] = [];
-  if (strengthScore < COHERENCE_STRENGTH && strengthDirection !== 0) {
-    parts.push(strengthDirection < 0 ? "Low activation" : "High activation");
+  if (xScore < COHERENCE_STRENGTH && xDirection !== 0) {
+    parts.push(xDirection < 0 ? xNegativeHint : xPositiveHint);
   }
-  if (paceScore < COHERENCE_PACE) parts.push(paceDirection < 0 ? "Slower pace" : "Faster pace");
+  if (yScore < COHERENCE_PACE && yDirection !== 0) {
+    parts.push(yDirection < 0 ? yNegativeHint : yPositiveHint);
+  }
   return parts.length ? parts.join(", ") + "." : "Presence stable.";
 }
 
-export interface StrengthPaceDartboardProps {
-  strengthScore: number;
-  paceScore: number;
-  strengthDirection: number;
-  paceDirection: number;
+export interface RealtimeMetricDartboardProps {
+  xScore: number;
+  yScore: number;
+  xDirection: number;
+  yDirection: number;
+  xAxisLabel: string;
+  yAxisLabel: string;
+  xNegativeHint: string;
+  xPositiveHint: string;
+  yNegativeHint: string;
+  yPositiveHint: string;
 }
 
-export interface StrengthPaceDartboardHandle {
+export interface RealtimeMetricDartboardHandle {
   dampVelocityOnVoiceDrop: () => void;
   resetOnSilenceSettled: () => void;
 }
 
-export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, StrengthPaceDartboardProps>(function StrengthPaceDartboard(
-  { strengthScore, paceScore, strengthDirection, paceDirection },
+export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle, RealtimeMetricDartboardProps>(function RealtimeMetricDartboard(
+  {
+    xScore,
+    yScore,
+    xDirection,
+    yDirection,
+    xAxisLabel,
+    yAxisLabel,
+    xNegativeHint,
+    xPositiveHint,
+    yNegativeHint,
+    yPositiveHint,
+  },
   ref
 ) {
-  const targetX = useMemo(() => ballPosition(strengthScore, strengthDirection), [strengthScore, strengthDirection]);
-  const targetY = useMemo(() => ballPosition(paceScore, paceDirection), [paceScore, paceDirection]);
+  const targetX = useMemo(() => ballPosition(xScore, xDirection), [xScore, xDirection]);
+  const targetY = useMemo(() => ballPosition(yScore, yDirection), [yScore, yDirection]);
 
   const rawTargetRef = useRef({ x: targetX, y: targetY });
   rawTargetRef.current = { x: targetX, y: targetY };
@@ -97,7 +121,7 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
     []
   );
 
-  const isCoherent = strengthScore >= COHERENCE_STRENGTH && paceScore >= COHERENCE_PACE;
+  const isCoherent = xScore >= COHERENCE_STRENGTH && yScore >= COHERENCE_PACE;
   const coherentStartRef = useRef<number | null>(null);
   const [coherent, setCoherent] = useState(false);
   const [authority, setAuthority] = useState(false);
@@ -160,14 +184,23 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
   const ballY = -displayPos.y * RADIUS;
   const cx = CENTER + ballX;
   const cy = CENTER + ballY;
-  const statusText = getBallStatus(strengthScore, paceScore, strengthDirection, paceDirection);
+  const statusText = getBallStatus(
+    xScore,
+    yScore,
+    xDirection,
+    yDirection,
+    xNegativeHint,
+    xPositiveHint,
+    yNegativeHint,
+    yPositiveHint
+  );
 
-  const worstScore = Math.min(strengthScore, paceScore);
+  const worstScore = Math.min(xScore, yScore);
   let t = tension(worstScore);
   if (worstScore < 1) {
-    if (strengthDirection < 0) t *= 1.2;
-    else if (strengthDirection > 0) t *= 0.7;
-    if (paceDirection > 0) t *= 0.8;
+    if (xDirection < 0) t *= 1.2;
+    else if (xDirection > 0) t *= 0.7;
+    if (yDirection > 0) t *= 0.8;
     t = Math.min(1, t);
   }
   const outerRingBaseOpacity = coherent ? 0.45 : 0.35;
@@ -180,7 +213,7 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
     <div
       className="flex flex-col items-center w-full"
       role="img"
-      aria-label="Vocal presence: keep drive and pace centered"
+      aria-label={`Realtime voice field: keep ${xAxisLabel.toLowerCase()} and ${yAxisLabel.toLowerCase()} centered`}
     >
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
@@ -282,3 +315,7 @@ export const StrengthPaceDartboard = forwardRef<StrengthPaceDartboardHandle, Str
     </div>
   );
 });
+
+export type StrengthPaceDartboardHandle = RealtimeMetricDartboardHandle;
+export type StrengthPaceDartboardProps = RealtimeMetricDartboardProps;
+export const StrengthPaceDartboard = RealtimeMetricDartboard;

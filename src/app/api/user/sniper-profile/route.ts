@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { copyCookies, proxyJson } from "@/lib/api/bff";
+import { applyRealtimeProfileUpdate } from "@/lib/realtime-levels/profile-update";
 import { applySniperBaselineUpdate } from "@/lib/sniper/baseline-update";
 import {
   MIN_STAGE_SCORE_FOR_BASELINE_UPDATE,
@@ -94,6 +95,8 @@ export async function POST(req: NextRequest) {
         dynamic_db: session_means.dynamicRangeDb,
         emphasis_per_min: session_means.emphasisPerMin,
         energy_ratio: session_means.energyRatio ?? null,
+        pitch_center_st: session_means.pitchCenterSt ?? null,
+        pitch_frame_count: session_means.pitchFrameCount ?? null,
         stage_score,
         voiced_duration_sec,
         student_rating_1_10: rating,
@@ -125,6 +128,21 @@ export async function POST(req: NextRequest) {
       copyCookies(cookieRes, out);
       return out;
     }
+  }
+
+  const realtimeResult = await applyRealtimeProfileUpdate(
+    supabase,
+    user.id,
+    session_means,
+    voiced_duration_sec
+  );
+  if (realtimeResult.error) {
+    const out = NextResponse.json(
+      { error: "Failed to update realtime profile", updated: false },
+      { status: 500 }
+    );
+    copyCookies(cookieRes, out);
+    return out;
   }
 
   // Return current profile (or existing response when no baseline update)
