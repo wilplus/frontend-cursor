@@ -342,7 +342,7 @@ export default function HomeworkFlowCard() {
   const [reportError, setReportError] = useState<string | null>(null);
   /** Live-transcribed text from Web Speech API (set immediately when recording stops). */
   const [localTranscript, setLocalTranscript] = useState("");
-  /** Ref mirror of localTranscript — readable synchronously inside handleRecording1Complete (state is batched). */
+  /** Ref mirror of localTranscript — readable synchronously inside handleRecordingComplete (state is batched). */
   const localTranscriptRef = useRef("");
   /** Backend returned 404 with REPORT_NOT_READY (report still generating). Show "generating" UI and auto-refresh. */
   const [reportNotReady, setReportNotReady] = useState(false);
@@ -1298,63 +1298,58 @@ export default function HomeworkFlowCard() {
     []
   );
 
-  const handleRecording1Complete = async (blob: Blob, durationSeconds: number) => {
-    if (durationSeconds < RECORDING_1_DURATION_MIN) {
-      const msg = `First recording must be at least ${RECORDING_1_DURATION_MIN} seconds. You recorded ${durationSeconds}s.`;
+  /**
+   * Unified recording completion handler for both recording steps.
+   * The only differences between step 1 and step 2 are injected via the config:
+   * which upload fn to call, which step to advance to, and which step to return to on error.
+   */
+  const handleRecordingComplete = async (
+    blob: Blob,
+    durationSeconds: number,
+    config: {
+      recordingNumber: 1 | 2;
+      minDurationSeconds: number;
+      stepOnSuccess: Step;
+      stepOnError: Step;
+      inProgressRef: React.MutableRefObject<boolean>;
+      upload: (blob: Blob, dur: number, signal: AbortSignal) => Promise<unknown>;
+      onSuccess?: (result: unknown) => Promise<void> | void;
+    }
+  ) => {
+    const { recordingNumber, minDurationSeconds, stepOnSuccess, stepOnError, inProgressRef, upload, onSuccess } = config;
+
+    if (durationSeconds < minDurationSeconds) {
+      const label = recordingNumber === 1 ? "First" : "Final";
+      const msg = `${label} recording must be at least ${minDurationSeconds} seconds. You recorded ${durationSeconds}s.`;
       setError(msg);
       toast.error(msg);
       return;
     }
     if (!sessionId) return;
-    if (uploadRecording1InProgressRef.current) return;
-    uploadRecording1InProgressRef.current = true;
+    if (inProgressRef.current) return;
+    inProgressRef.current = true;
     if (typeof window !== "undefined") {
-      console.warn("[HomeworkFlow] handleRecording1Complete", { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
+      console.warn(`[HomeworkFlow] handleRecordingComplete rec${recordingNumber}`, { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
     }
-    if (sessionId === "mock-session") {
-      uploadRecording1InProgressRef.current = false;
-      setError(
-        "Recording captured (preview only). Implement POST /v2/homework/start and POST /v2/homework/session/:id/recording-1 on your backend to save and continue."
-      );
+    if (recordingNumber === 1 && sessionId === "mock-session") {
+      inProgressRef.current = false;
+      setError("Recording captured (preview only). Implement POST /v2/homework/start and POST /v2/homework/session/:id/recording-1 on your backend to save and continue.");
       return;
     }
-    if (uploadingRecording === 1) {
-      uploadRecording1InProgressRef.current = false;
+    if (uploadingRecording === recordingNumber) {
+      inProgressRef.current = false;
       return;
     }
-    setUploadingRecording(1);
+    setUploadingRecording(recordingNumber);
     setError(null);
     abortRef.current = new AbortController();
-
-    // Move to step 2 immediately so the user sees the self-rating form while the
-    // upload runs in the background. Buttons stay disabled until backendReadyForSelfRating.
-    setStep(2);
+    setStep(stepOnSuccess);
 
     try {
-      const res = await homeworkApi.uploadRecording1(
-        sessionId,
-        blob,
-        durationSeconds,
-        abortRef.current.signal,
-        localTranscriptRef.current || undefined,
-        sniperSnapshotRef.current?.centerHoldRatio,
-        sniperSnapshotRef.current?.centerHoldMs,
-        sniperSnapshotRef.current?.totalActiveMs
-      );
-      const backendStatus = (res as { status?: string }).status;
-      const status: PublicHomeworkStatus = backendStatus && toPublicStatus(backendStatus) !== "none" ? toPublicStatus(backendStatus) : "recording_1_required";
-      applyStatusToState({
-        status,
-        session_id: sessionId,
-      });
-      await persistFinalSessionSummary({
-        sessionId,
-        durationSeconds,
-        recordingId: "recording_id" in res ? (res.recording_id ?? null) : null,
-      });
-      // step is already 2; keep it there so the self-rating form stays visible
+      const res = await upload(blob, durationSeconds, abortRef.current.signal);
+      await onSuccess?.(res);
     } catch (e) {
-      console.error("[HomeworkFlow] handleRecording1Complete error", e);
+      console.error(`[HomeworkFlow] handleRecordingComplete rec${recordingNumber} error`, e);
       if (isSessionGoneError(e)) {
         toast.info("Your session is gone. You can start a new lesson.");
         startOverFromScratch();
@@ -1363,72 +1358,64 @@ export default function HomeworkFlowCard() {
       const msg = isInvalidSessionStateError(e)
         ? "Session state conflict. Please refresh the page or switch tab and back."
         : (e instanceof Error ? e.message : "Upload failed. Please try again.");
-      // Return to recording step on failure so the user can retry
-      setStep(1);
+      setStep(stepOnError);
       setError(msg);
       toast.error(msg, { duration: 8000 });
     } finally {
       setUploadingRecording(null);
       abortRef.current = null;
-      uploadRecording1InProgressRef.current = false;
+      inProgressRef.current = false;
     }
   };
 
-  /** Upload recording 2 (final task). Same flow as recording 1: upload → POST → step 4 (report). */
-  const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
-    if (durationSeconds < RECORDING_2_DURATION_MIN) {
-      const msg = `Final recording must be at least ${RECORDING_2_DURATION_MIN} seconds. You recorded ${durationSeconds}s.`;
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-    if (!sessionId) return;
-    if (uploadRecording2InProgressRef.current) return;
-    uploadRecording2InProgressRef.current = true;
-    if (typeof window !== "undefined") {
-      console.warn("[HomeworkFlow] handleRecording2Complete", { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
-    }
-    if (uploadingRecording === 2) {
-      uploadRecording2InProgressRef.current = false;
-      return;
-    }
-    setUploadingRecording(2);
-    setError(null);
-    abortRef.current = new AbortController();
+  // Per-step config — the only thing that changes between recording 1 and recording 2
+  const onRecording1Complete = (blob: Blob, durationSeconds: number) =>
+    handleRecordingComplete(blob, durationSeconds, {
+      recordingNumber: 1,
+      minDurationSeconds: RECORDING_1_DURATION_MIN,
+      stepOnSuccess: 2,
+      stepOnError: 1,
+      inProgressRef: uploadRecording1InProgressRef,
+      upload: (b, dur, signal) =>
+        homeworkApi.uploadRecording1(
+          sessionId!,
+          b,
+          dur,
+          signal,
+          localTranscriptRef.current || undefined,
+          sniperSnapshotRef.current?.centerHoldRatio,
+          sniperSnapshotRef.current?.centerHoldMs,
+          sniperSnapshotRef.current?.totalActiveMs
+        ),
+      onSuccess: async (res) => {
+        const backendStatus = (res as { status?: string }).status;
+        const status: PublicHomeworkStatus =
+          backendStatus && toPublicStatus(backendStatus) !== "none"
+            ? toPublicStatus(backendStatus)
+            : "recording_1_required";
+        applyStatusToState({ status, session_id: sessionId });
+        await persistFinalSessionSummary({
+          sessionId: sessionId!,
+          durationSeconds,
+          recordingId: "recording_id" in (res as object) ? ((res as { recording_id?: string | null }).recording_id ?? null) : null,
+        });
+      },
+    });
 
-    // Move to step 4 (report generating) immediately so the student isn't stuck on the recorder
-    setStep(4);
-
-    try {
-      await homeworkApi.uploadRecording2(
-        sessionId,
-        blob,
-        durationSeconds,
-        abortRef.current.signal,
-      );
-      if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
-      }
-    } catch (e) {
-      console.error("[HomeworkFlow] handleRecording2Complete error", e);
-      if (isSessionGoneError(e)) {
-        toast.info("Your session is gone. You can start a new lesson.");
-        startOverFromScratch();
-        return;
-      }
-      const msg = isInvalidSessionStateError(e)
-        ? "Session state conflict. Please refresh the page or switch tab and back."
-        : (e instanceof Error ? e.message : "Upload failed. Please try again.");
-      // Return to recording 2 step on failure so the student can retry
-      setStep(3);
-      setError(msg);
-      toast.error(msg, { duration: 8000 });
-    } finally {
-      setUploadingRecording(null);
-      abortRef.current = null;
-      uploadRecording2InProgressRef.current = false;
-    }
-  };
+  const onRecording2Complete = (blob: Blob, durationSeconds: number) =>
+    handleRecordingComplete(blob, durationSeconds, {
+      recordingNumber: 2,
+      minDurationSeconds: RECORDING_2_DURATION_MIN,
+      stepOnSuccess: 4,
+      stepOnError: 3,
+      inProgressRef: uploadRecording2InProgressRef,
+      upload: (b, dur, signal) => homeworkApi.uploadRecording2(sessionId!, b, dur, signal),
+      onSuccess: async () => {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
+        }
+      },
+    });
 
   /** User-initiated refresh: GET status and apply. No downgrade; missing payload handled per Option B. */
   const refreshStatus = async () => {
@@ -1760,7 +1747,7 @@ export default function HomeworkFlowCard() {
         {!showStatusUnknownBlock && !showTaskUnavailableBlock && (
           <AudioRecorder
             prompt={task.trim() || DEFAULT_TASK_PROMPT}
-            onRecordingComplete={handleRecording1Complete}
+            onRecordingComplete={onRecording1Complete}
             onSniperSnapshot={(snapshot) => {
               setSniperSnapshot(snapshot);
               sniperSnapshotRef.current = snapshot;
@@ -1938,7 +1925,7 @@ export default function HomeworkFlowCard() {
         {coachMessageBlock}
         <AudioRecorder
           prompt={promptText}
-          onRecordingComplete={handleRecording2Complete}
+          onRecordingComplete={onRecording2Complete}
           onSniperSnapshot={(snapshot) => {
             setSniperSnapshot(snapshot);
             sniperSnapshotRef.current = snapshot;
