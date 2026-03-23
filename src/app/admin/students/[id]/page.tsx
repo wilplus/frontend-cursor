@@ -954,27 +954,48 @@ export default function AdminStudentProfilePage() {
         price_per_live_lesson:
           normalizedPrice === "" ? null : Math.max(0, Number(normalizedPrice)),
       });
-      const updatedSniperProgress = await adminApi.putStudentSniperProgress(id, {
-        realtime_level: nextRealtimeLevel,
-        realtime_step: nextRealtimeStep,
-      });
-      setStudentSniperProgress(updatedSniperProgress);
-      setCurrentRealtimeLevel(
-        updatedSniperProgress?.realtime_level != null ? String(updatedSniperProgress.realtime_level) : ""
-      );
-      setCurrentRealtimeStep(
-        updatedSniperProgress?.realtime_step != null ? String(updatedSniperProgress.realtime_step) : ""
-      );
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              realtime_level: updatedSniperProgress?.realtime_level ?? null,
-              realtime_step: updatedSniperProgress?.realtime_step ?? null,
-              sniper_profile: updatedSniperProgress,
-            }
-          : prev
-      );
+      const persistedRealtimeLevel = studentSniperProgress?.realtime_level ?? null;
+      const persistedRealtimeStep = studentSniperProgress?.realtime_step ?? null;
+      const progressionChanged =
+        nextRealtimeLevel !== persistedRealtimeLevel || nextRealtimeStep !== persistedRealtimeStep;
+
+      if (progressionChanged) {
+        try {
+          const updatedSniperProgress = await adminApi.putStudentSniperProgress(id, {
+            realtime_level: nextRealtimeLevel,
+            realtime_step: nextRealtimeStep,
+          });
+          setStudentSniperProgress(updatedSniperProgress);
+          setCurrentRealtimeLevel(
+            updatedSniperProgress?.realtime_level != null ? String(updatedSniperProgress.realtime_level) : ""
+          );
+          setCurrentRealtimeStep(
+            updatedSniperProgress?.realtime_step != null ? String(updatedSniperProgress.realtime_step) : ""
+          );
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  realtime_level: updatedSniperProgress?.realtime_level ?? null,
+                  realtime_step: updatedSniperProgress?.realtime_step ?? null,
+                  sniper_profile: updatedSniperProgress,
+                }
+              : prev
+          );
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Failed to update realtime progression";
+          if (
+            msg.includes("PGRST204") ||
+            msg.includes("realtime_level") ||
+            msg.includes("user_sniper_profile")
+          ) {
+            throw new Error(
+              "Could not update current unlocked step because backend schema is missing realtime progression columns. Please deploy the latest backend migrations and reload PostgREST schema cache."
+            );
+          }
+          throw e;
+        }
+      }
       await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
       await patchUserMetricQuestions(userMetricQuestions);
       await adminApi.putOverrides(id, {
@@ -1036,10 +1057,6 @@ export default function AdminStudentProfilePage() {
                 }
               : prev
           );
-        }
-        if (response.sent === false) {
-          toast.error("Homework was not sent yet. Progression stays unchanged until the email send succeeds.");
-          return;
         }
         toast.success("Homework sent");
         setAssignmentVideoDescription("");
