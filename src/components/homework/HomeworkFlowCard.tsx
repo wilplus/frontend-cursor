@@ -527,46 +527,19 @@ export default function HomeworkFlowCard() {
     });
   }, [authReady, step, syncDashboardStateFromStatus]);
 
-  /** Fetch reports list (same source as admin). Called when user first clicks "View reports". */
+  /** Fetch delivered reports list from backend. Called when user first clicks "View reports". */
   const fetchStep0Reports = useCallback(() => {
     if (step0SessionsLoading) return;
     setStep0SessionsLoading(true);
     homeworkApi
       .getSessions()
       .then((data) => {
-        const backendList = (data.sessions ?? []).filter(
-          (s) =>
-            s.report_delivered === true ||
-            !!s.student_completion_email_sent_at ||
-            (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
-            !!s.report_id
-        );
-        const persisted = persistedFinalReportRef.current;
-        const persistedList =
-          persisted?.sessionId
-            ? [
-                {
-                  id: persisted.sessionId,
-                  created_at: new Date().toISOString(),
-                  status: "completed",
-                  report_id: persisted.sessionId,
-                  report_delivered: true,
-                  student_completion_email_sent_at: new Date().toISOString(),
-                  report_preview:
-                    persisted.reportData?.report_text?.trim()
-                      ? { report_text_preview: persisted.reportData.report_text }
-                      : undefined,
-                },
-              ]
-            : [];
-        const merged = [...persistedList, ...backendList].filter(
-          (session, index, arr) => arr.findIndex((candidate) => candidate.id === session.id) === index
-        );
-        merged.sort(
+        const deliveredSessions = [...(data.sessions ?? [])];
+        deliveredSessions.sort(
           (a, b) =>
             (b.completed_at || b.created_at || "").localeCompare(a.completed_at || a.created_at || "")
         );
-        setStep0Sessions(merged);
+        setStep0Sessions(deliveredSessions);
       })
       .catch((e) => {
         if (typeof console !== "undefined" && console.warn) {
