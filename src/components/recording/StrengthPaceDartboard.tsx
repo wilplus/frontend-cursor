@@ -6,10 +6,9 @@
  */
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect } from "react";
 
-const VIEWBOX_SIZE = 400;
-const CENTER = 200;
-const RADIUS = 185;
-const INNER_RING_RADII = [130, 75, 30] as const;
+const VIEWBOX_SIZE = 300;
+const CENTER = 150;
+const RADIUS = 120;
 const BALL_R = 10;
 const SPRING_STIFFNESS = 0.045;
 const SPRING_DAMPING = 0.86;
@@ -207,10 +206,10 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
   const outerRingBaseOpacity = coherent ? 0.45 : 0.35;
   const outerRingOrangeOpacity = t * 0.5;
   const crosshairOpacity = authority ? 0.22 : coherent ? 0.18 : 0.12;
-  const outerRingStrokeWidth = authority ? 1.5 : 1.25;
+  const outerRingStrokeWidth = authority ? 1 : 0.75;
   const ballStrokeOpacity = coherent ? 0.6 : 0.5 + t * 0.5;
   const labelClassName =
-    "pointer-events-none absolute text-sm font-medium tracking-wide text-[hsl(var(--muted-foreground))] sm:text-[15px]";
+    "pointer-events-none absolute z-10 text-center text-sm font-medium tracking-wide text-[hsl(var(--muted-foreground))] sm:text-[15px]";
 
   return (
     <div
@@ -221,17 +220,17 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      <div className="relative w-full max-w-[520px] aspect-square px-9 py-9 sm:px-10 sm:py-10">
-        <div className={`${labelClassName} left-1/2 top-0 -translate-x-1/2 text-center`}>
+      <div className="relative w-full aspect-square">
+        <div className={`${labelClassName} left-1/2 top-[14%] w-28 -translate-x-1/2 -translate-y-1/2`}>
           {yPositiveHint}
         </div>
-        <div className={`${labelClassName} left-1/2 bottom-0 -translate-x-1/2 text-center`}>
+        <div className={`${labelClassName} left-1/2 bottom-[14%] w-28 -translate-x-1/2 translate-y-1/2`}>
           {yNegativeHint}
         </div>
-        <div className={`${labelClassName} left-0 top-1/2 -translate-y-1/2 text-left`}>
+        <div className={`${labelClassName} left-[14%] top-1/2 w-24 -translate-x-1/2 -translate-y-1/2`}>
           {xNegativeHint}
         </div>
-        <div className={`${labelClassName} right-0 top-1/2 -translate-y-1/2 text-right`}>
+        <div className={`${labelClassName} right-[14%] top-1/2 w-24 translate-x-1/2 -translate-y-1/2`}>
           {xPositiveHint}
         </div>
 
@@ -242,7 +241,7 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
         >
           <defs>
             <radialGradient id="apple-field" cx="50%" cy="50%" r="70%">
-              <stop offset="0%" stopColor="hsl(var(--background))" />
+              <stop offset="0%" stopColor="white" />
               <stop offset="100%" stopColor="hsl(var(--np-gray-soft))" />
             </radialGradient>
             <filter id="apple-ball-shadow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
@@ -259,9 +258,9 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
             cy={CENTER}
             r={RADIUS}
             fill="none"
-            stroke="hsl(var(--np-orange-soft))"
+            stroke="hsl(var(--np-gray-mid))"
             strokeWidth={outerRingStrokeWidth}
-            opacity={0.7}
+            opacity={outerRingBaseOpacity}
             className="apple-transition"
           />
           {outerRingOrangeOpacity > 0 && (
@@ -276,48 +275,46 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
               className="apple-transition"
             />
           )}
-          {INNER_RING_RADII.map((radius, index) => (
-            <circle
-              key={radius}
-              cx={CENTER}
-              cy={CENTER}
-              r={radius}
-              fill="none"
-              stroke="hsl(var(--np-gray-mid))"
-              strokeWidth={index === INNER_RING_RADII.length - 1 ? 0.9 : 0.8}
-              opacity={index === INNER_RING_RADII.length - 1 ? 0.4 : 0.32}
-              className="apple-transition"
-            />
-          ))}
-
-          <line
-            x1={CENTER}
-            y1={CENTER - RADIUS}
-            x2={CENTER}
-            y2={CENTER + RADIUS}
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={80}
+            fill="none"
             stroke="hsl(var(--np-gray-mid))"
-            strokeWidth={0.5}
-            opacity={crosshairOpacity}
-            className="apple-transition"
-          />
-          <line
-            x1={CENTER - RADIUS}
-            y1={CENTER}
-            x2={CENTER + RADIUS}
-            y2={CENTER}
-            stroke="hsl(var(--np-gray-mid))"
-            strokeWidth={0.5}
-            opacity={crosshairOpacity}
+            strokeWidth={0.75}
+            opacity={0.25}
             className="apple-transition"
           />
           <circle
             cx={CENTER}
             cy={CENTER}
-            r={10}
+            r={40}
             fill="none"
-            stroke="hsl(var(--np-orange))"
-            strokeWidth={1.5}
-            opacity={0.95}
+            stroke="hsl(var(--np-gray-mid))"
+            strokeWidth={0.75}
+            opacity={0.2}
+            className="apple-transition"
+          />
+
+          <line
+            x1={CENTER}
+            y1={30}
+            x2={CENTER}
+            y2={270}
+            stroke="hsl(var(--np-gray-deep))"
+            strokeWidth={0.5}
+            opacity={crosshairOpacity}
+            className="apple-transition"
+          />
+          <line
+            x1={30}
+            y1={CENTER}
+            x2={270}
+            y2={CENTER}
+            stroke="hsl(var(--np-gray-deep))"
+            strokeWidth={0.5}
+            opacity={crosshairOpacity}
+            className="apple-transition"
           />
           <circle
             cx={cx}

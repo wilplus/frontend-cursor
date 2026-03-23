@@ -226,6 +226,58 @@ function resetAutoStartAttempted() {
   autoStartAttempted = false;
 }
 
+const STEP0_REPORTS_PAGE_SIZE = 5;
+const FINAL_REPORT_STORAGE_KEY = "homeworkReport";
+
+type PersistedFinalReportState = {
+  sessionId: string;
+  reportData: HomeworkReportResponse | null;
+  performanceScoreEnd: number | null;
+  reportText: string;
+  localTranscript: string;
+  coachMessageAfterHomework: string | null;
+  tutorFeedbackDeadlineMs: number | null;
+};
+
+function readPersistedFinalReportState(): PersistedFinalReportState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(FINAL_REPORT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedFinalReportState>;
+    if (!parsed || typeof parsed.sessionId !== "string" || !parsed.sessionId.trim()) {
+      return null;
+    }
+    return {
+      sessionId: parsed.sessionId.trim(),
+      reportData: parsed.reportData ?? null,
+      performanceScoreEnd: typeof parsed.performanceScoreEnd === "number" ? parsed.performanceScoreEnd : null,
+      reportText: typeof parsed.reportText === "string" ? parsed.reportText : "",
+      localTranscript: typeof parsed.localTranscript === "string" ? parsed.localTranscript : "",
+      coachMessageAfterHomework:
+        typeof parsed.coachMessageAfterHomework === "string" && parsed.coachMessageAfterHomework.trim()
+          ? parsed.coachMessageAfterHomework
+          : null,
+      tutorFeedbackDeadlineMs:
+        typeof parsed.tutorFeedbackDeadlineMs === "number" && Number.isFinite(parsed.tutorFeedbackDeadlineMs)
+          ? parsed.tutorFeedbackDeadlineMs
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistFinalReportState(state: PersistedFinalReportState) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(FINAL_REPORT_STORAGE_KEY, JSON.stringify(state));
+}
+
+function clearPersistedFinalReportState() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(FINAL_REPORT_STORAGE_KEY);
+}
+
 function maxStep(a: Step, b: Step): Step {
   return Math.max(a, b) as Step;
 }
@@ -358,6 +410,7 @@ export default function HomeworkFlowCard() {
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
+  const [visibleReportsCount, setVisibleReportsCount] = useState(STEP0_REPORTS_PAGE_SIZE);
   const [step0ReportPreviews, setStep0ReportPreviews] = useState<Record<string, CompactReportPreview | null>>({});
   const [step0ReportPreviewLoading, setStep0ReportPreviewLoading] = useState<Record<string, boolean>>({});
   /** After finishing a session, briefly poll sessions list on step 0 so the new report appears without manual retries. */
@@ -369,6 +422,9 @@ export default function HomeworkFlowCard() {
   /** Mirror of step for use inside applyStatusToState (so we never downgrade step when applying backend response). */
   const stepRef = useRef(step);
   stepRef.current = step;
+  const persistedFinalReportRef = useRef<PersistedFinalReportState | null>(
+    typeof window === "undefined" ? null : readPersistedFinalReportState()
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -426,6 +482,33 @@ export default function HomeworkFlowCard() {
     []
   );
 
+  const restorePersistedFinalReport = useCallback((persisted: PersistedFinalReportState | null): boolean => {
+    if (!persisted?.sessionId) return false;
+    setSessionId(persisted.sessionId);
+    setReportData(persisted.reportData);
+    setPerformanceScoreEnd(persisted.performanceScoreEnd);
+    setReportText(persisted.reportText);
+    setLocalTranscript(persisted.localTranscript);
+    localTranscriptRef.current = persisted.localTranscript;
+    setCoachMessageAfterHomework(persisted.coachMessageAfterHomework);
+    setReportError(null);
+    setReportNotReady(false);
+    setRecordingProcessingFailed(false);
+    if (persisted.tutorFeedbackDeadlineMs && persisted.tutorFeedbackDeadlineMs > Date.now()) {
+      setTutorFeedbackDeadlineMs(persisted.tutorFeedbackDeadlineMs);
+    }
+    setStep(3);
+    return true;
+  }, []);
+
+  const clearSessionCommunication = useCallback(() => {
+    setCoachMessageAfterHomework(null);
+    setTutorFeedbackDeadlineMs(null);
+    setTutorFeedbackMessage(null);
+    setReviewPending(false);
+    setMainScreenMessage(null);
+  }, []);
+
   /** Refetch status and backend-owned realtime step on step 0 so newly assigned homework can unlock the next step. */
   useEffect(() => {
     if (!authReady || step !== 0) return;
@@ -456,7 +539,7 @@ export default function HomeworkFlowCard() {
             !!s.recording_id
         );
         list.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-        setStep0Sessions(list.slice(0, 20));
+        setStep0Sessions(list);
       })
       .catch((e) => {
         if (typeof console !== "undefined" && console.warn) {
@@ -474,12 +557,18 @@ export default function HomeworkFlowCard() {
     const tick = () => {
       attempts += 1;
       fetchStep0Reports();
+      homeworkApi
+        .getStatus()
+        .then((statusRes) => {
+          syncDashboardStateFromStatus(statusRes);
+        })
+        .catch(() => {});
       if (attempts >= maxAttempts) setPollReportsAfterFinish(false);
     };
     tick();
     const id = setInterval(tick, 3000);
     return () => clearInterval(id);
-  }, [step, pollReportsAfterFinish, fetchStep0Reports]);
+  }, [step, pollReportsAfterFinish, fetchStep0Reports, syncDashboardStateFromStatus]);
 
   // Keep reports fresh while the step-0 list is visible so newly completed sessions
   // appear without requiring logout/reload.
@@ -504,7 +593,7 @@ export default function HomeworkFlowCard() {
 
   useEffect(() => {
     if (step !== 0 || !showReportsList || step0Sessions.length === 0) return;
-    step0Sessions.forEach((session) => {
+    step0Sessions.slice(0, visibleReportsCount).forEach((session) => {
       if (step0ReportPreviews[session.id] !== undefined || step0ReportPreviewLoading[session.id]) return;
       setStep0ReportPreviewLoading((prev) => ({ ...prev, [session.id]: true }));
       homeworkApi
@@ -519,13 +608,18 @@ export default function HomeworkFlowCard() {
           setStep0ReportPreviewLoading((prev) => ({ ...prev, [session.id]: false }));
         });
     });
-  }, [step, showReportsList, step0Sessions, step0ReportPreviews, step0ReportPreviewLoading]);
+  }, [step, showReportsList, step0Sessions, step0ReportPreviews, step0ReportPreviewLoading, visibleReportsCount]);
 
   useEffect(() => {
     if (pollReportsAfterFinish && step0Sessions.length > 0) {
       setPollReportsAfterFinish(false);
     }
   }, [pollReportsAfterFinish, step0Sessions.length]);
+
+  useEffect(() => {
+    if (!showReportsList) return;
+    setVisibleReportsCount(STEP0_REPORTS_PAGE_SIZE);
+  }, [showReportsList]);
 
   /** Deep-link support from completion email:
    *  /dashboard?showReports=1&openReportSessionId=<sessionId>
@@ -617,7 +711,6 @@ export default function HomeworkFlowCard() {
       setRecordingProcessingFailed(false);
       setLocalTranscript("");
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
       return;
@@ -709,8 +802,9 @@ export default function HomeworkFlowCard() {
     setStudentSpeechRatingSubmitted(false);
     setSavingStudentRating(false);
     try {
+      clearPersistedFinalReportState();
+      persistedFinalReportRef.current = null;
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.removeItem("homeworkReport");
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
       // Do not abandon a finished session when user leaves the final report screen,
@@ -744,23 +838,14 @@ export default function HomeworkFlowCard() {
       if (shouldPollReports) {
         setPollReportsAfterFinish(true);
       }
-      // Refetch status after navigating to step 0 so the countdown (tutor_feedback_deadline) and tutor_feedback_message are set; without this the timer can't show
+      // Refetch status after navigating to step 0 so the waiting/review state and countdown can update immediately.
       homeworkApi.getStatus().then((statusRes) => {
-        const deadlineIso = statusRes?.tutor_feedback_deadline;
-        if (deadlineIso && typeof deadlineIso === "string") {
-          const ms = new Date(deadlineIso).getTime();
-          setTutorFeedbackDeadlineMs(Number.isFinite(ms) && ms > Date.now() ? ms : null);
-        } else {
-          setTutorFeedbackDeadlineMs(null);
-        }
-        const msg = statusRes?.tutor_feedback_message;
-        setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-        if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
-          setAssignedExercises(statusRes.assigned_exercises);
-        }
+        syncDashboardStateFromStatus(statusRes);
       }).catch((err) => {
         setTutorFeedbackDeadlineMs(null);
         setTutorFeedbackMessage(null);
+        setReviewPending(false);
+        setMainScreenMessage(null);
         if (typeof console !== "undefined" && console.warn) {
           console.warn("[HomeworkFlow] Status refetch after Send to coach failed:", err);
         }
@@ -801,6 +886,9 @@ export default function HomeworkFlowCard() {
     }
     metricSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
+    clearSessionCommunication();
+    clearPersistedFinalReportState();
+    persistedFinalReportRef.current = null;
     applyStatusToState({ status: "none" });
     setLoading(false);
     setMetricStepBlockedByRecordingFailure(false);
@@ -815,6 +903,9 @@ export default function HomeworkFlowCard() {
     metricSubmitInProgress.current = false;
     uploadRecording1InProgressRef.current = false;
     skipStep2ToReportDoneRef.current = false;
+    clearSessionCommunication();
+    clearPersistedFinalReportState();
+    persistedFinalReportRef.current = null;
     applyStatusToState({ status: "none" });
     setMetricStepBlockedByRecordingFailure(false);
   };
@@ -842,6 +933,10 @@ export default function HomeworkFlowCard() {
       .then((statusRes) => {
         if (cancelled) return;
         if (!statusRes || statusRes.has_active_session === false) {
+          if (restorePersistedFinalReport(persistedFinalReportRef.current)) {
+            syncDashboardStateFromStatus(statusRes);
+            return;
+          }
           applyStatusToState(getStatusToHomeworkResponse(statusRes ?? { status: "none" }));
           syncDashboardStateFromStatus(statusRes);
           return;
@@ -873,6 +968,7 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
+      if (stepRef.current === 3) return;
       if (stepRef.current === 0) {
         homeworkApi.getStatus().then((statusRes) => {
           syncDashboardStateFromStatus(statusRes);
@@ -888,6 +984,30 @@ export default function HomeworkFlowCard() {
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [syncDashboardStateFromStatus]);
+
+  useEffect(() => {
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
+    const nextState: PersistedFinalReportState = {
+      sessionId,
+      reportData,
+      performanceScoreEnd,
+      reportText,
+      localTranscript,
+      coachMessageAfterHomework,
+      tutorFeedbackDeadlineMs,
+    };
+    persistFinalReportState(nextState);
+    persistedFinalReportRef.current = nextState;
+  }, [
+    coachMessageAfterHomework,
+    localTranscript,
+    performanceScoreEnd,
+    reportData,
+    reportText,
+    sessionId,
+    step,
+    tutorFeedbackDeadlineMs,
+  ]);
 
   const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
   // Legacy step-4/old-flow effects removed; active flow is step 0 → 1 → 2 → 3.
@@ -1292,6 +1412,8 @@ export default function HomeworkFlowCard() {
       "Artur is analysing your homework and will send you the grading and comment soon. If you pass, we will see each other in the next step!";
 
     const step0ReportsListId = "step0-reports-history";
+    const visibleStep0Sessions = step0Sessions.slice(0, visibleReportsCount);
+    const canLoadMoreReports = visibleReportsCount < step0Sessions.length;
 
     return (
       <div className="flex flex-col items-center w-full pt-0 -mt-8 sm:-mt-10">
@@ -1381,6 +1503,7 @@ export default function HomeworkFlowCard() {
                   if (showReportsList) {
                     setShowReportsList(false);
                   } else {
+                    setVisibleReportsCount(STEP0_REPORTS_PAGE_SIZE);
                     setShowReportsList(true);
                     fetchStep0Reports();
                   }
@@ -1399,7 +1522,7 @@ export default function HomeworkFlowCard() {
                   <p className="text-sm text-muted-foreground">No reports yet.</p>
                 ) : (
                   <div className="space-y-3">
-                    {step0Sessions.map((s) => (
+                    {visibleStep0Sessions.map((s) => (
                       <CompactReportPreviewCard
                         key={s.id}
                         title={s.created_at ? new Date(s.created_at).toLocaleDateString() : "Report"}
@@ -1411,6 +1534,18 @@ export default function HomeworkFlowCard() {
                         }}
                       />
                     ))}
+                    {canLoadMoreReports ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-xl"
+                        onClick={() =>
+                          setVisibleReportsCount((prev) => Math.min(prev + STEP0_REPORTS_PAGE_SIZE, step0Sessions.length))
+                        }
+                      >
+                        Load more
+                      </Button>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -1675,7 +1810,7 @@ export default function HomeworkFlowCard() {
   if (step === 3) {
     if (recordingProcessingFailed) {
       return (
-        <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+        <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">
           <h3 className="text-center text-xl font-semibold">Your report</h3>
           <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
             <p className="text-sm text-foreground">
@@ -1780,7 +1915,7 @@ export default function HomeworkFlowCard() {
     const hasCoachFeedback = coachGrade != null || coachGradeMessage.length > 0;
 
     return (
-      <div className="mx-auto max-w-2xl space-y-4 animate-fade-in">
+      <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         {waitingForFullReport && performanceResult != null ? (
           <div className="flex justify-center -mt-1">
