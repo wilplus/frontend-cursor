@@ -332,6 +332,8 @@ export default function HomeworkFlowCard() {
   const [step, setStep] = useState<Step>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [task, setTask] = useState("");
+  /** Final task prompt for recording 2. Set when backend returns final_task_ready status. */
+  const [finalTask, setFinalTask] = useState("");
   const [reportText, setReportText] = useState("");
   const [performanceScoreEnd, setPerformanceScoreEnd] = useState<number | null>(null);
   /** Fetched report for final score step (step 3). */
@@ -362,6 +364,7 @@ export default function HomeworkFlowCard() {
   const abortRef = useRef<AbortController | null>(null);
   const metricSubmitInProgress = useRef(false);
   const uploadRecording1InProgressRef = useRef(false);
+  const uploadRecording2InProgressRef = useRef(false);
   /** When set, user just finished a lesson (step 3 → 0); show tutor countdown notice on step 0. Cleared when they click Start homework. */
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
@@ -499,7 +502,7 @@ export default function HomeworkFlowCard() {
     if (persisted.tutorFeedbackDeadlineMs && persisted.tutorFeedbackDeadlineMs > Date.now()) {
       setTutorFeedbackDeadlineMs(persisted.tutorFeedbackDeadlineMs);
     }
-    setStep(3);
+    setStep(4);
     return true;
   }, []);
 
@@ -670,7 +673,7 @@ export default function HomeworkFlowCard() {
 
   /** Show navbar on step 0 (start), step 2 (self-rate), and step 3 (score); hide on step 1. */
   useEffect(() => {
-    setShowNavbar(step === 0 || step === 2 || step === 3);
+    setShowNavbar(step === 0 || step === 2 || step === 3 || step === 4);
   }, [step, setShowNavbar]);
 
   /** Clear recording context when not on step 1 (record). Step 3 removed. */
@@ -703,6 +706,7 @@ export default function HomeworkFlowCard() {
       );
       // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 3 score)
       setCoachMessageAfterHomework(null);
+      setFinalTask("");
       // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
       skipStep2ToReportDoneRef.current = false;
       setReportFromRecording1Only(false);
@@ -749,6 +753,10 @@ export default function HomeworkFlowCard() {
     setSniperProfile((prev) => getSniperProfileFromStatusPayload(res, prev) ?? prev);
     if (status === "task_block" || status === "final_task_ready" || status === "post_questions") {
       setReportFromRecording1Only(true);
+    }
+    // When final task is ready, capture it as the recording-2 prompt
+    if (status === "final_task_ready" && "task" in res && res.task) {
+      setFinalTask(resolveTaskText(res.task));
     }
   };
 
@@ -807,10 +815,10 @@ export default function HomeworkFlowCard() {
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
-      // Do not abandon a finished session when user leaves the final report screen,
+      // Do not abandon a finished session when user leaves the final report screen (step 4),
       // otherwise some backends may mark it as abandoned and hide it from report lists.
-      const shouldAbandonActiveSession = step !== 3;
-      const shouldPollReports = step === 3;
+      const shouldAbandonActiveSession = step !== 4;
+      const shouldPollReports = step === 4;
       if (shouldAbandonActiveSession && sessionId && sessionId !== "mock-session") {
         try {
           await homeworkApi.abandonSession(sessionId);
@@ -826,6 +834,7 @@ export default function HomeworkFlowCard() {
       }
       metricSubmitInProgress.current = false;
       uploadRecording1InProgressRef.current = false;
+      uploadRecording2InProgressRef.current = false;
       applyStatusToState({ status: "none" });
       setReportLoading(false);
       setReportError(null);
@@ -970,7 +979,7 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (stepRef.current === 3) return;
+      if (stepRef.current === 3 || stepRef.current === 4) return;
       if (stepRef.current === 0) {
         homeworkApi.getStatus().then((statusRes) => {
           syncDashboardStateFromStatus(statusRes);
@@ -988,7 +997,7 @@ export default function HomeworkFlowCard() {
   }, [syncDashboardStateFromStatus]);
 
   useEffect(() => {
-    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
     const nextState: PersistedFinalReportState = {
       sessionId,
       reportData,
@@ -1016,9 +1025,9 @@ export default function HomeworkFlowCard() {
 
   // Coach is notified by the backend when self-rating (or skip) is saved; no separate notify-lesson-complete call.
 
-  // Fetch report when on step 3 with a real session (single source of truth for player + scores + text)
+  // Fetch report when on step 4 with a real session (single source of truth for player + scores + text)
   useEffect(() => {
-    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
     setReportLoading(true);
     setReportError(null);
     setReportNotReady(false);
@@ -1066,7 +1075,7 @@ export default function HomeworkFlowCard() {
 
   // Load Lottie animation for report loading / generating states
   useEffect(() => {
-    if (step !== 3 || loadingLottieData != null) return;
+    if (step !== 4 || loadingLottieData != null) return;
     fetch("/animations/loading.json")
       .then((r) => r.json())
       .then(setLoadingLottieData)
@@ -1074,7 +1083,7 @@ export default function HomeworkFlowCard() {
   }, [step, loadingLottieData]);
 
   useEffect(() => {
-    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
     if (!reportData || (reportData.coach_insight ?? "").trim()) return;
 
     let attempts = 0;
@@ -1154,7 +1163,7 @@ export default function HomeworkFlowCard() {
 
   // When self-rating isn't accepted yet (or session_completed was false): poll GET session/status, then auto-submit self-rating.
   useEffect(() => {
-    if ((step !== 2 && step !== 3) || !pendingRetrySelfRating) return;
+    if ((step !== 2 && step !== 3 && step !== 4) || !pendingRetrySelfRating) return;
     const { sessionId: sid } = pendingRetrySelfRating;
     const intervalMs = 5000;
     const maxWaitMs = 120000; // 2 min then retry anyway
@@ -1183,7 +1192,7 @@ export default function HomeworkFlowCard() {
           await homeworkApi.submitSelfRatingSkipped(sid);
         }
         setStudentSpeechRatingSubmitted(true);
-        setStep(3);
+        setStep(4);
         setReportRetryCount((c) => c + 1);
       } catch {
         // keep polling
@@ -1362,6 +1371,62 @@ export default function HomeworkFlowCard() {
       setUploadingRecording(null);
       abortRef.current = null;
       uploadRecording1InProgressRef.current = false;
+    }
+  };
+
+  /** Upload recording 2 (final task). Same flow as recording 1: upload → POST → step 4 (report). */
+  const handleRecording2Complete = async (blob: Blob, durationSeconds: number) => {
+    if (durationSeconds < RECORDING_2_DURATION_MIN) {
+      const msg = `Final recording must be at least ${RECORDING_2_DURATION_MIN} seconds. You recorded ${durationSeconds}s.`;
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    if (!sessionId) return;
+    if (uploadRecording2InProgressRef.current) return;
+    uploadRecording2InProgressRef.current = true;
+    if (typeof window !== "undefined") {
+      console.warn("[HomeworkFlow] handleRecording2Complete", { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
+    }
+    if (uploadingRecording === 2) {
+      uploadRecording2InProgressRef.current = false;
+      return;
+    }
+    setUploadingRecording(2);
+    setError(null);
+    abortRef.current = new AbortController();
+
+    // Move to step 4 (report generating) immediately so the student isn't stuck on the recorder
+    setStep(4);
+
+    try {
+      await homeworkApi.uploadRecording2(
+        sessionId,
+        blob,
+        durationSeconds,
+        abortRef.current.signal,
+      );
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
+      }
+    } catch (e) {
+      console.error("[HomeworkFlow] handleRecording2Complete error", e);
+      if (isSessionGoneError(e)) {
+        toast.info("Your session is gone. You can start a new lesson.");
+        startOverFromScratch();
+        return;
+      }
+      const msg = isInvalidSessionStateError(e)
+        ? "Session state conflict. Please refresh the page or switch tab and back."
+        : (e instanceof Error ? e.message : "Upload failed. Please try again.");
+      // Return to recording 2 step on failure so the student can retry
+      setStep(3);
+      setError(msg);
+      toast.error(msg, { duration: 8000 });
+    } finally {
+      setUploadingRecording(null);
+      abortRef.current = null;
+      uploadRecording2InProgressRef.current = false;
     }
   };
 
@@ -1770,7 +1835,13 @@ export default function HomeworkFlowCard() {
                     lastSelfRatingPayloadRef.current = { sessionId, rating: n };
                     const res = await homeworkApi.submitSelfRating(sessionId, n);
                     setStudentSpeechRatingSubmitted(true);
-                    setStep(3);
+                    // If backend returned a final task → recording 2 is next (step 3); otherwise report (step 4)
+                    if (res.final_task || res.status === "final_task_ready") {
+                      if (res.final_task) setFinalTask(res.final_task);
+                      setStep(3);
+                    } else {
+                      setStep(4);
+                    }
                     if (res.session_completed === false) {
                       setPendingRetrySelfRating({ sessionId, rating: n });
                     }
@@ -1778,7 +1849,7 @@ export default function HomeworkFlowCard() {
                     if (isSelfRatingNotReadyError(e)) {
                       setPendingRetrySelfRating({ sessionId, rating: n });
                       setStudentSpeechRatingSubmitted(true);
-                      setStep(3);
+                      setStep(4);
                     } else {
                       toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
                     }
@@ -1801,7 +1872,7 @@ export default function HomeworkFlowCard() {
             onClick={async () => {
               if (!sessionId || sessionId === "mock-session") {
                 setStudentSpeechRatingSubmitted(true);
-                setStep(3);
+                setStep(4);
                 return;
               }
               setSavingStudentRating(true);
@@ -1809,7 +1880,12 @@ export default function HomeworkFlowCard() {
                 lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
                 const res = await homeworkApi.submitSelfRatingSkipped(sessionId);
                 setStudentSpeechRatingSubmitted(true);
-                setStep(3);
+                if (res.final_task || res.status === "final_task_ready") {
+                  if (res.final_task) setFinalTask(res.final_task);
+                  setStep(3);
+                } else {
+                  setStep(4);
+                }
                 if (res.session_completed === false) {
                   setPendingRetrySelfRating({ sessionId, skipped: true });
                 }
@@ -1817,7 +1893,7 @@ export default function HomeworkFlowCard() {
                 if (isSelfRatingNotReadyError(e)) {
                   setPendingRetrySelfRating({ sessionId, skipped: true });
                   setStudentSpeechRatingSubmitted(true);
-                  setStep(3);
+                  setStep(4);
                 } else {
                   toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
                 }
@@ -1834,8 +1910,64 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  // Step 3: Score/report
+  // ─── Step 3: Recording 2 (final task) ───────────────────────────────────────
+  // Same AudioRecorder + dartboard animation as step 1. Only the prompt and
+  // the completion handler differ — recording state and performance score
+  // variables are the same throughout both recording steps.
   if (step === 3) {
+    const isUploadingRec2 = uploadingRecording === 2;
+    const promptText = finalTask.trim() || task.trim() || DEFAULT_TASK_PROMPT;
+
+    if (isUploadingRec2) {
+      return (
+        <StepFlowWrapper step={3} syncingBehind={syncingBehind}>
+          {coachMessageBlock}
+          <Card className="p-6 border-0 bg-transparent shadow-none">
+            <div className="text-center space-y-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
+              <h3 className="text-lg font-semibold">Sending final recording</h3>
+              <p className="text-sm text-muted-foreground">Please wait…</p>
+            </div>
+          </Card>
+        </StepFlowWrapper>
+      );
+    }
+
+    return (
+      <StepFlowWrapper step={3} syncingBehind={syncingBehind}>
+        {coachMessageBlock}
+        <AudioRecorder
+          prompt={promptText}
+          onRecordingComplete={handleRecording2Complete}
+          onSniperSnapshot={(snapshot) => {
+            setSniperSnapshot(snapshot);
+            sniperSnapshotRef.current = snapshot;
+          }}
+          stopAndSend
+          uploading={isUploadingRec2}
+          minDurationSeconds={RECORDING_2_DURATION_MIN}
+          sniperMode
+          sniperProfile={sniperProfile}
+        />
+        {sessionId && sessionId !== "mock-session" && (
+          <div className="mt-[1px] flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={handleAbandon}
+              disabled={loading}
+            >
+              Abandon session
+            </Button>
+          </div>
+        )}
+      </StepFlowWrapper>
+    );
+  }
+
+  // ─── Step 4: Score/report ────────────────────────────────────────────────────
+  if (step === 4) {
     if (recordingProcessingFailed) {
       return (
         <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">
