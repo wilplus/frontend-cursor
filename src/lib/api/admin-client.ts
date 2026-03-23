@@ -468,6 +468,15 @@ export const adminApi = {
       (r) => r.profile ?? null
     ),
 
+  putStudentSniperProgress: (
+    userId: string,
+    body: { realtime_level?: number | null; realtime_step?: number | null }
+  ) =>
+    adminFetch<{ profile: StudentSniperProgress | null }>(`/students/${userId}/sniper-profile`, {
+      method: "PUT",
+      body,
+    }).then((r) => r.profile ?? null),
+
   patchStudent: (
     userId: string,
     body: { name?: string | null; price_per_live_lesson?: number | null }

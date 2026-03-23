@@ -6,9 +6,10 @@
  */
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState, useEffect } from "react";
 
-const VIEWBOX_SIZE = 300;
-const CENTER = 150;
-const RADIUS = 120;
+const VIEWBOX_SIZE = 400;
+const CENTER = 200;
+const RADIUS = 185;
+const INNER_RING_RADII = [130, 75, 30] as const;
 const BALL_R = 10;
 const SPRING_STIFFNESS = 0.045;
 const SPRING_DAMPING = 0.86;
@@ -206,8 +207,10 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
   const outerRingBaseOpacity = coherent ? 0.45 : 0.35;
   const outerRingOrangeOpacity = t * 0.5;
   const crosshairOpacity = authority ? 0.22 : coherent ? 0.18 : 0.12;
-  const outerRingStrokeWidth = authority ? 1 : 0.75;
+  const outerRingStrokeWidth = authority ? 1.5 : 1.25;
   const ballStrokeOpacity = coherent ? 0.6 : 0.5 + t * 0.5;
+  const labelClassName =
+    "pointer-events-none absolute text-sm font-medium tracking-wide text-[hsl(var(--muted-foreground))] sm:text-[15px]";
 
   return (
     <div
@@ -218,100 +221,117 @@ export const RealtimeMetricDartboard = forwardRef<RealtimeMetricDartboardHandle,
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {statusText}
       </p>
-      <svg
-        viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
-        className="w-full aspect-square"
-        aria-hidden
-      >
-        <defs>
-          <radialGradient id="apple-field" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="white" />
-            <stop offset="100%" stopColor="hsl(var(--np-gray-soft))" />
-          </radialGradient>
-          <filter id="apple-ball-shadow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
-            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.12} />
-          </filter>
-          <filter id="apple-ball-shadow-coherent" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
-            <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.08} />
-          </filter>
-        </defs>
+      <div className="relative w-full max-w-[520px] aspect-square px-9 py-9 sm:px-10 sm:py-10">
+        <div className={`${labelClassName} left-1/2 top-0 -translate-x-1/2 text-center`}>
+          {yPositiveHint}
+        </div>
+        <div className={`${labelClassName} left-1/2 bottom-0 -translate-x-1/2 text-center`}>
+          {yNegativeHint}
+        </div>
+        <div className={`${labelClassName} left-0 top-1/2 -translate-y-1/2 text-left`}>
+          {xNegativeHint}
+        </div>
+        <div className={`${labelClassName} right-0 top-1/2 -translate-y-1/2 text-right`}>
+          {xPositiveHint}
+        </div>
 
-        <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#apple-field)" />
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={RADIUS}
-          fill="none"
-          stroke="hsl(var(--np-gray-mid))"
-          strokeWidth={outerRingStrokeWidth}
-          opacity={outerRingBaseOpacity}
-          className="apple-transition"
-        />
-        {outerRingOrangeOpacity > 0 && (
+        <svg
+          viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
+          className="h-full w-full"
+          aria-hidden
+        >
+          <defs>
+            <radialGradient id="apple-field" cx="50%" cy="50%" r="70%">
+              <stop offset="0%" stopColor="hsl(var(--background))" />
+              <stop offset="100%" stopColor="hsl(var(--np-gray-soft))" />
+            </radialGradient>
+            <filter id="apple-ball-shadow" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+              <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.12} />
+            </filter>
+            <filter id="apple-ball-shadow-coherent" x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox">
+              <feDropShadow dx={0} dy={1} stdDeviation={1.2} floodColor="black" floodOpacity={0.08} />
+            </filter>
+          </defs>
+
+          <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="url(#apple-field)" />
           <circle
             cx={CENTER}
             cy={CENTER}
             r={RADIUS}
             fill="none"
-            stroke="hsl(var(--np-orange))"
+            stroke="hsl(var(--np-orange-soft))"
             strokeWidth={outerRingStrokeWidth}
-            opacity={outerRingOrangeOpacity}
+            opacity={0.7}
             className="apple-transition"
           />
-        )}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={80}
-          fill="none"
-          stroke="hsl(var(--np-gray-mid))"
-          strokeWidth={0.75}
-          opacity={0.25}
-          className="apple-transition"
-        />
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={40}
-          fill="none"
-          stroke="hsl(var(--np-gray-mid))"
-          strokeWidth={0.75}
-          opacity={0.2}
-          className="apple-transition"
-        />
+          {outerRingOrangeOpacity > 0 && (
+            <circle
+              cx={CENTER}
+              cy={CENTER}
+              r={RADIUS}
+              fill="none"
+              stroke="hsl(var(--np-orange))"
+              strokeWidth={outerRingStrokeWidth}
+              opacity={outerRingOrangeOpacity}
+              className="apple-transition"
+            />
+          )}
+          {INNER_RING_RADII.map((radius, index) => (
+            <circle
+              key={radius}
+              cx={CENTER}
+              cy={CENTER}
+              r={radius}
+              fill="none"
+              stroke="hsl(var(--np-gray-mid))"
+              strokeWidth={index === INNER_RING_RADII.length - 1 ? 0.9 : 0.8}
+              opacity={index === INNER_RING_RADII.length - 1 ? 0.4 : 0.32}
+              className="apple-transition"
+            />
+          ))}
 
-        <line
-          x1={CENTER}
-          y1={30}
-          x2={CENTER}
-          y2={270}
-          stroke="hsl(var(--np-gray-deep))"
-          strokeWidth={0.5}
-          opacity={crosshairOpacity}
-          className="apple-transition"
-        />
-        <line
-          x1={30}
-          y1={CENTER}
-          x2={270}
-          y2={CENTER}
-          stroke="hsl(var(--np-gray-deep))"
-          strokeWidth={0.5}
-          opacity={crosshairOpacity}
-          className="apple-transition"
-        />
-        <circle
-          cx={cx}
-          cy={cy}
-          r={BALL_R}
-          fill="white"
-          stroke="hsl(var(--np-orange))"
-          strokeWidth={1.25}
-          strokeOpacity={ballStrokeOpacity}
-          filter={coherent ? "url(#apple-ball-shadow-coherent)" : "url(#apple-ball-shadow)"}
-          className="apple-transition"
-        />
-      </svg>
+          <line
+            x1={CENTER}
+            y1={CENTER - RADIUS}
+            x2={CENTER}
+            y2={CENTER + RADIUS}
+            stroke="hsl(var(--np-gray-mid))"
+            strokeWidth={0.5}
+            opacity={crosshairOpacity}
+            className="apple-transition"
+          />
+          <line
+            x1={CENTER - RADIUS}
+            y1={CENTER}
+            x2={CENTER + RADIUS}
+            y2={CENTER}
+            stroke="hsl(var(--np-gray-mid))"
+            strokeWidth={0.5}
+            opacity={crosshairOpacity}
+            className="apple-transition"
+          />
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={10}
+            fill="none"
+            stroke="hsl(var(--np-orange))"
+            strokeWidth={1.5}
+            opacity={0.95}
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={BALL_R}
+            fill="white"
+            stroke="hsl(var(--np-orange))"
+            strokeWidth={1.25}
+            strokeOpacity={ballStrokeOpacity}
+            filter={coherent ? "url(#apple-ball-shadow-coherent)" : "url(#apple-ball-shadow)"}
+            className="apple-transition"
+          />
+        </svg>
+      </div>
     </div>
   );
 });

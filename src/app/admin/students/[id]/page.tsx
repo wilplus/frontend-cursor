@@ -70,6 +70,16 @@ function getStudentSniperProgressFromAssignmentResponse(
   };
 }
 
+function parseOptionalPositiveInteger(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const numeric = Number(trimmed);
+  if (!Number.isInteger(numeric) || numeric < 1) {
+    throw new Error("Current realtime level and step must be whole numbers greater than or equal to 1.");
+  }
+  return numeric;
+}
+
 // —— Editable list row: text + hover Edit/Delete; edit = inline input + Check/X ——
 function EditableListItem({
   text,
@@ -683,6 +693,8 @@ export default function AdminStudentProfilePage() {
 
   const [contextDraft, setContextDraft] = useState("");
   const [assignmentVideoDescription, setAssignmentVideoDescription] = useState("");
+  const [currentRealtimeLevel, setCurrentRealtimeLevel] = useState("");
+  const [currentRealtimeStep, setCurrentRealtimeStep] = useState("");
   /** Exercises pool (global). Assigned ones are in overrides.assigned_exercise_ids. */
   const [exercises, setExercises] = useState<Exercise[]>([]);
   /** Exercise ids assigned to this student (step 0 + email). Saved in overrides.assigned_exercise_ids. */
@@ -710,6 +722,12 @@ export default function AdminStudentProfilePage() {
         setProfile(p);
         const profileSniperProgress = getStudentSniperProgressFromProfile(p);
         setStudentSniperProgress(profileSniperProgress);
+        setCurrentRealtimeLevel(
+          profileSniperProgress?.realtime_level != null ? String(profileSniperProgress.realtime_level) : ""
+        );
+        setCurrentRealtimeStep(
+          profileSniperProgress?.realtime_step != null ? String(profileSniperProgress.realtime_step) : ""
+        );
         const rawName = (p as { name?: string | null; display_name?: string | null }).name
           ?? (p as { name?: string | null; display_name?: string | null }).display_name
           ?? "";
@@ -798,6 +816,12 @@ export default function AdminStudentProfilePage() {
         const sniperProgressRes = results[6];
         if (sniperProgressRes?.status === "fulfilled" && sniperProgressRes.value) {
           setStudentSniperProgress(sniperProgressRes.value);
+          setCurrentRealtimeLevel(
+            sniperProgressRes.value.realtime_level != null ? String(sniperProgressRes.value.realtime_level) : ""
+          );
+          setCurrentRealtimeStep(
+            sniperProgressRes.value.realtime_step != null ? String(sniperProgressRes.value.realtime_step) : ""
+          );
         } else {
           setStudentSniperProgress(profileSniperProgress);
         }
@@ -840,6 +864,16 @@ export default function AdminStudentProfilePage() {
     const normalizedPrice = pricePerLiveLessonUsd.trim();
     if (normalizedPrice !== "" && !Number.isFinite(Number(normalizedPrice))) {
       toast.error("Live lesson price must be a valid number in USD.");
+      return;
+    }
+
+    let nextRealtimeLevel: number | null;
+    let nextRealtimeStep: number | null;
+    try {
+      nextRealtimeLevel = parseOptionalPositiveInteger(currentRealtimeLevel);
+      nextRealtimeStep = parseOptionalPositiveInteger(currentRealtimeStep);
+    } catch (e) {
+      toast.error((e as Error).message);
       return;
     }
 
@@ -920,6 +954,27 @@ export default function AdminStudentProfilePage() {
         price_per_live_lesson:
           normalizedPrice === "" ? null : Math.max(0, Number(normalizedPrice)),
       });
+      const updatedSniperProgress = await adminApi.putStudentSniperProgress(id, {
+        realtime_level: nextRealtimeLevel,
+        realtime_step: nextRealtimeStep,
+      });
+      setStudentSniperProgress(updatedSniperProgress);
+      setCurrentRealtimeLevel(
+        updatedSniperProgress?.realtime_level != null ? String(updatedSniperProgress.realtime_level) : ""
+      );
+      setCurrentRealtimeStep(
+        updatedSniperProgress?.realtime_step != null ? String(updatedSniperProgress.realtime_step) : ""
+      );
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              realtime_level: updatedSniperProgress?.realtime_level ?? null,
+              realtime_step: updatedSniperProgress?.realtime_step ?? null,
+              sniper_profile: updatedSniperProgress,
+            }
+          : prev
+      );
       await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
       await patchUserMetricQuestions(userMetricQuestions);
       await adminApi.putOverrides(id, {
@@ -1379,15 +1434,27 @@ export default function AdminStudentProfilePage() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="block text-sm font-medium">Current unlocked level</label>
-            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
-              {studentSniperProgress?.realtime_level != null ? studentSniperProgress.realtime_level : "—"}
-            </div>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              value={currentRealtimeLevel}
+              onChange={(e) => setCurrentRealtimeLevel(e.target.value)}
+              placeholder="e.g. 1"
+              disabled={saving}
+            />
           </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium">Current unlocked step</label>
-            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
-              {studentSniperProgress?.realtime_step != null ? studentSniperProgress.realtime_step : "—"}
-            </div>
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              value={currentRealtimeStep}
+              onChange={(e) => setCurrentRealtimeStep(e.target.value)}
+              placeholder="e.g. 1"
+              disabled={saving}
+            />
           </div>
         </div>
       </SectionCard>
