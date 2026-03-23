@@ -11,8 +11,8 @@ export const LEVEL_1_STEP_1: RealtimeTrainingStep = {
   xAxis: {
     metric: "strength",
     label: "Quiet - Loud",
-    negativeHint: "Too quiet",
-    positiveHint: "Too loud",
+    negativeHint: "/",
+    positiveHint: "/",
   },
   yAxis: {
     metric: "pace",
