@@ -66,6 +66,32 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
       .finally(() => setReportLoading(false));
   }, [open, sessionId]);
 
+  useEffect(() => {
+    if (!open || !sessionId || !report) return;
+    if ((report.coach_insight ?? "").trim()) return;
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    const intervalMs = 8000;
+    const id = setInterval(() => {
+      attempts += 1;
+      homeworkApi
+        .getReport(sessionId)
+        .then((data) => {
+          setReport(data);
+          if ((data.coach_insight ?? "").trim()) {
+            clearInterval(id);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (attempts >= maxAttempts) clearInterval(id);
+        });
+    }, intervalMs);
+
+    return () => clearInterval(id);
+  }, [open, report, sessionId]);
+
   if (!open) return null;
 
   const overlay = (
@@ -205,7 +231,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
                     {coachInsight ? (
                       <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
                     ) : (
-                      <p className="text-sm text-muted-foreground">AI Coach Insight is still loading…</p>
+                      <p className="text-sm text-muted-foreground">Coach insight is being prepared.</p>
                     )}
                   </div>
                 </div>

@@ -138,6 +138,32 @@ export default function ReportDetailModal({
       .finally(() => setReviewLoading(false));
   }, [open, userId, session?.id]);
 
+  useEffect(() => {
+    if (!open || !session || !report) return;
+    if ((report.coach_insight ?? "").trim()) return;
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    const intervalMs = 8000;
+    const id = setInterval(() => {
+      attempts += 1;
+      adminApi
+        .getStudentSessionReport(userId, session.id)
+        .then((data) => {
+          setReport(data);
+          if ((data.coach_insight ?? "").trim()) {
+            clearInterval(id);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (attempts >= maxAttempts) clearInterval(id);
+        });
+    }, intervalMs);
+
+    return () => clearInterval(id);
+  }, [open, report, session, userId]);
+
   // When report API fails or doesn't return audio, try admin playback URL using session.recording_id
   useEffect(() => {
     if (!open || loading || playbackUrl) return;
@@ -356,7 +382,7 @@ export default function ReportDetailModal({
                   {coachInsight ? (
                     <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">AI Coach Insight is still loading…</p>
+                    <p className="text-sm text-muted-foreground">Coach insight is being prepared.</p>
                   )}
                 </div>
               </div>

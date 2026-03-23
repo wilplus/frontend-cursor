@@ -158,6 +158,7 @@ export interface HomeworkResponse {
   } | null;
   realtime_level?: number | null;
   realtime_step?: number | null;
+  last_report_delivered?: boolean | null;
   session?: unknown;
   has_active_session?: boolean;
 }
@@ -245,6 +246,7 @@ export interface HomeworkSessionStatus {
   } | null;
   realtime_level?: number | null;
   realtime_step?: number | null;
+  last_report_delivered?: boolean | null;
   /** Backend: recording-1 job state. When not "pending", safe to call POST self-rating again to trigger completion. */
   recording_1_processing_status?: string | null;
   /** Backend: when true, show the current 1–5 self-rating step and allow POST self-rating. */
@@ -303,6 +305,7 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     sniper_profile: raw.sniper_profile ?? null,
     realtime_level: raw.realtime_level ?? raw.sniper_profile?.realtime_level ?? null,
     realtime_step: raw.realtime_step ?? raw.sniper_profile?.realtime_step ?? null,
+    last_report_delivered: raw.last_report_delivered ?? null,
   };
 }
 

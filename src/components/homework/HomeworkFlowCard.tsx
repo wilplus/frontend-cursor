@@ -228,6 +228,8 @@ function resetAutoStartAttempted() {
 
 const STEP0_REPORTS_PAGE_SIZE = 5;
 const FINAL_REPORT_STORAGE_KEY = "homeworkReport";
+const REVIEW_PENDING_DEFAULT_MESSAGE =
+  "Artur is analysing your homework and will send you the grading and comment soon. If you pass, we will see each other in the next step!";
 
 type PersistedFinalReportState = {
   sessionId: string;
@@ -406,7 +408,7 @@ export default function HomeworkFlowCard() {
   /** Session id for the report shown in the modal (from clicking a report card). */
   const [reportModalSessionId, setReportModalSessionId] = useState<string | null>(null);
   /** Step 0: list of past sessions for Reports History (same source as admin). Hidden until "View reports" is clicked. */
-  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_preview?: { report_text_preview?: string } }>>([]);
+  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; completed_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_id?: string; report_delivered?: boolean | null; student_completion_email_sent_at?: string | null; report_preview?: { report_text_preview?: string } }>>([]);
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
@@ -532,14 +534,39 @@ export default function HomeworkFlowCard() {
     homeworkApi
       .getSessions()
       .then((data) => {
-        const list = (data.sessions ?? []).filter(
+        const backendList = (data.sessions ?? []).filter(
           (s) =>
+            s.report_delivered === true ||
+            !!s.student_completion_email_sent_at ||
             (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
-            s.status === "completed" ||
-            !!s.recording_id
+            !!s.report_id
         );
-        list.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-        setStep0Sessions(list);
+        const persisted = persistedFinalReportRef.current;
+        const persistedList =
+          persisted?.sessionId
+            ? [
+                {
+                  id: persisted.sessionId,
+                  created_at: new Date().toISOString(),
+                  status: "completed",
+                  report_id: persisted.sessionId,
+                  report_delivered: true,
+                  student_completion_email_sent_at: new Date().toISOString(),
+                  report_preview:
+                    persisted.reportData?.report_text?.trim()
+                      ? { report_text_preview: persisted.reportData.report_text }
+                      : undefined,
+                },
+              ]
+            : [];
+        const merged = [...persistedList, ...backendList].filter(
+          (session, index, arr) => arr.findIndex((candidate) => candidate.id === session.id) === index
+        );
+        merged.sort(
+          (a, b) =>
+            (b.completed_at || b.created_at || "").localeCompare(a.completed_at || a.created_at || "")
+        );
+        setStep0Sessions(merged);
       })
       .catch((e) => {
         if (typeof console !== "undefined" && console.warn) {
@@ -837,6 +864,8 @@ export default function HomeworkFlowCard() {
       setMetricStepBlockedByRecordingFailure(false);
       if (shouldPollReports) {
         setPollReportsAfterFinish(true);
+        setReviewPending(true);
+        setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       }
       // Refetch status after navigating to step 0 so the waiting/review state and countdown can update immediately.
       homeworkApi.getStatus().then((statusRes) => {
@@ -1070,6 +1099,32 @@ export default function HomeworkFlowCard() {
       .then(setLoadingLottieData)
       .catch(() => {});
   }, [step, loadingLottieData]);
+
+  useEffect(() => {
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
+    if (!reportData || (reportData.coach_insight ?? "").trim()) return;
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    const intervalMs = 8000;
+    const id = setInterval(() => {
+      attempts += 1;
+      homeworkApi
+        .getReport(sessionId)
+        .then((data) => {
+          setReportData(data);
+          if ((data.coach_insight ?? "").trim()) {
+            clearInterval(id);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (attempts >= maxAttempts) clearInterval(id);
+        });
+    }, intervalMs);
+
+    return () => clearInterval(id);
+  }, [reportData, sessionId, step]);
 
   // When report is still being generated, poll automatically (no user click).
   // Also check session/status for terminal recording_1 failure so we can stop spinning forever.
@@ -1409,7 +1464,7 @@ export default function HomeworkFlowCard() {
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
     const waitingMessage =
       mainScreenMessage ??
-      "Artur is analysing your homework and will send you the grading and comment soon. If you pass, we will see each other in the next step!";
+      REVIEW_PENDING_DEFAULT_MESSAGE;
 
     const step0ReportsListId = "step0-reports-history";
     const visibleStep0Sessions = step0Sessions.slice(0, visibleReportsCount);
@@ -2002,7 +2057,7 @@ export default function HomeworkFlowCard() {
               {coachInsight ? (
                 <p className="text-sm text-foreground leading-relaxed">{coachInsight}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">AI Coach Insight is still loading…</p>
+                <p className="text-sm text-muted-foreground">Coach insight is being prepared.</p>
               )}
             </div>
           </div>
