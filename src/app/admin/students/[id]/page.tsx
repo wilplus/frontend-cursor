@@ -1349,15 +1349,16 @@ export default function AdminStudentProfilePage() {
 
   const assignedQuestions = postRecordingQuestions;
 
-  // Show sessions that have a report or are completed (so reports appear even if backend hasn't set report_preview yet)
+  // Show sessions whose report was delivered, with older fields kept as compatibility fallbacks.
   const reports = (profile?.sessions ?? [])
     .filter(
       (s) =>
+        s.report_delivered === true ||
+        !!s.student_completion_email_sent_at ||
         (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
-        s.status === "completed" ||
-        !!s.recording_id
+        !!s.report_id
     )
-    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
+    .sort((a, b) => (b.completed_at || b.created_at || "").localeCompare(a.completed_at || a.created_at || ""))
     .slice(0, 20);
 
   useEffect(() => {

@@ -65,6 +65,7 @@ export interface StudentProfile {
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: StudentSniperProgress | null;
+  last_report_delivered?: boolean | null;
   overrides: {
     show_exercise_step?: boolean;
     intended_emotion_prompt?: string;
@@ -94,9 +95,12 @@ export interface StudentProfile {
   sessions: Array<{
     id: string;
     created_at: string;
+    completed_at?: string | null;
     status: string;
     recording_id?: string;
     report_id?: string;
+    report_delivered?: boolean | null;
+    student_completion_email_sent_at?: string | null;
     task_score?: number;
     /** Coach grade 1–10 or null (not graded). */
     coach_grade?: number | null;

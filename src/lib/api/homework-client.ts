@@ -163,9 +163,13 @@ export const homeworkApi = {
     sessions: Array<{
       id: string;
       created_at?: string;
+      completed_at?: string;
       status?: string;
       coach_grade?: number | null;
       recording_id?: string;
+      report_id?: string;
+      report_delivered?: boolean | null;
+      student_completion_email_sent_at?: string | null;
       report_preview?: { report_text_preview?: string };
     }>;
   }> {
