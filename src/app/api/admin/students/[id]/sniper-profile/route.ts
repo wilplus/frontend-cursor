@@ -59,5 +59,36 @@ export async function GET(
     );
   }
 
-  return jsonWithCookies({ profile: data ?? null }, { status: 200 }, cookieResponse);
+  const hasRealtimeProgress =
+    data != null && (data.realtime_level != null || data.realtime_step != null);
+
+  if (hasRealtimeProgress) {
+    return jsonWithCookies({ profile: data }, { status: 200 }, cookieResponse);
+  }
+
+  const { data: latestSessionSnapshot } = await supabase
+    .from("session_sniper_metrics")
+    .select("user_id,realtime_level_at_session,realtime_step_at_session,created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const fallbackProfile =
+    latestSessionSnapshot &&
+    (latestSessionSnapshot.realtime_level_at_session != null ||
+      latestSessionSnapshot.realtime_step_at_session != null)
+      ? {
+          user_id: latestSessionSnapshot.user_id,
+          realtime_level: latestSessionSnapshot.realtime_level_at_session,
+          realtime_step: latestSessionSnapshot.realtime_step_at_session,
+          updated_at: latestSessionSnapshot.created_at,
+        }
+      : null;
+
+  return jsonWithCookies(
+    { profile: data ?? fallbackProfile ?? null },
+    { status: 200 },
+    cookieResponse
+  );
 }
