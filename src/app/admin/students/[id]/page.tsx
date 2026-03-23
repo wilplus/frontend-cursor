@@ -1349,15 +1349,8 @@ export default function AdminStudentProfilePage() {
 
   const assignedQuestions = postRecordingQuestions;
 
-  // Show sessions whose report was delivered, with older fields kept as compatibility fallbacks.
+  // Backend now returns delivered reports only; render that list directly.
   const reports = (profile?.sessions ?? [])
-    .filter(
-      (s) =>
-        s.report_delivered === true ||
-        !!s.student_completion_email_sent_at ||
-        (s.report_preview?.report_text_preview && s.report_preview.report_text_preview.trim() !== "") ||
-        !!s.report_id
-    )
     .sort((a, b) => (b.completed_at || b.created_at || "").localeCompare(a.completed_at || a.created_at || ""))
     .slice(0, 20);
 
