@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   adminApi,
+  getStudentSniperProgressFromProfile,
+  type SendAssignmentResponse,
   type StudentProfile,
   type StudentSniperProgress,
   type PostQuestion,
@@ -35,6 +37,37 @@ function stripHtmlToText(input: string | null | undefined): string {
   const div = document.createElement("div");
   div.innerHTML = input;
   return (div.textContent || div.innerText || "").trim();
+}
+
+function getStudentSniperProgressFromAssignmentResponse(
+  userId: string,
+  response: SendAssignmentResponse
+): StudentSniperProgress | null {
+  const nestedProfile = response.sniper_profile;
+  const realtimeLevel = response.realtime_level ?? nestedProfile?.realtime_level ?? null;
+  const realtimeStep = response.realtime_step ?? nestedProfile?.realtime_step ?? null;
+  const sessionsWithPitchCount = nestedProfile?.sessions_with_pitch_count ?? null;
+  const realtimePitchBaselineSt = nestedProfile?.realtime_pitch_baseline_st ?? null;
+  const updatedAt = nestedProfile?.updated_at ?? null;
+
+  if (
+    realtimeLevel == null &&
+    realtimeStep == null &&
+    sessionsWithPitchCount == null &&
+    realtimePitchBaselineSt == null &&
+    updatedAt == null
+  ) {
+    return null;
+  }
+
+  return {
+    user_id: nestedProfile?.user_id ?? userId,
+    realtime_level: realtimeLevel,
+    realtime_step: realtimeStep,
+    sessions_with_pitch_count: sessionsWithPitchCount,
+    realtime_pitch_baseline_st: realtimePitchBaselineSt,
+    updated_at: updatedAt,
+  };
 }
 
 // —— Editable list row: text + hover Edit/Delete; edit = inline input + Check/X ——
@@ -675,6 +708,8 @@ export default function AdminStudentProfilePage() {
       .getStudentProfile(id)
       .then((p) => {
         setProfile(p);
+        const profileSniperProgress = getStudentSniperProgressFromProfile(p);
+        setStudentSniperProgress(profileSniperProgress);
         const rawName = (p as { name?: string | null; display_name?: string | null }).name
           ?? (p as { name?: string | null; display_name?: string | null }).display_name
           ?? "";
@@ -724,10 +759,11 @@ export default function AdminStudentProfilePage() {
           adminApi.getStudentPostRecordingQuestions(id),
           adminApi.getExercises(),
           adminApi.getStudentSniperProgress(id),
-        ]);
+        ]).then((results) => ({ results, profileSniperProgress }));
       })
-      .then((results) => {
-        if (!results) return;
+      .then((payload) => {
+        if (!payload) return;
+        const { results, profileSniperProgress } = payload;
         const [poolRes, warmUpRes, focusRes, userMetricsRes, studentQuestionsRes] = results;
         if (poolRes.status === "fulfilled") setPostQuestions(poolRes.value);
         else toast.error(poolRes.reason?.message ?? "Could not load questions pool");
@@ -760,10 +796,10 @@ export default function AdminStudentProfilePage() {
         const exercisesRes = results[5];
         if (exercisesRes?.status === "fulfilled") setExercises(exercisesRes.value);
         const sniperProgressRes = results[6];
-        if (sniperProgressRes?.status === "fulfilled") {
+        if (sniperProgressRes?.status === "fulfilled" && sniperProgressRes.value) {
           setStudentSniperProgress(sniperProgressRes.value);
         } else {
-          setStudentSniperProgress(null);
+          setStudentSniperProgress(profileSniperProgress);
         }
       })
       .catch((e) => {
@@ -928,7 +964,28 @@ export default function AdminStudentProfilePage() {
     const body = videoDesc ? { video_description: videoDesc } : undefined;
     adminApi
       .sendAssignment(id, body)
-      .then(() => {
+      .then((response) => {
+        const progress = getStudentSniperProgressFromAssignmentResponse(id, response);
+        if (progress) {
+          setStudentSniperProgress(progress);
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  realtime_level: progress.realtime_level ?? prev.realtime_level ?? null,
+                  realtime_step: progress.realtime_step ?? prev.realtime_step ?? null,
+                  sniper_profile: {
+                    ...(prev.sniper_profile ?? { user_id: progress.user_id }),
+                    ...progress,
+                  },
+                }
+              : prev
+          );
+        }
+        if (response.sent === false) {
+          toast.error("Homework was not sent yet. Progression stays unchanged until the email send succeeds.");
+          return;
+        }
         toast.success("Homework sent");
         setAssignmentVideoDescription("");
       })
@@ -1321,13 +1378,13 @@ export default function AdminStudentProfilePage() {
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="block text-sm font-medium">Current realtime level</label>
+            <label className="block text-sm font-medium">Current unlocked level</label>
             <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
               {studentSniperProgress?.realtime_level != null ? studentSniperProgress.realtime_level : "—"}
             </div>
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-medium">Current realtime step</label>
+            <label className="block text-sm font-medium">Current unlocked step</label>
             <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
               {studentSniperProgress?.realtime_step != null ? studentSniperProgress.realtime_step : "—"}
             </div>

@@ -22,16 +22,9 @@ export function resolveRealtimeTrainingStep(
 ): RealtimeTrainingStep {
   const requestedLevel = profile?.realtime_level ?? 1;
   const requestedStep = profile?.realtime_step ?? 1;
-  const hasPitchBaseline =
-    typeof profile?.realtime_pitch_baseline_st === "number" &&
-    Number.isFinite(profile.realtime_pitch_baseline_st);
-  const hasPitchSessions = typeof profile?.sessions_with_pitch_count === "number" && profile.sessions_with_pitch_count > 0;
   if (requestedLevel === 1) {
     if (profile?.realtime_step != null) {
       return resolveLevel1StepNumber(requestedStep);
-    }
-    if (hasPitchBaseline || hasPitchSessions) {
-      return LEVEL_1_STEP_2;
     }
   }
   return LEVEL_1_STEP_1;

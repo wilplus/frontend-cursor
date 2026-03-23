@@ -145,6 +145,19 @@ export interface HomeworkResponse {
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student. Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
+  review_pending?: boolean | null;
+  main_screen_state?: string | null;
+  main_screen_message?: string | null;
+  sniper_profile?: {
+    user_id?: string;
+    realtime_level?: number | null;
+    realtime_step?: number | null;
+    realtime_pitch_baseline_st?: number | null;
+    sessions_with_pitch_count?: number | null;
+    updated_at?: string | null;
+  } | null;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
   session?: unknown;
   has_active_session?: boolean;
 }
@@ -219,6 +232,19 @@ export interface HomeworkSessionStatus {
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
+  review_pending?: boolean | null;
+  main_screen_state?: string | null;
+  main_screen_message?: string | null;
+  sniper_profile?: {
+    user_id?: string;
+    realtime_level?: number | null;
+    realtime_step?: number | null;
+    realtime_pitch_baseline_st?: number | null;
+    sessions_with_pitch_count?: number | null;
+    updated_at?: string | null;
+  } | null;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
   /** Backend: recording-1 job state. When not "pending", safe to call POST self-rating again to trigger completion. */
   recording_1_processing_status?: string | null;
   /** Backend: when true, show the current 1–5 self-rating step and allow POST self-rating. */
@@ -271,6 +297,12 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     tutor_feedback_message: raw.tutor_feedback_message ?? null,
     tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
     assigned_exercises: Array.isArray(raw.assigned_exercises) ? raw.assigned_exercises : [],
+    review_pending: raw.review_pending ?? null,
+    main_screen_state: raw.main_screen_state ?? null,
+    main_screen_message: raw.main_screen_message ?? null,
+    sniper_profile: raw.sniper_profile ?? null,
+    realtime_level: raw.realtime_level ?? raw.sniper_profile?.realtime_level ?? null,
+    realtime_step: raw.realtime_step ?? raw.sniper_profile?.realtime_step ?? null,
   };
 }
 
@@ -336,6 +368,16 @@ export interface HomeworkReportResponse {
   scores: { warmup: number; final: number; overall: number };
   /** Canonical backend score for UI display (0–100). */
   score_for_display?: number | null;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
+  sniper_profile?: {
+    user_id?: string;
+    realtime_level?: number | null;
+    realtime_step?: number | null;
+    realtime_pitch_baseline_st?: number | null;
+    sessions_with_pitch_count?: number | null;
+    updated_at?: string | null;
+  } | null;
   final_recording: { id: string | null; audio_url: string | null };
   /** Last 5 sessions' performance (oldest first). When absent, frontend may derive a single point from scores.overall. */
   performance_history?: PerformanceHistoryPoint[];

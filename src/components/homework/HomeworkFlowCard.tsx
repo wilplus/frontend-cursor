@@ -44,6 +44,100 @@ const DEFAULT_INTRO_EXERCISE: AssignedExercise = {
   video_url: "https://vimeo.com/1169874052?fl=ip&fe=ec",
 };
 
+function getSniperProfileFromReport(
+  report: HomeworkReportResponse,
+  existingProfile: UserSniperProfile | null
+): UserSniperProfile | null {
+  const nestedProfile = report.sniper_profile;
+  const realtimeLevel =
+    report.realtime_level ?? nestedProfile?.realtime_level ?? existingProfile?.realtime_level ?? null;
+  const realtimeStep =
+    report.realtime_step ?? nestedProfile?.realtime_step ?? existingProfile?.realtime_step ?? null;
+  const realtimePitchBaselineSt =
+    nestedProfile?.realtime_pitch_baseline_st ?? existingProfile?.realtime_pitch_baseline_st ?? null;
+  const sessionsWithPitchCount =
+    nestedProfile?.sessions_with_pitch_count ?? existingProfile?.sessions_with_pitch_count;
+
+  if (
+    realtimeLevel == null &&
+    realtimeStep == null &&
+    realtimePitchBaselineSt == null &&
+    sessionsWithPitchCount == null &&
+    !nestedProfile?.user_id &&
+    !existingProfile
+  ) {
+    return null;
+  }
+
+  return {
+    user_id: nestedProfile?.user_id ?? existingProfile?.user_id ?? "unknown",
+    session_count: existingProfile?.session_count ?? 0,
+    sessions_with_energy_count: existingProfile?.sessions_with_energy_count ?? 0,
+    sessions_with_pitch_count: sessionsWithPitchCount,
+    baseline_wpm: existingProfile?.baseline_wpm ?? null,
+    baseline_pause_ms: existingProfile?.baseline_pause_ms ?? null,
+    baseline_dynamic_db: existingProfile?.baseline_dynamic_db ?? null,
+    baseline_emphasis_per_min: existingProfile?.baseline_emphasis_per_min ?? null,
+    baseline_energy_ratio: existingProfile?.baseline_energy_ratio ?? null,
+    realtime_level: realtimeLevel ?? undefined,
+    realtime_step: realtimeStep ?? undefined,
+    realtime_pitch_baseline_st: realtimePitchBaselineSt,
+    baseline_pitch_range_st: existingProfile?.baseline_pitch_range_st ?? null,
+    baseline_fatigue_sec: existingProfile?.baseline_fatigue_sec ?? null,
+    created_at: existingProfile?.created_at ?? "",
+    updated_at: nestedProfile?.updated_at ?? existingProfile?.updated_at ?? "",
+  };
+}
+
+function getSniperProfileFromStatusPayload(
+  status:
+    | HomeworkSessionStatus
+    | HomeworkResponse
+    | null
+    | undefined,
+  existingProfile: UserSniperProfile | null
+): UserSniperProfile | null {
+  const nestedProfile = status?.sniper_profile;
+  const realtimeLevel =
+    status?.realtime_level ?? nestedProfile?.realtime_level ?? existingProfile?.realtime_level ?? null;
+  const realtimeStep =
+    status?.realtime_step ?? nestedProfile?.realtime_step ?? existingProfile?.realtime_step ?? null;
+  const realtimePitchBaselineSt =
+    nestedProfile?.realtime_pitch_baseline_st ?? existingProfile?.realtime_pitch_baseline_st ?? null;
+  const sessionsWithPitchCount =
+    nestedProfile?.sessions_with_pitch_count ?? existingProfile?.sessions_with_pitch_count;
+
+  if (
+    realtimeLevel == null &&
+    realtimeStep == null &&
+    realtimePitchBaselineSt == null &&
+    sessionsWithPitchCount == null &&
+    !nestedProfile?.user_id &&
+    !existingProfile
+  ) {
+    return null;
+  }
+
+  return {
+    user_id: nestedProfile?.user_id ?? existingProfile?.user_id ?? "unknown",
+    session_count: existingProfile?.session_count ?? 0,
+    sessions_with_energy_count: existingProfile?.sessions_with_energy_count ?? 0,
+    sessions_with_pitch_count: sessionsWithPitchCount,
+    baseline_wpm: existingProfile?.baseline_wpm ?? null,
+    baseline_pause_ms: existingProfile?.baseline_pause_ms ?? null,
+    baseline_dynamic_db: existingProfile?.baseline_dynamic_db ?? null,
+    baseline_emphasis_per_min: existingProfile?.baseline_emphasis_per_min ?? null,
+    baseline_energy_ratio: existingProfile?.baseline_energy_ratio ?? null,
+    realtime_level: realtimeLevel ?? undefined,
+    realtime_step: realtimeStep ?? undefined,
+    realtime_pitch_baseline_st: realtimePitchBaselineSt,
+    baseline_pitch_range_st: existingProfile?.baseline_pitch_range_st ?? null,
+    baseline_fatigue_sec: existingProfile?.baseline_fatigue_sec ?? null,
+    created_at: existingProfile?.created_at ?? "",
+    updated_at: nestedProfile?.updated_at ?? existingProfile?.updated_at ?? "",
+  };
+}
+
 function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSeconds / 3600);
@@ -218,6 +312,9 @@ export default function HomeworkFlowCard() {
   const [tutorFeedbackDeadlineMs, setTutorFeedbackDeadlineMs] = useState<number | null>(null);
   /** When no active session: message from backend (e.g. tutor warning). Show as info banner on step 0. */
   const [tutorFeedbackMessage, setTutorFeedbackMessage] = useState<string | null>(null);
+  /** When true, step 0 should show the coach-review waiting state instead of the assignment/video card. */
+  const [reviewPending, setReviewPending] = useState(false);
+  const [mainScreenMessage, setMainScreenMessage] = useState<string | null>(null);
   /** Message from coach to the student for this homework (e.g. after assignment). Shown when step >= 1; no video. From tutor_video_description. */
   const [coachMessageAfterHomework, setCoachMessageAfterHomework] = useState<string | null>(null);
   /** When step 0 and has_active_session false: exercises assigned to this student (from GET status assigned_exercises). */
@@ -273,10 +370,28 @@ export default function HomeworkFlowCard() {
   const stepRef = useRef(step);
   stepRef.current = step;
 
-  /** Refetch status on step 0 (mount/load) so the UI gets tutor_feedback_deadline and the timer can show. Without this, the countdown never appears. Runs whenever we land on step 0 (e.g. after "Send the homework to the coach!"). Wait for auth to avoid 500 on first load. */
   useEffect(() => {
-    if (!authReady || step !== 0) return;
-    homeworkApi.getStatus().then((statusRes) => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
+  const refreshSniperProfile = useCallback(
+    async (signal?: AbortSignal) => {
+      const response = await fetch("/api/user/sniper-profile", signal ? { signal } : undefined);
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error("Failed to load sniper profile");
+      const data = await response.json().catch(() => null);
+      if (data && typeof data.user_id === "string") {
+        setSniperProfile(data);
+        return data;
+      }
+      return null;
+    },
+    []
+  );
+
+  const syncDashboardStateFromStatus = useCallback(
+    (statusRes: HomeworkSessionStatus | null | undefined) => {
       const deadlineIso = statusRes?.tutor_feedback_deadline;
       if (deadlineIso && typeof deadlineIso === "string") {
         const ms = new Date(deadlineIso).getTime();
@@ -284,20 +399,48 @@ export default function HomeworkFlowCard() {
       } else {
         setTutorFeedbackDeadlineMs(null);
       }
-      const msg = statusRes?.tutor_feedback_message;
-      setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-      // Only update when backend sends a non-empty list so old exercises stay visible on step 0 until new ones are assigned
-      if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
+
+      const feedbackMessage = statusRes?.tutor_feedback_message;
+      setTutorFeedbackMessage(
+        typeof feedbackMessage === "string" && feedbackMessage.trim()
+          ? feedbackMessage.trim()
+          : null
+      );
+
+      setReviewPending(statusRes?.review_pending === true);
+      const waitingMessage = statusRes?.main_screen_message;
+      setMainScreenMessage(
+        typeof waitingMessage === "string" && waitingMessage.trim()
+          ? waitingMessage.trim()
+          : null
+      );
+
+      if (Array.isArray(statusRes?.assigned_exercises)) {
         setAssignedExercises(statusRes.assigned_exercises);
+      } else {
+        setAssignedExercises([]);
       }
+
+      setSniperProfile((prev) => getSniperProfileFromStatusPayload(statusRes, prev) ?? prev);
+    },
+    []
+  );
+
+  /** Refetch status and backend-owned realtime step on step 0 so newly assigned homework can unlock the next step. */
+  useEffect(() => {
+    if (!authReady || step !== 0) return;
+    homeworkApi.getStatus().then((statusRes) => {
+      syncDashboardStateFromStatus(statusRes);
     }).catch((err) => {
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
+      setReviewPending(false);
+      setMainScreenMessage(null);
       if (typeof console !== "undefined" && console.warn) {
         console.warn("[HomeworkFlow] Step 0 status refetch failed (timer may not show):", err);
       }
     });
-  }, [authReady, step]);
+  }, [authReady, step, syncDashboardStateFromStatus]);
 
   /** Fetch reports list (same source as admin). Called when user first clicks "View reports". */
   const fetchStep0Reports = useCallback(() => {
@@ -425,23 +568,11 @@ export default function HomeworkFlowCard() {
     if (!authReady || step !== 0 || tutorFeedbackDeadlineMs == null) return;
     const id = setInterval(() => {
       homeworkApi.getStatus().then((statusRes) => {
-        const deadlineIso = statusRes?.tutor_feedback_deadline;
-        if (deadlineIso && typeof deadlineIso === "string") {
-          const ms = new Date(deadlineIso).getTime();
-          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
-          else setTutorFeedbackDeadlineMs(null);
-        } else {
-          setTutorFeedbackDeadlineMs(null);
-        }
-        const msg = statusRes?.tutor_feedback_message;
-        setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
-        if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
-          setAssignedExercises(statusRes.assigned_exercises);
-        }
+        syncDashboardStateFromStatus(statusRes);
       }).catch(() => {});
     }, TUTOR_DEADLINE_POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [authReady, step, tutorFeedbackDeadlineMs]);
+  }, [authReady, step, syncDashboardStateFromStatus, tutorFeedbackDeadlineMs]);
 
   /** Show navbar on step 0 (start), step 2 (self-rate), and step 3 (score); hide on step 1. */
   useEffect(() => {
@@ -470,6 +601,12 @@ export default function HomeworkFlowCard() {
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
+      setReviewPending(res.review_pending === true);
+      setMainScreenMessage(
+        typeof res.main_screen_message === "string" && res.main_screen_message.trim()
+          ? res.main_screen_message.trim()
+          : null
+      );
       // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 3 score)
       setCoachMessageAfterHomework(null);
       // Do not clear assignedExercises here; step 0 effect will refetch and set from GET status
@@ -486,6 +623,8 @@ export default function HomeworkFlowCard() {
       return;
     }
 
+    setReviewPending(false);
+    setMainScreenMessage(null);
     if ("task" in res && res.task !== undefined) {
       setTask(resolveTaskText(res.task));
     }
@@ -511,9 +650,10 @@ export default function HomeworkFlowCard() {
       const desc = res.tutor_video_description;
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
-    if (Array.isArray(res.assigned_exercises) && res.assigned_exercises.length > 0) {
+    if (Array.isArray(res.assigned_exercises)) {
       setAssignedExercises(res.assigned_exercises);
     }
+    setSniperProfile((prev) => getSniperProfileFromStatusPayload(res, prev) ?? prev);
     if (status === "task_block" || status === "final_task_ready" || status === "post_questions") {
       setReportFromRecording1Only(true);
     }
@@ -702,28 +842,13 @@ export default function HomeworkFlowCard() {
       .then((statusRes) => {
         if (cancelled) return;
         if (!statusRes || statusRes.has_active_session === false) {
-          applyStatusToState({ status: "none" });
-          if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
-            const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
-            if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
-          }
-          if (typeof statusRes?.tutor_feedback_message === "string" && statusRes.tutor_feedback_message.trim()) {
-            setTutorFeedbackMessage(statusRes.tutor_feedback_message.trim());
-          }
+          applyStatusToState(getStatusToHomeworkResponse(statusRes ?? { status: "none" }));
+          syncDashboardStateFromStatus(statusRes);
           return;
         }
         applyStatusToState(getStatusToHomeworkResponse(statusRes));
         setStep(deriveHomeworkStep(statusRes));
-        if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
-          const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
-          if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
-        }
-        if (typeof statusRes?.tutor_feedback_message === "string" && statusRes.tutor_feedback_message.trim()) {
-          setTutorFeedbackMessage(statusRes.tutor_feedback_message.trim());
-        }
-        if (Array.isArray(statusRes?.assigned_exercises) && statusRes.assigned_exercises.length > 0) {
-          setAssignedExercises(statusRes.assigned_exercises);
-        }
+        syncDashboardStateFromStatus(statusRes);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -742,13 +867,18 @@ export default function HomeworkFlowCard() {
       cancelled = true;
       setLoading(false);
     };
-  }, [authReady, step]);
+  }, [authReady, step, syncDashboardStateFromStatus]);
 
-  // Tab refocus: refresh data and only move the user forward in the flow.
+  // Tab refocus: refresh the active homework state and pull any coach-controlled step unlocks.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (stepRef.current === 0) return;
+      if (stepRef.current === 0) {
+        homeworkApi.getStatus().then((statusRes) => {
+          syncDashboardStateFromStatus(statusRes);
+        }).catch(() => {});
+        return;
+      }
       homeworkApi.getStatus().then((res) => {
         if (!res) return;
         applyStatusToState(getStatusToHomeworkResponse(res));
@@ -757,7 +887,7 @@ export default function HomeworkFlowCard() {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, []);
+  }, [syncDashboardStateFromStatus]);
 
   const [reportFromRecording1Only, setReportFromRecording1Only] = useState(false);
   // Legacy step-4/old-flow effects removed; active flow is step 0 → 1 → 2 → 3.
@@ -775,6 +905,7 @@ export default function HomeworkFlowCard() {
       .getReport(sessionId)
       .then((data) => {
         setReportData(data);
+        setSniperProfile((prev) => getSniperProfileFromReport(data, prev) ?? prev);
         setReportError(null);
         setReportNotReady(false);
         setPendingRetrySelfRating(null);
@@ -809,7 +940,7 @@ export default function HomeworkFlowCard() {
         setReportData(null);
       })
       .finally(() => setReportLoading(false));
-  }, [step, sessionId, reportRetryCount]);
+  }, [reportRetryCount, sessionId, step]);
 
   // Load Lottie animation for report loading / generating states
   useEffect(() => {
@@ -924,16 +1055,12 @@ export default function HomeworkFlowCard() {
     const tid = setTimeout(() => {
       const ac = new AbortController();
       const timeoutId = setTimeout(() => ac.abort(), timeoutMs);
-      fetch("/api/user/sniper-profile", { signal: ac.signal })
-        .then((r) => (r.status === 404 ? null : r.json()))
-        .then((data) => {
-          if (data && typeof data.user_id === "string") setSniperProfile(data);
-        })
+      refreshSniperProfile(ac.signal)
         .catch(() => {})
         .finally(() => clearTimeout(timeoutId));
     }, delayMs);
     return () => clearTimeout(tid);
-  }, [step]);
+  }, [refreshSniperProfile, step]);
 
   const RECORDING_1_DURATION_MIN = 30;
   const RECORDING_2_DURATION_MIN = 62;
@@ -1160,6 +1287,9 @@ export default function HomeworkFlowCard() {
     const ex = step0Exercises[0];
     const videoUrl = ex?.video_url?.trim();
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
+    const waitingMessage =
+      mainScreenMessage ??
+      "Artur is analysing your homework and will send you the grading and comment soon. If you pass, we will see each other in the next step!";
 
     const step0ReportsListId = "step0-reports-history";
 
@@ -1168,45 +1298,80 @@ export default function HomeworkFlowCard() {
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
             <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-4">
-              <div className="w-full">
-                {videoUrl ? (
-                  vimeoId ? (
-                    <div className="aspect-[9/16] w-full overflow-hidden rounded-lg bg-black">
-                      <iframe
-                        src={`https://player.vimeo.com/video/${vimeoId}`}
-                        title="Video"
-                        className="h-full w-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setVideoModalUrl(videoUrl)}
-                      className="relative flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
+              {reviewPending ? (
+                <div className="w-full rounded-3xl border border-border bg-muted/40 px-5 py-6 text-center shadow-sm">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-6 w-6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
                     >
-                      <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
-                        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg">
-                          <Play className="h-7 w-7 ml-1" fill="currentColor" />
-                        </span>
-                      </span>
-                    </button>
-                  )
-                ) : (
-                  <div className="flex aspect-[9/16] w-full items-center justify-center rounded-lg bg-muted/50 border border-border">
-                    <p className="text-sm text-muted-foreground">No video</p>
+                      <path d="M12 6v6l4 2" />
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
                   </div>
-                )}
-              </div>
+                  <div className="mt-4 space-y-3">
+                    <p className="text-lg font-semibold text-foreground">Your homework is being reviewed</p>
+                    <p className="text-sm leading-6 text-muted-foreground">{waitingMessage}</p>
+                    {(sniperProfile?.realtime_level != null || sniperProfile?.realtime_step != null) ? (
+                      <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-foreground">
+                        Current unlocked progress: Level {sniperProfile?.realtime_level ?? "—"}, Step{" "}
+                        {sniperProfile?.realtime_step ?? "—"}
+                      </div>
+                    ) : null}
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      We&apos;ll email you when your next homework is ready.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="w-full">
+                    {videoUrl ? (
+                      vimeoId ? (
+                        <div className="aspect-[9/16] w-full overflow-hidden rounded-lg bg-black">
+                          <iframe
+                            src={`https://player.vimeo.com/video/${vimeoId}`}
+                            title="Video"
+                            className="h-full w-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setVideoModalUrl(videoUrl)}
+                          className="relative flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-lg bg-muted transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
+                            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-lg">
+                              <Play className="h-7 w-7 ml-1" fill="currentColor" />
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    ) : (
+                      <div className="flex aspect-[9/16] w-full items-center justify-center rounded-lg bg-muted/50 border border-border">
+                        <p className="text-sm text-muted-foreground">No video</p>
+                      </div>
+                    )}
+                  </div>
 
-              <Button
-                onClick={handleStart}
-                disabled={loading}
-                className="w-full max-w-[280px] rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
-              >
-                {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
-              </Button>
+                  <Button
+                    onClick={handleStart}
+                    disabled={loading}
+                    className="w-full max-w-[280px] rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
+                  >
+                    {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
+                  </Button>
+                </>
+              )}
 
               <Button
                 variant="ghost"
@@ -1421,7 +1586,7 @@ export default function HomeworkFlowCard() {
         <Card className="mx-auto w-full max-w-2xl border-0 bg-transparent px-4 py-6 shadow-none sm:px-6">
           <div className="mb-6 text-center">
             <p className="text-2xl font-bold leading-tight text-foreground sm:text-3xl md:text-4xl">
-              How do you feel about speaking performance?
+              How do you feel about your performance
             </p>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-base md:text-lg">
               Choose a number from 1 to 5, with 1 being your lowest rating and 5 being your strongest.

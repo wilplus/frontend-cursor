@@ -62,6 +62,9 @@ export interface StudentProfile {
   email: string | null;
   name?: string | null;
   price_per_live_lesson?: number | null;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
+  sniper_profile?: StudentSniperProgress | null;
   overrides: {
     show_exercise_step?: boolean;
     intended_emotion_prompt?: string;
@@ -71,6 +74,8 @@ export interface StudentProfile {
     assigned_exercise_ids?: string[];
     assigned_next_exercise_id?: string;
     assigned_next_task_ids?: string[];
+    assigned_realtime_level?: number | null;
+    assigned_realtime_step?: number | null;
     /** When true, student skips step 2 prompts. Backend must transition recording_1 → final_task_ready. */
     skip_metric_questions?: boolean;
     /** When true, student skips step 4 (post-questions). Backend must transition recording_2 → completed. */
@@ -110,6 +115,46 @@ export interface StudentSniperProgress {
   sessions_with_pitch_count?: number | null;
   realtime_pitch_baseline_st?: number | null;
   updated_at?: string | null;
+}
+
+export interface SendAssignmentResponse {
+  status: string;
+  sent?: boolean | null;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
+  sniper_profile?: StudentSniperProgress | null;
+}
+
+export function getStudentSniperProgressFromProfile(
+  profile: StudentProfile | null | undefined
+): StudentSniperProgress | null {
+  if (!profile) return null;
+
+  const nestedProfile = profile.sniper_profile;
+  const realtimeLevel = nestedProfile?.realtime_level ?? profile.realtime_level ?? null;
+  const realtimeStep = nestedProfile?.realtime_step ?? profile.realtime_step ?? null;
+  const sessionsWithPitchCount = nestedProfile?.sessions_with_pitch_count ?? null;
+  const realtimePitchBaselineSt = nestedProfile?.realtime_pitch_baseline_st ?? null;
+  const updatedAt = nestedProfile?.updated_at ?? null;
+
+  if (
+    realtimeLevel == null &&
+    realtimeStep == null &&
+    sessionsWithPitchCount == null &&
+    realtimePitchBaselineSt == null &&
+    updatedAt == null
+  ) {
+    return null;
+  }
+
+  return {
+    user_id: nestedProfile?.user_id ?? profile.user_id,
+    realtime_level: realtimeLevel,
+    realtime_step: realtimeStep,
+    sessions_with_pitch_count: sessionsWithPitchCount,
+    realtime_pitch_baseline_st: realtimePitchBaselineSt,
+    updated_at: updatedAt,
+  };
 }
 
 /** Recording with transcription and filler words (optional; aligns with homework report). */
@@ -546,7 +591,7 @@ export const adminApi = {
 
   /** Optional body: { video_url?, video_description? }. Only keys with non-empty values are sent. Used in assignment email. */
   sendAssignment: (userId: string, body?: { video_url?: string; video_description?: string }) =>
-    adminFetch<{ status: string }>(`/students/${userId}/send-assignment`, {
+    adminFetch<SendAssignmentResponse>(`/students/${userId}/send-assignment`, {
       method: "POST",
       ...(body && Object.keys(body).length > 0 ? { body } : {}),
     }),
