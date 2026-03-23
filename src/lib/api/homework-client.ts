@@ -458,4 +458,6 @@ export interface SelfRatingResponse {
   /** Stored in the legacy backend field name, but current scale is 1-5. */
   student_rating_1_10?: number;
   skipped?: true;
+  /** When backend transitions to final_task_ready, the final task prompt for recording 2. */
+  final_task?: string | null;
 }

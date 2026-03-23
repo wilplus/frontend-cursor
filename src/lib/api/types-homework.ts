@@ -14,24 +14,35 @@ export type PublicHomeworkStatus =
   | "post_questions"
   | "completed"
   | "completing_from_recording_1"
+  | "completing_from_recording_2"
   | "report_generating";
 
-export type Step = 0 | 1 | 2 | 3;
+export type Step = 0 | 1 | 2 | 3 | 4;
 
-/** Single mapping: backend status → UI step. completing_from_recording_1/report_generating = report in progress → step 3. */
+/**
+ * Single mapping: backend status → UI step.
+ * Step 3 = recording 2 (final task).
+ * Step 4 = report (was step 3 before recording 2 was added).
+ */
 export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   switch (status) {
     case "none":
       return 0;
     case "recording_1_required":
       return 1;
+    // task_block: between recordings — show self-rating (step 2) while job processes
     case "task_block":
+      return 2;
+    // final_task_ready: recording 2 unlocked
     case "final_task_ready":
+      return 3;
+    // post_questions, completing_from_recording_2, completed, report_generating → report
     case "post_questions":
+    case "completing_from_recording_2":
     case "completed":
     case "completing_from_recording_1":
     case "report_generating":
-      return 3;
+      return 4;
     default: {
       const _exhaustive: never = status;
       return 0;
@@ -86,9 +97,8 @@ export function deriveHomeworkStep(
     hasReportPayload ||
     normalizedStatus === "completed" ||
     normalizedStatus === "completing_from_recording_1" ||
+    normalizedStatus === "completing_from_recording_2" ||
     normalizedStatus === "report_generating" ||
-    normalizedStatus === "task_block" ||
-    normalizedStatus === "final_task_ready" ||
     normalizedStatus === "post_questions" ||
     rawStatusTokens.includes("completed") ||
     rawStatusTokens.includes("report_generated") ||
@@ -98,6 +108,11 @@ export function deriveHomeworkStep(
     rawStatusTokens.includes("recording_2_uploaded") ||
     rawStatusTokens.includes("recording_2_scored")
   ) {
+    return 4;
+  }
+
+  // Recording 2 unlocked
+  if (normalizedStatus === "final_task_ready") {
     return 3;
   }
 
@@ -167,7 +182,7 @@ export interface HomeworkResponse {
 export function toPublicStatus(s: unknown): PublicHomeworkStatus {
   if (typeof s !== "string") return "none";
   const t = s.toLowerCase().trim().replace(/\s+/g, "_");
-  const allowed: PublicHomeworkStatus[] = ["none", "recording_1_required", "task_block", "final_task_ready", "post_questions", "completed", "completing_from_recording_1", "report_generating"];
+  const allowed: PublicHomeworkStatus[] = ["none", "recording_1_required", "task_block", "final_task_ready", "post_questions", "completed", "completing_from_recording_1", "completing_from_recording_2", "report_generating"];
   if (allowed.includes(t as PublicHomeworkStatus)) return t as PublicHomeworkStatus;
   return "none";
 }
