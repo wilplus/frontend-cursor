@@ -11,13 +11,13 @@ export const LEVEL_1_STEP_2: RealtimeTrainingStep = {
   xAxis: {
     metric: "pitch_baseline",
     label: "High - Low",
-    negativeHint: "High",
-    positiveHint: "Low",
+    negativeHint: "Too high",
+    positiveHint: "Too low",
   },
   yAxis: {
     metric: "pace",
     label: "Slow - Fast",
-    negativeHint: "Slow",
-    positiveHint: "Fast",
+    negativeHint: "Too slow",
+    positiveHint: "Too fast",
   },
 };

@@ -10,14 +10,14 @@ export const LEVEL_1_STEP_1: RealtimeTrainingStep = {
   visualId: "realtime-dartboard",
   xAxis: {
     metric: "strength",
-    label: "Weak - Strong",
-    negativeHint: "Weak",
-    positiveHint: "Strong",
+    label: "Quiet - Loud",
+    negativeHint: "Too quiet",
+    positiveHint: "Too loud",
   },
   yAxis: {
     metric: "pace",
     label: "Slow - Fast",
-    negativeHint: "Slow",
-    positiveHint: "Fast",
+    negativeHint: "Too slow",
+    positiveHint: "Too fast",
   },
 };
