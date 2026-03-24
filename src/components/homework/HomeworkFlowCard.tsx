@@ -585,6 +585,22 @@ export default function HomeworkFlowCard() {
     setStep0TutorVideoDescription(null);
   }, []);
 
+  const activateForcedStep0Waiting = useCallback(() => {
+    forcedStep0WaitingRef.current = true;
+    persistForcedStep0WaitingState();
+    setPollReportsAfterFinish(true);
+    setShowReportsList(false);
+    setReportsModalOpen(false);
+    setReportModalSessionId(null);
+    setVideoModalUrl(null);
+    setReportError(null);
+    setReportNotReady(false);
+    setReportLoading(false);
+    setReviewPending(true);
+    setMainScreenMessage(REVIEW_PENDING_DEFAULT_MESSAGE);
+    setStep(0);
+  }, []);
+
   /** Refetch status and backend-owned realtime step on step 0 so newly assigned homework can unlock the next step. */
   useEffect(() => {
     if (!authReady || step !== 0) return;
@@ -720,19 +736,38 @@ export default function HomeworkFlowCard() {
     setVisibleReportsCount(STEP0_REPORTS_PAGE_SIZE);
   }, [showReportsList]);
 
-  /** Deep-link support from completion email:
+  /** Deep-link support:
    *  /dashboard?showReports=1&openReportSessionId=<sessionId>
+   *  /dashboard?homeworkState=waiting
    *  - force step 0 reports list visible
    *  - fetch reports
    *  - auto-open the target report modal
+   *  - or hide report UI and force the step-0 waiting screen
    */
   useEffect(() => {
     if (reportDeepLinkHandledRef.current) return;
     const shouldShowReports = searchParams.get("showReports");
     const targetSessionId = searchParams.get("openReportSessionId");
-    if (shouldShowReports !== "1" && !targetSessionId) return;
+    const homeworkState = searchParams.get("homeworkState");
+    if (shouldShowReports !== "1" && !targetSessionId && homeworkState !== "waiting") return;
 
     reportDeepLinkHandledRef.current = true;
+
+    if (homeworkState === "waiting") {
+      clearPersistedFinalReportState();
+      persistedFinalReportRef.current = null;
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem("homeworkJustFinishedRecording2");
+      }
+      activateForcedStep0Waiting();
+
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.delete("homeworkState");
+      const nextQuery = nextParams.toString();
+      router.replace(nextQuery ? `/dashboard?${nextQuery}` : "/dashboard");
+      return;
+    }
+
     setShowReportsList(true);
     fetchStep0Reports();
 
@@ -740,7 +775,7 @@ export default function HomeworkFlowCard() {
       setReportModalSessionId(targetSessionId.trim());
       setReportsModalOpen(true);
     }
-  }, [searchParams, fetchStep0Reports]);
+  }, [activateForcedStep0Waiting, fetchStep0Reports, router, searchParams]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {
@@ -964,11 +999,7 @@ export default function HomeworkFlowCard() {
       setUploadingRecording(null);
       setMetricStepBlockedByRecordingFailure(false);
       if (shouldPollReports) {
-        setPollReportsAfterFinish(true);
-        forcedStep0WaitingRef.current = true;
-        persistForcedStep0WaitingState();
-        setReviewPending(true);
-        setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
+        activateForcedStep0Waiting();
       }
       // Call GET /status to sync step-0 dashboard state (timer, messages, exercises).
       // When coming from the report (comingFromReport), re-apply reviewPending=true after
@@ -2319,7 +2350,7 @@ export default function HomeworkFlowCard() {
             onClick={() => {
               clearPersistedFinalReportState();
               sessionStorage.removeItem("homeworkJustFinishedRecording2");
-              window.location.href = "/dashboard";
+              router.push("/dashboard?homeworkState=waiting");
             }}
             className="mt-2 w-full rounded-xl h-12 font-semibold"
           >
