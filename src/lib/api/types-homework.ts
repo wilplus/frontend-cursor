@@ -156,7 +156,9 @@ export interface HomeworkResponse {
   performance_score_end?: number | null;
   tutor_feedback_deadline?: string | null;
   tutor_feedback_message?: string | null;
-  /** Message from coach to the student for this homework (e.g. after assignment). Shown on flow when set; no video. Backend may send as tutor_video_description. */
+  /** Optional step-0 homework video URL. Preferred over assigned_exercises[].video_url when present. */
+  tutor_video_url?: string | null;
+  /** Optional coach intro text for the current homework. Can accompany tutor_video_url on step 0 and other flow messaging. */
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student. Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
@@ -231,20 +233,23 @@ export interface HomeworkSessionStatus {
   has_active_session?: boolean;
   /** Backend: alternative to status (e.g. top-level session_state). */
   session_state?: string;
-  /** Backend: nested session (snake_case). Use for id, status, context_long, performance_score_end, tutor_video_description. */
+  /** Backend: nested session (snake_case). Use for id, status, context_long, performance_score_end, tutor video fields. */
   session?: {
     id?: string;
     status?: string;
     state?: string;
     context_long?: string | null;
     performance_score_end?: number | null;
+    tutor_video_url?: string | null;
     tutor_video_description?: string | null;
   };
   /** When no active session: deadline (ISO 8601 UTC) for tutor to send feedback and new homework. Omitted when past or not applicable. */
   tutor_feedback_deadline?: string | null;
   /** When no active session: optional message from tutor (e.g. warning to wait for feedback). Show as info banner on step 0. */
   tutor_feedback_message?: string | null;
-  /** Message from coach for this homework (e.g. after assignment). Backend may send as tutor_video_description. */
+  /** Optional step-0 homework video URL. Preferred over assigned_exercises[].video_url when present. */
+  tutor_video_url?: string | null;
+  /** Optional coach intro text for the current homework. Can accompany tutor_video_url on step 0 and other flow messaging. */
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
@@ -312,6 +317,7 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     performance_score_end: raw.performance_score_end ?? raw.session?.performance_score_end ?? null,
     tutor_feedback_deadline: raw.tutor_feedback_deadline ?? null,
     tutor_feedback_message: raw.tutor_feedback_message ?? null,
+    tutor_video_url: raw.tutor_video_url ?? raw.session?.tutor_video_url ?? null,
     tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
     assigned_exercises: Array.isArray(raw.assigned_exercises) ? raw.assigned_exercises : [],
     review_pending: raw.review_pending ?? null,

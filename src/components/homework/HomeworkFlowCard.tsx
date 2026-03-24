@@ -36,14 +36,6 @@ import Lottie from "lottie-react";
 /** Default task prompt when the backend assigns none. */
 const DEFAULT_TASK_PROMPT = "How was your day so far?";
 
-/** Default exercise shown on step 0 when the student has no assigned exercises (e.g. new user / nothing set in admin). */
-const DEFAULT_INTRO_EXERCISE: AssignedExercise = {
-  id: "0-intro",
-  title: "Intro",
-  description: null,
-  video_url: "https://vimeo.com/1169874052?fl=ip&fe=ec",
-};
-
 function getSniperProfileFromReport(
   report: HomeworkReportResponse,
   existingProfile: UserSniperProfile | null
@@ -228,6 +220,8 @@ function resetAutoStartAttempted() {
 
 const STEP0_REPORTS_PAGE_SIZE = 5;
 const FINAL_REPORT_STORAGE_KEY = "homeworkReport";
+const FORCE_STEP0_WAITING_STORAGE_KEY = "homeworkForceStep0Waiting";
+const FORCE_STEP0_WAITING_TTL_MS = 30 * 60 * 1000;
 const REVIEW_PENDING_DEFAULT_MESSAGE =
   "Artur is analysing your homework and will send you the grading and comment soon. If you pass, we will see each other in the next step!";
 
@@ -278,6 +272,46 @@ function persistFinalReportState(state: PersistedFinalReportState) {
 function clearPersistedFinalReportState() {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(FINAL_REPORT_STORAGE_KEY);
+}
+
+function readForcedStep0WaitingState(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.sessionStorage.getItem(FORCE_STEP0_WAITING_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { createdAt?: number };
+    if (typeof parsed?.createdAt !== "number" || !Number.isFinite(parsed.createdAt)) {
+      window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
+      return false;
+    }
+    if (Date.now() - parsed.createdAt > FORCE_STEP0_WAITING_TTL_MS) {
+      window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
+    return false;
+  }
+}
+
+function persistForcedStep0WaitingState() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    FORCE_STEP0_WAITING_STORAGE_KEY,
+    JSON.stringify({ createdAt: Date.now() })
+  );
+}
+
+function clearForcedStep0WaitingState() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
+}
+
+function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
+  if (!statusRes) return false;
+  if (statusRes.has_active_session === true) return true;
+  return statusRes.review_pending !== true;
 }
 
 function maxStep(a: Step, b: Step): Step {
@@ -372,7 +406,11 @@ export default function HomeworkFlowCard() {
   /** When true, step 0 should show the coach-review waiting state instead of the assignment/video card. */
   const [reviewPending, setReviewPending] = useState(false);
   const [mainScreenMessage, setMainScreenMessage] = useState<string | null>(null);
-  /** Message from coach to the student for this homework (e.g. after assignment). Shown when step >= 1; no video. From tutor_video_description. */
+  /** Step-0 homework video URL from backend. Preferred over assigned_exercises[].video_url when present. */
+  const [step0TutorVideoUrl, setStep0TutorVideoUrl] = useState<string | null>(null);
+  /** Step-0 homework intro text paired with tutor_video_url. */
+  const [step0TutorVideoDescription, setStep0TutorVideoDescription] = useState<string | null>(null);
+  /** Coach message for this homework flow after the student starts. Mirrors tutor_video_description outside step 0. */
   const [coachMessageAfterHomework, setCoachMessageAfterHomework] = useState<string | null>(null);
   /** When step 0 and has_active_session false: exercises assigned to this student (from GET status assigned_exercises). */
   const [assignedExercises, setAssignedExercises] = useState<AssignedExercise[]>([]);
@@ -383,6 +421,7 @@ export default function HomeworkFlowCard() {
   const sniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
   const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
+  const forcedStep0WaitingRef = useRef(false);
   /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
@@ -432,6 +471,14 @@ export default function HomeworkFlowCard() {
   );
 
   useEffect(() => {
+    if (!readForcedStep0WaitingState()) return;
+    forcedStep0WaitingRef.current = true;
+    if (stepRef.current !== 0) return;
+    setReviewPending(true);
+    setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
@@ -453,6 +500,10 @@ export default function HomeworkFlowCard() {
 
   const syncDashboardStateFromStatus = useCallback(
     (statusRes: HomeworkSessionStatus | null | undefined) => {
+      if (forcedStep0WaitingRef.current && isHomeworkReadyForStep0(statusRes)) {
+        forcedStep0WaitingRef.current = false;
+        clearForcedStep0WaitingState();
+      }
       const deadlineIso = statusRes?.tutor_feedback_deadline;
       if (deadlineIso && typeof deadlineIso === "string") {
         const ms = new Date(deadlineIso).getTime();
@@ -468,11 +519,27 @@ export default function HomeworkFlowCard() {
           : null
       );
 
-      setReviewPending(statusRes?.review_pending === true);
+      const backendReviewPending = statusRes?.review_pending === true;
+      const shouldForceWaiting = forcedStep0WaitingRef.current && !isHomeworkReadyForStep0(statusRes);
+      setReviewPending(backendReviewPending || shouldForceWaiting);
       const waitingMessage = statusRes?.main_screen_message;
       setMainScreenMessage(
         typeof waitingMessage === "string" && waitingMessage.trim()
           ? waitingMessage.trim()
+          : shouldForceWaiting
+            ? REVIEW_PENDING_DEFAULT_MESSAGE
+            : null
+      );
+
+      const tutorVideoUrl = statusRes?.tutor_video_url ?? statusRes?.session?.tutor_video_url ?? null;
+      setStep0TutorVideoUrl(
+        typeof tutorVideoUrl === "string" && tutorVideoUrl.trim() ? tutorVideoUrl.trim() : null
+      );
+      const tutorVideoDescription =
+        statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
+      setStep0TutorVideoDescription(
+        typeof tutorVideoDescription === "string" && tutorVideoDescription.trim()
+          ? tutorVideoDescription.trim()
           : null
       );
 
@@ -507,11 +574,15 @@ export default function HomeworkFlowCard() {
   }, []);
 
   const clearSessionCommunication = useCallback(() => {
+    forcedStep0WaitingRef.current = false;
+    clearForcedStep0WaitingState();
     setCoachMessageAfterHomework(null);
     setTutorFeedbackDeadlineMs(null);
     setTutorFeedbackMessage(null);
     setReviewPending(false);
     setMainScreenMessage(null);
+    setStep0TutorVideoUrl(null);
+    setStep0TutorVideoDescription(null);
   }, []);
 
   /** Refetch status and backend-owned realtime step on step 0 so newly assigned homework can unlock the next step. */
@@ -528,7 +599,7 @@ export default function HomeworkFlowCard() {
     }).catch((err) => {
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
-      if (!pollReportsAfterFinish) {
+      if (!pollReportsAfterFinish && !forcedStep0WaitingRef.current) {
         setReviewPending(false);
         setMainScreenMessage(null);
       }
@@ -729,6 +800,14 @@ export default function HomeworkFlowCard() {
           ? res.main_screen_message.trim()
           : null
       );
+      if ("tutor_video_url" in res) {
+        const videoUrl = res.tutor_video_url;
+        setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
+      }
+      if ("tutor_video_description" in res) {
+        const desc = res.tutor_video_description;
+        setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+      }
       // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 3 score)
       setCoachMessageAfterHomework(null);
       setFinalTask("");
@@ -768,8 +847,13 @@ export default function HomeworkFlowCard() {
       const msg = res.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
     }
+    if ("tutor_video_url" in res) {
+      const videoUrl = res.tutor_video_url;
+      setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
+    }
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
+      setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
     if (Array.isArray(res.assigned_exercises)) {
@@ -881,6 +965,8 @@ export default function HomeworkFlowCard() {
       setMetricStepBlockedByRecordingFailure(false);
       if (shouldPollReports) {
         setPollReportsAfterFinish(true);
+        forcedStep0WaitingRef.current = true;
+        persistForcedStep0WaitingState();
         setReviewPending(true);
         setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       }
@@ -1476,6 +1562,7 @@ export default function HomeworkFlowCard() {
       const statusRes = await homeworkApi.getStatus();
       if (!statusRes || statusRes.has_active_session === false) {
         applyStatusToState({ status: "none" });
+        syncDashboardStateFromStatus(statusRes);
         if (statusRes?.tutor_feedback_deadline && typeof statusRes.tutor_feedback_deadline === "string") {
           const ms = new Date(statusRes.tutor_feedback_deadline).getTime();
           if (Number.isFinite(ms) && ms > Date.now()) setTutorFeedbackDeadlineMs(ms);
@@ -1532,10 +1619,12 @@ export default function HomeworkFlowCard() {
 
   // Step 0: No session — show Start homework so next run starts from step 1 (first recording). User must click to proceed.
   if (step === 0) {
-    const step0Exercises = assignedExercises.length > 0 ? assignedExercises : [DEFAULT_INTRO_EXERCISE];
+    const step0Exercises = assignedExercises;
     const ex = step0Exercises[0];
-    const videoUrl = ex?.video_url?.trim();
+    const fallbackExerciseVideoUrl = ex?.video_url?.trim();
+    const videoUrl = step0TutorVideoUrl ?? fallbackExerciseVideoUrl;
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
+    const step0IntroText = step0TutorVideoDescription ?? ex?.description?.trim() ?? null;
     const waitingMessage =
       mainScreenMessage ??
       REVIEW_PENDING_DEFAULT_MESSAGE;
@@ -1621,6 +1710,11 @@ export default function HomeworkFlowCard() {
                   >
                     {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
                   </Button>
+                  {step0IntroText ? (
+                    <p className="w-full max-w-[280px] text-sm leading-6 text-muted-foreground text-center">
+                      {step0IntroText}
+                    </p>
+                  ) : null}
                 </>
               )}
 
