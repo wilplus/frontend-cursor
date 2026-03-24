@@ -2204,8 +2204,11 @@ export default function HomeworkFlowCard() {
             </div>
           ) : null}
 
-          <Button onClick={handleStartOver} disabled={resetting} className="mt-2 w-full rounded-xl h-12 font-semibold">
-            {resetting ? "Sending…" : reportCtaLabel}
+          <Button
+            onClick={() => { window.location.href = "/dashboard"; }}
+            className="mt-2 w-full rounded-xl h-12 font-semibold"
+          >
+            {reportCtaLabel}
           </Button>
         </Card>
       </div>
