@@ -519,16 +519,24 @@ export default function HomeworkFlowCard() {
     if (!authReady || step !== 0) return;
     homeworkApi.getStatus().then((statusRes) => {
       syncDashboardStateFromStatus(statusRes);
+      // If we just came from the report screen and the backend hasn't confirmed
+      // review_pending yet (async email job), keep the waiting screen visible.
+      if (pollReportsAfterFinish && !statusRes?.review_pending) {
+        setReviewPending(true);
+        setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
+      }
     }).catch((err) => {
       setTutorFeedbackDeadlineMs(null);
       setTutorFeedbackMessage(null);
-      setReviewPending(false);
-      setMainScreenMessage(null);
+      if (!pollReportsAfterFinish) {
+        setReviewPending(false);
+        setMainScreenMessage(null);
+      }
       if (typeof console !== "undefined" && console.warn) {
         console.warn("[HomeworkFlow] Step 0 status refetch failed (timer may not show):", err);
       }
     });
-  }, [authReady, step, syncDashboardStateFromStatus]);
+  }, [authReady, step, syncDashboardStateFromStatus, pollReportsAfterFinish]);
 
   /** Fetch delivered reports list from backend. Called when user first clicks "View reports". */
   const fetchStep0Reports = useCallback(() => {
@@ -804,9 +812,16 @@ export default function HomeworkFlowCard() {
   /** Reset the homework session: clear backend session, then single state projection to step 0. Do not call setStep outside applyStatusToState; use applyStatusToState({ status: "none" }). */
   const handleStartOver = async () => {
     if (resetting) return;
-    // Allow the cold-load effect to re-run so GET /status re-initialises step-0 state
-    // exactly the same way it does after a fresh login (prevents stale step-4 persisting).
-    resetAutoStartAttempted();
+    const comingFromReport = step === 4;
+    // When coming from the report screen (step 4) we do NOT reset autoStartAttempted:
+    // the cold-load effect would re-run immediately and call syncDashboardStateFromStatus
+    // which may return review_pending:false (backend async email job not yet done) and
+    // override the reviewPending=true we set below. The getStatus() call later in this
+    // function already syncs all necessary state for step-0.
+    // For all other steps, reset so cold-load re-runs and fetches fresh status.
+    if (!comingFromReport) {
+      resetAutoStartAttempted();
+    }
     setResetting(true);
     setSniperSnapshot(null);
     sniperSnapshotRef.current = null;
@@ -852,17 +867,23 @@ export default function HomeworkFlowCard() {
         setReviewPending(true);
         setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       }
-      // The cold-load effect will re-run (autoStartAttempted was reset above) and call
-      // GET /status → applyStatusToState() + setStep(deriveHomeworkStep()) to set the
-      // definitive step-0 state from the backend, same as after a fresh login.
-      // We also eagerly call syncDashboardStateFromStatus for reviewPending / messages.
+      // Call GET /status to sync step-0 dashboard state (timer, messages, exercises).
+      // When coming from the report (comingFromReport), re-apply reviewPending=true after
+      // sync in case the backend async email job hasn't set student_completion_email_sent_at
+      // yet and returns review_pending:false — we know review is pending from our side.
       homeworkApi.getStatus().then((statusRes) => {
         syncDashboardStateFromStatus(statusRes);
+        if (comingFromReport && !statusRes?.review_pending) {
+          setReviewPending(true);
+          setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
+        }
       }).catch((err) => {
         setTutorFeedbackDeadlineMs(null);
         setTutorFeedbackMessage(null);
-        setReviewPending(false);
-        setMainScreenMessage(null);
+        if (!comingFromReport) {
+          setReviewPending(false);
+          setMainScreenMessage(null);
+        }
         if (typeof console !== "undefined" && console.warn) {
           console.warn("[HomeworkFlow] Status refetch after Send to coach failed:", err);
         }
