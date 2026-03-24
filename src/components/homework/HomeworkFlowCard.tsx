@@ -631,7 +631,7 @@ export default function HomeworkFlowCard() {
    *  - auto-open the target report modal
    */
   useEffect(() => {
-    if (step !== 0 || reportDeepLinkHandledRef.current) return;
+    if (reportDeepLinkHandledRef.current) return;
     const shouldShowReports = searchParams.get("showReports");
     const targetSessionId = searchParams.get("openReportSessionId");
     if (shouldShowReports !== "1" && !targetSessionId) return;
@@ -644,7 +644,7 @@ export default function HomeworkFlowCard() {
       setReportModalSessionId(targetSessionId.trim());
       setReportsModalOpen(true);
     }
-  }, [step, searchParams, fetchStep0Reports]);
+  }, [searchParams, fetchStep0Reports]);
 
   /** Countdown ticker: update every second when showing tutor deadline. When time runs out, clear the notice. */
   useEffect(() => {
