@@ -12,6 +12,8 @@ import { LEVEL_1_STEP_1 } from "@/lib/realtime-levels";
 import type { RealtimeTrainingStep } from "@/lib/realtime-levels";
 
 const UPDATE_MS = 100;
+/** Minimum score on both axes to count as "in the center zone" for center-hold accumulation. */
+const CENTER_HOLD_THRESHOLD = 0.4;
 const TARGET_DB = -16;
 const TOLERANCE_DB = 5;
 const TARGET_WPM = 165;
@@ -81,6 +83,8 @@ export interface UseRealtimeStrengthPaceResult {
   isActive: boolean;
   start: (stream: MediaStream) => void;
   stop: () => void;
+  /** Returns accumulated center-hold data for the current/last recording session. */
+  getSessionCenterHold: () => { centerHoldRatio: number | null; centerHoldMs: number; totalActiveMs: number };
 }
 
 export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions): UseRealtimeStrengthPaceResult {
@@ -119,6 +123,10 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
   const sessionPitchMeanStRef = useRef<number | null>(null);
   const sessionPitchFrameCountRef = useRef(0);
   const silenceSettledTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Accumulated center-hold: voiced frames where both strength + pace >= CENTER_HOLD_THRESHOLD. */
+  const centerHoldFramesRef = useRef(0);
+  /** Total voiced frames (voice active) for the session. */
+  const totalVoicedFramesRef = useRef(0);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -154,6 +162,8 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     displayPitchRef.current = 1.0;
     sessionPitchMeanStRef.current = null;
     sessionPitchFrameCountRef.current = 0;
+    centerHoldFramesRef.current = 0;
+    totalVoicedFramesRef.current = 0;
     setIsActive(false);
     setXScore(0.5);
     setYScore(0.5);
@@ -327,6 +337,14 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
         displayPaceRef.current = PACE_DISPLAY_EMA * displayPaceRaw + (1 - PACE_DISPLAY_EMA) * displayPaceRef.current;
         setPaceScore(displayPaceRef.current);
 
+        // ── Center-hold accumulation ───────────────────────────────────────────
+        if (voiceActiveRef.current) {
+          totalVoicedFramesRef.current += 1;
+          if (nextStrengthScore >= CENTER_HOLD_THRESHOLD && displayPaceRef.current >= CENTER_HOLD_THRESHOLD) {
+            centerHoldFramesRef.current += 1;
+          }
+        }
+
         let nextPaceDir = paceDirectionRef.current;
         if (wpm > PACE_FAST_THRESHOLD) nextPaceDir = 1;
         else if (wpm < PACE_SLOW_THRESHOLD) nextPaceDir = -1;
@@ -389,6 +407,16 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     }).catch(() => {});
   }, [stop]);
 
+  const getSessionCenterHold = useCallback(() => {
+    const total = totalVoicedFramesRef.current;
+    const center = centerHoldFramesRef.current;
+    return {
+      totalActiveMs: total * UPDATE_MS,
+      centerHoldMs: center * UPDATE_MS,
+      centerHoldRatio: total > 0 ? center / total : null,
+    };
+  }, []);
+
   return {
     xScore,
     yScore,
@@ -407,5 +435,6 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     isActive,
     start,
     stop,
+    getSessionCenterHold,
   };
 }
