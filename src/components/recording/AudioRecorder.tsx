@@ -202,6 +202,7 @@ export default function AudioRecorder({
   useEffect(() => {
     if (sniperMode && realtimeStrengthPace.isActive) {
       const estimatedScore = Math.round(((realtimeStrengthPace.strengthScore + realtimeStrengthPace.paceScore) / 2) * 100);
+      const centerHoldData = realtimeStrengthPace.getSessionCenterHold();
       lastSniperSnapshotRef.current = {
         performanceScore: Math.max(0, Math.min(100, estimatedScore)),
         pauseRatio: 0.5,
@@ -211,6 +212,9 @@ export default function AudioRecorder({
         pitchFrameCount: realtimeStrengthPace.pitchFrameCount,
         realtimeLevel: activeRealtimeStep.level,
         realtimeStep: activeRealtimeStep.step,
+        centerHoldRatio: centerHoldData.centerHoldRatio ?? undefined,
+        centerHoldMs: centerHoldData.centerHoldMs,
+        totalActiveMs: centerHoldData.totalActiveMs,
       };
     }
   }, [
