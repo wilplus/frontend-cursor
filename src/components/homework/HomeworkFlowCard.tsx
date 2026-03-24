@@ -804,6 +804,9 @@ export default function HomeworkFlowCard() {
   /** Reset the homework session: clear backend session, then single state projection to step 0. Do not call setStep outside applyStatusToState; use applyStatusToState({ status: "none" }). */
   const handleStartOver = async () => {
     if (resetting) return;
+    // Allow the cold-load effect to re-run so GET /status re-initialises step-0 state
+    // exactly the same way it does after a fresh login (prevents stale step-4 persisting).
+    resetAutoStartAttempted();
     setResetting(true);
     setSniperSnapshot(null);
     sniperSnapshotRef.current = null;
@@ -849,9 +852,10 @@ export default function HomeworkFlowCard() {
         setReviewPending(true);
         setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       }
-      // Refetch status after navigating to step 0 so exercises, video, and review state are fresh.
-      // router.refresh() flushes Next.js server cache; getStatus() updates client state.
-      if (shouldPollReports) router.refresh();
+      // The cold-load effect will re-run (autoStartAttempted was reset above) and call
+      // GET /status → applyStatusToState() + setStep(deriveHomeworkStep()) to set the
+      // definitive step-0 state from the backend, same as after a fresh login.
+      // We also eagerly call syncDashboardStateFromStatus for reviewPending / messages.
       homeworkApi.getStatus().then((statusRes) => {
         syncDashboardStateFromStatus(statusRes);
       }).catch((err) => {
