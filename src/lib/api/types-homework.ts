@@ -409,6 +409,8 @@ export interface HomeworkReportResponse {
   coach_grade?: number | null;
   /** Optional coach message attached to the grade. */
   coach_message?: string | null;
+  /** Same as coach_message — backend field name used in report response. */
+  report_comment?: string | null;
   /** When report is from recording-1 only (e.g. skip from step 2): first recording playback and analysis. */
   recording_1?: { id: string | null; audio_url: string | null };
   /** Transcript of recording 1 (legacy; prefer recording.transcription_text when present). */
