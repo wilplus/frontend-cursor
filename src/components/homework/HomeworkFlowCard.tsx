@@ -849,7 +849,9 @@ export default function HomeworkFlowCard() {
         setReviewPending(true);
         setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       }
-      // Refetch status after navigating to step 0 so the waiting/review state and countdown can update immediately.
+      // Refetch status after navigating to step 0 so exercises, video, and review state are fresh.
+      // router.refresh() flushes Next.js server cache; getStatus() updates client state.
+      if (shouldPollReports) router.refresh();
       homeworkApi.getStatus().then((statusRes) => {
         syncDashboardStateFromStatus(statusRes);
       }).catch((err) => {
@@ -2053,6 +2055,7 @@ export default function HomeworkFlowCard() {
       (reportData as { grade?: number | null })?.grade ??
       null;
     const coachGradeMessage = (
+      reportData?.report_comment ??
       reportData?.coach_message ??
       (reportData as { coach_grade_message?: string | null })?.coach_grade_message ??
       (reportData as { coach_feedback_message?: string | null })?.coach_feedback_message ??
@@ -2064,6 +2067,7 @@ export default function HomeworkFlowCard() {
     return (
       <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">
         <h3 className="text-center text-xl font-semibold">Your report</h3>
+        {coachMessageBlock}
         {waitingForFullReport && performanceResult != null ? (
           <div className="flex justify-center -mt-1">
             {loadingLottieData ? (
