@@ -2222,7 +2222,11 @@ export default function HomeworkFlowCard() {
           ) : null}
 
           <Button
-            onClick={() => { window.location.href = "/dashboard"; }}
+            onClick={() => {
+              clearPersistedFinalReportState();
+              sessionStorage.removeItem("homeworkJustFinishedRecording2");
+              window.location.href = "/dashboard";
+            }}
             className="mt-2 w-full rounded-xl h-12 font-semibold"
           >
             {reportCtaLabel}
