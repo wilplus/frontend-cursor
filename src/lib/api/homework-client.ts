@@ -373,12 +373,15 @@ export const homeworkApi = {
     }
   },
 
-  /** Upload recording_2: get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-2 with JSON { storage_path, duration_seconds }. */
+  /** Upload recording_2: get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-2 with JSON { storage_path, duration_seconds, center_hold_ratio? }. */
   async uploadRecording2(
     sessionId: string,
     blob: Blob,
     durationSeconds: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    centerHoldRatio?: number,
+    centerHoldMs?: number,
+    totalActiveMs?: number
   ): Promise<HomeworkRecording2Response> {
     const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
     const uploadTarget = uploadUrlResult as
@@ -386,10 +389,20 @@ export const homeworkApi = {
       | { bucket: string; storage_path: string };
     const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const postBody: Record<string, unknown> = { storage_path, duration_seconds: durationSeconds };
+    if (typeof centerHoldRatio === "number" && Number.isFinite(centerHoldRatio)) {
+      postBody.center_hold_ratio = Math.max(0, Math.min(1, centerHoldRatio));
+    }
+    if (typeof centerHoldMs === "number" && Number.isFinite(centerHoldMs)) {
+      postBody.center_hold_ms = Math.max(0, Math.round(centerHoldMs));
+    }
+    if (typeof totalActiveMs === "number" && Number.isFinite(totalActiveMs)) {
+      postBody.total_active_ms = Math.max(0, Math.round(totalActiveMs));
+    }
     const res = await fetch(`${BASE}/session/${sessionId}/recording-2`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ storage_path, duration_seconds: durationSeconds }),
+      body: JSON.stringify(postBody),
       signal,
       credentials,
     });

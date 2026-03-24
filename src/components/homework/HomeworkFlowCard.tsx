@@ -1411,7 +1411,12 @@ export default function HomeworkFlowCard() {
       stepOnSuccess: 4,
       stepOnError: 3,
       inProgressRef: uploadRecording2InProgressRef,
-      upload: (b, dur, signal) => homeworkApi.uploadRecording2(sessionId!, b, dur, signal),
+      upload: (b, dur, signal) => homeworkApi.uploadRecording2(
+        sessionId!, b, dur, signal,
+        sniperSnapshotRef.current?.centerHoldRatio,
+        sniperSnapshotRef.current?.centerHoldMs,
+        sniperSnapshotRef.current?.totalActiveMs,
+      ),
       onSuccess: async () => {
         if (typeof sessionStorage !== "undefined") {
           sessionStorage.setItem("homeworkJustFinishedRecording2", "1");
