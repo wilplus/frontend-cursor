@@ -581,6 +581,23 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [step, pollReportsAfterFinish, fetchStep0Reports, syncDashboardStateFromStatus]);
 
+  // While on step 0 with review pending, poll every 15s so the waiting screen
+  // disappears automatically the moment the coach sends new homework.
+  useEffect(() => {
+    if (step !== 0 || !reviewPending) return;
+    const id = setInterval(() => {
+      homeworkApi.getStatus().then((statusRes) => {
+        syncDashboardStateFromStatus(statusRes);
+        // If coach cleared the review (new homework sent or feedback given), refresh page
+        // so the full step-0 state (exercises, video) is loaded cleanly.
+        if (!statusRes?.review_pending) {
+          window.location.reload();
+        }
+      }).catch(() => {});
+    }, 15_000);
+    return () => clearInterval(id);
+  }, [step, reviewPending, syncDashboardStateFromStatus]);
+
   // Keep reports fresh while the step-0 list is visible so newly completed sessions
   // appear without requiring logout/reload.
   useEffect(() => {
