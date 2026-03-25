@@ -181,7 +181,7 @@ export const homeworkApi = {
       created_at?: string;
       completed_at?: string;
       status?: string;
-      coach_grade?: number | null;
+      report_grade?: number | null;
       recording_id?: string;
       report_id?: string;
       report_delivered?: boolean | null;

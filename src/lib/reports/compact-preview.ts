@@ -85,9 +85,8 @@ export function toCompactReportPreview(
 
   const aiInsight = (report.coach_insight ?? "").trim();
   const coachGrade =
-    (report as HomeworkReportResponse).coach_grade ??
-    (report as AdminSessionReportResponse).coach_grade ??
-    (report as HomeworkReportResponse & { admin_grade?: number | null }).admin_grade ??
+    (report as HomeworkReportResponse).report_grade ??
+    (report as AdminSessionReportResponse).report_grade ??
     (report as HomeworkReportResponse & { grade?: number | null }).grade ??
     null;
   const coachMessage = (

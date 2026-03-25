@@ -466,7 +466,7 @@ export default function HomeworkFlowCard() {
   /** Session id for the report shown in the modal (from clicking a report card). */
   const [reportModalSessionId, setReportModalSessionId] = useState<string | null>(null);
   /** Step 0: list of past sessions for Reports History (same source as admin). Hidden until "View reports" is clicked. */
-  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; completed_at?: string; status?: string; coach_grade?: number | null; recording_id?: string; report_id?: string; report_delivered?: boolean | null; student_completion_email_sent_at?: string | null; report_preview?: { report_text_preview?: string } }>>([]);
+  const [step0Sessions, setStep0Sessions] = useState<Array<{ id: string; created_at?: string; completed_at?: string; status?: string; report_grade?: number | null; recording_id?: string; report_id?: string; report_delivered?: boolean | null; student_completion_email_sent_at?: string | null; report_preview?: { report_text_preview?: string } }>>([]);
   const [step0SessionsLoading, setStep0SessionsLoading] = useState(false);
   /** Step 0: when true, show the Reports History list (fetched on first "View reports" click). */
   const [showReportsList, setShowReportsList] = useState(false);
@@ -2398,8 +2398,7 @@ export default function HomeworkFlowCard() {
 
     const coachInsight = (reportData?.coach_insight ?? "").trim();
     const coachGrade =
-      reportData?.coach_grade ??
-      (reportData as { admin_grade?: number | null })?.admin_grade ??
+      reportData?.report_grade ??
       (reportData as { grade?: number | null })?.grade ??
       null;
     const coachGradeMessage = (

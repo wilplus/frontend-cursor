@@ -102,8 +102,8 @@ export interface StudentProfile {
     report_delivered?: boolean | null;
     student_completion_email_sent_at?: string | null;
     task_score?: number;
-    /** Coach grade 1–10 or null (not graded). */
-    coach_grade?: number | null;
+    /** Report grade 1–10 or null (not graded). */
+    report_grade?: number | null;
     /** Optional short coach message attached to session grade. */
     coach_message?: string | null;
     recording_preview?: { performance_score_v2?: number; transcription_preview?: string };
@@ -180,8 +180,8 @@ export interface AdminSessionReportResponse {
   pace_metric?: string | null;
   coach_insight?: string | null;
   performance_history?: Array<{ date: string; score: number }>;
-  /** Coach grade 1–10 or null (not graded). */
-  coach_grade?: number | null;
+  /** Report grade 1–10 or null (not graded). */
+  report_grade?: number | null;
   /** Optional coach message attached to the session grade. */
   coach_message?: string | null;
 }
@@ -561,13 +561,13 @@ export const adminApi = {
       }
     ),
 
-  /** PATCH session: set or clear coach_grade (1–10 or null). Proxies to PATCH /v2/admin/students/:id/sessions/:sessionId. */
+  /** PATCH session: set or clear report_grade (1–10 or null). Proxies to PATCH /v2/admin/students/:id/sessions/:sessionId. */
   patchSession: (
     userId: string,
     sessionId: string,
-    body: { coach_grade: number | null; coach_message?: string | null }
+    body: { report_grade: number | null; coach_message?: string | null }
   ) =>
-    adminFetch<{ status: string; coach_grade?: number | null; coach_message?: string | null }>(
+    adminFetch<{ status: string; report_grade?: number | null; coach_message?: string | null }>(
       `/students/${userId}/sessions/${sessionId}`,
       { method: "PATCH", body }
     ),

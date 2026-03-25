@@ -432,8 +432,8 @@ export interface HomeworkReportResponse {
   recording?: ReportRecording | null;
   /** Optional 2-sentence coach insight. Omitted for older sessions or if generation failed. */
   coach_insight?: string | null;
-  /** Coach grade 1–10 (if provided by coach/admin). */
-  coach_grade?: number | null;
+  /** Report grade 1–10 (if provided by coach/admin). */
+  report_grade?: number | null;
   /** Optional coach message attached to the grade. */
   coach_message?: string | null;
   /** Same as coach_message — backend field name used in report response. */

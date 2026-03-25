@@ -163,8 +163,7 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
             const fillerBreakdown = backendBreakdown ?? undefined;
             const coachInsight = (report.coach_insight ?? "").trim();
             const coachGrade =
-              report.coach_grade ??
-              (report as { admin_grade?: number | null }).admin_grade ??
+              report.report_grade ??
               (report as { grade?: number | null }).grade ??
               null;
             const coachGradeMessage = (
