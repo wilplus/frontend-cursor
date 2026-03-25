@@ -309,14 +309,18 @@ function clearForcedStep0WaitingState() {
   window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
 }
 
+/**
+ * Unlock step-0 “assignment ready” only when the backend sends explicit fields.
+ * Loose defaults elsewhere (e.g. normalizeVideoShown(undefined) → 1) must not clear forced post-report waiting.
+ */
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
   if (!statusRes) return false;
   if (statusRes.has_active_session === true) return false;
-  return (
-    statusRes.can_start_homework !== false &&
-    statusRes.review_pending !== true &&
-    normalizeVideoShown(statusRes.video_shown ?? statusRes.session?.video_shown) !== 0
-  );
+  if (statusRes.review_pending === true) return false;
+  if (statusRes.can_start_homework !== true) return false;
+  const rawVideo = statusRes.video_shown ?? statusRes.session?.video_shown;
+  if (rawVideo === undefined || rawVideo === null) return false;
+  return normalizeVideoShown(rawVideo) === 1;
 }
 
 function maxStep(a: Step, b: Step): Step {
@@ -538,10 +542,11 @@ export default function HomeworkFlowCard() {
         typeof blockedReason === "string" && blockedReason.trim() ? blockedReason.trim() : null
       );
       const videoShown = normalizeVideoShown(statusRes?.video_shown ?? statusRes?.session?.video_shown);
-      const shouldHideTutorVideo = videoShown === 0 || !canStartHomework;
-      setStep0VideoShown(videoShown);
       const backendReviewPending = statusRes?.review_pending === true;
       const shouldForceWaiting = forcedStep0WaitingRef.current && !isHomeworkReadyForStep0(statusRes);
+      const shouldHideTutorVideo =
+        videoShown === 0 || !canStartHomework || shouldForceWaiting;
+      setStep0VideoShown(videoShown);
       setReviewPending(!canStartHomework || shouldHideTutorVideo || backendReviewPending || shouldForceWaiting);
       const waitingMessage = statusRes?.main_screen_message;
       setMainScreenMessage(
@@ -708,17 +713,12 @@ export default function HomeworkFlowCard() {
   }, [step, pollReportsAfterFinish, fetchStep0Reports, syncDashboardStateFromStatus]);
 
   // While on step 0 with review pending, poll every 15s so the waiting screen
-  // disappears automatically the moment the coach sends new homework.
+  // updates when the coach sends new homework (no full reload — avoids flashing waiting → video).
   useEffect(() => {
     if (step !== 0 || !reviewPending) return;
     const id = setInterval(() => {
       homeworkApi.getStatus().then((statusRes) => {
         syncDashboardStateFromStatus(statusRes);
-        // If coach cleared the review (new homework sent or feedback given), refresh page
-        // so the full step-0 state (exercises, video) is loaded cleanly.
-        if (!statusRes?.review_pending) {
-          window.location.reload();
-        }
       }).catch(() => {});
     }, 15_000);
     return () => clearInterval(id);
@@ -1043,6 +1043,7 @@ export default function HomeworkFlowCard() {
   const handleLeaveReport = async () => {
     const step0WaitingUrl = "/dashboard?homeworkState=waiting";
     if (!sessionId || sessionId === "mock-session") {
+      persistForcedStep0WaitingState();
       window.location.href = step0WaitingUrl;
       return;
     }
@@ -1058,8 +1059,8 @@ export default function HomeworkFlowCard() {
         toast.error(apiErr.message || "Could not leave the report yet.");
       }
     } finally {
-      forcedStep0WaitingRef.current = false;
-      clearForcedStep0WaitingState();
+      // Keep forced step-0 waiting persisted across hard navigation (do not clear before redirect).
+      persistForcedStep0WaitingState();
       clearPersistedFinalReportState();
       persistedFinalReportRef.current = null;
       if (typeof sessionStorage !== "undefined") {
