@@ -13,7 +13,7 @@ const GOOD_RATING_THRESHOLD = 8;
 /**
  * PUT: Set admin grade (1–10) for a session.
  * Proxies to backend PUT /v2/admin/students/:id/sessions/:sessionId/grade
- * Body: { admin_grade: number } (1–10).
+ * Body: { report_grade: number } (1–10).
  * When grade >= 8, also runs Sniper baseline update from session_sniper_metrics for this session.
  */
 export async function PUT(
@@ -26,10 +26,10 @@ export async function PUT(
   }
   const { id: userId, sessionId } = await params;
   const body = await request.json().catch(() => ({}));
-  const grade = typeof body.admin_grade === "number" ? body.admin_grade : undefined;
+  const grade = typeof body.report_grade === "number" ? body.report_grade : undefined;
   if (grade == null || grade < 1 || grade > 10) {
     return NextResponse.json(
-      { error: "admin_grade must be a number between 1 and 10" },
+      { error: "report_grade must be a number between 1 and 10" },
       { status: 400 }
     );
   }
@@ -41,7 +41,7 @@ export async function PUT(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ admin_grade: grade }),
+    body: JSON.stringify({ report_grade: grade }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

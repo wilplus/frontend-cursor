@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
 /**
- * PATCH: Update session (e.g. coach_grade + coach_message).
+ * PATCH: Update session (e.g. report_grade + report_comment).
  * Proxies to PATCH /v2/admin/students/:userId/sessions/:sessionId
- * Body: { coach_grade: number | null, coach_message?: string | null }.
- * Backend returns 200 with { status: "ok", coach_grade?: number, coach_message?: string }.
+ * Body: { report_grade: number | null, coach_message?: string | null }.
+ * Backend returns 200 with { status: "ok", report_grade?: number, coach_message?: string }.
  */
 export async function PATCH(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function PATCH(
   }
   const { id: userId, sessionId } = await params;
   const body = await request.json().catch(() => ({}));
-  const coachGrade = body.coach_grade;
+  const coachGrade = body.report_grade;
   const coachMessageRaw = body.coach_message;
   const coachMessage =
     typeof coachMessageRaw === "string"
@@ -27,7 +27,7 @@ export async function PATCH(
         : undefined;
   if (coachGrade !== null && (typeof coachGrade !== "number" || coachGrade < 1 || coachGrade > 10)) {
     return NextResponse.json(
-      { error: "coach_grade must be an integer 1–10 or null" },
+      { error: "report_grade must be an integer 1–10 or null" },
       { status: 400 }
     );
   }
@@ -45,7 +45,7 @@ export async function PATCH(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ coach_grade: coachGrade, coach_message: coachMessage }),
+    body: JSON.stringify({ report_grade: coachGrade, coach_message: coachMessage }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
