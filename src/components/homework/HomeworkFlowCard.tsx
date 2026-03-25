@@ -712,16 +712,50 @@ export default function HomeworkFlowCard() {
     return () => clearInterval(id);
   }, [step, pollReportsAfterFinish, fetchStep0Reports, syncDashboardStateFromStatus]);
 
-  // While on step 0 with review pending, poll every 15s so the waiting screen
-  // updates when the coach sends new homework (no full reload — avoids flashing waiting → video).
+  // While on step 0 with review pending, poll frequently so the waiting screen
+  // flips to the tutor video shortly after backend state changes.
   useEffect(() => {
     if (step !== 0 || !reviewPending) return;
-    const id = setInterval(() => {
-      homeworkApi.getStatus().then((statusRes) => {
-        syncDashboardStateFromStatus(statusRes);
-      }).catch(() => {});
-    }, 15_000);
+    const pullLatestStep0Status = () => {
+      homeworkApi
+        .getStatus()
+        .then((statusRes) => {
+          syncDashboardStateFromStatus(statusRes);
+        })
+        .catch(() => {});
+    };
+
+    // Kick once immediately, then keep polling.
+    pullLatestStep0Status();
+    const id = setInterval(pullLatestStep0Status, 3_000);
     return () => clearInterval(id);
+  }, [step, reviewPending, syncDashboardStateFromStatus]);
+
+  // Also sync immediately when user returns to the tab/window so we do not wait
+  // for the next interval tick after backend assignment changes.
+  useEffect(() => {
+    if (step !== 0 || !reviewPending) return;
+
+    const pullLatestStep0Status = () => {
+      homeworkApi
+        .getStatus()
+        .then((statusRes) => {
+          syncDashboardStateFromStatus(statusRes);
+        })
+        .catch(() => {});
+    };
+
+    const onVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      pullLatestStep0Status();
+    };
+
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+    };
   }, [step, reviewPending, syncDashboardStateFromStatus]);
 
   // Keep reports fresh while the step-0 list is visible so newly completed sessions
