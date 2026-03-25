@@ -164,6 +164,10 @@ export interface HomeworkResponse {
   assigned_exercises?: AssignedExercise[];
   /** Explicit step-0 video switch from backend: 0 hides tutor video and keeps waiting UI, 1 allows it. */
   video_shown?: 0 | 1 | null;
+  /** Whether the student is currently allowed to create a new homework session from step 0. */
+  can_start_homework?: boolean | null;
+  /** Backend reason for blocking session/start while the student is on step 0. */
+  session_start_blocked_reason?: string | null;
   review_pending?: boolean | null;
   main_screen_state?: string | null;
   main_screen_message?: string | null;
@@ -258,6 +262,10 @@ export interface HomeworkSessionStatus {
   assigned_exercises?: AssignedExercise[];
   /** Explicit step-0 video switch from backend: 0 hides tutor video and keeps waiting UI, 1 allows it. */
   video_shown?: number | null;
+  /** Whether the student is currently allowed to create a new homework session from step 0. */
+  can_start_homework?: boolean | null;
+  /** Backend reason for blocking session/start while the student is on step 0. */
+  session_start_blocked_reason?: string | null;
   review_pending?: boolean | null;
   main_screen_state?: string | null;
   main_screen_message?: string | null;
@@ -331,6 +339,8 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
     assigned_exercises: Array.isArray(raw.assigned_exercises) ? raw.assigned_exercises : [],
     video_shown: normalizeVideoShown(raw.video_shown ?? raw.session?.video_shown),
+    can_start_homework: raw.can_start_homework ?? null,
+    session_start_blocked_reason: raw.session_start_blocked_reason ?? null,
     review_pending: raw.review_pending ?? null,
     main_screen_state: raw.main_screen_state ?? null,
     main_screen_message: raw.main_screen_message ?? null,
