@@ -1041,8 +1041,9 @@ export default function HomeworkFlowCard() {
   };
 
   const handleLeaveReport = async () => {
+    const step0WaitingUrl = "/dashboard?homeworkState=waiting";
     if (!sessionId || sessionId === "mock-session") {
-      activateForcedStep0Waiting();
+      window.location.href = step0WaitingUrl;
       return;
     }
 
@@ -1050,7 +1051,13 @@ export default function HomeworkFlowCard() {
     leavingReportRef.current = true;
     setError(null);
     try {
-      const statusRes = await homeworkApi.leaveReport(sessionId);
+      await homeworkApi.leaveReport(sessionId);
+    } catch (e) {
+      const apiErr = e as HomeworkApiError;
+      if (apiErr.status !== 404) {
+        toast.error(apiErr.message || "Could not leave the report yet.");
+      }
+    } finally {
       forcedStep0WaitingRef.current = false;
       clearForcedStep0WaitingState();
       clearPersistedFinalReportState();
@@ -1058,17 +1065,9 @@ export default function HomeworkFlowCard() {
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
-      applyBackendStep0Status(statusRes);
-    } catch (e) {
-      const apiErr = e as HomeworkApiError;
-      if (apiErr.status === 404) {
-        activateForcedStep0Waiting();
-      } else {
-        toast.error(apiErr.message || "Could not leave the report yet.");
-      }
-    } finally {
       leavingReportRef.current = false;
       setLeavingReport(false);
+      window.location.href = step0WaitingUrl;
     }
   };
 
