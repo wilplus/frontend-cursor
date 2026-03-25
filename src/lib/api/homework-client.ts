@@ -33,17 +33,19 @@ export type HomeworkApiError = Error & {
   code?: string;
   status?: number;
   backendStatus?: string;
+  reason?: string;
   hint?: string;
   details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
 };
 
-async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string; hint?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
+async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string; reason?: string; hint?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
   try {
     const body = (await res.json()) as {
       error?: string;
       message?: string;
       code?: string;
       status?: string;
+      reason?: string;
       hint?: string;
       details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
     };
@@ -51,6 +53,7 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
       body.error || body.message || res.statusText || `Request failed ${res.status}`;
     const code = body.code;
     const status = body.status;
+    const reason = body.reason;
     const hint = body.hint;
     if (res.status === 422 && code === "RECORDING_DURATION_OUT_OF_RANGE" && body.details) {
       const d = body.details;
@@ -59,7 +62,7 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
       message = `Recording must be between ${minMin} and ${maxMin} minutes. You recorded ${d.duration_seconds != null ? `${Math.round(d.duration_seconds)}s` : "too short"}. Please try again.`;
     }
     if (hint && res.status === 409) message = `${message} ${hint}`;
-    return { message, code, status, hint, details: body.details };
+    return { message, code, status, reason, hint, details: body.details };
   } catch {
     return { message: res.statusText || `Request failed ${res.status}` };
   }
@@ -78,7 +81,7 @@ async function safeParseJson<T>(res: Response): Promise<T> {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const { message, code, status, hint, details } = await parseErrorBody(res);
+    const { message, code, status, reason, hint, details } = await parseErrorBody(res);
     if (res.status === 409 && typeof window !== "undefined") {
       console.warn("[HomeworkFlow] 409 from API", { message, code, status });
     }
@@ -94,6 +97,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
     if (code) err.code = code;
     if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
     if (res.status === 409 && status) err.backendStatus = status;
+    if (reason) err.reason = reason;
     if (hint) err.hint = hint;
     if (details) err.details = details as HomeworkApiError["details"];
     throw err;
@@ -109,6 +113,18 @@ export const homeworkApi = {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const res = await fetch(`${BASE}/session/start`, { method: "POST", headers, body: "{}", credentials });
     return handleResponse<HomeworkStartResponse>(res);
+  },
+
+  /** Leave the completed report screen and return the backend-owned step-0 state. */
+  async leaveReport(sessionId: string): Promise<HomeworkSessionStatus> {
+    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
+    const res = await fetch(`${BASE}/session/${sessionId}/leave-report`, {
+      method: "POST",
+      headers,
+      body: "{}",
+      credentials,
+    });
+    return handleResponse<HomeworkSessionStatus>(res);
   },
 
   /** Abandon the current session so it is no longer active; user can start a new session. Returns 200, 400/409 (already completed/abandoned), or 404 (session not found) — all treated as success so the UI can redirect to step 0. */
@@ -188,10 +204,11 @@ export const homeworkApi = {
     const res = await fetch(`${BASE}/session/status`, { method: "GET", headers, credentials });
     if (res.status === 404) return null;
     if (!res.ok) {
-      const { message, code } = await parseErrorBody(res);
+      const { message, code, reason } = await parseErrorBody(res);
       const err = new Error(message) as HomeworkApiError;
       if (code) err.code = code;
       if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
+      if (reason) err.reason = reason;
       throw err;
     }
     return safeParseJson<HomeworkSessionStatus | null>(res);
