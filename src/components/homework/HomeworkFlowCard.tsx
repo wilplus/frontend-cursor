@@ -311,7 +311,7 @@ function clearForcedStep0WaitingState() {
 
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
   if (!statusRes) return false;
-  if (statusRes.has_active_session === true) return true;
+  if (statusRes.has_active_session === true) return false;
   return (
     statusRes.review_pending !== true &&
     normalizeVideoShown(statusRes.video_shown ?? statusRes.session?.video_shown) !== 0
@@ -601,6 +601,13 @@ export default function HomeworkFlowCard() {
     forcedStep0WaitingRef.current = true;
     persistForcedStep0WaitingState();
     setPollReportsAfterFinish(true);
+    setSessionId(null);
+    setTask("");
+    setFinalTask("");
+    setReportText("");
+    setPerformanceScoreEnd(null);
+    setReportData(null);
+    setCoachMessageAfterHomework(null);
     setShowReportsList(false);
     setReportsModalOpen(false);
     setReportModalSessionId(null);
@@ -608,6 +615,9 @@ export default function HomeworkFlowCard() {
     setReportError(null);
     setReportNotReady(false);
     setReportLoading(false);
+    setStep0VideoShown(0);
+    setStep0TutorVideoUrl(null);
+    setStep0TutorVideoDescription(null);
     setReviewPending(true);
     setMainScreenMessage(REVIEW_PENDING_DEFAULT_MESSAGE);
     setStep(0);
@@ -1063,6 +1073,7 @@ export default function HomeworkFlowCard() {
 
   /** Abandon current session. Treat 200 and 404 as success; in both cases run applyStatusToState({ status: "none" }). Do not call GET status after abandon. */
   const handleAbandon = async () => {
+    const shouldReturnToForcedWaiting = forcedStep0WaitingRef.current;
     if (!sessionId || sessionId === "mock-session") {
       handleStartOver();
       return;
@@ -1096,6 +1107,9 @@ export default function HomeworkFlowCard() {
     clearPersistedFinalReportState();
     persistedFinalReportRef.current = null;
     applyStatusToState({ status: "none" });
+    if (shouldReturnToForcedWaiting) {
+      activateForcedStep0Waiting();
+    }
     setLoading(false);
     setMetricStepBlockedByRecordingFailure(false);
   };
@@ -1138,6 +1152,10 @@ export default function HomeworkFlowCard() {
       .getStatus()
       .then((statusRes) => {
         if (cancelled) return;
+        if (forcedStep0WaitingRef.current) {
+          syncDashboardStateFromStatus(statusRes);
+          return;
+        }
         if (!statusRes || statusRes.has_active_session === false) {
           if (restorePersistedFinalReport(persistedFinalReportRef.current)) {
             syncDashboardStateFromStatus(statusRes);
