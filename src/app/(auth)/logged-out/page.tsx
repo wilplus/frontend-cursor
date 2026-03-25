@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 
 export default function LoggedOutPage() {
   return (
-    <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center bg-background px-4 py-10 sm:px-6">
+    <div className="relative flex flex-col items-center bg-background px-4 pt-24 pb-10 sm:px-6 sm:pt-28">
       <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
         <WillabLogo size="lg" />
       </div>
 
-      <Card className="w-full max-w-md border-0 bg-transparent p-6 sm:p-8 shadow-none">
+      <Card className="w-full max-w-md border-0 bg-transparent p-0 shadow-none">
         <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-4">
           <div className="w-full rounded-3xl border border-border bg-muted/40 px-5 py-6 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">

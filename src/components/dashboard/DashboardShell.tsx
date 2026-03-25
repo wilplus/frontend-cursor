@@ -41,10 +41,10 @@ export default function DashboardShell({
 
   return (
     <RecordingContext.Provider value={{ isRecording, setRecordingActive, setShowNavbar }}>
-      <div className="min-h-screen bg-background">
+      <div className="bg-background">
         {showNavbar && <DashboardHeader />}
         <main
-          className={`w-full max-w-4xl mx-auto flex flex-col min-w-0 px-[15px] pt-6 pb-8 sm:pt-8 sm:pb-10 ${isRecording ? "recording-screen" : ""}`}
+          className={`w-full max-w-4xl mx-auto flex flex-col min-w-0 px-[15px] pt-6 pb-4 sm:pt-8 sm:pb-6 ${isRecording ? "recording-screen" : ""}`}
         >
           <div className={`w-full ${isRecording ? "max-w-lg" : "max-w-2xl sm:max-w-3xl"} mx-auto flex flex-col items-center`}>
             {children}
