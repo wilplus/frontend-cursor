@@ -1075,34 +1075,35 @@ export default function HomeworkFlowCard() {
   };
 
   const handleLeaveReport = async () => {
-    const step0WaitingUrl = "/dashboard?homeworkState=waiting";
-    if (!sessionId || sessionId === "mock-session") {
-      persistForcedStep0WaitingState();
-      window.location.href = step0WaitingUrl;
-      return;
-    }
+    const logoutUrl = "/logged-out";
 
     setLeavingReport(true);
     leavingReportRef.current = true;
     setError(null);
     try {
-      await homeworkApi.leaveReport(sessionId);
+      if (sessionId && sessionId !== "mock-session") {
+        await homeworkApi.leaveReport(sessionId);
+      }
     } catch (e) {
       const apiErr = e as HomeworkApiError;
       if (apiErr.status !== 404) {
         toast.error(apiErr.message || "Could not leave the report yet.");
       }
     } finally {
-      // Keep forced step-0 waiting persisted across hard navigation (do not clear before redirect).
-      persistForcedStep0WaitingState();
+      clearForcedStep0WaitingState();
       clearPersistedFinalReportState();
       persistedFinalReportRef.current = null;
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
+      try {
+        await createClient().auth.signOut();
+      } catch {
+        // Ignore sign-out failures and still force navigation to login.
+      }
       leavingReportRef.current = false;
       setLeavingReport(false);
-      window.location.href = step0WaitingUrl;
+      router.push(logoutUrl);
     }
   };
 
@@ -2336,7 +2337,7 @@ export default function HomeworkFlowCard() {
           ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
           : undefined);
     const canonicalFinalScore = normalizePercentScore(reportData?.score_for_display);
-    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Start New Practice";
+    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Send to Coach and Log Out";
     const currentPerformanceScore1 =
       typeof reportData?.performance_score_1 === "number"
         ? Math.round(reportData.performance_score_1 <= 1 ? reportData.performance_score_1 * 100 : reportData.performance_score_1)
