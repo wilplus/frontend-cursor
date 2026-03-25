@@ -14,6 +14,7 @@ import type {
 import {
   deriveHomeworkStep,
   getStatusToHomeworkResponse,
+  normalizeVideoShown,
   toPublicStatus,
   type Step as StepType,
   type PublicHomeworkStatus,
@@ -311,7 +312,10 @@ function clearForcedStep0WaitingState() {
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
   if (!statusRes) return false;
   if (statusRes.has_active_session === true) return true;
-  return statusRes.review_pending !== true;
+  return (
+    statusRes.review_pending !== true &&
+    normalizeVideoShown(statusRes.video_shown ?? statusRes.session?.video_shown) !== 0
+  );
 }
 
 function maxStep(a: Step, b: Step): Step {
@@ -406,6 +410,8 @@ export default function HomeworkFlowCard() {
   /** When true, step 0 should show the coach-review waiting state instead of the assignment/video card. */
   const [reviewPending, setReviewPending] = useState(false);
   const [mainScreenMessage, setMainScreenMessage] = useState<string | null>(null);
+  /** Explicit backend step-0 video switch: 0 hides the video and keeps waiting UI, 1 allows video. */
+  const [step0VideoShown, setStep0VideoShown] = useState<0 | 1>(1);
   /** Step-0 homework video URL from backend. Preferred over assigned_exercises[].video_url when present. */
   const [step0TutorVideoUrl, setStep0TutorVideoUrl] = useState<string | null>(null);
   /** Step-0 homework intro text paired with tutor_video_url. */
@@ -519,26 +525,31 @@ export default function HomeworkFlowCard() {
           : null
       );
 
+      const videoShown = normalizeVideoShown(statusRes?.video_shown ?? statusRes?.session?.video_shown);
+      const shouldHideTutorVideo = videoShown === 0;
+      setStep0VideoShown(videoShown);
       const backendReviewPending = statusRes?.review_pending === true;
       const shouldForceWaiting = forcedStep0WaitingRef.current && !isHomeworkReadyForStep0(statusRes);
-      setReviewPending(backendReviewPending || shouldForceWaiting);
+      setReviewPending(shouldHideTutorVideo || backendReviewPending || shouldForceWaiting);
       const waitingMessage = statusRes?.main_screen_message;
       setMainScreenMessage(
         typeof waitingMessage === "string" && waitingMessage.trim()
           ? waitingMessage.trim()
-          : shouldForceWaiting
+          : (shouldHideTutorVideo || shouldForceWaiting)
             ? REVIEW_PENDING_DEFAULT_MESSAGE
             : null
       );
 
       const tutorVideoUrl = statusRes?.tutor_video_url ?? statusRes?.session?.tutor_video_url ?? null;
       setStep0TutorVideoUrl(
-        typeof tutorVideoUrl === "string" && tutorVideoUrl.trim() ? tutorVideoUrl.trim() : null
+        !shouldHideTutorVideo && typeof tutorVideoUrl === "string" && tutorVideoUrl.trim()
+          ? tutorVideoUrl.trim()
+          : null
       );
       const tutorVideoDescription =
         statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
       setStep0TutorVideoDescription(
-        typeof tutorVideoDescription === "string" && tutorVideoDescription.trim()
+        !shouldHideTutorVideo && typeof tutorVideoDescription === "string" && tutorVideoDescription.trim()
           ? tutorVideoDescription.trim()
           : null
       );
@@ -581,6 +592,7 @@ export default function HomeworkFlowCard() {
     setTutorFeedbackMessage(null);
     setReviewPending(false);
     setMainScreenMessage(null);
+    setStep0VideoShown(1);
     setStep0TutorVideoUrl(null);
     setStep0TutorVideoDescription(null);
   }, []);
@@ -816,6 +828,8 @@ export default function HomeworkFlowCard() {
   /** Single state projection from backend response. Step is only set to 0 when status is "none". Steps 1, 2, 3 are only reached by user flow: Start → 1, recording done → 2, self-rating done → 3. */
   const applyStatusToState = (res: HomeworkResponse) => {
     const status: PublicHomeworkStatus = res.status ?? "none";
+    const videoShown = normalizeVideoShown(res.video_shown);
+    const shouldHideTutorVideo = videoShown === 0;
     if (status === "none") {
       setStep(0);
     }
@@ -829,19 +843,30 @@ export default function HomeworkFlowCard() {
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
-      setReviewPending(res.review_pending === true);
+      setStep0VideoShown(videoShown);
+      setReviewPending(shouldHideTutorVideo || res.review_pending === true);
       setMainScreenMessage(
         typeof res.main_screen_message === "string" && res.main_screen_message.trim()
           ? res.main_screen_message.trim()
-          : null
+          : shouldHideTutorVideo
+            ? REVIEW_PENDING_DEFAULT_MESSAGE
+            : null
       );
       if ("tutor_video_url" in res) {
         const videoUrl = res.tutor_video_url;
-        setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
+        setStep0TutorVideoUrl(
+          !shouldHideTutorVideo && typeof videoUrl === "string" && videoUrl.trim()
+            ? videoUrl.trim()
+            : null
+        );
       }
       if ("tutor_video_description" in res) {
         const desc = res.tutor_video_description;
-        setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+        setStep0TutorVideoDescription(
+          !shouldHideTutorVideo && typeof desc === "string" && desc.trim()
+            ? desc.trim()
+            : null
+        );
       }
       // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 3 score)
       setCoachMessageAfterHomework(null);
@@ -861,6 +886,7 @@ export default function HomeworkFlowCard() {
 
     setReviewPending(false);
     setMainScreenMessage(null);
+    setStep0VideoShown(videoShown);
     if ("task" in res && res.task !== undefined) {
       setTask(resolveTaskText(res.task));
     }
@@ -884,11 +910,19 @@ export default function HomeworkFlowCard() {
     }
     if ("tutor_video_url" in res) {
       const videoUrl = res.tutor_video_url;
-      setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
+      setStep0TutorVideoUrl(
+        !shouldHideTutorVideo && typeof videoUrl === "string" && videoUrl.trim()
+          ? videoUrl.trim()
+          : null
+      );
     }
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
-      setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+      setStep0TutorVideoDescription(
+        !shouldHideTutorVideo && typeof desc === "string" && desc.trim()
+          ? desc.trim()
+          : null
+      );
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
     if (Array.isArray(res.assigned_exercises)) {
@@ -1653,9 +1687,11 @@ export default function HomeworkFlowCard() {
     const step0Exercises = assignedExercises;
     const ex = step0Exercises[0];
     const fallbackExerciseVideoUrl = ex?.video_url?.trim();
-    const videoUrl = step0TutorVideoUrl ?? fallbackExerciseVideoUrl;
+    const shouldShowWaiting = reviewPending || step0VideoShown === 0;
+    const videoUrl = step0VideoShown === 0 ? null : (step0TutorVideoUrl ?? fallbackExerciseVideoUrl);
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
-    const step0IntroText = step0TutorVideoDescription ?? ex?.description?.trim() ?? null;
+    const step0IntroText =
+      step0VideoShown === 0 ? null : (step0TutorVideoDescription ?? ex?.description?.trim() ?? null);
     const waitingMessage =
       mainScreenMessage ??
       REVIEW_PENDING_DEFAULT_MESSAGE;
@@ -1669,7 +1705,7 @@ export default function HomeworkFlowCard() {
         <StepFlowWrapper step={0} syncingBehind={syncingBehind}>
           <Card className="w-full max-w-md mx-auto p-6 sm:p-8 border-0 bg-transparent shadow-none">
             <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-4">
-              {reviewPending ? (
+              {shouldShowWaiting ? (
                 <div className="w-full rounded-3xl border border-border bg-muted/40 px-5 py-6 text-center shadow-sm">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <svg
