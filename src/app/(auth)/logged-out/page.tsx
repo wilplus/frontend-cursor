@@ -34,13 +34,12 @@ export default function LoggedOutPage() {
               </svg>
             </div>
             <div className="mt-4 space-y-3">
-              <p className="text-lg font-semibold text-foreground">Your homework is being reviewed</p>
+              <p className="text-lg font-semibold text-foreground">Homework submitted!</p>
               <p className="text-sm leading-6 text-muted-foreground">
-                Artur is analysing your homework and will send you the grading and comment soon. If you pass, we
-                will see each other in the next step!
+                Your homework has been sent and is now being reviewed.
               </p>
               <p className="text-xs leading-5 text-muted-foreground">
-                We&apos;ll email you when your next homework is ready.
+                We&apos;ll email you as soon as it&apos;s ready.
               </p>
             </div>
           </div>
@@ -48,7 +47,7 @@ export default function LoggedOutPage() {
           <div className="w-full space-y-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Security note</p>
             <p className="text-xs leading-5 text-muted-foreground">
-              Logging out between sessions helps keep your connection secure on shared devices.
+              You&apos;ve been logged out automatically to keep your account secure.
             </p>
           </div>
           <Button asChild className="w-full rounded-xl h-12 font-semibold">

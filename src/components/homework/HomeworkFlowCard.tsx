@@ -224,7 +224,7 @@ const FINAL_REPORT_STORAGE_KEY = "homeworkReport";
 const FORCE_STEP0_WAITING_STORAGE_KEY = "homeworkForceStep0Waiting";
 const FORCE_STEP0_WAITING_TTL_MS = 30 * 60 * 1000;
 const REVIEW_PENDING_DEFAULT_MESSAGE =
-  "Artur is analysing your homework and will send you the grading and comment soon. If you pass, we will see each other in the next step!";
+  "Your homework has been sent and is now being reviewed.";
 
 type PersistedFinalReportState = {
   sessionId: string;
@@ -1860,8 +1860,10 @@ export default function HomeworkFlowCard() {
                     </svg>
                   </div>
                   <div className="mt-4 space-y-3">
-                    <p className="text-lg font-semibold text-foreground">Your homework is being reviewed</p>
-                    <p className="text-sm leading-6 text-muted-foreground">{waitingMessage}</p>
+                    <p className="text-lg font-semibold text-foreground">Homework submitted!</p>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Your homework has been sent and is now being reviewed.
+                    </p>
                     {(sniperProfile?.realtime_level != null || sniperProfile?.realtime_step != null) ? (
                       <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-foreground">
                         Current unlocked progress: Level {sniperProfile?.realtime_level ?? "—"}, Step{" "}
@@ -1869,7 +1871,7 @@ export default function HomeworkFlowCard() {
                       </div>
                     ) : null}
                     <p className="text-xs leading-5 text-muted-foreground">
-                      We&apos;ll email you when your next homework is ready.
+                      We&apos;ll email you as soon as it&apos;s ready.
                     </p>
                   </div>
                 </div>
