@@ -1829,10 +1829,6 @@ export default function HomeworkFlowCard() {
     const videoUrl =
       step0VideoShown === 0 || !step0CanStartHomework ? null : (step0TutorVideoUrl ?? fallbackExerciseVideoUrl);
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
-    const step0IntroText =
-      step0VideoShown === 0 || !step0CanStartHomework
-        ? null
-        : (step0TutorVideoDescription ?? ex?.description?.trim() ?? null);
     const waitingMessage =
       mainScreenMessage ??
       REVIEW_PENDING_DEFAULT_MESSAGE;
@@ -1924,11 +1920,6 @@ export default function HomeworkFlowCard() {
                           ? step0BlockedLabel
                           : "Start Your Practice"}
                   </Button>
-                  {step0IntroText ? (
-                    <p className="w-full max-w-[280px] text-sm leading-6 text-muted-foreground text-center">
-                      {step0IntroText}
-                    </p>
-                  ) : null}
                 </>
               )}
 

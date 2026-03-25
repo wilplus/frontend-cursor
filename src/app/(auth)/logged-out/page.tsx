@@ -15,19 +15,46 @@ export default function LoggedOutPage() {
         <WillabLogo size="lg" />
       </div>
 
-      <Card className="w-full max-w-md border border-border/60 bg-card/80 p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <h1 className="text-xl font-semibold text-foreground">Waiting for your next assignment</h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          You have been logged out successfully.
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Logging out helps keep your connection secure between sessions.
-        </p>
+      <Card className="w-full max-w-md border-0 bg-transparent p-6 sm:p-8 shadow-none">
+        <div className="flex flex-col items-center w-full max-w-[280px] mx-auto space-y-4">
+          <div className="w-full rounded-3xl border border-border bg-muted/40 px-5 py-6 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 6v6l4 2" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <div className="mt-4 space-y-3">
+              <p className="text-lg font-semibold text-foreground">Your homework is being reviewed</p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Artur is analysing your homework and will send you the grading and comment soon. If you pass, we
+                will see each other in the next step!
+              </p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                We&apos;ll email you when your next homework is ready.
+              </p>
+            </div>
+          </div>
 
-        <Button asChild className="mt-6 w-full">
-          <Link href="/login">Sign in again</Link>
-        </Button>
+          <div className="w-full space-y-3 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Security note</p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Logging out between sessions helps keep your connection secure on shared devices.
+            </p>
+          </div>
+          <Button asChild className="w-full rounded-xl h-12 font-semibold">
+            <Link href="/login">Sign in again</Link>
+          </Button>
+        </div>
       </Card>
     </div>
   );
