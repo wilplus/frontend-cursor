@@ -2498,7 +2498,7 @@ export default function HomeworkFlowCard() {
               onClick={handleAbandon}
               className="text-muted-foreground hover:text-foreground"
             >
-              {resetting ? "Resetting…" : "Do your homework again"}
+              {resetting ? "Resetting…" : "Abandon the session and start again"}
             </Button>
           </div>
         </Card>
