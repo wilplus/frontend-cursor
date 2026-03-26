@@ -933,19 +933,11 @@ export default function HomeworkFlowCard() {
     }
     if ("tutor_video_url" in res) {
       const videoUrl = res.tutor_video_url;
-      setStep0TutorVideoUrl(
-        !shouldHideTutorVideo && typeof videoUrl === "string" && videoUrl.trim()
-          ? videoUrl.trim()
-          : null
-      );
+      setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
     }
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
-      setStep0TutorVideoDescription(
-        !shouldHideTutorVideo && typeof desc === "string" && desc.trim()
-          ? desc.trim()
-          : null
-      );
+      setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
     if (Array.isArray(res.assigned_exercises)) {
