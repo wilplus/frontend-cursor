@@ -6,8 +6,6 @@ import type {
   HomeworkStartResponse,
   HomeworkSessionStatus,
   HomeworkRecording1Response,
-  HomeworkTaskAnswersResponse,
-  HomeworkRecording2Response,
   HomeworkReportResponse,
   QuestionBlockV2,
 } from "@/lib/api/types-homework";
@@ -115,18 +113,6 @@ export const homeworkApi = {
     return handleResponse<HomeworkStartResponse>(res);
   },
 
-  /** Leave the completed report screen and return the backend-owned step-0 state. */
-  async leaveReport(sessionId: string): Promise<HomeworkSessionStatus> {
-    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    const res = await fetch(`${BASE}/session/${sessionId}/leave-report`, {
-      method: "POST",
-      headers,
-      body: "{}",
-      credentials,
-    });
-    return handleResponse<HomeworkSessionStatus>(res);
-  },
-
   /** Abandon the current session so it is no longer active; user can start a new session. Returns 200, 400/409 (already completed/abandoned), or 404 (session not found) — all treated as success so the UI can redirect to step 0. */
   async abandonSession(sessionId: string): Promise<{ abandoned: boolean; message?: string }> {
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
@@ -212,13 +198,6 @@ export const homeworkApi = {
       throw err;
     }
     return safeParseJson<HomeworkSessionStatus | null>(res);
-  },
-
-  /** Legacy compatibility helper for the step-2 question block. Prefer GET status when possible. */
-  async getQuestionBlock(sessionId: string): Promise<{ task_block: QuestionBlockV2 }> {
-    const { headers, credentials } = await getAuthFetchOptions();
-    const res = await fetch(`${BASE}/session/${sessionId}/question-block`, { method: "GET", headers, credentials });
-    return handleResponse<{ task_block: QuestionBlockV2 }>(res);
   },
 
   /** Get upload target for a recording. Backend returns upload_url (signed) + storage_path when signed; else bucket + storage_path for SDK upload. Or already_past_step + task_block when session already advanced past the first recording. */
@@ -366,64 +345,6 @@ export const homeworkApi = {
     });
     console.info("[HomeworkFlow] uploadRecording1 recording-1 response", { status: res.status });
     return handleResponse<HomeworkRecording1Response>(res);
-  },
-
-  /** Submit the three step-2 answers; returns the final task for recording_2. Backend may be slow (LLM); 70s timeout. */
-  async submitTaskAnswers(
-    sessionId: string,
-    body: { metric_answer_1: string; metric_answer_2: string; metric_answer_3: string }
-  ): Promise<HomeworkTaskAnswersResponse> {
-    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 70_000);
-    try {
-      const res = await fetch(`${BASE}/session/${sessionId}/task-answers`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        credentials,
-        signal: controller.signal,
-      });
-      return await handleResponse<HomeworkTaskAnswersResponse>(res);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  },
-
-  /** Upload recording_2: get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-2 with JSON { storage_path, duration_seconds, center_hold_ratio? }. */
-  async uploadRecording2(
-    sessionId: string,
-    blob: Blob,
-    durationSeconds: number,
-    signal?: AbortSignal,
-    centerHoldRatio?: number,
-    centerHoldMs?: number,
-    totalActiveMs?: number
-  ): Promise<HomeworkRecording2Response> {
-    const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
-    const uploadTarget = uploadUrlResult as
-      | { upload_url: string; storage_path: string }
-      | { bucket: string; storage_path: string };
-    const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
-    const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
-    const postBody: Record<string, unknown> = { storage_path, duration_seconds: durationSeconds };
-    if (typeof centerHoldRatio === "number" && Number.isFinite(centerHoldRatio)) {
-      postBody.center_hold_ratio = Math.max(0, Math.min(1, centerHoldRatio));
-    }
-    if (typeof centerHoldMs === "number" && Number.isFinite(centerHoldMs)) {
-      postBody.center_hold_ms = Math.max(0, Math.round(centerHoldMs));
-    }
-    if (typeof totalActiveMs === "number" && Number.isFinite(totalActiveMs)) {
-      postBody.total_active_ms = Math.max(0, Math.round(totalActiveMs));
-    }
-    const res = await fetch(`${BASE}/session/${sessionId}/recording-2`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(postBody),
-      signal,
-      credentials,
-    });
-    return handleResponse<HomeworkRecording2Response>(res);
   },
 
   /** Get report for completed session (step 5): report_text, scores, final_recording with fresh audio_url. */
