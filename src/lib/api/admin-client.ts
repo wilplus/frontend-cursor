@@ -80,7 +80,7 @@ export interface StudentProfile {
     assigned_realtime_step?: number | null;
     /** When true, student skips step 2 prompts. Backend must transition recording_1 → final_task_ready. */
     skip_metric_questions?: boolean;
-    /** When true, student skips step 4 (post-questions). Backend must transition recording_2 → completed. */
+    /** When true, student skips step 3 (report). Backend must transition recording_2 → completed. */
     skip_post_questions?: boolean;
   } | null;
   speaker_profile: {
