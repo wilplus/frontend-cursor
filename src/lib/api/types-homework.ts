@@ -17,12 +17,11 @@ export type PublicHomeworkStatus =
   | "completing_from_recording_2"
   | "report_generating";
 
-export type Step = 0 | 1 | 2 | 4;
+export type Step = 0 | 1 | 2 | 3;
 
 /**
  * Single mapping: backend status → UI step.
- * Step 3 = recording 2 (final task).
- * Step 4 = report (was step 3 before recording 2 was added).
+ * Step 3 = report.
  */
 export function mapStatusToStep(status: PublicHomeworkStatus): Step {
   switch (status) {
@@ -33,16 +32,16 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
     // task_block: between recordings — show self-rating (step 2) while job processes
     case "task_block":
       return 2;
-    // final_task_ready: recording 2 was removed; map directly to report step
+    // final_task_ready → report
     case "final_task_ready":
-      return 4;
-    // post_questions, completing_from_recording_2, completed, report_generating → report
+      return 3;
+    // post_questions, completing_*, completed, report_generating → report
     case "post_questions":
     case "completing_from_recording_2":
     case "completed":
     case "completing_from_recording_1":
     case "report_generating":
-      return 4;
+      return 3;
     default: {
       const _exhaustive: never = status;
       return 0;
@@ -108,12 +107,12 @@ export function deriveHomeworkStep(
     rawStatusTokens.includes("recording_2_uploaded") ||
     rawStatusTokens.includes("recording_2_scored")
   ) {
-    return 4;
+    return 3;
   }
 
   // Recording 2 was removed; final_task_ready maps to report
   if (normalizedStatus === "final_task_ready") {
-    return 4;
+    return 3;
   }
 
   const hasRecordingId =
