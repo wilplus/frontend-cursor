@@ -17,7 +17,7 @@ export type PublicHomeworkStatus =
   | "completing_from_recording_2"
   | "report_generating";
 
-export type Step = 0 | 1 | 2 | 3 | 4;
+export type Step = 0 | 1 | 2 | 4;
 
 /**
  * Single mapping: backend status → UI step.
@@ -33,9 +33,9 @@ export function mapStatusToStep(status: PublicHomeworkStatus): Step {
     // task_block: between recordings — show self-rating (step 2) while job processes
     case "task_block":
       return 2;
-    // final_task_ready: recording 2 unlocked
+    // final_task_ready: recording 2 was removed; map directly to report step
     case "final_task_ready":
-      return 3;
+      return 4;
     // post_questions, completing_from_recording_2, completed, report_generating → report
     case "post_questions":
     case "completing_from_recording_2":
@@ -111,9 +111,9 @@ export function deriveHomeworkStep(
     return 4;
   }
 
-  // Recording 2 unlocked
+  // Recording 2 was removed; final_task_ready maps to report
   if (normalizedStatus === "final_task_ready") {
-    return 3;
+    return 4;
   }
 
   const hasRecordingId =
@@ -342,7 +342,7 @@ export interface QuestionPromptItemV2 {
   order_index?: number;
 }
 
-// —— Question block (after recording_1): backend still returns the legacy task_block key. ——
+// QuestionBlockV2 is kept for homework-client.ts getRecordingUploadUrl which still references it.
 export interface QuestionBlockV2 {
   context_short?: string;
   metric_question_1?: QuestionPromptItemV2 | string;
@@ -354,26 +354,6 @@ export interface QuestionBlockV2 {
 
 export interface HomeworkRecording1Response {
   performance_score_1: number;
-  recording_id?: UUID | null;
-}
-
-// —— After step-2 answers: final task for recording_2 ——
-export interface TaskAnswersResponseV2 {
-  final_task: string;
-}
-
-export interface HomeworkTaskAnswersResponse {
-  final_task?: string;
-  final_task_text?: string;
-  /** When true, recording-1 analysis failed and backend used a general focus; see message. */
-  recording_1_fallback?: boolean;
-  /** Explanation when recording_1_fallback is true (e.g. "Your first recording couldn't be fully analyzed..."). */
-  message?: string;
-}
-
-// —— After recording_2 ——
-export interface HomeworkRecording2Response {
-  performance_score_2: number;
   recording_id?: UUID | null;
 }
 
