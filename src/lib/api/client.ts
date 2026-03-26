@@ -1,3 +1,4 @@
+import { getAuthFetchOptions } from "@/lib/api/auth-fetch";
 import type {
   SessionStatusResponse,
   SessionStartRequest,
@@ -18,25 +19,6 @@ import type {
   ApiError,
 } from "./types";
 
-/** Get auth headers (Bearer token) and credentials for API requests. Sends token so BFF can use it when cookies fail. */
-async function getAuthFetchOptions(
-  extraHeaders: Record<string, string> = {}
-): Promise<{ headers: Record<string, string>; credentials: RequestCredentials }> {
-  const headers: Record<string, string> = { ...extraHeaders };
-  if (typeof window !== "undefined") {
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return { headers, credentials: "include" };
-}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
