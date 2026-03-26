@@ -14,7 +14,6 @@ import type {
 import {
   deriveHomeworkStep,
   getStatusToHomeworkResponse,
-  normalizeVideoShown,
   toPublicStatus,
   type Step as StepType,
   type PublicHomeworkStatus,
@@ -309,18 +308,11 @@ function clearForcedStep0WaitingState() {
   window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
 }
 
-/**
- * Unlock step-0 “assignment ready” only when the backend sends explicit fields.
- * Loose defaults elsewhere (e.g. normalizeVideoShown(undefined) → 1) must not clear forced post-report waiting.
- */
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
   if (!statusRes) return false;
   if (statusRes.has_active_session === true) return false;
   if (statusRes.review_pending === true) return false;
-  if (statusRes.can_start_homework !== true) return false;
-  const rawVideo = statusRes.video_shown ?? statusRes.session?.video_shown;
-  if (rawVideo === undefined || rawVideo === null) return false;
-  return normalizeVideoShown(rawVideo) === 1;
+  return true;
 }
 
 function maxStep(a: Step, b: Step): Step {
@@ -416,11 +408,6 @@ export default function HomeworkFlowCard() {
   /** When true, step 0 should show the coach-review waiting state instead of the assignment/video card. */
   const [reviewPending, setReviewPending] = useState(false);
   const [mainScreenMessage, setMainScreenMessage] = useState<string | null>(null);
-  /** Backend-owned step-0 start gate. When false, session/start must not be called. */
-  const [step0CanStartHomework, setStep0CanStartHomework] = useState(true);
-  const [step0StartBlockedReason, setStep0StartBlockedReason] = useState<string | null>(null);
-  /** Explicit backend step-0 video switch: 0 hides the video and keeps waiting UI, 1 allows video. */
-  const [step0VideoShown, setStep0VideoShown] = useState<0 | 1>(1);
   /** Step-0 homework video URL from backend. Preferred over assigned_exercises[].video_url when present. */
   const [step0TutorVideoUrl, setStep0TutorVideoUrl] = useState<string | null>(null);
   /** Step-0 homework intro text paired with tutor_video_url. */
@@ -438,6 +425,10 @@ export default function HomeworkFlowCard() {
   const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
   const forcedStep0WaitingRef = useRef(false);
   const leavingReportRef = useRef(false);
+  /** Student's remaining credits balance (from GET status). */
+  const [credits, setCredits] = useState<number | null>(null);
+  /** When true, show the insufficient-credits modal blocking homework start. */
+  const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false);
   /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
   const [studentSpeechRatingSubmitted, setStudentSpeechRatingSubmitted] = useState(false);
   /** Loading state when submitting student speech rating. */
@@ -535,38 +526,26 @@ export default function HomeworkFlowCard() {
           : null
       );
 
-      const canStartHomework = statusRes?.can_start_homework !== false;
-      setStep0CanStartHomework(canStartHomework);
-      const blockedReason = statusRes?.session_start_blocked_reason;
-      setStep0StartBlockedReason(
-        typeof blockedReason === "string" && blockedReason.trim() ? blockedReason.trim() : null
-      );
-      const videoShown = normalizeVideoShown(statusRes?.video_shown ?? statusRes?.session?.video_shown);
       const backendReviewPending = statusRes?.review_pending === true;
       const shouldForceWaiting = forcedStep0WaitingRef.current && !isHomeworkReadyForStep0(statusRes);
-      const shouldHideTutorVideo =
-        videoShown === 0 || !canStartHomework || shouldForceWaiting;
-      setStep0VideoShown(videoShown);
-      setReviewPending(!canStartHomework || shouldHideTutorVideo || backendReviewPending || shouldForceWaiting);
+      setReviewPending(backendReviewPending || shouldForceWaiting);
       const waitingMessage = statusRes?.main_screen_message;
       setMainScreenMessage(
         typeof waitingMessage === "string" && waitingMessage.trim()
           ? waitingMessage.trim()
-          : (shouldHideTutorVideo || shouldForceWaiting)
+          : shouldForceWaiting
             ? REVIEW_PENDING_DEFAULT_MESSAGE
             : null
       );
 
       const tutorVideoUrl = statusRes?.tutor_video_url ?? statusRes?.session?.tutor_video_url ?? null;
       setStep0TutorVideoUrl(
-        !shouldHideTutorVideo && typeof tutorVideoUrl === "string" && tutorVideoUrl.trim()
-          ? tutorVideoUrl.trim()
-          : null
+        typeof tutorVideoUrl === "string" && tutorVideoUrl.trim() ? tutorVideoUrl.trim() : null
       );
       const tutorVideoDescription =
         statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
       setStep0TutorVideoDescription(
-        !shouldHideTutorVideo && typeof tutorVideoDescription === "string" && tutorVideoDescription.trim()
+        typeof tutorVideoDescription === "string" && tutorVideoDescription.trim()
           ? tutorVideoDescription.trim()
           : null
       );
@@ -578,6 +557,9 @@ export default function HomeworkFlowCard() {
       }
 
       setSniperProfile((prev) => getSniperProfileFromStatusPayload(statusRes, prev) ?? prev);
+      if (statusRes?.credits != null) {
+        setCredits(statusRes.credits);
+      }
     },
     []
   );
@@ -889,13 +871,6 @@ export default function HomeworkFlowCard() {
   /** Single state projection from backend response. Step is only set to 0 when status is "none". Steps 1, 2, 3 are only reached by user flow: Start → 1, recording done → 2, self-rating done → 3. */
   const applyStatusToState = (res: HomeworkResponse) => {
     const status: PublicHomeworkStatus = res.status ?? "none";
-    const canStartHomework = res.can_start_homework !== false;
-    const blockedReason =
-      typeof res.session_start_blocked_reason === "string" && res.session_start_blocked_reason.trim()
-        ? res.session_start_blocked_reason.trim()
-        : null;
-    const videoShown = normalizeVideoShown(res.video_shown);
-    const shouldHideTutorVideo = videoShown === 0 || !canStartHomework;
     if (status === "none") {
       setStep(0);
     }
@@ -909,32 +884,19 @@ export default function HomeworkFlowCard() {
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
-      setStep0CanStartHomework(canStartHomework);
-      setStep0StartBlockedReason(blockedReason);
-      setStep0VideoShown(videoShown);
-      setReviewPending(!canStartHomework || shouldHideTutorVideo || res.review_pending === true);
+      setReviewPending(res.review_pending === true);
       setMainScreenMessage(
         typeof res.main_screen_message === "string" && res.main_screen_message.trim()
           ? res.main_screen_message.trim()
-          : shouldHideTutorVideo
-            ? REVIEW_PENDING_DEFAULT_MESSAGE
-            : null
+          : null
       );
       if ("tutor_video_url" in res) {
         const videoUrl = res.tutor_video_url;
-        setStep0TutorVideoUrl(
-          !shouldHideTutorVideo && typeof videoUrl === "string" && videoUrl.trim()
-            ? videoUrl.trim()
-            : null
-        );
+        setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
       }
       if ("tutor_video_description" in res) {
         const desc = res.tutor_video_description;
-        setStep0TutorVideoDescription(
-          !shouldHideTutorVideo && typeof desc === "string" && desc.trim()
-            ? desc.trim()
-            : null
-        );
+        setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       }
       // Do not clear tutorFeedbackDeadlineMs / tutorFeedbackMessage here; step 0 effect and handleStartOver's getStatus() set them from API (so timer can persist when coming from step 3 score)
       setCoachMessageAfterHomework(null);
@@ -954,9 +916,6 @@ export default function HomeworkFlowCard() {
 
     setReviewPending(false);
     setMainScreenMessage(null);
-    setStep0CanStartHomework(canStartHomework);
-    setStep0StartBlockedReason(blockedReason);
-    setStep0VideoShown(videoShown);
     if ("task" in res && res.task !== undefined) {
       setTask(resolveTaskText(res.task));
     }
@@ -1022,6 +981,11 @@ export default function HomeworkFlowCard() {
       setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       return;
     }
+    // Guard: block session start when credits < 5
+    if (credits !== null && credits < 5) {
+      setShowInsufficientCreditsModal(true);
+      return;
+    }
     setLoading(true);
     setError(null);
     setStatusUnknown(false);
@@ -1046,6 +1010,10 @@ export default function HomeworkFlowCard() {
         return;
       }
       const apiErr = e as HomeworkApiError;
+      if (apiErr.code === "INSUFFICIENT_CREDITS") {
+        setShowInsufficientCreditsModal(true);
+        return;
+      }
       if (apiErr.code === "SESSION_START_BLOCKED") {
         try {
           const statusRes = await homeworkApi.getStatus();
@@ -1075,36 +1043,23 @@ export default function HomeworkFlowCard() {
   };
 
   const handleLeaveReport = async () => {
-    const logoutUrl = "/logged-out";
-
     setLeavingReport(true);
     leavingReportRef.current = true;
     setError(null);
-    try {
-      if (sessionId && sessionId !== "mock-session") {
-        await homeworkApi.leaveReport(sessionId);
-      }
-    } catch (e) {
-      const apiErr = e as HomeworkApiError;
-      if (apiErr.status !== 404) {
-        toast.error(apiErr.message || "Could not leave the report yet.");
-      }
-    } finally {
-      clearForcedStep0WaitingState();
-      clearPersistedFinalReportState();
-      persistedFinalReportRef.current = null;
-      if (typeof sessionStorage !== "undefined") {
-        sessionStorage.removeItem("homeworkJustFinishedRecording2");
-      }
-      try {
-        await createClient().auth.signOut();
-      } catch {
-        // Ignore sign-out failures and still force navigation to login.
-      }
-      leavingReportRef.current = false;
-      setLeavingReport(false);
-      router.push(logoutUrl);
+    clearForcedStep0WaitingState();
+    clearPersistedFinalReportState();
+    persistedFinalReportRef.current = null;
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("homeworkJustFinishedRecording2");
     }
+    try {
+      await createClient().auth.signOut();
+    } catch {
+      // Ignore sign-out failures and still force navigation to login.
+    }
+    leavingReportRef.current = false;
+    setLeavingReport(false);
+    router.push("/logged-out");
   };
 
   /** Reset the homework session: clear backend session, then single state projection to step 0. Do not call setStep outside applyStatusToState; use applyStatusToState({ status: "none" }). */
@@ -1823,11 +1778,8 @@ export default function HomeworkFlowCard() {
     const step0Exercises = assignedExercises;
     const ex = step0Exercises[0];
     const fallbackExerciseVideoUrl = ex?.video_url?.trim();
-    const shouldShowWaiting = reviewPending || step0VideoShown === 0 || !step0CanStartHomework;
-    const step0BlockedLabel =
-      step0StartBlockedReason === "WAITING_FOR_ASSIGNMENT" ? "Waiting for assignment" : "Waiting for coach";
-    const videoUrl =
-      step0VideoShown === 0 || !step0CanStartHomework ? null : (step0TutorVideoUrl ?? fallbackExerciseVideoUrl);
+    const shouldShowWaiting = reviewPending;
+    const videoUrl = step0TutorVideoUrl ?? fallbackExerciseVideoUrl;
     const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
     const waitingMessage =
       mainScreenMessage ??
@@ -1870,9 +1822,6 @@ export default function HomeworkFlowCard() {
                         {sniperProfile?.realtime_step ?? "—"}
                       </div>
                     ) : null}
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      We&apos;ll email you as soon as it&apos;s ready.
-                    </p>
                   </div>
                 </div>
               ) : (
@@ -2013,6 +1962,44 @@ export default function HomeworkFlowCard() {
                 </div>
               </div>
             ) : null}
+
+            {showInsufficientCreditsModal && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Insufficient credits"
+                onClick={() => setShowInsufficientCreditsModal(false)}
+              >
+                <div
+                  className="relative flex w-full max-w-sm flex-col items-center rounded-2xl bg-background p-8 shadow-xl gap-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowInsufficientCreditsModal(false)}
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <div className="text-4xl">🎓</div>
+                  <h2 className="text-xl font-bold text-center">Not enough credits</h2>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Your current credits balance is insufficient to start a homework session. Top up to continue practising.
+                  </p>
+                  <a
+                    href="https://buy.stripe.com/bJe28q4ch5VrfGCb9Z6wE0d"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full rounded-xl h-12 flex items-center justify-center bg-primary text-white font-semibold text-base hover:bg-primary/90 transition-colors"
+                    onClick={() => setShowInsufficientCreditsModal(false)}
+                  >
+                    Top up credits
+                  </a>
+                </div>
+              </div>
+            )}
           </Card>
           <HomeworkReportsModal
             open={reportsModalOpen}
@@ -2330,7 +2317,7 @@ export default function HomeworkFlowCard() {
           ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
           : undefined);
     const canonicalFinalScore = normalizePercentScore(reportData?.score_for_display);
-    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Send to Coach and Log Out";
+    const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
     const currentPerformanceScore1 =
       typeof reportData?.performance_score_1 === "number"
         ? Math.round(reportData.performance_score_1 <= 1 ? reportData.performance_score_1 * 100 : reportData.performance_score_1)
@@ -2523,11 +2510,22 @@ export default function HomeworkFlowCard() {
 
           <Button
             onClick={handleLeaveReport}
-            disabled={leavingReport}
+            disabled={leavingReport || resetting}
             className="mt-2 w-full rounded-xl h-12 font-semibold"
           >
-            {leavingReport ? "Sending…" : reportCtaLabel}
+            {leavingReport ? "Signing out…" : reportCtaLabel}
           </Button>
+          <div className="flex justify-center mt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={leavingReport || resetting}
+              onClick={handleAbandon}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {resetting ? "Resetting…" : "Do your homework again"}
+            </Button>
+          </div>
         </Card>
       </div>
     );
