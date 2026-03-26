@@ -268,10 +268,10 @@ export default function Step3ReportScreen({
         {hasCoachFeedback ? (
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-2">Coach feedback</p>
-            <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
               {coachGrade != null ? (
-                <p className="text-sm text-foreground">
-                  Grade: <span className="font-semibold">{coachGrade}/10</span>
+                <p className="text-sm font-semibold text-foreground">
+                  Grade: {coachGrade}/10
                 </p>
               ) : null}
               {coachGradeMessage ? (
