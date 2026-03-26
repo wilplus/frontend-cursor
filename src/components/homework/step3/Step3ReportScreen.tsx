@@ -9,7 +9,7 @@ import type { HomeworkReportResponse } from "@/lib/api/types-homework";
 import type { LiveCoachSnapshot } from "@/lib/sniper/types";
 import { normalizePercentScore, formatFillerBreakdown } from "@/lib/api/homework-utils";
 
-interface Step4ReportScreenProps {
+interface Step3ReportScreenProps {
   sessionId: string | null;
   reportData: HomeworkReportResponse | null;
   reportLoading: boolean;
@@ -31,7 +31,7 @@ interface Step4ReportScreenProps {
   onDoHomeworkAgain: () => void;
 }
 
-export default function Step4ReportScreen({
+export default function Step3ReportScreen({
   reportData,
   reportLoading,
   reportError,
@@ -49,7 +49,7 @@ export default function Step4ReportScreen({
   onRetryReport,
   onLeaveReport,
   onDoHomeworkAgain,
-}: Step4ReportScreenProps) {
+}: Step3ReportScreenProps) {
   if (recordingProcessingFailed) {
     return (
       <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">

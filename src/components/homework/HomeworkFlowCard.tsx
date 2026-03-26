@@ -59,7 +59,7 @@ import {
 import Step0Screen from "@/components/homework/step0/Step0Screen";
 import Step1RecordingScreen from "@/components/homework/step1/Step1RecordingScreen";
 import Step2SelfRatingScreen from "@/components/homework/step2/Step2SelfRatingScreen";
-import Step4ReportScreen from "@/components/homework/step4/Step4ReportScreen";
+import Step3ReportScreen from "@/components/homework/step3/Step3ReportScreen";
 
 type Step = StepType;
 
@@ -260,7 +260,7 @@ export default function HomeworkFlowCard() {
     if (persisted.tutorFeedbackDeadlineMs && persisted.tutorFeedbackDeadlineMs > Date.now()) {
       setTutorFeedbackDeadlineMs(persisted.tutorFeedbackDeadlineMs);
     }
-    setStep(4);
+    setStep(3);
     return true;
   }, []);
 
@@ -510,7 +510,7 @@ export default function HomeworkFlowCard() {
   }, [authReady, step, syncDashboardStateFromStatus, tutorFeedbackDeadlineMs]);
 
   useEffect(() => {
-    setShowNavbar(step === 0 || step === 2 || step === 4);
+    setShowNavbar(step === 0 || step === 2 || step === 3);
   }, [step, setShowNavbar]);
 
   useEffect(() => {
@@ -686,7 +686,7 @@ export default function HomeworkFlowCard() {
 
   const handleStartOver = async () => {
     if (resetting) return;
-    const comingFromReport = step === 4;
+    const comingFromReport = step === 3;
     if (!comingFromReport) {
       resetAutoStartAttempted();
     }
@@ -701,8 +701,8 @@ export default function HomeworkFlowCard() {
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem("homeworkJustFinishedRecording2");
       }
-      const shouldAbandonActiveSession = step !== 4;
-      const shouldPollReports = step === 4;
+      const shouldAbandonActiveSession = step !== 3;
+      const shouldPollReports = step === 3;
       if (shouldAbandonActiveSession && sessionId && sessionId !== "mock-session") {
         try {
           await homeworkApi.abandonSession(sessionId);
@@ -854,7 +854,7 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (stepRef.current === 4) return;
+      if (stepRef.current === 3) return;
       if (stepRef.current === 0) {
         homeworkApi.getStatus().then((statusRes) => {
           syncDashboardStateFromStatus(statusRes);
@@ -872,7 +872,7 @@ export default function HomeworkFlowCard() {
   }, [syncDashboardStateFromStatus]);
 
   useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
     const nextState: PersistedFinalReportState = {
       sessionId,
       reportData,
@@ -895,9 +895,9 @@ export default function HomeworkFlowCard() {
     tutorFeedbackDeadlineMs,
   ]);
 
-  // Fetch report when on step 4 with a real session
+  // Fetch report when on step 3 with a real session
   useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
     setReportLoading(true);
     setReportError(null);
     setReportNotReady(false);
@@ -944,7 +944,7 @@ export default function HomeworkFlowCard() {
 
   // Load Lottie animation for report loading / generating states
   useEffect(() => {
-    if (step !== 4 || loadingLottieData != null) return;
+    if (step !== 3 || loadingLottieData != null) return;
     fetch("/animations/loading.json")
       .then((r) => r.json())
       .then(setLoadingLottieData)
@@ -952,7 +952,7 @@ export default function HomeworkFlowCard() {
   }, [step, loadingLottieData]);
 
   useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
     if (!reportData || (reportData.coach_insight ?? "").trim()) return;
 
     let attempts = 0;
@@ -1029,7 +1029,7 @@ export default function HomeworkFlowCard() {
 
   // When self-rating isn't accepted yet: poll GET session/status, then auto-submit self-rating.
   useEffect(() => {
-    if ((step !== 2 && step !== 4) || !pendingRetrySelfRating) return;
+    if ((step !== 2 && step !== 3) || !pendingRetrySelfRating) return;
     const { sessionId: sid } = pendingRetrySelfRating;
     const intervalMs = 5000;
     const maxWaitMs = 120000;
@@ -1058,7 +1058,7 @@ export default function HomeworkFlowCard() {
           await homeworkApi.submitSelfRatingSkipped(sid);
         }
         setStudentSpeechRatingSubmitted(true);
-        setStep(4);
+        setStep(3);
         setReportRetryCount((c) => c + 1);
       } catch {
         // keep polling
@@ -1267,7 +1267,7 @@ export default function HomeworkFlowCard() {
       lastSelfRatingPayloadRef.current = { sessionId, rating: n };
       const res: SelfRatingResponse = await homeworkApi.submitSelfRating(sessionId, n);
       setStudentSpeechRatingSubmitted(true);
-      setStep(4);
+      setStep(3);
       if (res.session_completed === false) {
         setPendingRetrySelfRating({ sessionId, rating: n });
       }
@@ -1275,7 +1275,7 @@ export default function HomeworkFlowCard() {
       if (isSelfRatingNotReadyError(e)) {
         setPendingRetrySelfRating({ sessionId, rating: n });
         setStudentSpeechRatingSubmitted(true);
-        setStep(4);
+        setStep(3);
       } else {
         toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
       }
@@ -1287,7 +1287,7 @@ export default function HomeworkFlowCard() {
   const handleRatingSkip = async () => {
     if (!sessionId || sessionId === "mock-session") {
       setStudentSpeechRatingSubmitted(true);
-      setStep(4);
+      setStep(3);
       return;
     }
     setSavingStudentRating(true);
@@ -1295,7 +1295,7 @@ export default function HomeworkFlowCard() {
       lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
       const res: SelfRatingResponse = await homeworkApi.submitSelfRatingSkipped(sessionId);
       setStudentSpeechRatingSubmitted(true);
-      setStep(4);
+      setStep(3);
       if (res.session_completed === false) {
         setPendingRetrySelfRating({ sessionId, skipped: true });
       }
@@ -1303,7 +1303,7 @@ export default function HomeworkFlowCard() {
       if (isSelfRatingNotReadyError(e)) {
         setPendingRetrySelfRating({ sessionId, skipped: true });
         setStudentSpeechRatingSubmitted(true);
-        setStep(4);
+        setStep(3);
       } else {
         toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
       }
@@ -1436,8 +1436,8 @@ export default function HomeworkFlowCard() {
     />
   );
 
-  if (step === 4) return (
-    <Step4ReportScreen
+  if (step === 3) return (
+    <Step3ReportScreen
       sessionId={sessionId}
       reportData={reportData}
       reportLoading={reportLoading}
