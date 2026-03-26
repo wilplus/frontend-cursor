@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Menu, Settings } from "lucide-react";
 import WillabLogo from "@/components/WillabLogo";
 import { createClient } from "@/lib/supabase/client";
+import { homeworkApi } from "@/lib/api/homework-client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,30 +29,53 @@ export default function DashboardHeader() {
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const openByKeyboardRef = useRef(false);
 
+  /** Credits: single source of truth — same field as homework flow (`GET /homework/session/status`). */
   useEffect(() => {
-    const getUser = async () => {
+    let cancelled = false;
+
+    async function refreshCreditsFromStatus() {
+      try {
+        const status = await homeworkApi.getStatus();
+        if (!cancelled) {
+          setCredits(status?.credits != null ? status.credits : null);
+        }
+      } catch {
+        if (!cancelled) setCredits(null);
+      }
+    }
+
+    async function load() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserEmail(user.email ?? null);
-      // Fetch credits from v2_student_details
-      try {
-        const { data } = await supabase
-          .from("v2_student_details")
-          .select("credits")
-          .eq("user_id", user.id)
-          .single();
-        if (data && data.credits != null) {
-          setCredits(data.credits);
-        } else {
-          setCredits(15);
-        }
-      } catch {
+      if (cancelled) return;
+      if (!user) {
+        setUserEmail(null);
         setCredits(null);
+        return;
       }
+      setUserEmail(user.email ?? null);
+      await refreshCreditsFromStatus();
+    }
+
+    void load();
+
+    const onVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void refreshCreditsFromStatus();
     };
-    getUser();
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+    const intervalId = window.setInterval(() => {
+      void refreshCreditsFromStatus();
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+      window.clearInterval(intervalId);
+    };
   }, [supabase]);
 
   useEffect(() => {
