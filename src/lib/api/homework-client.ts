@@ -38,6 +38,18 @@ export type HomeworkApiError = Error & {
   details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
 };
 
+/**
+ * Successful target from POST recording-upload-url (before uploading the blob).
+ * When signed_url_available is true, do not PUT raw blob bytes to upload_url — use uploadToSignedUrl (if upload_token + bucket) or FormData PUT.
+ */
+export type HomeworkRecordingUploadTarget = {
+  storage_path: string;
+  bucket?: string | null;
+  upload_url?: string | null;
+  signed_url_available?: boolean;
+  upload_token?: string | null;
+};
+
 async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string; reason?: string; hint?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
   try {
     const body = (await res.json()) as {
@@ -221,14 +233,13 @@ export const homeworkApi = {
     return handleResponse<{ task_block: QuestionBlockV2 }>(res);
   },
 
-  /** Get upload target for a recording. Backend returns upload_url (signed) + storage_path when signed; else bucket + storage_path for SDK upload. Or already_past_step + task_block when session already advanced past the first recording. */
+  /** Get upload target for a recording. May include signed_url_available + upload_token for Supabase uploadToSignedUrl, or upload_url for PUT (FormData when signed). Or bucket + storage_path for SDK upload. Or already_past_step + task_block. */
   async getRecordingUploadUrl(
     sessionId: string,
     recording: "1" | "2",
     signal?: AbortSignal
   ): Promise<
-    | { upload_url: string; storage_path: string }
-    | { bucket: string; storage_path: string }
+    | HomeworkRecordingUploadTarget
     | { already_past_step: true; status?: string; task_block: QuestionBlockV2 }
   > {
     if (typeof window !== "undefined") {
@@ -246,6 +257,8 @@ export const homeworkApi = {
       bucket?: string | null;
       storage_path?: string | null;
       upload_url?: string;
+      signed_url_available?: boolean;
+      upload_token?: string | null;
       already_past_step?: boolean;
       already_submitted?: boolean;
       status?: string;
@@ -262,30 +275,72 @@ export const homeworkApi = {
       // Backend "already past recording 1" (200 + storage_path: null): skip upload, advance to step 2
       return { already_past_step: true, status: body.status, task_block: (body.task_block ?? {}) as QuestionBlockV2 };
     }
-    if (body.upload_url && body.storage_path) {
-      return { upload_url: body.upload_url, storage_path: body.storage_path };
+    if (!body.storage_path || typeof body.storage_path !== "string" || !body.storage_path.trim()) {
+      throw new Error("Invalid recording-upload-url response: missing storage_path");
     }
-    if (body.bucket && body.storage_path) {
-      return { bucket: body.bucket, storage_path: body.storage_path };
-    }
-    throw new Error("Invalid recording-upload-url response");
+    const upload_token =
+      typeof body.upload_token === "string" && body.upload_token.trim() ? body.upload_token.trim() : undefined;
+    return {
+      storage_path: body.storage_path.trim(),
+      bucket: body.bucket ?? undefined,
+      upload_url: body.upload_url?.trim() || undefined,
+      signed_url_available: body.signed_url_available === true,
+      upload_token,
+    };
   },
 
-  /** Upload blob: PUT to upload_url when present, else Supabase SDK with bucket + storage_path. Returns storage_path for the recording-1/2 POST. */
-  async uploadBlob(
-    result: { upload_url: string; storage_path: string } | { bucket: string; storage_path: string },
-    blob: Blob,
-    signal?: AbortSignal
-  ): Promise<string> {
-    const storage_path = result.storage_path;
+  /** Upload blob per recording-upload-url contract: signed token → uploadToSignedUrl; signed URL → FormData PUT; legacy → raw PUT; else SDK upload. */
+  async uploadBlob(target: HomeworkRecordingUploadTarget, blob: Blob, signal?: AbortSignal): Promise<string> {
+    const storage_path = target.storage_path;
     // Strip codec suffix (e.g. "audio/webm;codecs=opus" → "audio/webm") so the Content-Type
     // exactly matches what the storage backend signed or provisioned. S3 and GCS signed URLs
     // do a strict content-type match and reject requests with extra parameters.
     const baseContentType = (blob.type || "audio/webm").split(";")[0].trim() || "audio/webm";
+    const signed = target.signed_url_available === true;
 
-    if ("upload_url" in result && result.upload_url) {
-      console.info("[HomeworkFlow] uploadBlob PUT", { storage_path, contentType: baseContentType, blobSize: blob.size });
-      const putRes = await fetch(result.upload_url, {
+    if (signed && target.upload_token && target.bucket) {
+      console.info("[HomeworkFlow] uploadBlob uploadToSignedUrl", {
+        storage_path,
+        bucket: target.bucket,
+        contentType: baseContentType,
+        blobSize: blob.size,
+      });
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(target.bucket)
+        .uploadToSignedUrl(target.storage_path, target.upload_token, blob, {
+          contentType: baseContentType,
+        });
+      if (uploadError) {
+        console.error("[HomeworkFlow] uploadBlob uploadToSignedUrl failed", uploadError);
+        throw new Error(uploadError.message);
+      }
+      console.info("[HomeworkFlow] uploadBlob uploadToSignedUrl success", { storage_path });
+      return storage_path;
+    }
+
+    if (signed && target.upload_url) {
+      const fd = new FormData();
+      fd.append("file", blob, "recording.webm");
+      console.info("[HomeworkFlow] uploadBlob signed FormData PUT", { storage_path, blobSize: blob.size });
+      const putRes = await fetch(target.upload_url, {
+        method: "PUT",
+        body: fd,
+        signal,
+      });
+      if (!putRes.ok) {
+        const detail = await putRes.text().catch(() => "");
+        console.error("[HomeworkFlow] uploadBlob FormData PUT failed", { status: putRes.status, detail });
+        throw new Error(`Upload failed: ${putRes.status} ${putRes.statusText}${detail ? ` — ${detail.slice(0, 200)}` : ""}`);
+      }
+      console.info("[HomeworkFlow] uploadBlob FormData PUT success", { storage_path });
+      return storage_path;
+    }
+
+    if (target.upload_url) {
+      console.info("[HomeworkFlow] uploadBlob raw PUT", { storage_path, contentType: baseContentType, blobSize: blob.size });
+      const putRes = await fetch(target.upload_url, {
         method: "PUT",
         body: blob,
         headers: { "Content-Type": baseContentType },
@@ -299,21 +354,25 @@ export const homeworkApi = {
       console.info("[HomeworkFlow] uploadBlob PUT success", { storage_path });
       return storage_path;
     }
-    if (!("bucket" in result) || !result.bucket) throw new Error("Invalid recording-upload-url response");
-    const { bucket } = result;
-    console.info("[HomeworkFlow] uploadBlob Supabase", { bucket, storage_path, contentType: baseContentType, blobSize: blob.size });
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
-      contentType: baseContentType,
-      upsert: true,
-    });
-    if (uploadError) {
-      console.error("[HomeworkFlow] uploadBlob Supabase failed", uploadError);
-      throw new Error(uploadError.message);
+
+    if (target.bucket) {
+      const bucket = target.bucket;
+      console.info("[HomeworkFlow] uploadBlob Supabase SDK upload", { bucket, storage_path, contentType: baseContentType, blobSize: blob.size });
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(storage_path, blob, {
+        contentType: baseContentType,
+        upsert: true,
+      });
+      if (uploadError) {
+        console.error("[HomeworkFlow] uploadBlob Supabase failed", uploadError);
+        throw new Error(uploadError.message);
+      }
+      console.info("[HomeworkFlow] uploadBlob Supabase success", { storage_path });
+      return storage_path;
     }
-    console.info("[HomeworkFlow] uploadBlob Supabase success", { storage_path });
-    return storage_path;
+
+    throw new Error("Invalid recording-upload-url response: no upload_url, bucket, or signed token");
   },
 
   /** Upload recording_1 (warm-up): get upload target → upload blob (PUT to upload_url or SDK bucket+storage_path) → POST recording-1 with JSON { storage_path, duration_seconds }. Returns alreadyAtStep2 + task_block when backend responds 200 with already_past_step. */
@@ -340,9 +399,7 @@ export const homeworkApi = {
         status: uploadUrlResult.status,
       };
     }
-    const uploadTarget = uploadUrlResult as
-      | { upload_url: string; storage_path: string }
-      | { bucket: string; storage_path: string };
+    const uploadTarget = uploadUrlResult as HomeworkRecordingUploadTarget;
     const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
     console.info("[HomeworkFlow] uploadRecording1 POSTing recording-1", { storage_path, durationSeconds, hasTranscript: !!transcriptText });
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
@@ -401,9 +458,10 @@ export const homeworkApi = {
     totalActiveMs?: number
   ): Promise<HomeworkRecording2Response> {
     const uploadUrlResult = await this.getRecordingUploadUrl(sessionId, "2", signal);
-    const uploadTarget = uploadUrlResult as
-      | { upload_url: string; storage_path: string }
-      | { bucket: string; storage_path: string };
+    if ("already_past_step" in uploadUrlResult && uploadUrlResult.already_past_step) {
+      throw new Error("Recording 2 upload URL unavailable: session already past this step");
+    }
+    const uploadTarget = uploadUrlResult as HomeworkRecordingUploadTarget;
     const storage_path = await this.uploadBlob(uploadTarget, blob, signal);
     const { headers, credentials } = await getAuthFetchOptions({ "Content-Type": "application/json" });
     const postBody: Record<string, unknown> = { storage_path, duration_seconds: durationSeconds };
