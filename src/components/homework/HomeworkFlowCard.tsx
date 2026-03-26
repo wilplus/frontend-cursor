@@ -991,7 +991,7 @@ export default function HomeworkFlowCard() {
         return;
       }
       const apiErr = e as HomeworkApiError;
-      if (apiErr.code === "INSUFFICIENT_CREDITS") {
+      if (apiErr.code === "INSUFFICIENT_CREDITS" || apiErr.status === 402) {
         setShowInsufficientCreditsModal(true);
         return;
       }
