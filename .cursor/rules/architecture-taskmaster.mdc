@@ -1,0 +1,19 @@
+---
+description: Architecture summary for homework API, status, and credits (pointer to full doc).
+alwaysApply: false
+---
+
+# Architecture (homework + credits)
+
+## Status
+
+- **`GET /v2/homework/session/status`** is the source of truth for step, waiting flags, tutor video fields, and **`credits`**. The BFF mirrors this under `/api/homework/session/status`.
+
+## Credits
+
+- **−5** is charged on **homework completion with report** (backend idempotency), **not** on session start.
+- **`POST …/session/start`** returns **402** when balance **&lt; 5**; UI must handle insufficient credits without faking balance client-side.
+- **Abandon** does not charge.
+- **`credits`** is returned on status for **both** `has_active_session: false` and `has_active_session: true` so balance can show during a session.
+- Full contract: **`docs/FRONTEND-WHAT-TO-KNOW.md`**
+- Backend: **`v2_charge_homework_completion_credits_once`**, **`add_homework_credits_charged_at.sql`**

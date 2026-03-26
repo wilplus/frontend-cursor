@@ -178,7 +178,7 @@ export interface HomeworkResponse {
   last_report_delivered?: boolean | null;
   session?: unknown;
   has_active_session?: boolean;
-  /** Student's remaining homework credits. Deducted by 5 per session start. */
+  /** Remaining homework credits (from GET status). Charged −5 on completion+report on backend, not on start. Included for step 0 and when has_active_session is true. */
   credits?: number | null;
 }
 
@@ -273,7 +273,7 @@ export interface HomeworkSessionStatus {
   recording_1_processing_status?: string | null;
   /** Backend: when true, show the current 1–5 self-rating step and allow POST self-rating. */
   ready_for_self_rating?: boolean | null;
-  /** Student's remaining homework credits. Deducted by 5 per session start. */
+  /** Remaining homework credits (from GET status). Charged −5 on completion+report on backend, not on start. Included when has_active_session is true or false. */
   credits?: number | null;
 }
 

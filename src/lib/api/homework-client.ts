@@ -11,22 +11,7 @@ import type {
   HomeworkReportResponse,
   QuestionBlockV2,
 } from "@/lib/api/types-homework";
-async function getAuthFetchOptions(
-  extra: Record<string, string> = {}
-): Promise<{ headers: Record<string, string>; credentials: RequestCredentials }> {
-  const headers = { ...extra };
-  if (typeof window !== "undefined") {
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) headers["Authorization"] = `Bearer ${session.access_token}`;
-    } catch {
-      // ignore
-    }
-  }
-  return { headers, credentials: "include" };
-}
+import { getAuthFetchOptions } from "@/lib/api/auth-fetch";
 
 /** Thrown when API returns 422 or other error; may have .code (e.g. NO_WARMUP_CONFIGURED, VALIDATION_ERROR). 409 may include .backendStatus and .hint from response body. */
 export type HomeworkApiError = Error & {
@@ -95,6 +80,10 @@ async function handleResponse<T>(res: Response): Promise<T> {
     }
     const err = new Error(message) as HomeworkApiError;
     if (code) err.code = code;
+    if (res.status === 402) {
+      err.status = 402;
+      if (!err.code) err.code = "INSUFFICIENT_CREDITS";
+    }
     if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
     if (res.status === 409 && status) err.backendStatus = status;
     if (reason) err.reason = reason;
