@@ -1,6 +1,8 @@
 "use client";
 
+import { MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { CompactReportPreview } from "@/lib/reports/compact-preview";
 
 type CompactReportPreviewCardProps = {
@@ -16,69 +18,59 @@ export default function CompactReportPreviewCard({
   loading = false,
   onOpen,
 }: CompactReportPreviewCardProps) {
+  const hasCoachFeedback = preview?.coachGrade != null || !!preview?.coachMessage;
+
   return (
-    <div className="flex min-h-[172px] w-full flex-col rounded-lg border border-border bg-muted/20 p-4 text-left">
+    <Card className="w-full p-4 space-y-3 shadow-sm">
+      {/* Header: date + score badge */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-sm font-semibold text-card-foreground">{title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {loading && !preview
-              ? "Preparing report preview..."
-              : preview
-                ? "Open to see the full report."
-                : "Report available."}
+              ? "Preparing report preview…"
+              : "Open to see the full report."}
           </p>
         </div>
-        {preview?.score != null || preview?.coachGrade != null || preview?.coachMessage ? (
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {preview?.score != null ? (
-              <div className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-semibold text-foreground">
-                {preview.score}%
-              </div>
-            ) : null}
-            {preview?.coachGrade != null || preview?.coachMessage ? (
-              <div className="text-right text-xs font-medium text-foreground">
-                {preview?.coachGrade != null ? <span>{preview.coachGrade}/10</span> : null}
-                {preview?.coachMessage ? (
-                  <span className={preview?.coachGrade != null ? "ml-1" : ""} aria-label="Coach message available">
-                    📧
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
+        {preview?.score != null && (
+          <div className="shrink-0 rounded-md bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground">
+            {preview.score}%
           </div>
-        ) : null}
+        )}
       </div>
 
-      <div className="mt-3 min-h-[64px]">
-        {preview && (preview.coachGrade != null || preview.coachMessage) ? (
-          <div className="rounded-lg border border-border bg-background/70 p-3 text-left">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Coach feedback
-            </p>
-            {preview.coachGrade != null ? (
-              <p className="mt-1 text-sm text-foreground">
-                Grade: <span className="font-semibold">{preview.coachGrade}/10</span>
+      {/* Coach feedback — flat, no inner border */}
+      {hasCoachFeedback ? (
+        <div className="flex items-start gap-2.5">
+          <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Coach Feedback</p>
+            {preview?.coachGrade != null && (
+              <p className="text-sm font-semibold text-card-foreground">
+                Grade: {preview.coachGrade}/10
               </p>
-            ) : null}
-            {preview.coachMessage ? (
-              <p className="mt-1 line-clamp-2 text-sm text-foreground">
+            )}
+            {preview?.coachMessage && (
+              <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
                 {preview.coachMessage}
               </p>
-            ) : null}
+            )}
           </div>
-        ) : loading ? (
-          <div className="rounded-lg border border-border bg-background/40 p-3 text-left">
+        </div>
+      ) : loading ? (
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 h-4 w-4 shrink-0 rounded bg-muted" />
+          <div className="space-y-1.5 flex-1">
             <div className="h-3 w-24 rounded bg-muted" />
-            <div className="mt-2 h-3 w-16 rounded bg-muted" />
-            <div className="mt-2 h-3 w-full rounded bg-muted" />
+            <div className="h-3 w-16 rounded bg-muted" />
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      <Button onClick={onOpen} variant="outline" className="mt-auto h-9 w-full rounded-lg font-semibold">
+      {/* CTA */}
+      <Button onClick={onOpen} variant="outline" className="w-full text-sm font-medium">
         View full report
       </Button>
-    </div>
+    </Card>
   );
 }
