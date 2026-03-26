@@ -37,19 +37,17 @@ import Lottie from "lottie-react";
 /** Default task prompt when the backend assigns none. */
 const DEFAULT_TASK_PROMPT = "How was your day so far?";
 
-function getSniperProfileFromReport(
-  report: HomeworkReportResponse,
+/** Shared core: merge a sniper_profile block + two flat overrides into a UserSniperProfile. */
+function mergeSniperProfile(
+  nestedProfile: { user_id?: string; realtime_level?: number | null; realtime_step?: number | null; realtime_pitch_baseline_st?: number | null; sessions_with_pitch_count?: number | null; updated_at?: string | null } | null | undefined,
+  flatRealtimeLevel: number | null | undefined,
+  flatRealtimeStep: number | null | undefined,
   existingProfile: UserSniperProfile | null
 ): UserSniperProfile | null {
-  const nestedProfile = report.sniper_profile;
-  const realtimeLevel =
-    report.realtime_level ?? nestedProfile?.realtime_level ?? existingProfile?.realtime_level ?? null;
-  const realtimeStep =
-    report.realtime_step ?? nestedProfile?.realtime_step ?? existingProfile?.realtime_step ?? null;
-  const realtimePitchBaselineSt =
-    nestedProfile?.realtime_pitch_baseline_st ?? existingProfile?.realtime_pitch_baseline_st ?? null;
-  const sessionsWithPitchCount =
-    nestedProfile?.sessions_with_pitch_count ?? existingProfile?.sessions_with_pitch_count;
+  const realtimeLevel = flatRealtimeLevel ?? nestedProfile?.realtime_level ?? existingProfile?.realtime_level ?? null;
+  const realtimeStep = flatRealtimeStep ?? nestedProfile?.realtime_step ?? existingProfile?.realtime_step ?? null;
+  const realtimePitchBaselineSt = nestedProfile?.realtime_pitch_baseline_st ?? existingProfile?.realtime_pitch_baseline_st ?? null;
+  const sessionsWithPitchCount = nestedProfile?.sessions_with_pitch_count ?? existingProfile?.sessions_with_pitch_count;
 
   if (
     realtimeLevel == null &&
@@ -82,53 +80,18 @@ function getSniperProfileFromReport(
   };
 }
 
-function getSniperProfileFromStatusPayload(
-  status:
-    | HomeworkSessionStatus
-    | HomeworkResponse
-    | null
-    | undefined,
+function getSniperProfileFromReport(
+  report: HomeworkReportResponse,
   existingProfile: UserSniperProfile | null
 ): UserSniperProfile | null {
-  const nestedProfile = status?.sniper_profile;
-  const realtimeLevel =
-    status?.realtime_level ?? nestedProfile?.realtime_level ?? existingProfile?.realtime_level ?? null;
-  const realtimeStep =
-    status?.realtime_step ?? nestedProfile?.realtime_step ?? existingProfile?.realtime_step ?? null;
-  const realtimePitchBaselineSt =
-    nestedProfile?.realtime_pitch_baseline_st ?? existingProfile?.realtime_pitch_baseline_st ?? null;
-  const sessionsWithPitchCount =
-    nestedProfile?.sessions_with_pitch_count ?? existingProfile?.sessions_with_pitch_count;
+  return mergeSniperProfile(report.sniper_profile, report.realtime_level, report.realtime_step, existingProfile);
+}
 
-  if (
-    realtimeLevel == null &&
-    realtimeStep == null &&
-    realtimePitchBaselineSt == null &&
-    sessionsWithPitchCount == null &&
-    !nestedProfile?.user_id &&
-    !existingProfile
-  ) {
-    return null;
-  }
-
-  return {
-    user_id: nestedProfile?.user_id ?? existingProfile?.user_id ?? "unknown",
-    session_count: existingProfile?.session_count ?? 0,
-    sessions_with_energy_count: existingProfile?.sessions_with_energy_count ?? 0,
-    sessions_with_pitch_count: sessionsWithPitchCount,
-    baseline_wpm: existingProfile?.baseline_wpm ?? null,
-    baseline_pause_ms: existingProfile?.baseline_pause_ms ?? null,
-    baseline_dynamic_db: existingProfile?.baseline_dynamic_db ?? null,
-    baseline_emphasis_per_min: existingProfile?.baseline_emphasis_per_min ?? null,
-    baseline_energy_ratio: existingProfile?.baseline_energy_ratio ?? null,
-    realtime_level: realtimeLevel ?? undefined,
-    realtime_step: realtimeStep ?? undefined,
-    realtime_pitch_baseline_st: realtimePitchBaselineSt,
-    baseline_pitch_range_st: existingProfile?.baseline_pitch_range_st ?? null,
-    baseline_fatigue_sec: existingProfile?.baseline_fatigue_sec ?? null,
-    created_at: existingProfile?.created_at ?? "",
-    updated_at: nestedProfile?.updated_at ?? existingProfile?.updated_at ?? "",
-  };
+function getSniperProfileFromStatusPayload(
+  status: HomeworkSessionStatus | HomeworkResponse | null | undefined,
+  existingProfile: UserSniperProfile | null
+): UserSniperProfile | null {
+  return mergeSniperProfile(status?.sniper_profile, status?.realtime_level, status?.realtime_step, existingProfile);
 }
 
 function formatCountdown(ms: number): string {
@@ -213,12 +176,8 @@ function toId(v: unknown): string {
   return String(v);
 }
 
-// One auto-start per page load (avoids double request in React Strict Mode). Reset when user finishes and goes to dashboard so next visit starts fresh.
-let autoStartAttempted = false;
-function resetAutoStartAttempted() {
-  autoStartAttempted = false;
-}
-
+/** Sentinel session ID used for demo/offline flows when no real session is active. */
+const MOCK_SESSION_ID = "mock-session";
 const STEP0_REPORTS_PAGE_SIZE = 5;
 const FINAL_REPORT_STORAGE_KEY = "homeworkReport";
 const FORCE_STEP0_WAITING_STORAGE_KEY = "homeworkForceStep0Waiting";
@@ -436,6 +395,9 @@ export default function HomeworkFlowCard() {
   const sniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   /** User sniper profile (adaptive baseline). Fetched on load; updated after session end POST. */
   const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
+  // One auto-start per mount (avoids double request in React Strict Mode).
+  // useRef instead of module-level so each instance is independent and SSR-safe.
+  const autoStartAttemptedRef = useRef(false);
   const forcedStep0WaitingRef = useRef(false);
   const leavingReportRef = useRef(false);
   /** True once student has submitted "How did that feel?" rating (or skipped). Hides rating UI and avoids double submit. */
@@ -1026,7 +988,7 @@ export default function HomeworkFlowCard() {
       const msg = e instanceof Error ? e.message : "Failed to start practice";
       const isBackendUnavailable = msg.includes("not available yet") || msg.includes("404");
       if (isBackendUnavailable) {
-        applyStatusToState({ status: "recording_1_required", session_id: "mock-session" });
+        applyStatusToState({ status: "recording_1_required", session_id: MOCK_SESSION_ID });
         setTask("");
         setError(null);
         setStatusUnknown(false);
@@ -1083,7 +1045,7 @@ export default function HomeworkFlowCard() {
     // function already syncs all necessary state for step-0.
     // For all other steps, reset so cold-load re-runs and fetches fresh status.
     if (!comingFromReport) {
-      resetAutoStartAttempted();
+      autoStartAttemptedRef.current = false;
     }
     setResetting(true);
     setSniperSnapshot(null);
@@ -1100,7 +1062,7 @@ export default function HomeworkFlowCard() {
       // otherwise some backends may mark it as abandoned and hide it from report lists.
       const shouldAbandonActiveSession = step !== 4;
       const shouldPollReports = step === 4;
-      if (shouldAbandonActiveSession && sessionId && sessionId !== "mock-session") {
+      if (shouldAbandonActiveSession && sessionId && sessionId !== MOCK_SESSION_ID) {
         try {
           await homeworkApi.abandonSession(sessionId);
         } catch (e) {
@@ -1157,7 +1119,7 @@ export default function HomeworkFlowCard() {
   /** Abandon current session. Treat 200 and 404 as success; in both cases run applyStatusToState({ status: "none" }). Do not call GET status after abandon. */
   const handleAbandon = async () => {
     const shouldReturnToForcedWaiting = forcedStep0WaitingRef.current;
-    if (!sessionId || sessionId === "mock-session") {
+    if (!sessionId || sessionId === MOCK_SESSION_ID) {
       handleStartOver();
       return;
     }
@@ -1227,8 +1189,8 @@ export default function HomeworkFlowCard() {
 
   // Cold load: restore the visible step from backend session state.
   useEffect(() => {
-    if (!authReady || step !== 0 || autoStartAttempted) return;
-    autoStartAttempted = true;
+    if (!authReady || step !== 0 || autoStartAttemptedRef.current) return;
+    autoStartAttemptedRef.current = true;
     setLoading(true);
     let cancelled = false;
     homeworkApi
@@ -1293,7 +1255,7 @@ export default function HomeworkFlowCard() {
   }, [syncDashboardStateFromStatus]);
 
   useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 4 || !sessionId || sessionId === MOCK_SESSION_ID) return;
     const nextState: PersistedFinalReportState = {
       sessionId,
       reportData,
@@ -1323,7 +1285,7 @@ export default function HomeworkFlowCard() {
 
   // Fetch report when on step 4 with a real session (single source of truth for player + scores + text)
   useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 4 || !sessionId || sessionId === MOCK_SESSION_ID) return;
     setReportLoading(true);
     setReportError(null);
     setReportNotReady(false);
@@ -1379,7 +1341,7 @@ export default function HomeworkFlowCard() {
   }, [step, loadingLottieData]);
 
   useEffect(() => {
-    if (step !== 4 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 4 || !sessionId || sessionId === MOCK_SESSION_ID) return;
     if (!reportData || (reportData.coach_insight ?? "").trim()) return;
 
     let attempts = 0;
@@ -1407,7 +1369,7 @@ export default function HomeworkFlowCard() {
   // When report is still being generated, poll automatically (no user click).
   // Also check session/status for terminal recording_1 failure so we can stop spinning forever.
   useEffect(() => {
-    if (!reportNotReady || !sessionId || sessionId === "mock-session") return;
+    if (!reportNotReady || !sessionId || sessionId === MOCK_SESSION_ID) return;
     const intervalMs = 5000;
     const id = setInterval(async () => {
       setReportRetryCount((c) => c + 1);
@@ -1431,7 +1393,7 @@ export default function HomeworkFlowCard() {
   // Step 2 is intentionally actionable right away (rate now, backend can complete asynchronously).
   // We only poll status here to detect terminal failure in recording_1 processing.
   useEffect(() => {
-    if (step !== 2 || !sessionId || sessionId === "mock-session") return;
+    if (step !== 2 || !sessionId || sessionId === MOCK_SESSION_ID) return;
     let cancelled = false;
     const poll = async () => {
       try {
@@ -1627,7 +1589,7 @@ export default function HomeworkFlowCard() {
     if (typeof window !== "undefined") {
       console.warn(`[HomeworkFlow] handleRecordingComplete rec${recordingNumber}`, { step, sessionId: sessionId?.slice(0, 8) + "…", durationSeconds });
     }
-    if (recordingNumber === 1 && sessionId === "mock-session") {
+    if (recordingNumber === 1 && sessionId === MOCK_SESSION_ID) {
       inProgressRef.current = false;
       setError("Recording captured (preview only). Implement POST /v2/homework/start and POST /v2/homework/session/:id/recording-1 on your backend to save and continue.");
       return;
@@ -1720,7 +1682,7 @@ export default function HomeworkFlowCard() {
 
   /** User-initiated refresh: GET status and apply. No downgrade; missing payload handled per Option B. */
   const refreshStatus = async () => {
-    if (sessionId === "mock-session") return;
+    if (sessionId === MOCK_SESSION_ID) return;
     setLoading(true);
     setError(null);
     setStatusUnknown(false);
@@ -2031,7 +1993,7 @@ export default function HomeworkFlowCard() {
     return (
       <StepFlowWrapper step={1} syncingBehind={syncingBehind}>
         {coachMessageBlock}
-        {sessionId === "mock-session" && (
+        {sessionId === MOCK_SESSION_ID && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             Preview mode — backend not connected. Recording will not be saved until you implement <code className="text-xs">POST /v2/homework/start</code>.
           </div>
@@ -2081,7 +2043,7 @@ export default function HomeworkFlowCard() {
             sniperProfile={sniperProfile}
           />
         )}
-        {sessionId && sessionId !== "mock-session" && (
+        {sessionId && sessionId !== MOCK_SESSION_ID && (
           <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
@@ -2138,7 +2100,7 @@ export default function HomeworkFlowCard() {
                 variant="outline"
                 disabled={savingStudentRating}
                 onClick={async () => {
-                  if (!sessionId || sessionId === "mock-session") return;
+                  if (!sessionId || sessionId === MOCK_SESSION_ID) return;
                   setSavingStudentRating(true);
                   try {
                     lastSelfRatingPayloadRef.current = { sessionId, rating: n };
@@ -2179,7 +2141,7 @@ export default function HomeworkFlowCard() {
             size="sm"
             disabled={savingStudentRating}
             onClick={async () => {
-              if (!sessionId || sessionId === "mock-session") {
+              if (!sessionId || sessionId === MOCK_SESSION_ID) {
                 setStudentSpeechRatingSubmitted(true);
                 setStep(4);
                 return;
@@ -2258,7 +2220,7 @@ export default function HomeworkFlowCard() {
           sniperMode
           sniperProfile={sniperProfile}
         />
-        {sessionId && sessionId !== "mock-session" && (
+        {sessionId && sessionId !== MOCK_SESSION_ID && (
           <div className="mt-[1px] flex justify-center">
             <Button
               variant="ghost"
