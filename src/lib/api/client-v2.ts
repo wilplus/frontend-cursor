@@ -19,24 +19,7 @@ import type {
   StudentOverridesV2,
 } from "@/lib/api/types-v2";
 
-async function getAuthFetchOptions(
-  extraHeaders: Record<string, string> = {}
-): Promise<{ headers: Record<string, string>; credentials: RequestCredentials }> {
-  const headers: Record<string, string> = { ...extraHeaders };
-  if (typeof window !== "undefined") {
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return { headers, credentials: "include" };
-}
+import { getAuthFetchOptions } from "@/lib/api/auth-fetch";
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
