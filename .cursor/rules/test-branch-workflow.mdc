@@ -1,13 +1,17 @@
 ---
-description: Use develop branch for testing; commit and push to develop until user says otherwise
+description: Frontend uses develop for testing; backend uses staging—commit frontend to develop unless going live
 alwaysApply: true
 ---
 
-# Test branch workflow
+# Environments (frontend vs backend)
 
-- **Test branch**: `develop` is the separate branch for testing (preview/staging).
-- **Default behavior**: Until the user says otherwise, all git work should target `develop`:
-  - Commit changes on `develop` (checkout develop if needed before committing).
-  - When suggesting push commands, use: `git push origin develop` (or `git push -u origin develop` once).
-- **Production**: `main` is for live; do not commit or push to `main` unless the user explicitly asks to go live or merge to main.
-- If the user says to stop using the test branch or to work on main again, remove or ignore this rule.
+- **Backend**: **staging** is the testing/preview deployment (Railway or equivalent). Point `NEXT_PUBLIC_API_URL` / BFF at the **staging** backend URL when testing the frontend against non-production APIs.
+- **Frontend (this repo)**: **`develop`** is the branch for frontend preview/staging builds. Naming is intentional: backend “staging” ≠ frontend branch name.
+
+# Test branch workflow (frontend only)
+
+- **Test branch**: `develop` — all routine commits and pushes for this repo target **`develop`** until the user says otherwise.
+  - Checkout `develop` before committing when working on staging/preview.
+  - Push with: `git push origin develop` (or `git push -u origin develop` once).
+- **Production**: `main` is for **live** frontend; do not commit or push to `main` unless the user explicitly asks to go live or merge/promote to production.
+- If the user says to stop using `develop` or to work on `main` again, remove or ignore this rule.
