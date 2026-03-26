@@ -592,9 +592,6 @@ export default function HomeworkFlowCard() {
     setTutorFeedbackMessage(null);
     setReviewPending(false);
     setMainScreenMessage(null);
-    setStep0CanStartHomework(true);
-    setStep0StartBlockedReason(null);
-    setStep0VideoShown(1);
     setStep0TutorVideoUrl(null);
     setStep0TutorVideoDescription(null);
   }, []);
@@ -617,9 +614,6 @@ export default function HomeworkFlowCard() {
     setReportError(null);
     setReportNotReady(false);
     setReportLoading(false);
-    setStep0CanStartHomework(false);
-    setStep0StartBlockedReason("WAITING_FOR_ASSIGNMENT");
-    setStep0VideoShown(0);
     setStep0TutorVideoUrl(null);
     setStep0TutorVideoDescription(null);
     setReviewPending(true);
@@ -976,11 +970,6 @@ export default function HomeworkFlowCard() {
   );
 
   const handleStart = async () => {
-    if (!step0CanStartHomework) {
-      setReviewPending(true);
-      setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
-      return;
-    }
     // Guard: block session start when credits < 5
     if (credits !== null && credits < 5) {
       setShowInsufficientCreditsModal(true);
@@ -1860,16 +1849,10 @@ export default function HomeworkFlowCard() {
 
                   <Button
                     onClick={handleStart}
-                    disabled={loading || !step0CanStartHomework}
+                    disabled={loading}
                     className="w-full max-w-[280px] rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
                   >
-                    {error
-                      ? "Try again"
-                      : loading
-                        ? "Starting…"
-                        : !step0CanStartHomework
-                          ? step0BlockedLabel
-                          : "Start Your Practice"}
+                    {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
                   </Button>
                 </>
               )}
