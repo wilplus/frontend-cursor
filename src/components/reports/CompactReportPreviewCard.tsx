@@ -51,7 +51,7 @@ export default function CompactReportPreviewCard({
               </p>
             )}
             {preview?.coachMessage && (
-              <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+              <p className="mt-0.5 text-sm text-muted-foreground whitespace-pre-wrap">
                 {preview.coachMessage}
               </p>
             )}

@@ -39,8 +39,8 @@ interface ReportDetailModalProps {
   userId: string;
   studentEmail: string | null;
   session: SessionWithPreview | null;
-  /** Called after coach grade is saved so parent can refresh profile (e.g. load()). */
-  onGradeSaved?: () => void;
+  /** Called after coach grade is saved so parent can update the preview cache. */
+  onGradeSaved?: (sessionId: string, grade: number | null, message: string | null) => void;
 }
 
 type ReviewOverallQuality = RecordingReview["overall_quality"];
@@ -208,7 +208,7 @@ export default function ReportDetailModal({
       setSavedGrade(coachGrade);
       setSavedMessage(normalizedCoachMessage || null);
       toast.success("Grade saved.");
-      onGradeSaved?.();
+      onGradeSaved?.(session.id, coachGrade, normalizedCoachMessage || null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save grade";
       toast.error(msg);
@@ -240,7 +240,7 @@ export default function ReportDetailModal({
       setReviewNotes((review.notes ?? "").trim());
       setReviewRubricVersion(review.rubric_version || DEFAULT_RUBRIC_VERSION);
       toast.success("ML review saved.");
-      onGradeSaved?.();
+      if (session) onGradeSaved?.(session.id, coachGrade, coachMessage.trim() || null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save ML review";
       setReviewError(msg);

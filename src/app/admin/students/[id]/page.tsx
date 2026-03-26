@@ -1955,7 +1955,18 @@ export default function AdminStudentProfilePage() {
         userId={id}
         studentEmail={profile?.email ?? null}
         session={reportModalSession}
-        onGradeSaved={load}
+        onGradeSaved={(sessionId, grade, message) => {
+          // Update the preview card immediately so grade + message show without a re-fetch
+          setAdminReportPreviews((prev) => {
+            const existing = prev[sessionId];
+            if (!existing) return prev;
+            return {
+              ...prev,
+              [sessionId]: { ...existing, coachGrade: grade, coachMessage: message ?? "" },
+            };
+          });
+          load();
+        }}
       />
     </div>
   );
