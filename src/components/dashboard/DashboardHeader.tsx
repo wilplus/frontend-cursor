@@ -14,11 +14,13 @@ const CAL_LESSON_URL = "https://cal.com/artur-willonski-zywzu7/lesson";
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
 const ADMIN_EMAIL = "artur@willonski.com";
+const CREDITS_STRIPE_URL = "https://buy.stripe.com/bJe28q4ch5VrfGCb9Z6wE0d";
 
 export default function DashboardHeader() {
   const router = useRouter();
   const supabase = createClient();
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -31,7 +33,23 @@ export default function DashboardHeader() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      setUserEmail(user?.email ?? null);
+      if (!user) return;
+      setUserEmail(user.email ?? null);
+      // Fetch credits from v2_student_details
+      try {
+        const { data } = await supabase
+          .from("v2_student_details")
+          .select("credits")
+          .eq("user_id", user.id)
+          .single();
+        if (data && data.credits != null) {
+          setCredits(data.credits);
+        } else {
+          setCredits(15);
+        }
+      } catch {
+        setCredits(null);
+      }
     };
     getUser();
   }, [supabase]);
@@ -104,6 +122,18 @@ export default function DashboardHeader() {
             </Link>
           )}
         </div>
+        {credits !== null && (
+          <a
+            href={CREDITS_STRIPE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Top up credits"
+            className="flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <span className="text-base leading-none">🎓</span>
+            <span>{credits}</span>
+          </a>
+        )}
         <div className="relative flex shrink-0" ref={menuRef}>
           <Button
             ref={buttonRef}

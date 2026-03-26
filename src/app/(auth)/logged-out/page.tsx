@@ -38,9 +38,6 @@ export default function LoggedOutPage() {
               <p className="text-sm leading-6 text-muted-foreground">
                 Your homework has been sent and is now being reviewed.
               </p>
-              <p className="text-xs leading-5 text-muted-foreground">
-                We&apos;ll email you as soon as it&apos;s ready.
-              </p>
             </div>
           </div>
 

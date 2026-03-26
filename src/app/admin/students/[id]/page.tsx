@@ -629,6 +629,7 @@ export default function AdminStudentProfilePage() {
   const [studentSniperProgress, setStudentSniperProgress] = useState<StudentSniperProgress | null>(null);
   const [studentName, setStudentName] = useState("");
   const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
+  const [creditsCount, setCreditsCount] = useState("");
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
   const [userMetricQuestions, setUserMetricQuestions] = useState({
@@ -739,6 +740,15 @@ export default function AdminStudentProfilePage() {
             ? ""
             : Number.isFinite(Number(rawPrice))
               ? String(Number(rawPrice))
+              : ""
+        );
+        const rawCredits =
+          (p as { credits?: number | string | null }).credits ?? null;
+        setCreditsCount(
+          rawCredits == null || rawCredits === ""
+            ? ""
+            : Number.isFinite(Number(rawCredits))
+              ? String(Math.round(Number(rawCredits)))
               : ""
         );
         const ids = p.overrides?.assigned_exercise_ids;
@@ -866,6 +876,11 @@ export default function AdminStudentProfilePage() {
       toast.error("Live lesson price must be a valid number in USD.");
       return;
     }
+    const normalizedCredits = creditsCount.trim();
+    if (normalizedCredits !== "" && (!Number.isFinite(Number(normalizedCredits)) || Number(normalizedCredits) < 0)) {
+      toast.error("Credits must be a non-negative integer.");
+      return;
+    }
 
     let nextRealtimeLevel: number | null;
     let nextRealtimeStep: number | null;
@@ -953,6 +968,8 @@ export default function AdminStudentProfilePage() {
         name: normalizedName === "" ? null : normalizedName,
         price_per_live_lesson:
           normalizedPrice === "" ? null : Math.max(0, Number(normalizedPrice)),
+        credits:
+          normalizedCredits === "" ? null : Math.max(0, Math.round(Number(normalizedCredits))),
       });
       const persistedRealtimeLevel = studentSniperProgress?.realtime_level ?? null;
       const persistedRealtimeStep = studentSniperProgress?.realtime_step ?? null;
@@ -1440,6 +1457,21 @@ export default function AdminStudentProfilePage() {
               placeholder="e.g. 49.99"
               disabled={saving}
             />
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Credits balance</label>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={creditsCount}
+              onChange={(e) => setCreditsCount(e.target.value)}
+              placeholder="e.g. 15"
+              disabled={saving}
+            />
+            <p className="text-xs text-muted-foreground">Each homework session costs 5 credits. New users start with 15.</p>
           </div>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">

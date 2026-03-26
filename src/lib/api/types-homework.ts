@@ -162,12 +162,6 @@ export interface HomeworkResponse {
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student. Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
-  /** Explicit step-0 video switch from backend: 0 hides tutor video and keeps waiting UI, 1 allows it. */
-  video_shown?: 0 | 1 | null;
-  /** Whether the student is currently allowed to create a new homework session from step 0. */
-  can_start_homework?: boolean | null;
-  /** Backend reason for blocking session/start while the student is on step 0. */
-  session_start_blocked_reason?: string | null;
   review_pending?: boolean | null;
   main_screen_state?: string | null;
   main_screen_message?: string | null;
@@ -184,6 +178,8 @@ export interface HomeworkResponse {
   last_report_delivered?: boolean | null;
   session?: unknown;
   has_active_session?: boolean;
+  /** Student's remaining homework credits. Deducted by 5 per session start. */
+  credits?: number | null;
 }
 
 /** Normalize raw API status string to PublicHomeworkStatus. Use when building HomeworkResponse from GET. */
@@ -246,7 +242,6 @@ export interface HomeworkSessionStatus {
     state?: string;
     context_long?: string | null;
     performance_score_end?: number | null;
-    video_shown?: number | null;
     tutor_video_url?: string | null;
     tutor_video_description?: string | null;
   };
@@ -260,12 +255,6 @@ export interface HomeworkSessionStatus {
   tutor_video_description?: string | null;
   /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
-  /** Explicit step-0 video switch from backend: 0 hides tutor video and keeps waiting UI, 1 allows it. */
-  video_shown?: number | null;
-  /** Whether the student is currently allowed to create a new homework session from step 0. */
-  can_start_homework?: boolean | null;
-  /** Backend reason for blocking session/start while the student is on step 0. */
-  session_start_blocked_reason?: string | null;
   review_pending?: boolean | null;
   main_screen_state?: string | null;
   main_screen_message?: string | null;
@@ -284,6 +273,8 @@ export interface HomeworkSessionStatus {
   recording_1_processing_status?: string | null;
   /** Backend: when true, show the current 1–5 self-rating step and allow POST self-rating. */
   ready_for_self_rating?: boolean | null;
+  /** Student's remaining homework credits. Deducted by 5 per session start. */
+  credits?: number | null;
 }
 
 /** Exercise item returned in GET session/status when no active session (from assigned_exercises). */
@@ -292,11 +283,6 @@ export interface AssignedExercise {
   title: string;
   video_url?: string | null;
   description?: string | null;
-}
-
-export function normalizeVideoShown(v: unknown): 0 | 1 {
-  if (v === 0 || v === "0") return 0;
-  return 1;
 }
 
 /** Build HomeworkResponse from GET status. Normalizes status to top-level (only place that reads nested session.status). */
@@ -338,9 +324,6 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     tutor_video_url: raw.tutor_video_url ?? raw.session?.tutor_video_url ?? null,
     tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
     assigned_exercises: Array.isArray(raw.assigned_exercises) ? raw.assigned_exercises : [],
-    video_shown: normalizeVideoShown(raw.video_shown ?? raw.session?.video_shown),
-    can_start_homework: raw.can_start_homework ?? null,
-    session_start_blocked_reason: raw.session_start_blocked_reason ?? null,
     review_pending: raw.review_pending ?? null,
     main_screen_state: raw.main_screen_state ?? null,
     main_screen_message: raw.main_screen_message ?? null,
@@ -348,6 +331,7 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     realtime_level: raw.realtime_level ?? raw.sniper_profile?.realtime_level ?? null,
     realtime_step: raw.realtime_step ?? raw.sniper_profile?.realtime_step ?? null,
     last_report_delivered: raw.last_report_delivered ?? null,
+    credits: raw.credits ?? null,
   };
 }
 

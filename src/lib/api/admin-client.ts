@@ -62,6 +62,7 @@ export interface StudentProfile {
   email: string | null;
   name?: string | null;
   price_per_live_lesson?: number | null;
+  credits?: number | null;
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: StudentSniperProgress | null;
@@ -483,7 +484,7 @@ export const adminApi = {
 
   patchStudent: (
     userId: string,
-    body: { name?: string | null; price_per_live_lesson?: number | null }
+    body: { name?: string | null; price_per_live_lesson?: number | null; credits?: number | null }
   ) => adminFetch<{ status?: string }>(`/students/${userId}`, { method: "PATCH", body }),
 
   deleteStudent: (userId: string) =>
