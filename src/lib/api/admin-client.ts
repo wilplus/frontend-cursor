@@ -62,9 +62,15 @@ export interface StudentProfile {
   email: string | null;
   name?: string | null;
   price_per_live_lesson?: number | null;
+  credits?: number | null;
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: StudentSniperProgress | null;
+  coaching_memory?: {
+    last_5_scores?: number[] | null;
+    recent_focus_task_ids?: string[] | null;
+    updated_at?: string | null;
+  } | null;
   last_report_delivered?: boolean | null;
   overrides: {
     show_exercise_step?: boolean;
@@ -118,6 +124,14 @@ export interface StudentSniperProgress {
   realtime_step?: number | null;
   sessions_with_pitch_count?: number | null;
   realtime_pitch_baseline_st?: number | null;
+  session_count?: number | null;
+  sessions_with_energy_count?: number | null;
+  baseline_wpm?: number | null;
+  baseline_pause_ms?: number | null;
+  baseline_dynamic_db?: number | null;
+  baseline_emphasis_per_min?: number | null;
+  baseline_energy_ratio?: number | null;
+  baseline_fatigue_sec?: number | null;
   updated_at?: string | null;
 }
 
