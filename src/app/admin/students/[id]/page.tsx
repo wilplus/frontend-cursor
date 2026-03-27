@@ -1930,7 +1930,7 @@ export default function AdminStudentProfilePage() {
                                 <td className="py-1.5 pr-3 text-right">{pct(s.question_1_score) ?? "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{pct(s.question_2_score) ?? "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{pct(s.question_3_score) ?? "—"}</td>
-                                <td className="py-1.5 pr-3 text-right">{s.coach_grade != null ? `${s.coach_grade}/10` : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{s.report_grade != null ? `${s.report_grade}/10` : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{sm?.stage_score != null ? sm.stage_score.toFixed(1) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{rp?.words_per_minute != null ? rp.words_per_minute.toFixed(0) : sm?.wpm != null ? sm.wpm.toFixed(0) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{rp?.filler_words_count?.total != null ? rp.filler_words_count.total : "—"}</td>
