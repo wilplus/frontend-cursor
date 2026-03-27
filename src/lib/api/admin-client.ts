@@ -115,6 +115,12 @@ export interface StudentProfile {
     personality_type?: string;
     coach_notes?: string;
   } | null;
+  similar_students_by_wpm?: Array<{
+    user_id: string;
+    email: string;
+    wpm: number;
+    session_id?: string;
+  }>;
   sessions: Array<{
     id: string;
     created_at: string;
@@ -190,6 +196,7 @@ export interface SendAssignmentResponse {
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: StudentSniperProgress | null;
+  additional_sends?: Array<{ user_id: string; status: string; email?: string }>;
 }
 
 export function getStudentSniperProgressFromProfile(
@@ -665,8 +672,8 @@ export const adminApi = {
   putSpeakerProfile: (userId: string, data: Record<string, unknown>) =>
     adminFetch<{ status: string }>(`/students/${userId}/speaker-profile`, { method: "PUT", body: data }),
 
-  /** Optional body: { video_url?, video_description? }. Only keys with non-empty values are sent. Used in assignment email. */
-  sendAssignment: (userId: string, body?: { video_url?: string; video_description?: string }) =>
+  /** Optional body: { video_url?, video_description?, additional_user_ids? }. Used in assignment email. */
+  sendAssignment: (userId: string, body?: { video_url?: string; video_description?: string; additional_user_ids?: string[] }) =>
     adminFetch<SendAssignmentResponse>(`/students/${userId}/send-assignment`, {
       method: "POST",
       ...(body && Object.keys(body).length > 0 ? { body } : {}),

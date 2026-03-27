@@ -695,6 +695,7 @@ export default function AdminStudentProfilePage() {
 
   const [contextDraft, setContextDraft] = useState("");
   const [assignmentVideoDescription, setAssignmentVideoDescription] = useState("");
+  const [selectedSimilarIds, setSelectedSimilarIds] = useState<Set<string>>(new Set());
   const [currentRealtimeLevel, setCurrentRealtimeLevel] = useState("");
   const [currentRealtimeStep, setCurrentRealtimeStep] = useState("");
   /** Exercises pool (global). Assigned ones are in overrides.assigned_exercise_ids. */
@@ -1033,15 +1034,26 @@ export default function AdminStudentProfilePage() {
     }
   };
 
+  const toggleSimilarStudent = (userId: string) => {
+    setSelectedSimilarIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
   const sendAssignment = () => {
     const videoDesc = assignmentVideoDescription.trim();
     if (videoDesc.length > 2000) {
       toast.error("Message to student must be 2000 characters or less");
       return;
     }
-    const body = videoDesc ? { video_description: videoDesc } : undefined;
+    const body: { video_description?: string; additional_user_ids?: string[] } = {};
+    if (videoDesc) body.video_description = videoDesc;
+    if (selectedSimilarIds.size > 0) body.additional_user_ids = [...selectedSimilarIds];
     adminApi
-      .sendAssignment(id, body)
+      .sendAssignment(id, Object.keys(body).length > 0 ? body : undefined)
       .then((response) => {
         const progress = getStudentSniperProgressFromAssignmentResponse(id, response);
         if (progress) {
@@ -1060,8 +1072,10 @@ export default function AdminStudentProfilePage() {
               : prev
           );
         }
-        toast.success("Homework sent");
+        const count = 1 + selectedSimilarIds.size;
+        toast.success(count > 1 ? `Homework sent to ${count} students` : "Homework sent");
         setAssignmentVideoDescription("");
+        setSelectedSimilarIds(new Set());
       })
       .catch((e) => toast.error(e.message));
   };
@@ -1483,11 +1497,6 @@ export default function AdminStudentProfilePage() {
       <SectionCard
         title="Homework Configuration"
         description="Select items from the global pool or create new ones. New items are added to the pool for reuse."
-        action={
-          <Button type="button" variant="outline" onClick={sendAssignment} className="gap-2">
-            <Send className="h-4 w-4" aria-hidden /> Send Homework
-          </Button>
-        }
       >
         <div className="space-y-6">
           {/* Message to the student — shown in assignment email */}
@@ -1798,6 +1807,39 @@ export default function AdminStudentProfilePage() {
               saving={saving}
             />
           )}
+
+          {/* Similar students + Send Homework */}
+          {(profile.similar_students_by_wpm?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                Similar students to share your insight with:
+              </p>
+              <div className="space-y-1.5">
+                {(profile.similar_students_by_wpm ?? []).map((s) => (
+                  <label
+                    key={s.user_id}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-2.5 cursor-pointer hover:bg-muted/40"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSimilarIds.has(s.user_id)}
+                      onChange={() => toggleSimilarStudent(s.user_id)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <span className="text-sm flex-1">{s.email || s.user_id}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{Math.round(s.wpm)} WPM</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Button type="button" onClick={sendAssignment} className="gap-2">
+            <Send className="h-4 w-4" aria-hidden />
+            {selectedSimilarIds.size > 0
+              ? `Send Homework to ${1 + selectedSimilarIds.size} students`
+              : "Send Homework"}
+          </Button>
         </div>
       </SectionCard>
 
