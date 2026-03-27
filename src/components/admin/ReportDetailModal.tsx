@@ -28,7 +28,7 @@ type SessionWithPreview = {
   created_at?: string;
   report_preview?: { report_text_preview?: string };
   recording_id?: string;
-  coach_grade?: number | null;
+  report_grade?: number | null;
   coach_message?: string | null;
   status?: string;
 };
@@ -99,7 +99,7 @@ export default function ReportDetailModal({
         setReport(data);
         setError(null);
         setCoachGrade(
-          data.coach_grade != null ? data.coach_grade : session.coach_grade ?? null
+          data.report_grade != null ? data.report_grade : session.report_grade ?? null
         );
         setCoachMessage((data.coach_message ?? session.coach_message ?? "").trim());
         if (data.final_recording?.audio_url) {
@@ -177,13 +177,13 @@ export default function ReportDetailModal({
 
   // Sync coach grade from session when report hasn't loaded yet
   useEffect(() => {
-    if (report == null && session?.coach_grade != null) {
-      setCoachGrade(session.coach_grade);
+    if (report == null && session?.report_grade != null) {
+      setCoachGrade(session.report_grade);
     }
     if (report == null && session?.coach_message != null) {
       setCoachMessage((session.coach_message ?? "").trim());
     }
-  }, [report, session?.coach_grade, session?.coach_message]);
+  }, [report, session?.report_grade, session?.coach_message]);
 
   const handleSaveGrade = async () => {
     if (!session) return;
@@ -191,12 +191,12 @@ export default function ReportDetailModal({
     try {
       const normalizedCoachMessage = coachMessage.trim();
       await adminApi.patchSession(userId, session.id, {
-        coach_grade: coachGrade,
+        report_grade: coachGrade,
         coach_message: normalizedCoachMessage || null,
       });
       setReport((prev) =>
         prev
-          ? { ...prev, coach_grade: coachGrade, coach_message: normalizedCoachMessage || null }
+          ? { ...prev, report_grade: coachGrade, coach_message: normalizedCoachMessage || null }
           : null
       );
       toast.success("Grade saved.");
