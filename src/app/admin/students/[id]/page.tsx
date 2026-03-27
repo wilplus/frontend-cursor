@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertTriangle, ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Send, Pencil, Trash2, Check, X } from "lucide-react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
@@ -638,6 +638,7 @@ export default function AdminStudentProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [learningDataOpen, setLearningDataOpen] = useState(false);
 
   const [modalWarmUp, setModalWarmUp] = useState(false);
   const [warmUpPoolTasks, setWarmUpPoolTasks] = useState<WarmUpPoolTask[]>([]);
@@ -1868,6 +1869,139 @@ export default function AdminStudentProfilePage() {
                 />
                 <Stat label="Last session" value={lastSession} />
                 <Stat label="Profile updated" value={sniperUpdatedAt} />
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* Collapsible full data dump */}
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setLearningDataOpen((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronRight className={`h-4 w-4 transition-transform ${learningDataOpen ? "rotate-90" : ""}`} />
+            {learningDataOpen ? "Hide" : "Show"} all tracked data
+          </button>
+
+          {learningDataOpen && (() => {
+            const sp = profile.speaker_profile;
+            const sn = studentSniperProgress;
+            const mem = profile.coaching_memory;
+            const allSessions = profile.sessions ?? [];
+
+            const Row = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
+              value != null && value !== "" ? (
+                <div className="flex gap-3 py-1.5 border-b border-border/40 last:border-0">
+                  <span className="w-48 shrink-0 text-xs text-muted-foreground">{label}</span>
+                  <span className="text-sm break-words min-w-0">{String(value)}</span>
+                </div>
+              ) : null
+            );
+
+            const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+              <div className="mt-5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">{title}</p>
+                <div className="rounded-lg border border-border bg-muted/20 px-4 py-1">
+                  {children}
+                </div>
+              </div>
+            );
+
+            return (
+              <div className="mt-4 text-sm">
+
+                <Section title="Student Profile — Speaker & Personality">
+                  <Row label="Main goal" value={sp?.main_goal} />
+                  <Row label="Motivation" value={sp?.motivation} />
+                  <Row label="Strong points" value={sp?.strong_points} />
+                  <Row label="Weak points" value={sp?.weak_points} />
+                  <Row label="Charismatic traits" value={sp?.charismatic_traits} />
+                  <Row label="Hobbies / interests" value={sp?.hobbies_interests} />
+                  <Row label="Personality type" value={sp?.personality_type} />
+                  <Row label="Coach notes" value={sp?.coach_notes} />
+                  {!sp && <p className="text-xs text-muted-foreground py-2">No speaker profile yet.</p>}
+                </Section>
+
+                <Section title="Training Progression — Sniper">
+                  <Row label="Level" value={sn?.realtime_level} />
+                  <Row label="Step" value={sn?.realtime_step} />
+                  <Row label="Session count" value={sn?.session_count} />
+                  <Row label="Sessions w/ energy" value={sn?.sessions_with_energy_count} />
+                  <Row label="Sessions w/ pitch" value={sn?.sessions_with_pitch_count} />
+                  <Row label="Pitch baseline (st)" value={sn?.realtime_pitch_baseline_st != null ? sn.realtime_pitch_baseline_st.toFixed(2) : null} />
+                  <Row label="Baseline WPM" value={sn?.baseline_wpm != null ? sn.baseline_wpm.toFixed(1) : null} />
+                  <Row label="Baseline pause (ms)" value={sn?.baseline_pause_ms != null ? sn.baseline_pause_ms.toFixed(0) : null} />
+                  <Row label="Baseline dynamic (dB)" value={sn?.baseline_dynamic_db != null ? sn.baseline_dynamic_db.toFixed(2) : null} />
+                  <Row label="Baseline emphasis/min" value={sn?.baseline_emphasis_per_min != null ? sn.baseline_emphasis_per_min.toFixed(2) : null} />
+                  <Row label="Baseline energy ratio" value={sn?.baseline_energy_ratio != null ? sn.baseline_energy_ratio.toFixed(3) : null} />
+                  <Row label="Baseline fatigue (s)" value={sn?.baseline_fatigue_sec != null ? sn.baseline_fatigue_sec.toFixed(1) : null} />
+                  <Row label="Profile updated" value={sn?.updated_at ? new Date(sn.updated_at).toLocaleString() : null} />
+                  {!sn && <p className="text-xs text-muted-foreground py-2">No sniper profile yet.</p>}
+                </Section>
+
+                <Section title="Coaching Memory & Momentum">
+                  <Row
+                    label="Last 5 performance scores"
+                    value={mem?.last_5_scores?.length ? mem.last_5_scores.map((s) => (s * 100).toFixed(0) + "%").join(" → ") : null}
+                  />
+                  <Row
+                    label="Recent focus task IDs"
+                    value={mem?.recent_focus_task_ids?.length ? mem.recent_focus_task_ids.join(", ") : null}
+                  />
+                  <Row label="Memory updated" value={mem?.updated_at ? new Date(mem.updated_at).toLocaleString() : null} />
+                  {!mem && <p className="text-xs text-muted-foreground py-2">No coaching memory yet.</p>}
+                </Section>
+
+                <Section title="Performance & Scoring — Per Session">
+                  {allSessions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">No sessions yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs mt-1 mb-1">
+                        <thead>
+                          <tr className="text-muted-foreground">
+                            <th className="text-left py-1 pr-3 font-medium">Date</th>
+                            <th className="text-right py-1 pr-3 font-medium">Perf score</th>
+                            <th className="text-right py-1 pr-3 font-medium">Task score</th>
+                            <th className="text-right py-1 font-medium">Coach grade</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allSessions.map((s) => (
+                            <tr key={s.id} className="border-t border-border/30">
+                              <td className="py-1.5 pr-3">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</td>
+                              <td className="py-1.5 pr-3 text-right">
+                                {s.recording_preview?.performance_score_v2 != null
+                                  ? `${(s.recording_preview.performance_score_v2 * 100).toFixed(0)}%`
+                                  : "—"}
+                              </td>
+                              <td className="py-1.5 pr-3 text-right">
+                                {s.task_score != null ? `${(s.task_score * 100).toFixed(0)}%` : "—"}
+                              </td>
+                              <td className="py-1.5 text-right">
+                                {s.coach_grade != null ? `${s.coach_grade}/10` : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Section>
+
+                <Section title="Speech & Audio — Latest Session">
+                  {allSessions[0]?.recording_preview ? (
+                    <>
+                      <Row label="Transcription preview" value={allSessions[0].recording_preview.transcription_preview} />
+                      <Row label="Performance score" value={allSessions[0].recording_preview.performance_score_v2 != null ? `${(allSessions[0].recording_preview.performance_score_v2 * 100).toFixed(0)}%` : null} />
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground py-2">No audio data available in session summary.</p>
+                  )}
+                </Section>
+
               </div>
             );
           })()}
