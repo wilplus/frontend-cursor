@@ -85,7 +85,7 @@ export interface StudentProfile {
     assigned_realtime_step?: number | null;
     /** When true, student skips step 2 prompts. Backend must transition recording_1 → final_task_ready. */
     skip_metric_questions?: boolean;
-    /** When true, student skips step 4 (post-questions). Backend must transition recording_2 → completed. */
+    /** When true, student skips step 3 (report). Backend must transition recording_2 → completed. */
     skip_post_questions?: boolean;
   } | null;
   speaker_profile: {
@@ -107,15 +107,14 @@ export interface StudentProfile {
     report_id?: string;
     report_delivered?: boolean | null;
     student_completion_email_sent_at?: string | null;
-    task_score?: number;
-    /** Coach grade 1–10 or null (not graded). */
-    coach_grade?: number | null;
+    task_score?: number | null;
+    /** Report grade 1–10 or null (not graded). */
+    report_grade?: number | null;
     /** Optional short coach message attached to session grade. */
     coach_message?: string | null;
     performance_score_1?: number | null;
     performance_score_2?: number | null;
     performance_score_end?: number | null;
-    task_score?: number | null;
     question_1_score?: number | null;
     question_2_score?: number | null;
     question_3_score?: number | null;
@@ -227,8 +226,8 @@ export interface AdminSessionReportResponse {
   pace_metric?: string | null;
   coach_insight?: string | null;
   performance_history?: Array<{ date: string; score: number }>;
-  /** Coach grade 1–10 or null (not graded). */
-  coach_grade?: number | null;
+  /** Report grade 1–10 or null (not graded). */
+  report_grade?: number | null;
   /** Optional coach message attached to the session grade. */
   coach_message?: string | null;
 }
@@ -530,7 +529,7 @@ export const adminApi = {
 
   patchStudent: (
     userId: string,
-    body: { name?: string | null; price_per_live_lesson?: number | null }
+    body: { name?: string | null; price_per_live_lesson?: number | null; credits?: number | null }
   ) => adminFetch<{ status?: string }>(`/students/${userId}`, { method: "PATCH", body }),
 
   deleteStudent: (userId: string) =>
@@ -608,13 +607,13 @@ export const adminApi = {
       }
     ),
 
-  /** PATCH session: set or clear coach_grade (1–10 or null). Proxies to PATCH /v2/admin/students/:id/sessions/:sessionId. */
+  /** PATCH session: set or clear report_grade (1–10 or null). Proxies to PATCH /v2/admin/students/:id/sessions/:sessionId. */
   patchSession: (
     userId: string,
     sessionId: string,
-    body: { coach_grade: number | null; coach_message?: string | null }
+    body: { report_grade: number | null; coach_message?: string | null }
   ) =>
-    adminFetch<{ status: string; coach_grade?: number | null; coach_message?: string | null }>(
+    adminFetch<{ status: string; report_grade?: number | null; coach_message?: string | null }>(
       `/students/${userId}/sessions/${sessionId}`,
       { method: "PATCH", body }
     ),
