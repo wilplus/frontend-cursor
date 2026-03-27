@@ -29,6 +29,7 @@ type MetricCard = {
   label: string;
   value: string;
   hint?: string;
+  highlight?: boolean;
 };
 
 export default function LatestSessionMetrics({ sessions }: Props) {
@@ -50,15 +51,13 @@ export default function LatestSessionMetrics({ sessions }: Props) {
       })
     : null;
 
-  const wpm =
-    sm?.wpm != null
-      ? fmt(sm.wpm, 0)
-      : latestWpmFallback?.recording_preview?.words_per_minute != null
-        ? fmt(latestWpmFallback.recording_preview.words_per_minute, 0)
-        : "—";
+  const wpmRaw =
+    sm?.wpm ?? latestWpmFallback?.recording_preview?.words_per_minute ?? null;
+  const wpm = fmt(wpmRaw, 0);
+  const wpmHighlight = wpmRaw != null && wpmRaw > 110;
 
   const cards: MetricCard[] = [
-    { label: "WPM", value: wpm },
+    { label: "WPM", value: wpm, highlight: wpmHighlight },
     { label: "Avg pause (ms)", value: fmt(sm?.pause_ms, 0) },
     { label: "Dynamic range (dB)", value: fmt(sm?.dynamic_db, 1) },
     { label: "Emphasis / min", value: fmt(sm?.emphasis_per_min, 2) },
@@ -79,10 +78,17 @@ export default function LatestSessionMetrics({ sessions }: Props) {
         {sessionDate ? `From session on ${sessionDate}` : "No sniper session recorded yet — metrics will appear after the first completed session."}
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map(({ label, value, hint }) => (
-          <div key={label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-            <p className="text-xs font-medium text-muted-foreground leading-tight">{label}</p>
-            <p className={`mt-1 text-lg font-semibold tabular-nums ${value === "—" ? "text-muted-foreground" : ""}`}>
+        {cards.map(({ label, value, hint, highlight }) => (
+          <div
+            key={label}
+            className={`rounded-lg border px-4 py-3 shadow-sm ${
+              highlight
+                ? "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/30"
+                : "border-border bg-card"
+            }`}
+          >
+            <p className={`text-xs font-medium leading-tight ${highlight ? "text-orange-600 dark:text-orange-400" : "text-muted-foreground"}`}>{label}</p>
+            <p className={`mt-1 text-lg font-semibold tabular-nums ${highlight ? "text-orange-700 dark:text-orange-300" : value === "—" ? "text-muted-foreground" : ""}`}>
               {value}
             </p>
             {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
