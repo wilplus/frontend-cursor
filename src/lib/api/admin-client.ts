@@ -107,7 +107,7 @@ export interface StudentProfile {
     report_id?: string;
     report_delivered?: boolean | null;
     student_completion_email_sent_at?: string | null;
-    task_score?: number;
+    task_score?: number | null;
     /** Report grade 1–10 or null (not graded). */
     report_grade?: number | null;
     /** Optional short coach message attached to session grade. */
@@ -115,7 +115,6 @@ export interface StudentProfile {
     performance_score_1?: number | null;
     performance_score_2?: number | null;
     performance_score_end?: number | null;
-    task_score?: number | null;
     question_1_score?: number | null;
     question_2_score?: number | null;
     question_3_score?: number | null;
