@@ -1832,11 +1832,12 @@ export default function AdminStudentProfilePage() {
             />
           )}
 
-          {/* Similar students + Send Homework */}
-          {(profile.similar_students_by_wpm?.length ?? 0) > 0 && (
+          {/* Similar students — shown once a task is chosen */}
+          {(displayWarmUpTasks.length > 0 || assignedExerciseIds.length > 0) &&
+            (profile.similar_students_by_wpm?.length ?? 0) > 0 && (
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">
-                Similar students to share your insight with:
+                Also send to similar students:
               </p>
               <div className="space-y-1.5">
                 {(profile.similar_students_by_wpm ?? []).map((s) => (
@@ -1850,7 +1851,7 @@ export default function AdminStudentProfilePage() {
                       onChange={() => toggleSimilarStudent(s.user_id)}
                       className="h-4 w-4 rounded border-gray-300"
                     />
-                    <span className="text-sm flex-1">{s.email || s.user_id}</span>
+                    <span className="text-sm flex-1">{s.name || s.email || s.user_id}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">{Math.round(s.wpm)} WPM</span>
                   </label>
                 ))}
