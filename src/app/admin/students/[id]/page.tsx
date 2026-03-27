@@ -1807,74 +1807,7 @@ export default function AdminStudentProfilePage() {
           className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
 
-        {/* Measured parameters */}
-        <div className="mt-6">
-          <p className="text-sm font-medium mb-3">Measured Parameters</p>
-          {(() => {
-            const allSessions = profile.sessions ?? [];
-            const completedSessions = allSessions.filter((s) => s.status === "completed");
-            const perfScores = allSessions
-              .map((s) => s.recording_preview?.performance_score_v2)
-              .filter((v): v is number => typeof v === "number");
-            const avgPerf =
-              perfScores.length > 0
-                ? Math.round((perfScores.reduce((a, b) => a + b, 0) / perfScores.length) * 100) / 100
-                : null;
-            const deliveredCount = allSessions.filter((s) => s.report_delivered).length;
-            const lastSession = allSessions[0]?.created_at
-              ? new Date(allSessions[0].created_at).toLocaleDateString()
-              : null;
-            const pitchBaseline = studentSniperProgress?.realtime_pitch_baseline_st;
-            const sniperUpdatedAt = studentSniperProgress?.updated_at
-              ? new Date(studentSniperProgress.updated_at).toLocaleDateString()
-              : null;
-
-            const Stat = ({
-              label,
-              value,
-              sub,
-            }: {
-              label: string;
-              value: string | number | null | undefined;
-              sub?: string;
-            }) => (
-              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-0.5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-                <p className="text-xl font-semibold leading-tight">
-                  {value != null ? String(value) : <span className="text-muted-foreground text-sm font-normal">—</span>}
-                </p>
-                {sub ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
-              </div>
-            );
-
-            return (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                <Stat label="Level" value={studentSniperProgress?.realtime_level ?? profile.realtime_level} />
-                <Stat label="Step" value={studentSniperProgress?.realtime_step ?? profile.realtime_step} />
-                <Stat label="Credits" value={profile.credits ?? null} sub="5 per session" />
-                <Stat label="Price / lesson" value={profile.price_per_live_lesson != null ? `$${profile.price_per_live_lesson}` : null} />
-                <Stat label="Sessions total" value={allSessions.length} />
-                <Stat label="Completed" value={completedSessions.length} />
-                <Stat label="Reports delivered" value={deliveredCount} />
-                <Stat
-                  label="Avg performance"
-                  value={avgPerf != null ? String(avgPerf) : null}
-                  sub={perfScores.length > 0 ? `across ${perfScores.length} sessions` : undefined}
-                />
-                <Stat label="Sessions w/ pitch" value={studentSniperProgress?.sessions_with_pitch_count ?? null} />
-                <Stat
-                  label="Pitch baseline"
-                  value={pitchBaseline != null ? `${pitchBaseline} st` : null}
-                  sub="semitones"
-                />
-                <Stat label="Last session" value={lastSession} />
-                <Stat label="Profile updated" value={sniperUpdatedAt} />
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Collapsible full data dump */}
+        {/* Collapsible full data */}
         <div className="mt-6">
           <button
             type="button"
@@ -1891,26 +1824,32 @@ export default function AdminStudentProfilePage() {
             const mem = profile.coaching_memory;
             const allSessions = profile.sessions ?? [];
 
-            const Row = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
+            const fmt = (v: number | null | undefined, decimals = 2) =>
+              v != null ? v.toFixed(decimals) : null;
+            const pct = (v: number | null | undefined) =>
+              v != null ? `${(v * 100).toFixed(0)}%` : null;
+
+            const Row = ({ label, value }: { label: string; value: string | number | null | undefined }) =>
               value != null && value !== "" ? (
                 <div className="flex gap-3 py-1.5 border-b border-border/40 last:border-0">
-                  <span className="w-48 shrink-0 text-xs text-muted-foreground">{label}</span>
-                  <span className="text-sm break-words min-w-0">{String(value)}</span>
+                  <span className="w-52 shrink-0 text-xs text-muted-foreground">{label}</span>
+                  <span className="text-xs break-words min-w-0">{String(value)}</span>
                 </div>
-              ) : null
-            );
+              ) : null;
 
             const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
               <div className="mt-5">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">{title}</p>
-                <div className="rounded-lg border border-border bg-muted/20 px-4 py-1">
-                  {children}
-                </div>
+                <div className="rounded-lg border border-border bg-muted/20 px-4 py-1">{children}</div>
               </div>
             );
 
+            const Empty = ({ msg }: { msg: string }) => (
+              <p className="text-xs text-muted-foreground py-2">{msg}</p>
+            );
+
             return (
-              <div className="mt-4 text-sm">
+              <div className="mt-4">
 
                 <Section title="Student Profile — Speaker & Personality">
                   <Row label="Main goal" value={sp?.main_goal} />
@@ -1921,84 +1860,92 @@ export default function AdminStudentProfilePage() {
                   <Row label="Hobbies / interests" value={sp?.hobbies_interests} />
                   <Row label="Personality type" value={sp?.personality_type} />
                   <Row label="Coach notes" value={sp?.coach_notes} />
-                  {!sp && <p className="text-xs text-muted-foreground py-2">No speaker profile yet.</p>}
+                  {!sp && <Empty msg="No speaker profile yet." />}
                 </Section>
 
-                <Section title="Training Progression — Sniper">
+                <Section title="Training Progression — Sniper Baselines">
                   <Row label="Level" value={sn?.realtime_level} />
                   <Row label="Step" value={sn?.realtime_step} />
                   <Row label="Session count" value={sn?.session_count} />
                   <Row label="Sessions w/ energy" value={sn?.sessions_with_energy_count} />
                   <Row label="Sessions w/ pitch" value={sn?.sessions_with_pitch_count} />
-                  <Row label="Pitch baseline (st)" value={sn?.realtime_pitch_baseline_st != null ? sn.realtime_pitch_baseline_st.toFixed(2) : null} />
-                  <Row label="Baseline WPM" value={sn?.baseline_wpm != null ? sn.baseline_wpm.toFixed(1) : null} />
-                  <Row label="Baseline pause (ms)" value={sn?.baseline_pause_ms != null ? sn.baseline_pause_ms.toFixed(0) : null} />
-                  <Row label="Baseline dynamic (dB)" value={sn?.baseline_dynamic_db != null ? sn.baseline_dynamic_db.toFixed(2) : null} />
-                  <Row label="Baseline emphasis/min" value={sn?.baseline_emphasis_per_min != null ? sn.baseline_emphasis_per_min.toFixed(2) : null} />
-                  <Row label="Baseline energy ratio" value={sn?.baseline_energy_ratio != null ? sn.baseline_energy_ratio.toFixed(3) : null} />
-                  <Row label="Baseline fatigue (s)" value={sn?.baseline_fatigue_sec != null ? sn.baseline_fatigue_sec.toFixed(1) : null} />
+                  <Row label="Pitch baseline (st)" value={fmt(sn?.realtime_pitch_baseline_st)} />
+                  <Row label="Baseline WPM" value={fmt(sn?.baseline_wpm, 1)} />
+                  <Row label="Baseline pause (ms)" value={fmt(sn?.baseline_pause_ms, 0)} />
+                  <Row label="Baseline dynamic (dB)" value={fmt(sn?.baseline_dynamic_db)} />
+                  <Row label="Baseline emphasis/min" value={fmt(sn?.baseline_emphasis_per_min)} />
+                  <Row label="Baseline energy ratio" value={fmt(sn?.baseline_energy_ratio, 3)} />
+                  <Row label="Baseline fatigue (s)" value={fmt(sn?.baseline_fatigue_sec, 1)} />
                   <Row label="Profile updated" value={sn?.updated_at ? new Date(sn.updated_at).toLocaleString() : null} />
-                  {!sn && <p className="text-xs text-muted-foreground py-2">No sniper profile yet.</p>}
+                  {!sn && <Empty msg="No sniper profile yet." />}
                 </Section>
 
                 <Section title="Coaching Memory & Momentum">
-                  <Row
-                    label="Last 5 performance scores"
-                    value={mem?.last_5_scores?.length ? mem.last_5_scores.map((s) => (s * 100).toFixed(0) + "%").join(" → ") : null}
-                  />
-                  <Row
-                    label="Recent focus task IDs"
-                    value={mem?.recent_focus_task_ids?.length ? mem.recent_focus_task_ids.join(", ") : null}
-                  />
-                  <Row label="Memory updated" value={mem?.updated_at ? new Date(mem.updated_at).toLocaleString() : null} />
-                  {!mem && <p className="text-xs text-muted-foreground py-2">No coaching memory yet.</p>}
+                  <Row label="Last 5 scores" value={mem?.last_5_scores?.length ? mem.last_5_scores.map((v) => pct(v)).join(" → ") : null} />
+                  <Row label="Recent focus task IDs" value={mem?.recent_focus_task_ids?.length ? mem.recent_focus_task_ids.join(", ") : null} />
+                  <Row label="Updated" value={mem?.updated_at ? new Date(mem.updated_at).toLocaleString() : null} />
+                  {!mem && <Empty msg="No coaching memory yet." />}
                 </Section>
 
-                <Section title="Performance & Scoring — Per Session">
+                <Section title="Performance, Scoring & Speech — Per Session">
                   {allSessions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-2">No sessions yet.</p>
+                    <Empty msg="No sessions yet." />
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs mt-1 mb-1">
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="w-full text-xs mt-2 mb-2 min-w-[860px]">
                         <thead>
-                          <tr className="text-muted-foreground">
-                            <th className="text-left py-1 pr-3 font-medium">Date</th>
-                            <th className="text-right py-1 pr-3 font-medium">Perf score</th>
-                            <th className="text-right py-1 pr-3 font-medium">Task score</th>
-                            <th className="text-right py-1 font-medium">Coach grade</th>
+                          <tr className="text-muted-foreground border-b border-border">
+                            <th className="text-left py-1.5 pr-3 font-medium">Date</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Score 1</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Score 2</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Final</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Task</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Q1</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Q2</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Q3</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Grade</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Stage</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">WPM</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Fillers</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Dur (s)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Pause (ms)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Pitch (st)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Energy</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">ML quality</th>
+                            <th className="text-right py-1.5 font-medium">Self rating</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {allSessions.map((s) => (
-                            <tr key={s.id} className="border-t border-border/30">
-                              <td className="py-1.5 pr-3">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</td>
-                              <td className="py-1.5 pr-3 text-right">
-                                {s.recording_preview?.performance_score_v2 != null
-                                  ? `${(s.recording_preview.performance_score_v2 * 100).toFixed(0)}%`
-                                  : "—"}
-                              </td>
-                              <td className="py-1.5 pr-3 text-right">
-                                {s.task_score != null ? `${(s.task_score * 100).toFixed(0)}%` : "—"}
-                              </td>
-                              <td className="py-1.5 text-right">
-                                {s.coach_grade != null ? `${s.coach_grade}/10` : "—"}
-                              </td>
-                            </tr>
-                          ))}
+                          {allSessions.map((s) => {
+                            const sm = s.sniper_metrics;
+                            const rv = s.review;
+                            const rp = s.recording_preview;
+                            return (
+                              <tr key={s.id} className="border-t border-border/30 hover:bg-muted/20">
+                                <td className="py-1.5 pr-3 whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_1) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_2) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_end) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.task_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.question_1_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.question_2_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.question_3_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{s.coach_grade != null ? `${s.coach_grade}/10` : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.stage_score != null ? sm.stage_score.toFixed(1) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rp?.words_per_minute != null ? rp.words_per_minute.toFixed(0) : sm?.wpm != null ? sm.wpm.toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rp?.filler_words_count?.total != null ? rp.filler_words_count.total : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rp?.duration_ms != null ? (rp.duration_ms / 1000).toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.pause_ms != null ? sm.pause_ms.toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.pitch_center_st != null ? sm.pitch_center_st.toFixed(1) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.energy_ratio != null ? sm.energy_ratio.toFixed(3) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rv?.overall_quality ?? "—"}</td>
+                                <td className="py-1.5 text-right">{sm?.student_rating_1_10 ?? "—"}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
-                  )}
-                </Section>
-
-                <Section title="Speech & Audio — Latest Session">
-                  {allSessions[0]?.recording_preview ? (
-                    <>
-                      <Row label="Transcription preview" value={allSessions[0].recording_preview.transcription_preview} />
-                      <Row label="Performance score" value={allSessions[0].recording_preview.performance_score_v2 != null ? `${(allSessions[0].recording_preview.performance_score_v2 * 100).toFixed(0)}%` : null} />
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground py-2">No audio data available in session summary.</p>
                   )}
                 </Section>
 
