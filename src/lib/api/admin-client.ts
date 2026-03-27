@@ -112,7 +112,40 @@ export interface StudentProfile {
     coach_grade?: number | null;
     /** Optional short coach message attached to session grade. */
     coach_message?: string | null;
-    recording_preview?: { performance_score_v2?: number; transcription_preview?: string };
+    performance_score_1?: number | null;
+    performance_score_2?: number | null;
+    performance_score_end?: number | null;
+    task_score?: number | null;
+    question_1_score?: number | null;
+    question_2_score?: number | null;
+    question_3_score?: number | null;
+    realtime_level_at_session?: number | null;
+    realtime_step_at_session?: number | null;
+    recording_preview?: {
+      performance_score_v2?: number;
+      transcription_preview?: string;
+      words_per_minute?: number | null;
+      filler_words_count?: { total?: number; breakdown?: Record<string, number> } | null;
+      performance_metrics_v2?: Record<string, unknown> | null;
+      duration_ms?: number | null;
+    };
+    sniper_metrics?: {
+      wpm?: number | null;
+      pause_ms?: number | null;
+      dynamic_db?: number | null;
+      emphasis_per_min?: number | null;
+      energy_ratio?: number | null;
+      voiced_duration_sec?: number | null;
+      pitch_center_st?: number | null;
+      pitch_frame_count?: number | null;
+      stage_score?: number | null;
+      student_rating_1_10?: number | null;
+    } | null;
+    review?: {
+      overall_quality?: string | null;
+      confidence_score?: number | null;
+      coach_style_score?: number | null;
+    } | null;
     /** Full report text (backend returns full, not truncated). */
     report_preview?: { report_text_preview?: string };
   }>;
