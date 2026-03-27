@@ -66,6 +66,11 @@ export interface StudentProfile {
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: StudentSniperProgress | null;
+  coaching_memory?: {
+    last_5_scores?: number[] | null;
+    recent_focus_task_ids?: string[] | null;
+    updated_at?: string | null;
+  } | null;
   last_report_delivered?: boolean | null;
   overrides: {
     show_exercise_step?: boolean;
@@ -107,7 +112,40 @@ export interface StudentProfile {
     report_grade?: number | null;
     /** Optional short coach message attached to session grade. */
     coach_message?: string | null;
-    recording_preview?: { performance_score_v2?: number; transcription_preview?: string };
+    performance_score_1?: number | null;
+    performance_score_2?: number | null;
+    performance_score_end?: number | null;
+    task_score?: number | null;
+    question_1_score?: number | null;
+    question_2_score?: number | null;
+    question_3_score?: number | null;
+    realtime_level_at_session?: number | null;
+    realtime_step_at_session?: number | null;
+    recording_preview?: {
+      performance_score_v2?: number;
+      transcription_preview?: string;
+      words_per_minute?: number | null;
+      filler_words_count?: { total?: number; breakdown?: Record<string, number> } | null;
+      performance_metrics_v2?: Record<string, unknown> | null;
+      duration_ms?: number | null;
+    };
+    sniper_metrics?: {
+      wpm?: number | null;
+      pause_ms?: number | null;
+      dynamic_db?: number | null;
+      emphasis_per_min?: number | null;
+      energy_ratio?: number | null;
+      voiced_duration_sec?: number | null;
+      pitch_center_st?: number | null;
+      pitch_frame_count?: number | null;
+      stage_score?: number | null;
+      student_rating_1_10?: number | null;
+    } | null;
+    review?: {
+      overall_quality?: string | null;
+      confidence_score?: number | null;
+      coach_style_score?: number | null;
+    } | null;
     /** Full report text (backend returns full, not truncated). */
     report_preview?: { report_text_preview?: string };
   }>;
@@ -119,6 +157,14 @@ export interface StudentSniperProgress {
   realtime_step?: number | null;
   sessions_with_pitch_count?: number | null;
   realtime_pitch_baseline_st?: number | null;
+  session_count?: number | null;
+  sessions_with_energy_count?: number | null;
+  baseline_wpm?: number | null;
+  baseline_pause_ms?: number | null;
+  baseline_dynamic_db?: number | null;
+  baseline_emphasis_per_min?: number | null;
+  baseline_energy_ratio?: number | null;
+  baseline_fatigue_sec?: number | null;
   updated_at?: string | null;
 }
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertTriangle, ChevronLeft, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Send, Pencil, Trash2, Check, X } from "lucide-react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
@@ -629,7 +629,6 @@ export default function AdminStudentProfilePage() {
   const [studentSniperProgress, setStudentSniperProgress] = useState<StudentSniperProgress | null>(null);
   const [studentName, setStudentName] = useState("");
   const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
-  const [creditsCount, setCreditsCount] = useState("");
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
   const [userMetricQuestions, setUserMetricQuestions] = useState({
@@ -639,6 +638,7 @@ export default function AdminStudentProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [learningDataOpen, setLearningDataOpen] = useState(false);
 
   const [modalWarmUp, setModalWarmUp] = useState(false);
   const [warmUpPoolTasks, setWarmUpPoolTasks] = useState<WarmUpPoolTask[]>([]);
@@ -740,15 +740,6 @@ export default function AdminStudentProfilePage() {
             ? ""
             : Number.isFinite(Number(rawPrice))
               ? String(Number(rawPrice))
-              : ""
-        );
-        const rawCredits =
-          (p as { credits?: number | string | null }).credits ?? null;
-        setCreditsCount(
-          rawCredits == null || rawCredits === ""
-            ? ""
-            : Number.isFinite(Number(rawCredits))
-              ? String(Math.round(Number(rawCredits)))
               : ""
         );
         const ids = p.overrides?.assigned_exercise_ids;
@@ -876,11 +867,6 @@ export default function AdminStudentProfilePage() {
       toast.error("Live lesson price must be a valid number in USD.");
       return;
     }
-    const normalizedCredits = creditsCount.trim();
-    if (normalizedCredits !== "" && (!Number.isFinite(Number(normalizedCredits)) || Number(normalizedCredits) < 0)) {
-      toast.error("Credits must be a non-negative integer.");
-      return;
-    }
 
     let nextRealtimeLevel: number | null;
     let nextRealtimeStep: number | null;
@@ -968,8 +954,6 @@ export default function AdminStudentProfilePage() {
         name: normalizedName === "" ? null : normalizedName,
         price_per_live_lesson:
           normalizedPrice === "" ? null : Math.max(0, Number(normalizedPrice)),
-        credits:
-          normalizedCredits === "" ? null : Math.max(0, Math.round(Number(normalizedCredits))),
       });
       const persistedRealtimeLevel = studentSniperProgress?.realtime_level ?? null;
       const persistedRealtimeStep = studentSniperProgress?.realtime_step ?? null;
@@ -1461,21 +1445,6 @@ export default function AdminStudentProfilePage() {
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="block text-sm font-medium">Credits balance</label>
-            <Input
-              type="number"
-              min={0}
-              step={1}
-              value={creditsCount}
-              onChange={(e) => setCreditsCount(e.target.value)}
-              placeholder="e.g. 15"
-              disabled={saving}
-            />
-            <p className="text-xs text-muted-foreground">Each homework session costs 5 credits. New users start with 15.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
             <label className="block text-sm font-medium">Current unlocked level</label>
             <Input
               type="number"
@@ -1838,68 +1807,148 @@ export default function AdminStudentProfilePage() {
           className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
 
-        {/* Measured parameters */}
+        {/* Collapsible full data */}
         <div className="mt-6">
-          <p className="text-sm font-medium mb-3">Measured Parameters</p>
-          {(() => {
-            const allSessions = profile.sessions ?? [];
-            const completedSessions = allSessions.filter((s) => s.status === "completed");
-            const perfScores = allSessions
-              .map((s) => s.recording_preview?.performance_score_v2)
-              .filter((v): v is number => typeof v === "number");
-            const avgPerf =
-              perfScores.length > 0
-                ? Math.round((perfScores.reduce((a, b) => a + b, 0) / perfScores.length) * 100) / 100
-                : null;
-            const deliveredCount = allSessions.filter((s) => s.report_delivered).length;
-            const lastSession = allSessions[0]?.created_at
-              ? new Date(allSessions[0].created_at).toLocaleDateString()
-              : null;
-            const pitchBaseline = studentSniperProgress?.realtime_pitch_baseline_st;
-            const sniperUpdatedAt = studentSniperProgress?.updated_at
-              ? new Date(studentSniperProgress.updated_at).toLocaleDateString()
-              : null;
+          <button
+            type="button"
+            onClick={() => setLearningDataOpen((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronRight className={`h-4 w-4 transition-transform ${learningDataOpen ? "rotate-90" : ""}`} />
+            {learningDataOpen ? "Hide" : "Show"} all tracked data
+          </button>
 
-            const Stat = ({
-              label,
-              value,
-              sub,
-            }: {
-              label: string;
-              value: string | number | null | undefined;
-              sub?: string;
-            }) => (
-              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-0.5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-                <p className="text-xl font-semibold leading-tight">
-                  {value != null ? String(value) : <span className="text-muted-foreground text-sm font-normal">—</span>}
-                </p>
-                {sub ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
+          {learningDataOpen && (() => {
+            const sp = profile.speaker_profile;
+            const sn = studentSniperProgress;
+            const mem = profile.coaching_memory;
+            const allSessions = profile.sessions ?? [];
+
+            const fmt = (v: number | null | undefined, decimals = 2) =>
+              v != null ? v.toFixed(decimals) : null;
+            const pct = (v: number | null | undefined) =>
+              v != null ? `${(v * 100).toFixed(0)}%` : null;
+
+            const Row = ({ label, value }: { label: string; value: string | number | null | undefined }) =>
+              value != null && value !== "" ? (
+                <div className="flex gap-3 py-1.5 border-b border-border/40 last:border-0">
+                  <span className="w-52 shrink-0 text-xs text-muted-foreground">{label}</span>
+                  <span className="text-xs break-words min-w-0">{String(value)}</span>
+                </div>
+              ) : null;
+
+            const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+              <div className="mt-5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">{title}</p>
+                <div className="rounded-lg border border-border bg-muted/20 px-4 py-1">{children}</div>
               </div>
             );
 
+            const Empty = ({ msg }: { msg: string }) => (
+              <p className="text-xs text-muted-foreground py-2">{msg}</p>
+            );
+
             return (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                <Stat label="Level" value={studentSniperProgress?.realtime_level ?? profile.realtime_level} />
-                <Stat label="Step" value={studentSniperProgress?.realtime_step ?? profile.realtime_step} />
-                <Stat label="Credits" value={profile.credits ?? null} sub="5 per session" />
-                <Stat label="Price / lesson" value={profile.price_per_live_lesson != null ? `$${profile.price_per_live_lesson}` : null} />
-                <Stat label="Sessions total" value={allSessions.length} />
-                <Stat label="Completed" value={completedSessions.length} />
-                <Stat label="Reports delivered" value={deliveredCount} />
-                <Stat
-                  label="Avg performance"
-                  value={avgPerf != null ? String(avgPerf) : null}
-                  sub={perfScores.length > 0 ? `across ${perfScores.length} sessions` : undefined}
-                />
-                <Stat label="Sessions w/ pitch" value={studentSniperProgress?.sessions_with_pitch_count ?? null} />
-                <Stat
-                  label="Pitch baseline"
-                  value={pitchBaseline != null ? `${pitchBaseline} st` : null}
-                  sub="semitones"
-                />
-                <Stat label="Last session" value={lastSession} />
-                <Stat label="Profile updated" value={sniperUpdatedAt} />
+              <div className="mt-4">
+
+                <Section title="Student Profile — Speaker & Personality">
+                  <Row label="Main goal" value={sp?.main_goal} />
+                  <Row label="Motivation" value={sp?.motivation} />
+                  <Row label="Strong points" value={sp?.strong_points} />
+                  <Row label="Weak points" value={sp?.weak_points} />
+                  <Row label="Charismatic traits" value={sp?.charismatic_traits} />
+                  <Row label="Hobbies / interests" value={sp?.hobbies_interests} />
+                  <Row label="Personality type" value={sp?.personality_type} />
+                  <Row label="Coach notes" value={sp?.coach_notes} />
+                  {!sp && <Empty msg="No speaker profile yet." />}
+                </Section>
+
+                <Section title="Training Progression — Sniper Baselines">
+                  <Row label="Level" value={sn?.realtime_level} />
+                  <Row label="Step" value={sn?.realtime_step} />
+                  <Row label="Session count" value={sn?.session_count} />
+                  <Row label="Sessions w/ energy" value={sn?.sessions_with_energy_count} />
+                  <Row label="Sessions w/ pitch" value={sn?.sessions_with_pitch_count} />
+                  <Row label="Pitch baseline (st)" value={fmt(sn?.realtime_pitch_baseline_st)} />
+                  <Row label="Baseline WPM" value={fmt(sn?.baseline_wpm, 1)} />
+                  <Row label="Baseline pause (ms)" value={fmt(sn?.baseline_pause_ms, 0)} />
+                  <Row label="Baseline dynamic (dB)" value={fmt(sn?.baseline_dynamic_db)} />
+                  <Row label="Baseline emphasis/min" value={fmt(sn?.baseline_emphasis_per_min)} />
+                  <Row label="Baseline energy ratio" value={fmt(sn?.baseline_energy_ratio, 3)} />
+                  <Row label="Baseline fatigue (s)" value={fmt(sn?.baseline_fatigue_sec, 1)} />
+                  <Row label="Profile updated" value={sn?.updated_at ? new Date(sn.updated_at).toLocaleString() : null} />
+                  {!sn && <Empty msg="No sniper profile yet." />}
+                </Section>
+
+                <Section title="Coaching Memory & Momentum">
+                  <Row label="Last 5 scores" value={mem?.last_5_scores?.length ? mem.last_5_scores.map((v) => pct(v)).join(" → ") : null} />
+                  <Row label="Recent focus task IDs" value={mem?.recent_focus_task_ids?.length ? mem.recent_focus_task_ids.join(", ") : null} />
+                  <Row label="Updated" value={mem?.updated_at ? new Date(mem.updated_at).toLocaleString() : null} />
+                  {!mem && <Empty msg="No coaching memory yet." />}
+                </Section>
+
+                <Section title="Performance, Scoring & Speech — Per Session">
+                  {allSessions.length === 0 ? (
+                    <Empty msg="No sessions yet." />
+                  ) : (
+                    <div className="overflow-x-auto -mx-4 px-4">
+                      <table className="w-full text-xs mt-2 mb-2 min-w-[860px]">
+                        <thead>
+                          <tr className="text-muted-foreground border-b border-border">
+                            <th className="text-left py-1.5 pr-3 font-medium">Date</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Score 1</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Score 2</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Final</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Task</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Q1</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Q2</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Q3</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Grade</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Stage</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">WPM</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Fillers</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Dur (s)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Pause (ms)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Pitch (st)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Energy</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">ML quality</th>
+                            <th className="text-right py-1.5 font-medium">Self rating</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allSessions.map((s) => {
+                            const sm = s.sniper_metrics;
+                            const rv = s.review;
+                            const rp = s.recording_preview;
+                            return (
+                              <tr key={s.id} className="border-t border-border/30 hover:bg-muted/20">
+                                <td className="py-1.5 pr-3 whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_1) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_2) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_end) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.task_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.question_1_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.question_2_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.question_3_score) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{s.coach_grade != null ? `${s.coach_grade}/10` : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.stage_score != null ? sm.stage_score.toFixed(1) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rp?.words_per_minute != null ? rp.words_per_minute.toFixed(0) : sm?.wpm != null ? sm.wpm.toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rp?.filler_words_count?.total != null ? rp.filler_words_count.total : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rp?.duration_ms != null ? (rp.duration_ms / 1000).toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.pause_ms != null ? sm.pause_ms.toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.pitch_center_st != null ? sm.pitch_center_st.toFixed(1) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.energy_ratio != null ? sm.energy_ratio.toFixed(3) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rv?.overall_quality ?? "—"}</td>
+                                <td className="py-1.5 text-right">{sm?.student_rating_1_10 ?? "—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Section>
+
               </div>
             );
           })()}
@@ -2022,18 +2071,7 @@ export default function AdminStudentProfilePage() {
         userId={id}
         studentEmail={profile?.email ?? null}
         session={reportModalSession}
-        onGradeSaved={(sessionId, grade, message) => {
-          // Update the preview card immediately so grade + message show without a re-fetch
-          setAdminReportPreviews((prev) => {
-            const existing = prev[sessionId];
-            if (!existing) return prev;
-            return {
-              ...prev,
-              [sessionId]: { ...existing, coachGrade: grade, coachMessage: message ?? "" },
-            };
-          });
-          load();
-        }}
+        onGradeSaved={load}
       />
     </div>
   );
