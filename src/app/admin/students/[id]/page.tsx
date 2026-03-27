@@ -9,6 +9,7 @@ import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
 import SectionCard from "@/components/admin/SectionCard";
+import MeasuredParametersGrid from "@/components/admin/MeasuredParametersGrid";
 import SelectFromPoolModal, { type PoolItem } from "@/components/admin/SelectFromPoolModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1469,6 +1470,13 @@ export default function AdminStudentProfilePage() {
             />
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Measured parameters"
+        description="Latest measured quantities from the backend (e.g. speech metrics). Shown from profile.measured_metrics."
+      >
+        <MeasuredParametersGrid measured_metrics={profile.measured_metrics ?? null} />
       </SectionCard>
 
       {/* Homework Configuration */}

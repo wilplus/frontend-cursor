@@ -45,6 +45,21 @@ async function adminFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/** Single metric row values returned inside `measured_metrics.latest` (backend may add keys freely). */
+export type MeasuredMetricsLatest = Record<string, string | number | boolean | null | undefined>;
+
+/**
+ * Top-level `measured_metrics` on GET /v2/admin/students/:id.
+ * Backend shape may evolve; `latest` is the primary grid source when present.
+ */
+export interface MeasuredMetricsPayload {
+  latest?: MeasuredMetricsLatest | null;
+  measured_at?: string | null;
+  updated_at?: string | null;
+  source?: string | null;
+  [key: string]: unknown;
+}
+
 export interface StudentListItem {
   user_id: string;
   /** When present, shown as primary label on the students list */
@@ -65,6 +80,8 @@ export interface StudentProfile {
   credits?: number | null;
   realtime_level?: number | null;
   realtime_step?: number | null;
+  /** Measured speech / session parameters (pass-through from GET student; render in admin UI). */
+  measured_metrics?: MeasuredMetricsPayload | null;
   sniper_profile?: StudentSniperProgress | null;
   coaching_memory?: {
     last_5_scores?: number[] | null;

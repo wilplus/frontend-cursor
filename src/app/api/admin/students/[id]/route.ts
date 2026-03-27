@@ -18,6 +18,7 @@ export async function GET(
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
+  // Pass through backend body as-is (e.g. measured_metrics must not be stripped).
   return NextResponse.json(data);
 }
 
