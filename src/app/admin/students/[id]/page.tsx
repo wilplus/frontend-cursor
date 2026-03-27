@@ -630,6 +630,7 @@ export default function AdminStudentProfilePage() {
   const [studentSniperProgress, setStudentSniperProgress] = useState<StudentSniperProgress | null>(null);
   const [studentName, setStudentName] = useState("");
   const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
+  const [creditsValue, setCreditsValue] = useState("");
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
   const [userMetricQuestions, setUserMetricQuestions] = useState({
@@ -743,6 +744,10 @@ export default function AdminStudentProfilePage() {
             : Number.isFinite(Number(rawPrice))
               ? String(Number(rawPrice))
               : ""
+        );
+        const rawCredits = p.credits ?? null;
+        setCreditsValue(
+          rawCredits == null ? "" : String(rawCredits)
         );
         const ids = p.overrides?.assigned_exercise_ids;
         setAssignedExerciseIds(
@@ -865,8 +870,13 @@ export default function AdminStudentProfilePage() {
   const saveAllChanges = async () => {
     const normalizedName = studentName.trim();
     const normalizedPrice = pricePerLiveLessonUsd.trim();
+    const normalizedCredits = creditsValue.trim();
     if (normalizedPrice !== "" && !Number.isFinite(Number(normalizedPrice))) {
       toast.error("Live lesson price must be a valid number in USD.");
+      return;
+    }
+    if (normalizedCredits !== "" && !Number.isFinite(Number(normalizedCredits))) {
+      toast.error("Credits must be a valid number.");
       return;
     }
 
@@ -956,6 +966,8 @@ export default function AdminStudentProfilePage() {
         name: normalizedName === "" ? null : normalizedName,
         price_per_live_lesson:
           normalizedPrice === "" ? null : Math.max(0, Number(normalizedPrice)),
+        credits:
+          normalizedCredits === "" ? null : Math.max(0, Math.round(Number(normalizedCredits))),
       });
       const persistedRealtimeLevel = studentSniperProgress?.realtime_level ?? null;
       const persistedRealtimeStep = studentSniperProgress?.realtime_step ?? null;
@@ -1454,6 +1466,18 @@ export default function AdminStudentProfilePage() {
               value={pricePerLiveLessonUsd}
               onChange={(e) => setPricePerLiveLessonUsd(e.target.value)}
               placeholder="e.g. 49.99"
+              disabled={saving}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Credits</label>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={creditsValue}
+              onChange={(e) => setCreditsValue(e.target.value)}
+              placeholder="e.g. 5"
               disabled={saving}
             />
           </div>
