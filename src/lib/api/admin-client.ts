@@ -118,6 +118,7 @@ export interface StudentProfile {
   similar_students_by_wpm?: Array<{
     user_id: string;
     email: string;
+    name?: string | null;
     wpm: number;
     session_id?: string;
   }>;
