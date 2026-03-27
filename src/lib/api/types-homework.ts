@@ -356,6 +356,11 @@ export interface HomeworkRecording1Response {
   recording_id?: UUID | null;
 }
 
+export interface HomeworkRecording2Response {
+  performance_score_2: number;
+  recording_id?: UUID | null;
+}
+
 export interface HomeworkTaskAnswersResponse {
   final_task?: string;
   final_task_text?: string;
