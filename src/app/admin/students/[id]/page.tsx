@@ -1824,10 +1824,10 @@ export default function AdminStudentProfilePage() {
         </div>
       </SectionCard>
 
-      {/* Speaker Profile — changes saved with "Save all changes" below */}
+      {/* Student Learning Profile — changes saved with "Save all changes" below */}
       <SectionCard
-        title="Speaker Profile"
-        description="Goals, motivation, and coach notes."
+        title="Student Learning Profile"
+        description="Goals, motivation, coach notes, and all measured learning parameters."
       >
         <label className="block text-sm font-medium mb-2">Context</label>
         <textarea
@@ -1837,6 +1837,73 @@ export default function AdminStudentProfilePage() {
           rows={8}
           className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
+
+        {/* Measured parameters */}
+        <div className="mt-6">
+          <p className="text-sm font-medium mb-3">Measured Parameters</p>
+          {(() => {
+            const allSessions = profile.sessions ?? [];
+            const completedSessions = allSessions.filter((s) => s.status === "completed");
+            const perfScores = allSessions
+              .map((s) => s.recording_preview?.performance_score_v2)
+              .filter((v): v is number => typeof v === "number");
+            const avgPerf =
+              perfScores.length > 0
+                ? Math.round((perfScores.reduce((a, b) => a + b, 0) / perfScores.length) * 100) / 100
+                : null;
+            const deliveredCount = allSessions.filter((s) => s.report_delivered).length;
+            const lastSession = allSessions[0]?.created_at
+              ? new Date(allSessions[0].created_at).toLocaleDateString()
+              : null;
+            const pitchBaseline = studentSniperProgress?.realtime_pitch_baseline_st;
+            const sniperUpdatedAt = studentSniperProgress?.updated_at
+              ? new Date(studentSniperProgress.updated_at).toLocaleDateString()
+              : null;
+
+            const Stat = ({
+              label,
+              value,
+              sub,
+            }: {
+              label: string;
+              value: string | number | null | undefined;
+              sub?: string;
+            }) => (
+              <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-0.5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+                <p className="text-xl font-semibold leading-tight">
+                  {value != null ? String(value) : <span className="text-muted-foreground text-sm font-normal">—</span>}
+                </p>
+                {sub ? <p className="text-xs text-muted-foreground">{sub}</p> : null}
+              </div>
+            );
+
+            return (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                <Stat label="Level" value={studentSniperProgress?.realtime_level ?? profile.realtime_level} />
+                <Stat label="Step" value={studentSniperProgress?.realtime_step ?? profile.realtime_step} />
+                <Stat label="Credits" value={profile.credits ?? null} sub="5 per session" />
+                <Stat label="Price / lesson" value={profile.price_per_live_lesson != null ? `$${profile.price_per_live_lesson}` : null} />
+                <Stat label="Sessions total" value={allSessions.length} />
+                <Stat label="Completed" value={completedSessions.length} />
+                <Stat label="Reports delivered" value={deliveredCount} />
+                <Stat
+                  label="Avg performance"
+                  value={avgPerf != null ? String(avgPerf) : null}
+                  sub={perfScores.length > 0 ? `across ${perfScores.length} sessions` : undefined}
+                />
+                <Stat label="Sessions w/ pitch" value={studentSniperProgress?.sessions_with_pitch_count ?? null} />
+                <Stat
+                  label="Pitch baseline"
+                  value={pitchBaseline != null ? `${pitchBaseline} st` : null}
+                  sub="semitones"
+                />
+                <Stat label="Last session" value={lastSession} />
+                <Stat label="Profile updated" value={sniperUpdatedAt} />
+              </div>
+            );
+          })()}
+        </div>
       </SectionCard>
 
       {/* Reports History */}
