@@ -356,6 +356,15 @@ export interface HomeworkRecording1Response {
   recording_id?: UUID | null;
 }
 
+export interface HomeworkTaskAnswersResponse {
+  final_task?: string;
+  final_task_text?: string;
+  /** When true, recording-1 analysis failed and backend used a general focus; see message. */
+  recording_1_fallback?: boolean;
+  /** Explanation when recording_1_fallback is true. */
+  message?: string;
+}
+
 /** One point for "Progress over sessions" chart: date and combined score (0–100). */
 export interface PerformanceHistoryPoint {
   date: string; // ISO or display date
