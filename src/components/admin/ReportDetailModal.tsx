@@ -39,8 +39,8 @@ interface ReportDetailModalProps {
   userId: string;
   studentEmail: string | null;
   session: SessionWithPreview | null;
-  /** Called after coach grade is saved so parent can update the preview cache. */
-  onGradeSaved?: (sessionId: string, grade: number | null, message: string | null) => void;
+  /** Called after coach grade is saved so parent can refresh profile (e.g. load()). */
+  onGradeSaved?: () => void;
 }
 
 type ReviewOverallQuality = RecordingReview["overall_quality"];
@@ -61,8 +61,6 @@ export default function ReportDetailModal({
   const [coachGrade, setCoachGrade] = useState<number | null>(null);
   const [coachMessage, setCoachMessage] = useState("");
   const [savingGrade, setSavingGrade] = useState(false);
-  const [savedGrade, setSavedGrade] = useState<number | null>(null);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [reviewOverallQuality, setReviewOverallQuality] = useState<ReviewOverallQuality | null>(null);
   const [reviewConfidenceScore, setReviewConfidenceScore] = useState<number | null>(null);
   const [reviewCoachStyleScore, setReviewCoachStyleScore] = useState<number | null>(null);
@@ -82,8 +80,6 @@ export default function ReportDetailModal({
       setAudioPlaybackError(false);
       setCoachGrade(null);
       setCoachMessage("");
-      setSavedGrade(null);
-      setSavedMessage(null);
       setReviewOverallQuality(null);
       setReviewConfidenceScore(null);
       setReviewCoachStyleScore(null);
@@ -102,12 +98,10 @@ export default function ReportDetailModal({
       .then((data) => {
         setReport(data);
         setError(null);
-        const loadedGrade = data.report_grade != null ? data.report_grade : session.report_grade ?? null;
-        const loadedMessage = (data.coach_message ?? session.coach_message ?? "").trim();
-        setCoachGrade(loadedGrade);
-        setCoachMessage(loadedMessage);
-        setSavedGrade(loadedGrade);
-        setSavedMessage(loadedMessage || null);
+        setCoachGrade(
+          data.report_grade != null ? data.report_grade : session.report_grade ?? null
+        );
+        setCoachMessage((data.coach_message ?? session.coach_message ?? "").trim());
         if (data.final_recording?.audio_url) {
           setPlaybackUrl(data.final_recording.audio_url);
         }
@@ -205,10 +199,8 @@ export default function ReportDetailModal({
           ? { ...prev, report_grade: coachGrade, coach_message: normalizedCoachMessage || null }
           : null
       );
-      setSavedGrade(coachGrade);
-      setSavedMessage(normalizedCoachMessage || null);
       toast.success("Grade saved.");
-      onGradeSaved?.(session.id, coachGrade, normalizedCoachMessage || null);
+      onGradeSaved?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save grade";
       toast.error(msg);
@@ -240,7 +232,7 @@ export default function ReportDetailModal({
       setReviewNotes((review.notes ?? "").trim());
       setReviewRubricVersion(review.rubric_version || DEFAULT_RUBRIC_VERSION);
       toast.success("ML review saved.");
-      if (session) onGradeSaved?.(session.id, coachGrade, coachMessage.trim() || null);
+      onGradeSaved?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save ML review";
       setReviewError(msg);
@@ -439,20 +431,9 @@ export default function ReportDetailModal({
                       {savingGrade ? "Saving…" : "Save grade"}
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                      {coachGrade != null ? `Current: ${coachGrade}/10` : "Not graded"}
-                    </span>
+                        {coachGrade != null ? `Current: ${coachGrade}/10` : "Not graded"}
+                      </span>
                   </div>
-                  {(savedGrade != null || savedMessage) && (
-                    <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 px-3 py-2 space-y-1">
-                      <p className="text-xs font-medium text-green-700 dark:text-green-400">Saved — student will see:</p>
-                      {savedGrade != null && (
-                        <p className="text-sm text-green-900 dark:text-green-200 font-semibold">Grade: {savedGrade}/10</p>
-                      )}
-                      {savedMessage && (
-                        <p className="text-sm text-green-900 dark:text-green-200 whitespace-pre-wrap">{savedMessage}</p>
-                      )}
-                    </div>
-                  )}
                   <div>
                     <label className="mb-1 block text-sm font-medium text-muted-foreground">
                       Message to student (shown in report)
