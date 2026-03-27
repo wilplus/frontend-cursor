@@ -1680,6 +1680,33 @@ export default function AdminStudentProfilePage() {
             </div>
           </div>
 
+          {/* Similar students — shown once a task is chosen */}
+          {(displayWarmUpTasks.length > 0 || assignedExerciseIds.length > 0) &&
+            (profile.similar_students_by_wpm?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                Also send to similar students:
+              </p>
+              <div className="space-y-1.5">
+                {(profile.similar_students_by_wpm ?? []).map((s) => (
+                  <label
+                    key={s.user_id}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-2.5 cursor-pointer hover:bg-muted/40"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSimilarIds.has(s.user_id)}
+                      onChange={() => toggleSimilarStudent(s.user_id)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <span className="text-sm flex-1">{s.name || s.email || s.user_id}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{Math.round(s.wpm)} WPM</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           {false && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -1830,33 +1857,6 @@ export default function AdminStudentProfilePage() {
               onSave={setMetricsDraft}
               saving={saving}
             />
-          )}
-
-          {/* Similar students — shown once a task is chosen */}
-          {(displayWarmUpTasks.length > 0 || assignedExerciseIds.length > 0) &&
-            (profile.similar_students_by_wpm?.length ?? 0) > 0 && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">
-                Also send to similar students:
-              </p>
-              <div className="space-y-1.5">
-                {(profile.similar_students_by_wpm ?? []).map((s) => (
-                  <label
-                    key={s.user_id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-4 py-2.5 cursor-pointer hover:bg-muted/40"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedSimilarIds.has(s.user_id)}
-                      onChange={() => toggleSimilarStudent(s.user_id)}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <span className="text-sm flex-1">{s.name || s.email || s.user_id}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">{Math.round(s.wpm)} WPM</span>
-                  </label>
-                ))}
-              </div>
-            </div>
           )}
 
           <Button type="button" onClick={sendAssignment} className="gap-2">
