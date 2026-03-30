@@ -901,7 +901,7 @@ export default function AdminStudentProfilePage() {
       }
       for (const warmUp of queuedWarmUpUpserts) {
         if (warmUp.id.startsWith("draft-")) {
-          await adminApi.createWarmUpTask(id, {
+          await adminApi.createWarmUpPoolTaskAndAssign(id, {
             text: warmUp.text,
             order_index: warmUp.order_index,
             max_performance_score: warmUp.max_performance_score,

@@ -673,11 +673,35 @@ export const adminApi = {
     }),
 
   getWarmUpTasks: (userId: string) =>
-    adminFetch<{ task_warm_up: WarmUpTask[] }>(`/students/${userId}/task-warm-up`).then((r) => r.task_warm_up ?? []),
+    adminFetch<{ task_warm_up?: WarmUpTask[]; warm_up_tasks?: WarmUpTask[] }>(
+      `/students/${userId}/task-warm-up`
+    ).then((r) => {
+      const list = r.task_warm_up ?? r.warm_up_tasks;
+      return Array.isArray(list) ? list : [];
+    }),
 
   /** Sync student's warm-up tasks from pool. Body: { pool_task_ids: string[] }. */
   putStudentWarmUpTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
     adminFetch<{ task_warm_up: WarmUpTask[] }>(`/students/${userId}/task-warm-up`, { method: "PUT", body }),
+
+  /**
+   * Creates a global pool warm-up and assigns it to the student (single backend call).
+   * BFF: POST /api/admin/students/[id]/warm-up-tasks/create-pool-and-assign
+   */
+  createWarmUpPoolTaskAndAssign: (
+    userId: string,
+    data: { text: string; order_index?: number; max_performance_score?: number }
+  ) =>
+    adminFetch<{ task_warm_up?: WarmUpTask }>(`/students/${userId}/warm-up-tasks/create-pool-and-assign`, {
+      method: "POST",
+      body: data,
+    }).then((r) => {
+      const task = r.task_warm_up;
+      if (!task) {
+        throw new Error("Unexpected response from create-pool-and-assign (missing task_warm_up)");
+      }
+      return task;
+    }),
 
   createWarmUpTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
     adminFetch<{ task_warm_up: WarmUpTask }>(`/students/${userId}/task-warm-up`, { method: "POST", body: data }),
