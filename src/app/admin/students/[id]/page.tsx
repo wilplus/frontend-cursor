@@ -31,14 +31,11 @@ import { toCompactReportPreview } from "@/lib/reports/compact-preview";
 import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
 import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
-
-function stripHtmlToText(input: string | null | undefined): string {
-  if (!input) return "";
-  if (typeof window === "undefined") return input;
-  const div = document.createElement("div");
-  div.innerHTML = input;
-  return (div.textContent || div.innerText || "").trim();
-}
+import {
+  adminRichTextContentClassName,
+  sanitizeRichHtml,
+  stripHtmlToText,
+} from "@/lib/sanitizeRichHtml";
 
 function getStudentSniperProgressFromAssignmentResponse(
   userId: string,
@@ -272,7 +269,7 @@ function WarmUpTaskEditModal({
               </div>
               <div
                 ref={editorRef}
-                className="min-h-[180px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed focus-within:ring-2 focus-within:ring-ring [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
+                className="min-h-[180px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed focus-within:ring-2 focus-within:ring-ring [&_a]:text-primary [&_a]:underline [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
                 role="textbox"
                 aria-label="Task text"
                 contentEditable
@@ -1097,6 +1094,7 @@ export default function AdminStudentProfilePage() {
     id: p.id,
     label: p.text,
     subLabel: p.max_performance_score != null ? `Max score: ${p.max_performance_score}` : undefined,
+    labelHtml: true,
   }));
   const warmUpSelectedIds: string[] = (() => {
     const ordered = [...warmUpTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
@@ -1115,26 +1113,6 @@ export default function AdminStudentProfilePage() {
     const ordered = warmUpPoolTasks.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
     setPendingWarmUpIds(ordered);
   };
-  const handleWarmUpCreate = async (text: string): Promise<PoolItem | void> => {
-    try {
-      const res = await adminApi.createWarmUpPoolTask({ text });
-      const task = res.task_warm_up;
-      if (!task?.id || task.text == null) {
-        toast.error("Unexpected response from server");
-        return;
-      }
-      setWarmUpPoolTasks((prev) => [...prev, task]);
-      return {
-        id: task.id,
-        label: task.text,
-        subLabel: task.max_performance_score != null ? `Max score: ${task.max_performance_score}` : undefined,
-      };
-    } catch (e) {
-      toast.error((e as Error)?.message ?? "Failed to add to pool");
-      throw e;
-    }
-  };
-
   const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {
     const targetId = warmUpEditTask?.id ?? `draft-${crypto.randomUUID()}`;
     const orderIndex = warmUpEditTask?.order_index ?? warmUpTasks.length;
@@ -1639,7 +1617,10 @@ export default function AdminStudentProfilePage() {
             <ul className="space-y-2">
               {displayWarmUpTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-                  <span className="min-w-0 flex-1 text-sm">{stripHtmlToText(t.text)}</span>
+                  <div
+                    className={adminRichTextContentClassName}
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(t.text ?? "") }}
+                  />
                   <span className="text-xs text-muted-foreground tabular-nums">
                     Max score: {t.max_performance_score ?? 1}
                   </span>
@@ -2085,8 +2066,6 @@ export default function AdminStudentProfilePage() {
         pool={warmUpPool}
         selectedIds={pendingWarmUpIds ?? warmUpSelectedIds}
         onConfirm={handleWarmUpConfirm}
-        allowCreate
-        onCreateNew={handleWarmUpCreate}
         poolLoading={warmUpPoolLoading}
       />
       <FocusTaskEditModal
