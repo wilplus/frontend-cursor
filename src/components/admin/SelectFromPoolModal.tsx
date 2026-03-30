@@ -8,12 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { adminRichTextContentClassName, sanitizeRichHtml, stripHtmlToText } from "@/lib/sanitizeRichHtml";
 
 export interface PoolItem {
   id: string;
   label: string;
   /** Optional secondary line (e.g. "Max score: 0.5") */
   subLabel?: string;
+  /** When true, `label` is HTML (sanitized on render); search uses plain text. */
+  labelHtml?: boolean;
 }
 
 interface SelectFromPoolModalProps {
@@ -66,7 +69,10 @@ export default function SelectFromPoolModal({
   const filtered = useMemo(() => {
     if (!search.trim()) return displayPool;
     const q = search.trim().toLowerCase();
-    return displayPool.filter((i) => i.label.toLowerCase().includes(q));
+    return displayPool.filter((i) => {
+      const haystack = (i.labelHtml ? stripHtmlToText(i.label) : i.label).toLowerCase();
+      return haystack.includes(q);
+    });
   }, [displayPool, search]);
 
   const toggle = (id: string) => {
@@ -191,7 +197,17 @@ export default function SelectFromPoolModal({
                       className="sr-only"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{item.label}</span>
+                      {item.labelHtml ? (
+                        <span
+                          className={cn(
+                            adminRichTextContentClassName,
+                            "block line-clamp-4"
+                          )}
+                          dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(item.label) }}
+                        />
+                      ) : (
+                        <span className="block truncate">{item.label}</span>
+                      )}
                       {item.subLabel && (
                         <span className="block truncate text-xs text-muted-foreground">{item.subLabel}</span>
                       )}
