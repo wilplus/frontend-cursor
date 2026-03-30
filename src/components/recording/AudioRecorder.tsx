@@ -13,6 +13,7 @@ import type { RealtimeMetricDartboardHandle } from "@/components/recording/Stren
 import { StepVisualRenderer } from "@/components/recording/step-visuals";
 import { resolveRealtimeTrainingStep } from "@/lib/realtime-levels";
 import type { LiveCoachSnapshot, UserSniperProfile } from "@/lib/sniper/types";
+import { sanitizeRichHtml } from "@/lib/sanitizeRichHtml";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 const LEVEL_1_TOTAL_STEPS = 10;
@@ -60,50 +61,6 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-}
-
-function sanitizePromptHtml(input: string): string {
-  if (!input) return "";
-  if (typeof window === "undefined") return input;
-  const container = document.createElement("div");
-  container.innerHTML = input;
-  const allowedTags = new Set(["B", "STRONG", "I", "EM", "U", "BR", "P", "UL", "OL", "LI", "A", "H1", "H2", "H3", "H4", "H5", "H6"]);
-
-  const sanitizeNode = (node: Node): Node | null => {
-    if (node.nodeType === Node.TEXT_NODE) return node.cloneNode(true);
-    if (node.nodeType !== Node.ELEMENT_NODE) return document.createTextNode("");
-    const el = node as HTMLElement;
-    const tag = el.tagName.toUpperCase();
-    if (!allowedTags.has(tag)) {
-      const fragment = document.createDocumentFragment();
-      Array.from(el.childNodes).forEach((child) => {
-        const cleanChild = sanitizeNode(child);
-        if (cleanChild) fragment.appendChild(cleanChild);
-      });
-      return fragment;
-    }
-    const cleanEl = document.createElement(tag.toLowerCase());
-    if (tag === "A") {
-      const hrefRaw = (el.getAttribute("href") || "").trim();
-      if (/^(https?:|mailto:|tel:|\/|#)/i.test(hrefRaw)) {
-        cleanEl.setAttribute("href", hrefRaw);
-      }
-      cleanEl.setAttribute("target", "_blank");
-      cleanEl.setAttribute("rel", "noopener noreferrer");
-    }
-    Array.from(el.childNodes).forEach((child) => {
-      const cleanChild = sanitizeNode(child);
-      if (cleanChild) cleanEl.appendChild(cleanChild);
-    });
-    return cleanEl;
-  };
-
-  const output = document.createElement("div");
-  Array.from(container.childNodes).forEach((child) => {
-    const clean = sanitizeNode(child);
-    if (clean) output.appendChild(clean);
-  });
-  return output.innerHTML;
 }
 
 interface AudioRecorderProps {
@@ -154,7 +111,7 @@ export default function AudioRecorder({
   const [manualDuration, setManualDuration] = useState<string>("");
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [micPreviewError, setMicPreviewError] = useState<string | null>(null);
-  const sanitizedPromptHtml = useMemo(() => sanitizePromptHtml(prompt ?? ""), [prompt]);
+  const sanitizedPromptHtml = useMemo(() => sanitizeRichHtml(prompt ?? ""), [prompt]);
   const hasPrompt = sanitizedPromptHtml.trim().length > 0;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
