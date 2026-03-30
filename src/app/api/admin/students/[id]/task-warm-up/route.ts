@@ -30,7 +30,11 @@ export async function GET(
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  const task_warm_up = Array.isArray(data.task_warm_up) ? data.task_warm_up : [];
+  const task_warm_up = Array.isArray(data.task_warm_up)
+    ? data.task_warm_up
+    : Array.isArray(data.warm_up_tasks)
+      ? data.warm_up_tasks
+      : [];
   return NextResponse.json({ task_warm_up });
 }
 
