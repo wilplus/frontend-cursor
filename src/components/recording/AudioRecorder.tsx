@@ -160,6 +160,7 @@ export default function AudioRecorder({
     if (sniperMode && realtimeStrengthPace.isActive) {
       const estimatedScore = Math.round(((realtimeStrengthPace.strengthScore + realtimeStrengthPace.paceScore) / 2) * 100);
       const centerHoldData = realtimeStrengthPace.getSessionCenterHold();
+      const acousticMetrics = realtimeStrengthPace.getSessionAcousticMetrics();
       lastSniperSnapshotRef.current = {
         performanceScore: Math.max(0, Math.min(100, estimatedScore)),
         pauseRatio: 0.5,
@@ -172,6 +173,9 @@ export default function AudioRecorder({
         centerHoldRatio: centerHoldData.centerHoldRatio ?? undefined,
         centerHoldMs: centerHoldData.centerHoldMs,
         totalActiveMs: centerHoldData.totalActiveMs,
+        avgPauseMs: acousticMetrics.avgPauseMs,
+        dynamicRangeDb: acousticMetrics.dynamicRangeDb,
+        energyRatio: acousticMetrics.energyRatio,
       };
     }
   }, [

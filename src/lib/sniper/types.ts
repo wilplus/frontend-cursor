@@ -62,6 +62,12 @@ export interface LiveCoachSnapshot {
   centerHoldRatio?: number;
   centerHoldMs?: number;
   totalActiveMs?: number;
+  /** Average pause duration in ms (between voiced segments). Null if no pauses detected. */
+  avgPauseMs?: number | null;
+  /** Dynamic range in dB (max - min voiced dB). Null if insufficient voiced data. */
+  dynamicRangeDb?: number | null;
+  /** Energy ratio: avg RMS last third / avg RMS first third. >1 = energy built up. */
+  energyRatio?: number | null;
 }
 
 // ── Legacy types — kept for API routes and HomeworkFlowCard compatibility ─────
