@@ -529,6 +529,21 @@ export interface MetricQuestion {
   created_at?: string;
 }
 
+export interface CoachSuggestionResponse {
+  status: string;
+  homework_message: string;
+  task_suggestion: string;
+  video_script: string;
+  raw_text: string;
+}
+
+export interface CoachSuggestionHistory {
+  status: string;
+  user_id: string;
+  messages: Array<{ role: "user" | "assistant"; content: string; timestamp: string }>;
+  updated_at: string | null;
+}
+
 export const adminApi = {
   getStudents: (params?: { limit?: number; offset?: number }) =>
     adminFetch<{ students: StudentListItem[]; limit?: number; offset?: number }>(
@@ -863,4 +878,21 @@ export const adminApi = {
 
   deleteMetricQuestion: (id: string) =>
     adminFetch<Record<string, unknown>>(`/metric-questions/${id}`, { method: "DELETE" }),
+
+  sendCoachSuggestion: (userId: string, message: string) =>
+    adminFetch<CoachSuggestionResponse>(
+      `/students/${userId}/coach-suggestions`,
+      { method: "POST", body: { message } }
+    ),
+
+  getCoachSuggestionHistory: (userId: string) =>
+    adminFetch<CoachSuggestionHistory>(
+      `/students/${userId}/coach-suggestions/history`
+    ),
+
+  clearCoachSuggestionHistory: (userId: string) =>
+    adminFetch<{ status: string }>(
+      `/students/${userId}/coach-suggestions/history`,
+      { method: "DELETE" }
+    ),
 };

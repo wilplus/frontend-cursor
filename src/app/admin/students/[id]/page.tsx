@@ -25,6 +25,7 @@ import {
   type FocusTask,
   type FocusTaskPoolItem,
   type Exercise,
+  type CoachSuggestionResponse,
 } from "@/lib/api/admin-client";
 import type { CompactReportPreview } from "@/lib/reports/compact-preview";
 import { toCompactReportPreview } from "@/lib/reports/compact-preview";
@@ -709,6 +710,13 @@ export default function AdminStudentProfilePage() {
   const [exerciseEditOpen, setExerciseEditOpen] = useState(false);
   const [exerciseEditExercise, setExerciseEditExercise] = useState<Exercise | null>(null);
 
+  // AI Coach Assistant state
+  const [aiMessage, setAiMessage] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<CoachSuggestionResponse | null>(null);
+  const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "assistant"; content: string; timestamp: string }>>([]);
+  const [aiHistoryOpen, setAiHistoryOpen] = useState(false);
+
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
@@ -840,6 +848,30 @@ export default function AdminStudentProfilePage() {
   }, [id]);
 
   useEffect(() => load(), [load]);
+
+  // Load AI Coach suggestion history on mount
+  useEffect(() => {
+    if (!id) return;
+    adminApi.getCoachSuggestionHistory(id).then((res) => {
+      setAiHistory(res.messages || []);
+    }).catch(() => {});
+  }, [id]);
+
+  const sendAiMessage = async () => {
+    if (!aiMessage.trim() || aiLoading) return;
+    setAiLoading(true);
+    try {
+      const res = await adminApi.sendCoachSuggestion(id, aiMessage.trim());
+      setAiSuggestion(res);
+      const hist = await adminApi.getCoachSuggestionHistory(id);
+      setAiHistory(hist.messages || []);
+      setAiMessage("");
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "AI suggestion failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // Load warm-up task pool when "Select Warm-up Tasks" modal opens
   useEffect(() => {
@@ -1849,6 +1881,113 @@ export default function AdminStudentProfilePage() {
         </div>
       </SectionCard>
 
+      {/* AI Coach Assistant */}
+      <SectionCard
+        title="AI Coach Assistant"
+        description="Ask AI for homework messages, task suggestions, and video scripts."
+      >
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <textarea
+              value={aiMessage}
+              onChange={(e) => setAiMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  sendAiMessage();
+                }
+              }}
+              placeholder="Describe what you need (homework message, task idea, video script)…"
+              rows={3}
+              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+              disabled={aiLoading}
+            />
+            <Button
+              type="button"
+              onClick={sendAiMessage}
+              disabled={aiLoading || !aiMessage.trim()}
+              className="self-end gap-2"
+            >
+              {aiLoading ? "Thinking…" : "Ask AI"}
+            </Button>
+          </div>
+
+          {aiSuggestion && (
+            <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-3">
+              {aiSuggestion.homework_message && (
+                <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 dark:border-orange-700 dark:bg-orange-950/30">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-orange-600 dark:text-orange-400">Homework Message</p>
+                  <p className="mt-1 text-sm whitespace-pre-wrap">{aiSuggestion.homework_message}</p>
+                </div>
+              )}
+              {aiSuggestion.task_suggestion && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-700 dark:bg-blue-950/30">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">Task Suggestion</p>
+                  <p className="mt-1 text-sm whitespace-pre-wrap">{aiSuggestion.task_suggestion}</p>
+                </div>
+              )}
+              {aiSuggestion.video_script && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-700 dark:bg-emerald-950/30">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Video Script</p>
+                  <p className="mt-1 text-sm whitespace-pre-wrap">{aiSuggestion.video_script}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* History toggle */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setAiHistoryOpen(!aiHistoryOpen)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              History ({aiHistory.length})
+            </button>
+
+            {aiHistoryOpen && aiHistory.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await adminApi.clearCoachSuggestionHistory(id);
+                        setAiHistory([]);
+                        setAiSuggestion(null);
+                        toast.success("History cleared");
+                      } catch (e) {
+                        toast.error((e as Error)?.message ?? "Failed to clear history");
+                      }
+                    }}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    Clear history
+                  </button>
+                </div>
+                <div className="max-h-96 overflow-y-auto space-y-2 rounded-md border border-border p-3">
+                  {aiHistory.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`rounded-md px-3 py-2 text-sm ${
+                        msg.role === "user"
+                          ? "ml-8 bg-muted/40 text-right"
+                          : "mr-8 border border-border bg-background"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {new Date(msg.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </SectionCard>
+
       {/* Student Learning Profile — changes saved with "Save all changes" below */}
       <SectionCard
         title="Student Learning Profile"
@@ -1965,6 +2104,7 @@ export default function AdminStudentProfilePage() {
                             <th className="text-right py-1.5 pr-3 font-medium">Fillers</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Dur (s)</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Pause (ms)</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Dynamic (dB)</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Pitch (st)</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Energy</th>
                             <th className="text-right py-1.5 pr-3 font-medium">ML quality</th>
@@ -1992,6 +2132,7 @@ export default function AdminStudentProfilePage() {
                                 <td className="py-1.5 pr-3 text-right">{rp?.filler_words_count?.total != null ? rp.filler_words_count.total : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{rp?.duration_ms != null ? (rp.duration_ms / 1000).toFixed(0) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{sm?.pause_ms != null ? sm.pause_ms.toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{sm?.dynamic_db != null ? sm.dynamic_db.toFixed(1) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{sm?.pitch_center_st != null ? sm.pitch_center_st.toFixed(1) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{sm?.energy_ratio != null ? sm.energy_ratio.toFixed(3) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{rv?.overall_quality ?? "—"}</td>

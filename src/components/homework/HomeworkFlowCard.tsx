@@ -1119,10 +1119,10 @@ export default function HomeworkFlowCard() {
       } = {
         session_means: {
           paceWpm: snapshot.wpm ?? null,
-          avgPauseMs: null,
-          dynamicRangeDb: null,
+          avgPauseMs: snapshot.avgPauseMs ?? null,
+          dynamicRangeDb: snapshot.dynamicRangeDb ?? null,
           emphasisPerMin: null,
-          energyRatio: null,
+          energyRatio: snapshot.energyRatio ?? null,
           voicedDurationSec: snapshot.voicedDurationSec,
           pitchCenterSt: snapshot.pitchCenterSt ?? null,
           pitchFrameCount: snapshot.pitchFrameCount ?? null,

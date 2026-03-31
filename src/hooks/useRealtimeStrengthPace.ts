@@ -85,6 +85,12 @@ export interface UseRealtimeStrengthPaceResult {
   stop: () => void;
   /** Returns accumulated center-hold data for the current/last recording session. */
   getSessionCenterHold: () => { centerHoldRatio: number | null; centerHoldMs: number; totalActiveMs: number };
+  /** Returns session-level acoustic metrics computed from accumulated frame data. */
+  getSessionAcousticMetrics: () => {
+    avgPauseMs: number | null;
+    dynamicRangeDb: number | null;
+    energyRatio: number | null;
+  };
 }
 
 export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions): UseRealtimeStrengthPaceResult {
@@ -127,6 +133,22 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
   const centerHoldFramesRef = useRef(0);
   /** Total voiced frames (voice active) for the session. */
   const totalVoicedFramesRef = useRef(0);
+
+  // ── Acoustic metric accumulators ────────────────────────────────────────
+  /** Min/max voiced dB across the session (for dynamic range). */
+  const minVoicedDbRef = useRef(Infinity);
+  const maxVoicedDbRef = useRef(-Infinity);
+  /** Pause tracking: timestamp (frame index) when voice last went OFF. */
+  const pauseStartFrameRef = useRef<number | null>(null);
+  /** Sum of all pause durations in frames. */
+  const totalPauseFramesRef = useRef(0);
+  /** Count of pauses (voice-off→voice-on transitions). */
+  const pauseCountRef = useRef(0);
+  /** Global frame counter since recording start. */
+  const frameCountRef = useRef(0);
+  /** Voiced RMS frames for energy-ratio computation (split into thirds at snapshot time). */
+  const energyFramesRef = useRef<Array<{ frame: number; rms: number }>>([]);
+
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -164,6 +186,13 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     sessionPitchFrameCountRef.current = 0;
     centerHoldFramesRef.current = 0;
     totalVoicedFramesRef.current = 0;
+    minVoicedDbRef.current = Infinity;
+    maxVoicedDbRef.current = -Infinity;
+    pauseStartFrameRef.current = null;
+    totalPauseFramesRef.current = 0;
+    pauseCountRef.current = 0;
+    frameCountRef.current = 0;
+    energyFramesRef.current = [];
     setIsActive(false);
     setXScore(0.5);
     setYScore(0.5);
@@ -345,6 +374,33 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
           }
         }
 
+        // ── Acoustic metric accumulation ──────────────────────────────────────
+        frameCountRef.current += 1;
+
+        // Dynamic range: track min/max dB during voiced frames
+        if (voiceActiveRef.current) {
+          if (db < minVoicedDbRef.current) minVoicedDbRef.current = db;
+          if (db > maxVoicedDbRef.current) maxVoicedDbRef.current = db;
+        }
+
+        // Pause duration: track voice-off→voice-on transitions
+        if (!voiceActiveRef.current && wasVoiceActive) {
+          // Voice just turned off — start a pause
+          pauseStartFrameRef.current = frameCountRef.current;
+        }
+        if (voiceActiveRef.current && !wasVoiceActive && pauseStartFrameRef.current !== null) {
+          // Voice just turned on — end the pause
+          const pauseFrames = frameCountRef.current - pauseStartFrameRef.current;
+          totalPauseFramesRef.current += pauseFrames;
+          pauseCountRef.current += 1;
+          pauseStartFrameRef.current = null;
+        }
+
+        // Energy ratio: accumulate voiced RMS with frame index (thirds computed at snapshot time)
+        if (voiceActiveRef.current) {
+          energyFramesRef.current.push({ frame: frameCountRef.current, rms });
+        }
+
         let nextPaceDir = paceDirectionRef.current;
         if (wpm > PACE_FAST_THRESHOLD) nextPaceDir = 1;
         else if (wpm < PACE_SLOW_THRESHOLD) nextPaceDir = -1;
@@ -417,6 +473,41 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     };
   }, []);
 
+  const getSessionAcousticMetrics = useCallback(() => {
+    // avgPauseMs: average pause duration (only between voiced segments)
+    const avgPauseMs =
+      pauseCountRef.current > 0
+        ? (totalPauseFramesRef.current / pauseCountRef.current) * UPDATE_MS
+        : null;
+
+    // dynamicRangeDb: spread between quietest and loudest voiced frames
+    const dynamicRangeDb =
+      minVoicedDbRef.current < maxVoicedDbRef.current &&
+      Number.isFinite(minVoicedDbRef.current) &&
+      Number.isFinite(maxVoicedDbRef.current)
+        ? maxVoicedDbRef.current - minVoicedDbRef.current
+        : null;
+
+    // energyRatio: average RMS in last third / average RMS in first third
+    // >1 = energy built up, <1 = energy dropped off
+    let energyRatio: number | null = null;
+    const frames = energyFramesRef.current;
+    if (frames.length >= 6) {
+      const thirdLen = Math.floor(frames.length / 3);
+      let sumFirst = 0;
+      let sumLast = 0;
+      for (let i = 0; i < thirdLen; i++) sumFirst += frames[i].rms;
+      for (let i = frames.length - thirdLen; i < frames.length; i++) sumLast += frames[i].rms;
+      const avgFirst = sumFirst / thirdLen;
+      const avgLast = sumLast / thirdLen;
+      if (avgFirst > 1e-8) {
+        energyRatio = avgLast / avgFirst;
+      }
+    }
+
+    return { avgPauseMs, dynamicRangeDb, energyRatio };
+  }, []);
+
   return {
     xScore,
     yScore,
@@ -436,5 +527,6 @@ export function useRealtimeStrengthPace(options?: UseRealtimeStrengthPaceOptions
     start,
     stop,
     getSessionCenterHold,
+    getSessionAcousticMetrics,
   };
 }
