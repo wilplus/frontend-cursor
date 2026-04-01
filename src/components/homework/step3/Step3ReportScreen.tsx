@@ -68,19 +68,21 @@ export default function Step3ReportScreen({
 
   // Prefer score_for_display (canonical) over scores.overall which can be 0 on fallback completions
   const canonicalOverall = normalizePercentScore(reportData?.score_for_display);
+  // A score of 0 means "not computed yet" — only treat positive values as a real final score.
+  const scoreReady = canonicalOverall != null && canonicalOverall > 0;
+  const insightReady = (reportData?.coach_insight ?? "").trim().length > 0;
 
-  // Backend may return score_for_display=0 and no coach_insight before AI scoring finishes.
-  // Treat that as "still processing" so we don't flash "Final performance score: 0%".
+  // While score hasn't arrived yet and coach insight isn't ready, consider the report still processing.
+  // Once insight is present we stop spinning even if score stays 0 (edge case: AI returned no score).
   const reportProcessingIncomplete =
-    reportData != null &&
-    !reportNotReady &&
-    (canonicalOverall == null || canonicalOverall <= 0) &&
-    !(reportData.coach_insight ?? "").trim();
+    reportData != null && !reportNotReady && !scoreReady && !insightReady;
 
   const waitingForFullReport =
     reportNotReady || reportProcessingIncomplete || (reportData == null && reportError == null);
+
+  // Only use backend scores when overall > 0 — skip the 0-filled placeholder object
   const displayScores =
-    (reportData?.scores && (reportData.scores.overall > 0 || canonicalOverall == null)
+    (reportData?.scores && reportData.scores.overall > 0
       ? reportData.scores
       : null) ??
     (performanceScoreEnd != null
@@ -89,7 +91,8 @@ export default function Step3ReportScreen({
         ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
         : undefined);
 
-  const canonicalFinalScore = canonicalOverall;
+  // Treat 0 as null so the fallback chain (sniperSnapshot) is used instead of showing 0%
+  const canonicalFinalScore = scoreReady ? canonicalOverall : null;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
 
   const currentPerformanceScore1 =
