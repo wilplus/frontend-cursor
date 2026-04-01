@@ -105,7 +105,10 @@ export default function Step3ReportScreen({
       : undefined;
 
   const performanceHistory = reportData?.performance_history ?? [];
-  const lastFiveHistory = performanceHistory.length > 0 ? performanceHistory.slice(-5) : [];
+  // Filter out 0-score entries — backend includes the current session with score=0 before AI scoring
+  const lastFiveHistory = performanceHistory.filter(
+    (p) => typeof p.score === "number" && p.score > 0
+  ).slice(-5);
   const chartFromHistory = lastFiveHistory.map((p, i) => ({
     sessionLabel: `S${i + 1}`,
     date: p.date,

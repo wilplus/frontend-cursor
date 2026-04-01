@@ -982,7 +982,8 @@ export default function HomeworkFlowCard() {
 
     let cancelled = false;
     let attempts = 0;
-    const maxAttempts = 15;
+    // 45 attempts × 4 s = 3 minutes — gives backend enough time to score + transcribe
+    const maxAttempts = 45;
     const intervalMs = 4000;
     let prevNormalized: number | null | undefined = undefined;
     let sameScoreStreak = 0;
@@ -1019,10 +1020,11 @@ export default function HomeworkFlowCard() {
           }
           const scoreStable = sameScoreStreak >= 1;
           const minPollsBeforeScoreOnlyStop = 4;
-          // Don't stop early unless score is a real positive value — prevents stopping at 0%
-          if ((insightReady && transcriptReady && scorePositive) || attempts >= maxAttempts) {
+          // Stop when score + insight both ready, or score stable after min polls.
+          // Transcript arrival is not required to stop — it may take longer.
+          if ((insightReady && scorePositive) || attempts >= maxAttempts) {
             clearInterval(id);
-          } else if (scoreStable && scorePositive && transcriptReady && attempts >= minPollsBeforeScoreOnlyStop) {
+          } else if (scoreStable && scorePositive && attempts >= minPollsBeforeScoreOnlyStop) {
             clearInterval(id);
           }
         })
@@ -1033,6 +1035,34 @@ export default function HomeworkFlowCard() {
       cancelled = true;
       clearInterval(id);
     };
+  }, [sessionId, step, reportMountNonce]);
+
+  // Slow transcript poll: keep fetching every 8 s for up to 4 min after step 3 mounts,
+  // stopping only once transcript text arrives (score loop may have already stopped).
+  useEffect(() => {
+    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
+    let cancelled = false;
+    let tAttempts = 0;
+    const tMax = 30; // 30 × 8 s = 4 min
+    const id = setInterval(() => {
+      if (cancelled || tAttempts >= tMax) { clearInterval(id); return; }
+      tAttempts += 1;
+      homeworkApi
+        .getReport(sessionId)
+        .then((data) => {
+          if (cancelled) return;
+          const hasTranscript = !!(
+            data.recording?.transcription_text ||
+            data.transcription_text ||
+            data.transcript ||
+            ""
+          ).trim();
+          setReportData(data);
+          if (hasTranscript) clearInterval(id);
+        })
+        .catch(() => {});
+    }, 8000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [sessionId, step, reportMountNonce]);
 
   // When report is still being generated, poll automatically.
