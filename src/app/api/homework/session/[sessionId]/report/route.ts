@@ -24,5 +24,6 @@ export async function GET(
   const res = await proxyJson(`/v2/homework/session/${sessionId}/report`, { method: "GET" }, req);
   // So we can tell in Network tab whether this BFF route ran (404 with this header = backend 404)
   res.headers.set("X-Homework-Report-Route", "hit");
+  res.headers.set("Cache-Control", "private, no-store, max-age=0");
   return res;
 }
