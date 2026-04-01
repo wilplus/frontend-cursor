@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { toast } from "sonner";
 import ProgressOverSessionsChart from "@/components/homework/ProgressOverSessionsChart";
+import { resolveAdminReportWpm } from "@/lib/admin/resolveWpm";
 
 const DEFAULT_RUBRIC_VERSION = "v1";
 
@@ -268,6 +269,7 @@ export default function ReportDetailModal({
       ? Math.round(maybePerformanceScore1 <= 1 ? maybePerformanceScore1 * 100 : maybePerformanceScore1)
       : undefined;
   const performanceResult = currentPerformanceScore1 ?? scores?.overall ?? null;
+  const wordsPerMinute = resolveAdminReportWpm(report as Record<string, unknown> | null | undefined);
   const dateLabel = session?.created_at
     ? new Date(session.created_at).toLocaleDateString(undefined, {
         dateStyle: "medium",
@@ -321,6 +323,16 @@ export default function ReportDetailModal({
               {performanceResult != null ? (
                 <p className="text-sm text-muted-foreground text-center">
                   Performance result: <span className="font-semibold text-foreground">{Math.round(performanceResult)}%</span>
+                </p>
+              ) : null}
+              {wordsPerMinute != null ? (
+                <p className="text-sm text-muted-foreground text-center">
+                  Speaking rate:{" "}
+                  <span className="font-semibold text-foreground">{Math.round(wordsPerMinute)} WPM</span>
+                </p>
+              ) : pace ? (
+                <p className="text-sm text-muted-foreground text-center">
+                  Pace: <span className="font-semibold text-foreground">{pace}</span>
                 </p>
               ) : null}
               {/* 1. Progress chart */}

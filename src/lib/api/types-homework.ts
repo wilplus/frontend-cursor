@@ -356,6 +356,13 @@ export interface HomeworkRecording1Response {
   recording_id?: UUID | null;
 }
 
+/** POST recording-2 response (backend shape may include additional fields). */
+export interface HomeworkRecording2Response {
+  status?: string;
+  recording_id?: UUID | null;
+  [key: string]: unknown;
+}
+
 export interface HomeworkTaskAnswersResponse {
   final_task?: string;
   final_task_text?: string;
