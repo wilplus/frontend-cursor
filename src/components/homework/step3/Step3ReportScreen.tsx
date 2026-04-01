@@ -68,15 +68,19 @@ export default function Step3ReportScreen({
 
   const waitingForFullReport = reportNotReady || (reportData == null && reportError == null);
 
+  // Prefer score_for_display (canonical) over scores.overall which can be 0 on fallback completions
+  const canonicalOverall = normalizePercentScore(reportData?.score_for_display);
   const displayScores =
-    reportData?.scores ??
+    (reportData?.scores && (reportData.scores.overall > 0 || canonicalOverall == null)
+      ? reportData.scores
+      : null) ??
     (performanceScoreEnd != null
       ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) }
       : sniperSnapshot != null
         ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
         : undefined);
 
-  const canonicalFinalScore = normalizePercentScore(reportData?.score_for_display);
+  const canonicalFinalScore = canonicalOverall;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
 
   const currentPerformanceScore1 =
