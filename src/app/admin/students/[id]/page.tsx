@@ -37,6 +37,7 @@ import {
   sanitizeRichHtml,
   stripHtmlToText,
 } from "@/lib/sanitizeRichHtml";
+import { resolveSessionRowWpm } from "@/lib/admin/resolveWpm";
 
 function getStudentSniperProgressFromAssignmentResponse(
   userId: string,
@@ -2116,6 +2117,7 @@ export default function AdminStudentProfilePage() {
                             const sm = s.sniper_metrics;
                             const rv = s.review;
                             const rp = s.recording_preview;
+                            const rowWpm = resolveSessionRowWpm(s as unknown as Record<string, unknown>);
                             return (
                               <tr key={s.id} className="border-t border-border/30 hover:bg-muted/20">
                                 <td className="py-1.5 pr-3 whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</td>
@@ -2128,7 +2130,7 @@ export default function AdminStudentProfilePage() {
                                 <td className="py-1.5 pr-3 text-right">{pct(s.question_3_score) ?? "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{s.report_grade != null ? `${s.report_grade}/10` : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{sm?.stage_score != null ? sm.stage_score.toFixed(1) : "—"}</td>
-                                <td className="py-1.5 pr-3 text-right">{rp?.words_per_minute != null ? rp.words_per_minute.toFixed(0) : sm?.wpm != null ? sm.wpm.toFixed(0) : "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{rowWpm != null ? rowWpm.toFixed(0) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{rp?.filler_words_count?.total != null ? rp.filler_words_count.total : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{rp?.duration_ms != null ? (rp.duration_ms / 1000).toFixed(0) : "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{sm?.pause_ms != null ? sm.pause_ms.toFixed(0) : "—"}</td>

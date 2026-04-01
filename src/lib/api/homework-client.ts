@@ -487,7 +487,12 @@ export const homeworkApi = {
   /** Get report for completed session (step 5): report_text, scores, final_recording with fresh audio_url. */
   async getReport(sessionId: string): Promise<HomeworkReportResponse> {
     const { headers, credentials } = await getAuthFetchOptions();
-    const res = await fetch(`${BASE}/session/${sessionId}/report`, { method: "GET", headers, credentials });
+    const res = await fetch(`${BASE}/session/${sessionId}/report`, {
+      method: "GET",
+      headers,
+      credentials,
+      cache: "no-store",
+    });
     return handleResponse<HomeworkReportResponse>(res);
   },
 
