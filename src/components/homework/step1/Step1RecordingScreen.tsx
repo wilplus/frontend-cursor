@@ -22,7 +22,6 @@ interface Step1RecordingScreenProps {
   coachMessage: string | null;
   onRecordingComplete: (blob: Blob, duration: number) => void;
   onSniperSnapshot: (snapshot: LiveCoachSnapshot) => void;
-  onTranscript: (t: string) => void;
   onAbandon: () => void;
   onStartOver: () => void;
   resetting: boolean;

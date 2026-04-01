@@ -1471,10 +1471,6 @@ export default function HomeworkFlowCard() {
         setSniperSnapshot(snapshot);
         sniperSnapshotRef.current = snapshot;
       }}
-      onTranscript={(t) => {
-        setLocalTranscript(t);
-        localTranscriptRef.current = t;
-      }}
       onAbandon={handleAbandon}
       onStartOver={startOverFromScratch}
       resetting={resetting}
