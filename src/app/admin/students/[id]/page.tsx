@@ -925,13 +925,17 @@ export default function AdminStudentProfilePage() {
       for (const exerciseId of queuedExerciseDeletes) {
         await adminApi.deleteExercise(exerciseId);
       }
+      const draftToRealExerciseId = new Map<string, string>();
       for (const exercise of queuedExerciseUpserts) {
         if (exercise.id.startsWith("draft-")) {
-          await adminApi.createExercise({
+          const result = await adminApi.createExercise({
             title: exercise.title,
             video_url: exercise.video_url,
             description: exercise.description,
           });
+          if (result.exercise?.id) {
+            draftToRealExerciseId.set(exercise.id, result.exercise.id);
+          }
         } else {
           await adminApi.updateExercise(exercise.id, {
             title: exercise.title,
@@ -1043,9 +1047,12 @@ export default function AdminStudentProfilePage() {
       }
       await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
       await patchUserMetricQuestions(userMetricQuestions);
+      const resolvedExerciseIds = assignedExerciseIds.map(
+        (eid) => draftToRealExerciseId.get(eid) ?? eid
+      ).filter((eid) => !eid.startsWith("draft-"));
       await adminApi.putOverrides(id, {
-        assigned_exercise_ids: assignedExerciseIds.length > 0 ? assignedExerciseIds : null,
-        assigned_next_exercise_id: assignedExerciseIds[0] ?? null,
+        assigned_exercise_ids: resolvedExerciseIds.length > 0 ? resolvedExerciseIds : null,
+        assigned_next_exercise_id: resolvedExerciseIds[0] ?? null,
       });
       if (pendingWarmUpIds !== null) {
         await adminApi.putStudentWarmUpTasksSync(id, { pool_task_ids: pendingWarmUpIds });
