@@ -141,10 +141,16 @@ export interface StudentProfile {
       performance_score_v2?: number;
       transcription_preview?: string;
       words_per_minute?: number | null;
+      /** Some backends send pace as `wpm` on preview. */
+      wpm?: number | null;
       filler_words_count?: { total?: number; breakdown?: Record<string, number> } | null;
       performance_metrics_v2?: Record<string, unknown> | null;
       duration_ms?: number | null;
     };
+    /** Top-level WPM when not nested (backend-dependent). */
+    words_per_minute?: number | null;
+    wpm?: number | null;
+    performance_metrics_v2?: Record<string, unknown> | null;
     sniper_metrics?: {
       wpm?: number | null;
       pause_ms?: number | null;
@@ -229,6 +235,8 @@ export interface AdminReportRecording {
   transcription_text?: string | null;
   filler_words_count?: { total: number; breakdown?: Record<string, number> };
   audio_url?: string | null;
+  words_per_minute?: number | null;
+  wpm?: number | null;
 }
 
 /** Full report for a completed session (admin modal). Aligns with homework report; extra fields optional. */
@@ -242,6 +250,10 @@ export interface AdminSessionReportResponse {
   strength_metric?: string | null;
   pace_metric?: string | null;
   coach_insight?: string | null;
+  /** Speaking rate when backend exposes it on the report (words per minute). */
+  words_per_minute?: number | null;
+  wpm?: number | null;
+  performance_metrics_v2?: Record<string, unknown> | null;
   performance_history?: Array<{ date: string; score: number }>;
   /** Report grade 1–10 or null (not graded). */
   report_grade?: number | null;
