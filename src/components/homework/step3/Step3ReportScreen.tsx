@@ -66,10 +66,19 @@ export default function Step3ReportScreen({
     );
   }
 
-  const waitingForFullReport = reportNotReady || (reportData == null && reportError == null);
-
   // Prefer score_for_display (canonical) over scores.overall which can be 0 on fallback completions
   const canonicalOverall = normalizePercentScore(reportData?.score_for_display);
+
+  // Backend may return score_for_display=0 and no coach_insight before AI scoring finishes.
+  // Treat that as "still processing" so we don't flash "Final performance score: 0%".
+  const reportProcessingIncomplete =
+    reportData != null &&
+    !reportNotReady &&
+    (canonicalOverall == null || canonicalOverall <= 0) &&
+    !(reportData.coach_insight ?? "").trim();
+
+  const waitingForFullReport =
+    reportNotReady || reportProcessingIncomplete || (reportData == null && reportError == null);
   const displayScores =
     (reportData?.scores && (reportData.scores.overall > 0 || canonicalOverall == null)
       ? reportData.scores
@@ -241,8 +250,10 @@ export default function Step3ReportScreen({
             <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
               <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
             </div>
+          ) : waitingForFullReport ? (
+            <p className="text-sm text-muted-foreground italic">Generating transcript…</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Transcript not available for this session yet.</p>
+            <p className="text-sm text-muted-foreground italic">Transcript not available for this session.</p>
           )}
         </div>
 

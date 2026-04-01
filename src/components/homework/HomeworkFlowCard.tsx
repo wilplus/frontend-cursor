@@ -1001,10 +1001,17 @@ export default function HomeworkFlowCard() {
           setReportData(data);
           setSniperProfile((prev) => getSniperProfileFromReport(data, prev) ?? prev);
           const insightReady = (data.coach_insight ?? "").trim().length > 0;
+          const transcriptReady = !!(
+            data.recording?.transcription_text ||
+            data.transcription_text ||
+            data.transcript ||
+            ""
+          ).trim();
           const n = normalizePercentScore(data.score_for_display);
+          const scorePositive = n != null && n > 0;
           if (prevNormalized === undefined) {
             prevNormalized = n;
-          } else if (n === prevNormalized && n !== null) {
+          } else if (n === prevNormalized && n !== null && n > 0) {
             sameScoreStreak += 1;
           } else {
             prevNormalized = n;
@@ -1012,9 +1019,10 @@ export default function HomeworkFlowCard() {
           }
           const scoreStable = sameScoreStreak >= 1;
           const minPollsBeforeScoreOnlyStop = 4;
-          if (insightReady || attempts >= maxAttempts) {
+          // Don't stop early unless score is a real positive value — prevents stopping at 0%
+          if ((insightReady && transcriptReady && scorePositive) || attempts >= maxAttempts) {
             clearInterval(id);
-          } else if (scoreStable && attempts >= minPollsBeforeScoreOnlyStop) {
+          } else if (scoreStable && scorePositive && transcriptReady && attempts >= minPollsBeforeScoreOnlyStop) {
             clearInterval(id);
           }
         })
