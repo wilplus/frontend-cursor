@@ -29,6 +29,7 @@ import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 // Utility imports (previously inlined)
 import {
   DEFAULT_TASK_PROMPT,
+  normalizePercentScore,
   resolveTaskText,
 } from "@/lib/api/homework-utils";
 import {
@@ -101,6 +102,10 @@ export default function HomeworkFlowCard() {
   const localTranscriptRef = useRef("");
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
+  /** Bumped when entering step 3 or changing session there so GET /report refetches (avoids stale sessionStorage / first response). */
+  const [reportMountNonce, setReportMountNonce] = useState(0);
+  const prevStepForReportNonceRef = useRef<Step>(0);
+  const prevSessionIdForReportNonceRef = useRef<string | null>(null);
   const [audioPlaybackError, setAudioPlaybackError] = useState(false);
   const [loadingLottieData, setLoadingLottieData] = useState<object | null>(null);
   const [leavingReport, setLeavingReport] = useState(false);
@@ -895,6 +900,23 @@ export default function HomeworkFlowCard() {
     tutorFeedbackDeadlineMs,
   ]);
 
+  useEffect(() => {
+    if (step !== 3 || !sessionId || sessionId === "mock-session") {
+      if (step !== 3) {
+        prevStepForReportNonceRef.current = step;
+        prevSessionIdForReportNonceRef.current = null;
+      }
+      return;
+    }
+    const enteredStep3 = prevStepForReportNonceRef.current !== 3;
+    const sessionChanged = prevSessionIdForReportNonceRef.current !== sessionId;
+    prevStepForReportNonceRef.current = step;
+    prevSessionIdForReportNonceRef.current = sessionId;
+    if (enteredStep3 || sessionChanged) {
+      setReportMountNonce((n) => n + 1);
+    }
+  }, [step, sessionId]);
+
   // Fetch report when on step 3 with a real session
   useEffect(() => {
     if (step !== 3 || !sessionId || sessionId === "mock-session") return;
@@ -940,7 +962,7 @@ export default function HomeworkFlowCard() {
         setReportData(null);
       })
       .finally(() => setReportLoading(false));
-  }, [reportRetryCount, sessionId, step]);
+  }, [reportMountNonce, reportRetryCount, sessionId, step]);
 
   // Load Lottie animation for report loading / generating states
   useEffect(() => {
@@ -951,31 +973,59 @@ export default function HomeworkFlowCard() {
       .catch(() => {});
   }, [step, loadingLottieData]);
 
+  /**
+   * Poll GET /report after the initial load until coach_insight is ready and/or score_for_display
+   * matches on two consecutive polls (backend may update the score after the first 200).
+   */
   useEffect(() => {
     if (step !== 3 || !sessionId || sessionId === "mock-session") return;
-    if (!reportData || (reportData.coach_insight ?? "").trim()) return;
 
+    let cancelled = false;
     let attempts = 0;
-    const maxAttempts = 6;
-    const intervalMs = 8000;
+    const maxAttempts = 15;
+    const intervalMs = 4000;
+    let prevNormalized: number | null | undefined = undefined;
+    let sameScoreStreak = 0;
+
     const id = setInterval(() => {
+      if (cancelled) return;
+      if (attempts >= maxAttempts) {
+        clearInterval(id);
+        return;
+      }
       attempts += 1;
       homeworkApi
         .getReport(sessionId)
         .then((data) => {
+          if (cancelled) return;
           setReportData(data);
-          if ((data.coach_insight ?? "").trim()) {
+          setSniperProfile((prev) => getSniperProfileFromReport(data, prev) ?? prev);
+          const insightReady = (data.coach_insight ?? "").trim().length > 0;
+          const n = normalizePercentScore(data.score_for_display);
+          if (prevNormalized === undefined) {
+            prevNormalized = n;
+          } else if (n === prevNormalized && n !== null) {
+            sameScoreStreak += 1;
+          } else {
+            prevNormalized = n;
+            sameScoreStreak = 0;
+          }
+          const scoreStable = sameScoreStreak >= 1;
+          const minPollsBeforeScoreOnlyStop = 4;
+          if (insightReady || attempts >= maxAttempts) {
+            clearInterval(id);
+          } else if (scoreStable && attempts >= minPollsBeforeScoreOnlyStop) {
             clearInterval(id);
           }
         })
-        .catch(() => {})
-        .finally(() => {
-          if (attempts >= maxAttempts) clearInterval(id);
-        });
+        .catch(() => {});
     }, intervalMs);
 
-    return () => clearInterval(id);
-  }, [reportData, sessionId, step]);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [sessionId, step, reportMountNonce]);
 
   // When report is still being generated, poll automatically.
   useEffect(() => {
