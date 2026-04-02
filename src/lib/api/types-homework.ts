@@ -90,8 +90,7 @@ export function deriveHomeworkStep(
 
   const hasReportPayload =
     ("report_text" in raw && typeof raw.report_text === "string" && raw.report_text.trim().length > 0) ||
-    ("score" in raw && typeof raw.score === "number") ||
-    ("performance_score_end" in raw && typeof raw.performance_score_end === "number");
+    ("score" in raw && typeof raw.score === "number");
 
   if (
     hasReportPayload ||
@@ -152,10 +151,8 @@ export interface HomeworkResponse {
   recording_id?: string | null;
   task?: string | null;
   report_text?: string | null;
-  /** Canonical session score (replaces dropped performance_score_1/2/end). */
+  /** Canonical session score (0–1). */
   score?: number | null;
-  /** @deprecated Kept for backward compat with older backend responses. */
-  performance_score_end?: number | null;
   tutor_feedback_deadline?: string | null;
   tutor_feedback_message?: string | null;
   /** Optional step-0 homework video URL. Preferred over assigned_exercises[].video_url when present. */
@@ -233,8 +230,6 @@ export interface HomeworkSessionStatus {
   task?: string | null;
   report_text?: string | null;
   score?: number | null;
-  /** @deprecated Kept for backward compat. */
-  performance_score_end?: number | null;
   /** Backend: no active session; clear state and require POST start. */
   has_active_session?: boolean;
   /** Backend: alternative to status (e.g. top-level session_state). */
@@ -246,7 +241,6 @@ export interface HomeworkSessionStatus {
     state?: string;
     context_long?: string | null;
     score?: number | null;
-    performance_score_end?: number | null;
     tutor_video_url?: string | null;
     tutor_video_description?: string | null;
   };
@@ -322,8 +316,7 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     recording_id: raw.recording_id ?? null,
     task,
     report_text: raw.report_text ?? raw.session?.context_long ?? null,
-    score: raw.score ?? raw.session?.score ?? raw.performance_score_end ?? raw.session?.performance_score_end ?? null,
-    performance_score_end: raw.score ?? raw.session?.score ?? raw.performance_score_end ?? raw.session?.performance_score_end ?? null,
+    score: raw.score ?? raw.session?.score ?? null,
     tutor_feedback_deadline: raw.tutor_feedback_deadline ?? null,
     tutor_feedback_message: raw.tutor_feedback_message ?? null,
     tutor_video_url: raw.tutor_video_url ?? raw.session?.tutor_video_url ?? null,
