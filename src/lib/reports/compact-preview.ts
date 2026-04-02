@@ -42,6 +42,7 @@ export function toCompactReportPreview(
 
   const score =
     normalizePercentScore((report as HomeworkReportResponse).score_for_display) ??
+    normalizePercentScore((report as HomeworkReportResponse & { score?: number | null }).score) ??
     normalizePercentScore((report as HomeworkReportResponse).performance_score_1) ??
     normalizePercentScore(report.scores?.overall);
 

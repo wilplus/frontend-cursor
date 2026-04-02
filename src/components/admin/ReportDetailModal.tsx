@@ -263,10 +263,11 @@ export default function ReportDetailModal({
   const pace = (report?.pace_metric ?? "").trim();
   const coachInsight = (report?.coach_insight ?? "").trim();
   const scores = report?.scores;
-  const maybePerformanceScore1 = (report as { performance_score_1?: number | null } | null)?.performance_score_1;
+  const rawScore = (report as { score?: number | null; performance_score_1?: number | null } | null)?.score
+    ?? (report as { performance_score_1?: number | null } | null)?.performance_score_1;
   const currentPerformanceScore1 =
-    typeof maybePerformanceScore1 === "number"
-      ? Math.round(maybePerformanceScore1 <= 1 ? maybePerformanceScore1 * 100 : maybePerformanceScore1)
+    typeof rawScore === "number"
+      ? Math.round(rawScore <= 1 ? rawScore * 100 : rawScore)
       : undefined;
   const performanceResult = currentPerformanceScore1 ?? scores?.overall ?? null;
   const wordsPerMinute = resolveAdminReportWpm(report as Record<string, unknown> | null | undefined);
