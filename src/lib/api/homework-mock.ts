@@ -38,7 +38,7 @@ export function mockStartResponse() {
 
 export function mockRecording1Response() {
   return {
-    performance_score_1: 0.8,
+    score: 0.8,
     task_text:
       "Based on your first recording, here is your task. Answer the three prompts below, then complete your final recording.",
     task_block: {
@@ -59,7 +59,7 @@ export function mockMetricAnswersResponse() {
 
 export function mockRecording2Response() {
   return {
-    performance_score_2: 0.85,
+    score: 0.85,
   };
 }
 
@@ -71,6 +71,6 @@ export function mockPostAnswersResponse() {
   return {
     report_text:
       "Sample report. You completed the homework flow. Connect a real backend for personalized feedback and scores.",
-    performance_score_end: 0.82,
+    score: 0.82,
   };
 }

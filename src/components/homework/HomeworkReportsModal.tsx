@@ -133,9 +133,10 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
           {report && !reportLoading && (() => {
             const audioUrl = report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url ?? fallbackAudioUrl;
             const displayScores = report.scores;
+            const rawScore = report.score ?? report.performance_score_1;
             const currentPerformanceScore1 =
-              typeof report.performance_score_1 === "number"
-                ? Math.round(report.performance_score_1 <= 1 ? report.performance_score_1 * 100 : report.performance_score_1)
+              typeof rawScore === "number"
+                ? Math.round(rawScore <= 1 ? rawScore * 100 : rawScore)
                 : undefined;
             const performanceResult = currentPerformanceScore1 ?? displayScores?.overall;
             const transcriptionText = (

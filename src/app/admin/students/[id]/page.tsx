@@ -2099,9 +2099,7 @@ export default function AdminStudentProfilePage() {
                         <thead>
                           <tr className="text-muted-foreground border-b border-border">
                             <th className="text-left py-1.5 pr-3 font-medium">Date</th>
-                            <th className="text-right py-1.5 pr-3 font-medium">Score 1</th>
-                            <th className="text-right py-1.5 pr-3 font-medium">Score 2</th>
-                            <th className="text-right py-1.5 pr-3 font-medium">Final</th>
+                            <th className="text-right py-1.5 pr-3 font-medium">Score</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Task</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Q1</th>
                             <th className="text-right py-1.5 pr-3 font-medium">Q2</th>
@@ -2128,9 +2126,7 @@ export default function AdminStudentProfilePage() {
                             return (
                               <tr key={s.id} className="border-t border-border/30 hover:bg-muted/20">
                                 <td className="py-1.5 pr-3 whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</td>
-                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_1) ?? "—"}</td>
-                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_2) ?? "—"}</td>
-                                <td className="py-1.5 pr-3 text-right">{pct(s.performance_score_end) ?? "—"}</td>
+                                <td className="py-1.5 pr-3 text-right">{pct(s.score) ?? "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{pct(s.task_score) ?? "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{pct(s.question_1_score) ?? "—"}</td>
                                 <td className="py-1.5 pr-3 text-right">{pct(s.question_2_score) ?? "—"}</td>

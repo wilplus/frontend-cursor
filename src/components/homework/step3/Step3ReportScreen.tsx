@@ -95,13 +95,10 @@ export default function Step3ReportScreen({
   const canonicalFinalScore = scoreReady ? canonicalOverall : null;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
 
+  const rawReportScore = reportData?.score ?? reportData?.performance_score_1;
   const currentPerformanceScore1 =
-    typeof reportData?.performance_score_1 === "number"
-      ? Math.round(
-          reportData.performance_score_1 <= 1
-            ? reportData.performance_score_1 * 100
-            : reportData.performance_score_1
-        )
+    typeof rawReportScore === "number"
+      ? Math.round(rawReportScore <= 1 ? rawReportScore * 100 : rawReportScore)
       : undefined;
 
   const performanceHistory = reportData?.performance_history ?? [];

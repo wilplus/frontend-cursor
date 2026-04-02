@@ -136,9 +136,8 @@ export interface StudentProfile {
     report_grade?: number | null;
     /** Optional short coach message attached to session grade. */
     coach_message?: string | null;
-    performance_score_1?: number | null;
-    performance_score_2?: number | null;
-    performance_score_end?: number | null;
+    /** Canonical session score (replaces dropped performance_score_1/2/end). */
+    score?: number | null;
     question_1_score?: number | null;
     question_2_score?: number | null;
     question_3_score?: number | null;
@@ -497,7 +496,7 @@ export interface WarmUpTask {
   user_id: string;
   text: string;
   order_index?: number;
-  /** 0-1; used to select warm-up by student's last performance_score_end. */
+  /** 0-1; used to select warm-up by student's last score. */
   max_performance_score?: number;
   /** When assigned from pool, references v2_warm_up_task_pool.id. */
   pool_task_id?: string | null;
