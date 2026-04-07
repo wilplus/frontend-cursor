@@ -567,7 +567,8 @@ export default function HomeworkFlowCard() {
     if ("task" in res && res.task !== undefined) {
       setTask(resolveTaskText(res.task));
     }
-    if ("score" in res && res.score !== undefined) setPerformanceScoreEnd(res.score);
+    // Only store score when it's a real positive value — 0 is a placeholder before scoring completes
+    if ("score" in res && res.score != null && (res.score as number) > 0) setPerformanceScoreEnd(res.score as number);
     if ("report_text" in res && res.report_text !== undefined) setReportText(res.report_text ?? "");
     if ("tutor_feedback_deadline" in res) {
       const deadlineIso = res.tutor_feedback_deadline;
