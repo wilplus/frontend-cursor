@@ -18,10 +18,18 @@ export function isReportNotReadyError(e: unknown): e is HomeworkApiError {
 
 export function isSelfRatingNotReadyError(e: unknown): boolean {
   if (!(e instanceof Error)) return false;
-  const msg = e.message.toLowerCase();
+  const err = e as HomeworkApiError;
+  // Backend explicitly says the session isn't in the right state yet
+  if (err.code === "INVALID_SESSION_STATE" || err.code === "RECORDING_NOT_READY" || err.code === "SESSION_NOT_READY") return true;
+  // 409 Conflict = session state mismatch → treat as "not ready, retry later"
+  if (err.status === 409) return true;
+  const msg = err.message.toLowerCase();
   return (
-    msg.includes("self-rating") &&
-    (msg.includes("only available") || msg.includes("not ready") || msg.includes("delivered your recording"))
+    (msg.includes("self-rating") &&
+      (msg.includes("only available") || msg.includes("not ready") || msg.includes("delivered your recording"))) ||
+    msg.includes("invalid session state") ||
+    msg.includes("recording not yet") ||
+    msg.includes("session not in")
   );
 }
 
