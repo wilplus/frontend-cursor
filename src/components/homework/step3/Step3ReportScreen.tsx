@@ -85,7 +85,7 @@ export default function Step3ReportScreen({
     (reportData?.scores && reportData.scores.overall > 0
       ? reportData.scores
       : null) ??
-    (performanceScoreEnd != null
+    (performanceScoreEnd != null && performanceScoreEnd > 0
       ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) }
       : sniperSnapshot != null
         ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
@@ -95,9 +95,10 @@ export default function Step3ReportScreen({
   const canonicalFinalScore = scoreReady ? canonicalOverall : null;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
 
+  // Only use reportData.score when it's a real positive value — 0 means not computed yet
   const rawReportScore = reportData?.score ?? reportData?.performance_score_1;
   const currentPerformanceScore1 =
-    typeof rawReportScore === "number"
+    typeof rawReportScore === "number" && rawReportScore > 0
       ? Math.round(rawReportScore <= 1 ? rawReportScore * 100 : rawReportScore)
       : undefined;
 
@@ -111,6 +112,12 @@ export default function Step3ReportScreen({
     date: p.date,
     score: p.score,
   }));
+
+  // Use the last history entry as a score fallback — performance_history is often the most
+  // reliable source when score_for_display and score are still 0
+  const historyScore = lastFiveHistory.length > 0
+    ? lastFiveHistory[lastFiveHistory.length - 1].score
+    : null;
 
   const provisionalChartData =
     chartFromHistory.length > 0
@@ -132,8 +139,8 @@ export default function Step3ReportScreen({
     return [{ sessionLabel: "S1", date: new Date().toISOString(), score: canonicalFinalScore }];
   })();
 
-  const initialPerformanceResult = currentPerformanceScore1 ?? displayScores?.overall;
-  const finalPerformanceResult = canonicalFinalScore ?? currentPerformanceScore1 ?? displayScores?.overall;
+  const initialPerformanceResult = currentPerformanceScore1 ?? historyScore ?? displayScores?.overall;
+  const finalPerformanceResult = canonicalFinalScore ?? currentPerformanceScore1 ?? historyScore ?? displayScores?.overall;
   const performanceResult = waitingForFullReport ? initialPerformanceResult : finalPerformanceResult;
 
   const playbackUrl =
