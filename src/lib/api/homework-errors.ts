@@ -33,6 +33,10 @@ export function isSelfRatingNotReadyError(e: unknown): boolean {
   );
 }
 
+export function isRecordingProcessingFailedError(e: unknown): e is HomeworkApiError {
+  return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "RECORDING_PROCESSING_FAILED";
+}
+
 /** True if error indicates session is gone (404 / SESSION_NOT_FOUND or message). */
 export function isSessionGoneError(e: unknown): boolean {
   const err = e as { code?: string; message?: string; status?: number };

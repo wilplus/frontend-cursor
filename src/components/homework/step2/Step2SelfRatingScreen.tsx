@@ -34,9 +34,9 @@ export default function Step2SelfRatingScreen({
       <StepFlowWrapper step={2}>
         <CoachMessageBanner message={coachMessage} />
         <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
-          <h3 className="text-lg font-semibold mb-2">We couldn&apos;t process this recording.</h3>
+          <h3 className="text-lg font-semibold mb-2">We couldn&apos;t process this recording. Please record again.</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Your recording analysis failed, so this session can&apos;t be completed. Start a new practice and try recording again.
+            This recording could not be analyzed, so this session cannot be completed.
           </p>
           <Button onClick={onSkip} disabled={resetting} className="w-full rounded-xl h-12 font-semibold">
             {resetting ? "Sending…" : "Start New Practice"}

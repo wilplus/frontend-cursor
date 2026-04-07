@@ -132,13 +132,19 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
           )}
           {report && !reportLoading && (() => {
             const audioUrl = report.final_recording?.audio_url ?? report.recording?.audio_url ?? report.recording_1?.audio_url ?? fallbackAudioUrl;
-            const displayScores = report.scores;
-            const rawScore = report.score ?? report.performance_score_1;
-            const currentPerformanceScore1 =
-              typeof rawScore === "number"
-                ? Math.round(rawScore <= 1 ? rawScore * 100 : rawScore)
-                : undefined;
-            const performanceResult = currentPerformanceScore1 ?? displayScores?.overall;
+            const performanceResult =
+              (typeof report.score_for_display === "number"
+                ? Math.round(
+                  report.score_for_display <= 1
+                    ? report.score_for_display * 100
+                    : report.score_for_display
+                )
+                : null) ??
+              (typeof report.scores?.overall === "number"
+                ? Math.round(
+                  report.scores.overall <= 1 ? report.scores.overall * 100 : report.scores.overall
+                )
+                : null);
             const transcriptionText = (
               report.recording?.transcription_text ??
               report.transcription_text ??
@@ -181,6 +187,12 @@ export default function HomeworkReportsModal({ open, onOpenChange, sessionId }: 
               : performanceResult != null
                 ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: Math.round(performanceResult) }]
                 : [];
+            if (chartData.length > 0 && performanceResult != null) {
+              chartData[chartData.length - 1] = {
+                ...chartData[chartData.length - 1],
+                score: Math.round(performanceResult),
+              };
+            }
             return (
               <div className="space-y-4">
                 {performanceResult != null ? (

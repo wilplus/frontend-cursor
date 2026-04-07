@@ -56,7 +56,7 @@ export default function Step3ReportScreen({
         <h3 className="text-center text-xl font-semibold">Your report</h3>
         <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
           <p className="text-sm text-foreground">
-            We couldn&apos;t process this recording, so a report can&apos;t be generated for this session.
+            We couldn&apos;t process this recording. Please record again.
           </p>
           <Button onClick={onLeaveReport} disabled={leavingReport || resetting} className="w-full rounded-xl h-12 font-semibold">
             {leavingReport || resetting ? "Sending…" : "Start New Practice"}
@@ -66,47 +66,32 @@ export default function Step3ReportScreen({
     );
   }
 
-  // Prefer score_for_display (canonical) over scores.overall which can be 0 on fallback completions
-  const canonicalOverall = normalizePercentScore(reportData?.score_for_display);
-  // A score of 0 means "not computed yet" — only treat positive values as a real final score.
-  const scoreReady = canonicalOverall != null && canonicalOverall > 0;
+  // Canonical score source for all primary report UI.
+  const canonicalOverall =
+    normalizePercentScore(reportData?.score_for_display) ??
+    normalizePercentScore(reportData?.scores?.overall);
+  const scoreReady = canonicalOverall != null;
   const insightReady = (reportData?.coach_insight ?? "").trim().length > 0;
 
   // While score hasn't arrived yet and coach insight isn't ready, consider the report still processing.
-  // Once insight is present we stop spinning even if score stays 0 (edge case: AI returned no score).
   const reportProcessingIncomplete =
     reportData != null && !reportNotReady && !scoreReady && !insightReady;
 
   const waitingForFullReport =
     reportNotReady || reportProcessingIncomplete || (reportData == null && reportError == null);
 
-  // Treat 0 as null so the fallback chain is used instead of showing 0%
   const canonicalFinalScore = scoreReady ? canonicalOverall : null;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
 
-  // Only use reportData.score when it's a real positive value — 0 means not computed yet
-  const rawReportScore = reportData?.score ?? reportData?.performance_score_1;
-  const currentPerformanceScore1 =
-    typeof rawReportScore === "number" && rawReportScore > 0
-      ? Math.round(rawReportScore <= 1 ? rawReportScore * 100 : rawReportScore)
-      : undefined;
-
   const performanceHistory = reportData?.performance_history ?? [];
-  // Filter out 0-score entries — backend includes the current session with score=0 before AI scoring
   const lastFiveHistory = performanceHistory.filter(
-    (p) => typeof p.score === "number" && p.score > 0
+    (p) => typeof p.score === "number" && Number.isFinite(p.score)
   ).slice(-5);
   const chartFromHistory = lastFiveHistory.map((p, i) => ({
     sessionLabel: `S${i + 1}`,
     date: p.date,
     score: p.score,
   }));
-
-  // Use the last history entry as a score fallback — performance_history is often the most
-  // reliable source when score_for_display and score are still 0
-  const historyScore = lastFiveHistory.length > 0
-    ? lastFiveHistory[lastFiveHistory.length - 1].score
-    : null;
 
   // Chart: only render once we have backend-confirmed history or a final score.
   // Never show a provisional sniperSnapshot point — it causes jarring jumps.
@@ -126,7 +111,7 @@ export default function Step3ReportScreen({
 
   // Only show a score number once we have a backend-computed value.
   // sniperSnapshot is an unreliable real-time estimate — never show it as a headline number.
-  const confirmedScore = canonicalFinalScore ?? currentPerformanceScore1 ?? historyScore ?? null;
+  const confirmedScore = canonicalFinalScore ?? null;
   const scoreAnalyzing = confirmedScore == null;
 
   const playbackUrl =
@@ -188,6 +173,11 @@ export default function Step3ReportScreen({
       <h3 className="text-center text-xl font-semibold">Your report</h3>
       <CoachMessageBanner message={coachMessage} />
       <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
+        {reportNotReady ? (
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="text-sm text-muted-foreground">Your report is still being prepared…</p>
+          </div>
+        ) : null}
         {reportError != null && reportData == null ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 space-y-3">
             <p className="text-sm text-foreground">We couldn&apos;t load full report details yet.</p>
