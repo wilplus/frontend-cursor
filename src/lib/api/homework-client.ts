@@ -516,11 +516,7 @@ export const homeworkApi = {
       body: JSON.stringify({ rating: r }),
       credentials,
     });
-    if (!res.ok) {
-      const { message } = await parseErrorBody(res).catch(() => ({ message: res.statusText }));
-      throw new Error(message || `Self-rating failed (${res.status})`);
-    }
-    const body = await safeParseJson<SelfRatingResponse>(res);
+    const body = await handleResponse<SelfRatingResponse>(res);
     return { ...body, status: "ok", session_completed: body?.session_completed === true, student_rating_1_10: r };
   },
 
@@ -535,11 +531,7 @@ export const homeworkApi = {
       body: JSON.stringify({ skipped: true }),
       credentials,
     });
-    if (!res.ok) {
-      const { message } = await parseErrorBody(res).catch(() => ({ message: res.statusText }));
-      throw new Error(message || `Could not save skip (${res.status})`);
-    }
-    const body = await safeParseJson<SelfRatingResponse>(res);
+    const body = await handleResponse<SelfRatingResponse>(res);
     return { ...body, status: "ok", session_completed: body?.session_completed === true, skipped: true };
   },
 };

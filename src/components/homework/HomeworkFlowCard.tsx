@@ -36,7 +36,6 @@ import {
   isNoWarmupError,
   isInvalidSessionStateError,
   isReportNotReadyError,
-  isSelfRatingNotReadyError,
   isSessionGoneError,
 } from "@/lib/api/homework-errors";
 import {
@@ -1360,7 +1359,12 @@ export default function HomeworkFlowCard() {
         setPendingRetrySelfRating({ sessionId, rating: n });
       }
     } catch (e) {
-      if (isSelfRatingNotReadyError(e)) {
+      // Self-rating is optional — any backend error that isn't a hard auth/not-found failure
+      // should just queue a retry and move forward so the user is never blocked here.
+      const err = e as { status?: number; code?: string };
+      const isHardFailure = err.status === 401 || err.status === 403 || err.status === 404;
+      if (!isHardFailure) {
+        // "Not ready yet" or any transient/state error → retry in background once recording is done
         setPendingRetrySelfRating({ sessionId, rating: n });
         setStudentSpeechRatingSubmitted(true);
         setStep(3);
@@ -1388,7 +1392,9 @@ export default function HomeworkFlowCard() {
         setPendingRetrySelfRating({ sessionId, skipped: true });
       }
     } catch (e) {
-      if (isSelfRatingNotReadyError(e)) {
+      const err = e as { status?: number; code?: string };
+      const isHardFailure = err.status === 401 || err.status === 403 || err.status === 404;
+      if (!isHardFailure) {
         setPendingRetrySelfRating({ sessionId, skipped: true });
         setStudentSpeechRatingSubmitted(true);
         setStep(3);
