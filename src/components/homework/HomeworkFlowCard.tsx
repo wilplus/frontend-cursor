@@ -157,6 +157,7 @@ export default function HomeworkFlowCard() {
   const [step0ReportPreviewLoading, setStep0ReportPreviewLoading] = useState<Record<string, boolean>>({});
   const [pollReportsAfterFinish, setPollReportsAfterFinish] = useState(false);
   const reportDeepLinkHandledRef = useRef(false);
+  const completionPostedSessionsRef = useRef<Set<string>>(new Set());
   const stepRef = useRef(step);
   stepRef.current = step;
   const persistedFinalReportRef = useRef<PersistedFinalReportState | null>(
@@ -1094,69 +1095,130 @@ export default function HomeworkFlowCard() {
       recordingId?: string | null;
       studentRating1To10?: number | null;
     }) => {
+      if (completionPostedSessionsRef.current.has(params.sessionId)) {
+        return;
+      }
       const snapshot = sniperSnapshotRef.current;
       if (!snapshot) return;
-      const body: {
-        session_means: {
-          paceWpm: number | null;
-          avgPauseMs: number | null;
-          dynamicRangeDb: number | null;
-          emphasisPerMin: number | null;
-          energyRatio: number | null;
-          voicedDurationSec: number;
-          pitchCenterSt?: number | null;
-          pitchFrameCount?: number | null;
-        };
-        stage_score: number;
-        voiced_duration_sec: number;
-        duration_seconds: number;
-        recording_id?: string | null;
-        frontend_level?: number | null;
-        frontend_step?: number | null;
-        completed: true;
-        valid_for_progression: true;
-        session_id: string;
-        student_rating_1_10?: number | null;
-      } = {
-        session_means: {
-          paceWpm: snapshot.wpm ?? null,
-          avgPauseMs: snapshot.avgPauseMs ?? null,
-          dynamicRangeDb: snapshot.dynamicRangeDb ?? null,
-          emphasisPerMin: null,
-          energyRatio: snapshot.energyRatio ?? null,
-          voicedDurationSec: snapshot.voicedDurationSec,
-          pitchCenterSt: snapshot.pitchCenterSt ?? null,
-          pitchFrameCount: snapshot.pitchFrameCount ?? null,
-        },
-        stage_score: snapshot.performanceScore,
-        voiced_duration_sec: snapshot.voicedDurationSec,
-        duration_seconds: params.durationSeconds,
-        recording_id: params.recordingId ?? null,
-        frontend_level: snapshot.realtimeLevel ?? null,
-        frontend_step: snapshot.realtimeStep ?? null,
-        completed: true,
-        valid_for_progression: true,
+
+      const asFiniteNumber = (v: unknown, fallback = 0): number =>
+        typeof v === "number" && Number.isFinite(v) ? v : fallback;
+
+      const payload = {
         session_id: params.sessionId,
+        recording_id: params.recordingId ?? null,
+        stage_score: asFiniteNumber(snapshot.performanceScore),
+        wpm: asFiniteNumber(snapshot.wpm),
+        avg_pause_ms: asFiniteNumber(snapshot.avgPauseMs),
+        dynamic_range_db: asFiniteNumber(snapshot.dynamicRangeDb),
+        emphasis_per_min: 0,
+        energy_ratio: asFiniteNumber(snapshot.energyRatio),
+        measured_pitch_center_st: asFiniteNumber(snapshot.pitchCenterSt),
+        pitch_frame_count: asFiniteNumber(snapshot.pitchFrameCount),
+        voiced_duration_sec: asFiniteNumber(snapshot.voicedDurationSec),
+        duration_seconds: asFiniteNumber(params.durationSeconds),
+        frontend_level: asFiniteNumber(snapshot.realtimeLevel),
+        frontend_step: asFiniteNumber(snapshot.realtimeStep),
+        completed: true as const,
+        valid_for_progression: true as const,
+        // Keep nested shape for current API route compatibility.
+        session_means: {
+          paceWpm: asFiniteNumber(snapshot.wpm),
+          avgPauseMs: asFiniteNumber(snapshot.avgPauseMs),
+          dynamicRangeDb: asFiniteNumber(snapshot.dynamicRangeDb),
+          emphasisPerMin: 0,
+          energyRatio: asFiniteNumber(snapshot.energyRatio),
+          voicedDurationSec: asFiniteNumber(snapshot.voicedDurationSec),
+          pitchCenterSt: asFiniteNumber(snapshot.pitchCenterSt),
+          pitchFrameCount: asFiniteNumber(snapshot.pitchFrameCount),
+        },
+        // Alias keys accepted by backend.
+        avgPauseMs: asFiniteNumber(snapshot.avgPauseMs),
+        dynamicRangeDb: asFiniteNumber(snapshot.dynamicRangeDb),
+        energyRatio: asFiniteNumber(snapshot.energyRatio),
+        pitchCenterSt: asFiniteNumber(snapshot.pitchCenterSt),
       };
       if (
         typeof params.studentRating1To10 === "number" &&
         params.studentRating1To10 >= 1 &&
         params.studentRating1To10 <= 10
       ) {
-        body.student_rating_1_10 = params.studentRating1To10;
+        (payload as { student_rating_1_10?: number }).student_rating_1_10 = params.studentRating1To10;
       }
-      try {
-        const response = await fetch("/api/user/sniper-profile", {
+
+      const endpoint = "/api/user/sniper-profile";
+      const payloadKeys = Object.keys(payload);
+      const stageScorePresent = typeof payload.stage_score === "number" && Number.isFinite(payload.stage_score);
+
+      const postCompletion = async (attempt: 1 | 2) => {
+        console.info("[HomeworkFlow] completion POST", {
+          session_id: params.sessionId,
+          endpoint,
+          stage_score_present: stageScorePresent,
+          payload_keys: payloadKeys,
+          attempt,
+        });
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify(payload),
         });
-        const data = await response.json().catch(() => null);
-        if (data && typeof data.user_id === "string") {
-          setSniperProfile(data);
+        const rawBody = await response.text();
+        let parsedBody: unknown = null;
+        if (rawBody.trim()) {
+          try {
+            parsedBody = JSON.parse(rawBody);
+          } catch {
+            parsedBody = rawBody;
+          }
         }
-      } catch {
-        // Non-blocking
+        console.info("[HomeworkFlow] completion POST result", {
+          session_id: params.sessionId,
+          endpoint,
+          stage_score_present: stageScorePresent,
+          status: response.status,
+          attempt,
+        });
+        return { ok: response.ok, status: response.status, parsedBody };
+      };
+
+      try {
+        let result = await postCompletion(1);
+        if (!result.ok) {
+          console.error("[HomeworkFlow] completion POST failed", {
+            session_id: params.sessionId,
+            endpoint,
+            status: result.status,
+            response_body: result.parsedBody,
+          });
+          toast.warning("We couldn't save session metrics right away. Retrying once...");
+          result = await postCompletion(2);
+          if (!result.ok) {
+            console.error("[HomeworkFlow] completion POST retry failed", {
+              session_id: params.sessionId,
+              endpoint,
+              status: result.status,
+              response_body: result.parsedBody,
+            });
+            toast.warning("Session metrics may be delayed. Your lesson will continue.");
+            return;
+          }
+        }
+        completionPostedSessionsRef.current.add(params.sessionId);
+        if (
+          result.parsedBody &&
+          typeof result.parsedBody === "object" &&
+          "user_id" in (result.parsedBody as Record<string, unknown>)
+        ) {
+          setSniperProfile(result.parsedBody as UserSniperProfile);
+        }
+      } catch (e) {
+        console.error("[HomeworkFlow] completion POST error", {
+          session_id: params.sessionId,
+          endpoint,
+          error: e instanceof Error ? e.message : e,
+        });
+        toast.warning("Session metrics couldn't be saved yet. Your lesson will continue.");
       }
     },
     []
