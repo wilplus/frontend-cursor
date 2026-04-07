@@ -29,12 +29,12 @@ import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 // Utility imports (previously inlined)
 import {
   DEFAULT_TASK_PROMPT,
-  normalizePercentScore,
   resolveTaskText,
 } from "@/lib/api/homework-utils";
 import {
   isNoWarmupError,
   isInvalidSessionStateError,
+  isRecordingProcessingFailedError,
   isReportNotReadyError,
   isSessionGoneError,
 } from "@/lib/api/homework-errors";
@@ -101,6 +101,7 @@ export default function HomeworkFlowCard() {
   const localTranscriptRef = useRef("");
   const [reportNotReady, setReportNotReady] = useState(false);
   const [reportRetryCount, setReportRetryCount] = useState(0);
+  const reportNotReadyBackoffAttemptRef = useRef(0);
   /** Bumped when entering step 3 or changing session there so GET /report refetches (avoids stale sessionStorage / first response). */
   const [reportMountNonce, setReportMountNonce] = useState(0);
   const prevStepForReportNonceRef = useRef<Step>(0);
@@ -930,6 +931,7 @@ export default function HomeworkFlowCard() {
         setSniperProfile((prev) => getSniperProfileFromReport(data, prev) ?? prev);
         setReportError(null);
         setReportNotReady(false);
+        reportNotReadyBackoffAttemptRef.current = 0;
         setPendingRetrySelfRating(null);
         hasSetPendingRetryFrom409Ref.current = false;
         const deadlineIso = (data as { tutor_feedback_deadline?: string | null }).tutor_feedback_deadline;
@@ -944,8 +946,7 @@ export default function HomeworkFlowCard() {
           startOverFromScratch();
           return;
         }
-        const is404 = (e as HomeworkApiError).status === 404;
-        if (isReportNotReadyError(e) || is404) {
+        if (isReportNotReadyError(e)) {
           setReportNotReady(true);
           setReportError(null);
           setReportData(null);
@@ -972,103 +973,16 @@ export default function HomeworkFlowCard() {
       .catch(() => {});
   }, [step, loadingLottieData]);
 
-  /**
-   * Poll GET /report after the initial load until coach_insight is ready and/or score_for_display
-   * matches on two consecutive polls (backend may update the score after the first 200).
-   */
-  useEffect(() => {
-    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
-
-    let cancelled = false;
-    let attempts = 0;
-    // 45 attempts × 4 s = 3 minutes — gives backend enough time to score + transcribe
-    const maxAttempts = 45;
-    const intervalMs = 4000;
-    let prevNormalized: number | null | undefined = undefined;
-    let sameScoreStreak = 0;
-
-    const id = setInterval(() => {
-      if (cancelled) return;
-      if (attempts >= maxAttempts) {
-        clearInterval(id);
-        return;
-      }
-      attempts += 1;
-      homeworkApi
-        .getReport(sessionId)
-        .then((data) => {
-          if (cancelled) return;
-          setReportData(data);
-          setSniperProfile((prev) => getSniperProfileFromReport(data, prev) ?? prev);
-          const insightReady = (data.coach_insight ?? "").trim().length > 0;
-          const transcriptReady = !!(
-            data.recording?.transcription_text ||
-            data.transcription_text ||
-            data.transcript ||
-            ""
-          ).trim();
-          const n = normalizePercentScore(data.score_for_display);
-          const scorePositive = n != null && n > 0;
-          if (prevNormalized === undefined) {
-            prevNormalized = n;
-          } else if (n === prevNormalized && n !== null && n > 0) {
-            sameScoreStreak += 1;
-          } else {
-            prevNormalized = n;
-            sameScoreStreak = 0;
-          }
-          const scoreStable = sameScoreStreak >= 1;
-          const minPollsBeforeScoreOnlyStop = 4;
-          // Stop when score + insight both ready, or score stable after min polls.
-          // Transcript arrival is not required to stop — it may take longer.
-          if ((insightReady && scorePositive) || attempts >= maxAttempts) {
-            clearInterval(id);
-          } else if (scoreStable && scorePositive && attempts >= minPollsBeforeScoreOnlyStop) {
-            clearInterval(id);
-          }
-        })
-        .catch(() => {});
-    }, intervalMs);
-
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [sessionId, step, reportMountNonce]);
-
-  // Slow transcript poll: keep fetching every 8 s for up to 4 min after step 3 mounts,
-  // stopping only once transcript text arrives (score loop may have already stopped).
-  useEffect(() => {
-    if (step !== 3 || !sessionId || sessionId === "mock-session") return;
-    let cancelled = false;
-    let tAttempts = 0;
-    const tMax = 30; // 30 × 8 s = 4 min
-    const id = setInterval(() => {
-      if (cancelled || tAttempts >= tMax) { clearInterval(id); return; }
-      tAttempts += 1;
-      homeworkApi
-        .getReport(sessionId)
-        .then((data) => {
-          if (cancelled) return;
-          const hasTranscript = !!(
-            data.recording?.transcription_text ||
-            data.transcription_text ||
-            data.transcript ||
-            ""
-          ).trim();
-          setReportData(data);
-          if (hasTranscript) clearInterval(id);
-        })
-        .catch(() => {});
-    }, 8000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [sessionId, step, reportMountNonce]);
-
   // When report is still being generated, poll automatically.
   useEffect(() => {
-    if (!reportNotReady || !sessionId || sessionId === "mock-session") return;
-    const intervalMs = 5000;
-    const id = setInterval(async () => {
+    if (!reportNotReady || !sessionId || sessionId === "mock-session") {
+      reportNotReadyBackoffAttemptRef.current = 0;
+      return;
+    }
+    const nextAttempt = reportNotReadyBackoffAttemptRef.current + 1;
+    const delayMs = Math.min(nextAttempt, 5) * 1000;
+    const id = setTimeout(async () => {
+      reportNotReadyBackoffAttemptRef.current = nextAttempt;
       setReportRetryCount((c) => c + 1);
       try {
         const statusRes = await homeworkApi.getStatus();
@@ -1083,9 +997,9 @@ export default function HomeworkFlowCard() {
       } catch {
         // ignore transient status errors while polling
       }
-    }, intervalMs);
-    return () => clearInterval(id);
-  }, [reportNotReady, sessionId]);
+    }, delayMs);
+    return () => clearTimeout(id);
+  }, [reportNotReady, sessionId, reportRetryCount]);
 
   useEffect(() => {
     if (step !== 2 || !sessionId || sessionId === "mock-session") return;
@@ -1359,6 +1273,11 @@ export default function HomeworkFlowCard() {
         setPendingRetrySelfRating({ sessionId, rating: n });
       }
     } catch (e) {
+      if (isRecordingProcessingFailedError(e)) {
+        setRecordingProcessingFailed(true);
+        toast.error("We couldn't process this recording. Please record again.");
+        return;
+      }
       // Self-rating is optional — any backend error that isn't a hard auth/not-found failure
       // should just queue a retry and move forward so the user is never blocked here.
       const err = e as { status?: number; code?: string };
@@ -1392,6 +1311,11 @@ export default function HomeworkFlowCard() {
         setPendingRetrySelfRating({ sessionId, skipped: true });
       }
     } catch (e) {
+      if (isRecordingProcessingFailedError(e)) {
+        setRecordingProcessingFailed(true);
+        toast.error("We couldn't process this recording. Please record again.");
+        return;
+      }
       const err = e as { status?: number; code?: string };
       const isHardFailure = err.status === 401 || err.status === 403 || err.status === 404;
       if (!isHardFailure) {

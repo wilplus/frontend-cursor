@@ -391,9 +391,9 @@ export interface ReportRecording {
 
 export interface HomeworkReportResponse {
   report_text: string;
-  scores: { warmup: number; final: number; overall: number };
+  scores?: { warmup?: number; final?: number; overall?: number };
   /** Canonical backend score for UI display (0–100). */
-  score_for_display?: number | null;
+  score_for_display?: number;
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: {

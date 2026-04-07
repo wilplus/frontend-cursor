@@ -32,9 +32,11 @@ async function getAuthFetchOptions(
 export type HomeworkApiError = Error & {
   code?: string;
   status?: number;
+  error?: string;
   backendStatus?: string;
   reason?: string;
   hint?: string;
+  recording_1_processing_error_code?: string;
   details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
 };
 
@@ -50,7 +52,7 @@ export type HomeworkRecordingUploadTarget = {
   upload_token?: string | null;
 };
 
-async function parseErrorBody(res: Response): Promise<{ message: string; code?: string; status?: string; reason?: string; hint?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
+async function parseErrorBody(res: Response): Promise<{ message: string; error?: string; code?: string; status?: string; reason?: string; hint?: string; recording_1_processing_error_code?: string; details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number } }> {
   try {
     const body = (await res.json()) as {
       error?: string;
@@ -59,6 +61,7 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
       status?: string;
       reason?: string;
       hint?: string;
+      recording_1_processing_error_code?: string;
       details?: { duration_seconds?: number; min_seconds?: number; max_seconds?: number };
     };
     let message =
@@ -67,6 +70,8 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
     const status = body.status;
     const reason = body.reason;
     const hint = body.hint;
+    const error = body.error;
+    const recording_1_processing_error_code = body.recording_1_processing_error_code;
     if (res.status === 422 && code === "RECORDING_DURATION_OUT_OF_RANGE" && body.details) {
       const d = body.details;
       const minMin = d.min_seconds != null ? Math.ceil(d.min_seconds / 60) : 1;
@@ -74,7 +79,7 @@ async function parseErrorBody(res: Response): Promise<{ message: string; code?: 
       message = `Recording must be between ${minMin} and ${maxMin} minutes. You recorded ${d.duration_seconds != null ? `${Math.round(d.duration_seconds)}s` : "too short"}. Please try again.`;
     }
     if (hint && res.status === 409) message = `${message} ${hint}`;
-    return { message, code, status, reason, hint, details: body.details };
+    return { message, error, code, status, reason, hint, recording_1_processing_error_code, details: body.details };
   } catch {
     return { message: res.statusText || `Request failed ${res.status}` };
   }
@@ -93,7 +98,7 @@ async function safeParseJson<T>(res: Response): Promise<T> {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const { message, code, status, reason, hint, details } = await parseErrorBody(res);
+    const { message, error, code, status, reason, hint, recording_1_processing_error_code, details } = await parseErrorBody(res);
     if (res.status === 409 && typeof window !== "undefined") {
       console.warn("[HomeworkFlow] 409 from API", { message, code, status });
     }
@@ -103,14 +108,23 @@ async function handleResponse<T>(res: Response): Promise<T> {
       const err = new Error(useBackend ? message : fallback) as HomeworkApiError;
       if (code) err.code = code;
       err.status = 404;
+      if (error) err.error = error;
+      if (recording_1_processing_error_code) {
+        err.recording_1_processing_error_code = recording_1_processing_error_code;
+      }
       throw err;
     }
     const err = new Error(message) as HomeworkApiError;
+    err.status = res.status;
+    if (error) err.error = error;
     if (code) err.code = code;
     if (res.status === 409 && !err.code) err.code = "INVALID_SESSION_STATE";
     if (res.status === 409 && status) err.backendStatus = status;
     if (reason) err.reason = reason;
     if (hint) err.hint = hint;
+    if (recording_1_processing_error_code) {
+      err.recording_1_processing_error_code = recording_1_processing_error_code;
+    }
     if (details) err.details = details as HomeworkApiError["details"];
     throw err;
   }
@@ -545,4 +559,11 @@ export interface SelfRatingResponse {
   skipped?: true;
   /** When backend transitions to final_task_ready, the final task prompt for recording 2. */
   final_task?: string | null;
+}
+
+/** Error payload from POST .../self-rating when recording processing fails. */
+export interface SelfRatingProcessingFailedPayload {
+  code: "RECORDING_PROCESSING_FAILED";
+  error?: string;
+  recording_1_processing_error_code?: string;
 }

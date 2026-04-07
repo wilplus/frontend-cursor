@@ -11,6 +11,13 @@ type AdminFetchOptions = {
   headers?: HeadersInit;
 };
 
+export type AdminApiError = Error & {
+  status?: number;
+  code?: string;
+  error?: string;
+  recording_1_processing_error_code?: string;
+};
+
 async function adminFetch<T>(
   path: string,
   options: AdminFetchOptions = {}
@@ -37,10 +44,18 @@ async function adminFetch<T>(
       message?: string;
       code?: string;
       details?: string;
+      recording_1_processing_error_code?: string;
     };
     const msg =
       err.error || err.message || err.code || err.details || `HTTP ${res.status} for ${path}`;
-    throw new Error(msg);
+    const apiError = new Error(msg) as AdminApiError;
+    apiError.status = res.status;
+    if (err.code) apiError.code = err.code;
+    if (err.error) apiError.error = err.error;
+    if (err.recording_1_processing_error_code) {
+      apiError.recording_1_processing_error_code = err.recording_1_processing_error_code;
+    }
+    throw apiError;
   }
   return res.json() as Promise<T>;
 }
@@ -249,7 +264,8 @@ export interface AdminReportRecording {
 /** Full report for a completed session (admin modal). Aligns with homework report; extra fields optional. */
 export interface AdminSessionReportResponse {
   report_text: string;
-  scores: { warmup: number; final: number; overall: number };
+  scores?: { warmup?: number; final?: number; overall?: number };
+  score_for_display?: number;
   final_recording: { id: string | null; audio_url: string | null };
   recording?: AdminReportRecording | null;
   transcript?: string | null;

@@ -262,14 +262,19 @@ export default function ReportDetailModal({
   const strength = (report?.strength_metric ?? "").trim();
   const pace = (report?.pace_metric ?? "").trim();
   const coachInsight = (report?.coach_insight ?? "").trim();
-  const scores = report?.scores;
-  const rawScore = (report as { score?: number | null; performance_score_1?: number | null } | null)?.score
-    ?? (report as { performance_score_1?: number | null } | null)?.performance_score_1;
-  const currentPerformanceScore1 =
-    typeof rawScore === "number"
-      ? Math.round(rawScore <= 1 ? rawScore * 100 : rawScore)
-      : undefined;
-  const performanceResult = currentPerformanceScore1 ?? scores?.overall ?? null;
+  const performanceResult =
+    (typeof report?.score_for_display === "number"
+      ? Math.round(
+        report.score_for_display <= 1
+          ? report.score_for_display * 100
+          : report.score_for_display
+      )
+      : null) ??
+    (typeof report?.scores?.overall === "number"
+      ? Math.round(
+        report.scores.overall <= 1 ? report.scores.overall * 100 : report.scores.overall
+      )
+      : null);
   const wordsPerMinute = resolveAdminReportWpm(report as Record<string, unknown> | null | undefined);
   const dateLabel = session?.created_at
     ? new Date(session.created_at).toLocaleDateString(undefined, {
@@ -344,6 +349,12 @@ export default function ReportDetailModal({
                   : performanceResult != null
                     ? [{ sessionLabel: "S1", date: session?.created_at ?? new Date().toISOString(), score: Math.round(performanceResult) }]
                     : [];
+                if (chartData.length > 0 && performanceResult != null) {
+                  chartData[chartData.length - 1] = {
+                    ...chartData[chartData.length - 1],
+                    score: Math.round(performanceResult),
+                  };
+                }
                 return chartData.length > 0 ? <ProgressOverSessionsChart data={chartData} /> : null;
               })()}
 
