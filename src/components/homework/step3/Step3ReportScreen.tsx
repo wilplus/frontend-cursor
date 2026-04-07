@@ -80,18 +80,7 @@ export default function Step3ReportScreen({
   const waitingForFullReport =
     reportNotReady || reportProcessingIncomplete || (reportData == null && reportError == null);
 
-  // Only use backend scores when overall > 0 — skip the 0-filled placeholder object
-  const displayScores =
-    (reportData?.scores && reportData.scores.overall > 0
-      ? reportData.scores
-      : null) ??
-    (performanceScoreEnd != null && performanceScoreEnd > 0
-      ? { warmup: undefined, final: undefined, overall: Math.round(performanceScoreEnd * 100) }
-      : sniperSnapshot != null
-        ? { warmup: undefined, final: undefined, overall: Math.round(sniperSnapshot.performanceScore) }
-        : undefined);
-
-  // Treat 0 as null so the fallback chain (sniperSnapshot) is used instead of showing 0%
+  // Treat 0 as null so the fallback chain is used instead of showing 0%
   const canonicalFinalScore = scoreReady ? canonicalOverall : null;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
 
@@ -119,29 +108,26 @@ export default function Step3ReportScreen({
     ? lastFiveHistory[lastFiveHistory.length - 1].score
     : null;
 
-  const provisionalChartData =
-    chartFromHistory.length > 0
-      ? chartFromHistory
-      : currentPerformanceScore1 != null
-        ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: currentPerformanceScore1 }]
-        : displayScores?.overall != null
-          ? [{ sessionLabel: "S1", date: new Date().toISOString(), score: displayScores.overall }]
-          : [];
-
+  // Chart: only render once we have backend-confirmed history or a final score.
+  // Never show a provisional sniperSnapshot point — it causes jarring jumps.
   const progressChartData = (() => {
-    if (waitingForFullReport || canonicalFinalScore == null) return provisionalChartData;
-    if (chartFromHistory.length > 0) {
+    if (chartFromHistory.length === 0 && canonicalFinalScore == null) return [];
+    if (canonicalFinalScore != null && chartFromHistory.length > 0) {
       const updated = [...chartFromHistory];
       const last = updated[updated.length - 1];
       if (last) updated[updated.length - 1] = { ...last, score: canonicalFinalScore };
       return updated;
     }
-    return [{ sessionLabel: "S1", date: new Date().toISOString(), score: canonicalFinalScore }];
+    if (canonicalFinalScore != null) {
+      return [{ sessionLabel: "S1", date: new Date().toISOString(), score: canonicalFinalScore }];
+    }
+    return chartFromHistory; // history already has real backend scores
   })();
 
-  const initialPerformanceResult = currentPerformanceScore1 ?? historyScore ?? displayScores?.overall;
-  const finalPerformanceResult = canonicalFinalScore ?? currentPerformanceScore1 ?? historyScore ?? displayScores?.overall;
-  const performanceResult = waitingForFullReport ? initialPerformanceResult : finalPerformanceResult;
+  // Only show a score number once we have a backend-computed value.
+  // sniperSnapshot is an unreliable real-time estimate — never show it as a headline number.
+  const confirmedScore = canonicalFinalScore ?? currentPerformanceScore1 ?? historyScore ?? null;
+  const scoreAnalyzing = confirmedScore == null;
 
   const playbackUrl =
     reportData?.final_recording?.audio_url ??
@@ -201,17 +187,6 @@ export default function Step3ReportScreen({
     <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">
       <h3 className="text-center text-xl font-semibold">Your report</h3>
       <CoachMessageBanner message={coachMessage} />
-      {waitingForFullReport && performanceResult != null ? (
-        <div className="flex justify-center -mt-1">
-          {loadingLottieData ? (
-            <div className="w-10 h-10 opacity-70">
-              <Lottie animationData={loadingLottieData} loop />
-            </div>
-          ) : (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
-          )}
-        </div>
-      ) : null}
       <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
         {reportError != null && reportData == null ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 space-y-3">
@@ -227,12 +202,28 @@ export default function Step3ReportScreen({
           </div>
         ) : null}
 
-        {performanceResult != null ? (
-          <p className="text-sm text-muted-foreground text-center">
-            {waitingForFullReport ? "Initial performance score" : "Final performance score"}:{" "}
-            <span className="font-semibold text-foreground">{performanceResult}%</span>
-          </p>
-        ) : null}
+        {/* Score headline — show spinner until backend confirms a number */}
+        <div className="text-center">
+          {scoreAnalyzing ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {loadingLottieData ? (
+                  <div className="w-5 h-5 opacity-70">
+                    <Lottie animationData={loadingLottieData} loop />
+                  </div>
+                ) : (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
+                )}
+                <span>Analyzing performance…</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Performance score:{" "}
+              <span className="font-semibold text-foreground">{confirmedScore}%</span>
+            </p>
+          )}
+        </div>
 
         {progressChartData.length > 0 && (
           <ProgressOverSessionsChart data={progressChartData} />
