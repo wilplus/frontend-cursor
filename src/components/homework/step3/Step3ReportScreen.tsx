@@ -173,9 +173,18 @@ export default function Step3ReportScreen({
       <h3 className="text-center text-xl font-semibold">Your report</h3>
       <CoachMessageBanner message={coachMessage} />
       <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-        {reportNotReady ? (
+        {waitingForFullReport ? (
           <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <p className="text-sm text-muted-foreground">Your report is still being prepared…</p>
+            <div className="flex min-h-[72px] items-center justify-center gap-3">
+              <div className="h-8 w-8 opacity-80">
+                {loadingLottieData ? (
+                  <Lottie animationData={loadingLottieData} loop />
+                ) : (
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">Your report is still being prepared…</p>
+            </div>
           </div>
         ) : null}
         {reportError != null && reportData == null ? (
@@ -193,7 +202,7 @@ export default function Step3ReportScreen({
         ) : null}
 
         {/* Score headline — show spinner until backend confirms a number */}
-        <div className="text-center">
+        <div className="min-h-[32px] text-center">
           {scoreAnalyzing ? (
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
