@@ -103,11 +103,12 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
         labeled_by: trimmedReviewer,
       });
       setSessionReviewed((previous) => previous + 1);
+      const reviewLabel: RecentReview["label"] = hasTremor ? "Tremor" : "No Tremor";
       setRecentReviews((previous) => [
         {
           clipId: currentClip.clip_id,
           speaker: getSpeakerLabel(currentClip),
-          label: hasTremor ? "Tremor" : "No Tremor",
+          label: reviewLabel,
         },
         ...previous,
       ].slice(0, 8));
