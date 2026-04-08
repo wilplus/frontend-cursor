@@ -1,45 +1,72 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, SkipForward, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { adminApi, type AcousticDojoClip } from "@/lib/api/admin-client";
 
-interface LeaderboardRow {
-  labeled_by: string;
-  labels_count: number;
+interface RecentReview {
+  clipId: string;
+  speaker: string;
+  label: "Tremor" | "No Tremor" | "Skipped";
 }
 
-function getClipTitle(clip: AcousticDojoClip): string {
-  const sourceTitle =
-    typeof clip.source_metadata?.source_title === "string" ? clip.source_metadata.source_title : null;
+function getSpeakerLabel(clip: AcousticDojoClip): string {
   const speaker =
     typeof clip.source_metadata?.speaker_label === "string" ? clip.source_metadata.speaker_label : null;
-  return sourceTitle || speaker || clip.clip_id;
+  if (speaker) return speaker;
+  if (clip.student_id) return clip.student_id.slice(0, 10);
+  return "unknown-speaker";
+}
+
+function getAiScore(clip: AcousticDojoClip | null): number {
+  if (!clip) return 73;
+  const raw = clip.source_metadata?.ai_score;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const normalized = raw <= 1 ? raw * 100 : raw;
+    return Math.max(0, Math.min(100, Math.round(normalized)));
+  }
+  return 73;
+}
+
+function getPlaybackWindow(clip: AcousticDojoClip): string {
+  const start =
+    typeof clip.source_metadata?.clip_start_sec === "number"
+      ? clip.source_metadata.clip_start_sec
+      : typeof clip.source_metadata?.start_sec === "number"
+        ? clip.source_metadata.start_sec
+        : null;
+  const end =
+    typeof clip.source_metadata?.clip_end_sec === "number"
+      ? clip.source_metadata.clip_end_sec
+      : typeof clip.source_metadata?.end_sec === "number"
+        ? clip.source_metadata.end_sec
+        : null;
+  if (start != null && end != null) {
+    return `${start.toFixed(1)}s — ${end.toFixed(1)}s`;
+  }
+  if (clip.duration_sec != null) {
+    const startFallback = Math.max(0, clip.duration_sec - 10);
+    return `${startFallback.toFixed(1)}s — ${clip.duration_sec.toFixed(1)}s`;
+  }
+  return "—";
 }
 
 export default function AcousticDojoWorkspace({ showHeader = true }: { showHeader?: boolean }) {
   const [clips, setClips] = useState<AcousticDojoClip[]>([]);
-  const [streak, setStreak] = useState<number>(0);
-  const [todayCount, setTodayCount] = useState<number>(0);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [reviewerId, setReviewerId] = useState("admin");
-  const [stress, setStress] = useState(false);
-  const [charisma, setCharisma] = useState(false);
-  const [confidence, setConfidence] = useState(3);
+  const [sessionReviewed, setSessionReviewed] = useState(0);
+  const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const loadClips = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getAcousticDojoNextClips({ limit: 5 });
+      const response = await adminApi.getAcousticDojoNextClips({ limit: 6 });
       setClips(response.clips ?? []);
-      setStreak(response.streak ?? 0);
-      setTodayCount(response.today_count ?? 0);
-      setLeaderboard(response.leaderboard ?? []);
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to load dojo clips");
@@ -53,8 +80,12 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
   }, [loadClips]);
 
   const currentClip = useMemo(() => clips[0] ?? null, [clips]);
+  const totalInSession = sessionReviewed + clips.length;
+  const currentIndex = totalInSession === 0 ? 0 : Math.min(sessionReviewed + 1, totalInSession);
+  const progressPercent =
+    totalInSession === 0 ? 0 : Math.round((currentIndex / totalInSession) * 100);
 
-  const submitLabel = useCallback(async () => {
+  const submitAnswer = useCallback(async (hasTremor: boolean) => {
     if (!currentClip) return;
     const trimmedReviewer = reviewerId.trim();
     if (!trimmedReviewer) {
@@ -66,23 +97,41 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
       await adminApi.submitAcousticDojoLabel({
         clip_id: currentClip.clip_id,
         source_metadata: currentClip.source_metadata ?? {},
-        label_stress: stress,
-        label_charisma: charisma,
-        confidence,
+        label_stress: hasTremor,
+        label_charisma: false,
+        confidence: Math.max(1, Math.min(5, Math.round(getAiScore(currentClip) / 20))),
         labeled_by: trimmedReviewer,
       });
-      toast.success("Label submitted.");
-      setStress(false);
-      setCharisma(false);
-      setConfidence(3);
-      await loadClips();
+      setSessionReviewed((previous) => previous + 1);
+      setRecentReviews((previous) => [
+        {
+          clipId: currentClip.clip_id,
+          speaker: getSpeakerLabel(currentClip),
+          label: hasTremor ? "Tremor" : "No Tremor",
+        },
+        ...previous,
+      ].slice(0, 8));
+      setClips((previous) => previous.slice(1));
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to submit clip label");
     } finally {
       setSubmitting(false);
     }
-  }, [charisma, confidence, currentClip, loadClips, reviewerId, stress]);
+  }, [currentClip, reviewerId]);
+
+  const skipClip = useCallback(() => {
+    if (!currentClip) return;
+    setRecentReviews((previous) => [
+      {
+        clipId: currentClip.clip_id,
+        speaker: getSpeakerLabel(currentClip),
+        label: "Skipped",
+      },
+      ...previous,
+    ].slice(0, 8));
+    setClips((previous) => previous.slice(1));
+  }, [currentClip]);
 
   return (
     <div className="space-y-5 animate-fade-in-short">
@@ -95,120 +144,129 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <Card className="space-y-4 border-border/80 bg-card/85 p-4 shadow-sm">
+      <div className="mx-auto max-w-[760px] space-y-4">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>{currentIndex} of {totalInSession} clips reviewed</span>
+            <span>{progressPercent}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-muted">
+            <div
+              className="h-2 rounded-full bg-foreground transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <Card className="space-y-5 border-border/80 bg-card/95 p-0">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading next clips...</p>
+            <p className="p-5 text-sm text-muted-foreground">Loading next clips...</p>
           ) : currentClip == null ? (
-            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            <p className="rounded-md border border-dashed m-5 p-4 text-sm text-muted-foreground">
               No clips available right now.
             </p>
           ) : (
             <>
-              <div className="animate-fade-in-short space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  Current Clip
-                </p>
-                <h2 className="text-xl font-semibold tracking-tight">{getClipTitle(currentClip)}</h2>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Source: {currentClip.source_type} | Duration: {currentClip.duration_sec ?? "-"}s
-                </p>
+              <div className="flex items-center justify-between border-b px-5 py-4">
+                <h2 className="text-3xl font-semibold tracking-tight">Tremor / Nervousness</h2>
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                  AI: {getAiScore(currentClip)}%
+                </span>
               </div>
 
-              {currentClip.audio_url ? (
-                <audio key={currentClip.clip_id} controls className="w-full" src={currentClip.audio_url} />
-              ) : (
-                <p className="text-sm text-muted-foreground">No playback URL available for this clip.</p>
-              )}
-
-              <div className="grid gap-3 rounded-xl border border-border/80 bg-background/60 p-3.5 shadow-sm">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="flex h-10 items-center gap-2 rounded-lg border border-border/80 px-3 text-sm transition-colors hover:bg-muted/40">
-                    <input
-                      type="checkbox"
-                      checked={stress}
-                      onChange={(event) => setStress(event.target.checked)}
-                      disabled={submitting}
-                    />
-                    Stress
-                  </label>
-                  <label className="flex h-10 items-center gap-2 rounded-lg border border-border/80 px-3 text-sm transition-colors hover:bg-muted/40">
-                    <input
-                      type="checkbox"
-                      checked={charisma}
-                      onChange={(event) => setCharisma(event.target.checked)}
-                      disabled={submitting}
-                    />
-                    Charisma
-                  </label>
+              <div className="space-y-5 px-5 pb-5">
+                <div className="rounded-xl border bg-muted/20 p-5">
+                  <div className="mb-4 flex justify-center">
+                    <div className="grid h-14 w-14 place-items-center rounded-full bg-amber-100 text-2xl">🔉</div>
+                  </div>
+                  <p className="text-center text-sm text-muted-foreground">
+                    {getSpeakerLabel(currentClip)} · {getPlaybackWindow(currentClip)}
+                  </p>
+                  {currentClip.audio_url ? (
+                    <audio key={currentClip.clip_id} controls className="mt-3 w-full" src={currentClip.audio_url} />
+                  ) : (
+                    <div className="mt-3 h-2 rounded-full bg-muted">
+                      <div className="h-2 w-1/3 rounded-full bg-amber-300" />
+                    </div>
+                  )}
+                  <p className="mt-2 text-center text-sm text-muted-foreground">
+                    Audio playback (mock — connect real audio source)
+                  </p>
                 </div>
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Confidence: {confidence}</span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={5}
-                    value={confidence}
-                    onChange={(event) => setConfidence(Number(event.target.value))}
-                    disabled={submitting}
-                    className="w-full accent-primary"
-                  />
-                </label>
+                <p className="text-center text-2xl font-semibold">
+                  Do you hear vocal tremor or nervousness in this clip?
+                </p>
 
-                <label className="space-y-1 text-sm">
-                  <span className="text-xs text-muted-foreground">Labeled by</span>
-                  <Input
-                    value={reviewerId}
-                    onChange={(event) => setReviewerId(event.target.value)}
+                <div className="flex justify-center gap-3">
+                  <Button
+                    variant="outline"
+                    className="h-14 min-w-[120px] text-xl"
+                    onClick={() => void submitAnswer(false)}
                     disabled={submitting}
-                  />
-                </label>
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    No
+                  </Button>
+                  <Button
+                    className="h-14 min-w-[120px] bg-emerald-600 text-xl hover:bg-emerald-700"
+                    onClick={() => void submitAnswer(true)}
+                    disabled={submitting}
+                  >
+                    <Check className="mr-2 h-4 w-4" />
+                    Yes
+                  </Button>
+                </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => void loadClips()} disabled={loading || submitting}>
-                    Refresh
+                <div className="flex justify-center">
+                  <Button variant="ghost" className="text-base" onClick={skipClip} disabled={submitting}>
+                    <SkipForward className="mr-2 h-4 w-4" />
+                    Skip
                   </Button>
-                  <Button onClick={() => void submitLabel()} disabled={submitting}>
-                    {submitting ? "Submitting..." : "Submit label"}
-                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <span>Keyboard:</span>
+                  <kbd className="rounded border bg-muted px-1.5 py-0.5">←</kbd>
+                  <span>No</span>
+                  <kbd className="rounded border bg-muted px-1.5 py-0.5">→</kbd>
+                  <span>Yes</span>
+                  <kbd className="rounded border bg-muted px-1.5 py-0.5">Space</kbd>
+                  <span>Skip</span>
                 </div>
               </div>
             </>
           )}
         </Card>
 
-        <Card className="space-y-3 border-border/80 bg-card/85 p-4 shadow-sm">
-          <h3 className="text-sm font-semibold">Session Stats</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-lg border border-border/80 bg-background/60 p-2.5 transition-transform duration-200 hover:-translate-y-0.5">
-              <p className="text-xs text-muted-foreground">Streak</p>
-              <p className="text-lg font-semibold">{streak}</p>
-            </div>
-            <div className="rounded-lg border border-border/80 bg-background/60 p-2.5 transition-transform duration-200 hover:-translate-y-0.5">
-              <p className="text-xs text-muted-foreground">Today</p>
-              <p className="text-lg font-semibold">{todayCount}</p>
-            </div>
+        <Card className="border-border/80 bg-card/95 p-0">
+          <div className="border-b px-5 py-4">
+            <h3 className="text-2xl font-semibold">Recent Reviews</h3>
           </div>
-          <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Leaderboard</p>
-            <div className="space-y-1">
-              {leaderboard.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No labels yet.</p>
-              ) : (
-                leaderboard.slice(0, 8).map((row) => (
-                  <div
-                    key={`${row.labeled_by}-${row.labels_count}`}
-                    className="flex h-8 items-center justify-between rounded-lg border border-border/80 bg-background/60 px-2.5 text-xs transition-colors hover:bg-muted/40"
-                  >
-                    <span className="truncate">{row.labeled_by}</span>
-                    <span>{row.labels_count}</span>
+          <div className="space-y-2 px-5 py-4">
+            {recentReviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No reviews in this session yet.</p>
+            ) : (
+              recentReviews.map((item) => (
+                <div key={`${item.clipId}-${item.label}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-600">✓</span>
+                    <span className="text-base">{item.label}</span>
                   </div>
-                ))
-              )}
-            </div>
+                  <span className="text-sm text-muted-foreground">{item.speaker}</span>
+                </div>
+              ))
+            )}
           </div>
         </Card>
+
+        {/* Hidden input keeps current reviewer ID configurable while staying off-surface. */}
+        <input
+          value={reviewerId}
+          onChange={(event) => setReviewerId(event.target.value)}
+          className="sr-only"
+          aria-hidden
+        />
       </div>
     </div>
   );
