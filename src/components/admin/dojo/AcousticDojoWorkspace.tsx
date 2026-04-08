@@ -123,12 +123,13 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
 
   const skipClip = useCallback(() => {
     if (!currentClip) return;
+    const skippedReview: RecentReview = {
+      clipId: currentClip.clip_id,
+      speaker: getSpeakerLabel(currentClip),
+      label: "Skipped",
+    };
     setRecentReviews((previous) => [
-      {
-        clipId: currentClip.clip_id,
-        speaker: getSpeakerLabel(currentClip),
-        label: "Skipped",
-      },
+      skippedReview,
       ...previous,
     ].slice(0, 8));
     setClips((previous) => previous.slice(1));
