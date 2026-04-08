@@ -213,8 +213,8 @@ export default function TrainingStudioWorkspace() {
       await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
         grade_draft: patch.grade_draft ?? selectedDraft?.grade_draft ?? null,
         comment_draft: patch.comment_draft ?? selectedDraft?.comment_draft ?? null,
-        task_draft: patch.task_draft ?? taskValue || null,
-        email_draft: patch.email_draft ?? messageValue || null,
+        task_draft: (patch.task_draft ?? taskValue) || null,
+        email_draft: (patch.email_draft ?? messageValue) || null,
         script_draft: patch.script_draft ?? selectedDraft?.script_draft ?? null,
       });
       toast.success("Saved.");
