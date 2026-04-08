@@ -10,13 +10,24 @@
 -- ============================================================================
 
 -- Add columns if missing (no inline CHECK so PostgREST sees the column first)
-alter table public.v2_warm_up_tasks
-  add column if not exists max_performance_score numeric(3,2) not null default 1.00;
+-- Tasks / pool: use tasks + tasks_pool after rename, or legacy v2_warm_up_* if not renamed yet.
+DO $mig$
+BEGIN
+  IF to_regclass('public.tasks') IS NOT NULL THEN
+    EXECUTE 'alter table public.tasks add column if not exists max_performance_score numeric(3,2) not null default 1.00';
+  ELSIF to_regclass('public.v2_warm_up_tasks') IS NOT NULL THEN
+    EXECUTE 'alter table public.v2_warm_up_tasks add column if not exists max_performance_score numeric(3,2) not null default 1.00';
+  END IF;
+
+  IF to_regclass('public.tasks_pool') IS NOT NULL THEN
+    EXECUTE 'alter table public.tasks_pool add column if not exists max_performance_score numeric(3,2) not null default 1.00';
+  ELSIF to_regclass('public.v2_warm_up_task_pool') IS NOT NULL THEN
+    EXECUTE 'alter table public.v2_warm_up_task_pool add column if not exists max_performance_score numeric(3,2) not null default 1.00';
+  END IF;
+END
+$mig$;
 
 alter table public.v2_focus_tasks
-  add column if not exists max_performance_score numeric(3,2) not null default 1.00;
-
-alter table public.v2_warm_up_task_pool
   add column if not exists max_performance_score numeric(3,2) not null default 1.00;
 
 alter table public.v2_focus_task_pool
@@ -37,7 +48,7 @@ notify pgrst, 'reload schema';
 --   exists (
 --     select 1 from information_schema.columns
 --     where table_schema = 'public'
---       and table_name = 'v2_warm_up_tasks'
+--       and table_name in ('tasks', 'v2_warm_up_tasks')
 --       and column_name = 'max_performance_score'
 --   ) as has_column,
 --   (select current_database()) as db;
@@ -46,7 +57,7 @@ notify pgrst, 'reload schema';
 -- select column_name, data_type, column_default
 -- from information_schema.columns
 -- where table_schema = 'public'
---   and table_name = 'v2_warm_up_tasks'
+--   and table_name in ('tasks', 'v2_warm_up_tasks')
 --   and column_name = 'max_performance_score';
 --
 -- If has_column = true but API still returns PGRST204 → backend is using a
@@ -56,7 +67,8 @@ notify pgrst, 'reload schema';
 -- ============================================================================
 -- If column already existed as integer (ADD COLUMN IF NOT EXISTS did nothing)
 -- ============================================================================
--- alter table public.v2_warm_up_tasks
+-- alter table public.tasks
+-- -- or legacy: alter table public.v2_warm_up_tasks
 --   alter column max_performance_score type numeric(3,2)
 --     using (case when max_performance_score > 1 then max_performance_score / 10.0 else max_performance_score end),
 --   alter column max_performance_score set default 1.00;

@@ -15,9 +15,10 @@ export default function AdminShell({
 }) {
   const pathname = usePathname();
   const studentsActive = pathname?.startsWith("/admin/students");
-  const copilotActive = pathname?.startsWith("/admin/copilot-inbox");
-  const dojoActive = pathname?.startsWith("/admin/acoustic-dojo");
-  const mlActive = pathname?.startsWith("/admin/ml");
+  const trainingStudioActive =
+    pathname?.startsWith("/admin/training-studio") ||
+    pathname?.startsWith("/admin/copilot-inbox") ||
+    pathname?.startsWith("/admin/acoustic-dojo");
 
   return (
     <div className="min-h-screen bg-background admin-panel">
@@ -36,28 +37,12 @@ export default function AdminShell({
               Students
             </Link>
             <Link
-              href="/admin/copilot-inbox"
+              href="/admin/training-studio"
               className={`text-sm font-medium transition-colors ${
-                copilotActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                trainingStudioActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Copilot Inbox
-            </Link>
-            <Link
-              href="/admin/acoustic-dojo"
-              className={`text-sm font-medium transition-colors ${
-                dojoActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Acoustic Dojo
-            </Link>
-            <Link
-              href="/admin/ml"
-              className={`text-sm font-medium transition-colors ${
-                mlActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              ML
+              Training Studio
             </Link>
           </div>
           <div className="flex items-center gap-2">

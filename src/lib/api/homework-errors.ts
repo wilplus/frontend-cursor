@@ -4,7 +4,8 @@
  */
 import type { HomeworkApiError } from "@/lib/api/homework-client";
 
-export function isNoWarmupError(e: unknown): e is HomeworkApiError {
+/** Backend may still return code `NO_WARMUP_CONFIGURED` when no opening tasks exist. */
+export function isNoHomeworkTasksConfiguredError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "NO_WARMUP_CONFIGURED";
 }
 

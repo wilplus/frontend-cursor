@@ -20,8 +20,8 @@ import {
   type StudentProfile,
   type StudentSniperProgress,
   type PostQuestion,
-  type WarmUpTask,
-  type WarmUpPoolTask,
+  type StudentTask,
+  type TasksPoolItem,
   type FocusTask,
   type FocusTaskPoolItem,
   type Exercise,
@@ -166,8 +166,8 @@ function EditableListItem({
   );
 }
 
-// —— Edit/Create warm-up task modal: text + Max score (0–1); Save sends both. ——
-function WarmUpTaskEditModal({
+// —— Edit/Create student task modal (tasks / tasks_pool): text + Max score (0–1). ——
+function StudentTaskEditModal({
   open,
   onOpenChange,
   task,
@@ -176,7 +176,7 @@ function WarmUpTaskEditModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task: WarmUpTask | null;
+  task: StudentTask | null;
   onSave: (data: { text: string; max_performance_score: number }) => Promise<void>;
   saving: boolean;
 }) {
@@ -227,14 +227,14 @@ function WarmUpTaskEditModal({
       onClick={() => onOpenChange(false)}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="warm-up-edit-title"
+      aria-labelledby="student-task-edit-title"
     >
       <div
         className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-lg p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="warm-up-edit-title" className="text-lg font-semibold mb-4">
-          {task ? "Edit warm-up task" : "Add warm-up task"}
+        <h2 id="student-task-edit-title" className="text-lg font-semibold mb-4">
+          {task ? "Edit task" : "Add task"}
         </h2>
         <div className="space-y-4">
           <div>
@@ -426,7 +426,7 @@ function ExerciseEditModal({
 
 const POST_ANSWER_TYPES = ["text", "scale", "binary"] as const;
 
-// —— Create/Edit post-recording question (per-student): text + answer_type; same pattern as warm-up/focus. ——
+// —— Create/Edit post-recording question (per-student): text + answer_type; same pattern as tasks/focus. ——
 function PostQuestionEditModal({
   open,
   onOpenChange,
@@ -523,7 +523,7 @@ function PostQuestionEditModal({
   return overlay;
 }
 
-// —— Edit/Create focus task modal: text + Max score (0–1); same pattern as warm-up. ——
+// —— Edit/Create focus task modal: text + Max score (0–1); same pattern as student tasks. ——
 function FocusTaskEditModal({
   open,
   onOpenChange,
@@ -631,7 +631,7 @@ export default function AdminStudentProfilePage() {
   const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
   const [creditsValue, setCreditsValue] = useState("");
   const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
-  const [warmUpTasks, setWarmUpTasks] = useState<WarmUpTask[]>([]);
+  const [studentTasks, setStudentTasks] = useState<StudentTask[]>([]);
   const [userMetricQuestions, setUserMetricQuestions] = useState({
     metric_question_1: "",
     metric_question_2: "",
@@ -641,11 +641,11 @@ export default function AdminStudentProfilePage() {
   const [saving, setSaving] = useState(false);
   const [learningDataOpen, setLearningDataOpen] = useState(false);
 
-  const [modalWarmUp, setModalWarmUp] = useState(false);
-  const [warmUpPoolTasks, setWarmUpPoolTasks] = useState<WarmUpPoolTask[]>([]);
-  const [warmUpPoolLoading, setWarmUpPoolLoading] = useState(false);
-  const [warmUpEditOpen, setWarmUpEditOpen] = useState(false);
-  const [warmUpEditTask, setWarmUpEditTask] = useState<WarmUpTask | null>(null);
+  const [modalTasksPool, setModalTasksPool] = useState(false);
+  const [tasksPoolItems, setTasksPoolItems] = useState<TasksPoolItem[]>([]);
+  const [tasksPoolLoading, setTasksPoolLoading] = useState(false);
+  const [studentTaskEditOpen, setStudentTaskEditOpen] = useState(false);
+  const [studentTaskEdit, setStudentTaskEdit] = useState<StudentTask | null>(null);
   const [modalQuestions, setModalQuestions] = useState(false);
   const [postQuestionEditOpen, setPostQuestionEditOpen] = useState(false);
   const [postQuestionEdit, setPostQuestionEdit] = useState<PostQuestion | null>(null);
@@ -658,15 +658,15 @@ export default function AdminStudentProfilePage() {
   const [focusEditOpen, setFocusEditOpen] = useState(false);
   const [focusEditTask, setFocusEditTask] = useState<FocusTask | null>(null);
   const [focusTasks, setFocusTasks] = useState<FocusTask[]>([]);
-  const [warmUpTasksError, setWarmUpTasksError] = useState<string | null>(null);
+  const [studentTasksError, setStudentTasksError] = useState<string | null>(null);
   const [focusTasksError, setFocusTasksError] = useState<string | null>(null);
-  const [queuedWarmUpUpserts, setQueuedWarmUpUpserts] = useState<Array<{
+  const [queuedStudentTaskUpserts, setQueuedStudentTaskUpserts] = useState<Array<{
     id: string;
     text: string;
     max_performance_score: number;
     order_index: number;
   }>>([]);
-  const [queuedWarmUpDeletes, setQueuedWarmUpDeletes] = useState<string[]>([]);
+  const [queuedStudentTaskDeletes, setQueuedStudentTaskDeletes] = useState<string[]>([]);
   const [queuedFocusUpserts, setQueuedFocusUpserts] = useState<Array<{
     id: string;
     text: string;
@@ -689,7 +689,7 @@ export default function AdminStudentProfilePage() {
   const [queuedExerciseDeletes, setQueuedExerciseDeletes] = useState<string[]>([]);
 
   /** Pending list selections (not saved yet). Null = use server state. */
-  const [pendingWarmUpIds, setPendingWarmUpIds] = useState<string[] | null>(null);
+  const [pendingTasksPoolIds, setPendingTasksPoolIds] = useState<string[] | null>(null);
   const [pendingFocusIds, setPendingFocusIds] = useState<string[] | null>(null);
   const [pendingPostQuestionIds, setPendingPostQuestionIds] = useState<string[] | null>(null);
 
@@ -717,18 +717,48 @@ export default function AdminStudentProfilePage() {
   const [aiSuggestion, setAiSuggestion] = useState<CoachSuggestionResponse | null>(null);
   const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "assistant"; content: string; timestamp: string }>>([]);
   const [aiHistoryOpen, setAiHistoryOpen] = useState(false);
+  const loadVersionRef = useRef(0);
+  const tasksPoolCacheRef = useRef(false);
+  const focusPoolCacheRef = useRef(false);
 
   const load = useCallback(() => {
     if (!id) return;
+    const currentLoadVersion = ++loadVersionRef.current;
     setLoading(true);
     setStudentSniperProgress(null);
-    setWarmUpTasksError(null);
+    setStudentTasksError(null);
     setFocusTasksError(null);
     setPostRecordingQuestionsError(null);
-    // Load profile first; then load pool data (questions, warm-up tasks, metrics)
-    adminApi
-      .getStudentProfile(id)
-      .then((p) => {
+    // Load all sections in parallel so profile render does not block downstream data.
+    Promise.allSettled([
+      adminApi.getStudentProfile(id),
+      adminApi.getPostRecordingQuestionsPool(),
+      adminApi.getStudentTasks(id),
+      adminApi.getFocusTasks(id),
+      getUserMetricQuestions(),
+      adminApi.getStudentPostRecordingQuestions(id),
+      adminApi.getExercises(),
+      adminApi.getStudentSniperProgress(id),
+    ])
+      .then((results) => {
+        if (currentLoadVersion !== loadVersionRef.current) return;
+
+        const [
+          profileRes,
+          poolRes,
+          studentTasksRes,
+          focusRes,
+          userMetricsRes,
+          studentQuestionsRes,
+          exercisesRes,
+          sniperProgressRes,
+        ] = results;
+
+        if (profileRes.status !== "fulfilled") {
+          throw profileRes.reason;
+        }
+
+        const p = profileRes.value;
         setProfile(p);
         const profileSniperProgress = getStudentSniperProgressFromProfile(p);
         setStudentSniperProgress(profileSniperProgress);
@@ -752,9 +782,7 @@ export default function AdminStudentProfilePage() {
               : ""
         );
         const rawCredits = p.credits ?? null;
-        setCreditsValue(
-          rawCredits == null ? "" : String(rawCredits)
-        );
+        setCreditsValue(rawCredits == null ? "" : String(rawCredits));
         const ids = p.overrides?.assigned_exercise_ids;
         setAssignedExerciseIds(
           Array.isArray(ids) && ids.length > 0
@@ -772,41 +800,30 @@ export default function AdminStudentProfilePage() {
           sp.coach_notes,
         ].filter(Boolean);
         setContextDraft(parts.join("\n\n"));
-        setPendingWarmUpIds(null);
+        setPendingTasksPoolIds(null);
         setPendingFocusIds(null);
         setPendingPostQuestionIds(null);
-        setQueuedWarmUpUpserts([]);
-        setQueuedWarmUpDeletes([]);
+        setQueuedStudentTaskUpserts([]);
+        setQueuedStudentTaskDeletes([]);
         setQueuedFocusUpserts([]);
         setQueuedFocusDeletes([]);
         setQueuedPostQuestionUpserts([]);
         setQueuedPostQuestionDeletes([]);
         setQueuedExerciseUpserts([]);
         setQueuedExerciseDeletes([]);
-        return Promise.allSettled([
-          adminApi.getPostRecordingQuestionsPool(),
-          adminApi.getWarmUpTasks(id),
-          adminApi.getFocusTasks(id),
-          getUserMetricQuestions(),
-          adminApi.getStudentPostRecordingQuestions(id),
-          adminApi.getExercises(),
-          adminApi.getStudentSniperProgress(id),
-        ]).then((results) => ({ results, profileSniperProgress }));
-      })
-      .then((payload) => {
-        if (!payload) return;
-        const { results, profileSniperProgress } = payload;
-        const [poolRes, warmUpRes, focusRes, userMetricsRes, studentQuestionsRes] = results;
+
         if (poolRes.status === "fulfilled") setPostQuestions(poolRes.value);
         else toast.error(poolRes.reason?.message ?? "Could not load questions pool");
-        if (warmUpRes.status === "fulfilled") {
-          setWarmUpTasks(warmUpRes.value);
-          setWarmUpTasksError(null);
+
+        if (studentTasksRes.status === "fulfilled") {
+          setStudentTasks(studentTasksRes.value);
+          setStudentTasksError(null);
         } else {
-          const msg = warmUpRes.reason?.message ?? "Could not load warm-up tasks";
-          setWarmUpTasksError(msg);
+          const msg = studentTasksRes.reason?.message ?? "Could not load tasks";
+          setStudentTasksError(msg);
           toast.error(msg);
         }
+
         if (focusRes.status === "fulfilled") {
           setFocusTasks(focusRes.value);
           setFocusTasksError(null);
@@ -815,8 +832,10 @@ export default function AdminStudentProfilePage() {
           setFocusTasksError(msg);
           toast.error(msg);
         }
+
         if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
         else toast.error(userMetricsRes.reason?.message ?? "Could not load custom prompts");
+
         if (studentQuestionsRes.status === "fulfilled") {
           setPostRecordingQuestions(studentQuestionsRes.value);
           setPostRecordingQuestionsError(null);
@@ -825,10 +844,10 @@ export default function AdminStudentProfilePage() {
           setPostRecordingQuestionsError(msg);
           toast.error(msg);
         }
-        const exercisesRes = results[5];
-        if (exercisesRes?.status === "fulfilled") setExercises(exercisesRes.value);
-        const sniperProgressRes = results[6];
-        if (sniperProgressRes?.status === "fulfilled" && sniperProgressRes.value) {
+
+        if (exercisesRes.status === "fulfilled") setExercises(exercisesRes.value);
+
+        if (sniperProgressRes.status === "fulfilled" && sniperProgressRes.value) {
           setStudentSniperProgress(sniperProgressRes.value);
           setCurrentRealtimeLevel(
             sniperProgressRes.value.realtime_level != null ? String(sniperProgressRes.value.realtime_level) : ""
@@ -841,14 +860,22 @@ export default function AdminStudentProfilePage() {
         }
       })
       .catch((e) => {
+        if (currentLoadVersion !== loadVersionRef.current) return;
         toast.error(e.message);
         setProfile(null);
         setStudentSniperProgress(null);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (currentLoadVersion === loadVersionRef.current) setLoading(false);
+      });
   }, [id]);
 
   useEffect(() => load(), [load]);
+
+  useEffect(() => {
+    tasksPoolCacheRef.current = false;
+    focusPoolCacheRef.current = false;
+  }, [id]);
 
   // Load AI Coach suggestion history on mount
   useEffect(() => {
@@ -874,24 +901,32 @@ export default function AdminStudentProfilePage() {
     }
   };
 
-  // Load warm-up task pool when "Select Warm-up Tasks" modal opens
+  // Load tasks pool when the modal opens
   useEffect(() => {
-    if (!modalWarmUp || !id) return;
-    setWarmUpPoolLoading(true);
+    if (!modalTasksPool || !id) return;
+    if (tasksPoolCacheRef.current) return;
+    setTasksPoolLoading(true);
     adminApi
-      .getWarmUpTaskPool()
-      .then(setWarmUpPoolTasks)
+      .getTasksPool()
+      .then((items) => {
+        setTasksPoolItems(items);
+        tasksPoolCacheRef.current = true;
+      })
       .catch((e) => toast.error(e?.message ?? "Could not load pool"))
-      .finally(() => setWarmUpPoolLoading(false));
-  }, [modalWarmUp, id]);
+      .finally(() => setTasksPoolLoading(false));
+  }, [modalTasksPool, id]);
 
   // Load focus task pool when "Manage list" modal opens
   useEffect(() => {
     if (!modalFocus || !id) return;
+    if (focusPoolCacheRef.current) return;
     setFocusPoolLoading(true);
     adminApi
       .getFocusTaskPool()
-      .then(setFocusPoolTasks)
+      .then((items) => {
+        setFocusPoolTasks(items);
+        focusPoolCacheRef.current = true;
+      })
       .catch((e) => toast.error(e?.message ?? "Could not load pool"))
       .finally(() => setFocusPoolLoading(false));
   }, [modalFocus, id]);
@@ -944,21 +979,21 @@ export default function AdminStudentProfilePage() {
           });
         }
       }
-      for (const warmUpId of queuedWarmUpDeletes) {
-        await adminApi.deleteWarmUpTask(id, warmUpId);
+      for (const taskId of queuedStudentTaskDeletes) {
+        await adminApi.deleteStudentTask(id, taskId);
       }
-      for (const warmUp of queuedWarmUpUpserts) {
-        if (warmUp.id.startsWith("draft-")) {
-          await adminApi.createWarmUpPoolTaskAndAssign(id, {
-            text: warmUp.text,
-            order_index: warmUp.order_index,
-            max_performance_score: warmUp.max_performance_score,
+      for (const row of queuedStudentTaskUpserts) {
+        if (row.id.startsWith("draft-")) {
+          await adminApi.createTasksPoolItemAndAssign(id, {
+            text: row.text,
+            order_index: row.order_index,
+            max_performance_score: row.max_performance_score,
           });
         } else {
-          await adminApi.updateWarmUpTask(id, warmUp.id, {
-            text: warmUp.text,
-            order_index: warmUp.order_index,
-            max_performance_score: warmUp.max_performance_score,
+          await adminApi.updateStudentTask(id, row.id, {
+            text: row.text,
+            order_index: row.order_index,
+            max_performance_score: row.max_performance_score,
           });
         }
       }
@@ -1055,9 +1090,9 @@ export default function AdminStudentProfilePage() {
         assigned_exercise_ids: resolvedExerciseIds.length > 0 ? resolvedExerciseIds : null,
         assigned_next_exercise_id: resolvedExerciseIds[0] ?? null,
       });
-      if (pendingWarmUpIds !== null) {
-        await adminApi.putStudentWarmUpTasksSync(id, { pool_task_ids: pendingWarmUpIds });
-        setPendingWarmUpIds(null);
+      if (pendingTasksPoolIds !== null) {
+        await adminApi.putStudentTasksSync(id, { pool_task_ids: pendingTasksPoolIds });
+        setPendingTasksPoolIds(null);
       }
       if (pendingFocusIds !== null) {
         await adminApi.putStudentFocusTasksSync(id, { pool_task_ids: pendingFocusIds });
@@ -1067,14 +1102,16 @@ export default function AdminStudentProfilePage() {
         await adminApi.putStudentPostRecordingQuestionsSync(id, { pool_question_ids: pendingPostQuestionIds });
         setPendingPostQuestionIds(null);
       }
-      setQueuedWarmUpUpserts([]);
-      setQueuedWarmUpDeletes([]);
+      setQueuedStudentTaskUpserts([]);
+      setQueuedStudentTaskDeletes([]);
       setQueuedFocusUpserts([]);
       setQueuedFocusDeletes([]);
       setQueuedPostQuestionUpserts([]);
       setQueuedPostQuestionDeletes([]);
       setQueuedExerciseUpserts([]);
       setQueuedExerciseDeletes([]);
+      tasksPoolCacheRef.current = false;
+      focusPoolCacheRef.current = false;
       toast.success("All changes saved");
       load();
     } catch (e) {
@@ -1130,37 +1167,37 @@ export default function AdminStudentProfilePage() {
       .catch((e) => toast.error(e.message));
   };
 
-  // Warm-up (mirrors focus_tasks): pool + per-student list, Confirm = PUT sync pool_task_ids.
-  const warmUpPool: PoolItem[] = warmUpPoolTasks.map((p) => ({
+  // Tasks (mirrors focus_tasks): pool + per-student list; confirm = PUT sync pool_task_ids.
+  const tasksPoolModalItems: PoolItem[] = tasksPoolItems.map((p) => ({
     id: p.id,
     label: p.text,
     subLabel: p.max_performance_score != null ? `Max score: ${p.max_performance_score}` : undefined,
     labelHtml: true,
   }));
-  const warmUpSelectedIds: string[] = (() => {
-    const ordered = [...warmUpTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const tasksPoolSelectedIds: string[] = (() => {
+    const ordered = [...studentTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     return ordered
-      .map((t) => t.pool_task_id ?? warmUpPoolTasks.find((p) => p.text === t.text)?.id)
+      .map((t) => t.pool_task_id ?? tasksPoolItems.find((p) => p.text === t.text)?.id)
       .filter((x): x is string => Boolean(x));
   })();
   /** Display list: pending selection or server list. When pending, show tasks from pool. */
-  const displayWarmUpTasks = pendingWarmUpIds !== null
-    ? pendingWarmUpIds
-        .map((pid) => warmUpPoolTasks.find((p) => p.id === pid))
-        .filter((x): x is WarmUpPoolTask => x != null)
-    : warmUpTasks;
-  const handleWarmUpConfirm = (selectedIds: string[]) => {
-    setModalWarmUp(false);
-    const ordered = warmUpPoolTasks.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
-    setPendingWarmUpIds(ordered);
+  const displayStudentTasks = pendingTasksPoolIds !== null
+    ? pendingTasksPoolIds
+        .map((pid) => tasksPoolItems.find((p) => p.id === pid))
+        .filter((x): x is TasksPoolItem => x != null)
+    : studentTasks;
+  const handleTasksPoolConfirm = (selectedIds: string[]) => {
+    setModalTasksPool(false);
+    const ordered = tasksPoolItems.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
+    setPendingTasksPoolIds(ordered);
   };
-  const handleWarmUpEditModalSave = async (data: { text: string; max_performance_score: number }) => {
-    const targetId = warmUpEditTask?.id ?? `draft-${crypto.randomUUID()}`;
-    const orderIndex = warmUpEditTask?.order_index ?? warmUpTasks.length;
-    setWarmUpTasks((prev) => {
-      if (warmUpEditTask) {
+  const handleStudentTaskEditSave = async (data: { text: string; max_performance_score: number }) => {
+    const targetId = studentTaskEdit?.id ?? `draft-${crypto.randomUUID()}`;
+    const orderIndex = studentTaskEdit?.order_index ?? studentTasks.length;
+    setStudentTasks((prev) => {
+      if (studentTaskEdit) {
         return prev.map((t) =>
-          t.id === warmUpEditTask.id
+          t.id === studentTaskEdit.id
             ? { ...t, text: data.text, max_performance_score: data.max_performance_score, order_index: orderIndex }
             : t
         );
@@ -1176,8 +1213,8 @@ export default function AdminStudentProfilePage() {
         },
       ];
     });
-    setQueuedWarmUpDeletes((prev) => prev.filter((qid) => qid !== targetId));
-    setQueuedWarmUpUpserts((prev) => {
+    setQueuedStudentTaskDeletes((prev) => prev.filter((qid) => qid !== targetId));
+    setQueuedStudentTaskUpserts((prev) => {
       const next = prev.filter((q) => q.id !== targetId);
       next.push({
         id: targetId,
@@ -1300,16 +1337,16 @@ export default function AdminStudentProfilePage() {
     toast.success("Queued. Click Save all changes.");
   };
 
-  const deleteWarmUpTask = (taskId: string) => {
-    setWarmUpTasks((prev) => prev.filter((t) => t.id !== taskId));
-    setQueuedWarmUpUpserts((prev) => prev.filter((q) => q.id !== taskId));
+  const deleteStudentTaskDraft = (taskId: string) => {
+    setStudentTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setQueuedStudentTaskUpserts((prev) => prev.filter((q) => q.id !== taskId));
     if (!taskId.startsWith("draft-")) {
-      setQueuedWarmUpDeletes((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
+      setQueuedStudentTaskDeletes((prev) => (prev.includes(taskId) ? prev : [...prev, taskId]));
     }
     toast.success("Queued. Click Save all changes.");
   };
 
-  // Focus tasks (canonical). Warm-up and post-recording mirror this pattern.
+  // Focus tasks (canonical). Tasks and post-recording mirror this pattern.
   const focusPool: PoolItem[] = focusPoolTasks.map((p) => ({
     id: p.id,
     label: p.text,
@@ -1556,7 +1593,8 @@ export default function AdminStudentProfilePage() {
             <p className="text-xs text-muted-foreground">Max 2000 characters. Shown in the assignment email when you send homework.</p>
           </div>
 
-          {/* Exercises — shown on step 0 (no active session) */}
+          {/* Exercises removed from product scope */}
+          {false && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="text-sm font-medium">Video</label>
@@ -1626,8 +1664,9 @@ export default function AdminStudentProfilePage() {
               )}
             </div>
           </div>
+          )}
 
-          {/* Warm-up Tasks */}
+          {/* Tasks (student / pool) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium">Task</p>
@@ -1637,26 +1676,26 @@ export default function AdminStudentProfilePage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setWarmUpEditTask(null);
-                    setWarmUpEditOpen(true);
+                    setStudentTaskEdit(null);
+                    setStudentTaskEditOpen(true);
                   }}
                 >
                   + Add
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setModalWarmUp(true)}>
+                <Button type="button" variant="outline" size="sm" onClick={() => setModalTasksPool(true)}>
                   Manage list
                 </Button>
               </div>
             </div>
-            {warmUpTasksError && (
+            {studentTasksError && (
               <p className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                {warmUpTasksError}
+                {studentTasksError}
               </p>
             )}
             <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
             <ul className="space-y-2">
-              {displayWarmUpTasks.map((t) => (
+              {displayStudentTasks.map((t) => (
                 <li key={t.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
                   <div
                     className={adminRichTextContentClassName}
@@ -1666,12 +1705,12 @@ export default function AdminStudentProfilePage() {
                     Max score: {t.max_performance_score ?? 1}
                   </span>
                   <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    {pendingWarmUpIds === null && "pool_task_id" in t && (
+                    {pendingTasksPoolIds === null && "pool_task_id" in t && (
                       <button
                         type="button"
                         onClick={() => {
-                          setWarmUpEditTask(t as WarmUpTask);
-                          setWarmUpEditOpen(true);
+                          setStudentTaskEdit(t as StudentTask);
+                          setStudentTaskEditOpen(true);
                         }}
                         className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                         aria-label="Edit"
@@ -1682,13 +1721,13 @@ export default function AdminStudentProfilePage() {
                     <button
                       type="button"
                       onClick={() =>
-                        pendingWarmUpIds !== null
-                          ? setPendingWarmUpIds((prev) => (prev ?? []).filter((pid) => pid !== t.id))
-                          : deleteWarmUpTask(t.id)
+                        pendingTasksPoolIds !== null
+                          ? setPendingTasksPoolIds((prev) => (prev ?? []).filter((pid) => pid !== t.id))
+                          : deleteStudentTaskDraft(t.id)
                       }
                       disabled={saving}
                       className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label={pendingWarmUpIds !== null ? "Remove from list" : "Delete"}
+                      aria-label={pendingTasksPoolIds !== null ? "Remove from list" : "Delete"}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1696,14 +1735,14 @@ export default function AdminStudentProfilePage() {
                 </li>
               ))}
             </ul>
-            {displayWarmUpTasks.length === 0 && (
+            {displayStudentTasks.length === 0 && (
               <p className="text-sm text-muted-foreground">No tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
             </div>
           </div>
 
           {/* Similar students — shown once a task is chosen */}
-          {(displayWarmUpTasks.length > 0 || assignedExerciseIds.length > 0) &&
+          {displayStudentTasks.length > 0 &&
             (profile.similar_students_by_wpm?.length ?? 0) > 0 && (
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">
@@ -2186,16 +2225,17 @@ export default function AdminStudentProfilePage() {
       </div>
 
       {/* Modals */}
-      <WarmUpTaskEditModal
-        open={warmUpEditOpen}
+      <StudentTaskEditModal
+        open={studentTaskEditOpen}
         onOpenChange={(open) => {
-          setWarmUpEditOpen(open);
-          if (!open) setWarmUpEditTask(null);
+          setStudentTaskEditOpen(open);
+          if (!open) setStudentTaskEdit(null);
         }}
-        task={warmUpEditTask}
-        onSave={handleWarmUpEditModalSave}
+        task={studentTaskEdit}
+        onSave={handleStudentTaskEditSave}
         saving={saving}
       />
+      {false && (
       <ExerciseEditModal
         open={exerciseEditOpen}
         onOpenChange={(open) => {
@@ -2206,15 +2246,17 @@ export default function AdminStudentProfilePage() {
         onSave={handleExerciseEditModalSave}
         saving={saving}
       />
+      )}
       <SelectFromPoolModal
-        open={modalWarmUp}
-        onOpenChange={setModalWarmUp}
-        title="Select Warm-up Tasks"
-        pool={warmUpPool}
-        selectedIds={pendingWarmUpIds ?? warmUpSelectedIds}
-        onConfirm={handleWarmUpConfirm}
-        poolLoading={warmUpPoolLoading}
+        open={modalTasksPool}
+        onOpenChange={setModalTasksPool}
+        title="Select Tasks"
+        pool={tasksPoolModalItems}
+        selectedIds={pendingTasksPoolIds ?? tasksPoolSelectedIds}
+        onConfirm={handleTasksPoolConfirm}
+        poolLoading={tasksPoolLoading}
       />
+      {false && (
       <FocusTaskEditModal
         open={focusEditOpen}
         onOpenChange={(open) => {
@@ -2225,6 +2267,8 @@ export default function AdminStudentProfilePage() {
         onSave={handleFocusEditModalSave}
         saving={saving}
       />
+      )}
+      {false && (
       <SelectFromPoolModal
         open={modalFocus}
         onOpenChange={setModalFocus}
@@ -2236,6 +2280,8 @@ export default function AdminStudentProfilePage() {
         onCreateNew={handleFocusCreate}
         poolLoading={focusPoolLoading}
       />
+      )}
+      {false && (
       <SelectFromPoolModal
         open={modalQuestions}
         onOpenChange={setModalQuestions}
@@ -2246,6 +2292,8 @@ export default function AdminStudentProfilePage() {
         allowCreate
         onCreateNew={handleQuestionsCreate}
       />
+      )}
+      {false && (
       <SelectFromPoolModal
         open={modalAssignedExercises}
         onOpenChange={setModalAssignedExercises}
@@ -2254,6 +2302,8 @@ export default function AdminStudentProfilePage() {
         selectedIds={assignedExerciseIds}
         onConfirm={handleAssignedExercisesConfirm}
       />
+      )}
+      {false && (
       <PostQuestionEditModal
         open={postQuestionEditOpen}
         onOpenChange={(open) => {
@@ -2264,6 +2314,7 @@ export default function AdminStudentProfilePage() {
         onSave={handlePostQuestionEditSave}
         saving={saving}
       />
+      )}
       <ReportDetailModal
         open={!!reportModalSession}
         onOpenChange={(open) => {

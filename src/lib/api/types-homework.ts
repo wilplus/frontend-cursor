@@ -190,8 +190,8 @@ export function toPublicStatus(s: unknown): PublicHomeworkStatus {
   return "none";
 }
 
-/** Warm-up task shape returned by GET /session/status and POST /session/start. */
-export interface WarmUpTask {
+/** Opening task shape returned by GET /session/status and POST /session/start (`warm_up_task` JSON field). */
+export interface HomeworkSessionTask {
   id: string;
   text: string;
 }
@@ -288,13 +288,13 @@ export interface AssignedExercise {
 export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): HomeworkResponse {
   const status = toPublicStatus(raw.status ?? raw.session?.status);
   const legacyRaw = raw as HomeworkSessionStatus & {
-    warm_up_task?: WarmUpTask | null;
+    warm_up_task?: HomeworkSessionTask | null;
     warm_up_task_text?: string | null;
     task_text?: string | null;
     final_task?: string | { text?: string } | null;
     final_task_text?: string | null;
     session?: HomeworkSessionStatus["session"] & {
-      warm_up_task?: WarmUpTask | null;
+      warm_up_task?: HomeworkSessionTask | null;
       warm_up_task_text?: string | null;
       final_task_text?: string | null;
     };
