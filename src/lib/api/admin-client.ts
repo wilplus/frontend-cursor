@@ -357,6 +357,40 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/** Per-student tasks list: backend may use `tasks` after DB rename or legacy keys. */
+function pickStudentTasksArray(r: Record<string, unknown>): StudentTask[] {
+  for (const key of ["tasks", "task_warm_up", "warm_up_tasks"] as const) {
+    const v = r[key];
+    if (Array.isArray(v)) return v as StudentTask[];
+  }
+  return [];
+}
+
+/** Global task pool list: `tasks_pool` (new) or `task_warm_up_pool` (legacy). */
+function pickTasksPoolArray(r: Record<string, unknown>): TasksPoolItem[] {
+  for (const key of ["tasks_pool", "task_warm_up_pool"] as const) {
+    const v = r[key];
+    if (Array.isArray(v)) return v as TasksPoolItem[];
+  }
+  return [];
+}
+
+function pickSingleStudentTaskEntity(r: Record<string, unknown>): StudentTask | null {
+  for (const key of ["task", "task_warm_up", "tasks"] as const) {
+    const v = r[key];
+    if (v != null && typeof v === "object" && !Array.isArray(v)) return v as StudentTask;
+  }
+  return null;
+}
+
+function pickSinglePoolTaskEntity(r: Record<string, unknown>): TasksPoolItem | null {
+  for (const key of ["tasks_pool_item", "task", "task_warm_up"] as const) {
+    const v = r[key];
+    if (v != null && typeof v === "object" && !Array.isArray(v)) return v as TasksPoolItem;
+  }
+  return null;
+}
+
 function normalizeReview(value: unknown): RecordingReview | null {
   const record = asRecord(value);
   const id = asTrimmedString(record?.id);
@@ -506,21 +540,21 @@ export interface MetricLabel {
   right_label: string;
 }
 
-/** Warm-up task (per student); for homework flow. When assigned from pool, has pool_task_id. */
-export interface WarmUpTask {
+/** Per-student task row (`tasks` table; BFF /api/admin/students/:id/tasks). */
+export interface StudentTask {
   id: string;
   user_id: string;
   text: string;
   order_index?: number;
-  /** 0-1; used to select warm-up by student's last score. */
+  /** 0–1; used to select a task by the student's last score. */
   max_performance_score?: number;
-  /** When assigned from pool, references v2_warm_up_task_pool.id. */
+  /** When assigned from pool, references tasks_pool.id. */
   pool_task_id?: string | null;
   created_at?: string;
 }
 
-/** Global warm-up task pool item (no user_id). */
-export interface WarmUpPoolTask {
+/** Global tasks pool row (`tasks_pool` table; BFF /api/admin/tasks-pool). */
+export interface TasksPoolItem {
   id: string;
   text: string;
   order_index?: number;
@@ -931,59 +965,78 @@ export const adminApi = {
       ...(body && Object.keys(body).length > 0 ? { body } : {}),
     }),
 
-  getWarmUpTasks: (userId: string) =>
-    adminFetch<{ task_warm_up?: WarmUpTask[]; warm_up_tasks?: WarmUpTask[] }>(
-      `/students/${userId}/task-warm-up`
-    ).then((r) => {
-      const list = r.task_warm_up ?? r.warm_up_tasks;
-      return Array.isArray(list) ? list : [];
-    }),
+  getStudentTasks: (userId: string) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/tasks`).then((r) => pickStudentTasksArray(r)),
 
-  /** Sync student's warm-up tasks from pool. Body: { pool_task_ids: string[] }. */
-  putStudentWarmUpTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
-    adminFetch<{ task_warm_up: WarmUpTask[] }>(`/students/${userId}/task-warm-up`, { method: "PUT", body }),
+  /** Sync student's tasks from pool. Body: { pool_task_ids: string[] }. */
+  putStudentTasksSync: (userId: string, body: { pool_task_ids: string[] }) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/tasks`, { method: "PUT", body }).then(
+      (r) => ({ ...r, tasks: pickStudentTasksArray(r) }) as { tasks: StudentTask[]; status?: string }
+    ),
 
   /**
-   * Creates a global pool warm-up and assigns it to the student (single backend call).
-   * BFF: POST /api/admin/students/[id]/warm-up-tasks/create-pool-and-assign
+   * Creates a global pool task and assigns it to the student (single backend call).
+   * BFF: see students/:id/tasks/create-pool-and-assign.
    */
-  createWarmUpPoolTaskAndAssign: (
+  createTasksPoolItemAndAssign: (
     userId: string,
     data: { text: string; order_index?: number; max_performance_score?: number }
   ) =>
-    adminFetch<{ task_warm_up?: WarmUpTask }>(`/students/${userId}/warm-up-tasks/create-pool-and-assign`, {
+    adminFetch<Record<string, unknown>>(`/students/${userId}/tasks/create-pool-and-assign`, {
       method: "POST",
       body: data,
     }).then((r) => {
-      const task = r.task_warm_up;
+      const task = pickSingleStudentTaskEntity(r);
       if (!task) {
-        throw new Error("Unexpected response from create-pool-and-assign (missing task_warm_up)");
+        throw new Error("Unexpected response from create-pool-and-assign (missing task)");
       }
       return task;
     }),
 
-  createWarmUpTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ task_warm_up: WarmUpTask }>(`/students/${userId}/task-warm-up`, { method: "POST", body: data }),
+  createStudentTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/tasks`, { method: "POST", body: data }).then((r) => {
+      const task = pickSingleStudentTaskEntity(r);
+      if (!task) throw new Error("Unexpected response from create task");
+      return { task };
+    }),
 
-  updateWarmUpTask: (userId: string, taskId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ task_warm_up: WarmUpTask }>(`/students/${userId}/task-warm-up/${taskId}`, { method: "PUT", body: data }),
-
-  deleteWarmUpTask: (userId: string, taskId: string) =>
-    adminFetch<Record<string, unknown>>(`/students/${userId}/task-warm-up/${taskId}`, { method: "DELETE" }),
-
-  getWarmUpTaskPool: () =>
-    adminFetch<{ task_warm_up_pool?: WarmUpPoolTask[] }>("/task-warm-up-pool").then((r) =>
-      Array.isArray(r.task_warm_up_pool) ? r.task_warm_up_pool : []
+  updateStudentTask: (
+    userId: string,
+    taskId: string,
+    data: { text?: string; order_index?: number; max_performance_score?: number }
+  ) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/tasks/${taskId}`, { method: "PUT", body: data }).then(
+      (r) => {
+        const task = pickSingleStudentTaskEntity(r);
+        if (!task) throw new Error("Unexpected response from update task");
+        return { task };
+      }
     ),
 
-  createWarmUpPoolTask: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ task_warm_up: WarmUpPoolTask }>("/task-warm-up-pool", { method: "POST", body: data }),
+  deleteStudentTask: (userId: string, taskId: string) =>
+    adminFetch<Record<string, unknown>>(`/students/${userId}/tasks/${taskId}`, { method: "DELETE" }),
 
-  updateWarmUpPoolTask: (poolId: string, data: { text?: string; order_index?: number; max_performance_score?: number }) =>
-    adminFetch<{ task_warm_up: WarmUpPoolTask }>(`/task-warm-up-pool/${poolId}`, { method: "PUT", body: data }),
+  getTasksPool: () => adminFetch<Record<string, unknown>>("/tasks-pool").then((r) => pickTasksPoolArray(r)),
 
-  deleteWarmUpPoolTask: (poolId: string) =>
-    adminFetch<Record<string, unknown>>(`/task-warm-up-pool/${poolId}`, { method: "DELETE" }),
+  createTasksPoolItem: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
+    adminFetch<Record<string, unknown>>("/tasks-pool", { method: "POST", body: data }).then((r) => {
+      const item = pickSinglePoolTaskEntity(r);
+      if (!item) throw new Error("Unexpected response from create pool task");
+      return { tasks_pool_item: item };
+    }),
+
+  updateTasksPoolItem: (
+    poolId: string,
+    data: { text?: string; order_index?: number; max_performance_score?: number }
+  ) =>
+    adminFetch<Record<string, unknown>>(`/tasks-pool/${poolId}`, { method: "PUT", body: data }).then((r) => {
+      const item = pickSinglePoolTaskEntity(r);
+      if (!item) throw new Error("Unexpected response from update pool task");
+      return { tasks_pool_item: item };
+    }),
+
+  deleteTasksPoolItem: (poolId: string) =>
+    adminFetch<Record<string, unknown>>(`/tasks-pool/${poolId}`, { method: "DELETE" }),
 
   getFocusTasks: (userId: string) =>
     adminFetch<{ task_focus: FocusTask[] }>(`/students/${userId}/task-focus`).then((r) => r.task_focus ?? []),

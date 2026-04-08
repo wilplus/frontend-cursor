@@ -1,5 +1,5 @@
-import AdminMlImportPage from "@/components/admin/AdminMlImportPage";
+import { redirect } from "next/navigation";
 
 export default function AdminMlPage() {
-  return <AdminMlImportPage />;
+  redirect("/admin/training-studio");
 }

@@ -12,7 +12,8 @@ export interface ReportSessionScores {
   overall: number;
 }
 
-const LABELS = { warmup: "Warm-up", final: "Final", overall: "Overall" };
+/** `warmup` key matches API scores shape; label is student-facing. */
+const LABELS = { warmup: "First task", final: "Final", overall: "Overall" };
 
 export default function ReportSessionChart({ scores }: { scores: ReportSessionScores }) {
   const data = [

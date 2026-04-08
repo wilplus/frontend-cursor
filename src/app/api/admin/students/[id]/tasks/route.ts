@@ -13,7 +13,7 @@ export async function GET(
   }
   const backend = getBackendUrl();
   if (!backend) {
-    return NextResponse.json({ task_warm_up: [] });
+    return NextResponse.json({ tasks: [] });
   }
   const { id } = await params;
   let res: Response;
@@ -30,12 +30,14 @@ export async function GET(
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  const task_warm_up = Array.isArray(data.task_warm_up)
-    ? data.task_warm_up
-    : Array.isArray(data.warm_up_tasks)
-      ? data.warm_up_tasks
-      : [];
-  return NextResponse.json({ task_warm_up });
+  const list = Array.isArray(data.tasks)
+    ? data.tasks
+    : Array.isArray(data.task_warm_up)
+      ? data.task_warm_up
+      : Array.isArray(data.warm_up_tasks)
+        ? data.warm_up_tasks
+        : [];
+  return NextResponse.json({ tasks: list });
 }
 
 export async function POST(

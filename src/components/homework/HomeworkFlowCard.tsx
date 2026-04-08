@@ -32,7 +32,7 @@ import {
   resolveTaskText,
 } from "@/lib/api/homework-utils";
 import {
-  isNoWarmupError,
+  isNoHomeworkTasksConfiguredError,
   isInvalidSessionStateError,
   isRecordingProcessingFailedError,
   isReportNotReadyError,
@@ -113,7 +113,7 @@ export default function HomeworkFlowCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState<1 | 2 | null>(null);
-  const [noWarmupConfigured, setNoWarmupConfigured] = useState(false);
+  const [noTasksConfigured, setNoTasksConfigured] = useState(false);
   const [statusUnknown, setStatusUnknown] = useState(false);
   const [resetting, setResetting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -631,8 +631,8 @@ export default function HomeworkFlowCard() {
       });
       setStep(1);
     } catch (e) {
-      if (isNoWarmupError(e)) {
-        setNoWarmupConfigured(true);
+      if (isNoHomeworkTasksConfiguredError(e)) {
+        setNoTasksConfigured(true);
         setError(null);
         applyStatusToState({ status: "none" });
         return;
@@ -728,7 +728,7 @@ export default function HomeworkFlowCard() {
       setReportLoading(false);
       setReportError(null);
       setError(null);
-      setNoWarmupConfigured(false);
+      setNoTasksConfigured(false);
       setStatusUnknown(false);
       setLoading(false);
       setUploadingRecording(null);
@@ -839,8 +839,8 @@ export default function HomeworkFlowCard() {
       })
       .catch((e) => {
         if (cancelled) return;
-        if (isNoWarmupError(e)) {
-          setNoWarmupConfigured(true);
+        if (isNoHomeworkTasksConfiguredError(e)) {
+          setNoTasksConfigured(true);
           setError(null);
           applyStatusToState({ status: "none" });
         } else {
@@ -1389,7 +1389,7 @@ export default function HomeworkFlowCard() {
     }
   };
 
-  // ─── Auth / warmup guards ────────────────────────────────────────────────────
+  // ─── Auth / tasks-config guards ─────────────────────────────────────────────
 
   if (!authReady) {
     return (
@@ -1399,11 +1399,11 @@ export default function HomeworkFlowCard() {
     );
   }
 
-  if (noWarmupConfigured) {
+  if (noTasksConfigured) {
     return (
       <Card className="p-6 space-y-4">
         <p className="text-sm text-muted-foreground">
-          No warm-up tasks are configured for your account. Please contact your coach to get started.
+          No homework tasks are configured for your account. Please contact your coach to get started.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="default">

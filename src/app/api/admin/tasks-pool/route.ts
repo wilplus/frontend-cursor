@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
   const backend = getBackendUrl();
   if (!backend) {
-    return NextResponse.json({ task_warm_up_pool: [] });
+    return NextResponse.json({ tasks_pool: [] });
   }
   let res: Response;
   try {
@@ -26,8 +26,12 @@ export async function GET(request: NextRequest) {
   if (!res.ok) {
     return NextResponse.json(data, { status: res.status });
   }
-  const task_warm_up_pool = Array.isArray(data.task_warm_up_pool) ? data.task_warm_up_pool : [];
-  return NextResponse.json({ task_warm_up_pool });
+  const rawList = Array.isArray(data.tasks_pool)
+    ? data.tasks_pool
+    : Array.isArray(data.task_warm_up_pool)
+      ? data.task_warm_up_pool
+      : [];
+  return NextResponse.json({ tasks_pool: rawList });
 }
 
 export async function POST(request: NextRequest) {
