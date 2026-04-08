@@ -571,7 +571,216 @@ export interface CoachSuggestionHistory {
   updated_at: string | null;
 }
 
+export type CopilotDraftStatus = "Draft" | "Ready" | "Sent";
+
+export interface CopilotCohortStack {
+  id: string;
+  profile_bucket: string;
+  stage_key: string;
+  pending_count: number;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface CopilotStudentQueueItem {
+  student_id: string;
+  session_id?: string | null;
+  queue_position?: number;
+  state: CopilotDraftStatus;
+  draft_count?: number;
+  ready_count?: number;
+  sent_count?: number;
+  profile?: {
+    name?: string | null;
+    email?: string | null;
+    stage?: string | null;
+    justification?: string | null;
+    canonical_score_for_display?: number | null;
+  } | null;
+}
+
+export interface CopilotStudentDraft {
+  id: string;
+  student_id: string;
+  session_id?: string | null;
+  status: CopilotDraftStatus;
+  ai_insight?: string | null;
+  corrected_insight?: string | null;
+  good_as_is?: boolean;
+  grade_draft?: number | null;
+  comment_draft?: string | null;
+  task_draft?: string | null;
+  email_draft?: string | null;
+  script_draft?: string | null;
+  reason_chip_required?: boolean;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface CopilotAuditPayload {
+  good_as_is?: boolean;
+  corrected_insight?: string | null;
+  reason_chips?: Array<{ chip_key: string; custom_reason?: string | null }>;
+  reason_chip_custom?: string | null;
+}
+
+export interface CopilotDraftPatchPayload {
+  grade_draft?: number | null;
+  comment_draft?: string | null;
+  task_draft?: string | null;
+  email_draft?: string | null;
+  script_draft?: string | null;
+  reason_chips?: Array<{ chip_key: string; custom_reason?: string | null }>;
+  reason_chip_custom?: string | null;
+}
+
+export interface CopilotAnnotationChip {
+  chip_key: string;
+  label: string;
+  description?: string | null;
+  is_active?: boolean;
+}
+
+export interface AcousticDojoClip {
+  clip_id: string;
+  source_type: "student" | "external";
+  source_metadata?: Record<string, unknown> | null;
+  audio_url?: string | null;
+  duration_sec?: number | null;
+  student_id?: string | null;
+  session_id?: string | null;
+}
+
+export interface AcousticDojoLabelPayload {
+  clip_id: string;
+  source_metadata?: Record<string, unknown> | null;
+  label_stress: boolean;
+  label_charisma: boolean;
+  confidence: number;
+  labeled_by: string;
+}
+
 export const adminApi = {
+  getCopilotCohorts: (params?: {
+    profile_bucket?: string;
+    stage_key?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params?.profile_bucket) search.set("profile_bucket", params.profile_bucket);
+    if (params?.stage_key) search.set("stage_key", params.stage_key);
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{ cohorts: CopilotCohortStack[] }>(`/copilot/cohorts${suffix}`);
+  },
+
+  getCopilotCohortStudents: (cohortId: string, params?: { limit?: number; offset?: number }) => {
+    const search = new URLSearchParams();
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{ students: CopilotStudentQueueItem[] }>(
+      `/copilot/cohorts/${cohortId}/students${suffix}`
+    );
+  },
+
+  getCopilotStudentDrafts: (studentId: string, params?: { session_id?: string }) => {
+    const search = new URLSearchParams();
+    if (params?.session_id) search.set("session_id", params.session_id);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{ drafts: CopilotStudentDraft[] }>(
+      `/copilot/students/${studentId}/drafts${suffix}`
+    );
+  },
+
+  updateCopilotStudentDrafts: (studentId: string, body: CopilotDraftPatchPayload) =>
+    adminFetch<{ status: string; draft?: CopilotStudentDraft }>(
+      `/copilot/students/${studentId}/drafts`,
+      { method: "PUT", body }
+    ),
+
+  getCopilotStudentAudit: (studentId: string, params?: { session_id?: string }) => {
+    const search = new URLSearchParams();
+    if (params?.session_id) search.set("session_id", params.session_id);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{ audit: CopilotStudentDraft | null }>(
+      `/copilot/students/${studentId}/audit${suffix}`
+    );
+  },
+
+  updateCopilotStudentAudit: (studentId: string, body: CopilotAuditPayload) =>
+    adminFetch<{ status: string; audit?: CopilotStudentDraft }>(
+      `/copilot/students/${studentId}/audit`,
+      { method: "PUT", body }
+    ),
+
+  approveCopilotStudent: (
+    studentId: string,
+    body?: { session_id?: string; draft_id?: string; idempotency_key?: string }
+  ) =>
+    adminFetch<{ status: string; state?: CopilotDraftStatus }>(
+      `/copilot/students/${studentId}/approve`,
+      { method: "POST", body: body ?? {} }
+    ),
+
+  sendCopilotStudent: (
+    studentId: string,
+    body?: { session_id?: string; draft_id?: string; idempotency_key?: string }
+  ) =>
+    adminFetch<{ status: string; state?: CopilotDraftStatus; sent_at?: string }>(
+      `/copilot/students/${studentId}/send`,
+      { method: "POST", body: body ?? {} }
+    ),
+
+  getCopilotAnnotationChips: () =>
+    adminFetch<{ chips: CopilotAnnotationChip[] }>("/copilot/annotation-chips"),
+
+  createCopilotAnnotationChip: (body: {
+    chip_key: string;
+    label: string;
+    description?: string | null;
+    is_active?: boolean;
+  }) =>
+    adminFetch<{ status: string; chip?: CopilotAnnotationChip }>("/copilot/annotation-chips", {
+      method: "POST",
+      body,
+    }),
+
+  getAcousticDojoNextClips: (params?: { limit?: number; source_type?: "student" | "external" }) => {
+    const search = new URLSearchParams();
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (params?.source_type) search.set("source_type", params.source_type);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{ clips: AcousticDojoClip[]; streak?: number; today_count?: number; leaderboard?: Array<{ labeled_by: string; labels_count: number }> }>(
+      `/acoustic-dojo/next-clips${suffix}`
+    );
+  },
+
+  submitAcousticDojoLabel: (body: AcousticDojoLabelPayload) =>
+    adminFetch<{ status: string; accepted: boolean; next_clip_id?: string | null }>(
+      "/acoustic-dojo/labels",
+      { method: "POST", body }
+    ),
+
+  exportDpoData: (params?: { from?: string; to?: string; format?: "json" | "csv" }) => {
+    const search = new URLSearchParams();
+    if (params?.from) search.set("from", params.from);
+    if (params?.to) search.set("to", params.to);
+    if (params?.format) search.set("format", params.format);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{
+      rows: Array<{
+        draft_id: string;
+        student_id: string;
+        session_id?: string | null;
+        rejected_ai_text?: string | null;
+        chosen_coach_text?: string | null;
+        reason_chip_keys?: string[] | null;
+        context_metadata?: Record<string, unknown> | null;
+      }>;
+    }>(`/dpo/export${suffix}`);
+  },
+
   getStudents: (params?: { limit?: number; offset?: number }) =>
     adminFetch<{ students: StudentListItem[]; limit?: number; offset?: number }>(
       `/students?${new URLSearchParams((params ?? {}) as Record<string, string>).toString()}`

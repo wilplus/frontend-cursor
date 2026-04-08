@@ -113,7 +113,7 @@ export interface SniperSessionSnapshot {
   sessionMeans: SniperSessionMeans;
 }
 
-/** Per-user adaptive baseline stored in user_sniper_profile. */
+/** Per-user adaptive baseline stored in student_profile (legacy compatibility: user_sniper_profile view). */
 export interface UserSniperProfile {
   user_id: string;
   session_count: number;

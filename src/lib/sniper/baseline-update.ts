@@ -1,5 +1,5 @@
 /**
- * Server-only: apply Sniper baseline update (EMA) to user_sniper_profile.
+ * Server-only: apply Sniper baseline update (EMA) to student_profile.
  * Used by sniper-profile POST and by admin grade route when coach grade >= 8.
  */
 
@@ -18,7 +18,7 @@ export async function applySniperBaselineUpdate(
   }
 
   const { data: existing } = await supabase
-    .from("user_sniper_profile")
+    .from("student_profile")
     .select("*")
     .eq("user_id", userId)
     .single();
@@ -28,7 +28,7 @@ export async function applySniperBaselineUpdate(
   const hadEnergy = session_means.energyRatio != null;
 
   if (!existing) {
-    const { error: insertErr } = await supabase.from("user_sniper_profile").insert({
+    const { error: insertErr } = await supabase.from("student_profile").insert({
       user_id: userId,
       session_count: 1,
       sessions_with_energy_count: hadEnergy ? 1 : 0,
@@ -63,7 +63,7 @@ export async function applySniperBaselineUpdate(
       : prevEnergy;
 
   const { error: updateErr } = await supabase
-    .from("user_sniper_profile")
+    .from("student_profile")
     .update({
       session_count: existing.session_count + 1,
       sessions_with_energy_count:

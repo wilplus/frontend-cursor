@@ -119,7 +119,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { data: profile } = await supabase
-    .from("user_sniper_profile")
+    .from("student_profile")
     .select("*")
     .eq("user_id", user.id)
     .single();

@@ -4,10 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-/**
- * Admin shell: only the "Students" tab is in the nav. Tasks, questions, and metrics
- * are managed inside each student profile (modals), not as separate tabs.
- */
 export default function AdminShell({
   children,
   email,
@@ -18,6 +14,9 @@ export default function AdminShell({
   onLogout?: () => void;
 }) {
   const pathname = usePathname();
+  const studentsActive = pathname?.startsWith("/admin/students");
+  const copilotActive = pathname?.startsWith("/admin/copilot-inbox");
+  const dojoActive = pathname?.startsWith("/admin/acoustic-dojo");
   const mlActive = pathname?.startsWith("/admin/ml");
 
   return (
@@ -27,6 +26,30 @@ export default function AdminShell({
           <div className="flex items-center gap-3">
             <Link href="/admin/students" className="text-lg font-bold text-foreground">
               Admin
+            </Link>
+            <Link
+              href="/admin/students"
+              className={`text-sm font-medium transition-colors ${
+                studentsActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Students
+            </Link>
+            <Link
+              href="/admin/copilot-inbox"
+              className={`text-sm font-medium transition-colors ${
+                copilotActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Copilot Inbox
+            </Link>
+            <Link
+              href="/admin/acoustic-dojo"
+              className={`text-sm font-medium transition-colors ${
+                dojoActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Acoustic Dojo
             </Link>
             <Link
               href="/admin/ml"
