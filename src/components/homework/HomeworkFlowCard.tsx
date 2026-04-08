@@ -1191,7 +1191,6 @@ export default function HomeworkFlowCard() {
             status: result.status,
             response_body: result.parsedBody,
           });
-          toast.warning("We couldn't save session metrics right away. Retrying once...");
           result = await postCompletion(2);
           if (!result.ok) {
             console.error("[HomeworkFlow] completion POST retry failed", {
@@ -1200,7 +1199,6 @@ export default function HomeworkFlowCard() {
               status: result.status,
               response_body: result.parsedBody,
             });
-            toast.warning("Session metrics may be delayed. Your lesson will continue.");
             return;
           }
         }
@@ -1218,7 +1216,6 @@ export default function HomeworkFlowCard() {
           endpoint,
           error: e instanceof Error ? e.message : e,
         });
-        toast.warning("Session metrics couldn't be saved yet. Your lesson will continue.");
       }
     },
     []
