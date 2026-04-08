@@ -23,7 +23,7 @@ export async function applyRealtimeProfileUpdate(
   }
 
   const { data: existing, error: fetchErr } = await supabase
-    .from("user_sniper_profile")
+    .from("student_profile")
     .select("*")
     .eq("user_id", userId)
     .single();
@@ -33,7 +33,7 @@ export async function applyRealtimeProfileUpdate(
   }
 
   if (!existing) {
-    const { error: insertErr } = await supabase.from("user_sniper_profile").insert({
+    const { error: insertErr } = await supabase.from("student_profile").insert({
       user_id: userId,
       realtime_level: 1,
       realtime_step: 2,
@@ -54,7 +54,7 @@ export async function applyRealtimeProfileUpdate(
     PITCH_BASELINE_EMA_ALPHA * pitchCenterSt;
 
   const { error: updateErr } = await supabase
-    .from("user_sniper_profile")
+    .from("student_profile")
     .update({
       realtime_level: existing.realtime_level ?? 1,
       realtime_step: Math.max(existing.realtime_step ?? 1, 2),

@@ -1036,7 +1036,8 @@ export default function AdminStudentProfilePage() {
           if (
             msg.includes("PGRST204") ||
             msg.includes("realtime_level") ||
-            msg.includes("user_sniper_profile")
+            msg.includes("user_sniper_profile") ||
+            msg.includes("student_profile")
           ) {
             throw new Error(
               "Could not update current unlocked step because backend schema is missing realtime progression columns. Please deploy the latest backend migrations and reload PostgREST schema cache."

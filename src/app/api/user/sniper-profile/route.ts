@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
 
   // Return current profile (or existing response when no baseline update)
   const { data: profile } = await supabase
-    .from("user_sniper_profile")
+    .from("student_profile")
     .select("*")
     .eq("user_id", user.id)
     .single();
