@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 
 // Use system fonts instead of Google Fonts to avoid build-time network dependency
 // Inter font will be loaded at runtime if available
@@ -8,6 +9,13 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "willab - willpower lab that fuels your speaking confidence",
   description: "willab - willpower lab for your confidence on stage",
+  manifest: "/manifest.webmanifest",
+  applicationName: "willab",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "willab",
+  },
   icons: {
     icon: "/icon",
     shortcut: "/icon",
@@ -32,6 +40,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         {children}
         <Toaster position="top-center" />
+        <PwaInstallPrompt />
       </body>
     </html>
   );
