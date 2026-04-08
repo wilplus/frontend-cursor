@@ -11,6 +11,8 @@ import {
   type CopilotCohortStack,
   type CopilotStudentDraft,
   type CopilotStudentQueueItem,
+  type StudentTask,
+  type TasksPoolItem,
 } from "@/lib/api/admin-client";
 
 type QueueFilter = "all" | "pending" | "audit" | "done";
@@ -89,7 +91,6 @@ function inferArchetype(value: string): string {
 export default function TrainingStudioWorkspace() {
   const [pipelineView, setPipelineView] = useState<"agentic" | "voice">("agentic");
   const [cohorts, setCohorts] = useState<CopilotCohortStack[]>([]);
-  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [students, setStudents] = useState<CopilotStudentQueueItem[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<CopilotStudentQueueItem | null>(null);
   const [selectedDraft, setSelectedDraft] = useState<CopilotStudentDraft | null>(null);
@@ -99,7 +100,6 @@ export default function TrainingStudioWorkspace() {
   const [selectedArchetype, setSelectedArchetype] = useState<string>(LEARNING_ARCHETYPES[0].key);
 
   const [editingInsight, setEditingInsight] = useState(false);
-  const [editingTask, setEditingTask] = useState(false);
   const [editingMessage, setEditingMessage] = useState(false);
   const [insightValue, setInsightValue] = useState("");
   const [taskValue, setTaskValue] = useState("");
@@ -107,14 +107,15 @@ export default function TrainingStudioWorkspace() {
   const [saving, setSaving] = useState(false);
   const [approvingAll, setApprovingAll] = useState(false);
   const [sendingAssignment, setSendingAssignment] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [loadingTaskOptions, setLoadingTaskOptions] = useState(false);
+  const [taskOptions, setTaskOptions] = useState<Array<{ id: string; text: string; source: "student" | "pool" }>>([]);
 
   const loadCohorts = useCallback(async () => {
     setLoadingQueue(true);
     try {
       const response = await adminApi.getCopilotCohorts({ limit: 50, offset: 0 });
-      const list = response.cohorts ?? [];
-      setCohorts(list);
-      setSelectedCohortId((previous) => previous ?? list[0]?.id ?? null);
+      setCohorts(response.cohorts ?? []);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load cohorts");
     } finally {
@@ -122,14 +123,30 @@ export default function TrainingStudioWorkspace() {
     }
   }, []);
 
-  const loadStudents = useCallback(async (cohortId: string) => {
+  const loadStudents = useCallback(async (cohortIds: string[]) => {
+    if (cohortIds.length === 0) {
+      setStudents([]);
+      setSelectedStudent(null);
+      return;
+    }
     setLoadingQueue(true);
     try {
-      const response = await adminApi.getCopilotCohortStudents(cohortId, {
-        limit: 100,
-        offset: 0,
-      });
-      const list = response.students ?? [];
+      const responses = await Promise.all(
+        cohortIds.map((cohortId) =>
+          adminApi.getCopilotCohortStudents(cohortId, {
+            limit: 100,
+            offset: 0,
+          })
+        )
+      );
+      const deduped = new Map<string, CopilotStudentQueueItem>();
+      for (const response of responses) {
+        for (const student of response.students ?? []) {
+          const key = `${student.student_id}:${student.session_id ?? ""}`;
+          if (!deduped.has(key)) deduped.set(key, student);
+        }
+      }
+      const list = Array.from(deduped.values());
       setStudents(list);
       setSelectedStudent((previous) => {
         if (!previous) return list[0] ?? null;
@@ -173,32 +190,49 @@ export default function TrainingStudioWorkspace() {
   }, [loadCohorts]);
 
   useEffect(() => {
-    if (!selectedCohortId) {
+    const cohortIds = cohorts.map((cohort) => cohort.id).filter(Boolean);
+    if (cohortIds.length === 0) {
       setStudents([]);
       setSelectedStudent(null);
       return;
     }
-    void loadStudents(selectedCohortId);
-  }, [loadStudents, selectedCohortId]);
+    void loadStudents(cohortIds);
+  }, [cohorts, loadStudents]);
 
   useEffect(() => {
     void loadDraft(selectedStudent);
   }, [loadDraft, selectedStudent]);
 
-  const queueCounts = useMemo(() => {
-    const all = students.length;
-    const pending = students.filter((item) => item.state === "Draft").length;
-    const audit = students.filter((item) => item.state === "Ready").length;
-    const done = students.filter((item) => item.state === "Sent").length;
-    return { all, pending, audit, done };
+  const sortedStudents = useMemo(() => {
+    const statusOrder: Record<CopilotStudentQueueItem["state"], number> = {
+      Draft: 0,
+      Ready: 1,
+      Sent: 2,
+    };
+    return [...students].sort((a, b) => {
+      const stateDiff = statusOrder[a.state] - statusOrder[b.state];
+      if (stateDiff !== 0) return stateDiff;
+      const queueA = a.queue_position ?? Number.MAX_SAFE_INTEGER;
+      const queueB = b.queue_position ?? Number.MAX_SAFE_INTEGER;
+      if (queueA !== queueB) return queueA - queueB;
+      return formatName(a).localeCompare(formatName(b));
+    });
   }, [students]);
 
+  const queueCounts = useMemo(() => {
+    const all = sortedStudents.length;
+    const pending = sortedStudents.filter((item) => item.state === "Draft").length;
+    const audit = sortedStudents.filter((item) => item.state === "Ready").length;
+    const done = sortedStudents.filter((item) => item.state === "Sent").length;
+    return { all, pending, audit, done };
+  }, [sortedStudents]);
+
   const filteredStudents = useMemo(() => {
-    if (queueFilter === "all") return students;
-    if (queueFilter === "pending") return students.filter((item) => item.state === "Draft");
-    if (queueFilter === "audit") return students.filter((item) => item.state === "Ready");
-    return students.filter((item) => item.state === "Sent");
-  }, [queueFilter, students]);
+    if (queueFilter === "all") return sortedStudents;
+    if (queueFilter === "pending") return sortedStudents.filter((item) => item.state === "Draft");
+    if (queueFilter === "audit") return sortedStudents.filter((item) => item.state === "Ready");
+    return sortedStudents.filter((item) => item.state === "Sent");
+  }, [queueFilter, sortedStudents]);
 
   const currentInsight = selectedDraft?.ai_insight ?? selectedStudent?.profile?.justification ?? "";
   const evidence = useMemo(
@@ -219,13 +253,13 @@ export default function TrainingStudioWorkspace() {
       });
       toast.success("Saved.");
       await loadDraft(selectedStudent);
-      if (selectedCohortId) await loadStudents(selectedCohortId);
+      await loadStudents(cohorts.map((cohort) => cohort.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save");
     } finally {
       setSaving(false);
     }
-  }, [loadDraft, loadStudents, messageValue, selectedCohortId, selectedDraft?.comment_draft, selectedDraft?.grade_draft, selectedDraft?.script_draft, selectedStudent, taskValue]);
+  }, [cohorts, loadDraft, loadStudents, messageValue, selectedDraft?.comment_draft, selectedDraft?.grade_draft, selectedDraft?.script_draft, selectedStudent, taskValue]);
 
   const saveInsight = useCallback(async () => {
     if (!selectedStudent) return;
@@ -264,11 +298,46 @@ export default function TrainingStudioWorkspace() {
       const ok = results.filter((result) => result.status === "fulfilled").length;
       if (ok > 0) toast.success(`Approved ${ok} student${ok === 1 ? "" : "s"}.`);
       if (ok < targets.length) toast.error(`Failed to approve ${targets.length - ok} students.`);
-      if (selectedCohortId) await loadStudents(selectedCohortId);
+      await loadStudents(cohorts.map((cohort) => cohort.id));
     } finally {
       setApprovingAll(false);
     }
-  }, [filteredStudents, loadStudents, selectedCohortId]);
+  }, [cohorts, filteredStudents, loadStudents]);
+
+  const openTaskSwapModal = useCallback(async () => {
+    if (!selectedStudent) return;
+    setTaskModalOpen(true);
+    setLoadingTaskOptions(true);
+    try {
+      const [studentTasks, poolTasks] = await Promise.all([
+        adminApi.getStudentTasks(selectedStudent.student_id),
+        adminApi.getTasksPool(),
+      ]);
+      const merged = new Map<string, { id: string; text: string; source: "student" | "pool" }>();
+      for (const task of studentTasks as StudentTask[]) {
+        if (!task.text?.trim()) continue;
+        const key = `student:${task.id}`;
+        merged.set(key, { id: task.id, text: task.text, source: "student" });
+      }
+      for (const task of poolTasks as TasksPoolItem[]) {
+        if (!task.text?.trim()) continue;
+        const key = `pool:${task.id}`;
+        merged.set(key, { id: task.id, text: task.text, source: "pool" });
+      }
+      setTaskOptions(Array.from(merged.values()));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load task options");
+      setTaskOptions([]);
+    } finally {
+      setLoadingTaskOptions(false);
+    }
+  }, [selectedStudent]);
+
+  const chooseTask = useCallback((taskText: string) => {
+    setTaskValue(taskText);
+    void saveDraftFields({ task_draft: taskText });
+    setTaskModalOpen(false);
+  }, [saveDraftFields]);
 
   const sendAssignment = useCallback(async () => {
     if (!selectedStudent) return;
@@ -320,6 +389,7 @@ export default function TrainingStudioWorkspace() {
       {pipelineView === "voice" ? (
         <AcousticDojoWorkspace showHeader={false} />
       ) : (
+      <>
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="overflow-hidden border-border/90 bg-card/95 p-0 shadow-sm">
           <div className="grid grid-cols-4 border-b bg-muted/35 text-center text-xs font-medium">
@@ -529,34 +599,18 @@ export default function TrainingStudioWorkspace() {
               <Button
                 variant="outline"
                 className="h-11 px-4 text-sm"
-                onClick={() => {
-                  if (editingTask) {
-                    void saveDraftFields({ task_draft: taskValue.trim() || null });
-                    setEditingTask(false);
-                  } else {
-                    setEditingTask(true);
-                  }
-                }}
+                onClick={() => void openTaskSwapModal()}
                 disabled={saving || !selectedStudent}
               >
                 <PencilLine className="mr-2 h-4 w-4" />
-                {editingTask ? "Save" : "Swap"}
+                Swap
               </Button>
             </div>
             <div className="px-5 py-4">
-              {editingTask ? (
-                <textarea
-                  rows={2}
-                  value={taskValue}
-                  onChange={(event) => setTaskValue(event.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-base"
-                />
-              ) : (
-                <>
-                  <p className="text-xl font-semibold">{taskValue || selectedDraft?.task_draft || "No task selected"}</p>
-                  <p className="text-sm text-muted-foreground">Task ID: {selectedStudent?.queue_position != null ? `t${selectedStudent.queue_position}` : "t2"}</p>
-                </>
-              )}
+              <>
+                <p className="text-xl font-semibold">{taskValue || selectedDraft?.task_draft || "No task selected"}</p>
+                <p className="text-sm text-muted-foreground">Task ID: {selectedStudent?.queue_position != null ? `t${selectedStudent.queue_position}` : "t2"}</p>
+              </>
             </div>
           </Card>
 
@@ -606,6 +660,44 @@ export default function TrainingStudioWorkspace() {
           </div>
         </div>
       </div>
+      {taskModalOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+          <Card className="w-full max-w-2xl border-border/90 bg-card p-0 shadow-xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <h3 className="text-2xl font-semibold">Swap Task</h3>
+              <Button variant="ghost" className="h-9 px-3 text-sm" onClick={() => setTaskModalOpen(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto px-5 py-4">
+              {loadingTaskOptions ? (
+                <p className="text-sm text-muted-foreground">Loading task options...</p>
+              ) : taskOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tasks available from student or pool APIs.</p>
+              ) : (
+                <div className="space-y-2">
+                  {taskOptions.map((task) => (
+                    <button
+                      key={`${task.source}-${task.id}`}
+                      type="button"
+                      onClick={() => chooseTask(task.text)}
+                      className="w-full rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/30"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-base">{task.text}</p>
+                        <span className="rounded-full bg-muted px-2 py-1 text-xs uppercase text-muted-foreground">
+                          {task.source}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      ) : null}
+      </>
       )}
     </div>
   );
