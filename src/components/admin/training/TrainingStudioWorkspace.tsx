@@ -519,6 +519,61 @@ export default function TrainingStudioWorkspace() {
     return fromDraft || null;
   }, [selectedDraft?.session_id, selectedStudent?.session_id]);
 
+  /**
+   * Queue rows often omit session_id; React state can also lag behind the network response.
+   * Refetch drafts / audit so approve + send homework can always target the right session.
+   */
+  const resolveCopilotSessionAndDraftId = useCallback(async (): Promise<{
+    sessionId: string;
+    draftId: string | undefined;
+  } | null> => {
+    if (!selectedStudent) return null;
+
+    const fromQueue = selectedStudent.session_id?.trim();
+    if (fromQueue) {
+      return {
+        sessionId: fromQueue,
+        draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined,
+      };
+    }
+
+    const fromDraftState = selectedDraft?.session_id?.trim();
+    if (fromDraftState) {
+      return {
+        sessionId: fromDraftState,
+        draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined,
+      };
+    }
+
+    try {
+      const { drafts } = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id);
+      const withSession = drafts.find((d) => d.session_id?.trim());
+      if (withSession?.session_id?.trim()) {
+        return {
+          sessionId: withSession.session_id.trim(),
+          draftId: withSession.id?.trim() ? withSession.id : undefined,
+        };
+      }
+    } catch {
+      /* continue to audit */
+    }
+
+    try {
+      const { audit } = await adminApi.getCopilotStudentAudit(selectedStudent.student_id);
+      const sid = audit?.session_id?.trim();
+      if (sid) {
+        return {
+          sessionId: sid,
+          draftId: audit?.id?.trim() ? audit.id : undefined,
+        };
+      }
+    } catch {
+      /* give up */
+    }
+
+    return null;
+  }, [selectedDraft?.id, selectedDraft?.session_id, selectedStudent]);
+
   const currentInsight = selectedDraft?.ai_insight ?? selectedStudent?.profile?.justification ?? "";
   const evidence = useMemo(() => toEvidence(currentInsight, displayJustification), [currentInsight, displayJustification]);
   const confidencePercent = useMemo(() => {
@@ -737,14 +792,20 @@ export default function TrainingStudioWorkspace() {
 
   const saveInsight = useCallback(async () => {
     if (!selectedStudent) return;
-    if (!copilotSessionId) {
-      toast.error("Session id is missing; wait for the draft to load or pick another student.");
-      return;
-    }
     setSaving(true);
     try {
+      const resolved =
+        copilotSessionId != null
+          ? { sessionId: copilotSessionId, draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined }
+          : await resolveCopilotSessionAndDraftId();
+      if (!resolved) {
+        toast.error(
+          "Could not find a session for this copilot draft. Refresh the queue or check that the backend returns session_id on drafts/audit."
+        );
+        return;
+      }
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
-        session_id: copilotSessionId,
+        session_id: resolved.sessionId,
         good_as_is: false,
         corrected_insight: insightValue.trim() || null,
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
@@ -758,16 +819,21 @@ export default function TrainingStudioWorkspace() {
     } finally {
       setSaving(false);
     }
-  }, [copilotSessionId, insightValue, loadDraft, reasonChipCustom, selectedReasonChips, selectedStudent]);
+  }, [
+    copilotSessionId,
+    insightValue,
+    loadDraft,
+    reasonChipCustom,
+    resolveCopilotSessionAndDraftId,
+    selectedDraft?.id,
+    selectedReasonChips,
+    selectedStudent,
+  ]);
 
   const approveAiForSelectedStudent = useCallback(async () => {
     if (!selectedStudent) return;
     if (selectedStudent.state === "Sent") {
       toast.message("This student is already marked sent.");
-      return;
-    }
-    if (!copilotSessionId) {
-      toast.error("Session id is missing; wait for the draft to load so we can sync the insight audit.");
       return;
     }
     const currentFilter = queueFilter;
@@ -782,15 +848,23 @@ export default function TrainingStudioWorkspace() {
     })();
     setApprovingAll(true);
     try {
+      const resolved = await resolveCopilotSessionAndDraftId();
+      if (!resolved) {
+        toast.error(
+          "Could not find a session for this copilot draft. Refresh the queue or check that the backend returns session_id on drafts/audit."
+        );
+        return;
+      }
+      const draftId = resolved.draftId ?? (selectedDraft?.id?.trim() ? selectedDraft.id : undefined);
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
-        session_id: copilotSessionId,
+        session_id: resolved.sessionId,
         good_as_is: true,
         reason_chips: selectedReasonChips.length > 0 ? selectedReasonChips.map((chip_key) => ({ chip_key })) : undefined,
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
       await adminApi.approveCopilotStudent(selectedStudent.student_id, {
-        session_id: copilotSessionId,
-        draft_id: selectedDraft?.id,
+        session_id: resolved.sessionId,
+        draft_id: draftId,
         idempotency_key: crypto.randomUUID(),
       });
       toast.success("AI suggestions approved for this student.");
@@ -816,9 +890,9 @@ export default function TrainingStudioWorkspace() {
     filteredStudents,
     loadDraft,
     loadStudents,
-    copilotSessionId,
     queueFilter,
     reasonChipCustom,
+    resolveCopilotSessionAndDraftId,
     selectedDraft?.id,
     selectedReasonChips,
     selectedStudent,
@@ -954,15 +1028,20 @@ export default function TrainingStudioWorkspace() {
       toast.error("Message to student must be 2000 characters or less");
       return;
     }
-    if (!copilotSessionId) {
-      toast.error("Session id is missing; wait for the draft to load before sending.");
-      return;
-    }
 
     setSendingAssignment(true);
     try {
+      const resolved = await resolveCopilotSessionAndDraftId();
+      if (!resolved) {
+        toast.error(
+          "Could not find a session for this copilot draft. Refresh the queue or check that the backend returns session_id on drafts/audit."
+        );
+        return;
+      }
+      const draftId = resolved.draftId ?? (selectedDraft?.id?.trim() ? selectedDraft.id : undefined);
+
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
-        session_id: copilotSessionId,
+        session_id: resolved.sessionId,
         good_as_is: true,
         reason_chips:
           selectedReasonChips.length > 0
@@ -972,14 +1051,14 @@ export default function TrainingStudioWorkspace() {
       });
 
       await adminApi.approveCopilotStudent(selectedStudent.student_id, {
-        session_id: copilotSessionId,
-        draft_id: selectedDraft?.id,
+        session_id: resolved.sessionId,
+        draft_id: draftId,
         idempotency_key: crypto.randomUUID(),
       });
 
       await adminApi.sendCopilotStudent(selectedStudent.student_id, {
-        session_id: copilotSessionId,
-        draft_id: selectedDraft?.id,
+        session_id: resolved.sessionId,
+        draft_id: draftId,
         idempotency_key: crypto.randomUUID(),
       });
 
@@ -1000,11 +1079,11 @@ export default function TrainingStudioWorkspace() {
     }
   }, [
     cohorts,
-    copilotSessionId,
     loadDraft,
     loadStudents,
     messageValue,
     reasonChipCustom,
+    resolveCopilotSessionAndDraftId,
     selectedDraft?.id,
     selectedReasonChips,
     selectedStudent,
@@ -1138,13 +1217,7 @@ export default function TrainingStudioWorkspace() {
                   approvingAll ||
                   loading ||
                   !selectedStudent ||
-                  selectedStudent.state === "Sent" ||
-                  !copilotSessionId
-                }
-                title={
-                  !copilotSessionId && selectedStudent && selectedStudent.state !== "Sent"
-                    ? "Waiting for draft session id (load finishes after you select a student)."
-                    : undefined
+                  selectedStudent.state === "Sent"
                 }
               >
                 {approvingAll ? "Approving..." : "Accept AI for this student"}
@@ -1689,7 +1762,7 @@ export default function TrainingStudioWorkspace() {
             <Button
               className="h-11 px-5 text-sm"
               onClick={() => void sendAssignment()}
-              disabled={sendingAssignment || !selectedStudent}
+              disabled={sendingAssignment || !selectedStudent || loading}
             >
               <Send className="mr-2 h-4 w-4" />
               {sendingAssignment ? "Sending..." : "Send Assignment"}
