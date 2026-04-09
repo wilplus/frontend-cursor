@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { proxyAdminWithCodes } from "@/app/api/admin/_proxyWithCodes";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
+function rowStr(row: Record<string, unknown>, snake: string, camel: string): string | null {
+  const a = row[snake];
+  const b = row[camel];
+  if (typeof a === "string") return a;
+  if (typeof b === "string") return b;
+  return null;
+}
+
+function rowNum(row: Record<string, unknown>, snake: string, camel: string): number | null {
+  const a = row[snake];
+  const b = row[camel];
+  if (typeof a === "number" && Number.isFinite(a)) return a;
+  if (typeof b === "number" && Number.isFinite(b)) return b;
+  return null;
+}
+
 function badRequest(message: string) {
   return NextResponse.json({ code: "BAD_REQUEST", error: message }, { status: 400 });
 }
@@ -55,27 +71,34 @@ export async function GET(
       }
       return true;
     })
-    .map((row, index) => ({
-      id: String(row.draft_id ?? row.id ?? `${studentId}-draft-${index}`),
-      student_id: String(row.student_id ?? row.user_id ?? studentId),
-      session_id: typeof row.session_id === "string" ? row.session_id : null,
-      status: String(row.status ?? "Draft"),
-      ai_insight: typeof row.ai_insight === "string" ? row.ai_insight : null,
-      corrected_insight: typeof row.corrected_insight === "string" ? row.corrected_insight : null,
-      good_as_is: typeof row.good_as_is === "boolean" ? row.good_as_is : undefined,
-      grade_draft:
-        typeof row.grade_draft === "number" ? row.grade_draft : null,
-      comment_draft: typeof row.comment_draft === "string" ? row.comment_draft : null,
-      task_draft: typeof row.task_draft === "string" ? row.task_draft : null,
-      email_draft: typeof row.email_draft === "string" ? row.email_draft : null,
-      script_draft: typeof row.script_draft === "string" ? row.script_draft : null,
-      metadata:
-        row.draft_payload && typeof row.draft_payload === "object"
-          ? (row.draft_payload as Record<string, unknown>)
-          : row.metadata && typeof row.metadata === "object"
-            ? (row.metadata as Record<string, unknown>)
-            : null,
-    }));
+    .map((row, index) => {
+      const r = row as Record<string, unknown>;
+      return {
+        id: String(row.draft_id ?? row.id ?? `${studentId}-draft-${index}`),
+        student_id: String(row.student_id ?? row.user_id ?? studentId),
+        session_id: rowStr(r, "session_id", "sessionId"),
+        status: String(row.status ?? "Draft"),
+        ai_insight: rowStr(r, "ai_insight", "aiInsight"),
+        corrected_insight: rowStr(r, "corrected_insight", "correctedInsight"),
+        good_as_is: typeof row.good_as_is === "boolean" ? row.good_as_is : undefined,
+        ai_grade_draft: rowNum(r, "ai_grade_draft", "aiGradeDraft"),
+        ai_comment_draft: rowStr(r, "ai_comment_draft", "aiCommentDraft"),
+        ai_email_draft: rowStr(r, "ai_email_draft", "aiEmailDraft"),
+        ai_task_suggestion: rowStr(r, "ai_task_suggestion", "aiTaskSuggestion"),
+        ai_script_draft: rowStr(r, "ai_script_draft", "aiScriptDraft"),
+        grade_draft: rowNum(r, "grade_draft", "gradeDraft"),
+        comment_draft: rowStr(r, "comment_draft", "commentDraft"),
+        task_draft: rowStr(r, "task_draft", "taskDraft"),
+        email_draft: rowStr(r, "email_draft", "emailDraft"),
+        script_draft: rowStr(r, "script_draft", "scriptDraft"),
+        metadata:
+          row.draft_payload && typeof row.draft_payload === "object"
+            ? (row.draft_payload as Record<string, unknown>)
+            : row.metadata && typeof row.metadata === "object"
+              ? (row.metadata as Record<string, unknown>)
+              : null,
+      };
+    });
   return NextResponse.json({ drafts });
 }
 

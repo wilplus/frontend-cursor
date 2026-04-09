@@ -664,6 +664,72 @@ export interface CopilotStudentDraft {
   metadata?: Record<string, unknown> | null;
 }
 
+function pickStrFromRaw(raw: Record<string, unknown>, snake: string, camel: string): string | null {
+  const a = raw[snake];
+  const b = raw[camel];
+  if (typeof a === "string") return a;
+  if (typeof b === "string") return b;
+  return null;
+}
+
+function pickNumFromRaw(raw: Record<string, unknown>, snake: string, camel: string): number | null {
+  const a = raw[snake];
+  const b = raw[camel];
+  if (typeof a === "number" && Number.isFinite(a)) return a;
+  if (typeof b === "number" && Number.isFinite(b)) return b;
+  return null;
+}
+
+/** Unify snake_case vs camelCase and common payload aliases from backend JSON. */
+export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): CopilotStudentDraft {
+  const metadata =
+    raw.metadata && typeof raw.metadata === "object"
+      ? (raw.metadata as Record<string, unknown>)
+      : raw.draft_payload && typeof raw.draft_payload === "object"
+        ? (raw.draft_payload as Record<string, unknown>)
+        : null;
+
+  return {
+    id: String(raw.id ?? raw.draft_id ?? ""),
+    student_id: String(raw.student_id ?? raw.user_id ?? ""),
+    session_id: pickStrFromRaw(raw, "session_id", "sessionId"),
+    status: (typeof raw.status === "string" ? raw.status : "Draft") as CopilotDraftStatus,
+    ai_insight: pickStrFromRaw(raw, "ai_insight", "aiInsight"),
+    corrected_insight: pickStrFromRaw(raw, "corrected_insight", "correctedInsight"),
+    good_as_is:
+      typeof raw.good_as_is === "boolean"
+        ? raw.good_as_is
+        : typeof raw.goodAsIs === "boolean"
+          ? raw.goodAsIs
+          : undefined,
+    ai_grade_draft: pickNumFromRaw(raw, "ai_grade_draft", "aiGradeDraft"),
+    ai_comment_draft: pickStrFromRaw(raw, "ai_comment_draft", "aiCommentDraft"),
+    ai_email_draft: pickStrFromRaw(raw, "ai_email_draft", "aiEmailDraft"),
+    ai_task_suggestion: pickStrFromRaw(raw, "ai_task_suggestion", "aiTaskSuggestion"),
+    ai_script_draft: pickStrFromRaw(raw, "ai_script_draft", "aiScriptDraft"),
+    grade_draft: pickNumFromRaw(raw, "grade_draft", "gradeDraft"),
+    comment_draft: pickStrFromRaw(raw, "comment_draft", "commentDraft"),
+    task_draft: pickStrFromRaw(raw, "task_draft", "taskDraft"),
+    email_draft: pickStrFromRaw(raw, "email_draft", "emailDraft"),
+    script_draft: pickStrFromRaw(raw, "script_draft", "scriptDraft"),
+    cohort_profile: pickStrFromRaw(raw, "cohort_profile", "cohortProfile"),
+    cohort_stage: (raw.cohort_stage ?? raw.cohortStage ?? null) as string | number | null,
+    score_for_display:
+      typeof raw.score_for_display === "number"
+        ? raw.score_for_display
+        : typeof raw.scoreForDisplay === "number"
+          ? raw.scoreForDisplay
+          : undefined,
+    reason_chip_required:
+      typeof raw.reason_chip_required === "boolean"
+        ? raw.reason_chip_required
+        : typeof raw.reasonChipRequired === "boolean"
+          ? raw.reasonChipRequired
+          : undefined,
+    metadata,
+  };
+}
+
 export interface CopilotAuditPayload {
   session_id?: string | null;
   good_as_is?: boolean;
@@ -771,14 +837,23 @@ export const adminApi = {
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return adminFetch<{ drafts: CopilotStudentDraft[] }>(
       `/copilot/students/${studentId}/drafts${suffix}`
-    );
+    ).then((res) => ({
+      drafts: (Array.isArray(res.drafts) ? res.drafts : []).map((d) =>
+        normalizeCopilotStudentDraft(d as Record<string, unknown>)
+      ),
+    }));
   },
 
   updateCopilotStudentDrafts: (studentId: string, body: CopilotDraftPatchPayload) =>
     adminFetch<{ status: string; draft?: CopilotStudentDraft }>(
       `/copilot/students/${studentId}/drafts`,
       { method: "PUT", body }
-    ),
+    ).then((res) => ({
+      ...res,
+      draft: res.draft
+        ? normalizeCopilotStudentDraft(res.draft as Record<string, unknown>)
+        : res.draft,
+    })),
 
   getCopilotStudentAudit: (studentId: string, params?: { session_id?: string }) => {
     const search = new URLSearchParams();

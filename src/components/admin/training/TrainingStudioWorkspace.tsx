@@ -1069,7 +1069,9 @@ export default function TrainingStudioWorkspace() {
             <div className="px-5 py-4">
               <>
                 <p className="text-xl font-semibold">
-                  {stripHtmlToText(taskValue || selectedDraft?.task_draft) || "No task selected"}
+                  {stripHtmlToText(
+                    taskValue || selectedDraft?.task_draft || selectedDraft?.ai_task_suggestion
+                  ) || "No task selected"}
                 </p>
                 {taskAiHint ? <p className="mt-1 text-xs text-muted-foreground">{taskAiHint}</p> : null}
                 <p className="text-sm text-muted-foreground">Task ID: {selectedStudent?.queue_position != null ? `t${selectedStudent.queue_position}` : "t2"}</p>
@@ -1106,7 +1108,12 @@ export default function TrainingStudioWorkspace() {
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-base leading-snug"
                 />
               ) : (
-                <p className="text-base leading-7">{messageValue || selectedDraft?.email_draft || "No message drafted yet."}</p>
+                <p className="text-base leading-7">
+                  {messageValue ||
+                    selectedDraft?.email_draft ||
+                    selectedDraft?.ai_email_draft ||
+                    "No message drafted yet."}
+                </p>
               )}
               {emailAiHint ? <p className="mt-2 text-xs text-muted-foreground">{emailAiHint}</p> : null}
             </div>
@@ -1143,7 +1150,10 @@ export default function TrainingStudioWorkspace() {
                 />
               ) : (
                 <p className="text-base leading-7 whitespace-pre-wrap">
-                  {scriptValue || selectedDraft?.script_draft || "No script drafted yet."}
+                  {scriptValue ||
+                    selectedDraft?.script_draft ||
+                    selectedDraft?.ai_script_draft ||
+                    "No script drafted yet."}
                 </p>
               )}
             </div>
