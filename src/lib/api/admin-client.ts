@@ -962,7 +962,13 @@ export const adminApi = {
 
   patchStudentProfileClassification: (
     userId: string,
-    body: { behavioral_profile: string; reason_chip?: string; reason_chip_custom?: string | null }
+    body: {
+      behavioral_profile?: string;
+      coach_override_profile?: string;
+      profile_override_justification?: string | null;
+      reason_chip?: string;
+      reason_chip_custom?: string | null;
+    }
   ) =>
     adminFetch<{ status?: string }>(`/students/${userId}/profile-classification`, {
       method: "PATCH",
