@@ -846,6 +846,7 @@ export interface StressSnippet {
   id: string;
   recording_id?: string | null;
   source_type?: "student" | "internet" | "external" | null;
+  audio_url?: string | null;
   snippet_start_ms?: number | null;
   snippet_end_ms?: number | null;
   snippet_duration_ms?: number | null;
@@ -1083,13 +1084,13 @@ export const adminApi = {
 
   generateStressSnippets: (
     recordingId: string,
-    body: { max_snippets?: number; clip_seconds?: number; clear_existing?: boolean }
+    body?: { max_snippets?: number; clip_seconds?: number; clear_existing?: boolean }
   ) =>
     adminFetch<{
       generated_count: number;
       status?: string;
       snippets?: StressSnippet[];
-    }>(`/recordings/${recordingId}/stress-snippets/generate`, { method: "POST", body }),
+    }>(`/recordings/${recordingId}/stress-snippets/generate`, { method: "POST", body: body ?? {} }),
 
   labelStressSnippet: (
     snippetId: string,
@@ -1165,6 +1166,16 @@ export const adminApi = {
       method: "POST",
       body: formData,
     }),
+
+  uploadExternalRecording: (formData: FormData) =>
+    adminFetch<{
+      status: string;
+      recording_id: string;
+      review_id?: string;
+      playback_url?: string;
+      generated_snippets_count?: number;
+      message?: string;
+    }>("/recordings/import", { method: "POST", body: formData }),
 
   getRecordingImports: (params?: { limit?: number; offset?: number }) => {
     const search = new URLSearchParams();
