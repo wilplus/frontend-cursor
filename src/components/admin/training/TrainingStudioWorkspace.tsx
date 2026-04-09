@@ -1,19 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, PencilLine, Send, Sparkles, Waves } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, ChevronRight, PencilLine, Send, Sparkles, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AcousticDojoWorkspace from "@/components/admin/dojo/AcousticDojoWorkspace";
+import LatestSessionMetrics from "@/components/admin/LatestSessionMetrics";
+import ReportDetailModal from "@/components/admin/ReportDetailModal";
+import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { stripHtmlToText } from "@/lib/sanitizeRichHtml";
 import { formatTaskTemplateLabel, isTaskTemplateActive } from "@/lib/tasks/taskTemplateLabels";
+import { resolveSessionRowWpm } from "@/lib/admin/resolveWpm";
+import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports/compact-preview";
 import {
   adminApi,
   type CopilotCohortStack,
   type CopilotStudentDraft,
   type CopilotStudentQueueItem,
+  type StudentProfile,
   type StudentTask,
   type TasksPoolItem,
 } from "@/lib/api/admin-client";
@@ -100,6 +108,19 @@ function queueStateBadge(state: CopilotStudentQueueItem["state"]): string {
   return "bg-slate-100 text-slate-700";
 }
 
+function statusDisplayLabel(state: CopilotStudentQueueItem["state"]): string {
+  if (state === "Draft") return "Pending";
+  if (state === "Ready") return "Needs Review";
+  return "Sent";
+}
+
+function matchesQueueFilter(item: CopilotStudentQueueItem, filter: QueueFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "pending") return item.state === "Draft";
+  if (filter === "audit") return item.state === "Ready";
+  return item.state === "Sent";
+}
+
 function toEvidence(insight: string, fallback: string): string[] {
   const text = insight.trim() || fallback.trim();
   if (!text) return [];
@@ -132,6 +153,10 @@ function parseOptionalPercent(raw: string): number | null {
   const n = Number.parseFloat(t);
   if (Number.isNaN(n)) return null;
   return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function formatUnitPercent(value: number | null | undefined): string {
+  return value != null && Number.isFinite(value) ? `${Math.round(value * 100)}%` : "—";
 }
 
 function mergeMetadataReviewerScore(
@@ -195,6 +220,10 @@ export default function TrainingStudioWorkspace() {
   const [sendingAssignment, setSendingAssignment] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [loadingTaskOptions, setLoadingTaskOptions] = useState(false);
+  const [savingTaskOptionId, setSavingTaskOptionId] = useState<string | null>(null);
+  const [deletingTaskOptionId, setDeletingTaskOptionId] = useState<string | null>(null);
+  const [editingTaskOptionId, setEditingTaskOptionId] = useState<string | null>(null);
+  const [taskOptionEditValue, setTaskOptionEditValue] = useState("");
   const [taskOptions, setTaskOptions] = useState<
     Array<{ id: string; text: string; source: "student" | "pool"; subLabel?: string }>
   >([]);
@@ -202,6 +231,21 @@ export default function TrainingStudioWorkspace() {
   const [selectedReasonChips, setSelectedReasonChips] = useState<string[]>([]);
   const [reasonChipCustom, setReasonChipCustom] = useState("");
   const [savingProfileClassification, setSavingProfileClassification] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsProfile, setDetailsProfile] = useState<StudentProfile | null>(null);
+  const [detailsReportPreviews, setDetailsReportPreviews] = useState<Record<string, CompactReportPreview | null>>({});
+  const [detailsReportPreviewLoading, setDetailsReportPreviewLoading] = useState<Record<string, boolean>>({});
+  const [detailsReportModalSession, setDetailsReportModalSession] = useState<StudentProfile["sessions"][number] | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useBodyScrollLock(taskModalOpen);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
 
   const loadCohorts = useCallback(async () => {
     setLoadingQueue(true);
@@ -219,7 +263,7 @@ export default function TrainingStudioWorkspace() {
     if (cohortIds.length === 0) {
       setStudents([]);
       setSelectedStudent(null);
-      return;
+      return [] as CopilotStudentQueueItem[];
     }
     setLoadingQueue(true);
     try {
@@ -242,10 +286,19 @@ export default function TrainingStudioWorkspace() {
       setStudents(list);
       setSelectedStudent((previous) => {
         if (!previous) return list[0] ?? null;
+        const exact =
+          list.find(
+            (item) =>
+              item.student_id === previous.student_id &&
+              (item.session_id ?? "") === (previous.session_id ?? "")
+          ) ?? null;
+        if (exact) return exact;
         return list.find((item) => item.student_id === previous.student_id) ?? list[0] ?? null;
       });
+      return list;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load students");
+      return [] as CopilotStudentQueueItem[];
     } finally {
       setLoadingQueue(false);
     }
@@ -360,6 +413,72 @@ export default function TrainingStudioWorkspace() {
     setSelectedReasonChips([]);
     setReasonChipCustom("");
   }, [selectedStudent?.student_id, selectedStudent?.session_id]);
+
+  useEffect(() => {
+    setDetailsOpen(false);
+    setDetailsError(null);
+    setDetailsProfile(null);
+    setDetailsReportPreviews({});
+    setDetailsReportPreviewLoading({});
+    setDetailsReportModalSession(null);
+  }, [selectedStudent?.student_id]);
+
+  useEffect(() => {
+    if (!detailsOpen || !selectedStudent) return;
+    let cancelled = false;
+    setDetailsLoading(true);
+    setDetailsError(null);
+    adminApi
+      .getStudentProfile(selectedStudent.student_id)
+      .then((profile) => {
+        if (cancelled) return;
+        setDetailsProfile(profile);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setDetailsError(error instanceof Error ? error.message : "Failed to load student details");
+        setDetailsProfile(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailsOpen, selectedStudent]);
+
+  const detailsReports = useMemo(() => {
+    const sessions = detailsProfile?.sessions ?? [];
+    return [...sessions]
+      .sort((a, b) => (b.completed_at || b.created_at || "").localeCompare(a.completed_at || a.created_at || ""))
+      .slice(0, 5);
+  }, [detailsProfile?.sessions]);
+
+  const detailsSessionRows = useMemo(() => {
+    const sessions = detailsProfile?.sessions ?? [];
+    return [...sessions]
+      .sort((a, b) => (b.completed_at || b.created_at || "").localeCompare(a.completed_at || a.created_at || ""))
+      .slice(0, 10);
+  }, [detailsProfile?.sessions]);
+
+  useEffect(() => {
+    if (!detailsOpen || !selectedStudent || detailsReports.length === 0) return;
+    detailsReports.forEach((session) => {
+      if (detailsReportPreviews[session.id] !== undefined || detailsReportPreviewLoading[session.id]) return;
+      setDetailsReportPreviewLoading((prev) => ({ ...prev, [session.id]: true }));
+      adminApi
+        .getStudentSessionReport(selectedStudent.student_id, session.id)
+        .then((report) => {
+          setDetailsReportPreviews((prev) => ({ ...prev, [session.id]: toCompactReportPreview(report) }));
+        })
+        .catch(() => {
+          setDetailsReportPreviews((prev) => ({ ...prev, [session.id]: null }));
+        })
+        .finally(() => {
+          setDetailsReportPreviewLoading((prev) => ({ ...prev, [session.id]: false }));
+        });
+    });
+  }, [detailsOpen, detailsReportPreviewLoading, detailsReportPreviews, detailsReports, selectedStudent]);
 
   const sortedStudents = useMemo(() => {
     const statusOrder: Record<CopilotStudentQueueItem["state"], number> = {
@@ -533,7 +652,7 @@ export default function TrainingStudioWorkspace() {
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
-      toast.success("Score, grade, and comment saved for AI feedback.");
+      toast.success("Feedback saved. Click Accept AI for this student to move it to the next review state.");
       await loadDraft(selectedStudent);
       await loadStudents(cohorts.map((cohort) => cohort.id));
     } catch (error) {
@@ -651,6 +770,16 @@ export default function TrainingStudioWorkspace() {
       toast.error("Session id is missing; wait for the draft to load so we can sync the insight audit.");
       return;
     }
+    const currentFilter = queueFilter;
+    const fallbackFromCurrentTab = (() => {
+      const idx = filteredStudents.findIndex(
+        (item) =>
+          item.student_id === selectedStudent.student_id &&
+          (item.session_id ?? "") === (selectedStudent.session_id ?? "")
+      );
+      if (idx < 0) return filteredStudents[0] ?? null;
+      return filteredStudents[idx + 1] ?? filteredStudents[idx - 1] ?? null;
+    })();
     setApprovingAll(true);
     try {
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
@@ -666,7 +795,17 @@ export default function TrainingStudioWorkspace() {
       });
       toast.success("AI suggestions approved for this student.");
       await loadDraft(selectedStudent);
-      await loadStudents(cohorts.map((cohort) => cohort.id));
+      const refreshed = await loadStudents(cohorts.map((cohort) => cohort.id));
+      const exactFallback =
+        fallbackFromCurrentTab == null
+          ? null
+          : refreshed.find(
+              (item) =>
+                item.student_id === fallbackFromCurrentTab.student_id &&
+                (item.session_id ?? "") === (fallbackFromCurrentTab.session_id ?? "")
+            ) ?? null;
+      const firstInCurrentTab = refreshed.find((item) => matchesQueueFilter(item, currentFilter)) ?? null;
+      setSelectedStudent(exactFallback ?? firstInCurrentTab ?? refreshed[0] ?? null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Approve failed");
     } finally {
@@ -674,18 +813,22 @@ export default function TrainingStudioWorkspace() {
     }
   }, [
     cohorts,
+    filteredStudents,
     loadDraft,
     loadStudents,
     copilotSessionId,
+    queueFilter,
     reasonChipCustom,
     selectedDraft?.id,
     selectedReasonChips,
     selectedStudent,
   ]);
 
-  const openTaskSwapModal = useCallback(async () => {
-    if (!selectedStudent) return;
-    setTaskModalOpen(true);
+  const loadTaskOptionsForStudent = useCallback(async () => {
+    if (!selectedStudent) {
+      setTaskOptions([]);
+      return;
+    }
     setLoadingTaskOptions(true);
     try {
       const [studentTasks, poolTasks] = await Promise.all([
@@ -696,17 +839,34 @@ export default function TrainingStudioWorkspace() {
       for (const task of studentTasks as StudentTask[]) {
         if (!task.text?.trim()) continue;
         const key = `student:${task.id}`;
-        merged.set(key, { id: task.id, text: task.text, source: "student" });
+        merged.set(key, { id: task.id, text: task.text, source: "student", subLabel: "Student task" });
       }
-      for (const task of poolTasks as TasksPoolItem[]) {
-        if (!isTaskTemplateActive(task)) continue;
-        if (!task.text?.trim()) continue;
+      const studentProfile = selectedStudent.profile?.behavioral_profile?.trim() ?? null;
+      const activePool = (poolTasks as TasksPoolItem[]).filter((task) => {
+        if (!isTaskTemplateActive(task)) return false;
+        return !!task.text?.trim();
+      });
+      const sortedPool = [...activePool].sort((a, b) => {
+        const aMatches = studentProfile != null && a.target_profile === studentProfile;
+        const bMatches = studentProfile != null && b.target_profile === studentProfile;
+        if (aMatches !== bMatches) return aMatches ? -1 : 1;
+        const aLevel = a.level ?? Number.MAX_SAFE_INTEGER;
+        const bLevel = b.level ?? Number.MAX_SAFE_INTEGER;
+        if (aLevel !== bLevel) return aLevel - bLevel;
+        const aStep = a.step_in_level ?? Number.MAX_SAFE_INTEGER;
+        const bStep = b.step_in_level ?? Number.MAX_SAFE_INTEGER;
+        if (aStep !== bStep) return aStep - bStep;
+        return a.text.localeCompare(b.text);
+      });
+      for (const task of sortedPool) {
         const key = `pool:${task.id}`;
+        const profileMatch = studentProfile && task.target_profile === studentProfile ? "Match" : null;
+        const label = formatTaskTemplateLabel(task);
         merged.set(key, {
           id: task.id,
           text: task.text,
           source: "pool",
-          subLabel: formatTaskTemplateLabel(task),
+          subLabel: profileMatch ? `${label} · ${profileMatch}` : label,
         });
       }
       setTaskOptions(Array.from(merged.values()));
@@ -718,11 +878,74 @@ export default function TrainingStudioWorkspace() {
     }
   }, [selectedStudent]);
 
+  const openTaskSwapModal = useCallback(async () => {
+    if (!selectedStudent) return;
+    setTaskModalOpen(true);
+    setEditingTaskOptionId(null);
+    setTaskOptionEditValue("");
+    await loadTaskOptionsForStudent();
+  }, [loadTaskOptionsForStudent, selectedStudent]);
+
   const chooseTask = useCallback((taskText: string) => {
     setTaskValue(taskText);
     void saveDraftFields({ task_draft: taskText });
     setTaskModalOpen(false);
   }, [saveDraftFields]);
+
+  const startEditingTaskOption = useCallback((optionId: string, source: "student" | "pool", text: string) => {
+    setEditingTaskOptionId(`${source}:${optionId}`);
+    setTaskOptionEditValue(text);
+  }, []);
+
+  const cancelEditingTaskOption = useCallback(() => {
+    setEditingTaskOptionId(null);
+    setTaskOptionEditValue("");
+  }, []);
+
+  const saveTaskOptionEdit = useCallback(async (optionId: string, source: "student" | "pool") => {
+    if (!selectedStudent) return;
+    const nextText = taskOptionEditValue.trim();
+    if (!nextText) {
+      toast.error("Task text cannot be empty.");
+      return;
+    }
+    const opKey = `${source}:${optionId}`;
+    setSavingTaskOptionId(opKey);
+    try {
+      if (source === "student") {
+        await adminApi.updateStudentTask(selectedStudent.student_id, optionId, { text: nextText });
+      } else {
+        await adminApi.updateTasksPoolItem(optionId, { text: nextText });
+      }
+      toast.success("Task updated.");
+      setEditingTaskOptionId(null);
+      setTaskOptionEditValue("");
+      await loadTaskOptionsForStudent();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update task");
+    } finally {
+      setSavingTaskOptionId(null);
+    }
+  }, [loadTaskOptionsForStudent, selectedStudent, taskOptionEditValue]);
+
+  const deleteTaskOption = useCallback(async (optionId: string, source: "student" | "pool") => {
+    if (!selectedStudent) return;
+    const opKey = `${source}:${optionId}`;
+    setDeletingTaskOptionId(opKey);
+    try {
+      if (source === "student") {
+        await adminApi.deleteStudentTask(selectedStudent.student_id, optionId);
+      } else {
+        await adminApi.deleteTasksPoolItem(optionId);
+      }
+      toast.success("Task deleted.");
+      await loadTaskOptionsForStudent();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete task");
+    } finally {
+      setDeletingTaskOptionId(null);
+    }
+  }, [loadTaskOptionsForStudent, selectedStudent]);
 
   const sendAssignment = useCallback(async () => {
     if (!selectedStudent) return;
@@ -843,11 +1066,21 @@ export default function TrainingStudioWorkspace() {
                   ? `${formatSession(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
                   : "No student selected"}
               </p>
+              {selectedStudent ? (
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen((prev) => !prev)}
+                  className="mt-1 inline-flex items-center gap-1 text-sm text-amber-600 transition-colors hover:text-amber-700"
+                >
+                  <ChevronRight className={`h-4 w-4 transition-transform ${detailsOpen ? "rotate-90" : ""}`} />
+                  {detailsOpen ? "Hide details" : "See the details"}
+                </button>
+              ) : null}
             </div>
             <div className="flex items-center gap-2">
               {selectedStudent ? (
                 <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${queueStateBadge(selectedStudent.state)}`}>
-                  {selectedStudent.state === "Draft" ? "Pending Review" : selectedStudent.state}
+                  {statusDisplayLabel(selectedStudent.state)}
                 </span>
               ) : null}
               <Button
@@ -877,12 +1110,179 @@ export default function TrainingStudioWorkspace() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
+          {detailsOpen ? (
+            <Card className="border-border/80 bg-card/95 p-0">
+              <div className="border-b px-5 py-4">
+                <h3 className="text-xl font-semibold">Student Snapshot</h3>
+                <p className="text-sm text-muted-foreground">
+                  Concise details, metrics, session performance, and reports history.
+                </p>
+              </div>
+              <div className="space-y-4 px-5 py-4">
+                {detailsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading details...</p>
+                ) : detailsError ? (
+                  <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {detailsError}
+                  </p>
+                ) : detailsProfile ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Name</p>
+                        <p className="text-sm font-semibold">{detailsProfile.name?.trim() || "—"}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="truncate text-sm font-semibold">{detailsProfile.email?.trim() || "—"}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Credits</p>
+                        <p className="text-sm font-semibold">{detailsProfile.credits ?? "—"}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Price per live lesson (USD)</p>
+                        <p className="text-sm font-semibold">{detailsProfile.price_per_live_lesson ?? "—"}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Current unlocked level</p>
+                        <p className="text-sm font-semibold">{detailsProfile.realtime_level ?? "—"}</p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Current unlocked step</p>
+                        <p className="text-sm font-semibold">{detailsProfile.realtime_step ?? "—"}</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border bg-muted/10 p-3">
+                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Coaching Memory & Momentum
+                      </h4>
+                      <div className="grid gap-2 text-sm sm:grid-cols-2">
+                        <p>
+                          <span className="text-muted-foreground">Last 5 scores:</span>{" "}
+                          {detailsProfile.coaching_memory?.last_5_scores?.length
+                            ? detailsProfile.coaching_memory.last_5_scores.map((v) => formatUnitPercent(v)).join(" -> ")
+                            : "—"}
+                        </p>
+                        <p>
+                          <span className="text-muted-foreground">Updated:</span>{" "}
+                          {detailsProfile.coaching_memory?.updated_at
+                            ? new Date(detailsProfile.coaching_memory.updated_at).toLocaleString()
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border bg-muted/10 p-3">
+                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Latest session metrics
+                      </h4>
+                      <LatestSessionMetrics sessions={detailsProfile.sessions} />
+                    </div>
+
+                    <div className="rounded-lg border bg-muted/10 p-3">
+                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Performance per session
+                      </h4>
+                      {detailsSessionRows.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No sessions yet.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[760px] text-xs">
+                            <thead>
+                              <tr className="border-b text-muted-foreground">
+                                <th className="py-1.5 pr-3 text-left font-medium">Date</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Score</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Q1</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Q2</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Q3</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Grade</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Stage</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">WPM</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Fillers</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Pause</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Dynamic</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Pitch</th>
+                                <th className="py-1.5 pr-3 text-right font-medium">Energy</th>
+                                <th className="py-1.5 text-right font-medium">Self</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {detailsSessionRows.map((session) => {
+                                const metrics = session.sniper_metrics;
+                                const rowWpm = resolveSessionRowWpm(session as unknown as Record<string, unknown>);
+                                return (
+                                  <tr key={session.id} className="border-t border-border/40">
+                                    <td className="py-1.5 pr-3">{session.created_at ? new Date(session.created_at).toLocaleDateString() : "—"}</td>
+                                    <td className="py-1.5 pr-3 text-right">{formatUnitPercent(session.score)}</td>
+                                    <td className="py-1.5 pr-3 text-right">{formatUnitPercent(session.question_1_score)}</td>
+                                    <td className="py-1.5 pr-3 text-right">{formatUnitPercent(session.question_2_score)}</td>
+                                    <td className="py-1.5 pr-3 text-right">{formatUnitPercent(session.question_3_score)}</td>
+                                    <td className="py-1.5 pr-3 text-right">{session.report_grade != null ? `${session.report_grade}/10` : "—"}</td>
+                                    <td className="py-1.5 pr-3 text-right">
+                                      {metrics?.stage_score != null ? metrics.stage_score.toFixed(1) : "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-right">{rowWpm != null ? rowWpm.toFixed(0) : "—"}</td>
+                                    <td className="py-1.5 pr-3 text-right">
+                                      {session.recording_preview?.filler_words_count?.total ?? "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-right">
+                                      {metrics?.pause_ms != null ? metrics.pause_ms.toFixed(0) : "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-right">
+                                      {metrics?.dynamic_db != null ? metrics.dynamic_db.toFixed(1) : "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-right">
+                                      {metrics?.pitch_center_st != null ? metrics.pitch_center_st.toFixed(1) : "—"}
+                                    </td>
+                                    <td className="py-1.5 pr-3 text-right">
+                                      {metrics?.energy_ratio != null ? metrics.energy_ratio.toFixed(3) : "—"}
+                                    </td>
+                                    <td className="py-1.5 text-right">{metrics?.student_rating_1_10 ?? "—"}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border bg-muted/10 p-3">
+                      <h4 className="mb-2 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        Reports History
+                      </h4>
+                      {detailsReports.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No reports yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {detailsReports.map((session) => (
+                            <CompactReportPreviewCard
+                              key={session.id}
+                              title={`Report — ${session.created_at ? new Date(session.created_at).toLocaleDateString() : "—"}`}
+                              preview={detailsReportPreviews[session.id] ?? null}
+                              loading={!!detailsReportPreviewLoading[session.id]}
+                              onOpen={() => setDetailsReportModalSession(session)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No details available for this student.</p>
+                )}
+              </div>
+            </Card>
+          ) : null}
+
           <Card className="border-border/80 bg-card/95 p-0">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
               <h3 className="text-2xl font-semibold">Score & Grade</h3>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                  {selectedStudent?.state === "Draft" ? "Pending" : selectedStudent?.state ?? "—"}
+                  {selectedStudent ? statusDisplayLabel(selectedStudent.state) : "—"}
                 </span>
                 <Button
                   className="h-9 px-3 text-sm"
@@ -962,7 +1362,7 @@ export default function TrainingStudioWorkspace() {
             <div className="flex items-center justify-between border-b px-5 py-4">
               <h3 className="text-2xl font-semibold">AI Coach Insight</h3>
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                Needs Review
+                {selectedStudent ? statusDisplayLabel(selectedStudent.state) : "—"}
               </span>
             </div>
             <div className="space-y-3 px-5 py-4">
@@ -1249,8 +1649,26 @@ export default function TrainingStudioWorkspace() {
           </div>
         </div>
       </div>
-      {taskModalOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+      <ReportDetailModal
+        open={!!detailsReportModalSession && !!selectedStudent}
+        onOpenChange={(open) => {
+          if (!open) setDetailsReportModalSession(null);
+        }}
+        userId={selectedStudent?.student_id ?? ""}
+        studentEmail={selectedStudent?.profile?.email ?? null}
+        session={detailsReportModalSession}
+        onGradeSaved={() => {
+          if (detailsOpen && selectedStudent) {
+            void adminApi
+              .getStudentProfile(selectedStudent.student_id)
+              .then(setDetailsProfile)
+              .catch(() => {});
+          }
+        }}
+      />
+      {taskModalOpen && isMounted
+        ? createPortal(
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-4">
           <Card className="w-full max-w-2xl border-border/90 bg-card p-0 shadow-xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <h3 className="text-2xl font-semibold">Swap Task</h3>
@@ -1262,19 +1680,28 @@ export default function TrainingStudioWorkspace() {
               {loadingTaskOptions ? (
                 <p className="text-sm text-muted-foreground">Loading task options...</p>
               ) : taskOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tasks available from student or pool APIs.</p>
+                <p className="text-sm text-muted-foreground">
+                  No tasks loaded from DB yet. Check task pool labels and active state.
+                </p>
               ) : (
                 <div className="space-y-2">
                   {taskOptions.map((task) => (
-                    <button
+                    <div
                       key={`${task.source}-${task.id}`}
-                      type="button"
-                      onClick={() => chooseTask(task.text)}
-                      className="w-full rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/30"
+                      className="w-full rounded-lg border px-3 py-3"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-base line-clamp-4">{stripHtmlToText(task.text)}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          {editingTaskOptionId === `${task.source}:${task.id}` ? (
+                            <textarea
+                              rows={3}
+                              value={taskOptionEditValue}
+                              onChange={(event) => setTaskOptionEditValue(event.target.value)}
+                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed"
+                            />
+                          ) : (
+                            <p className="text-base line-clamp-4">{stripHtmlToText(task.text)}</p>
+                          )}
                           {task.subLabel ? (
                             <p className="mt-1 text-xs text-muted-foreground">{task.subLabel}</p>
                           ) : null}
@@ -1283,14 +1710,69 @@ export default function TrainingStudioWorkspace() {
                           {task.source}
                         </span>
                       </div>
-                    </button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() => chooseTask(task.text)}
+                        >
+                          Apply as override
+                        </Button>
+                        {editingTaskOptionId === `${task.source}:${task.id}` ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-3 text-xs"
+                              onClick={() => void saveTaskOptionEdit(task.id, task.source)}
+                              disabled={savingTaskOptionId === `${task.source}:${task.id}`}
+                            >
+                              {savingTaskOptionId === `${task.source}:${task.id}` ? "Saving..." : "Save edit"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-3 text-xs"
+                              onClick={cancelEditingTaskOption}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-3 text-xs"
+                            onClick={() => startEditingTaskOption(task.id, task.source, task.text)}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-3 text-xs text-destructive hover:text-destructive"
+                          onClick={() => void deleteTaskOption(task.id, task.source)}
+                          disabled={deletingTaskOptionId === `${task.source}:${task.id}`}
+                        >
+                          {deletingTaskOptionId === `${task.source}:${task.id}` ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           </Card>
-        </div>
-      ) : null}
+        </div>,
+        document.body
+      )
+        : null}
       </>
       )}
     </div>

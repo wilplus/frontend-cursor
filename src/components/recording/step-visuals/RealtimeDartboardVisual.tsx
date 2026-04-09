@@ -20,7 +20,7 @@ export default function RealtimeDartboardVisual({
   return (
     <div className="flex flex-col items-center gap-1 w-full">
       <div className="flex justify-center w-full">
-        <div className={sniperMode ? "w-full" : "w-[clamp(420px,60vw,680px)]"}>
+        <div className={sniperMode ? "w-[55%] min-w-[190px] max-w-[340px]" : "w-[clamp(420px,60vw,680px)]"}>
           <RealtimeMetricDartboard
             ref={dartboardRef}
             xScore={realtimeStrengthPace.xScore}

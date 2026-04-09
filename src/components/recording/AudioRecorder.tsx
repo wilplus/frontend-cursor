@@ -135,6 +135,9 @@ export default function AudioRecorder({
     () => resolveRealtimeTrainingStep(sniperProfile),
     [sniperProfile]
   );
+  const promptTypographyClass = sniperMode
+    ? "text-left [&_h1]:mb-2 [&_h1]:text-[1.2rem] [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-[1.2rem] [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-[1.2rem] [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-[1.2rem] [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-[1.2rem] [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-[1.2rem] [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-[18px] [&_p]:leading-7 [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:space-y-1 [&_ol]:pl-5 [&_ol]:text-[18px] [&_ol]:leading-7 [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-outside [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:text-[18px] [&_ul]:leading-7 [&_ul]:text-muted-foreground [&_li]:leading-7 [&_a]:underline"
+    : "text-left [&_h1]:mb-2 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-sm [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-sm [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:space-y-1 [&_ol]:pl-5 [&_ol]:text-sm [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-outside [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:text-sm [&_ul]:text-muted-foreground [&_li]:leading-6 [&_a]:underline";
   const currentRealtimeLevel = Math.max(1, sniperProfile?.realtime_level ?? activeRealtimeStep.level ?? 1);
   const currentRealtimeStep = useMemo(() => {
     const rawStep =
@@ -657,7 +660,7 @@ export default function AudioRecorder({
       <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
         <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
           <div className="flex w-full flex-col items-center text-center">
-            <p className="text-base font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
+            <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
             <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
           </div>
           <div className="animation-div w-full">
@@ -669,9 +672,13 @@ export default function AudioRecorder({
             />
           </div>
           {hasPrompt ? (
-            <div className="mb-6 w-full max-w-lg rounded-lg border border-border bg-muted/30 p-5">
+            <div
+              className={`w-full rounded-lg border border-border bg-muted/30 ${
+                sniperMode ? "mb-4 max-w-xl p-4" : "mb-6 max-w-lg p-5"
+              }`}
+            >
               <div
-                className="text-left [&_h1]:mb-2 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-sm [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-sm [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:space-y-1 [&_ol]:pl-5 [&_ol]:text-sm [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-outside [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:text-sm [&_ul]:text-muted-foreground [&_li]:leading-6 [&_a]:underline"
+                className={promptTypographyClass}
                 dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
               />
             </div>

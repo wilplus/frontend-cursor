@@ -368,7 +368,7 @@ function pickStudentTasksArray(r: Record<string, unknown>): StudentTask[] {
 
 /** Global task pool list: `tasks_pool` (new) or `task_warm_up_pool` (legacy). */
 function pickTasksPoolArray(r: Record<string, unknown>): TasksPoolItem[] {
-  for (const key of ["tasks_pool", "task_warm_up_pool"] as const) {
+  for (const key of ["tasks_pool", "task_warm_up_pool", "tasks", "items"] as const) {
     const v = r[key];
     if (Array.isArray(v)) {
       return v
@@ -398,7 +398,12 @@ function pickSinglePoolTaskEntity(r: Record<string, unknown>): TasksPoolItem | n
 function normalizeTasksPoolItem(value: unknown): TasksPoolItem | null {
   const record = asRecord(value);
   const id = asTrimmedString(record?.id);
-  const text = asTrimmedString(record?.text);
+  const text =
+    asTrimmedString(record?.text) ??
+    asTrimmedString(record?.prompt_text) ??
+    asTrimmedString(record?.promptText) ??
+    asTrimmedString(record?.title) ??
+    asTrimmedString(record?.task);
   if (!id || !text) return null;
   const targetProfile =
     asTrimmedString(record?.target_profile) ??
@@ -837,6 +842,26 @@ export interface AcousticDojoLabelPayload {
   labeled_by: string;
 }
 
+export interface StressSnippet {
+  id: string;
+  recording_id?: string | null;
+  source_type?: "student" | "internet" | "external" | null;
+  snippet_start_ms?: number | null;
+  snippet_end_ms?: number | null;
+  snippet_duration_ms?: number | null;
+  clip_seconds?: number | null;
+  transcript_text?: string | null;
+  transcript?: string | null;
+  coach_label?: "stress" | "no_stress" | null;
+  coach_label_notes?: string | null;
+  created_at?: string | null;
+  [key: string]: unknown;
+}
+
+export interface StressSnippetSettings {
+  auto_extract_enabled: boolean;
+}
+
 export const adminApi = {
   getCopilotCohorts: (params?: {
     profile_bucket?: string;
@@ -1003,6 +1028,77 @@ export const adminApi = {
       "/acoustic-dojo/labels",
       { method: "POST", body }
     ),
+
+  listStressSnippets: (params?: {
+    source_type?: "student" | "internet" | "external" | "all";
+    label_state?: "all" | "labeled" | "unlabeled";
+    limit?: number;
+    offset?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params?.source_type && params.source_type !== "all") {
+      search.set("source_type", params.source_type);
+    }
+    if (params?.label_state && params.label_state !== "all") {
+      search.set("label_state", params.label_state);
+    }
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<{
+      snippets?: StressSnippet[];
+      total?: number;
+      limit?: number;
+      offset?: number;
+    }>(`/stress-snippets${suffix}`).then((res) => ({
+      snippets: Array.isArray(res.snippets) ? res.snippets : [],
+      total: typeof res.total === "number" ? res.total : 0,
+      limit: typeof res.limit === "number" ? res.limit : params?.limit ?? 0,
+      offset: typeof res.offset === "number" ? res.offset : params?.offset ?? 0,
+    }));
+  },
+
+  getStressSnippetSettings: () =>
+    adminFetch<{ settings?: StressSnippetSettings; auto_extract_enabled?: boolean }>(
+      "/stress-snippets/settings"
+    ).then((res) => ({
+      auto_extract_enabled:
+        typeof res.settings?.auto_extract_enabled === "boolean"
+          ? res.settings.auto_extract_enabled
+          : Boolean(res.auto_extract_enabled),
+    })),
+
+  updateStressSnippetSettings: (autoExtractEnabled: boolean) =>
+    adminFetch<{ settings?: StressSnippetSettings; auto_extract_enabled?: boolean }>(
+      "/stress-snippets/settings",
+      { method: "PUT", body: { auto_extract_enabled: autoExtractEnabled } }
+    ).then((res) => ({
+      settings: {
+        auto_extract_enabled:
+          typeof res.settings?.auto_extract_enabled === "boolean"
+            ? res.settings.auto_extract_enabled
+            : Boolean(res.auto_extract_enabled),
+      },
+    })),
+
+  generateStressSnippets: (
+    recordingId: string,
+    body: { max_snippets?: number; clip_seconds?: number; clear_existing?: boolean }
+  ) =>
+    adminFetch<{
+      generated_count: number;
+      status?: string;
+      snippets?: StressSnippet[];
+    }>(`/recordings/${recordingId}/stress-snippets/generate`, { method: "POST", body }),
+
+  labelStressSnippet: (
+    snippetId: string,
+    body: { label: "stress" | "no_stress"; notes?: string | null }
+  ) =>
+    adminFetch<{ status?: string; snippet?: StressSnippet }>(`/stress-snippets/${snippetId}/label`, {
+      method: "PATCH",
+      body,
+    }),
 
   exportDpoData: (params?: { from?: string; to?: string; format?: "json" | "csv" }) => {
     const search = new URLSearchParams();
