@@ -949,18 +949,66 @@ export default function TrainingStudioWorkspace() {
 
   const sendAssignment = useCallback(async () => {
     if (!selectedStudent) return;
+    const videoDescription = messageValue.trim();
+    if (videoDescription.length > 2000) {
+      toast.error("Message to student must be 2000 characters or less");
+      return;
+    }
+    if (!copilotSessionId) {
+      toast.error("Session id is missing; wait for the draft to load before sending.");
+      return;
+    }
+
     setSendingAssignment(true);
     try {
-      await adminApi.sendAssignment(selectedStudent.student_id, {
-        video_description: messageValue.trim() || undefined,
+      await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
+        session_id: copilotSessionId,
+        good_as_is: true,
+        reason_chips:
+          selectedReasonChips.length > 0
+            ? selectedReasonChips.map((chip_key) => ({ chip_key }))
+            : undefined,
+        reason_chip_custom: reasonChipCustom.trim() || null,
       });
-      toast.success("Assignment sent.");
+
+      await adminApi.approveCopilotStudent(selectedStudent.student_id, {
+        session_id: copilotSessionId,
+        draft_id: selectedDraft?.id,
+        idempotency_key: crypto.randomUUID(),
+      });
+
+      await adminApi.sendCopilotStudent(selectedStudent.student_id, {
+        session_id: copilotSessionId,
+        draft_id: selectedDraft?.id,
+        idempotency_key: crypto.randomUUID(),
+      });
+
+      await adminApi.sendAssignment(selectedStudent.student_id, {
+        video_description: videoDescription || undefined,
+      });
+
+      toast.success("Homework sent.");
+
+      await loadDraft(selectedStudent);
+      const refreshed = await loadStudents(cohorts.map((cohort) => cohort.id));
+      const nextReviewable = refreshed.find((item) => item.state !== "Sent") ?? null;
+      setSelectedStudent(nextReviewable ?? refreshed[0] ?? null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send assignment");
+      toast.error(error instanceof Error ? error.message : "Failed to send homework");
     } finally {
       setSendingAssignment(false);
     }
-  }, [messageValue, selectedStudent]);
+  }, [
+    cohorts,
+    copilotSessionId,
+    loadDraft,
+    loadStudents,
+    messageValue,
+    reasonChipCustom,
+    selectedDraft?.id,
+    selectedReasonChips,
+    selectedStudent,
+  ]);
 
   return (
     <div className="space-y-5">
