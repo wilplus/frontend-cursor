@@ -13,7 +13,10 @@ export async function POST(
       { status: 400 }
     );
   }
-  const body = (await request.json().catch(() => ({}))) as { session_id?: string };
+  const body = (await request.json().catch(() => ({}))) as {
+    session_id?: string;
+    video_url?: string;
+  };
   const primary = await proxyAdminWithCodes(request, {
     method: "POST",
     backendPath: `/v2/admin/copilot/students/${encodeURIComponent(studentId)}/approve`,
@@ -69,6 +72,9 @@ export async function POST(
       },
       body: JSON.stringify({
         ...(body.session_id ? { session_id: body.session_id } : {}),
+        ...(typeof body.video_url === "string" && body.video_url.trim()
+          ? { video_url: body.video_url }
+          : {}),
       }),
     }
   );
