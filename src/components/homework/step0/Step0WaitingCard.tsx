@@ -26,7 +26,7 @@ export default function Step0WaitingCard({ message, sniperProfile }: Step0Waitin
         </svg>
       </div>
       <div className="mt-4 space-y-3">
-        <p className="text-lg font-semibold text-foreground">Homework submitted!</p>
+        <p className="text-xl font-semibold text-foreground">Homework submitted!</p>
         <p className="text-sm leading-6 text-muted-foreground">{message}</p>
         {(sniperProfile?.realtime_level != null || sniperProfile?.realtime_step != null) ? (
           <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm text-foreground">

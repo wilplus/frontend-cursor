@@ -34,7 +34,7 @@ export default function Step2SelfRatingScreen({
       <StepFlowWrapper step={2}>
         <CoachMessageBanner message={coachMessage} />
         <Card className="w-full max-w-md mx-auto border-0 bg-transparent p-6 shadow-none">
-          <h3 className="text-lg font-semibold mb-2">We couldn&apos;t process this recording. Please record again.</h3>
+          <h3 className="mb-2 text-xl font-semibold">We couldn&apos;t process this recording. Please record again.</h3>
           <p className="text-sm text-muted-foreground mb-4">
             This recording could not be analyzed, so this session cannot be completed.
           </p>
@@ -51,7 +51,7 @@ export default function Step2SelfRatingScreen({
       <CoachMessageBanner message={coachMessage} />
       <Card className="mx-auto w-full max-w-2xl border-0 bg-transparent px-4 py-6 shadow-none sm:px-6">
         <div className="mb-6 text-center">
-          <p className="text-2xl font-bold leading-tight text-foreground sm:text-3xl md:text-4xl">
+          <p className="text-xl font-semibold leading-tight text-foreground">
             How do you feel about your performance
           </p>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-base md:text-lg">
