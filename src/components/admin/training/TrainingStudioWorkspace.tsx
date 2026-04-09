@@ -178,6 +178,7 @@ export default function TrainingStudioWorkspace() {
   const [loadingQueue, setLoadingQueue] = useState(false);
   const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
   const [selectedArchetype, setSelectedArchetype] = useState<string>(LEARNING_ARCHETYPES[0].key);
+  const [profileJustificationInput, setProfileJustificationInput] = useState("");
 
   const [editingInsight, setEditingInsight] = useState(false);
   const [editingMessage, setEditingMessage] = useState(false);
@@ -250,6 +251,33 @@ export default function TrainingStudioWorkspace() {
     }
   }, []);
 
+  const profileLearningMeta = useMemo(() => {
+    const profile = selectedStudent?.profile as Record<string, unknown> | undefined;
+    const maybeLearning = profile?.learning_profile;
+    return maybeLearning && typeof maybeLearning === "object"
+      ? (maybeLearning as Record<string, unknown>)
+      : null;
+  }, [selectedStudent?.profile]);
+
+  const displayJustification = useMemo(() => {
+    const fromLearningProfile = profileLearningMeta?.display_justification;
+    if (typeof fromLearningProfile === "string" && fromLearningProfile.trim()) {
+      return fromLearningProfile.trim();
+    }
+    const fromOverride = profileLearningMeta?.profile_override_justification;
+    if (typeof fromOverride === "string" && fromOverride.trim()) {
+      return fromOverride.trim();
+    }
+    const fromBehavioral = selectedStudent?.profile?.behavioral_profile_justification;
+    if (typeof fromBehavioral === "string" && fromBehavioral.trim()) return fromBehavioral.trim();
+    return selectedStudent?.profile?.justification ?? "";
+  }, [
+    profileLearningMeta?.display_justification,
+    profileLearningMeta?.profile_override_justification,
+    selectedStudent?.profile?.behavioral_profile_justification,
+    selectedStudent?.profile?.justification,
+  ]);
+
   const loadDraft = useCallback(async (student: CopilotStudentQueueItem | null) => {
     if (!student) {
       setSelectedDraft(null);
@@ -274,7 +302,10 @@ export default function TrainingStudioWorkspace() {
       setCommentInput(draft?.comment_draft ?? draft?.ai_comment_draft ?? "");
       setReviewerScoreInput(reviewerScoreFromMetadata(draft?.metadata));
       setSelectedArchetype(
-        student.profile?.behavioral_profile?.trim() ||
+        (typeof profileLearningMeta?.coach_override_profile === "string"
+          ? profileLearningMeta.coach_override_profile.trim()
+          : "") ||
+          student.profile?.behavioral_profile?.trim() ||
           inferArchetype(
             `${draft?.ai_insight ?? ""} ${student.profile?.behavioral_profile_justification ?? student.profile?.justification ?? ""}`
           )
@@ -285,7 +316,11 @@ export default function TrainingStudioWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [profileLearningMeta?.coach_override_profile]);
+
+  useEffect(() => {
+    setProfileJustificationInput(displayJustification);
+  }, [displayJustification, selectedStudent?.student_id, selectedStudent?.session_id]);
 
   useEffect(() => {
     void loadCohorts();
@@ -366,19 +401,28 @@ export default function TrainingStudioWorkspace() {
   }, [selectedDraft?.session_id, selectedStudent?.session_id]);
 
   const currentInsight = selectedDraft?.ai_insight ?? selectedStudent?.profile?.justification ?? "";
-  const evidence = useMemo(
-    () => toEvidence(currentInsight, selectedStudent?.profile?.justification ?? ""),
-    [currentInsight, selectedStudent?.profile?.justification]
-  );
+  const evidence = useMemo(() => toEvidence(currentInsight, displayJustification), [currentInsight, displayJustification]);
   const confidencePercent = useMemo(() => {
     return (
       extractConfidencePercent(
-        selectedStudent?.profile?.behavioral_profile_justification ??
-          selectedStudent?.profile?.justification ??
+        displayJustification ||
+          selectedStudent?.profile?.behavioral_profile_justification ||
           ""
       ) ?? 82
     );
-  }, [selectedStudent?.profile?.behavioral_profile_justification, selectedStudent?.profile?.justification]);
+  }, [displayJustification, selectedStudent?.profile?.behavioral_profile_justification]);
+  const aiClassifiedAs = useMemo(() => {
+    return (
+      selectedStudent?.profile?.behavioral_profile?.trim() ||
+      inferArchetype(
+        `${selectedDraft?.ai_insight ?? ""} ${selectedStudent?.profile?.behavioral_profile_justification ?? ""}`
+      )
+    );
+  }, [
+    selectedDraft?.ai_insight,
+    selectedStudent?.profile?.behavioral_profile,
+    selectedStudent?.profile?.behavioral_profile_justification,
+  ]);
   const reviewSessionLabel = useMemo(() => {
     if (!selectedStudent) return "Review";
     const count = selectedStudent.profile?.session_count ?? parseSessionNumber(selectedStudent.session_id);
@@ -443,7 +487,10 @@ export default function TrainingStudioWorkspace() {
       setSelectedArchetype(archetype);
       setSavingProfileClassification(true);
       try {
+        const overrideJustification = profileJustificationInput.trim() || null;
         await adminApi.patchStudentProfileClassification(selectedStudent.student_id, {
+          coach_override_profile: archetype,
+          profile_override_justification: overrideJustification,
           behavioral_profile: archetype,
           ...(selectedReasonChips[0] ? { reason_chip: selectedReasonChips[0] } : {}),
           ...(reasonChipCustom.trim() ? { reason_chip_custom: reasonChipCustom.trim() } : {}),
@@ -456,7 +503,7 @@ export default function TrainingStudioWorkspace() {
         setSavingProfileClassification(false);
       }
     },
-    [cohorts, loadStudents, reasonChipCustom, selectedReasonChips, selectedStudent]
+    [cohorts, loadStudents, profileJustificationInput, reasonChipCustom, selectedReasonChips, selectedStudent]
   );
 
   const saveScoreGradeComment = useCallback(async () => {
@@ -1000,7 +1047,7 @@ export default function TrainingStudioWorkspace() {
                 <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">AI Classified As</p>
                 <div className="flex items-center gap-3">
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
-                    {selectedArchetype}
+                    {aiClassifiedAs}
                   </span>
                   <span className="text-sm text-muted-foreground">{confidencePercent}% confidence</span>
                 </div>
@@ -1019,6 +1066,28 @@ export default function TrainingStudioWorkspace() {
               </div>
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Your Call</p>
+                <div className="space-y-2 rounded-lg border border-border/80 bg-muted/10 p-3">
+                  <p className="text-xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                    Coach justification
+                  </p>
+                  <textarea
+                    value={profileJustificationInput}
+                    onChange={(event) => setProfileJustificationInput(event.target.value)}
+                    rows={4}
+                    placeholder="Why this override fits the student (used in display + learning data)"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void persistArchetype(selectedArchetype)}
+                      disabled={savingProfileClassification || !selectedStudent}
+                    >
+                      Save override
+                    </Button>
+                  </div>
+                </div>
                 {classificationSectionChips.length > 0 ? (
                   <div className="mb-2 flex flex-wrap gap-2">
                     {classificationSectionChips.map((chip) => {
