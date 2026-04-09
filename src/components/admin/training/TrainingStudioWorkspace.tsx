@@ -354,6 +354,14 @@ export default function TrainingStudioWorkspace() {
     return sortedStudents.filter((item) => item.state === "Sent");
   }, [queueFilter, sortedStudents]);
 
+  /** Cohort queue rows often omit session_id; the loaded draft usually has it (required for insight-audit BFF fallback). */
+  const copilotSessionId = useMemo(() => {
+    const fromQueue = selectedStudent?.session_id?.trim();
+    if (fromQueue) return fromQueue;
+    const fromDraft = selectedDraft?.session_id?.trim();
+    return fromDraft || null;
+  }, [selectedDraft?.session_id, selectedStudent?.session_id]);
+
   const currentInsight = selectedDraft?.ai_insight ?? selectedStudent?.profile?.justification ?? "";
   const evidence = useMemo(
     () => toEvidence(currentInsight, selectedStudent?.profile?.justification ?? ""),
@@ -465,7 +473,7 @@ export default function TrainingStudioWorkspace() {
     setSaving(true);
     try {
       await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
-        session_id: selectedStudent.session_id ?? null,
+        ...(copilotSessionId ? { session_id: copilotSessionId } : {}),
         grade_draft: grade,
         comment_draft: commentInput.trim() || null,
         task_draft: taskValue.trim() || null,
@@ -495,6 +503,7 @@ export default function TrainingStudioWorkspace() {
     scriptValue,
     selectedReasonChips,
     reasonChipCustom,
+    copilotSessionId,
     selectedStudent,
     taskValue,
   ]);
@@ -519,7 +528,7 @@ export default function TrainingStudioWorkspace() {
     setSaving(true);
     try {
       await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
-        session_id: selectedStudent.session_id ?? null,
+        ...(copilotSessionId ? { session_id: copilotSessionId } : {}),
         grade_draft,
         comment_draft,
         task_draft: (patch.task_draft ?? taskValue) || null,
@@ -541,6 +550,7 @@ export default function TrainingStudioWorkspace() {
   }, [
     cohorts,
     commentInput,
+    copilotSessionId,
     gradeInput,
     loadDraft,
     loadStudents,
@@ -558,10 +568,14 @@ export default function TrainingStudioWorkspace() {
 
   const saveInsight = useCallback(async () => {
     if (!selectedStudent) return;
+    if (!copilotSessionId) {
+      toast.error("Session id is missing; wait for the draft to load or pick another student.");
+      return;
+    }
     setSaving(true);
     try {
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
-        session_id: selectedStudent.session_id ?? null,
+        session_id: copilotSessionId,
         good_as_is: false,
         corrected_insight: insightValue.trim() || null,
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
@@ -575,7 +589,7 @@ export default function TrainingStudioWorkspace() {
     } finally {
       setSaving(false);
     }
-  }, [insightValue, loadDraft, reasonChipCustom, selectedReasonChips, selectedStudent]);
+  }, [copilotSessionId, insightValue, loadDraft, reasonChipCustom, selectedReasonChips, selectedStudent]);
 
   const approveAiForSelectedStudent = useCallback(async () => {
     if (!selectedStudent) return;
@@ -583,16 +597,20 @@ export default function TrainingStudioWorkspace() {
       toast.message("This student is already marked sent.");
       return;
     }
+    if (!copilotSessionId) {
+      toast.error("Session id is missing; wait for the draft to load so we can sync the insight audit.");
+      return;
+    }
     setApprovingAll(true);
     try {
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
-        session_id: selectedStudent.session_id ?? null,
+        session_id: copilotSessionId,
         good_as_is: true,
         reason_chips: selectedReasonChips.length > 0 ? selectedReasonChips.map((chip_key) => ({ chip_key })) : undefined,
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
       await adminApi.approveCopilotStudent(selectedStudent.student_id, {
-        session_id: selectedStudent.session_id ?? undefined,
+        session_id: copilotSessionId,
         draft_id: selectedDraft?.id,
         idempotency_key: crypto.randomUUID(),
       });
@@ -608,6 +626,7 @@ export default function TrainingStudioWorkspace() {
     cohorts,
     loadDraft,
     loadStudents,
+    copilotSessionId,
     reasonChipCustom,
     selectedDraft?.id,
     selectedReasonChips,
@@ -778,7 +797,18 @@ export default function TrainingStudioWorkspace() {
               <Button
                 className="h-11 px-4 text-sm"
                 onClick={() => void approveAiForSelectedStudent()}
-                disabled={approvingAll || !selectedStudent || selectedStudent.state === "Sent"}
+                disabled={
+                  approvingAll ||
+                  loading ||
+                  !selectedStudent ||
+                  selectedStudent.state === "Sent" ||
+                  !copilotSessionId
+                }
+                title={
+                  !copilotSessionId && selectedStudent && selectedStudent.state !== "Sent"
+                    ? "Waiting for draft session id (load finishes after you select a student)."
+                    : undefined
+                }
               >
                 {approvingAll ? "Approving..." : "Accept AI for this student"}
               </Button>
