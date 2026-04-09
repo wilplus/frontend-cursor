@@ -370,7 +370,11 @@ function pickStudentTasksArray(r: Record<string, unknown>): StudentTask[] {
 function pickTasksPoolArray(r: Record<string, unknown>): TasksPoolItem[] {
   for (const key of ["tasks_pool", "task_warm_up_pool"] as const) {
     const v = r[key];
-    if (Array.isArray(v)) return v as TasksPoolItem[];
+    if (Array.isArray(v)) {
+      return v
+        .map((item) => normalizeTasksPoolItem(item))
+        .filter((item): item is TasksPoolItem => item != null);
+    }
   }
   return [];
 }
@@ -386,9 +390,48 @@ function pickSingleStudentTaskEntity(r: Record<string, unknown>): StudentTask | 
 function pickSinglePoolTaskEntity(r: Record<string, unknown>): TasksPoolItem | null {
   for (const key of ["tasks_pool_item", "task", "task_warm_up"] as const) {
     const v = r[key];
-    if (v != null && typeof v === "object" && !Array.isArray(v)) return v as TasksPoolItem;
+    if (v != null && typeof v === "object" && !Array.isArray(v)) return normalizeTasksPoolItem(v);
   }
   return null;
+}
+
+function normalizeTasksPoolItem(value: unknown): TasksPoolItem | null {
+  const record = asRecord(value);
+  const id = asTrimmedString(record?.id);
+  const text = asTrimmedString(record?.text);
+  if (!id || !text) return null;
+  const targetProfile =
+    asTrimmedString(record?.target_profile) ??
+    asTrimmedString(record?.targetProfile);
+  const level = asNumber(record?.level);
+  const step =
+    asNumber(record?.step_in_level) ??
+    asNumber(record?.stepInLevel) ??
+    asNumber(record?.target_stage);
+  return {
+    id,
+    text,
+    order_index: asNumber(record?.order_index) ?? asNumber(record?.orderIndex) ?? undefined,
+    max_performance_score:
+      asNumber(record?.max_performance_score) ?? asNumber(record?.maxPerformanceScore) ?? undefined,
+    target_profile:
+      targetProfile === "The Overwhelmed" ||
+      targetProfile === "The Stressor" ||
+      targetProfile === "The Drifter" ||
+      targetProfile === "The Master"
+        ? targetProfile
+        : null,
+    level: level ?? null,
+    step_in_level: step ?? null,
+    is_active: typeof record?.is_active === "boolean" ? record.is_active : true,
+    replaces_task_id:
+      asTrimmedString(record?.replaces_task_id) ??
+      asTrimmedString(record?.replacesTaskId),
+    created_at:
+      asTrimmedString(record?.created_at) ??
+      asTrimmedString(record?.createdAt) ??
+      undefined,
+  };
 }
 
 function normalizeReview(value: unknown): RecordingReview | null {
@@ -559,7 +602,23 @@ export interface TasksPoolItem {
   text: string;
   order_index?: number;
   max_performance_score?: number;
+  target_profile?: "The Overwhelmed" | "The Stressor" | "The Drifter" | "The Master" | null;
+  level?: number | null;
+  step_in_level?: number | null;
+  is_active?: boolean;
+  replaces_task_id?: string | null;
   created_at?: string;
+}
+
+export interface TasksPoolItemUpsertPayload {
+  text: string;
+  order_index?: number;
+  max_performance_score?: number;
+  target_profile?: "The Overwhelmed" | "The Stressor" | "The Drifter" | "The Master" | null;
+  level?: number | null;
+  step_in_level?: number | null;
+  is_active?: boolean;
+  replaces_task_id?: string | null;
 }
 
 /** Focus task (per student); when assigned from pool, has pool_task_id. */
@@ -1121,7 +1180,7 @@ export const adminApi = {
    */
   createTasksPoolItemAndAssign: (
     userId: string,
-    data: { text: string; order_index?: number; max_performance_score?: number }
+    data: TasksPoolItemUpsertPayload
   ) =>
     adminFetch<Record<string, unknown>>(`/students/${userId}/tasks/create-pool-and-assign`, {
       method: "POST",
@@ -1159,7 +1218,7 @@ export const adminApi = {
 
   getTasksPool: () => adminFetch<Record<string, unknown>>("/tasks-pool").then((r) => pickTasksPoolArray(r)),
 
-  createTasksPoolItem: (data: { text: string; order_index?: number; max_performance_score?: number }) =>
+  createTasksPoolItem: (data: TasksPoolItemUpsertPayload) =>
     adminFetch<Record<string, unknown>>("/tasks-pool", { method: "POST", body: data }).then((r) => {
       const item = pickSinglePoolTaskEntity(r);
       if (!item) throw new Error("Unexpected response from create pool task");
@@ -1168,7 +1227,7 @@ export const adminApi = {
 
   updateTasksPoolItem: (
     poolId: string,
-    data: { text?: string; order_index?: number; max_performance_score?: number }
+    data: Partial<TasksPoolItemUpsertPayload>
   ) =>
     adminFetch<Record<string, unknown>>(`/tasks-pool/${poolId}`, { method: "PUT", body: data }).then((r) => {
       const item = pickSinglePoolTaskEntity(r);
