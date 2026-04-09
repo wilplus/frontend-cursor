@@ -5,6 +5,7 @@ import { Check, PencilLine, Send, Sparkles, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import AcousticDojoWorkspace from "@/components/admin/dojo/AcousticDojoWorkspace";
 import {
   adminApi,
@@ -57,11 +58,38 @@ function queueStateDot(state: CopilotStudentQueueItem["state"]): string {
   return "bg-rose-500";
 }
 
-function queueRecency(index: number): string {
-  if (index === 0) return "about 2 hours ago";
-  if (index === 1) return "about 5 hours ago";
-  if (index === 2) return "1 day ago";
-  return "3 days ago";
+function queueRecency(student: CopilotStudentQueueItem): string {
+  const raw =
+    student.updated_at ??
+    student.completed_at ??
+    student.profile?.completed_at ??
+    null;
+  if (!raw) return "recently";
+  const when = new Date(raw);
+  if (Number.isNaN(when.getTime())) return "recently";
+  const diffMs = Date.now() - when.getTime();
+  const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
+  if (diffMs < hour) return "just now";
+  if (diffMs < day) return `${Math.max(1, Math.round(diffMs / hour))}h ago`;
+  if (diffMs < 7 * day) return `${Math.max(1, Math.round(diffMs / day))}d ago`;
+  return when.toLocaleDateString();
+}
+
+function parseSessionNumber(sessionId?: string | null): number | null {
+  if (!sessionId) return null;
+  const match = sessionId.match(/\d+/);
+  if (!match) return null;
+  const numeric = Number.parseInt(match[0], 10);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function extractConfidencePercent(input: string): number | null {
+  const match = input.match(/(\d{1,3})\s*%/);
+  if (!match) return null;
+  const numeric = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.max(0, Math.min(100, numeric));
 }
 
 function queueStateBadge(state: CopilotStudentQueueItem["state"]): string {
@@ -88,6 +116,38 @@ function inferArchetype(value: string): string {
   return found?.key ?? LEARNING_ARCHETYPES[0].key;
 }
 
+function reviewerScoreFromMetadata(metadata: CopilotStudentDraft["metadata"]): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return "";
+  const raw = (metadata as Record<string, unknown>).reviewer_score;
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
+  if (typeof raw === "string") return raw;
+  return "";
+}
+
+function parseOptionalPercent(raw: string): number | null {
+  const t = raw.trim();
+  if (!t) return null;
+  const n = Number.parseFloat(t);
+  if (Number.isNaN(n)) return null;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function mergeMetadataReviewerScore(
+  existing: CopilotStudentDraft["metadata"],
+  reviewerScore: number | null
+): Record<string, unknown> {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {};
+  if (reviewerScore == null) {
+    delete base.reviewer_score;
+  } else {
+    base.reviewer_score = reviewerScore;
+  }
+  return base;
+}
+
 export default function TrainingStudioWorkspace() {
   const [pipelineView, setPipelineView] = useState<"agentic" | "voice">("agentic");
   const [cohorts, setCohorts] = useState<CopilotCohortStack[]>([]);
@@ -104,12 +164,19 @@ export default function TrainingStudioWorkspace() {
   const [insightValue, setInsightValue] = useState("");
   const [taskValue, setTaskValue] = useState("");
   const [messageValue, setMessageValue] = useState("");
+  const [gradeInput, setGradeInput] = useState("");
+  const [commentInput, setCommentInput] = useState("");
+  const [reviewerScoreInput, setReviewerScoreInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [approvingAll, setApprovingAll] = useState(false);
   const [sendingAssignment, setSendingAssignment] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [loadingTaskOptions, setLoadingTaskOptions] = useState(false);
   const [taskOptions, setTaskOptions] = useState<Array<{ id: string; text: string; source: "student" | "pool" }>>([]);
+  const [annotationChips, setAnnotationChips] = useState<Array<{ chip_key: string; label: string; section?: string | null }>>([]);
+  const [selectedReasonChips, setSelectedReasonChips] = useState<string[]>([]);
+  const [reasonChipCustom, setReasonChipCustom] = useState("");
+  const [savingProfileClassification, setSavingProfileClassification] = useState(false);
 
   const loadCohorts = useCallback(async () => {
     setLoadingQueue(true);
@@ -172,10 +239,18 @@ export default function TrainingStudioWorkspace() {
       setInsightValue(draft?.corrected_insight ?? draft?.ai_insight ?? "");
       setTaskValue(draft?.task_draft ?? "");
       setMessageValue(draft?.email_draft ?? "");
+      setGradeInput(
+        typeof draft?.grade_draft === "number" && Number.isFinite(draft.grade_draft)
+          ? String(draft.grade_draft)
+          : ""
+      );
+      setCommentInput(draft?.comment_draft ?? "");
+      setReviewerScoreInput(reviewerScoreFromMetadata(draft?.metadata));
       setSelectedArchetype(
-        inferArchetype(
-          `${draft?.ai_insight ?? ""} ${student.profile?.justification ?? ""}`
-        )
+        student.profile?.behavioral_profile?.trim() ||
+          inferArchetype(
+            `${draft?.ai_insight ?? ""} ${student.profile?.behavioral_profile_justification ?? student.profile?.justification ?? ""}`
+          )
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load student draft");
@@ -202,6 +277,23 @@ export default function TrainingStudioWorkspace() {
   useEffect(() => {
     void loadDraft(selectedStudent);
   }, [loadDraft, selectedStudent]);
+
+  useEffect(() => {
+    adminApi
+      .getCopilotAnnotationChips()
+      .then((response) => {
+        const chips = (response.chips ?? []).filter((chip) => chip?.chip_key && chip?.label);
+        setAnnotationChips(chips);
+      })
+      .catch(() => {
+        setAnnotationChips([]);
+      });
+  }, []);
+
+  useEffect(() => {
+    setSelectedReasonChips([]);
+    setReasonChipCustom("");
+  }, [selectedStudent?.student_id, selectedStudent?.session_id]);
 
   const sortedStudents = useMemo(() => {
     const statusOrder: Record<CopilotStudentQueueItem["state"], number> = {
@@ -239,17 +331,138 @@ export default function TrainingStudioWorkspace() {
     () => toEvidence(currentInsight, selectedStudent?.profile?.justification ?? ""),
     [currentInsight, selectedStudent?.profile?.justification]
   );
+  const confidencePercent = useMemo(() => {
+    return (
+      extractConfidencePercent(
+        selectedStudent?.profile?.behavioral_profile_justification ??
+          selectedStudent?.profile?.justification ??
+          ""
+      ) ?? 82
+    );
+  }, [selectedStudent?.profile?.behavioral_profile_justification, selectedStudent?.profile?.justification]);
+  const reviewSessionLabel = useMemo(() => {
+    if (!selectedStudent) return "Review";
+    const count = selectedStudent.profile?.session_count ?? parseSessionNumber(selectedStudent.session_id);
+    if (count == null) return "Review";
+    return `Review — Session ${count}`;
+  }, [selectedStudent]);
+  const planSessionLabel = useMemo(() => {
+    if (!selectedStudent) return "Plan";
+    const count = selectedStudent.profile?.session_count ?? parseSessionNumber(selectedStudent.session_id);
+    if (count == null) return "Plan";
+    return `Plan — Session ${count + 1}`;
+  }, [selectedStudent]);
+  const insightSectionChips = useMemo(
+    () => annotationChips.filter((chip) => (chip.section ?? "insight") === "insight"),
+    [annotationChips]
+  );
+  const classificationSectionChips = useMemo(
+    () => annotationChips.filter((chip) => chip.section === "classification"),
+    [annotationChips]
+  );
 
-  const saveDraftFields = useCallback(async (patch: Partial<CopilotStudentDraft>) => {
+  const persistArchetype = useCallback(
+    async (archetype: string) => {
+      if (!selectedStudent) return;
+      setSelectedArchetype(archetype);
+      setSavingProfileClassification(true);
+      try {
+        await adminApi.patchStudentProfileClassification(selectedStudent.student_id, {
+          behavioral_profile: archetype,
+          ...(selectedReasonChips[0] ? { reason_chip: selectedReasonChips[0] } : {}),
+          ...(reasonChipCustom.trim() ? { reason_chip_custom: reasonChipCustom.trim() } : {}),
+        });
+        toast.success("Learning profile saved.");
+        await loadStudents(cohorts.map((cohort) => cohort.id));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to save profile");
+      } finally {
+        setSavingProfileClassification(false);
+      }
+    },
+    [cohorts, loadStudents, reasonChipCustom, selectedReasonChips, selectedStudent]
+  );
+
+  const saveScoreGradeComment = useCallback(async () => {
     if (!selectedStudent) return;
+    const gradeTrim = gradeInput.trim();
+    const grade =
+      gradeTrim === "" ? null : Number.parseFloat(gradeTrim);
+    if (grade != null && Number.isNaN(grade)) {
+      toast.error("Grade must be a number.");
+      return;
+    }
+    const reviewerScore = parseOptionalPercent(reviewerScoreInput);
+    if (reviewerScoreInput.trim() !== "" && reviewerScore == null) {
+      toast.error("Your score must be a number from 0 to 100.");
+      return;
+    }
     setSaving(true);
     try {
       await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
-        grade_draft: patch.grade_draft ?? selectedDraft?.grade_draft ?? null,
-        comment_draft: patch.comment_draft ?? selectedDraft?.comment_draft ?? null,
+        session_id: selectedStudent.session_id ?? null,
+        grade_draft: grade,
+        comment_draft: commentInput.trim() || null,
+        task_draft: taskValue.trim() || null,
+        email_draft: messageValue.trim() || null,
+        script_draft: selectedDraft?.script_draft ?? null,
+        metadata: mergeMetadataReviewerScore(selectedDraft?.metadata, reviewerScore),
+        reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
+        reason_chip_custom: reasonChipCustom.trim() || null,
+      });
+      toast.success("Score, grade, and comment saved for AI feedback.");
+      await loadDraft(selectedStudent);
+      await loadStudents(cohorts.map((cohort) => cohort.id));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save feedback");
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    cohorts,
+    commentInput,
+    gradeInput,
+    loadDraft,
+    loadStudents,
+    messageValue,
+    reviewerScoreInput,
+    selectedDraft?.metadata,
+    selectedDraft?.script_draft,
+    selectedReasonChips,
+    reasonChipCustom,
+    selectedStudent,
+    taskValue,
+  ]);
+
+  const saveDraftFields = useCallback(async (patch: Partial<CopilotStudentDraft>) => {
+    if (!selectedStudent) return;
+    const gradeFromInput =
+      gradeInput.trim() === ""
+        ? null
+        : Number.parseFloat(gradeInput.trim());
+    const grade_draft =
+      patch.grade_draft !== undefined
+        ? patch.grade_draft
+        : gradeFromInput != null && !Number.isNaN(gradeFromInput)
+          ? gradeFromInput
+          : selectedDraft?.grade_draft ?? null;
+    const comment_draft =
+      patch.comment_draft !== undefined
+        ? patch.comment_draft
+        : commentInput.trim() || null;
+    const reviewerScore = parseOptionalPercent(reviewerScoreInput);
+    setSaving(true);
+    try {
+      await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
+        session_id: selectedStudent.session_id ?? null,
+        grade_draft,
+        comment_draft,
         task_draft: (patch.task_draft ?? taskValue) || null,
         email_draft: (patch.email_draft ?? messageValue) || null,
         script_draft: patch.script_draft ?? selectedDraft?.script_draft ?? null,
+        metadata: mergeMetadataReviewerScore(selectedDraft?.metadata, reviewerScore),
+        reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
+        reason_chip_custom: reasonChipCustom.trim() || null,
       });
       toast.success("Saved.");
       await loadDraft(selectedStudent);
@@ -259,15 +472,33 @@ export default function TrainingStudioWorkspace() {
     } finally {
       setSaving(false);
     }
-  }, [cohorts, loadDraft, loadStudents, messageValue, selectedDraft?.comment_draft, selectedDraft?.grade_draft, selectedDraft?.script_draft, selectedStudent, taskValue]);
+  }, [
+    cohorts,
+    commentInput,
+    gradeInput,
+    loadDraft,
+    loadStudents,
+    messageValue,
+    reviewerScoreInput,
+    reasonChipCustom,
+    selectedReasonChips,
+    selectedDraft?.grade_draft,
+    selectedDraft?.metadata,
+    selectedDraft?.script_draft,
+    selectedStudent,
+    taskValue,
+  ]);
 
   const saveInsight = useCallback(async () => {
     if (!selectedStudent) return;
     setSaving(true);
     try {
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
+        session_id: selectedStudent.session_id ?? null,
         good_as_is: false,
         corrected_insight: insightValue.trim() || null,
+        reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
+        reason_chip_custom: reasonChipCustom.trim() || null,
       });
       toast.success("Insight updated.");
       await loadDraft(selectedStudent);
@@ -277,7 +508,7 @@ export default function TrainingStudioWorkspace() {
     } finally {
       setSaving(false);
     }
-  }, [insightValue, loadDraft, selectedStudent]);
+  }, [insightValue, loadDraft, reasonChipCustom, selectedReasonChips, selectedStudent]);
 
   const approveAll = useCallback(async () => {
     const targets = filteredStudents.filter((item) => item.state !== "Sent");
@@ -412,7 +643,7 @@ export default function TrainingStudioWorkspace() {
             ) : filteredStudents.length === 0 ? (
               <p className="p-3 text-base text-muted-foreground">No students in this bucket.</p>
             ) : (
-              filteredStudents.map((student, index) => {
+              filteredStudents.map((student) => {
                 const active = selectedStudent?.student_id === student.student_id;
                 return (
                   <button
@@ -435,7 +666,7 @@ export default function TrainingStudioWorkspace() {
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <p>{formatSession(student)}</p>
-                      <p>{queueRecency(index)}</p>
+                      <p>{queueRecency(student)}</p>
                     </div>
                     <p className="text-xs text-destructive/90">
                       {(student.draft_count ?? 0) > 0 ? `${student.draft_count ?? 0} items pending` : "No pending items"}
@@ -471,32 +702,86 @@ export default function TrainingStudioWorkspace() {
 
           <div className="flex items-center gap-3">
             <span className="h-px flex-1 bg-border" />
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Review — Session 12</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{reviewSessionLabel}</p>
             <span className="h-px flex-1 bg-border" />
           </div>
 
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="flex items-center justify-between border-b px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
               <h3 className="text-2xl font-semibold">Score & Grade</h3>
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                {selectedStudent?.state === "Draft" ? "Pending" : selectedStudent?.state ?? "—"}
-              </span>
-            </div>
-            <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-muted-foreground">AI Score</p>
-                <p className="text-5xl font-semibold">{selectedStudent?.profile?.canonical_score_for_display ?? "--"}%</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                  {selectedStudent?.state === "Draft" ? "Pending" : selectedStudent?.state ?? "—"}
+                </span>
+                <Button
+                  className="h-9 px-3 text-sm"
+                  onClick={() => void saveScoreGradeComment()}
+                  disabled={saving || !selectedStudent || loading}
+                >
+                  {saving ? "Saving..." : "Save feedback"}
+                </Button>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Grade</p>
+            </div>
+            <div className="grid gap-6 px-5 py-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">AI score (read-only)</p>
                 <p className="text-5xl font-semibold">
-                  {typeof selectedDraft?.grade_draft === "number" ? selectedDraft.grade_draft : "--"}
+                  {selectedStudent?.profile?.canonical_score_for_display ?? "—"}
+                  {selectedStudent?.profile?.canonical_score_for_display != null ? "%" : ""}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="training-studio-reviewer-score" className="text-sm text-muted-foreground">
+                  Your score (0–100, sent to AI)
+                </label>
+                <Input
+                  id="training-studio-reviewer-score"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  inputMode="numeric"
+                  placeholder="e.g. 72"
+                  value={reviewerScoreInput}
+                  onChange={(e) => setReviewerScoreInput(e.target.value)}
+                  disabled={!selectedStudent || loading}
+                  className="text-base"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sent as draft metadata (reviewer score) when the API stores it.
                 </p>
               </div>
             </div>
-            <div className="border-t px-5 py-4">
-              <p className="text-sm text-muted-foreground">Comment</p>
-              <p className="text-2xl">{selectedDraft?.comment_draft || "No comment yet."}</p>
+            <div className="grid gap-6 border-t px-5 py-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="training-studio-grade" className="text-sm text-muted-foreground">
+                  Grade
+                </label>
+                <Input
+                  id="training-studio-grade"
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 3.5"
+                  value={gradeInput}
+                  onChange={(e) => setGradeInput(e.target.value)}
+                  disabled={!selectedStudent || loading}
+                  className="text-base"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="training-studio-comment" className="text-sm text-muted-foreground">
+                  Comment (feedback to AI)
+                </label>
+                <textarea
+                  id="training-studio-comment"
+                  rows={4}
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  disabled={!selectedStudent || loading}
+                  placeholder="Corrections, context, or grading notes…"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-base leading-relaxed"
+                />
+              </div>
             </div>
           </Card>
 
@@ -520,6 +805,38 @@ export default function TrainingStudioWorkspace() {
                   {selectedDraft?.ai_insight || "No AI insight yet."}
                 </p>
               )}
+              <div className="space-y-2 rounded-lg border bg-muted/10 px-3 py-3">
+                <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Reason chips</p>
+                <div className="flex flex-wrap gap-2">
+                  {(insightSectionChips.length > 0 ? insightSectionChips : annotationChips).map((chip) => {
+                    const selected = selectedReasonChips.includes(chip.chip_key);
+                    return (
+                      <button
+                        key={chip.chip_key}
+                        type="button"
+                        onClick={() =>
+                          setSelectedReasonChips((previous) =>
+                            previous.includes(chip.chip_key)
+                              ? previous.filter((item) => item !== chip.chip_key)
+                              : [...previous, chip.chip_key]
+                          )
+                        }
+                        className={`rounded-full border px-3 py-1 text-xs ${
+                          selected ? "border-amber-300 bg-amber-100 text-amber-800" : "hover:bg-muted/40"
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <Input
+                  value={reasonChipCustom}
+                  onChange={(event) => setReasonChipCustom(event.target.value)}
+                  placeholder="Optional custom reason"
+                  className="h-9 text-sm"
+                />
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -544,7 +861,7 @@ export default function TrainingStudioWorkspace() {
 
           <div className="flex items-center gap-3">
             <span className="h-px flex-1 bg-border" />
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Plan — Session 13</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{planSessionLabel}</p>
             <span className="h-px flex-1 bg-border" />
           </div>
 
@@ -559,7 +876,7 @@ export default function TrainingStudioWorkspace() {
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
                     {selectedArchetype}
                   </span>
-                  <span className="text-sm text-muted-foreground">82% confidence</span>
+                  <span className="text-sm text-muted-foreground">{confidencePercent}% confidence</span>
                 </div>
                 <div className="space-y-2">
                   {evidence.map((line, index) => (
@@ -576,11 +893,37 @@ export default function TrainingStudioWorkspace() {
               </div>
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">Your Call</p>
+                {classificationSectionChips.length > 0 ? (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {classificationSectionChips.map((chip) => {
+                      const selected = selectedReasonChips.includes(chip.chip_key);
+                      return (
+                        <button
+                          key={chip.chip_key}
+                          type="button"
+                          onClick={() =>
+                            setSelectedReasonChips((previous) =>
+                              previous.includes(chip.chip_key)
+                                ? previous.filter((item) => item !== chip.chip_key)
+                                : [...previous, chip.chip_key]
+                            )
+                          }
+                          className={`rounded-full border px-3 py-1 text-xs ${
+                            selected ? "border-amber-300 bg-amber-100 text-amber-800" : "hover:bg-muted/40"
+                          }`}
+                        >
+                          {chip.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 {LEARNING_ARCHETYPES.map((item) => (
                   <button
                     key={item.key}
                     type="button"
-                    onClick={() => setSelectedArchetype(item.key)}
+                    onClick={() => void persistArchetype(item.key)}
+                    disabled={savingProfileClassification || !selectedStudent}
                     className={`w-full rounded-lg border px-3 py-2 text-left ${
                       selectedArchetype === item.key ? "border-amber-200 bg-amber-50" : "hover:bg-muted/30"
                     }`}
