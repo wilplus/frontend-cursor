@@ -38,6 +38,12 @@ import {
   stripHtmlToText,
 } from "@/lib/sanitizeRichHtml";
 import { resolveSessionRowWpm } from "@/lib/admin/resolveWpm";
+import {
+  formatTaskTemplateLabel,
+  isTaskTemplateActive,
+  TASK_TARGET_PROFILES,
+  type TaskTargetProfile,
+} from "@/lib/tasks/taskTemplateLabels";
 
 function getStudentSniperProgressFromAssignmentResponse(
   userId: string,
@@ -302,6 +308,127 @@ function StudentTaskEditModal({
           </Button>
           <Button type="button" onClick={handleSave} disabled={saving}>
             Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(overlay, document.body);
+  }
+  return overlay;
+}
+
+function CreateTaskTemplateModal({
+  open,
+  onOpenChange,
+  initialText,
+  onConfirm,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialText: string;
+  onConfirm: (data: { target_profile: TaskTargetProfile; level: number; step_in_level: number }) => Promise<void>;
+  saving: boolean;
+}) {
+  const [targetProfile, setTargetProfile] = useState<TaskTargetProfile>("The Overwhelmed");
+  const [levelInput, setLevelInput] = useState("1");
+  const [stepInput, setStepInput] = useState("1");
+  useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    setTargetProfile("The Overwhelmed");
+    setLevelInput("1");
+    setStepInput("1");
+  }, [open]);
+
+  const handleSave = async () => {
+    const level = Number.parseInt(levelInput, 10);
+    const step = Number.parseInt(stepInput, 10);
+    if (!Number.isFinite(level) || level < 1) {
+      toast.error("Level must be >= 1.");
+      return;
+    }
+    if (!Number.isFinite(step) || step < 1 || step > 10) {
+      toast.error("Step in level must be between 1 and 10.");
+      return;
+    }
+    await onConfirm({
+      target_profile: targetProfile,
+      level,
+      step_in_level: step,
+    });
+    onOpenChange(false);
+  };
+
+  if (!open) return null;
+
+  const overlay = (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => onOpenChange(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-template-title"
+    >
+      <div
+        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="create-template-title" className="text-lg font-semibold mb-4">
+          Add Task Template Labels
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Task text</label>
+            <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              {initialText || "(empty)"}
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Student profile</label>
+            <select
+              value={targetProfile}
+              onChange={(event) => setTargetProfile(event.target.value as TaskTargetProfile)}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {TASK_TARGET_PROFILES.map((profile) => (
+                <option key={profile} value={profile}>
+                  {profile}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Level</label>
+              <Input
+                type="number"
+                min={1}
+                value={levelInput}
+                onChange={(event) => setLevelInput(event.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Step in level</label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={stepInput}
+                onChange={(event) => setStepInput(event.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={saving} onClick={() => void handleSave()}>
+            {saving ? "Saving..." : "Create"}
           </Button>
         </div>
       </div>
@@ -642,6 +769,9 @@ export default function AdminStudentProfilePage() {
   const [learningDataOpen, setLearningDataOpen] = useState(false);
 
   const [modalTasksPool, setModalTasksPool] = useState(false);
+  const [createTemplateModalOpen, setCreateTemplateModalOpen] = useState(false);
+  const [createTemplateText, setCreateTemplateText] = useState("");
+  const [createTemplateSaving, setCreateTemplateSaving] = useState(false);
   const [tasksPoolItems, setTasksPoolItems] = useState<TasksPoolItem[]>([]);
   const [tasksPoolLoading, setTasksPoolLoading] = useState(false);
   const [studentTaskEditOpen, setStudentTaskEditOpen] = useState(false);
@@ -720,6 +850,11 @@ export default function AdminStudentProfilePage() {
   const loadVersionRef = useRef(0);
   const tasksPoolCacheRef = useRef(false);
   const focusPoolCacheRef = useRef(false);
+  const pendingPoolTemplateCreateRef = useRef<{
+    text: string;
+    resolve: (item: PoolItem | void) => void;
+    reject: (error: Error) => void;
+  } | null>(null);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -1140,9 +1275,12 @@ export default function AdminStudentProfilePage() {
   const tasksPoolModalItems: PoolItem[] = tasksPoolItems.map((p) => ({
     id: p.id,
     label: p.text,
-    subLabel: p.max_performance_score != null ? `Max score: ${p.max_performance_score}` : undefined,
+    subLabel: formatTaskTemplateLabel(p),
     labelHtml: true,
-  }));
+  })).filter((item) => {
+    const source = tasksPoolItems.find((row) => row.id === item.id);
+    return source ? isTaskTemplateActive(source) : true;
+  });
   const tasksPoolSelectedIds: string[] = (() => {
     const ordered = [...studentTasks].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     return ordered
@@ -1159,6 +1297,56 @@ export default function AdminStudentProfilePage() {
     setModalTasksPool(false);
     const ordered = tasksPoolItems.map((p) => p.id).filter((pid) => selectedIds.includes(pid));
     setPendingTasksPoolIds(ordered);
+  };
+  const requestCreatePoolTemplate = (text: string): Promise<PoolItem | void> =>
+    new Promise((resolve, reject) => {
+      pendingPoolTemplateCreateRef.current = {
+        text,
+        resolve,
+        reject,
+      };
+      setCreateTemplateText(text);
+      setCreateTemplateModalOpen(true);
+    });
+  const handleCreateTemplateModalConfirm = async (data: {
+    target_profile: TaskTargetProfile;
+    level: number;
+    step_in_level: number;
+  }) => {
+    const pending = pendingPoolTemplateCreateRef.current;
+    if (!pending) return;
+    setCreateTemplateSaving(true);
+    try {
+      const created = await adminApi.createTasksPoolItem({
+        text: pending.text,
+        target_profile: data.target_profile,
+        level: data.level,
+        step_in_level: data.step_in_level,
+        is_active: true,
+      });
+      const item = created.tasks_pool_item;
+      setTasksPoolItems((prev) => [item, ...prev]);
+      pending.resolve({
+        id: item.id,
+        label: item.text,
+        subLabel: formatTaskTemplateLabel(item),
+        labelHtml: true,
+      });
+      pendingPoolTemplateCreateRef.current = null;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error("Failed to create task template");
+      pending.reject(err);
+    } finally {
+      setCreateTemplateSaving(false);
+    }
+  };
+  const handleCreateTemplateModalOpenChange = (open: boolean) => {
+    setCreateTemplateModalOpen(open);
+    if (!open) {
+      const pending = pendingPoolTemplateCreateRef.current;
+      if (pending) pending.resolve();
+      pendingPoolTemplateCreateRef.current = null;
+    }
   };
   const handleStudentTaskEditSave = async (data: { text: string; max_performance_score: number }) => {
     const targetId = studentTaskEdit?.id ?? `draft-${crypto.randomUUID()}`;
@@ -1670,9 +1858,13 @@ export default function AdminStudentProfilePage() {
                     className={adminRichTextContentClassName}
                     dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(t.text ?? "") }}
                   />
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    Max score: {t.max_performance_score ?? 1}
-                  </span>
+                  {"pool_task_id" in t && t.pool_task_id ? (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {formatTaskTemplateLabel(
+                        tasksPoolItems.find((row) => row.id === t.pool_task_id) ?? {}
+                      )}
+                    </span>
+                  ) : null}
                   <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                     {pendingTasksPoolIds === null && "pool_task_id" in t && (
                       <button
@@ -2224,6 +2416,15 @@ export default function AdminStudentProfilePage() {
         selectedIds={pendingTasksPoolIds ?? tasksPoolSelectedIds}
         onConfirm={handleTasksPoolConfirm}
         poolLoading={tasksPoolLoading}
+        allowCreate
+        onCreateNew={requestCreatePoolTemplate}
+      />
+      <CreateTaskTemplateModal
+        open={createTemplateModalOpen}
+        onOpenChange={handleCreateTemplateModalOpenChange}
+        initialText={createTemplateText}
+        onConfirm={handleCreateTemplateModalConfirm}
+        saving={createTemplateSaving}
       />
       {false && (
       <FocusTaskEditModal

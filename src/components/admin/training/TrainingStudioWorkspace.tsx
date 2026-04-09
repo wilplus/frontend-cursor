@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AcousticDojoWorkspace from "@/components/admin/dojo/AcousticDojoWorkspace";
 import { stripHtmlToText } from "@/lib/sanitizeRichHtml";
+import { formatTaskTemplateLabel, isTaskTemplateActive } from "@/lib/tasks/taskTemplateLabels";
 import {
   adminApi,
   type CopilotCohortStack,
@@ -193,7 +194,9 @@ export default function TrainingStudioWorkspace() {
   const [sendingAssignment, setSendingAssignment] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [loadingTaskOptions, setLoadingTaskOptions] = useState(false);
-  const [taskOptions, setTaskOptions] = useState<Array<{ id: string; text: string; source: "student" | "pool" }>>([]);
+  const [taskOptions, setTaskOptions] = useState<
+    Array<{ id: string; text: string; source: "student" | "pool"; subLabel?: string }>
+  >([]);
   const [annotationChips, setAnnotationChips] = useState<Array<{ chip_key: string; label: string; section?: string | null }>>([]);
   const [selectedReasonChips, setSelectedReasonChips] = useState<string[]>([]);
   const [reasonChipCustom, setReasonChipCustom] = useState("");
@@ -642,16 +645,22 @@ export default function TrainingStudioWorkspace() {
         adminApi.getStudentTasks(selectedStudent.student_id),
         adminApi.getTasksPool(),
       ]);
-      const merged = new Map<string, { id: string; text: string; source: "student" | "pool" }>();
+      const merged = new Map<string, { id: string; text: string; source: "student" | "pool"; subLabel?: string }>();
       for (const task of studentTasks as StudentTask[]) {
         if (!task.text?.trim()) continue;
         const key = `student:${task.id}`;
         merged.set(key, { id: task.id, text: task.text, source: "student" });
       }
       for (const task of poolTasks as TasksPoolItem[]) {
+        if (!isTaskTemplateActive(task)) continue;
         if (!task.text?.trim()) continue;
         const key = `pool:${task.id}`;
-        merged.set(key, { id: task.id, text: task.text, source: "pool" });
+        merged.set(key, {
+          id: task.id,
+          text: task.text,
+          source: "pool",
+          subLabel: formatTaskTemplateLabel(task),
+        });
       }
       setTaskOptions(Array.from(merged.values()));
     } catch (error) {
@@ -1195,7 +1204,12 @@ export default function TrainingStudioWorkspace() {
                       className="w-full rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/30"
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-base line-clamp-4">{stripHtmlToText(task.text)}</p>
+                        <div>
+                          <p className="text-base line-clamp-4">{stripHtmlToText(task.text)}</p>
+                          {task.subLabel ? (
+                            <p className="mt-1 text-xs text-muted-foreground">{task.subLabel}</p>
+                          ) : null}
+                        </div>
                         <span className="rounded-full bg-muted px-2 py-1 text-xs uppercase text-muted-foreground">
                           {task.source}
                         </span>
