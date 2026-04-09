@@ -815,6 +815,24 @@ export interface CopilotDraftPatchPayload {
   reason_chip_custom?: string | null;
 }
 
+export interface CopilotSendPayload {
+  session_id?: string;
+  draft_id?: string;
+  idempotency_key?: string;
+  /** Optional override for draft video when sending/approve-send. */
+  video_url?: string;
+}
+
+export interface CopilotSendResponse {
+  status: string;
+  state?: CopilotDraftStatus;
+  sent_at?: string;
+  sent?: boolean | null;
+  realtime_level?: number | null;
+  realtime_step?: number | null;
+  sniper_profile?: StudentSniperProgress | null;
+}
+
 export interface CopilotAnnotationChip {
   chip_key: string;
   label: string;
@@ -959,18 +977,18 @@ export const adminApi = {
 
   approveCopilotStudent: (
     studentId: string,
-    body?: { session_id?: string; draft_id?: string; idempotency_key?: string }
+    body?: CopilotSendPayload
   ) =>
-    adminFetch<{ status: string; state?: CopilotDraftStatus }>(
+    adminFetch<CopilotSendResponse>(
       `/copilot/students/${studentId}/approve`,
       { method: "POST", body: body ?? {} }
     ),
 
   sendCopilotStudent: (
     studentId: string,
-    body?: { session_id?: string; draft_id?: string; idempotency_key?: string }
+    body?: CopilotSendPayload
   ) =>
-    adminFetch<{ status: string; state?: CopilotDraftStatus; sent_at?: string }>(
+    adminFetch<CopilotSendResponse>(
       `/copilot/students/${studentId}/send`,
       { method: "POST", body: body ?? {} }
     ),

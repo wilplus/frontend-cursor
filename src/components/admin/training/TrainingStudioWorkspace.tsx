@@ -331,15 +331,8 @@ export default function TrainingStudioWorkspace() {
     selectedStudent?.profile?.justification,
   ]);
 
-  const loadDraft = useCallback(async (student: CopilotStudentQueueItem | null) => {
-    if (!student) {
-      setSelectedDraft(null);
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await adminApi.getCopilotStudentDrafts(student.student_id, student.session_id ? { session_id: student.session_id } : undefined);
-      const draft = response.drafts?.[0] ?? null;
+  const hydrateDraftEditor = useCallback(
+    (student: CopilotStudentQueueItem, draft: CopilotStudentDraft | null) => {
       setSelectedDraft(draft);
       setInsightValue(draft?.corrected_insight ?? draft?.ai_insight ?? "");
       setTaskValue(draft?.task_draft ?? draft?.ai_task_suggestion ?? "");
@@ -363,13 +356,36 @@ export default function TrainingStudioWorkspace() {
             `${draft?.ai_insight ?? ""} ${student.profile?.behavioral_profile_justification ?? student.profile?.justification ?? ""}`
           )
       );
+    },
+    [profileLearningMeta?.coach_override_profile]
+  );
+
+  const loadDraft = useCallback(async (student: CopilotStudentQueueItem | null) => {
+    if (!student) {
+      setSelectedDraft(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const sessionHint = student.session_id?.trim() || selectedDraft?.session_id?.trim() || undefined;
+      const response = await adminApi.getCopilotStudentDrafts(
+        student.student_id,
+        sessionHint ? { session_id: sessionHint } : undefined
+      );
+      const draft =
+        (selectedDraft?.id
+          ? response.drafts?.find((item) => item.id === selectedDraft.id) ?? null
+          : null) ??
+        response.drafts?.[0] ??
+        null;
+      hydrateDraftEditor(student, draft);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load student draft");
       setSelectedDraft(null);
     } finally {
       setLoading(false);
     }
-  }, [profileLearningMeta?.coach_override_profile]);
+  }, [hydrateDraftEditor, selectedDraft?.id, selectedDraft?.session_id]);
 
   useEffect(() => {
     setProfileJustificationInput(displayJustification);
@@ -696,8 +712,18 @@ export default function TrainingStudioWorkspace() {
     }
     setSaving(true);
     try {
+      const resolved =
+        copilotSessionId != null
+          ? { sessionId: copilotSessionId, draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined }
+          : await resolveCopilotSessionAndDraftId();
+      if (!resolved) {
+        toast.error(
+          "Could not find a session for this copilot draft. Refresh the queue or check that the backend returns session_id on drafts/audit."
+        );
+        return;
+      }
       await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
-        ...(copilotSessionId ? { session_id: copilotSessionId } : {}),
+        session_id: resolved.sessionId,
         grade_draft: grade,
         comment_draft: commentInput.trim() || null,
         task_draft: taskValue.trim() || null,
@@ -707,8 +733,15 @@ export default function TrainingStudioWorkspace() {
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
+      const refreshed = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id, {
+        session_id: resolved.sessionId,
+      });
+      const refreshedDraft =
+        (resolved.draftId
+          ? refreshed.drafts.find((item) => item.id === resolved.draftId) ?? null
+          : null) ?? refreshed.drafts?.[0] ?? null;
+      hydrateDraftEditor(selectedStudent, refreshedDraft);
       toast.success("Feedback saved. Click Accept AI for this student to move it to the next review state.");
-      await loadDraft(selectedStudent);
       await loadStudents(cohorts.map((cohort) => cohort.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save feedback");
@@ -728,6 +761,8 @@ export default function TrainingStudioWorkspace() {
     selectedReasonChips,
     reasonChipCustom,
     copilotSessionId,
+    hydrateDraftEditor,
+    resolveCopilotSessionAndDraftId,
     selectedStudent,
     taskValue,
   ]);
@@ -751,8 +786,18 @@ export default function TrainingStudioWorkspace() {
     const reviewerScore = parseOptionalPercent(reviewerScoreInput);
     setSaving(true);
     try {
+      const resolved =
+        copilotSessionId != null
+          ? { sessionId: copilotSessionId, draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined }
+          : await resolveCopilotSessionAndDraftId();
+      if (!resolved) {
+        toast.error(
+          "Could not find a session for this copilot draft. Refresh the queue or check that the backend returns session_id on drafts/audit."
+        );
+        return;
+      }
       await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
-        ...(copilotSessionId ? { session_id: copilotSessionId } : {}),
+        session_id: resolved.sessionId,
         grade_draft,
         comment_draft,
         task_draft: (patch.task_draft ?? taskValue) || null,
@@ -763,8 +808,15 @@ export default function TrainingStudioWorkspace() {
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
+      const refreshed = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id, {
+        session_id: resolved.sessionId,
+      });
+      const refreshedDraft =
+        (resolved.draftId
+          ? refreshed.drafts.find((item) => item.id === resolved.draftId) ?? null
+          : null) ?? refreshed.drafts?.[0] ?? null;
+      hydrateDraftEditor(selectedStudent, refreshedDraft);
       toast.success("Saved.");
-      await loadDraft(selectedStudent);
       await loadStudents(cohorts.map((cohort) => cohort.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save");
@@ -776,11 +828,12 @@ export default function TrainingStudioWorkspace() {
     commentInput,
     copilotSessionId,
     gradeInput,
-    loadDraft,
     loadStudents,
     messageValue,
     reviewerScoreInput,
     reasonChipCustom,
+    resolveCopilotSessionAndDraftId,
+    hydrateDraftEditor,
     selectedReasonChips,
     selectedDraft?.grade_draft,
     selectedDraft?.metadata,
