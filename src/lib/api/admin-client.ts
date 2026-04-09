@@ -897,9 +897,10 @@ export const adminApi = {
     return adminFetch<{ drafts: CopilotStudentDraft[] }>(
       `/copilot/students/${studentId}/drafts${suffix}`
     ).then((res) => ({
-      drafts: (Array.isArray(res.drafts) ? res.drafts : []).map((d) =>
-        normalizeCopilotStudentDraft(d as Record<string, unknown>)
-      ),
+      drafts: (Array.isArray(res.drafts) ? res.drafts : []).map((d) => {
+        const record = asRecord(d);
+        return record ? normalizeCopilotStudentDraft(record) : d;
+      }),
     }));
   },
 
@@ -909,9 +910,10 @@ export const adminApi = {
       { method: "PUT", body }
     ).then((res) => ({
       ...res,
-      draft: res.draft
-        ? normalizeCopilotStudentDraft(res.draft as Record<string, unknown>)
-        : res.draft,
+      draft: (() => {
+        const record = asRecord(res.draft);
+        return record ? normalizeCopilotStudentDraft(record) : res.draft;
+      })(),
     })),
 
   getCopilotStudentAudit: (studentId: string, params?: { session_id?: string }) => {
