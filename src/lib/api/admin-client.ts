@@ -620,6 +620,8 @@ export interface CopilotStudentQueueItem {
   session_id?: string | null;
   queue_position?: number;
   state: CopilotDraftStatus;
+  updated_at?: string | null;
+  completed_at?: string | null;
   draft_count?: number;
   ready_count?: number;
   sent_count?: number;
@@ -628,6 +630,10 @@ export interface CopilotStudentQueueItem {
     email?: string | null;
     stage?: string | null;
     justification?: string | null;
+    behavioral_profile?: string | null;
+    behavioral_profile_justification?: string | null;
+    session_count?: number | null;
+    completed_at?: string | null;
     canonical_score_for_display?: number | null;
   } | null;
 }
@@ -650,6 +656,7 @@ export interface CopilotStudentDraft {
 }
 
 export interface CopilotAuditPayload {
+  session_id?: string | null;
   good_as_is?: boolean;
   corrected_insight?: string | null;
   reason_chips?: Array<{ chip_key: string; custom_reason?: string | null }>;
@@ -657,11 +664,14 @@ export interface CopilotAuditPayload {
 }
 
 export interface CopilotDraftPatchPayload {
+  session_id?: string | null;
   grade_draft?: number | null;
   comment_draft?: string | null;
   task_draft?: string | null;
   email_draft?: string | null;
   script_draft?: string | null;
+  /** Merged/replaced per backend contract; used e.g. for reviewer_score AI feedback. */
+  metadata?: Record<string, unknown> | null;
   reason_chips?: Array<{ chip_key: string; custom_reason?: string | null }>;
   reason_chip_custom?: string | null;
 }
@@ -671,6 +681,7 @@ export interface CopilotAnnotationChip {
   label: string;
   description?: string | null;
   is_active?: boolean;
+  section?: string | null;
 }
 
 export interface AcousticDojoClip {
@@ -705,7 +716,34 @@ export const adminApi = {
     if (typeof params?.limit === "number") search.set("limit", String(params.limit));
     if (typeof params?.offset === "number") search.set("offset", String(params.offset));
     const suffix = search.toString() ? `?${search.toString()}` : "";
-    return adminFetch<{ cohorts: CopilotCohortStack[] }>(`/copilot/cohorts${suffix}`);
+    return adminFetch<Record<string, unknown>>(`/copilot/cohorts${suffix}`).then((res) => {
+      const rawCohorts = Array.isArray((res as { cohorts?: unknown[] }).cohorts)
+        ? ((res as { cohorts?: unknown[] }).cohorts as Array<Record<string, unknown>>)
+        : [];
+      const cohorts: CopilotCohortStack[] = rawCohorts.map((cohort) => {
+        const profileBucket = String(cohort.profile_bucket ?? cohort.profile ?? "unknown");
+        const stageKey = String(cohort.stage_key ?? cohort.stage ?? "unknown");
+        return {
+          id:
+            typeof cohort.id === "string" && cohort.id.trim()
+              ? cohort.id
+              : `${profileBucket}::${stageKey}`,
+          profile_bucket: profileBucket,
+          stage_key: stageKey,
+          pending_count:
+            typeof cohort.pending_count === "number"
+              ? cohort.pending_count
+              : typeof cohort.draft_count === "number"
+                ? cohort.draft_count
+                : 0,
+          metadata:
+            cohort.metadata && typeof cohort.metadata === "object"
+              ? (cohort.metadata as Record<string, unknown>)
+              : null,
+        };
+      });
+      return { cohorts };
+    });
   },
 
   getCopilotCohortStudents: (cohortId: string, params?: { limit?: number; offset?: number }) => {
@@ -767,7 +805,26 @@ export const adminApi = {
     ),
 
   getCopilotAnnotationChips: () =>
-    adminFetch<{ chips: CopilotAnnotationChip[] }>("/copilot/annotation-chips"),
+    adminFetch<Record<string, unknown>>("/copilot/annotation-chips").then((res) => {
+      const fromChips = Array.isArray((res as { chips?: unknown[] }).chips)
+        ? ((res as { chips?: unknown[] }).chips as CopilotAnnotationChip[])
+        : null;
+      const fromAnnotationChips = Array.isArray((res as { annotation_chips?: unknown[] }).annotation_chips)
+        ? ((res as { annotation_chips?: unknown[] }).annotation_chips as CopilotAnnotationChip[])
+        : null;
+      return {
+        chips: fromChips ?? fromAnnotationChips ?? [],
+      };
+    }),
+
+  patchStudentProfileClassification: (
+    userId: string,
+    body: { behavioral_profile: string; reason_chip?: string; reason_chip_custom?: string | null }
+  ) =>
+    adminFetch<{ status?: string }>(`/students/${userId}/profile-classification`, {
+      method: "PATCH",
+      body,
+    }),
 
   createCopilotAnnotationChip: (body: {
     chip_key: string;

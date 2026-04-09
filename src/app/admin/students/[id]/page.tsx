@@ -29,7 +29,7 @@ import {
 } from "@/lib/api/admin-client";
 import type { CompactReportPreview } from "@/lib/reports/compact-preview";
 import { toCompactReportPreview } from "@/lib/reports/compact-preview";
-import { getUserMetricQuestions, patchUserMetricQuestions } from "@/lib/api/client";
+// Metrics question UI is currently hidden; avoid loading/saving dead data paths here.
 import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
 import {
@@ -734,9 +734,6 @@ export default function AdminStudentProfilePage() {
       adminApi.getStudentProfile(id),
       adminApi.getPostRecordingQuestionsPool(),
       adminApi.getStudentTasks(id),
-      adminApi.getFocusTasks(id),
-      getUserMetricQuestions(),
-      adminApi.getStudentPostRecordingQuestions(id),
       adminApi.getExercises(),
       adminApi.getStudentSniperProgress(id),
     ])
@@ -747,9 +744,6 @@ export default function AdminStudentProfilePage() {
           profileRes,
           poolRes,
           studentTasksRes,
-          focusRes,
-          userMetricsRes,
-          studentQuestionsRes,
           exercisesRes,
           sniperProgressRes,
         ] = results;
@@ -824,26 +818,10 @@ export default function AdminStudentProfilePage() {
           toast.error(msg);
         }
 
-        if (focusRes.status === "fulfilled") {
-          setFocusTasks(focusRes.value);
-          setFocusTasksError(null);
-        } else {
-          const msg = focusRes.reason?.message ?? "Could not load focus tasks";
-          setFocusTasksError(msg);
-          toast.error(msg);
-        }
-
-        if (userMetricsRes.status === "fulfilled") setUserMetricQuestions(userMetricsRes.value);
-        else toast.error(userMetricsRes.reason?.message ?? "Could not load custom prompts");
-
-        if (studentQuestionsRes.status === "fulfilled") {
-          setPostRecordingQuestions(studentQuestionsRes.value);
-          setPostRecordingQuestionsError(null);
-        } else {
-          const msg = studentQuestionsRes.reason?.message ?? "Could not load post-recording questions";
-          setPostRecordingQuestionsError(msg);
-          toast.error(msg);
-        }
+        setFocusTasks([]);
+        setFocusTasksError(null);
+        setPostRecordingQuestions([]);
+        setPostRecordingQuestionsError(null);
 
         if (exercisesRes.status === "fulfilled") setExercises(exercisesRes.value);
 
@@ -916,20 +894,12 @@ export default function AdminStudentProfilePage() {
       .finally(() => setTasksPoolLoading(false));
   }, [modalTasksPool, id]);
 
-  // Load focus task pool when "Manage list" modal opens
+  // Focus task endpoints are tombstoned in backend; keep this section disabled.
   useEffect(() => {
-    if (!modalFocus || !id) return;
-    if (focusPoolCacheRef.current) return;
-    setFocusPoolLoading(true);
-    adminApi
-      .getFocusTaskPool()
-      .then((items) => {
-        setFocusPoolTasks(items);
-        focusPoolCacheRef.current = true;
-      })
-      .catch((e) => toast.error(e?.message ?? "Could not load pool"))
-      .finally(() => setFocusPoolLoading(false));
-  }, [modalFocus, id]);
+    setFocusPoolTasks([]);
+    setFocusPoolLoading(false);
+    focusPoolCacheRef.current = true;
+  }, [id]);
 
   /** Save all batched changes (speaker profile, metrics, overrides, list syncs). */
   const saveAllChanges = async () => {
@@ -1082,7 +1052,6 @@ export default function AdminStudentProfilePage() {
         }
       }
       await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
-      await patchUserMetricQuestions(userMetricQuestions);
       const resolvedExerciseIds = assignedExerciseIds.map(
         (eid) => draftToRealExerciseId.get(eid) ?? eid
       ).filter((eid) => !eid.startsWith("draft-"));
