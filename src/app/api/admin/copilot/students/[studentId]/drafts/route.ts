@@ -89,19 +89,10 @@ export async function PUT(
   if (body == null || typeof body !== "object") {
     return badRequest("Invalid JSON body");
   }
-  const primary = await proxyAdminWithCodes(request, {
+  return proxyAdminWithCodes(request, {
     method: "PUT",
     backendPath: `/v2/admin/copilot/students/${encodeURIComponent(studentId)}/drafts`,
     body,
   });
-  if (primary.status !== 404) return primary;
-  return NextResponse.json(
-    {
-      code: "COPILOT_DRAFT_WRITE_UNAVAILABLE",
-      error:
-        "Backend does not expose /v2/admin/copilot/students/:id/drafts PUT. Add the endpoint or provide a draft_id-based write path.",
-    },
-    { status: 501 }
-  );
 }
 
