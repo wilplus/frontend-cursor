@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AcousticDojoWorkspace from "@/components/admin/dojo/AcousticDojoWorkspace";
+import { stripHtmlToText } from "@/lib/sanitizeRichHtml";
 import {
   adminApi,
   type CopilotCohortStack,
@@ -148,6 +149,24 @@ function mergeMetadataReviewerScore(
   return base;
 }
 
+function formatAiBaselineNumber(label: string, ai: number | null | undefined, current: number | null | undefined): string | null {
+  if (ai == null || !Number.isFinite(ai)) return null;
+  if (current != null && Number.isFinite(current) && current !== ai) {
+    return `AI suggested ${label} ${ai} (you edited: ${current})`;
+  }
+  return `AI suggested ${label} ${ai}`;
+}
+
+function formatAiBaselineText(label: string, ai: string | null | undefined, current: string | null | undefined): string | null {
+  const aiTrim = (ai ?? "").trim();
+  if (!aiTrim) return null;
+  const curTrim = (current ?? "").trim();
+  if (curTrim && curTrim !== aiTrim) {
+    return `AI ${label} differs from your edit`;
+  }
+  return `AI ${label}`;
+}
+
 export default function TrainingStudioWorkspace() {
   const [pipelineView, setPipelineView] = useState<"agentic" | "voice">("agentic");
   const [cohorts, setCohorts] = useState<CopilotCohortStack[]>([]);
@@ -164,6 +183,8 @@ export default function TrainingStudioWorkspace() {
   const [insightValue, setInsightValue] = useState("");
   const [taskValue, setTaskValue] = useState("");
   const [messageValue, setMessageValue] = useState("");
+  const [scriptValue, setScriptValue] = useState("");
+  const [editingScript, setEditingScript] = useState(false);
   const [gradeInput, setGradeInput] = useState("");
   const [commentInput, setCommentInput] = useState("");
   const [reviewerScoreInput, setReviewerScoreInput] = useState("");
@@ -237,14 +258,17 @@ export default function TrainingStudioWorkspace() {
       const draft = response.drafts?.[0] ?? null;
       setSelectedDraft(draft);
       setInsightValue(draft?.corrected_insight ?? draft?.ai_insight ?? "");
-      setTaskValue(draft?.task_draft ?? "");
-      setMessageValue(draft?.email_draft ?? "");
+      setTaskValue(draft?.task_draft ?? draft?.ai_task_suggestion ?? "");
+      setMessageValue(draft?.email_draft ?? draft?.ai_email_draft ?? "");
+      setScriptValue(draft?.script_draft ?? draft?.ai_script_draft ?? "");
       setGradeInput(
         typeof draft?.grade_draft === "number" && Number.isFinite(draft.grade_draft)
           ? String(draft.grade_draft)
-          : ""
+          : typeof draft?.ai_grade_draft === "number" && Number.isFinite(draft.ai_grade_draft)
+            ? String(draft.ai_grade_draft)
+            : ""
       );
-      setCommentInput(draft?.comment_draft ?? "");
+      setCommentInput(draft?.comment_draft ?? draft?.ai_comment_draft ?? "");
       setReviewerScoreInput(reviewerScoreFromMetadata(draft?.metadata));
       setSelectedArchetype(
         student.profile?.behavioral_profile?.trim() ||
@@ -275,8 +299,12 @@ export default function TrainingStudioWorkspace() {
   }, [cohorts, loadStudents]);
 
   useEffect(() => {
+    if (!selectedStudent) {
+      void loadDraft(null);
+      return;
+    }
     void loadDraft(selectedStudent);
-  }, [loadDraft, selectedStudent]);
+  }, [loadDraft, selectedStudent?.student_id, selectedStudent?.session_id]);
 
   useEffect(() => {
     adminApi
@@ -352,6 +380,43 @@ export default function TrainingStudioWorkspace() {
     if (count == null) return "Plan";
     return `Plan — Session ${count + 1}`;
   }, [selectedStudent]);
+
+  const displayScorePercent = useMemo(() => {
+    const fromDraft = selectedDraft?.score_for_display;
+    if (typeof fromDraft === "number" && Number.isFinite(fromDraft)) return fromDraft;
+    const fromProfile = selectedStudent?.profile?.canonical_score_for_display;
+    if (typeof fromProfile === "number" && Number.isFinite(fromProfile)) return fromProfile;
+    return null;
+  }, [selectedDraft?.score_for_display, selectedStudent?.profile?.canonical_score_for_display]);
+
+  const parsedGradeInput = useMemo(() => {
+    const t = gradeInput.trim();
+    if (!t) return null;
+    const n = Number.parseFloat(t);
+    return Number.isNaN(n) ? null : n;
+  }, [gradeInput]);
+
+  const gradeAiHint = useMemo(
+    () => formatAiBaselineNumber("grade", selectedDraft?.ai_grade_draft, parsedGradeInput ?? selectedDraft?.grade_draft ?? null),
+    [parsedGradeInput, selectedDraft?.ai_grade_draft, selectedDraft?.grade_draft]
+  );
+  const commentAiHint = useMemo(
+    () => formatAiBaselineText("comment", selectedDraft?.ai_comment_draft, commentInput),
+    [commentInput, selectedDraft?.ai_comment_draft]
+  );
+  const emailAiHint = useMemo(
+    () => formatAiBaselineText("email", selectedDraft?.ai_email_draft, messageValue),
+    [messageValue, selectedDraft?.ai_email_draft]
+  );
+  const taskAiHint = useMemo(
+    () =>
+      formatAiBaselineText(
+        "task",
+        stripHtmlToText(selectedDraft?.ai_task_suggestion),
+        stripHtmlToText(taskValue)
+      ),
+    [selectedDraft?.ai_task_suggestion, taskValue]
+  );
   const insightSectionChips = useMemo(
     () => annotationChips.filter((chip) => (chip.section ?? "insight") === "insight"),
     [annotationChips]
@@ -405,7 +470,7 @@ export default function TrainingStudioWorkspace() {
         comment_draft: commentInput.trim() || null,
         task_draft: taskValue.trim() || null,
         email_draft: messageValue.trim() || null,
-        script_draft: selectedDraft?.script_draft ?? null,
+        script_draft: scriptValue.trim() || null,
         metadata: mergeMetadataReviewerScore(selectedDraft?.metadata, reviewerScore),
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
@@ -427,7 +492,7 @@ export default function TrainingStudioWorkspace() {
     messageValue,
     reviewerScoreInput,
     selectedDraft?.metadata,
-    selectedDraft?.script_draft,
+    scriptValue,
     selectedReasonChips,
     reasonChipCustom,
     selectedStudent,
@@ -459,7 +524,8 @@ export default function TrainingStudioWorkspace() {
         comment_draft,
         task_draft: (patch.task_draft ?? taskValue) || null,
         email_draft: (patch.email_draft ?? messageValue) || null,
-        script_draft: patch.script_draft ?? selectedDraft?.script_draft ?? null,
+        script_draft:
+          patch.script_draft !== undefined ? patch.script_draft : scriptValue.trim() || null,
         metadata: mergeMetadataReviewerScore(selectedDraft?.metadata, reviewerScore),
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
@@ -484,6 +550,7 @@ export default function TrainingStudioWorkspace() {
     selectedReasonChips,
     selectedDraft?.grade_draft,
     selectedDraft?.metadata,
+    scriptValue,
     selectedDraft?.script_draft,
     selectedStudent,
     taskValue,
@@ -510,30 +577,42 @@ export default function TrainingStudioWorkspace() {
     }
   }, [insightValue, loadDraft, reasonChipCustom, selectedReasonChips, selectedStudent]);
 
-  const approveAll = useCallback(async () => {
-    const targets = filteredStudents.filter((item) => item.state !== "Sent");
-    if (targets.length === 0) {
-      toast.message("No pending students to approve.");
+  const approveAiForSelectedStudent = useCallback(async () => {
+    if (!selectedStudent) return;
+    if (selectedStudent.state === "Sent") {
+      toast.message("This student is already marked sent.");
       return;
     }
     setApprovingAll(true);
     try {
-      const results = await Promise.allSettled(
-        targets.map((item) =>
-          adminApi.approveCopilotStudent(item.student_id, {
-            session_id: item.session_id ?? undefined,
-            idempotency_key: crypto.randomUUID(),
-          })
-        )
-      );
-      const ok = results.filter((result) => result.status === "fulfilled").length;
-      if (ok > 0) toast.success(`Approved ${ok} student${ok === 1 ? "" : "s"}.`);
-      if (ok < targets.length) toast.error(`Failed to approve ${targets.length - ok} students.`);
+      await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
+        session_id: selectedStudent.session_id ?? null,
+        good_as_is: true,
+        reason_chips: selectedReasonChips.length > 0 ? selectedReasonChips.map((chip_key) => ({ chip_key })) : undefined,
+        reason_chip_custom: reasonChipCustom.trim() || null,
+      });
+      await adminApi.approveCopilotStudent(selectedStudent.student_id, {
+        session_id: selectedStudent.session_id ?? undefined,
+        draft_id: selectedDraft?.id,
+        idempotency_key: crypto.randomUUID(),
+      });
+      toast.success("AI suggestions approved for this student.");
+      await loadDraft(selectedStudent);
       await loadStudents(cohorts.map((cohort) => cohort.id));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Approve failed");
     } finally {
       setApprovingAll(false);
     }
-  }, [cohorts, filteredStudents, loadStudents]);
+  }, [
+    cohorts,
+    loadDraft,
+    loadStudents,
+    reasonChipCustom,
+    selectedDraft?.id,
+    selectedReasonChips,
+    selectedStudent,
+  ]);
 
   const openTaskSwapModal = useCallback(async () => {
     if (!selectedStudent) return;
@@ -685,7 +764,9 @@ export default function TrainingStudioWorkspace() {
                 {selectedStudent?.profile?.email || selectedStudent?.profile?.name || "Select a student"}
               </h2>
               <p className="mt-1 text-base text-muted-foreground">
-                {selectedStudent ? `${formatSession(selectedStudent)} · Score: ${selectedStudent.profile?.canonical_score_for_display ?? "-"}%` : "No student selected"}
+                {selectedStudent
+                  ? `${formatSession(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
+                  : "No student selected"}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -694,8 +775,12 @@ export default function TrainingStudioWorkspace() {
                   {selectedStudent.state === "Draft" ? "Pending Review" : selectedStudent.state}
                 </span>
               ) : null}
-              <Button className="h-11 px-4 text-sm" onClick={() => void approveAll()} disabled={approvingAll || filteredStudents.length === 0}>
-                {approvingAll ? "Approving..." : "Approve All"}
+              <Button
+                className="h-11 px-4 text-sm"
+                onClick={() => void approveAiForSelectedStudent()}
+                disabled={approvingAll || !selectedStudent || selectedStudent.state === "Sent"}
+              >
+                {approvingAll ? "Approving..." : "Accept AI for this student"}
               </Button>
             </div>
           </div>
@@ -726,8 +811,8 @@ export default function TrainingStudioWorkspace() {
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">AI score (read-only)</p>
                 <p className="text-5xl font-semibold">
-                  {selectedStudent?.profile?.canonical_score_for_display ?? "—"}
-                  {selectedStudent?.profile?.canonical_score_for_display != null ? "%" : ""}
+                  {displayScorePercent ?? "—"}
+                  {displayScorePercent != null ? "%" : ""}
                 </p>
               </div>
               <div className="space-y-2">
@@ -767,6 +852,7 @@ export default function TrainingStudioWorkspace() {
                   disabled={!selectedStudent || loading}
                   className="text-base"
                 />
+                {gradeAiHint ? <p className="text-xs text-muted-foreground">{gradeAiHint}</p> : null}
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <label htmlFor="training-studio-comment" className="text-sm text-muted-foreground">
@@ -781,6 +867,7 @@ export default function TrainingStudioWorkspace() {
                   placeholder="Corrections, context, or grading notes…"
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-base leading-relaxed"
                 />
+                {commentAiHint ? <p className="text-xs text-muted-foreground">{commentAiHint}</p> : null}
               </div>
             </div>
           </Card>
@@ -951,7 +1038,10 @@ export default function TrainingStudioWorkspace() {
             </div>
             <div className="px-5 py-4">
               <>
-                <p className="text-xl font-semibold">{taskValue || selectedDraft?.task_draft || "No task selected"}</p>
+                <p className="text-xl font-semibold">
+                  {stripHtmlToText(taskValue || selectedDraft?.task_draft) || "No task selected"}
+                </p>
+                {taskAiHint ? <p className="mt-1 text-xs text-muted-foreground">{taskAiHint}</p> : null}
                 <p className="text-sm text-muted-foreground">Task ID: {selectedStudent?.queue_position != null ? `t${selectedStudent.queue_position}` : "t2"}</p>
               </>
             </div>
@@ -987,6 +1077,44 @@ export default function TrainingStudioWorkspace() {
                 />
               ) : (
                 <p className="text-base leading-7">{messageValue || selectedDraft?.email_draft || "No message drafted yet."}</p>
+              )}
+              {emailAiHint ? <p className="mt-2 text-xs text-muted-foreground">{emailAiHint}</p> : null}
+            </div>
+          </Card>
+
+          <Card className="border-border/80 bg-card/95 p-0">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <h3 className="text-2xl font-semibold">Video script</h3>
+              <Button
+                variant="outline"
+                className="h-11 px-4 text-sm"
+                onClick={() => {
+                  if (editingScript) {
+                    void saveDraftFields({ script_draft: scriptValue.trim() || null });
+                    setEditingScript(false);
+                  } else {
+                    setEditingScript(true);
+                  }
+                }}
+                disabled={saving || !selectedStudent}
+              >
+                <PencilLine className="mr-2 h-4 w-4" />
+                {editingScript ? "Save" : "Edit"}
+              </Button>
+            </div>
+            <div className="px-5 py-4">
+              {editingScript ? (
+                <textarea
+                  rows={6}
+                  value={scriptValue}
+                  onChange={(event) => setScriptValue(event.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-base leading-snug"
+                  placeholder="Script lines for the student video…"
+                />
+              ) : (
+                <p className="text-base leading-7 whitespace-pre-wrap">
+                  {scriptValue || selectedDraft?.script_draft || "No script drafted yet."}
+                </p>
               )}
             </div>
           </Card>
@@ -1027,7 +1155,7 @@ export default function TrainingStudioWorkspace() {
                       className="w-full rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/30"
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-base">{task.text}</p>
+                        <p className="text-base line-clamp-4">{stripHtmlToText(task.text)}</p>
                         <span className="rounded-full bg-muted px-2 py-1 text-xs uppercase text-muted-foreground">
                           {task.source}
                         </span>

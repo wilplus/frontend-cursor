@@ -646,11 +646,20 @@ export interface CopilotStudentDraft {
   ai_insight?: string | null;
   corrected_insight?: string | null;
   good_as_is?: boolean;
+  /** AI baselines (backend pre-fill); current values remain in *\_draft fields. */
+  ai_grade_draft?: number | null;
+  ai_comment_draft?: string | null;
+  ai_email_draft?: string | null;
+  ai_task_suggestion?: string | null;
+  ai_script_draft?: string | null;
   grade_draft?: number | null;
   comment_draft?: string | null;
   task_draft?: string | null;
   email_draft?: string | null;
   script_draft?: string | null;
+  cohort_profile?: string | null;
+  cohort_stage?: string | number | null;
+  score_for_display?: number | null;
   reason_chip_required?: boolean;
   metadata?: Record<string, unknown> | null;
 }
