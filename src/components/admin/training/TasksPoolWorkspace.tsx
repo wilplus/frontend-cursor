@@ -86,13 +86,13 @@ export default function TasksPoolWorkspace({ onSelectedStudentChange }: TasksPoo
     }
   }, []);
 
-  const loadAssignments = useCallback(async (studentId: string) => {
+  const loadHomeworkTasks = useCallback(async (studentId: string) => {
     try {
       const assigned = await adminApi.getStudentTasks(studentId);
       setTasks(assigned);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to load assigned tasks");
+      toast.error(error instanceof Error ? error.message : "Failed to load homework tasks");
     }
   }, []);
 
@@ -106,8 +106,8 @@ export default function TasksPoolWorkspace({ onSelectedStudentChange }: TasksPoo
       setTasks([]);
       return;
     }
-    void loadAssignments(selectedStudentId);
-  }, [loadAssignments, onSelectedStudentChange, selectedStudentId]);
+    void loadHomeworkTasks(selectedStudentId);
+  }, [loadHomeworkTasks, onSelectedStudentChange, selectedStudentId]);
 
   const selectedStudent = useMemo(
     () => students.find((student) => student.user_id === selectedStudentId) ?? null,
