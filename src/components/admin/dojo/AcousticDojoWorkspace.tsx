@@ -1,240 +1,238 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, SkipForward, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Check, RefreshCcw, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { adminApi, type AcousticDojoClip } from "@/lib/api/admin-client";
+import { adminApi, type StressSnippet } from "@/lib/api/admin-client";
 
 interface RecentReview {
-  clipId: string;
-  speaker: string;
-  label: "Tremor" | "No Tremor" | "Skipped";
+  snippetId: string;
+  source: string;
+  label: "Stress" | "No Stress";
 }
 
-function getSpeakerLabel(clip: AcousticDojoClip): string {
-  const speaker =
-    typeof clip.source_metadata?.speaker_label === "string" ? clip.source_metadata.speaker_label : null;
-  if (speaker) return speaker;
-  if (clip.student_id) return clip.student_id.slice(0, 10);
-  return "unknown-speaker";
-}
-
-function getAiScore(clip: AcousticDojoClip | null): number {
-  if (!clip) return 73;
-  const raw = clip.source_metadata?.ai_score;
-  if (typeof raw === "number" && Number.isFinite(raw)) {
-    const normalized = raw <= 1 ? raw * 100 : raw;
-    return Math.max(0, Math.min(100, Math.round(normalized)));
-  }
-  return 73;
-}
-
-function getPlaybackWindow(clip: AcousticDojoClip): string {
-  const start =
-    typeof clip.source_metadata?.clip_start_sec === "number"
-      ? clip.source_metadata.clip_start_sec
-      : typeof clip.source_metadata?.start_sec === "number"
-        ? clip.source_metadata.start_sec
-        : null;
-  const end =
-    typeof clip.source_metadata?.clip_end_sec === "number"
-      ? clip.source_metadata.clip_end_sec
-      : typeof clip.source_metadata?.end_sec === "number"
-        ? clip.source_metadata.end_sec
-        : null;
-  if (start != null && end != null) {
-    return `${start.toFixed(1)}s — ${end.toFixed(1)}s`;
-  }
-  if (clip.duration_sec != null) {
-    const startFallback = Math.max(0, clip.duration_sec - 10);
-    return `${startFallback.toFixed(1)}s — ${clip.duration_sec.toFixed(1)}s`;
-  }
-  return "—";
+function fmtMs(ms?: number | null): string {
+  const n = Number(ms || 0);
+  return `${(n / 1000).toFixed(1)}s`;
 }
 
 export default function AcousticDojoWorkspace({ showHeader = true }: { showHeader?: boolean }) {
-  const [clips, setClips] = useState<AcousticDojoClip[]>([]);
-  const [reviewerId, setReviewerId] = useState("admin");
-  const [sessionReviewed, setSessionReviewed] = useState(0);
+  const [sourceType, setSourceType] = useState<"student" | "internet">("student");
+  const [snippets, setSnippets] = useState<StressSnippet[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [labelingId, setLabelingId] = useState<string | null>(null);
+  const [notesBySnippetId, setNotesBySnippetId] = useState<Record<string, string>>({});
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const loadClips = useCallback(async () => {
+  const loadSnippets = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await adminApi.getAcousticDojoNextClips({ limit: 6 });
-      setClips(response.clips ?? []);
+      const response = await adminApi.listStressSnippets({
+        source_type: sourceType,
+        label_state: "unlabeled",
+        limit: 40,
+        offset: 0,
+      });
+      setSnippets(response.snippets ?? []);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to load dojo clips");
+      toast.error(error instanceof Error ? error.message : "Failed to load snippets");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sourceType]);
 
   useEffect(() => {
-    void loadClips();
-  }, [loadClips]);
+    void loadSnippets();
+  }, [loadSnippets]);
 
-  const currentClip = useMemo(() => clips[0] ?? null, [clips]);
-  const totalInSession = sessionReviewed + clips.length;
-  const currentIndex = totalInSession === 0 ? 0 : Math.min(sessionReviewed + 1, totalInSession);
-  const progressPercent =
-    totalInSession === 0 ? 0 : Math.round((currentIndex / totalInSession) * 100);
+  const unlabeledCount = useMemo(() => snippets.filter((item) => !item.coach_label).length, [snippets]);
 
-  const submitAnswer = useCallback(async (hasTremor: boolean) => {
-    if (!currentClip) return;
-    const trimmedReviewer = reviewerId.trim();
-    if (!trimmedReviewer) {
-      toast.error("Reviewer ID is required.");
-      return;
-    }
-    setSubmitting(true);
+  const onPickUpload = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const uploadFile = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.set("audio_file", file);
+    formData.set("source_kind", "coach_upload");
+    formData.set("overall_quality", "good");
+    formData.set("confidence_score", "8");
+    formData.set("coach_style_score", "8");
+    formData.set("rubric_version", "v1");
+    formData.set("language_code", "en");
+
+    setUploading(true);
     try {
-      await adminApi.submitAcousticDojoLabel({
-        clip_id: currentClip.clip_id,
-        source_metadata: currentClip.source_metadata ?? {},
-        label_stress: hasTremor,
-        label_charisma: false,
-        confidence: Math.max(1, Math.min(5, Math.round(getAiScore(currentClip) / 20))),
-        labeled_by: trimmedReviewer,
+      const response = await adminApi.uploadExternalRecording(formData);
+      const generated = Number(response.generated_snippets_count ?? 0);
+      toast.success(
+        generated > 0
+          ? `Uploaded. Generated ${generated} snippet${generated === 1 ? "" : "s"}.`
+          : "Uploaded recording."
+      );
+      setSourceType("internet");
+      await loadSnippets();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }, [loadSnippets]);
+
+  const labelSnippet = useCallback(async (snippet: StressSnippet, label: "stress" | "no_stress") => {
+    setLabelingId(snippet.id);
+    try {
+      const notes = (notesBySnippetId[snippet.id] || "").trim();
+      await adminApi.labelStressSnippet(snippet.id, {
+        label,
+        notes: notes || null,
       });
-      setSessionReviewed((previous) => previous + 1);
-      const reviewLabel: RecentReview["label"] = hasTremor ? "Tremor" : "No Tremor";
-      setRecentReviews((previous) => [
+      const reviewLabel: RecentReview["label"] = label === "stress" ? "Stress" : "No Stress";
+      setRecentReviews((prev) => [
         {
-          clipId: currentClip.clip_id,
-          speaker: getSpeakerLabel(currentClip),
+          snippetId: snippet.id,
+          source: snippet.source_type ?? "unknown",
           label: reviewLabel,
         },
-        ...previous,
+        ...prev,
       ].slice(0, 8));
-      setClips((previous) => previous.slice(1));
+      setSnippets((prev) => prev.filter((item) => item.id !== snippet.id));
+      toast.success("Label saved");
     } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to submit clip label");
+      toast.error(error instanceof Error ? error.message : "Failed to save label");
     } finally {
-      setSubmitting(false);
+      setLabelingId(null);
     }
-  }, [currentClip, reviewerId]);
+  }, [notesBySnippetId]);
 
-  const skipClip = useCallback(() => {
-    if (!currentClip) return;
-    const skippedReview: RecentReview = {
-      clipId: currentClip.clip_id,
-      speaker: getSpeakerLabel(currentClip),
-      label: "Skipped",
-    };
-    setRecentReviews((previous) => [
-      skippedReview,
-      ...previous,
-    ].slice(0, 8));
-    setClips((previous) => previous.slice(1));
-  }, [currentClip]);
+  const currentSnippet = useMemo(() => snippets[0] ?? null, [snippets]);
+  const startMs = currentSnippet?.snippet_start_ms ?? 0;
+  const endMs =
+    currentSnippet?.snippet_end_ms ??
+    (currentSnippet?.snippet_duration_ms != null
+      ? startMs + Number(currentSnippet.snippet_duration_ms)
+      : startMs);
 
   return (
     <div className="space-y-5 animate-fade-in-short">
       {showHeader ? (
         <div>
-          <h1 className="text-2xl font-semibold">Acoustic Dojo</h1>
+          <h1 className="text-2xl font-semibold">Voice Pipeline</h1>
           <p className="text-sm text-muted-foreground">
-            Audio-only clip labeling for stress/charisma with confidence scores.
+            Label stress/no stress for student clips and uploaded recordings.
           </p>
         </div>
       ) : null}
 
       <div className="mx-auto max-w-[760px] space-y-4">
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{currentIndex} of {totalInSession} clips reviewed</span>
-            <span>{progressPercent}%</span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            <button
+              type="button"
+              className={`rounded-md px-3 py-1.5 text-sm ${sourceType === "student" ? "bg-background text-foreground" : "text-muted-foreground"}`}
+              onClick={() => setSourceType("student")}
+            >
+              Student recordings
+            </button>
+            <button
+              type="button"
+              className={`rounded-md px-3 py-1.5 text-sm ${sourceType === "internet" ? "bg-background text-foreground" : "text-muted-foreground"}`}
+              onClick={() => setSourceType("internet")}
+            >
+              Uploaded recordings
+            </button>
           </div>
-          <div className="h-2 rounded-full bg-muted">
-            <div
-              className="h-2 rounded-full bg-foreground transition-all"
-              style={{ width: `${progressPercent}%` }}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void loadSnippets()} disabled={loading}>
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={onPickUpload} disabled={uploading}>
+              <UploadCloud className="mr-2 h-4 w-4" />
+              {uploading ? "Uploading..." : "Upload"}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={uploadFile}
+              className="hidden"
             />
           </div>
         </div>
 
+        <div className="text-sm text-muted-foreground">
+          Unlabeled in this source: <span className="font-medium text-foreground">{unlabeledCount}</span>
+        </div>
+
         <Card className="space-y-5 border-border/80 bg-card/95 p-0">
           {loading ? (
-            <p className="p-5 text-sm text-muted-foreground">Loading next clips...</p>
-          ) : currentClip == null ? (
+            <p className="p-5 text-sm text-muted-foreground">Loading snippets...</p>
+          ) : currentSnippet == null ? (
             <p className="rounded-md border border-dashed m-5 p-4 text-sm text-muted-foreground">
               No clips available right now.
             </p>
           ) : (
             <>
               <div className="flex items-center justify-between border-b px-5 py-4">
-                <h2 className="text-3xl font-semibold tracking-tight">Tremor / Nervousness</h2>
+                <h2 className="text-3xl font-semibold tracking-tight">Stress Label</h2>
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                  AI: {getAiScore(currentClip)}%
+                  {currentSnippet.source_type ?? "unknown"} · {fmtMs(startMs)} - {fmtMs(endMs)}
                 </span>
               </div>
 
               <div className="space-y-5 px-5 pb-5">
                 <div className="rounded-xl border bg-muted/20 p-5">
-                  <div className="mb-4 flex justify-center">
-                    <div className="grid h-14 w-14 place-items-center rounded-full bg-amber-100 text-2xl">🔉</div>
-                  </div>
-                  <p className="text-center text-sm text-muted-foreground">
-                    {getSpeakerLabel(currentClip)} · {getPlaybackWindow(currentClip)}
-                  </p>
-                  {currentClip.audio_url ? (
-                    <audio key={currentClip.clip_id} controls className="mt-3 w-full" src={currentClip.audio_url} />
+                  {currentSnippet.audio_url ? (
+                    <audio key={currentSnippet.id} controls className="w-full" src={currentSnippet.audio_url} />
                   ) : (
-                    <div className="mt-3 h-2 rounded-full bg-muted">
-                      <div className="h-2 w-1/3 rounded-full bg-amber-300" />
-                    </div>
+                    <p className="text-sm text-muted-foreground">No audio URL available for this snippet.</p>
                   )}
-                  <p className="mt-2 text-center text-sm text-muted-foreground">
-                    Audio playback (mock — connect real audio source)
+                  <p className="mt-3 text-sm text-muted-foreground line-clamp-3">
+                    {currentSnippet.transcript_text || currentSnippet.transcript || "No transcript available"}
                   </p>
+                  <textarea
+                    rows={2}
+                    value={notesBySnippetId[currentSnippet.id] ?? ""}
+                    onChange={(event) =>
+                      setNotesBySnippetId((prev) => ({ ...prev, [currentSnippet.id]: event.target.value }))
+                    }
+                    placeholder="Optional notes"
+                    className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
                 </div>
 
                 <p className="text-center text-2xl font-semibold">
-                  Do you hear vocal tremor or nervousness in this clip?
+                  Is this snippet stress or no stress?
                 </p>
 
                 <div className="flex justify-center gap-3">
                   <Button
                     variant="outline"
-                    className="h-14 min-w-[120px] text-xl"
-                    onClick={() => void submitAnswer(false)}
-                    disabled={submitting}
+                    className="h-14 min-w-[140px] text-xl"
+                    onClick={() => void labelSnippet(currentSnippet, "no_stress")}
+                    disabled={labelingId === currentSnippet.id}
                   >
                     <X className="mr-2 h-4 w-4" />
-                    No
+                    No Stress
                   </Button>
                   <Button
-                    className="h-14 min-w-[120px] bg-emerald-600 text-xl hover:bg-emerald-700"
-                    onClick={() => void submitAnswer(true)}
-                    disabled={submitting}
+                    className="h-14 min-w-[140px] bg-emerald-600 text-xl hover:bg-emerald-700"
+                    onClick={() => void labelSnippet(currentSnippet, "stress")}
+                    disabled={labelingId === currentSnippet.id}
                   >
                     <Check className="mr-2 h-4 w-4" />
-                    Yes
+                    Stress
                   </Button>
-                </div>
-
-                <div className="flex justify-center">
-                  <Button variant="ghost" className="text-base" onClick={skipClip} disabled={submitting}>
-                    <SkipForward className="mr-2 h-4 w-4" />
-                    Skip
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <span>Keyboard:</span>
-                  <kbd className="rounded border bg-muted px-1.5 py-0.5">←</kbd>
-                  <span>No</span>
-                  <kbd className="rounded border bg-muted px-1.5 py-0.5">→</kbd>
-                  <span>Yes</span>
-                  <kbd className="rounded border bg-muted px-1.5 py-0.5">Space</kbd>
-                  <span>Skip</span>
                 </div>
               </div>
             </>
@@ -250,25 +248,17 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
               <p className="text-sm text-muted-foreground">No reviews in this session yet.</p>
             ) : (
               recentReviews.map((item) => (
-                <div key={`${item.clipId}-${item.label}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <div key={`${item.snippetId}-${item.label}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className="text-emerald-600">✓</span>
                     <span className="text-base">{item.label}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">{item.speaker}</span>
+                  <span className="text-sm text-muted-foreground">{item.source}</span>
                 </div>
               ))
             )}
           </div>
         </Card>
-
-        {/* Hidden input keeps current reviewer ID configurable while staying off-surface. */}
-        <input
-          value={reviewerId}
-          onChange={(event) => setReviewerId(event.target.value)}
-          className="sr-only"
-          aria-hidden
-        />
       </div>
     </div>
   );

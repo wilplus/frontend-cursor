@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AudioLines } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminShell({
@@ -20,7 +19,6 @@ export default function AdminShell({
     pathname?.startsWith("/admin/training-studio") ||
     pathname?.startsWith("/admin/copilot-inbox") ||
     pathname?.startsWith("/admin/acoustic-dojo");
-  const voiceLabelingActive = pathname?.startsWith("/admin/voice-labeling");
 
   return (
     <div className="min-h-screen bg-background admin-panel">
@@ -45,15 +43,6 @@ export default function AdminShell({
               }`}
             >
               Training Studio
-            </Link>
-            <Link
-              href="/admin/voice-labeling"
-              className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${
-                voiceLabelingActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <AudioLines className="h-4 w-4" />
-              Voice Labeling
             </Link>
           </div>
           <div className="flex items-center gap-2">
