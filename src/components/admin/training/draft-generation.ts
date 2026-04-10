@@ -51,6 +51,25 @@ export function getEffectiveDraftGenerationStatus(params: {
   return params.status ?? "not_started";
 }
 
+export type DraftGenerationBannerState = "idle" | "pending" | "failed" | "retry_exhausted";
+
+export function getDraftGenerationBannerState(params: {
+  status: DraftGenerationStatus | null | undefined;
+  hasUsableDraftContent: boolean;
+  retriesExhausted: boolean;
+}): DraftGenerationBannerState {
+  if (params.hasUsableDraftContent) return "idle";
+  const effectiveStatus = getEffectiveDraftGenerationStatus({
+    status: params.status,
+    hasUsableDraftContent: params.hasUsableDraftContent,
+  });
+  if (effectiveStatus === "failed") return "failed";
+  if (effectiveStatus === "pending") {
+    return params.retriesExhausted ? "retry_exhausted" : "pending";
+  }
+  return "idle";
+}
+
 export function shouldHydrateDraftEditor(params: {
   isBackgroundRefresh: boolean;
   hasUnsavedEdits: boolean;

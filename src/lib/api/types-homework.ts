@@ -3,7 +3,13 @@
  * Backend may not implement these yet; BFF and client are ready for when it does.
  */
 
+import { firstTaskTextFromPool, mergeHomeworkTaskPair } from "@/lib/api/homework-task-fields";
+
 export type UUID = string;
+
+function trimStr(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
 
 // —— Public status (must match backend exactly). Only use top-level status. ——
 export type PublicHomeworkStatus =
@@ -298,17 +304,6 @@ export interface AssignedExercise {
   description?: string | null;
 }
 
-function firstTaskTextFromPool(pool: unknown): string | null {
-  if (!Array.isArray(pool) || pool.length === 0) return null;
-  const first = pool[0];
-  if (typeof first === "string" && first.trim()) return first.trim();
-  if (first && typeof first === "object" && first !== null && "text" in first) {
-    const t = (first as { text: unknown }).text;
-    if (typeof t === "string" && t.trim()) return t.trim();
-  }
-  return null;
-}
-
 /** Build HomeworkResponse from GET status. Normalizes status to top-level (only place that reads nested session.status). */
 export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): HomeworkResponse {
   const status = toPublicStatus(raw.status ?? raw.session?.status);
@@ -331,11 +326,12 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     };
   };
   const nested = legacyRaw.session;
+  const taskFromFields = mergeHomeworkTaskPair(
+    trimStr(raw.task) ?? trimStr(nested?.task) ?? null,
+    trimStr(legacyRaw.task_text) ?? trimStr(nested?.task_text) ?? null
+  );
   const task =
-    raw.task ??
-    (typeof nested?.task === "string" ? nested.task : null) ??
-    legacyRaw.task_text ??
-    (typeof nested?.task_text === "string" ? nested.task_text : null) ??
+    taskFromFields ??
     firstTaskTextFromPool(raw.tasks_pool) ??
     firstTaskTextFromPool(raw.task_pool) ??
     firstTaskTextFromPool(nested?.tasks_pool) ??

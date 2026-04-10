@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DRAFT_GENERATION_MAX_RETRIES,
+  getDraftGenerationBannerState,
   getEffectiveDraftGenerationStatus,
   hasUsableDraftContent,
   shouldHydrateDraftEditor,
@@ -88,6 +89,37 @@ describe("draft-generation helpers", () => {
       hasUsableDraftContent: false,
     });
     expect(effective).toBe("failed");
+  });
+
+  it("computes banner state for pending, failed, exhausted, and stale metadata", () => {
+    expect(
+      getDraftGenerationBannerState({
+        status: "pending",
+        hasUsableDraftContent: false,
+        retriesExhausted: false,
+      })
+    ).toBe("pending");
+    expect(
+      getDraftGenerationBannerState({
+        status: "pending",
+        hasUsableDraftContent: false,
+        retriesExhausted: true,
+      })
+    ).toBe("retry_exhausted");
+    expect(
+      getDraftGenerationBannerState({
+        status: "failed",
+        hasUsableDraftContent: false,
+        retriesExhausted: false,
+      })
+    ).toBe("failed");
+    expect(
+      getDraftGenerationBannerState({
+        status: "pending",
+        hasUsableDraftContent: true,
+        retriesExhausted: false,
+      })
+    ).toBe("idle");
   });
 
   it("does not poll when status is ready or not_started", () => {

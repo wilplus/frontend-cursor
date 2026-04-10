@@ -7,6 +7,33 @@ export function stripHtmlToText(input: string | null | undefined): string {
   return (div.textContent || div.innerText || "").trim();
 }
 
+function escapeHtml(input: string): string {
+  return input
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+/**
+ * Accept either HTML or markdown-like task text.
+ * - If input already contains HTML tags, keep it as-is for sanitizer pass.
+ * - Otherwise, preserve line breaks and map **bold** / __bold__ into <strong>.
+ */
+export function normalizeRichInstructionInput(input: string | null | undefined): string {
+  const raw = (input ?? "").trim();
+  if (!raw) return "";
+  if (/<[a-z][\s\S]*>/i.test(raw)) return raw;
+
+  const escaped = escapeHtml(raw);
+  const withBold =
+    escaped
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  return withBold.replace(/\r?\n/g, "<br />");
+}
+
 /**
  * Whitelist sanitizer for instructional rich text (bold, lists, links, etc.).
  * Matches student-facing prompt rendering in the recorder.

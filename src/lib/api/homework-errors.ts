@@ -17,6 +17,16 @@ export function isReportNotReadyError(e: unknown): e is HomeworkApiError {
   return e instanceof Error && "code" in e && (e as HomeworkApiError).code === "REPORT_NOT_READY";
 }
 
+/**
+ * GET /homework/session/:id/report may return 409 (e.g. report still generating or session not ready yet)
+ * without code REPORT_NOT_READY. Treat like not-ready so the UI polls instead of a hard error + stuck loader.
+ */
+export function isHomeworkReportRetryLaterError(e: unknown): boolean {
+  if (isReportNotReadyError(e)) return true;
+  if (!(e instanceof Error)) return false;
+  return (e as HomeworkApiError).status === 409;
+}
+
 export function isSelfRatingNotReadyError(e: unknown): boolean {
   if (!(e instanceof Error)) return false;
   const err = e as HomeworkApiError;

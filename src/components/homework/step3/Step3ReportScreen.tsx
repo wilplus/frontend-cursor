@@ -66,20 +66,19 @@ export default function Step3ReportScreen({
     );
   }
 
-  // Canonical score source for all primary report UI.
+  // Canonical score source for all primary report UI (backend field names vary).
   const canonicalOverall =
     normalizePercentScore(reportData?.score_for_display) ??
+    normalizePercentScore((reportData as { scoreForDisplay?: unknown } | null)?.scoreForDisplay) ??
     normalizePercentScore(reportData?.scores?.overall) ??
+    normalizePercentScore(reportData?.scores?.final) ??
+    normalizePercentScore(reportData?.score) ??
+    normalizePercentScore(reportData?.performance_score_1) ??
     normalizePercentScore(performanceScoreEnd);
   const scoreReady = canonicalOverall != null;
-  const insightReady = (reportData?.coach_insight ?? "").trim().length > 0;
 
-  // While score hasn't arrived yet and coach insight isn't ready, consider the report still processing.
-  const reportProcessingIncomplete =
-    reportData != null && !reportNotReady && !scoreReady && !insightReady;
-
-  const waitingForFullReport =
-    reportNotReady || reportProcessingIncomplete || (reportData == null && reportError == null);
+  /** Full-screen loader only while we are actively fetching or the API asked us to retry later. */
+  const showUnifiedLoading = reportLoading || reportNotReady;
 
   const canonicalFinalScore = scoreReady ? canonicalOverall : null;
   const reportCtaLabel = (reportData?.report_cta ?? "").trim() || "Finish the lesson and sign out";
@@ -113,8 +112,6 @@ export default function Step3ReportScreen({
   // Only show a score number once we have a backend-computed value.
   // sniperSnapshot is an unreliable real-time estimate — never show it as a headline number.
   const confirmedScore = canonicalFinalScore ?? null;
-  const scoreAnalyzing = confirmedScore == null;
-  const showUnifiedLoading = waitingForFullReport || scoreAnalyzing;
 
   const playbackUrl =
     reportData?.final_recording?.audio_url ??
@@ -210,7 +207,9 @@ export default function Step3ReportScreen({
           {!showUnifiedLoading ? (
             <p className="text-sm text-muted-foreground">
               Performance score:{" "}
-              <span className="font-semibold text-foreground">{confirmedScore}%</span>
+              <span className="font-semibold text-foreground">
+                {confirmedScore != null ? `${confirmedScore}%` : "—"}
+              </span>
             </p>
           ) : null}
         </div>
@@ -242,7 +241,7 @@ export default function Step3ReportScreen({
             <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-48 overflow-y-auto">
               <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{transcriptionText}</p>
             </div>
-          ) : waitingForFullReport ? (
+          ) : reportLoading || reportNotReady ? (
             <p className="text-sm text-muted-foreground italic">Generating transcript…</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">Transcript not available for this session.</p>
