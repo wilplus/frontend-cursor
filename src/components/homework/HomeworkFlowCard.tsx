@@ -29,6 +29,9 @@ import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 // Utility imports (previously inlined)
 import {
   DEFAULT_TASK_PROMPT,
+  hasStep0HomeworkContentSignalsFromPayload,
+  openingTaskTextFromApiPayload,
+  resolveStep0VideoUrlFromStatusPayload,
   resolveTaskText,
 } from "@/lib/api/homework-utils";
 import {
@@ -73,29 +76,19 @@ const STEP0_REPORTS_PAGE_SIZE = 5;
 const REVIEW_PENDING_DEFAULT_MESSAGE =
   "Your homework has been sent and is now being reviewed.";
 
-/** Coach-assigned step-0 content: show the video/start flow even if review_pending is still true (e.g. after email assignment). */
+function statusPayloadRecord(
+  s: HomeworkSessionStatus | HomeworkResponse | null | undefined
+): Record<string, unknown> | null {
+  if (!s) return null;
+  return s as unknown as Record<string, unknown>;
+}
+
 function hasStep0AssignmentPayload(statusRes: HomeworkSessionStatus | null | undefined): boolean {
-  if (!statusRes || statusRes.has_active_session === true) return false;
-  const tutor =
-    (typeof statusRes.tutor_video_url === "string" && statusRes.tutor_video_url.trim()) ||
-    (typeof statusRes.session?.tutor_video_url === "string" && statusRes.session.tutor_video_url.trim());
-  if (tutor) return true;
-  if (Array.isArray(statusRes.assigned_exercises) && statusRes.assigned_exercises.length > 0) return true;
-  // Send-assignment / email flows sometimes persist coach copy without resolving assigned_exercises yet.
-  const desc =
-    (typeof statusRes.tutor_video_description === "string" && statusRes.tutor_video_description.trim()) ||
-    (typeof statusRes.session?.tutor_video_description === "string" &&
-      statusRes.session.tutor_video_description.trim());
-  return Boolean(desc);
+  return hasStep0HomeworkContentSignalsFromPayload(statusPayloadRecord(statusRes));
 }
 
 function hasStep0AssignmentPayloadFromHomeworkResponse(res: HomeworkResponse): boolean {
-  if (res.has_active_session === true) return false;
-  const tutor = typeof res.tutor_video_url === "string" && res.tutor_video_url.trim();
-  if (tutor) return true;
-  if (Array.isArray(res.assigned_exercises) && res.assigned_exercises.length > 0) return true;
-  const desc = typeof res.tutor_video_description === "string" && res.tutor_video_description.trim();
-  return Boolean(desc);
+  return hasStep0HomeworkContentSignalsFromPayload(statusPayloadRecord(res));
 }
 
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
@@ -193,9 +186,8 @@ export default function HomeworkFlowCard() {
   useEffect(() => {
     if (!readForcedStep0WaitingState()) return;
     forcedStep0WaitingRef.current = true;
-    if (stepRef.current !== 0) return;
-    setReviewPending(true);
-    setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
+    // Do not set review UI here — wait for GET /status so we do not flash “submitted” while
+    // the API already has tutor video / assignment fields (or review_pending: false).
   }, []);
 
   const refreshSniperProfile = useCallback(
@@ -215,6 +207,10 @@ export default function HomeworkFlowCard() {
 
   const syncDashboardStateFromStatus = useCallback(
     (statusRes: HomeworkSessionStatus | null | undefined) => {
+      if (statusRes?.review_pending === false) {
+        forcedStep0WaitingRef.current = false;
+        clearForcedStep0WaitingState();
+      }
       if (forcedStep0WaitingRef.current && isHomeworkReadyForStep0(statusRes)) {
         forcedStep0WaitingRef.current = false;
         clearForcedStep0WaitingState();
@@ -249,10 +245,7 @@ export default function HomeworkFlowCard() {
               : null
       );
 
-      const tutorVideoUrl = statusRes?.tutor_video_url ?? statusRes?.session?.tutor_video_url ?? null;
-      setStep0TutorVideoUrl(
-        typeof tutorVideoUrl === "string" && tutorVideoUrl.trim() ? tutorVideoUrl.trim() : null
-      );
+      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayloadRecord(statusRes)));
       const tutorVideoDescription =
         statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
       setStep0TutorVideoDescription(
@@ -579,13 +572,12 @@ export default function HomeworkFlowCard() {
           ? res.main_screen_message.trim()
           : null
       );
-      if ("tutor_video_url" in res) {
-        const videoUrl = res.tutor_video_url;
-        setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
-      }
+      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayloadRecord(res)));
       if ("tutor_video_description" in res) {
         const desc = res.tutor_video_description;
         setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
+      } else {
+        setStep0TutorVideoDescription(null);
       }
       setCoachMessageAfterHomework(null);
       setPendingRetrySelfRating(null);
@@ -621,10 +613,7 @@ export default function HomeworkFlowCard() {
       const msg = res.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
     }
-    if ("tutor_video_url" in res) {
-      const videoUrl = res.tutor_video_url;
-      setStep0TutorVideoUrl(typeof videoUrl === "string" && videoUrl.trim() ? videoUrl.trim() : null);
-    }
+    setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayloadRecord(res)));
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
       setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
@@ -655,10 +644,8 @@ export default function HomeworkFlowCard() {
     try {
       const startRes = await homeworkApi.start();
       const taskFromStart =
-        startRes.task ??
-        (startRes as { warm_up_task?: { text?: string } }).warm_up_task?.text ??
-        (startRes as { warm_up_task_text?: string }).warm_up_task_text ??
-        "";
+        openingTaskTextFromApiPayload(startRes as unknown as Record<string, unknown>) ||
+        (startRes.task ?? "");
       applyStatusToState({
         status: "recording_1_required",
         session_id: startRes.session_id,

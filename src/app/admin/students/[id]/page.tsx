@@ -1146,7 +1146,7 @@ export default function AdminStudentProfilePage() {
         step_in_level: data.step_in_level,
         is_active: true,
       });
-      const item = created.tasks_pool_item;
+      const item = created.tasks_pool;
       setTasksPoolItems((prev) => [item, ...prev]);
       pending.resolve({
         id: item.id,

@@ -162,6 +162,8 @@ export interface HomeworkResponse {
   /** When has_active_session === false: exercises assigned to this student. Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
   review_pending?: boolean | null;
+  has_assigned_homework?: boolean | null;
+  homework_ready?: boolean | null;
   main_screen_state?: string | null;
   main_screen_message?: string | null;
   sniper_profile?: {
@@ -190,7 +192,7 @@ export function toPublicStatus(s: unknown): PublicHomeworkStatus {
   return "none";
 }
 
-/** Opening task shape returned by GET /session/status and POST /session/start (`warm_up_task` JSON field). */
+/** Legacy opening task shape; prefer top-level `task` / `task_text` / `tasks_pool` from backend. */
 export interface HomeworkSessionTask {
   id: string;
   text: string;
@@ -228,6 +230,8 @@ export interface HomeworkSessionStatus {
   /** Session recording identifier returned by the backend. */
   recording_id?: UUID | null;
   task?: string | null;
+  /** Opening prompt (some backends send this instead of or in addition to `task`). */
+  task_text?: string | null;
   report_text?: string | null;
   score?: number | null;
   /** Backend: no active session; clear state and require POST start. */
@@ -241,6 +245,10 @@ export interface HomeworkSessionStatus {
     state?: string;
     context_long?: string | null;
     score?: number | null;
+    task?: string | null;
+    task_text?: string | null;
+    tasks_pool?: Array<string | { id?: string; text?: string }> | null;
+    task_pool?: Array<string | { id?: string; text?: string }> | null;
     tutor_video_url?: string | null;
     tutor_video_description?: string | null;
   };
@@ -255,6 +263,8 @@ export interface HomeworkSessionStatus {
   /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
   review_pending?: boolean | null;
+  has_assigned_homework?: boolean | null;
+  homework_ready?: boolean | null;
   main_screen_state?: string | null;
   main_screen_message?: string | null;
   sniper_profile?: {
@@ -274,6 +284,10 @@ export interface HomeworkSessionStatus {
   ready_for_self_rating?: boolean | null;
   /** Remaining homework credits (from GET status). Charged −5 on completion+report on backend, not on start. Included when has_active_session is true or false. */
   credits?: number | null;
+  /** Opening-recording prompt pool; first item used when `task` / `task_text` absent. Prefer `tasks_pool` (admin/homework contract). */
+  tasks_pool?: Array<string | { id?: string; text?: string }> | null;
+  /** @deprecated Prefer `tasks_pool`; still accepted for older responses. */
+  task_pool?: Array<string | { id?: string; text?: string }> | null;
 }
 
 /** Exercise item returned in GET session/status when no active session (from assigned_exercises). */
@@ -282,6 +296,17 @@ export interface AssignedExercise {
   title: string;
   video_url?: string | null;
   description?: string | null;
+}
+
+function firstTaskTextFromPool(pool: unknown): string | null {
+  if (!Array.isArray(pool) || pool.length === 0) return null;
+  const first = pool[0];
+  if (typeof first === "string" && first.trim()) return first.trim();
+  if (first && typeof first === "object" && first !== null && "text" in first) {
+    const t = (first as { text: unknown }).text;
+    if (typeof t === "string" && t.trim()) return t.trim();
+  }
+  return null;
 }
 
 /** Build HomeworkResponse from GET status. Normalizes status to top-level (only place that reads nested session.status). */
@@ -293,22 +318,35 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     task_text?: string | null;
     final_task?: string | { text?: string } | null;
     final_task_text?: string | null;
+    tasks_pool?: HomeworkSessionStatus["tasks_pool"];
+    task_pool?: HomeworkSessionStatus["task_pool"];
     session?: HomeworkSessionStatus["session"] & {
+      task?: string | null;
+      task_text?: string | null;
+      tasks_pool?: HomeworkSessionStatus["tasks_pool"];
+      task_pool?: HomeworkSessionStatus["task_pool"];
       warm_up_task?: HomeworkSessionTask | null;
       warm_up_task_text?: string | null;
       final_task_text?: string | null;
     };
   };
+  const nested = legacyRaw.session;
   const task =
     raw.task ??
-    legacyRaw.warm_up_task?.text ??
-    legacyRaw.warm_up_task_text ??
+    (typeof nested?.task === "string" ? nested.task : null) ??
     legacyRaw.task_text ??
+    (typeof nested?.task_text === "string" ? nested.task_text : null) ??
+    firstTaskTextFromPool(raw.tasks_pool) ??
+    firstTaskTextFromPool(raw.task_pool) ??
+    firstTaskTextFromPool(nested?.tasks_pool) ??
+    firstTaskTextFromPool(nested?.task_pool) ??
     (typeof legacyRaw.final_task === "string" ? legacyRaw.final_task : null) ??
     legacyRaw.final_task_text ??
+    legacyRaw.session?.final_task_text ??
+    legacyRaw.warm_up_task?.text ??
+    legacyRaw.warm_up_task_text ??
     legacyRaw.session?.warm_up_task?.text ??
     legacyRaw.session?.warm_up_task_text ??
-    legacyRaw.session?.final_task_text ??
     null;
   return {
     status,
