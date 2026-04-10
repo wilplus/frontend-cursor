@@ -105,6 +105,7 @@ export function resolveStep0VideoUrlFromStatusPayload(
 
 const ASSIGNMENT_MAIN_SCREEN_STATES = new Set([
   "assignment",
+  "assignment_ready",
   "homework",
   "practice",
   "ready",
