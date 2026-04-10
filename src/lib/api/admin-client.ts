@@ -1343,7 +1343,7 @@ export const adminApi = {
   putSpeakerProfile: (userId: string, data: Record<string, unknown>) =>
     adminFetch<{ status: string }>(`/students/${userId}/speaker-profile`, { method: "PUT", body: data }),
 
-  /** Optional body: { video_url?, video_description?, additional_user_ids? }. Used in assignment email. */
+  /** Optional body: { video_url?, video_description?, additional_user_ids? }. Triggers student homework (send-homework). */
   sendAssignment: (userId: string, body?: { video_url?: string; video_description?: string; additional_user_ids?: string[] }) =>
     adminFetch<SendAssignmentResponse>(`/students/${userId}/send-assignment`, {
       method: "POST",

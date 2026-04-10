@@ -147,6 +147,25 @@ function reviewerScoreFromMetadata(metadata: CopilotStudentDraft["metadata"]): s
   return "";
 }
 
+/** Video link for student homework (POST send-homework); read from copilot draft metadata when present. */
+function homeworkVideoUrlFromDraft(draft: CopilotStudentDraft | null): string | undefined {
+  if (!draft?.metadata || typeof draft.metadata !== "object" || Array.isArray(draft.metadata)) {
+    return undefined;
+  }
+  const meta = draft.metadata as Record<string, unknown>;
+  for (const key of [
+    "video_url",
+    "tutor_video_url",
+    "coach_video_url",
+    "homework_video_url",
+    "vimeo_url",
+  ]) {
+    const v = meta[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
 function parseOptionalPercent(raw: string): number | null {
   const t = raw.trim();
   if (!t) return null;
@@ -217,7 +236,7 @@ export default function TrainingStudioWorkspace() {
   const [reviewerScoreInput, setReviewerScoreInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [approvingAll, setApprovingAll] = useState(false);
-  const [sendingAssignment, setSendingAssignment] = useState(false);
+  const [sendingHomework, setSendingHomework] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [loadingTaskOptions, setLoadingTaskOptions] = useState(false);
   const [savingTaskOptionId, setSavingTaskOptionId] = useState<string | null>(null);
@@ -1074,15 +1093,15 @@ export default function TrainingStudioWorkspace() {
     }
   }, [loadTaskOptionsForStudent, selectedStudent]);
 
-  const sendAssignment = useCallback(async () => {
+  const sendHomework = useCallback(async () => {
     if (!selectedStudent) return;
     const videoDescription = messageValue.trim();
     if (videoDescription.length > 2000) {
-      toast.error("Message to student must be 2000 characters or less");
+      toast.error("Homework message must be 2000 characters or less");
       return;
     }
 
-    setSendingAssignment(true);
+    setSendingHomework(true);
     try {
       const resolved = await resolveCopilotSessionAndDraftId();
       if (!resolved) {
@@ -1116,6 +1135,7 @@ export default function TrainingStudioWorkspace() {
       });
 
       await adminApi.sendAssignment(selectedStudent.student_id, {
+        video_url: homeworkVideoUrlFromDraft(selectedDraft) ?? undefined,
         video_description: videoDescription || undefined,
       });
 
@@ -1128,7 +1148,7 @@ export default function TrainingStudioWorkspace() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send homework");
     } finally {
-      setSendingAssignment(false);
+      setSendingHomework(false);
     }
   }, [
     cohorts,
@@ -1137,7 +1157,7 @@ export default function TrainingStudioWorkspace() {
     messageValue,
     reasonChipCustom,
     resolveCopilotSessionAndDraftId,
-    selectedDraft?.id,
+    selectedDraft,
     selectedReasonChips,
     selectedStudent,
   ]);
@@ -1733,7 +1753,7 @@ export default function TrainingStudioWorkspace() {
 
           <Card className="border-border/80 bg-card/95 p-0">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Message to Student</h3>
+              <h3 className="text-2xl font-semibold">Homework message</h3>
               <Button
                 variant="outline"
                 className="h-11 px-4 text-sm"
@@ -1764,7 +1784,7 @@ export default function TrainingStudioWorkspace() {
                   {messageValue ||
                     selectedDraft?.email_draft ||
                     selectedDraft?.ai_email_draft ||
-                    "No message drafted yet."}
+                    "No homework message yet."}
                 </p>
               )}
               {emailAiHint ? <p className="mt-2 text-xs text-muted-foreground">{emailAiHint}</p> : null}
@@ -1814,11 +1834,11 @@ export default function TrainingStudioWorkspace() {
           <div className="flex justify-end">
             <Button
               className="h-11 px-5 text-sm"
-              onClick={() => void sendAssignment()}
-              disabled={sendingAssignment || !selectedStudent || loading}
+              onClick={() => void sendHomework()}
+              disabled={sendingHomework || !selectedStudent || loading}
             >
               <Send className="mr-2 h-4 w-4" />
-              {sendingAssignment ? "Sending..." : "Send Assignment"}
+              {sendingHomework ? "Sending…" : "Send homework"}
             </Button>
           </div>
         </div>
