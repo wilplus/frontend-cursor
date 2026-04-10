@@ -3,7 +3,7 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
 export const dynamic = "force-dynamic";
 
-/** Proxies POST /v2/admin/students/:id/task-warm-up/create-pool-and-assign */
+/** Proxies POST /v2/admin/students/:id/tasks/create-pool-and-assign */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,7 +20,7 @@ export async function POST(
   const body = await request.json().catch(() => ({}));
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/students/${id}/task-warm-up/create-pool-and-assign`, {
+    res = await fetch(`${backend}/v2/admin/students/${id}/tasks/create-pool-and-assign`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

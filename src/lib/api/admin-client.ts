@@ -387,7 +387,18 @@ function pickSingleStudentTaskEntity(r: Record<string, unknown>): StudentTask | 
   return null;
 }
 
+/** Single pool row from POST/PUT pool or create-pool-and-assign. Contract: `tasks_pool` object (see API-POOL-CONTRACT). */
 function pickSinglePoolTaskEntity(r: Record<string, unknown>): TasksPoolItem | null {
+  const tp = r.tasks_pool;
+  if (tp != null && typeof tp === "object") {
+    if (!Array.isArray(tp)) {
+      const row = normalizeTasksPoolItem(tp);
+      if (row) return row;
+    } else if (tp.length > 0) {
+      const row = normalizeTasksPoolItem(tp[0]);
+      if (row) return row;
+    }
+  }
   for (const key of ["tasks_pool_item", "task", "task_warm_up"] as const) {
     const v = r[key];
     if (v != null && typeof v === "object" && !Array.isArray(v)) return normalizeTasksPoolItem(v);
@@ -1360,11 +1371,16 @@ export const adminApi = {
       method: "POST",
       body: data,
     }).then((r) => {
-      const task = pickSingleStudentTaskEntity(r);
+      const tasks_pool = pickSinglePoolTaskEntity(r);
+      const tasks = pickStudentTasksArray(r);
+      const droppedRaw = r.dropped_non_pool_tasks;
+      const dropped_non_pool_tasks =
+        typeof droppedRaw === "number" && Number.isFinite(droppedRaw) ? droppedRaw : 0;
+      const task = pickSingleStudentTaskEntity(r) ?? tasks[0] ?? null;
       if (!task) {
-        throw new Error("Unexpected response from create-pool-and-assign (missing task)");
+        throw new Error("Unexpected response from create-pool-and-assign (missing tasks)");
       }
-      return task;
+      return { tasks_pool, tasks, dropped_non_pool_tasks, task };
     }),
 
   createStudentTask: (userId: string, data: { text: string; order_index?: number; max_performance_score?: number }) =>
@@ -1396,7 +1412,7 @@ export const adminApi = {
     adminFetch<Record<string, unknown>>("/tasks-pool", { method: "POST", body: data }).then((r) => {
       const item = pickSinglePoolTaskEntity(r);
       if (!item) throw new Error("Unexpected response from create pool task");
-      return { tasks_pool_item: item };
+      return { tasks_pool: item };
     }),
 
   updateTasksPoolItem: (
@@ -1406,7 +1422,7 @@ export const adminApi = {
     adminFetch<Record<string, unknown>>(`/tasks-pool/${poolId}`, { method: "PUT", body: data }).then((r) => {
       const item = pickSinglePoolTaskEntity(r);
       if (!item) throw new Error("Unexpected response from update pool task");
-      return { tasks_pool_item: item };
+      return { tasks_pool: item };
     }),
 
   deleteTasksPoolItem: (poolId: string) =>

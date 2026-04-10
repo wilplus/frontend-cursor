@@ -19,6 +19,125 @@ export function resolveTaskText(text: unknown): string {
   return ((text as string | null | undefined) ?? "").trim() || DEFAULT_TASK_PROMPT;
 }
 
+function openingTaskTextFromRecord(rec: Record<string, unknown>): string {
+  const task = rec.task;
+  if (typeof task === "string" && task.trim()) return task.trim();
+  const taskText = rec.task_text;
+  if (typeof taskText === "string" && taskText.trim()) return taskText.trim();
+  const pool = rec.tasks_pool ?? rec.task_pool;
+  if (Array.isArray(pool) && pool.length > 0) {
+    const first = pool[0];
+    if (typeof first === "string" && first.trim()) return first.trim();
+    if (first && typeof first === "object" && first !== null && "text" in first) {
+      const t = (first as { text: unknown }).text;
+      if (typeof t === "string" && t.trim()) return t.trim();
+    }
+  }
+  const warmObj = rec.warm_up_task;
+  if (warmObj && typeof warmObj === "object" && "text" in warmObj) {
+    const t = (warmObj as { text: unknown }).text;
+    if (typeof t === "string" && t.trim()) return t.trim();
+  }
+  const wtext = rec.warm_up_task_text;
+  if (typeof wtext === "string" && wtext.trim()) return wtext.trim();
+  return "";
+}
+
+/**
+ * Opening step-1 prompt from POST /session/start or GET /session/status payloads.
+ * Prefers `task`, `task_text`, `tasks_pool` / `task_pool` (top-level then nested `session`); legacy `warm_up_*` last.
+ */
+export function openingTaskTextFromApiPayload(data: Record<string, unknown> | null | undefined): string {
+  if (!data) return "";
+  const fromRoot = openingTaskTextFromRecord(data);
+  if (fromRoot) return fromRoot;
+  const session = data.session;
+  if (session && typeof session === "object" && session !== null) {
+    const fromSession = openingTaskTextFromRecord(session as Record<string, unknown>);
+    if (fromSession) return fromSession;
+  }
+  return "";
+}
+
+const STEP0_VIDEO_URL_KEYS = [
+  "tutor_video_url",
+  "video_url",
+  "homework_video_url",
+  "coach_video_url",
+  "assignment_video_url",
+] as const;
+
+function trimStr(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+/**
+ * Step-0 video URL from GET /homework/session/status (or start) payloads.
+ * Checks common top-level and `session` keys plus `assigned_exercises[].video_url`.
+ */
+export function resolveStep0VideoUrlFromStatusPayload(
+  raw: Record<string, unknown> | null | undefined
+): string | null {
+  if (!raw || raw.has_active_session === true) return null;
+  const session =
+    raw.session && typeof raw.session === "object" && raw.session !== null
+      ? (raw.session as Record<string, unknown>)
+      : null;
+  for (const key of STEP0_VIDEO_URL_KEYS) {
+    const top = trimStr(raw[key]);
+    if (top) return top;
+    if (session) {
+      const s = trimStr(session[key]);
+      if (s) return s;
+    }
+  }
+  const ex = raw.assigned_exercises;
+  if (Array.isArray(ex)) {
+    for (const item of ex) {
+      if (item && typeof item === "object" && item !== null) {
+        const u = trimStr((item as { video_url?: unknown }).video_url);
+        if (u) return u;
+      }
+    }
+  }
+  return null;
+}
+
+const ASSIGNMENT_MAIN_SCREEN_STATES = new Set([
+  "assignment",
+  "homework",
+  "practice",
+  "ready",
+  "start",
+  "start_practice",
+  "exercise",
+]);
+
+/**
+ * True when status JSON implies the student should see step-0 assignment/video (not “submitted / waiting”).
+ * Used to override stale `review_pending` or sessionStorage forced-waiting when the payload carries real homework.
+ */
+export function hasStep0HomeworkContentSignalsFromPayload(
+  raw: Record<string, unknown> | null | undefined
+): boolean {
+  if (!raw || raw.has_active_session === true) return false;
+  if (resolveStep0VideoUrlFromStatusPayload(raw)) return true;
+  const exercises = raw.assigned_exercises;
+  if (Array.isArray(exercises) && exercises.length > 0) return true;
+  const desc =
+    trimStr(raw.tutor_video_description) ||
+    (raw.session &&
+      typeof raw.session === "object" &&
+      raw.session !== null &&
+      trimStr((raw.session as Record<string, unknown>).tutor_video_description));
+  if (desc) return true;
+  const mss = trimStr(raw.main_screen_state).toLowerCase();
+  if (mss && ASSIGNMENT_MAIN_SCREEN_STATES.has(mss)) return true;
+  if (raw.has_assigned_homework === true) return true;
+  if (raw.homework_ready === true) return true;
+  return false;
+}
+
 /** Extract Vimeo video id from vimeo.com/123, vimeo.com/video/123, or player.vimeo.com/video/123. */
 export function parseVimeoId(url: string): string | null {
   const u = url.trim();

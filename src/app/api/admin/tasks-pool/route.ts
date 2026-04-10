@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   }
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/task-warm-up-pool`, {
+    res = await fetch(`${backend}/v2/admin/tasks-pool`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/task-warm-up-pool`, {
+    res = await fetch(`${backend}/v2/admin/tasks-pool`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

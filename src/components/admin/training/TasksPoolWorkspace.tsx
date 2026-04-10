@@ -210,13 +210,13 @@ export default function TasksPoolWorkspace({ onSelectedStudentChange }: TasksPoo
         const updated = await adminApi.updateTasksPoolItem(editingTemplateId, payload);
         setTasksPool((prev) =>
           prev.map((item) =>
-            item.id === editingTemplateId ? updated.tasks_pool_item : item
+            item.id === editingTemplateId ? updated.tasks_pool : item
           )
         );
         toast.success("Task template updated.");
       } else {
         const created = await adminApi.createTasksPoolItem(payload);
-        setTasksPool((prev) => [created.tasks_pool_item, ...prev]);
+        setTasksPool((prev) => [created.tasks_pool, ...prev]);
         toast.success("Task template created.");
       }
       startCreateTemplate();
@@ -246,7 +246,7 @@ export default function TasksPoolWorkspace({ onSelectedStudentChange }: TasksPoo
       const response = await adminApi.updateTasksPoolItem(item.id, {
         is_active: false,
       });
-      setTasksPool((prev) => prev.map((row) => (row.id === item.id ? response.tasks_pool_item : row)));
+      setTasksPool((prev) => prev.map((row) => (row.id === item.id ? response.tasks_pool : row)));
       toast.success("Task template archived.");
       if (editingTemplateId === item.id) startCreateTemplate();
     } catch (error) {
@@ -270,7 +270,7 @@ export default function TasksPoolWorkspace({ onSelectedStudentChange }: TasksPoo
         replaces_task_id: item.id,
       });
       await adminApi.updateTasksPoolItem(item.id, { is_active: false });
-      setTasksPool((prev) => [created.tasks_pool_item, ...prev.filter((row) => row.id !== item.id)]);
+      setTasksPool((prev) => [created.tasks_pool, ...prev.filter((row) => row.id !== item.id)]);
       toast.success("Template replaced. Old one archived, new one active.");
       startCreateTemplate();
       await loadPool();
@@ -459,9 +459,9 @@ export default function TasksPoolWorkspace({ onSelectedStudentChange }: TasksPoo
             step_in_level: 1,
           });
           return {
-            id: created.tasks_pool_item.id,
-            label: taskLabel(created.tasks_pool_item.text),
-            subLabel: formatTaskTemplateLabel(created.tasks_pool_item),
+            id: created.tasks_pool.id,
+            label: taskLabel(created.tasks_pool.text),
+            subLabel: formatTaskTemplateLabel(created.tasks_pool),
           };
         }}
       />

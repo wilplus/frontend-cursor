@@ -29,10 +29,13 @@ function uuid(): string {
 }
 
 export function mockStartResponse() {
+  const text =
+    "Read the following aloud at a comfortable pace. This is a sample warm-up task. Then record your response.";
   return {
     session_id: uuid(),
-    warm_up_task_text:
-      "Read the following aloud at a comfortable pace. This is a sample warm-up task. Then record your response.",
+    task: text,
+    task_text: text,
+    warm_up_task_text: text,
   };
 }
 

@@ -19,7 +19,7 @@ export async function PUT(
   const body = await request.json().catch(() => ({}));
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/task-warm-up-pool/${poolId}`, {
+    res = await fetch(`${backend}/v2/admin/tasks-pool/${poolId}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -54,7 +54,7 @@ export async function DELETE(
   const { poolId } = await params;
   let res: Response;
   try {
-    res = await fetch(`${backend}/v2/admin/task-warm-up-pool/${poolId}`, {
+    res = await fetch(`${backend}/v2/admin/tasks-pool/${poolId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
