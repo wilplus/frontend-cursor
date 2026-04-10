@@ -1,4 +1,4 @@
-const CACHE_NAME = "willab-shell-v1";
+const CACHE_NAME = "willab-shell-v2";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
 self.addEventListener("install", (event) => {
@@ -33,6 +33,18 @@ self.addEventListener("fetch", (event) => {
         return (await cache.match("/")) || Response.error();
       })
     );
+    return;
+  }
+
+  // Never cache API: homework/admin state must always be fresh (PWA was serving stale JSON on phone).
+  try {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/")) {
+      event.respondWith(fetch(request));
+      return;
+    }
+  } catch {
+    event.respondWith(fetch(request));
     return;
   }
 

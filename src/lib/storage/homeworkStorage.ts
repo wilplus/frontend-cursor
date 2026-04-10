@@ -18,6 +18,11 @@ export type PersistedFinalReportState = {
   tutorFeedbackDeadlineMs: number | null;
 };
 
+export type PersistedForcedStep0WaitingState = {
+  createdAt: number;
+  assignmentFingerprint: string | null;
+};
+
 export function readPersistedFinalReportState(): PersistedFinalReportState | null {
   if (typeof window === "undefined") return null;
   try {
@@ -57,32 +62,39 @@ export function clearPersistedFinalReportState() {
   window.sessionStorage.removeItem(FINAL_REPORT_STORAGE_KEY);
 }
 
-export function readForcedStep0WaitingState(): boolean {
-  if (typeof window === "undefined") return false;
+export function readForcedStep0WaitingState(): PersistedForcedStep0WaitingState | null {
+  if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(FORCE_STEP0_WAITING_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as { createdAt?: number };
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      createdAt?: number;
+      assignmentFingerprint?: unknown;
+    };
     if (typeof parsed?.createdAt !== "number" || !Number.isFinite(parsed.createdAt)) {
       window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
-      return false;
+      return null;
     }
     if (Date.now() - parsed.createdAt > FORCE_STEP0_WAITING_TTL_MS) {
       window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
-      return false;
+      return null;
     }
-    return true;
+    return {
+      createdAt: parsed.createdAt,
+      assignmentFingerprint:
+        typeof parsed.assignmentFingerprint === "string" ? parsed.assignmentFingerprint : null,
+    };
   } catch {
     window.sessionStorage.removeItem(FORCE_STEP0_WAITING_STORAGE_KEY);
-    return false;
+    return null;
   }
 }
 
-export function persistForcedStep0WaitingState() {
+export function persistForcedStep0WaitingState(assignmentFingerprint: string | null) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(
     FORCE_STEP0_WAITING_STORAGE_KEY,
-    JSON.stringify({ createdAt: Date.now() })
+    JSON.stringify({ createdAt: Date.now(), assignmentFingerprint })
   );
 }
 
