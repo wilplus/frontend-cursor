@@ -64,7 +64,12 @@ export async function GET(
     },
   });
   const payload = (await nextClipsResponse.json().catch(() => null)) as
-    | { clips?: Array<Record<string, unknown>>; drafts?: Array<Record<string, unknown>> }
+    | {
+        clips?: Array<Record<string, unknown>>;
+        drafts?: Array<Record<string, unknown>>;
+        draft_generation_status?: string;
+        draft_generation_session_id?: string | null;
+      }
     | null;
   if (!nextClipsResponse.ok || !payload) {
     return NextResponse.json(
@@ -143,7 +148,22 @@ export async function GET(
               : null,
       };
     });
-  return NextResponse.json({ drafts });
+  const draftGenerationStatus =
+    typeof payload.draft_generation_status === "string"
+      ? payload.draft_generation_status
+      : "not_started";
+  const draftGenerationSessionId =
+    typeof payload.draft_generation_session_id === "string"
+      ? payload.draft_generation_session_id
+      : payload.draft_generation_session_id === null
+        ? null
+        : null;
+
+  return NextResponse.json({
+    drafts,
+    draft_generation_status: draftGenerationStatus,
+    draft_generation_session_id: draftGenerationSessionId,
+  });
 }
 
 export async function PUT(

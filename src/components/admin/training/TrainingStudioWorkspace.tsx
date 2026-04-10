@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronRight, PencilLine, Send, Sparkles, Waves } from "lucide-react";
 import { toast } from "sonner";
@@ -19,12 +19,22 @@ import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports
 import {
   adminApi,
   type CopilotCohortStack,
+  type DraftGenerationStatus,
   type CopilotStudentDraft,
   type CopilotStudentQueueItem,
   type StudentProfile,
   type StudentTask,
   type TasksPoolItem,
 } from "@/lib/api/admin-client";
+import {
+  DRAFT_GENERATION_MAX_RETRIES,
+  getEffectiveDraftGenerationStatus,
+  hasAnyUsableDraftContent,
+  hasUsableDraftContent,
+  nextDraftGenerationDelayMs,
+  shouldHydrateDraftEditor,
+  shouldPollDraftGeneration,
+} from "@/components/admin/training/draft-generation";
 
 type QueueFilter = "all" | "pending" | "audit" | "done";
 
@@ -212,6 +222,23 @@ function formatAiBaselineText(label: string, ai: string | null | undefined, curr
   return `AI ${label}`;
 }
 
+function draftEditorValuesFromDraft(draft: CopilotStudentDraft | null) {
+  return {
+    insight: draft?.corrected_insight ?? draft?.ai_insight ?? "",
+    task: draft?.task_draft ?? draft?.ai_task_suggestion ?? "",
+    message: draft?.email_draft ?? draft?.ai_email_draft ?? "",
+    script: draft?.script_draft ?? draft?.ai_script_draft ?? "",
+    grade:
+      typeof draft?.grade_draft === "number" && Number.isFinite(draft.grade_draft)
+        ? String(draft.grade_draft)
+        : typeof draft?.ai_grade_draft === "number" && Number.isFinite(draft.ai_grade_draft)
+          ? String(draft.ai_grade_draft)
+          : "",
+    comment: draft?.comment_draft ?? draft?.ai_comment_draft ?? "",
+    reviewerScore: reviewerScoreFromMetadata(draft?.metadata),
+  };
+}
+
 export default function TrainingStudioWorkspace() {
   const [pipelineView, setPipelineView] = useState<"agentic" | "voice">("agentic");
   const [cohorts, setCohorts] = useState<CopilotCohortStack[]>([]);
@@ -258,6 +285,14 @@ export default function TrainingStudioWorkspace() {
   const [detailsReportPreviewLoading, setDetailsReportPreviewLoading] = useState<Record<string, boolean>>({});
   const [detailsReportModalSession, setDetailsReportModalSession] = useState<StudentProfile["sessions"][number] | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [draftGenerationStatus, setDraftGenerationStatus] = useState<DraftGenerationStatus | null>(null);
+  const [draftGenerationSessionId, setDraftGenerationSessionId] = useState<string | null>(null);
+  const [draftGenerationRetries, setDraftGenerationRetries] = useState(0);
+  const [draftGenerationRetriesExhausted, setDraftGenerationRetriesExhausted] = useState(false);
+  const [draftGenerationPolling, setDraftGenerationPolling] = useState(false);
+  const [hasUsableDraftFromServer, setHasUsableDraftFromServer] = useState(false);
+  const activeStudentKeyRef = useRef<string | null>(null);
+  const hasUnsavedDraftEditsRef = useRef(false);
 
   useBodyScrollLock(taskModalOpen);
 
@@ -350,6 +385,68 @@ export default function TrainingStudioWorkspace() {
     selectedStudent?.profile?.justification,
   ]);
 
+  const draftEditorBaseline = useMemo(
+    () => draftEditorValuesFromDraft(selectedDraft),
+    [
+      selectedDraft?.ai_comment_draft,
+      selectedDraft?.ai_email_draft,
+      selectedDraft?.ai_grade_draft,
+      selectedDraft?.ai_insight,
+      selectedDraft?.ai_script_draft,
+      selectedDraft?.ai_task_suggestion,
+      selectedDraft?.comment_draft,
+      selectedDraft?.corrected_insight,
+      selectedDraft?.email_draft,
+      selectedDraft?.grade_draft,
+      selectedDraft?.metadata,
+      selectedDraft?.script_draft,
+      selectedDraft?.task_draft,
+    ]
+  );
+
+  const hasUnsavedDraftEdits = useMemo(() => {
+    if (!selectedStudent) return false;
+    if (editingInsight || editingMessage || editingScript) return true;
+    return (
+      insightValue !== draftEditorBaseline.insight ||
+      taskValue !== draftEditorBaseline.task ||
+      messageValue !== draftEditorBaseline.message ||
+      scriptValue !== draftEditorBaseline.script ||
+      gradeInput !== draftEditorBaseline.grade ||
+      commentInput !== draftEditorBaseline.comment ||
+      reviewerScoreInput !== draftEditorBaseline.reviewerScore
+    );
+  }, [
+    commentInput,
+    draftEditorBaseline.comment,
+    draftEditorBaseline.grade,
+    draftEditorBaseline.insight,
+    draftEditorBaseline.message,
+    draftEditorBaseline.reviewerScore,
+    draftEditorBaseline.script,
+    draftEditorBaseline.task,
+    editingInsight,
+    editingMessage,
+    editingScript,
+    gradeInput,
+    insightValue,
+    messageValue,
+    reviewerScoreInput,
+    scriptValue,
+    selectedStudent,
+    taskValue,
+  ]);
+
+  useEffect(() => {
+    hasUnsavedDraftEditsRef.current = hasUnsavedDraftEdits;
+  }, [hasUnsavedDraftEdits]);
+
+  useEffect(() => {
+    activeStudentKeyRef.current = selectedStudent
+      ? `${selectedStudent.student_id}::${selectedStudent.session_id ?? ""}`
+      : null;
+  }, [selectedStudent?.session_id, selectedStudent?.student_id]);
+
   const hydrateDraftEditor = useCallback(
     (student: CopilotStudentQueueItem, draft: CopilotStudentDraft | null) => {
       setSelectedDraft(draft);
@@ -379,32 +476,78 @@ export default function TrainingStudioWorkspace() {
     [profileLearningMeta?.coach_override_profile]
   );
 
-  const loadDraft = useCallback(async (student: CopilotStudentQueueItem | null) => {
-    if (!student) {
-      setSelectedDraft(null);
-      return;
-    }
-    setLoading(true);
-    try {
-      const sessionHint = student.session_id?.trim() || selectedDraft?.session_id?.trim() || undefined;
-      const response = await adminApi.getCopilotStudentDrafts(
-        student.student_id,
-        sessionHint ? { session_id: sessionHint } : undefined
-      );
-      const draft =
-        (selectedDraft?.id
-          ? response.drafts?.find((item) => item.id === selectedDraft.id) ?? null
-          : null) ??
-        response.drafts?.[0] ??
-        null;
-      hydrateDraftEditor(student, draft);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load student draft");
-      setSelectedDraft(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [hydrateDraftEditor, selectedDraft?.id, selectedDraft?.session_id]);
+  const loadDraft = useCallback(
+    async (
+      student: CopilotStudentQueueItem | null,
+      options?: { background?: boolean; silentError?: boolean }
+    ) => {
+      if (!student) {
+        setSelectedDraft(null);
+        setDraftGenerationStatus(null);
+        setDraftGenerationSessionId(null);
+        setDraftGenerationRetries(0);
+        setDraftGenerationRetriesExhausted(false);
+        setDraftGenerationPolling(false);
+        setHasUsableDraftFromServer(false);
+        return null;
+      }
+      const isBackground = options?.background === true;
+      if (!isBackground) setLoading(true);
+      try {
+        const sessionHint = student.session_id?.trim() || selectedDraft?.session_id?.trim() || undefined;
+        const response = await adminApi.getCopilotStudentDrafts(
+          student.student_id,
+          sessionHint ? { session_id: sessionHint } : undefined
+        );
+        const requestStudentKey = `${student.student_id}::${student.session_id ?? ""}`;
+        if (activeStudentKeyRef.current !== requestStudentKey) return null;
+        const hasUsableFromResponse = hasAnyUsableDraftContent(response.drafts);
+        setHasUsableDraftFromServer(hasUsableFromResponse);
+
+        setDraftGenerationStatus(response.draft_generation_status ?? null);
+        setDraftGenerationSessionId(response.draft_generation_session_id ?? null);
+
+        const draft =
+          (selectedDraft?.id
+            ? response.drafts?.find((item) => item.id === selectedDraft.id) ?? null
+            : null) ??
+          response.drafts?.[0] ??
+          null;
+
+        const shouldHydrate = shouldHydrateDraftEditor({
+          isBackgroundRefresh: isBackground,
+          hasUnsavedEdits: hasUnsavedDraftEditsRef.current,
+        });
+        if (shouldHydrate) {
+          hydrateDraftEditor(student, draft);
+        } else {
+          // Keep incoming draft metadata fresh, but do not clobber in-progress local edits.
+          setSelectedDraft(draft);
+        }
+
+        return {
+          ...response,
+          drafts: response.drafts ?? [],
+          selectedDraft: draft,
+          hasUsableDraftContent: hasUsableFromResponse,
+        };
+      } catch (error) {
+        if (!options?.silentError) {
+          toast.error(error instanceof Error ? error.message : "Failed to load student draft");
+        }
+        if (!isBackground) {
+          setSelectedDraft(null);
+          setDraftGenerationStatus(null);
+          setDraftGenerationSessionId(null);
+          setHasUsableDraftFromServer(false);
+        }
+        return null;
+      } finally {
+        if (!isBackground) setLoading(false);
+      }
+    },
+    [hydrateDraftEditor, selectedDraft?.id, selectedDraft?.session_id]
+  );
 
   useEffect(() => {
     setProfileJustificationInput(displayJustification);
@@ -429,8 +572,98 @@ export default function TrainingStudioWorkspace() {
       void loadDraft(null);
       return;
     }
+    setDraftGenerationRetries(0);
+    setDraftGenerationRetriesExhausted(false);
+    setDraftGenerationPolling(false);
+    setHasUsableDraftFromServer(false);
     void loadDraft(selectedStudent);
   }, [loadDraft, selectedStudent?.student_id, selectedStudent?.session_id]);
+
+  const hasUsableSelectedDraftContent = useMemo(
+    () => hasUsableDraftFromServer || hasUsableDraftContent(selectedDraft),
+    [
+      hasUsableDraftFromServer,
+      selectedDraft?.ai_email_draft,
+      selectedDraft?.ai_script_draft,
+      selectedDraft?.ai_task_suggestion,
+      selectedDraft?.email_draft,
+      selectedDraft?.script_draft,
+      selectedDraft?.task_draft,
+    ]
+  );
+
+  const effectiveDraftGenerationStatus = useMemo(
+    () =>
+      getEffectiveDraftGenerationStatus({
+        status: draftGenerationStatus,
+        hasUsableDraftContent: hasUsableSelectedDraftContent,
+      }),
+    [draftGenerationStatus, hasUsableSelectedDraftContent]
+  );
+
+  useEffect(() => {
+    if (!selectedStudent) return;
+    const shouldPoll = shouldPollDraftGeneration({
+      status: effectiveDraftGenerationStatus,
+      hasUsableDraftContent: hasUsableSelectedDraftContent,
+      retryCount: draftGenerationRetries,
+      isEditing: hasUnsavedDraftEdits,
+      maxRetries: DRAFT_GENERATION_MAX_RETRIES,
+    });
+    if (!shouldPoll) {
+      setDraftGenerationPolling(false);
+      return;
+    }
+
+    const delayMs = nextDraftGenerationDelayMs(draftGenerationRetries);
+    setDraftGenerationPolling(true);
+
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      const refreshed = await loadDraft(selectedStudent, { background: true, silentError: true });
+      if (cancelled) return;
+      setDraftGenerationPolling(false);
+      if (!refreshed) {
+        toast.error("Could not refresh draft generation state.");
+        setDraftGenerationRetries(DRAFT_GENERATION_MAX_RETRIES);
+        setDraftGenerationRetriesExhausted(true);
+        return;
+      }
+
+      const shouldStopBecauseReady =
+        refreshed.draft_generation_status === "ready" || refreshed.hasUsableDraftContent;
+      const shouldStopBecauseFinalState =
+        refreshed.draft_generation_status === "failed" ||
+        refreshed.draft_generation_status === "not_started";
+      if (shouldStopBecauseReady || shouldStopBecauseFinalState) {
+        setDraftGenerationRetries(0);
+        setDraftGenerationRetriesExhausted(false);
+        return;
+      }
+
+      // Still pending and no usable content.
+      setDraftGenerationRetries((previous) => {
+        const next = previous + 1;
+        if (next >= DRAFT_GENERATION_MAX_RETRIES) {
+          setDraftGenerationRetriesExhausted(true);
+        }
+        return next;
+      });
+    }, delayMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      setDraftGenerationPolling(false);
+    };
+  }, [
+    draftGenerationRetries,
+    effectiveDraftGenerationStatus,
+    hasUnsavedDraftEdits,
+    hasUsableSelectedDraftContent,
+    loadDraft,
+    selectedStudent,
+  ]);
 
   useEffect(() => {
     adminApi
@@ -644,6 +877,17 @@ export default function TrainingStudioWorkspace() {
     if (count == null) return "Plan";
     return `Plan — Session ${count + 1}`;
   }, [selectedStudent]);
+
+  const showDraftGenerationPending =
+    effectiveDraftGenerationStatus === "pending" &&
+    !hasUsableSelectedDraftContent &&
+    !draftGenerationRetriesExhausted;
+  const showDraftGenerationFailed =
+    effectiveDraftGenerationStatus === "failed" && !hasUsableSelectedDraftContent;
+  const showDraftGenerationRetryExhausted =
+    effectiveDraftGenerationStatus === "pending" &&
+    !hasUsableSelectedDraftContent &&
+    draftGenerationRetriesExhausted;
 
   const displayScorePercent = useMemo(() => {
     const fromDraft = selectedDraft?.score_for_display;
@@ -1183,11 +1427,20 @@ export default function TrainingStudioWorkspace() {
     selectedStudent,
   ]);
 
+  const selectedProfileName = selectedStudent?.profile?.name?.trim() ?? "";
+  const selectedProfileEmail = selectedStudent?.profile?.email?.trim() ?? "";
+  const studentHeadlineName = selectedStudent
+    ? selectedProfileName || selectedProfileEmail || formatName(selectedStudent)
+    : "Select a student";
+  const showStudentEmailBelow =
+    Boolean(selectedStudent && selectedProfileEmail) &&
+    (selectedProfileName.length > 0 ? true : studentHeadlineName !== selectedProfileEmail);
+
   return (
     <div className="space-y-5">
-      <div className="space-y-1.5">
-        <h1 className="text-[42px] font-semibold tracking-[-0.01em]">Training Studio</h1>
-        <p className="text-sm leading-6 text-muted-foreground">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight">Training Studio</h1>
+        <p className="text-xs text-muted-foreground">
           Review AI decisions, correct mistakes, and generate training data.
         </p>
       </div>
@@ -1279,10 +1532,11 @@ export default function TrainingStudioWorkspace() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-4xl font-semibold leading-none">
-                {selectedStudent?.profile?.email || selectedStudent?.profile?.name || "Select a student"}
-              </h2>
-              <p className="mt-1 text-base text-muted-foreground">
+              <p className="text-xl font-semibold leading-tight text-foreground">{studentHeadlineName}</p>
+              {showStudentEmailBelow ? (
+                <p className="mt-0.5 text-sm text-muted-foreground">{selectedProfileEmail}</p>
+              ) : null}
+              <p className="mt-1 text-xs text-muted-foreground">
                 {selectedStudent
                   ? `${formatSession(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
                   : "No student selected"}
@@ -1327,11 +1581,8 @@ export default function TrainingStudioWorkspace() {
 
           {detailsOpen ? (
             <Card className="border-border/80 bg-card/95 p-0">
-              <div className="border-b px-5 py-4">
-                <h3 className="text-xl font-semibold">Student Snapshot</h3>
-                <p className="text-sm text-muted-foreground">
-                  Concise details, metrics, session performance, and reports history.
-                </p>
+              <div className="border-b px-5 py-3">
+                <p className="text-xs font-medium text-muted-foreground">Student snapshot</p>
               </div>
               <div className="space-y-4 px-5 py-4">
                 {detailsLoading ? (
@@ -1493,20 +1744,17 @@ export default function TrainingStudioWorkspace() {
           ) : null}
 
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Score & Grade</h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                  {selectedStudent ? statusDisplayLabel(selectedStudent.state) : "—"}
-                </span>
-                <Button
-                  className="h-9 px-3 text-sm"
-                  onClick={() => void saveScoreGradeComment()}
-                  disabled={saving || !selectedStudent || loading}
-                >
-                  {saving ? "Saving..." : "Save feedback"}
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-b px-5 py-3">
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                {selectedStudent ? statusDisplayLabel(selectedStudent.state) : "—"}
+              </span>
+              <Button
+                className="h-9 px-3 text-sm"
+                onClick={() => void saveScoreGradeComment()}
+                disabled={saving || !selectedStudent || loading}
+              >
+                {saving ? "Saving..." : "Save feedback"}
+              </Button>
             </div>
             <div className="grid gap-6 px-5 py-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -1574,8 +1822,8 @@ export default function TrainingStudioWorkspace() {
           </Card>
 
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">AI Coach Insight</h3>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <p className="text-xs font-medium text-muted-foreground">AI coach insight</p>
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
                 {selectedStudent ? statusDisplayLabel(selectedStudent.state) : "—"}
               </span>
@@ -1653,9 +1901,32 @@ export default function TrainingStudioWorkspace() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
+          {showDraftGenerationPending ? (
+            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
+                <span>
+                  Generating plan...
+                  {draftGenerationPolling ? "" : " Waiting for update..."}
+                  {draftGenerationSessionId ? ` (${draftGenerationSessionId.slice(0, 8)}...)` : ""}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          {showDraftGenerationFailed ? (
+            <div className="rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Plan generation failed. You can generate manually.
+            </div>
+          ) : null}
+          {showDraftGenerationRetryExhausted ? (
+            <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+              Still generating. Refresh in a few seconds.
+            </div>
+          ) : null}
+
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Learning Profile</h3>
+            <div className="border-b px-5 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Learning profile</p>
             </div>
             <div className="grid gap-4 px-5 py-4 lg:grid-cols-2">
               <div className="space-y-3">
@@ -1747,8 +2018,8 @@ export default function TrainingStudioWorkspace() {
           </Card>
 
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Suggested Task</h3>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Suggested task</p>
               <Button
                 variant="outline"
                 className="h-11 px-4 text-sm"
@@ -1773,8 +2044,8 @@ export default function TrainingStudioWorkspace() {
           </Card>
 
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Homework message</h3>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Homework message</p>
               <Button
                 variant="outline"
                 className="h-11 px-4 text-sm"
@@ -1813,8 +2084,8 @@ export default function TrainingStudioWorkspace() {
           </Card>
 
           <Card className="border-border/80 bg-card/95 p-0">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Video script</h3>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Video script</p>
               <Button
                 variant="outline"
                 className="h-11 px-4 text-sm"
@@ -1885,8 +2156,8 @@ export default function TrainingStudioWorkspace() {
         ? createPortal(
         <div className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-4">
           <Card className="w-full max-w-2xl border-border/90 bg-card p-0 shadow-xl">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-2xl font-semibold">Swap Task</h3>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <p className="text-sm font-semibold">Swap task</p>
               <Button variant="ghost" className="h-9 px-3 text-sm" onClick={() => setTaskModalOpen(false)}>
                 Close
               </Button>

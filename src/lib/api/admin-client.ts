@@ -728,6 +728,14 @@ export interface CopilotStudentDraft {
   metadata?: Record<string, unknown> | null;
 }
 
+export type DraftGenerationStatus = "pending" | "ready" | "failed" | "not_started";
+
+export interface CopilotStudentDraftsResponse {
+  drafts: CopilotStudentDraft[];
+  draft_generation_status?: DraftGenerationStatus;
+  draft_generation_session_id?: string | null;
+}
+
 function pickStrFromRaw(raw: Record<string, unknown>, snake: string, camel: string): string | null {
   const a = raw[snake];
   const b = raw[camel];
@@ -990,13 +998,23 @@ export const adminApi = {
     const search = new URLSearchParams();
     if (params?.session_id) search.set("session_id", params.session_id);
     const suffix = search.toString() ? `?${search.toString()}` : "";
-    return adminFetch<{ drafts: CopilotStudentDraft[] }>(
+    return adminFetch<CopilotStudentDraftsResponse>(
       `/copilot/students/${studentId}/drafts${suffix}`
     ).then((res) => ({
       drafts: (Array.isArray(res.drafts) ? res.drafts : []).map((d) => {
         const record = asRecord(d);
         return record ? normalizeCopilotStudentDraft(record) : d;
       }),
+      draft_generation_status:
+        typeof res.draft_generation_status === "string"
+          ? (res.draft_generation_status as DraftGenerationStatus)
+          : undefined,
+      draft_generation_session_id:
+        typeof res.draft_generation_session_id === "string"
+          ? res.draft_generation_session_id
+          : res.draft_generation_session_id === null
+            ? null
+            : undefined,
     }));
   },
 
