@@ -1110,7 +1110,7 @@ export default function TrainingStudioWorkspace() {
         );
         return;
       }
-      const draftId = resolved.draftId ?? (selectedDraft?.id?.trim() ? selectedDraft.id : undefined);
+      let draftId = resolved.draftId ?? (selectedDraft?.id?.trim() ? selectedDraft.id : undefined);
 
       await adminApi.updateCopilotStudentAudit(selectedStudent.student_id, {
         session_id: resolved.sessionId,
@@ -1121,6 +1121,26 @@ export default function TrainingStudioWorkspace() {
             : undefined,
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
+
+      let refetchedForVideo: CopilotStudentDraft | null = null;
+      if (!draftId) {
+        const { drafts } = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id, {
+          session_id: resolved.sessionId,
+        });
+        const pick =
+          drafts.find((d) => (d.session_id ?? "").trim() === resolved.sessionId) ?? drafts[0] ?? null;
+        if (pick?.id?.trim()) {
+          draftId = pick.id;
+          refetchedForVideo = pick;
+        }
+      }
+
+      if (!draftId) {
+        toast.error(
+          "No copilot draft id for this session. Save once from Training Studio or confirm the backend returns drafts for this student."
+        );
+        return;
+      }
 
       await adminApi.approveCopilotStudent(selectedStudent.student_id, {
         session_id: resolved.sessionId,
@@ -1135,7 +1155,8 @@ export default function TrainingStudioWorkspace() {
       });
 
       await adminApi.sendAssignment(selectedStudent.student_id, {
-        video_url: homeworkVideoUrlFromDraft(selectedDraft) ?? undefined,
+        video_url:
+          homeworkVideoUrlFromDraft(selectedDraft) ?? homeworkVideoUrlFromDraft(refetchedForVideo) ?? undefined,
         video_description: videoDescription || undefined,
       });
 
