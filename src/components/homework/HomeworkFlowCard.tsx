@@ -172,11 +172,6 @@ export default function HomeworkFlowCard() {
     setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, []);
-
   const refreshSniperProfile = useCallback(
     async (signal?: AbortSignal) => {
       const response = await fetch("/api/user/sniper-profile", signal ? { signal } : undefined);
@@ -494,15 +489,18 @@ export default function HomeworkFlowCard() {
 
   useEffect(() => {
     if (tutorFeedbackDeadlineMs == null) return;
+    const deadlineMs = tutorFeedbackDeadlineMs;
     const id = setInterval(() => {
-      if (Date.now() >= tutorFeedbackDeadlineMs) {
+      if (Date.now() >= deadlineMs) {
         setTutorFeedbackDeadlineMs(null);
-      } else {
-        setCountdownTick((t) => t + 1);
+        return;
       }
+      // Only force re-renders on the report step; on step 0 this was firing every second and made
+      // the scroll position feel like it kept resetting.
+      if (step === 3) setCountdownTick((t) => t + 1);
     }, 1000);
     return () => clearInterval(id);
-  }, [tutorFeedbackDeadlineMs]);
+  }, [tutorFeedbackDeadlineMs, step]);
 
   const TUTOR_DEADLINE_POLL_INTERVAL_MS = 45_000;
   useEffect(() => {
