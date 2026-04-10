@@ -151,3 +151,43 @@ Quick reference for what the frontend does and where edge cases or backend assum
 
 - **Admin – Coach grade (1–10)**  
   Frontend sends **PATCH** `/v2/admin/students/:userId/sessions/:sessionId` with body `{ coach_grade: number | null }` (1–10 or null for “Not graded”). Backend returns 200 with `{ status: "ok", coach_grade }`. Completed sessions show a grade control (Not graded + 1–10) and “Save grade”; on success the profile is refreshed so the list row shows the new grade. Session type and report response include `coach_grade`.
+
+---
+
+## 8. Frontend key-reading contract (B5 reference)
+
+Use this as the source of truth for what the current frontend actually reads from backend payloads.
+
+### 8.1 Training Studio draft fields read into editor
+
+`src/components/admin/training/TrainingStudioWorkspace.tsx` → `hydrateDraftEditor()`:
+
+- Task editor reads: `task_draft ?? ai_task_suggestion ?? ""`
+- Homework message editor reads: `email_draft ?? ai_email_draft ?? ""`
+- Video script editor reads: `script_draft ?? ai_script_draft ?? ""`
+- Also read in same hydrator:
+  - Insight: `corrected_insight ?? ai_insight ?? ""`
+  - Grade: `grade_draft ?? ai_grade_draft`
+  - Comment: `comment_draft ?? ai_comment_draft`
+  - Reviewer score from: `metadata.reviewer_score`
+
+### 8.2 Homework step-0 status fields consumed
+
+`src/components/homework/HomeworkFlowCard.tsx` → `syncDashboardStateFromStatus()` reads:
+
+- `review_pending` (primary waiting-state flag)
+- `tutor_feedback_deadline`
+- `tutor_feedback_message`
+- `main_screen_message`
+- `tutor_video_description` (top-level) and `session.tutor_video_description`
+- `assigned_exercises`
+- `credits`
+
+It also calls `hasStep0AssignmentPayload(statusRes)` (via `hasStep0HomeworkContentSignalsFromPayload`) which treats step-0 as homework-ready when any of these are present/true:
+
+- Any video url key: `tutor_video_url`, `video_url`, `homework_video_url`, `coach_video_url`, `assignment_video_url` (top-level or under `session`)
+- `assigned_exercises` non-empty
+- `tutor_video_description` (top-level or `session.tutor_video_description`)
+- `main_screen_state` in allowlist: `assignment`, `assignment_ready`, `homework`, `practice`, `ready`, `start`, `start_practice`, `exercise`
+- `has_assigned_homework === true`
+- `homework_ready === true`

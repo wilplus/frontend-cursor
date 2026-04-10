@@ -139,6 +139,69 @@ export function hasStep0HomeworkContentSignalsFromPayload(
   return false;
 }
 
+type Step0AssignmentFingerprintExercise = {
+  id: string;
+  title: string;
+  video_url: string;
+  description: string;
+};
+
+/**
+ * Stable fingerprint for step-0 assignment payload.
+ * Used to detect "new homework sent" vs stale/repeated assignment data.
+ */
+export function getStep0HomeworkAssignmentFingerprint(
+  raw: Record<string, unknown> | null | undefined
+): string | null {
+  if (!raw || raw.has_active_session === true) return null;
+  const session =
+    raw.session && typeof raw.session === "object" && raw.session !== null
+      ? (raw.session as Record<string, unknown>)
+      : null;
+  const tutorVideoUrl = resolveStep0VideoUrlFromStatusPayload(raw) ?? "";
+  const tutorVideoDescription =
+    trimStr(raw.tutor_video_description) ||
+    (session ? trimStr(session.tutor_video_description) : "");
+  const mainScreenState = trimStr(raw.main_screen_state).toLowerCase();
+  const hasAssignmentState = !!(mainScreenState && ASSIGNMENT_MAIN_SCREEN_STATES.has(mainScreenState));
+  const hasAssignedHomework = raw.has_assigned_homework === true;
+  const homeworkReady = raw.homework_ready === true;
+  const exercisesRaw = raw.assigned_exercises;
+  const exercises: Step0AssignmentFingerprintExercise[] = Array.isArray(exercisesRaw)
+    ? exercisesRaw
+        .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+        .map((item) => ({
+          id: trimStr(item.id),
+          title: trimStr(item.title),
+          video_url: trimStr(item.video_url),
+          description: trimStr(item.description),
+        }))
+        .sort((a, b) =>
+          `${a.id}|${a.title}|${a.video_url}|${a.description}`.localeCompare(
+            `${b.id}|${b.title}|${b.video_url}|${b.description}`
+          )
+        )
+    : [];
+
+  const hasAnySignal =
+    !!tutorVideoUrl ||
+    !!tutorVideoDescription ||
+    exercises.length > 0 ||
+    hasAssignmentState ||
+    hasAssignedHomework ||
+    homeworkReady;
+
+  if (!hasAnySignal) return null;
+  return JSON.stringify({
+    tutorVideoUrl,
+    tutorVideoDescription,
+    exercises,
+    mainScreenState: hasAssignmentState ? mainScreenState : "",
+    hasAssignedHomework,
+    homeworkReady,
+  });
+}
+
 /** Extract Vimeo video id from vimeo.com/123, vimeo.com/video/123, or player.vimeo.com/video/123. */
 export function parseVimeoId(url: string): string | null {
   const u = url.trim();

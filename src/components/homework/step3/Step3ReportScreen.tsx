@@ -69,7 +69,8 @@ export default function Step3ReportScreen({
   // Canonical score source for all primary report UI.
   const canonicalOverall =
     normalizePercentScore(reportData?.score_for_display) ??
-    normalizePercentScore(reportData?.scores?.overall);
+    normalizePercentScore(reportData?.scores?.overall) ??
+    normalizePercentScore(performanceScoreEnd);
   const scoreReady = canonicalOverall != null;
   const insightReady = (reportData?.coach_insight ?? "").trim().length > 0;
 
@@ -113,6 +114,7 @@ export default function Step3ReportScreen({
   // sniperSnapshot is an unreliable real-time estimate — never show it as a headline number.
   const confirmedScore = canonicalFinalScore ?? null;
   const scoreAnalyzing = confirmedScore == null;
+  const showUnifiedLoading = waitingForFullReport || scoreAnalyzing;
 
   const playbackUrl =
     reportData?.final_recording?.audio_url ??
@@ -173,20 +175,6 @@ export default function Step3ReportScreen({
       <h3 className="text-center text-xl font-semibold">Your report</h3>
       <CoachMessageBanner message={coachMessage} />
       <Card className="border-0 bg-transparent p-6 space-y-4 shadow-none">
-        {waitingForFullReport ? (
-          <div className="rounded-xl border border-border bg-muted/30 p-4">
-            <div className="flex min-h-[72px] items-center justify-center gap-3">
-              <div className="h-8 w-8 opacity-80">
-                {loadingLottieData ? (
-                  <Lottie animationData={loadingLottieData} loop />
-                ) : (
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">Your report is still being prepared…</p>
-            </div>
-          </div>
-        ) : null}
         {reportError != null && reportData == null ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 space-y-3">
             <p className="text-sm text-foreground">We couldn&apos;t load full report details yet.</p>
@@ -201,32 +189,36 @@ export default function Step3ReportScreen({
           </div>
         ) : null}
 
-        {/* Score headline — show spinner until backend confirms a number */}
-        <div className="min-h-[32px] text-center">
-          {scoreAnalyzing ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {loadingLottieData ? (
-                  <div className="w-5 h-5 opacity-70">
-                    <Lottie animationData={loadingLottieData} loop />
-                  </div>
-                ) : (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
-                )}
-                <span>Analyzing performance…</span>
-              </div>
+        {/* Unified loading block: single loader for both report prep + score analysis */}
+        {showUnifiedLoading ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-2">
+            <div className="h-12 w-12 opacity-80">
+              {loadingLottieData ? (
+                <Lottie animationData={loadingLottieData} loop />
+              ) : (
+                <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
+              )}
             </div>
-          ) : (
+            <p className="text-sm text-muted-foreground text-center">
+              We are baking your fresh lesson report 🤓
+            </p>
+          </div>
+        ) : null}
+
+        {/* Score headline — only show when backend confirms a number */}
+        <div className="min-h-[32px] text-center">
+          {!showUnifiedLoading ? (
             <p className="text-sm text-muted-foreground">
               Performance score:{" "}
               <span className="font-semibold text-foreground">{confirmedScore}%</span>
             </p>
+          ) : null}
+        </div>
+        <div>
+          {progressChartData.length > 0 && (
+            <ProgressOverSessionsChart data={progressChartData} />
           )}
         </div>
-
-        {progressChartData.length > 0 && (
-          <ProgressOverSessionsChart data={progressChartData} />
-        )}
 
         <div>
           <p className="text-sm font-medium text-muted-foreground mb-2">Playback</p>

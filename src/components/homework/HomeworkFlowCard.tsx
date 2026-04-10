@@ -29,6 +29,7 @@ import { useRecordingContext } from "@/components/dashboard/DashboardShell";
 // Utility imports (previously inlined)
 import {
   DEFAULT_TASK_PROMPT,
+  getStep0HomeworkAssignmentFingerprint,
   hasStep0HomeworkContentSignalsFromPayload,
   openingTaskTextFromApiPayload,
   resolveStep0VideoUrlFromStatusPayload,
@@ -91,14 +92,6 @@ function hasStep0AssignmentPayloadFromHomeworkResponse(res: HomeworkResponse): b
   return hasStep0HomeworkContentSignalsFromPayload(statusPayloadRecord(res));
 }
 
-function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
-  if (!statusRes) return false;
-  if (statusRes.has_active_session === true) return false;
-  if (hasStep0AssignmentPayload(statusRes)) return true;
-  if (statusRes.review_pending === true) return false;
-  return true;
-}
-
 function maxStep(a: Step, b: Step): Step {
   return Math.max(a, b) as Step;
 }
@@ -151,6 +144,7 @@ export default function HomeworkFlowCard() {
   const sniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
   const [sniperProfile, setSniperProfile] = useState<UserSniperProfile | null>(null);
   const forcedStep0WaitingRef = useRef(false);
+  const forcedStep0WaitingAssignmentFingerprintRef = useRef<string | null>(null);
   const leavingReportRef = useRef(false);
   const [credits, setCredits] = useState<number | null>(null);
   const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false);
@@ -184,8 +178,10 @@ export default function HomeworkFlowCard() {
   );
 
   useEffect(() => {
-    if (!readForcedStep0WaitingState()) return;
+    const forcedStep0State = readForcedStep0WaitingState();
+    if (!forcedStep0State) return;
     forcedStep0WaitingRef.current = true;
+    forcedStep0WaitingAssignmentFingerprintRef.current = forcedStep0State.assignmentFingerprint;
     // Do not set review UI here — wait for GET /status so we do not flash “submitted” while
     // the API already has tutor video / assignment fields (or review_pending: false).
   }, []);
@@ -207,12 +203,16 @@ export default function HomeworkFlowCard() {
 
   const syncDashboardStateFromStatus = useCallback(
     (statusRes: HomeworkSessionStatus | null | undefined) => {
-      if (statusRes?.review_pending === false) {
+      const hasAssignment = hasStep0AssignmentPayload(statusRes);
+      const assignmentFingerprint = getStep0HomeworkAssignmentFingerprint(statusPayloadRecord(statusRes));
+      const hasNewAssignmentWhileForced =
+        hasAssignment &&
+        (!forcedStep0WaitingAssignmentFingerprintRef.current ||
+          assignmentFingerprint !== forcedStep0WaitingAssignmentFingerprintRef.current);
+
+      if (forcedStep0WaitingRef.current && (statusRes?.has_active_session === true || hasNewAssignmentWhileForced)) {
         forcedStep0WaitingRef.current = false;
-        clearForcedStep0WaitingState();
-      }
-      if (forcedStep0WaitingRef.current && isHomeworkReadyForStep0(statusRes)) {
-        forcedStep0WaitingRef.current = false;
+        forcedStep0WaitingAssignmentFingerprintRef.current = null;
         clearForcedStep0WaitingState();
       }
       const deadlineIso = statusRes?.tutor_feedback_deadline;
@@ -231,12 +231,12 @@ export default function HomeworkFlowCard() {
       );
 
       const backendReviewPending = statusRes?.review_pending === true;
-      const hasAssignment = hasStep0AssignmentPayload(statusRes);
-      const shouldForceWaiting = forcedStep0WaitingRef.current && !isHomeworkReadyForStep0(statusRes);
-      setReviewPending((backendReviewPending || shouldForceWaiting) && !hasAssignment);
+      const shouldForceWaiting = forcedStep0WaitingRef.current && !hasNewAssignmentWhileForced;
+      const shouldShowAssignment = hasAssignment && (!forcedStep0WaitingRef.current || hasNewAssignmentWhileForced);
+      setReviewPending((backendReviewPending || shouldForceWaiting) && !shouldShowAssignment);
       const waitingMessage = statusRes?.main_screen_message;
       setMainScreenMessage(
-        hasAssignment
+        shouldShowAssignment
           ? null
           : typeof waitingMessage === "string" && waitingMessage.trim()
             ? waitingMessage.trim()
@@ -289,6 +289,7 @@ export default function HomeworkFlowCard() {
 
   const clearSessionCommunication = useCallback(() => {
     forcedStep0WaitingRef.current = false;
+    forcedStep0WaitingAssignmentFingerprintRef.current = null;
     clearForcedStep0WaitingState();
     leavingReportRef.current = false;
     setCoachMessageAfterHomework(null);
@@ -301,8 +302,15 @@ export default function HomeworkFlowCard() {
   }, []);
 
   const activateForcedStep0Waiting = useCallback(() => {
+    const baselineFingerprint = getStep0HomeworkAssignmentFingerprint({
+      has_active_session: false,
+      tutor_video_url: step0TutorVideoUrl,
+      tutor_video_description: step0TutorVideoDescription,
+      assigned_exercises: assignedExercises,
+    });
     forcedStep0WaitingRef.current = true;
-    persistForcedStep0WaitingState();
+    forcedStep0WaitingAssignmentFingerprintRef.current = baselineFingerprint;
+    persistForcedStep0WaitingState(baselineFingerprint);
     setPollReportsAfterFinish(true);
     setSessionId(null);
     setTask("");
@@ -322,7 +330,7 @@ export default function HomeworkFlowCard() {
     setReviewPending(true);
     setMainScreenMessage(REVIEW_PENDING_DEFAULT_MESSAGE);
     setStep(0);
-  }, []);
+  }, [assignedExercises, step0TutorVideoDescription, step0TutorVideoUrl]);
 
   useEffect(() => {
     if (!authReady || step !== 0) return;
@@ -971,6 +979,13 @@ export default function HomeworkFlowCard() {
         if (isSessionGoneError(e)) {
           toast.info("Your session is gone. You can start a new lesson.");
           startOverFromScratch();
+          return;
+        }
+        if (isRecordingProcessingFailedError(e)) {
+          setRecordingProcessingFailed(true);
+          setReportError(null);
+          setReportNotReady(false);
+          setReportData(null);
           return;
         }
         if (isReportNotReadyError(e)) {
