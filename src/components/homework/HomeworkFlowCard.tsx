@@ -80,14 +80,22 @@ function hasStep0AssignmentPayload(statusRes: HomeworkSessionStatus | null | und
     (typeof statusRes.tutor_video_url === "string" && statusRes.tutor_video_url.trim()) ||
     (typeof statusRes.session?.tutor_video_url === "string" && statusRes.session.tutor_video_url.trim());
   if (tutor) return true;
-  return Array.isArray(statusRes.assigned_exercises) && statusRes.assigned_exercises.length > 0;
+  if (Array.isArray(statusRes.assigned_exercises) && statusRes.assigned_exercises.length > 0) return true;
+  // Send-assignment / email flows sometimes persist coach copy without resolving assigned_exercises yet.
+  const desc =
+    (typeof statusRes.tutor_video_description === "string" && statusRes.tutor_video_description.trim()) ||
+    (typeof statusRes.session?.tutor_video_description === "string" &&
+      statusRes.session.tutor_video_description.trim());
+  return Boolean(desc);
 }
 
 function hasStep0AssignmentPayloadFromHomeworkResponse(res: HomeworkResponse): boolean {
   if (res.has_active_session === true) return false;
   const tutor = typeof res.tutor_video_url === "string" && res.tutor_video_url.trim();
   if (tutor) return true;
-  return Array.isArray(res.assigned_exercises) && res.assigned_exercises.length > 0;
+  if (Array.isArray(res.assigned_exercises) && res.assigned_exercises.length > 0) return true;
+  const desc = typeof res.tutor_video_description === "string" && res.tutor_video_description.trim();
+  return Boolean(desc);
 }
 
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
