@@ -10,6 +10,22 @@ function rowStr(row: Record<string, unknown>, snake: string, camel: string): str
   return null;
 }
 
+function rowStrCandidates(
+  row: Record<string, unknown>,
+  keys: string[],
+  nested?: Record<string, unknown> | null
+): string | null {
+  const sources: Array<Record<string, unknown> | null> = [row, nested];
+  for (const source of sources) {
+    if (!source) continue;
+    for (const key of keys) {
+      const value = source[key];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+  }
+  return null;
+}
+
 function rowNum(row: Record<string, unknown>, snake: string, camel: string): number | null {
   const a = row[snake];
   const b = row[camel];
@@ -73,6 +89,10 @@ export async function GET(
     })
     .map((row, index) => {
       const r = row as Record<string, unknown>;
+      const draftPayload =
+        r.draft_payload && typeof r.draft_payload === "object"
+          ? (r.draft_payload as Record<string, unknown>)
+          : null;
       return {
         id: String(row.draft_id ?? row.id ?? `${studentId}-draft-${index}`),
         student_id: String(row.student_id ?? row.user_id ?? studentId),
@@ -83,14 +103,38 @@ export async function GET(
         good_as_is: typeof row.good_as_is === "boolean" ? row.good_as_is : undefined,
         ai_grade_draft: rowNum(r, "ai_grade_draft", "aiGradeDraft"),
         ai_comment_draft: rowStr(r, "ai_comment_draft", "aiCommentDraft"),
-        ai_email_draft: rowStr(r, "ai_email_draft", "aiEmailDraft"),
-        ai_task_suggestion: rowStr(r, "ai_task_suggestion", "aiTaskSuggestion"),
-        ai_script_draft: rowStr(r, "ai_script_draft", "aiScriptDraft"),
+        ai_email_draft: rowStrCandidates(
+          r,
+          ["ai_email_draft", "aiEmailDraft", "homework_message", "homeworkMessage"],
+          draftPayload
+        ),
+        ai_task_suggestion: rowStrCandidates(
+          r,
+          ["ai_task_suggestion", "aiTaskSuggestion", "task_suggestion", "taskSuggestion"],
+          draftPayload
+        ),
+        ai_script_draft: rowStrCandidates(
+          r,
+          ["ai_script_draft", "aiScriptDraft", "video_script", "videoScript"],
+          draftPayload
+        ),
         grade_draft: rowNum(r, "grade_draft", "gradeDraft"),
         comment_draft: rowStr(r, "comment_draft", "commentDraft"),
-        task_draft: rowStr(r, "task_draft", "taskDraft"),
-        email_draft: rowStr(r, "email_draft", "emailDraft"),
-        script_draft: rowStr(r, "script_draft", "scriptDraft"),
+        task_draft: rowStrCandidates(
+          r,
+          ["task_draft", "taskDraft", "task_suggestion", "taskSuggestion"],
+          draftPayload
+        ),
+        email_draft: rowStrCandidates(
+          r,
+          ["email_draft", "emailDraft", "homework_message", "homeworkMessage"],
+          draftPayload
+        ),
+        script_draft: rowStrCandidates(
+          r,
+          ["script_draft", "scriptDraft", "video_script", "videoScript"],
+          draftPayload
+        ),
         metadata:
           row.draft_payload && typeof row.draft_payload === "object"
             ? (row.draft_payload as Record<string, unknown>)

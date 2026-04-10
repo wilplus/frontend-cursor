@@ -24,7 +24,6 @@ import {
   type TasksPoolItem,
   type FocusTask,
   type FocusTaskPoolItem,
-  type Exercise,
   type CoachSuggestionResponse,
 } from "@/lib/api/admin-client";
 import type { CompactReportPreview } from "@/lib/reports/compact-preview";
@@ -440,117 +439,6 @@ function CreateTaskTemplateModal({
   return overlay;
 }
 
-// —— Edit/Create exercise modal: title (required), video_url + description (optional). Exercises are global pool. ——
-function ExerciseEditModal({
-  open,
-  onOpenChange,
-  exercise,
-  onSave,
-  saving,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  exercise: Exercise | null;
-  onSave: (data: { title: string; video_url?: string; description?: string }) => Promise<void>;
-  saving: boolean;
-}) {
-  const [title, setTitle] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [description, setDescription] = useState("");
-
-  useBodyScrollLock(open);
-
-  useEffect(() => {
-    if (open) {
-      setTitle(exercise?.title ?? "");
-      setVideoUrl(exercise?.video_url ?? "");
-      setDescription(exercise?.description ?? "");
-    }
-  }, [open, exercise?.title, exercise?.video_url, exercise?.description]);
-
-  const handleSave = async () => {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      toast.error("Title is required.");
-      return;
-    }
-    try {
-      await onSave({
-        title: trimmedTitle,
-        video_url: videoUrl.trim() || undefined,
-        description: description.trim() || undefined,
-      });
-      onOpenChange(false);
-    } catch {
-      // onSave already toasts error
-    }
-  };
-
-  if (!open) return null;
-
-  const overlay = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={() => onOpenChange(false)}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="exercise-edit-title"
-    >
-      <div
-        className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg p-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="exercise-edit-title" className="text-lg font-semibold mb-4">
-          {exercise ? "Edit exercise" : "Add exercise"}
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Title (required)</label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Pitch practice"
-              className="w-full"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Video URL (optional)</label>
-            <Input
-              type="url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://vimeo.com/… or Loom, YouTube, etc."
-              className="w-full font-mono text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Description (optional)</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short description for the student"
-              rows={3}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleSave} disabled={saving}>
-            Save
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-  if (typeof document !== "undefined" && document.body) {
-    return createPortal(overlay, document.body);
-  }
-  return overlay;
-}
-
 const POST_ANSWER_TYPES = ["text", "scale", "binary"] as const;
 
 // —— Create/Edit post-recording question (per-student): text + answer_type; same pattern as tasks/focus. ——
@@ -757,7 +645,6 @@ export default function AdminStudentProfilePage() {
   const [studentName, setStudentName] = useState("");
   const [pricePerLiveLessonUsd, setPricePerLiveLessonUsd] = useState("");
   const [creditsValue, setCreditsValue] = useState("");
-  const [postQuestions, setPostQuestions] = useState<PostQuestion[]>([]);
   const [studentTasks, setStudentTasks] = useState<StudentTask[]>([]);
   const [userMetricQuestions, setUserMetricQuestions] = useState({
     metric_question_1: "",
@@ -776,7 +663,6 @@ export default function AdminStudentProfilePage() {
   const [tasksPoolLoading, setTasksPoolLoading] = useState(false);
   const [studentTaskEditOpen, setStudentTaskEditOpen] = useState(false);
   const [studentTaskEdit, setStudentTaskEdit] = useState<StudentTask | null>(null);
-  const [modalQuestions, setModalQuestions] = useState(false);
   const [postQuestionEditOpen, setPostQuestionEditOpen] = useState(false);
   const [postQuestionEdit, setPostQuestionEdit] = useState<PostQuestion | null>(null);
   const [postRecordingQuestions, setPostRecordingQuestions] = useState<PostQuestion[]>([]);
@@ -810,13 +696,6 @@ export default function AdminStudentProfilePage() {
     answer_type: string;
   }>>([]);
   const [queuedPostQuestionDeletes, setQueuedPostQuestionDeletes] = useState<string[]>([]);
-  const [queuedExerciseUpserts, setQueuedExerciseUpserts] = useState<Array<{
-    id: string;
-    title: string;
-    video_url?: string;
-    description?: string;
-  }>>([]);
-  const [queuedExerciseDeletes, setQueuedExerciseDeletes] = useState<string[]>([]);
 
   /** Pending list selections (not saved yet). Null = use server state. */
   const [pendingTasksPoolIds, setPendingTasksPoolIds] = useState<string[] | null>(null);
@@ -828,18 +707,11 @@ export default function AdminStudentProfilePage() {
   const [selectedSimilarIds, setSelectedSimilarIds] = useState<Set<string>>(new Set());
   const [currentRealtimeLevel, setCurrentRealtimeLevel] = useState("");
   const [currentRealtimeStep, setCurrentRealtimeStep] = useState("");
-  /** Exercises pool (global). Assigned ones are in overrides.assigned_exercise_ids. */
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  /** Exercise ids assigned to this student (step 0 + email). Saved in overrides.assigned_exercise_ids. */
-  const [assignedExerciseIds, setAssignedExerciseIds] = useState<string[]>([]);
-  const [modalAssignedExercises, setModalAssignedExercises] = useState(false);
   const [adminReportPreviews, setAdminReportPreviews] = useState<Record<string, CompactReportPreview | null>>({});
   const [adminReportPreviewLoading, setAdminReportPreviewLoading] = useState<Record<string, boolean>>({});
   const [reportModalSession, setReportModalSession] = useState<
     (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
   >(null);
-  const [exerciseEditOpen, setExerciseEditOpen] = useState(false);
-  const [exerciseEditExercise, setExerciseEditExercise] = useState<Exercise | null>(null);
 
   // AI Coach Assistant state
   const [aiMessage, setAiMessage] = useState("");
@@ -867,9 +739,7 @@ export default function AdminStudentProfilePage() {
     // Load all sections in parallel so profile render does not block downstream data.
     Promise.allSettled([
       adminApi.getStudentProfile(id),
-      adminApi.getPostRecordingQuestionsPool(),
       adminApi.getStudentTasks(id),
-      adminApi.getExercises(),
       adminApi.getStudentSniperProgress(id),
     ])
       .then((results) => {
@@ -877,9 +747,7 @@ export default function AdminStudentProfilePage() {
 
         const [
           profileRes,
-          poolRes,
           studentTasksRes,
-          exercisesRes,
           sniperProgressRes,
         ] = results;
 
@@ -912,14 +780,6 @@ export default function AdminStudentProfilePage() {
         );
         const rawCredits = p.credits ?? null;
         setCreditsValue(rawCredits == null ? "" : String(rawCredits));
-        const ids = p.overrides?.assigned_exercise_ids;
-        setAssignedExerciseIds(
-          Array.isArray(ids) && ids.length > 0
-            ? ids
-            : p.overrides?.assigned_next_exercise_id
-              ? [p.overrides.assigned_next_exercise_id]
-              : []
-        );
         const sp = p.speaker_profile || {};
         const parts = [
           sp.main_goal,
@@ -938,11 +798,6 @@ export default function AdminStudentProfilePage() {
         setQueuedFocusDeletes([]);
         setQueuedPostQuestionUpserts([]);
         setQueuedPostQuestionDeletes([]);
-        setQueuedExerciseUpserts([]);
-        setQueuedExerciseDeletes([]);
-
-        if (poolRes.status === "fulfilled") setPostQuestions(poolRes.value);
-        else toast.error(poolRes.reason?.message ?? "Could not load questions pool");
 
         if (studentTasksRes.status === "fulfilled") {
           setStudentTasks(studentTasksRes.value);
@@ -957,8 +812,6 @@ export default function AdminStudentProfilePage() {
         setFocusTasksError(null);
         setPostRecordingQuestions([]);
         setPostRecordingQuestionsError(null);
-
-        if (exercisesRes.status === "fulfilled") setExercises(exercisesRes.value);
 
         if (sniperProgressRes.status === "fulfilled" && sniperProgressRes.value) {
           setStudentSniperProgress(sniperProgressRes.value);
@@ -1062,28 +915,6 @@ export default function AdminStudentProfilePage() {
 
     setSaving(true);
     try {
-      for (const exerciseId of queuedExerciseDeletes) {
-        await adminApi.deleteExercise(exerciseId);
-      }
-      const draftToRealExerciseId = new Map<string, string>();
-      for (const exercise of queuedExerciseUpserts) {
-        if (exercise.id.startsWith("draft-")) {
-          const result = await adminApi.createExercise({
-            title: exercise.title,
-            video_url: exercise.video_url,
-            description: exercise.description,
-          });
-          if (result.exercise?.id) {
-            draftToRealExerciseId.set(exercise.id, result.exercise.id);
-          }
-        } else {
-          await adminApi.updateExercise(exercise.id, {
-            title: exercise.title,
-            video_url: exercise.video_url,
-            description: exercise.description,
-          });
-        }
-      }
       for (const taskId of queuedStudentTaskDeletes) {
         await adminApi.deleteStudentTask(id, taskId);
       }
@@ -1187,13 +1018,6 @@ export default function AdminStudentProfilePage() {
         }
       }
       await adminApi.putSpeakerProfile(id, { coach_notes: contextDraft });
-      const resolvedExerciseIds = assignedExerciseIds.map(
-        (eid) => draftToRealExerciseId.get(eid) ?? eid
-      ).filter((eid) => !eid.startsWith("draft-"));
-      await adminApi.putOverrides(id, {
-        assigned_exercise_ids: resolvedExerciseIds.length > 0 ? resolvedExerciseIds : null,
-        assigned_next_exercise_id: resolvedExerciseIds[0] ?? null,
-      });
       if (pendingTasksPoolIds !== null) {
         await adminApi.putStudentTasksSync(id, { pool_task_ids: pendingTasksPoolIds });
         setPendingTasksPoolIds(null);
@@ -1212,8 +1036,6 @@ export default function AdminStudentProfilePage() {
       setQueuedFocusDeletes([]);
       setQueuedPostQuestionUpserts([]);
       setQueuedPostQuestionDeletes([]);
-      setQueuedExerciseUpserts([]);
-      setQueuedExerciseDeletes([]);
       tasksPoolCacheRef.current = false;
       focusPoolCacheRef.current = false;
       toast.success("All changes saved");
@@ -1384,87 +1206,8 @@ export default function AdminStudentProfilePage() {
     toast.success("Queued. Click Save all changes.");
   };
 
-  const handleExerciseEditModalSave = async (data: {
-    title: string;
-    video_url?: string;
-    description?: string;
-  }) => {
-    const targetId = exerciseEditExercise?.id ?? `draft-${crypto.randomUUID()}`;
-    setExercises((prev) => {
-      if (exerciseEditExercise) {
-        return prev.map((ex) =>
-          ex.id === exerciseEditExercise.id ? { ...ex, ...data } : ex
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: targetId,
-          title: data.title,
-          video_url: data.video_url ?? null,
-          description: data.description ?? null,
-        },
-      ];
-    });
-    setQueuedExerciseDeletes((prev) => prev.filter((eid) => eid !== targetId));
-    setQueuedExerciseUpserts((prev) => {
-      const next = prev.filter((e) => e.id !== targetId);
-      next.push({
-        id: targetId,
-        title: data.title,
-        video_url: data.video_url,
-        description: data.description,
-      });
-      return next;
-    });
-    toast.success("Queued. Click Save all changes.");
-  };
-
-  const deleteExerciseHandler = async (exerciseId: string) => {
-    if (!confirm("Delete this exercise? Students will no longer see it in their exercises.")) return;
-    setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
-    setAssignedExerciseIds((prev) => prev.filter((id) => id !== exerciseId));
-    setQueuedExerciseUpserts((prev) => prev.filter((e) => e.id !== exerciseId));
-    if (!exerciseId.startsWith("draft-")) {
-      setQueuedExerciseDeletes((prev) => (prev.includes(exerciseId) ? prev : [...prev, exerciseId]));
-    }
-    toast.success("Queued. Click Save all changes.");
-  };
-
-  // Post-recording questions (per-student list + pool); sync via putStudentPostRecordingQuestionsSync.
-  const questionsPool: PoolItem[] = postQuestions.map((q) => ({ id: q.id, label: q.text }));
-  const handleQuestionsConfirm = (selectedIds: string[]) => {
-    setModalQuestions(false);
-    setPendingPostQuestionIds(selectedIds);
-  };
-  const handleQuestionsCreate = async (text: string): Promise<PoolItem> => {
-    const res = await adminApi.createPostQuestion({ text, answer_type: "text" });
-    const question = res.question;
-    setPostQuestions((prev) => [...prev, question]);
-    return { id: question.id, label: question.text };
-  };
-  const postRecordingSelectedIds: string[] = postRecordingQuestions.map((q) => q.id);
-  const displayPostRecordingQuestions =
-    pendingPostQuestionIds !== null
-      ? pendingPostQuestionIds
-          .map((pid) => postQuestions.find((q) => q.id === pid))
-          .filter((x): x is PostQuestion => x != null)
-      : postRecordingQuestions;
-
-  // Assigned exercises: pool = all exercises; selected = overrides.assigned_exercise_ids; save on confirm.
-  const assignedExercisesPool: PoolItem[] = exercises.map((ex) => ({
-    id: ex.id,
-    label: ex.title,
-    subLabel: ex.video_url ? "Video" : ex.description ? ex.description.slice(0, 40) + (ex.description.length > 40 ? "…" : "") : undefined,
-  }));
-  const handleAssignedExercisesConfirm = (selectedIds: string[]) => {
-    setModalAssignedExercises(false);
-    setAssignedExerciseIds(selectedIds);
-  };
-
-  const removeExerciseFromAssignment = (exerciseId: string) => {
-    setAssignedExerciseIds((prev) => prev.filter((id) => id !== exerciseId));
-  };
+  // Per-student post-recording questions display (pool/sync removed; pendingPostQuestionIds is now always null).
+  const displayPostRecordingQuestions = postRecordingQuestions;
 
   const handlePostQuestionEditSave = async (data: { text: string; answer_type: string }) => {
     const targetId = postQuestionEdit?.id ?? `draft-${crypto.randomUUID()}`;
@@ -1750,79 +1493,6 @@ export default function AdminStudentProfilePage() {
             <p className="text-xs text-muted-foreground">Max 2000 characters. Shown in the assignment email when you send homework.</p>
           </div>
 
-          {/* Exercises removed from product scope */}
-          {false && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-sm font-medium">Video</label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setExerciseEditExercise(null);
-                    setExerciseEditOpen(true);
-                  }}
-                >
-                  + Add
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setModalAssignedExercises(true)}
-                >
-                  Manage list
-                </Button>
-              </div>
-            </div>
-            <div className="min-h-[6rem] rounded-md border border-border bg-muted/30 p-3">
-              {assignedExerciseIds.length > 0 ? (
-                <ul className="space-y-2">
-                  {assignedExerciseIds
-                    .map((exId) => exercises.find((e) => e.id === exId))
-                    .filter((ex): ex is Exercise => ex != null)
-                    .map((ex) => (
-                      <li key={ex.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
-                        <span className="min-w-0 flex-1">{ex.title}</span>
-                        {ex.video_url ? (
-                          <span className="text-xs text-muted-foreground truncate max-w-[12rem]" title={ex.video_url}>
-                            Video
-                          </span>
-                        ) : null}
-                        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExerciseEditExercise(ex);
-                              setExerciseEditOpen(true);
-                            }}
-                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                            aria-label="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeExerciseFromAssignment(ex.id)}
-                            disabled={saving}
-                            className="rounded p-1 text-destructive hover:bg-destructive/10"
-                            aria-label="Remove from list"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">No videos. Click + Add to create one or Manage list to choose from the pool.</p>
-              )}
-            </div>
-          </div>
-          )}
-
           {/* Tasks (student / pool) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -1999,75 +1669,6 @@ export default function AdminStudentProfilePage() {
               <p className="text-sm text-muted-foreground">No focus tasks. Click + Add to create one or Manage list to choose from the pool.</p>
             )}
             </div>
-          </div>
-          )}
-
-          {false && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Post-recording questions</p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPostQuestionEdit(null);
-                    setPostQuestionEditOpen(true);
-                  }}
-                >
-                  + Add
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setModalQuestions(true)}>
-                  Manage list
-                </Button>
-              </div>
-            </div>
-            {postRecordingQuestionsError && (
-              <p className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                {postRecordingQuestionsError}
-              </p>
-            )}
-            <ul className="space-y-2">
-              {displayPostRecordingQuestions.map((q) => (
-                <li key={q.id} className="group flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-                  <span className="min-w-0 flex-1 text-sm">{q.text}</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">{q.answer_type || "text"}</span>
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    {pendingPostQuestionIds === null && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPostQuestionEdit(q);
-                          setPostQuestionEditOpen(true);
-                        }}
-                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        aria-label="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        pendingPostQuestionIds !== null
-                          ? setPendingPostQuestionIds((prev) => (prev ?? []).filter((pid) => pid !== q.id))
-                          : deletePostRecordingQuestion(q.id)
-                      }
-                      disabled={saving}
-                      className="rounded p-1 text-destructive hover:bg-destructive/10"
-                      aria-label={pendingPostQuestionIds !== null ? "Remove from list" : "Delete"}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            {displayPostRecordingQuestions.length === 0 && (
-              <p className="text-sm text-muted-foreground">No post-recording questions. Click + Add to create one.</p>
-            )}
           </div>
           )}
 
@@ -2396,18 +1997,6 @@ export default function AdminStudentProfilePage() {
         onSave={handleStudentTaskEditSave}
         saving={saving}
       />
-      {false && (
-      <ExerciseEditModal
-        open={exerciseEditOpen}
-        onOpenChange={(open) => {
-          setExerciseEditOpen(open);
-          if (!open) setExerciseEditExercise(null);
-        }}
-        exercise={exerciseEditExercise}
-        onSave={handleExerciseEditModalSave}
-        saving={saving}
-      />
-      )}
       <SelectFromPoolModal
         open={modalTasksPool}
         onOpenChange={setModalTasksPool}
@@ -2449,28 +2038,6 @@ export default function AdminStudentProfilePage() {
         allowCreate
         onCreateNew={handleFocusCreate}
         poolLoading={focusPoolLoading}
-      />
-      )}
-      {false && (
-      <SelectFromPoolModal
-        open={modalQuestions}
-        onOpenChange={setModalQuestions}
-        title="Select Post-recording Questions"
-        pool={questionsPool}
-        selectedIds={pendingPostQuestionIds ?? postRecordingSelectedIds}
-        onConfirm={handleQuestionsConfirm}
-        allowCreate
-        onCreateNew={handleQuestionsCreate}
-      />
-      )}
-      {false && (
-      <SelectFromPoolModal
-        open={modalAssignedExercises}
-        onOpenChange={setModalAssignedExercises}
-        title="Select Exercises"
-        pool={assignedExercisesPool}
-        selectedIds={assignedExerciseIds}
-        onConfirm={handleAssignedExercisesConfirm}
       />
       )}
       {false && (

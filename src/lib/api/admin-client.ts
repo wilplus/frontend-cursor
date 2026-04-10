@@ -552,17 +552,6 @@ function normalizeImportedRecordingDetail(value: unknown): AdminImportedRecordin
   };
 }
 
-export interface Exercise {
-  id: string;
-  title: string;
-  video_url?: string | null;
-  description?: string | null;
-  min_task_score?: number;
-  max_task_score?: number;
-  is_active?: boolean;
-  created_at?: string;
-}
-
 export interface Task {
   id: string;
   title: string;
@@ -744,14 +733,32 @@ function pickNumFromRaw(raw: Record<string, unknown>, snake: string, camel: stri
   return null;
 }
 
+function pickStrFromCandidates(
+  sources: Array<Record<string, unknown> | null>,
+  keys: string[]
+): string | null {
+  for (const source of sources) {
+    if (!source) continue;
+    for (const key of keys) {
+      const value = source[key];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+  }
+  return null;
+}
+
 /** Unify snake_case vs camelCase and common payload aliases from backend JSON. */
 export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): CopilotStudentDraft {
+  const draftPayload =
+    raw.draft_payload && typeof raw.draft_payload === "object"
+      ? (raw.draft_payload as Record<string, unknown>)
+      : null;
   const metadata =
     raw.metadata && typeof raw.metadata === "object"
       ? (raw.metadata as Record<string, unknown>)
-      : raw.draft_payload && typeof raw.draft_payload === "object"
-        ? (raw.draft_payload as Record<string, unknown>)
+      : draftPayload
         : null;
+  const textSources: Array<Record<string, unknown> | null> = [raw, draftPayload, metadata];
 
   return {
     id: String(raw.id ?? raw.draft_id ?? ""),
@@ -767,15 +774,50 @@ export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): Copi
           ? raw.goodAsIs
           : undefined,
     ai_grade_draft: pickNumFromRaw(raw, "ai_grade_draft", "aiGradeDraft"),
-    ai_comment_draft: pickStrFromRaw(raw, "ai_comment_draft", "aiCommentDraft"),
-    ai_email_draft: pickStrFromRaw(raw, "ai_email_draft", "aiEmailDraft"),
-    ai_task_suggestion: pickStrFromRaw(raw, "ai_task_suggestion", "aiTaskSuggestion"),
-    ai_script_draft: pickStrFromRaw(raw, "ai_script_draft", "aiScriptDraft"),
+    ai_comment_draft: pickStrFromCandidates(textSources, [
+      "ai_comment_draft",
+      "aiCommentDraft",
+      "comment_draft_ai",
+      "commentDraftAi",
+    ]),
+    ai_email_draft: pickStrFromCandidates(textSources, [
+      "ai_email_draft",
+      "aiEmailDraft",
+      "homework_message",
+      "homeworkMessage",
+    ]),
+    ai_task_suggestion: pickStrFromCandidates(textSources, [
+      "ai_task_suggestion",
+      "aiTaskSuggestion",
+      "task_suggestion",
+      "taskSuggestion",
+    ]),
+    ai_script_draft: pickStrFromCandidates(textSources, [
+      "ai_script_draft",
+      "aiScriptDraft",
+      "video_script",
+      "videoScript",
+    ]),
     grade_draft: pickNumFromRaw(raw, "grade_draft", "gradeDraft"),
     comment_draft: pickStrFromRaw(raw, "comment_draft", "commentDraft"),
-    task_draft: pickStrFromRaw(raw, "task_draft", "taskDraft"),
-    email_draft: pickStrFromRaw(raw, "email_draft", "emailDraft"),
-    script_draft: pickStrFromRaw(raw, "script_draft", "scriptDraft"),
+    task_draft: pickStrFromCandidates(textSources, [
+      "task_draft",
+      "taskDraft",
+      "task_suggestion",
+      "taskSuggestion",
+    ]),
+    email_draft: pickStrFromCandidates(textSources, [
+      "email_draft",
+      "emailDraft",
+      "homework_message",
+      "homeworkMessage",
+    ]),
+    script_draft: pickStrFromCandidates(textSources, [
+      "script_draft",
+      "scriptDraft",
+      "video_script",
+      "videoScript",
+    ]),
     cohort_profile: pickStrFromRaw(raw, "cohort_profile", "cohortProfile"),
     cohort_stage: (raw.cohort_stage ?? raw.cohortStage ?? null) as string | number | null,
     score_for_display:
@@ -1400,18 +1442,6 @@ export const adminApi = {
   deleteFocusTaskPoolItem: (poolId: string) =>
     adminFetch<Record<string, unknown>>(`/task-focus-pool/${poolId}`, { method: "DELETE" }),
 
-  getExercises: () =>
-    adminFetch<{ exercises: Exercise[] }>("/exercises").then((r) => r.exercises ?? []),
-
-  createExercise: (data: Partial<Exercise>) =>
-    adminFetch<{ exercise: Exercise }>("/exercises", { method: "POST", body: data }),
-
-  updateExercise: (id: string, data: Partial<Exercise>) =>
-    adminFetch<{ exercise: Exercise }>(`/exercises/${id}`, { method: "PUT", body: data }),
-
-  deleteExercise: (id: string) =>
-    adminFetch<{ status: string }>(`/exercises/${id}`, { method: "DELETE" }),
-
   getTasks: () =>
     adminFetch<{ tasks: Task[] }>("/tasks").then((r) => r.tasks ?? []),
 
@@ -1423,12 +1453,6 @@ export const adminApi = {
 
   deleteTask: (id: string) =>
     adminFetch<{ status: string }>(`/tasks/${id}`, { method: "DELETE" }),
-
-  /** Pool of post-recording questions (global). */
-  getPostRecordingQuestionsPool: () =>
-    adminFetch<{ post_recording_questions_pool?: PostQuestion[] }>("/post-recording-questions-pool").then((r) =>
-      Array.isArray(r.post_recording_questions_pool) ? r.post_recording_questions_pool : []
-    ),
 
   /** Per-student post-recording questions list. */
   getStudentPostRecordingQuestions: (userId: string) =>
@@ -1465,21 +1489,6 @@ export const adminApi = {
     adminFetch<{ status?: string }>(`/students/${userId}/post-recording-questions/${questionId}`, {
       method: "DELETE",
     }),
-
-  createPostQuestion: (data: Partial<PostQuestion>) =>
-    adminFetch<{ question: PostQuestion }>("/post-recording-questions-pool", { method: "POST", body: data }),
-
-  updatePostQuestion: (id: string, data: Partial<PostQuestion>) =>
-    adminFetch<{ question: PostQuestion }>(`/post-recording-questions-pool/${id}`, { method: "PUT", body: data }),
-
-  deletePostQuestion: (id: string) =>
-    adminFetch<{ status: string }>(`/post-recording-questions-pool/${id}`, { method: "DELETE" }),
-
-  /** @deprecated Use getPostRecordingQuestionsPool. Kept for compatibility. */
-  getPostQuestions: () =>
-    adminFetch<{ post_recording_questions_pool?: PostQuestion[] }>("/post-recording-questions-pool").then((r) =>
-      Array.isArray(r.post_recording_questions_pool) ? r.post_recording_questions_pool : []
-    ),
 
   getMetricLabels: () =>
     adminFetch<{ metrics?: MetricLabel[]; metric_labels?: MetricLabel[] }>("/metrics").then(
