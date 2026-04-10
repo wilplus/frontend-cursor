@@ -73,9 +73,27 @@ const STEP0_REPORTS_PAGE_SIZE = 5;
 const REVIEW_PENDING_DEFAULT_MESSAGE =
   "Your homework has been sent and is now being reviewed.";
 
+/** Coach-assigned step-0 content: show the video/start flow even if review_pending is still true (e.g. after email assignment). */
+function hasStep0AssignmentPayload(statusRes: HomeworkSessionStatus | null | undefined): boolean {
+  if (!statusRes || statusRes.has_active_session === true) return false;
+  const tutor =
+    (typeof statusRes.tutor_video_url === "string" && statusRes.tutor_video_url.trim()) ||
+    (typeof statusRes.session?.tutor_video_url === "string" && statusRes.session.tutor_video_url.trim());
+  if (tutor) return true;
+  return Array.isArray(statusRes.assigned_exercises) && statusRes.assigned_exercises.length > 0;
+}
+
+function hasStep0AssignmentPayloadFromHomeworkResponse(res: HomeworkResponse): boolean {
+  if (res.has_active_session === true) return false;
+  const tutor = typeof res.tutor_video_url === "string" && res.tutor_video_url.trim();
+  if (tutor) return true;
+  return Array.isArray(res.assigned_exercises) && res.assigned_exercises.length > 0;
+}
+
 function isHomeworkReadyForStep0(statusRes: HomeworkSessionStatus | null | undefined): boolean {
   if (!statusRes) return false;
   if (statusRes.has_active_session === true) return false;
+  if (hasStep0AssignmentPayload(statusRes)) return true;
   if (statusRes.review_pending === true) return false;
   return true;
 }
@@ -209,15 +227,18 @@ export default function HomeworkFlowCard() {
       );
 
       const backendReviewPending = statusRes?.review_pending === true;
+      const hasAssignment = hasStep0AssignmentPayload(statusRes);
       const shouldForceWaiting = forcedStep0WaitingRef.current && !isHomeworkReadyForStep0(statusRes);
-      setReviewPending(backendReviewPending || shouldForceWaiting);
+      setReviewPending((backendReviewPending || shouldForceWaiting) && !hasAssignment);
       const waitingMessage = statusRes?.main_screen_message;
       setMainScreenMessage(
-        typeof waitingMessage === "string" && waitingMessage.trim()
-          ? waitingMessage.trim()
-          : shouldForceWaiting
-            ? REVIEW_PENDING_DEFAULT_MESSAGE
-            : null
+        hasAssignment
+          ? null
+          : typeof waitingMessage === "string" && waitingMessage.trim()
+            ? waitingMessage.trim()
+            : shouldForceWaiting
+              ? REVIEW_PENDING_DEFAULT_MESSAGE
+              : null
       );
 
       const tutorVideoUrl = statusRes?.tutor_video_url ?? statusRes?.session?.tutor_video_url ?? null;
@@ -306,7 +327,11 @@ export default function HomeworkFlowCard() {
     if (!authReady || step !== 0) return;
     homeworkApi.getStatus().then((statusRes) => {
       syncDashboardStateFromStatus(statusRes);
-      if (pollReportsAfterFinish && !statusRes?.review_pending) {
+      if (
+        pollReportsAfterFinish &&
+        !statusRes?.review_pending &&
+        !hasStep0AssignmentPayload(statusRes)
+      ) {
         setReviewPending(true);
         setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
       }
@@ -536,9 +561,13 @@ export default function HomeworkFlowCard() {
       setReportText("");
       setPerformanceScoreEnd(null);
       setReportData(null);
-      setReviewPending(res.review_pending === true);
+      const showWaitingForReview =
+        res.review_pending === true && !hasStep0AssignmentPayloadFromHomeworkResponse(res);
+      setReviewPending(showWaitingForReview);
       setMainScreenMessage(
-        typeof res.main_screen_message === "string" && res.main_screen_message.trim()
+        showWaitingForReview &&
+          typeof res.main_screen_message === "string" &&
+          res.main_screen_message.trim()
           ? res.main_screen_message.trim()
           : null
       );
@@ -735,7 +764,11 @@ export default function HomeworkFlowCard() {
       }
       homeworkApi.getStatus().then((statusRes) => {
         syncDashboardStateFromStatus(statusRes);
-        if (comingFromReport && !statusRes?.review_pending) {
+        if (
+          comingFromReport &&
+          !statusRes?.review_pending &&
+          !hasStep0AssignmentPayload(statusRes)
+        ) {
           setReviewPending(true);
           setMainScreenMessage((prev) => prev ?? REVIEW_PENDING_DEFAULT_MESSAGE);
         }
