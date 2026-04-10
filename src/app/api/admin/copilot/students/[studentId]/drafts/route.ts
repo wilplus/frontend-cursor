@@ -15,7 +15,7 @@ function rowStrCandidates(
   keys: string[],
   nested?: Record<string, unknown> | null
 ): string | null {
-  const sources: Array<Record<string, unknown> | null> = [row, nested];
+  const sources: Array<Record<string, unknown> | null> = [row, nested ?? null];
   for (const source of sources) {
     if (!source) continue;
     for (const key of keys) {
