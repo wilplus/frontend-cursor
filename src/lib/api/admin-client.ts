@@ -756,8 +756,7 @@ export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): Copi
   const metadata =
     raw.metadata && typeof raw.metadata === "object"
       ? (raw.metadata as Record<string, unknown>)
-      : draftPayload
-        : null;
+      : draftPayload;
   const textSources: Array<Record<string, unknown> | null> = [raw, draftPayload, metadata];
 
   return {
