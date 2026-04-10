@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/admin-client";
 import {
   DRAFT_GENERATION_MAX_RETRIES,
+  getDraftGenerationBannerState,
   getEffectiveDraftGenerationStatus,
   hasAnyUsableDraftContent,
   hasUsableDraftContent,
@@ -65,11 +66,40 @@ function formatName(student: CopilotStudentQueueItem): string {
   );
 }
 
-function formatSession(student: CopilotStudentQueueItem): string {
-  const raw = student.session_id ?? "";
-  if (!raw) return "Session #—";
-  const compact = raw.split("-")[0];
-  return `Session #${compact}`;
+/** Best-effort lesson submission instant for sorting / display (backend field names vary). */
+function queueItemSubmissionTimeMs(student: CopilotStudentQueueItem): number {
+  const raw =
+    student.lesson_submitted_at ??
+    student.submitted_at ??
+    student.updated_at ??
+    student.completed_at ??
+    student.created_at ??
+    student.profile?.completed_at ??
+    null;
+  if (!raw) return Number.POSITIVE_INFINITY;
+  const t = new Date(raw).getTime();
+  return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+}
+
+function formatLessonSubmissionDate(student: CopilotStudentQueueItem): string {
+  const raw =
+    student.lesson_submitted_at ??
+    student.submitted_at ??
+    student.updated_at ??
+    student.completed_at ??
+    student.created_at ??
+    student.profile?.completed_at ??
+    null;
+  if (!raw) return "Submission date unknown";
+  const when = new Date(raw);
+  if (Number.isNaN(when.getTime())) return "Submission date unknown";
+  return when.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function queueStateDot(state: CopilotStudentQueueItem["state"]): string {
@@ -80,8 +110,11 @@ function queueStateDot(state: CopilotStudentQueueItem["state"]): string {
 
 function queueRecency(student: CopilotStudentQueueItem): string {
   const raw =
+    student.lesson_submitted_at ??
+    student.submitted_at ??
     student.updated_at ??
     student.completed_at ??
+    student.created_at ??
     student.profile?.completed_at ??
     null;
   if (!raw) return "recently";
@@ -319,23 +352,10 @@ export default function TrainingStudioWorkspace() {
       setSelectedStudent(null);
       return [] as CopilotStudentQueueItem[];
     }
-    setLoadingQueue(true);
-    try {
-      const responses = await Promise.all(
-        cohortIds.map((cohortId) =>
-          adminApi.getCopilotCohortStudents(cohortId, {
-            limit: 100,
-            offset: 0,
-          })
-        )
-      );
-      const deduped = new Map<string, CopilotStudentQueueItem>();
-      for (const response of responses) {
-        for (const student of response.students ?? []) {
-          const key = `${student.student_id}:${student.session_id ?? ""}`;
-          if (!deduped.has(key)) deduped.set(key, student);
-        }
-      }
+
+    // Progressive loading: render rows as each cohort resolves (instead of waiting for all).
+    const deduped = new Map<string, CopilotStudentQueueItem>();
+    const applyList = () => {
       const list = Array.from(deduped.values());
       setStudents(list);
       setSelectedStudent((previous) => {
@@ -350,9 +370,32 @@ export default function TrainingStudioWorkspace() {
         return list.find((item) => item.student_id === previous.student_id) ?? list[0] ?? null;
       });
       return list;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load students");
-      return [] as CopilotStudentQueueItem[];
+    };
+
+    setLoadingQueue(true);
+    try {
+      let firstErrorShown = false;
+      await Promise.all(
+        cohortIds.map(async (cohortId) => {
+          try {
+            const response = await adminApi.getCopilotCohortStudents(cohortId, {
+              limit: 100,
+              offset: 0,
+            });
+            for (const student of response.students ?? []) {
+              const key = `${student.student_id}:${student.session_id ?? ""}`;
+              if (!deduped.has(key)) deduped.set(key, student);
+            }
+            applyList();
+          } catch (error) {
+            if (!firstErrorShown) {
+              firstErrorShown = true;
+              toast.error(error instanceof Error ? error.message : "Failed to load students");
+            }
+          }
+        })
+      );
+      return applyList();
     } finally {
       setLoadingQueue(false);
     }
@@ -757,6 +800,8 @@ export default function TrainingStudioWorkspace() {
     return [...students].sort((a, b) => {
       const stateDiff = statusOrder[a.state] - statusOrder[b.state];
       if (stateDiff !== 0) return stateDiff;
+      const timeDiff = queueItemSubmissionTimeMs(a) - queueItemSubmissionTimeMs(b);
+      if (timeDiff !== 0) return timeDiff;
       const queueA = a.queue_position ?? Number.MAX_SAFE_INTEGER;
       const queueB = b.queue_position ?? Number.MAX_SAFE_INTEGER;
       if (queueA !== queueB) return queueA - queueB;
@@ -878,16 +923,15 @@ export default function TrainingStudioWorkspace() {
     return `Plan — Session ${count + 1}`;
   }, [selectedStudent]);
 
-  const showDraftGenerationPending =
-    effectiveDraftGenerationStatus === "pending" &&
-    !hasUsableSelectedDraftContent &&
-    !draftGenerationRetriesExhausted;
-  const showDraftGenerationFailed =
-    effectiveDraftGenerationStatus === "failed" && !hasUsableSelectedDraftContent;
-  const showDraftGenerationRetryExhausted =
-    effectiveDraftGenerationStatus === "pending" &&
-    !hasUsableSelectedDraftContent &&
-    draftGenerationRetriesExhausted;
+  const draftGenerationBannerState = useMemo(
+    () =>
+      getDraftGenerationBannerState({
+        status: effectiveDraftGenerationStatus,
+        hasUsableDraftContent: hasUsableSelectedDraftContent,
+        retriesExhausted: draftGenerationRetriesExhausted,
+      }),
+    [draftGenerationRetriesExhausted, effectiveDraftGenerationStatus, hasUsableSelectedDraftContent]
+  );
 
   const displayScorePercent = useMemo(() => {
     const fromDraft = selectedDraft?.score_for_display;
@@ -1516,7 +1560,7 @@ export default function TrainingStudioWorkspace() {
                       )}
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <p>{formatSession(student)}</p>
+                      <p>{formatLessonSubmissionDate(student)}</p>
                       <p>{queueRecency(student)}</p>
                     </div>
                     <p className="text-xs text-destructive/90">
@@ -1538,7 +1582,7 @@ export default function TrainingStudioWorkspace() {
               ) : null}
               <p className="mt-1 text-xs text-muted-foreground">
                 {selectedStudent
-                  ? `${formatSession(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
+                  ? `${formatLessonSubmissionDate(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
                   : "No student selected"}
               </p>
               {selectedStudent ? (
@@ -1901,7 +1945,7 @@ export default function TrainingStudioWorkspace() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          {showDraftGenerationPending ? (
+          {draftGenerationBannerState === "pending" ? (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
@@ -1913,12 +1957,12 @@ export default function TrainingStudioWorkspace() {
               </div>
             </div>
           ) : null}
-          {showDraftGenerationFailed ? (
+          {draftGenerationBannerState === "failed" ? (
             <div className="rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               Plan generation failed. You can generate manually.
             </div>
           ) : null}
-          {showDraftGenerationRetryExhausted ? (
+          {draftGenerationBannerState === "retry_exhausted" ? (
             <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
               Still generating. Refresh in a few seconds.
             </div>

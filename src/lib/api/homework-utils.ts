@@ -3,6 +3,7 @@
  * Extracted from HomeworkFlowCard.tsx to keep the component lean.
  */
 import type { AssignedExercise } from "@/lib/api/types-homework";
+import { openingTaskTextFromRecord } from "@/lib/api/homework-task-fields";
 
 /** Default task prompt when the backend assigns none. */
 export const DEFAULT_TASK_PROMPT = "How was your day so far?";
@@ -17,30 +18,6 @@ export function formatCountdown(ms: number): string {
 
 export function resolveTaskText(text: unknown): string {
   return ((text as string | null | undefined) ?? "").trim() || DEFAULT_TASK_PROMPT;
-}
-
-function openingTaskTextFromRecord(rec: Record<string, unknown>): string {
-  const task = rec.task;
-  if (typeof task === "string" && task.trim()) return task.trim();
-  const taskText = rec.task_text;
-  if (typeof taskText === "string" && taskText.trim()) return taskText.trim();
-  const pool = rec.tasks_pool ?? rec.task_pool;
-  if (Array.isArray(pool) && pool.length > 0) {
-    const first = pool[0];
-    if (typeof first === "string" && first.trim()) return first.trim();
-    if (first && typeof first === "object" && first !== null && "text" in first) {
-      const t = (first as { text: unknown }).text;
-      if (typeof t === "string" && t.trim()) return t.trim();
-    }
-  }
-  const warmObj = rec.warm_up_task;
-  if (warmObj && typeof warmObj === "object" && "text" in warmObj) {
-    const t = (warmObj as { text: unknown }).text;
-    if (typeof t === "string" && t.trim()) return t.trim();
-  }
-  const wtext = rec.warm_up_task_text;
-  if (typeof wtext === "string" && wtext.trim()) return wtext.trim();
-  return "";
 }
 
 /**

@@ -13,7 +13,7 @@ import type { RealtimeMetricDartboardHandle } from "@/components/recording/Stren
 import { StepVisualRenderer } from "@/components/recording/step-visuals";
 import { resolveRealtimeTrainingStep } from "@/lib/realtime-levels";
 import type { LiveCoachSnapshot, UserSniperProfile } from "@/lib/sniper/types";
-import { sanitizeRichHtml } from "@/lib/sanitizeRichHtml";
+import { normalizeRichInstructionInput, sanitizeRichHtml } from "@/lib/sanitizeRichHtml";
 const DEFAULT_MIN_DURATION_SECONDS = 60; // 1 minute
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 const LEVEL_1_TOTAL_STEPS = 10;
@@ -111,7 +111,10 @@ export default function AudioRecorder({
   const [manualDuration, setManualDuration] = useState<string>("");
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const [micPreviewError, setMicPreviewError] = useState<string | null>(null);
-  const sanitizedPromptHtml = useMemo(() => sanitizeRichHtml(prompt ?? ""), [prompt]);
+  const sanitizedPromptHtml = useMemo(
+    () => sanitizeRichHtml(normalizeRichInstructionInput(prompt ?? "")),
+    [prompt]
+  );
   const hasPrompt = sanitizedPromptHtml.trim().length > 0;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -658,8 +661,12 @@ export default function AudioRecorder({
       }`}
     >
       <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
-        <div className="flex flex-col items-center gap-1 w-full overflow-hidden">
-          <div className="flex w-full flex-col items-center text-center">
+        <div className="flex flex-col items-center gap-1 w-full">
+          <div
+            className={`sticky z-20 flex w-full flex-col items-center text-center bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 ${
+              sniperMode ? "top-2" : "top-2 sm:top-3"
+            }`}
+          >
             <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
             <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
           </div>

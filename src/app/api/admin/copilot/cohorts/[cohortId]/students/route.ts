@@ -12,6 +12,12 @@ type RawStudent = {
   stage?: string | null;
   justification?: string | null;
   canonical_score_for_display?: number | null;
+  submitted_at?: string | null;
+  lesson_submitted_at?: string | null;
+  lessonSubmittedAt?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  completed_at?: string | null;
 };
 
 function cohortSyntheticId(cohort: Record<string, unknown>): string {
@@ -31,6 +37,11 @@ function normalizeStudent(raw: RawStudent) {
     draft_count: raw.pending_count ?? 1,
     ready_count: 0,
     sent_count: 0,
+    submitted_at: raw.submitted_at ?? null,
+    lesson_submitted_at: raw.lesson_submitted_at ?? raw.lessonSubmittedAt ?? null,
+    created_at: raw.created_at ?? null,
+    updated_at: raw.updated_at ?? null,
+    completed_at: raw.completed_at ?? null,
     profile: {
       email: raw.email ?? null,
       name: raw.name ?? null,

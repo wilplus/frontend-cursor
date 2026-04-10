@@ -684,6 +684,10 @@ export interface CopilotStudentQueueItem {
   session_id?: string | null;
   queue_position?: number;
   state: CopilotDraftStatus;
+  /** When the student submitted the lesson / entered the queue (ISO), if backend sends it */
+  submitted_at?: string | null;
+  lesson_submitted_at?: string | null;
+  created_at?: string | null;
   updated_at?: string | null;
   completed_at?: string | null;
   draft_count?: number;

@@ -39,7 +39,7 @@ import {
   isNoHomeworkTasksConfiguredError,
   isInvalidSessionStateError,
   isRecordingProcessingFailedError,
-  isReportNotReadyError,
+  isHomeworkReportRetryLaterError,
   isSessionGoneError,
 } from "@/lib/api/homework-errors";
 import {
@@ -988,7 +988,7 @@ export default function HomeworkFlowCard() {
           setReportData(null);
           return;
         }
-        if (isReportNotReadyError(e)) {
+        if (isHomeworkReportRetryLaterError(e)) {
           setReportNotReady(true);
           setReportError(null);
           setReportData(null);
@@ -1360,15 +1360,24 @@ export default function HomeworkFlowCard() {
       },
     });
 
+  const transitionToReportLoading = () => {
+    setReportError(null);
+    setReportNotReady(false);
+    setReportData(null);
+    setAudioPlaybackError(false);
+    setReportLoading(true);
+    setStep(3);
+  };
+
   // Step-2 self-rating handlers (inline to keep access to state setters)
   const handleRatingSelect = async (n: number) => {
     if (!sessionId || sessionId === "mock-session") return;
+    transitionToReportLoading();
     setSavingStudentRating(true);
     try {
       lastSelfRatingPayloadRef.current = { sessionId, rating: n };
       const res: SelfRatingResponse = await homeworkApi.submitSelfRating(sessionId, n);
       setStudentSpeechRatingSubmitted(true);
-      setStep(3);
       if (res.session_completed === false) {
         setPendingRetrySelfRating({ sessionId, rating: n });
       }
@@ -1386,8 +1395,9 @@ export default function HomeworkFlowCard() {
         // "Not ready yet" or any transient/state error → retry in background once recording is done
         setPendingRetrySelfRating({ sessionId, rating: n });
         setStudentSpeechRatingSubmitted(true);
-        setStep(3);
       } else {
+        setStep(2);
+        setReportLoading(false);
         toast.error(e instanceof Error ? e.message : "Could not save rating. Try again.");
       }
     } finally {
@@ -1398,15 +1408,15 @@ export default function HomeworkFlowCard() {
   const handleRatingSkip = async () => {
     if (!sessionId || sessionId === "mock-session") {
       setStudentSpeechRatingSubmitted(true);
-      setStep(3);
+      transitionToReportLoading();
       return;
     }
+    transitionToReportLoading();
     setSavingStudentRating(true);
     try {
       lastSelfRatingPayloadRef.current = { sessionId, skipped: true };
       const res: SelfRatingResponse = await homeworkApi.submitSelfRatingSkipped(sessionId);
       setStudentSpeechRatingSubmitted(true);
-      setStep(3);
       if (res.session_completed === false) {
         setPendingRetrySelfRating({ sessionId, skipped: true });
       }
@@ -1421,8 +1431,9 @@ export default function HomeworkFlowCard() {
       if (!isHardFailure) {
         setPendingRetrySelfRating({ sessionId, skipped: true });
         setStudentSpeechRatingSubmitted(true);
-        setStep(3);
       } else {
+        setStep(2);
+        setReportLoading(false);
         toast.error(e instanceof Error ? e.message : "Could not save. Try again.");
       }
     } finally {
