@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
     "tm": "task-master",
     "tm:next": "task-master next",
     "tm:list": "task-master list"
@@ -42,6 +43,7 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "vitest": "^4.1.4"
   }
 }
