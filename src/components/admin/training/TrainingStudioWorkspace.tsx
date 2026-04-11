@@ -69,11 +69,12 @@ function formatName(student: CopilotStudentQueueItem): string {
 /** Best-effort lesson submission instant for sorting / display (backend field names vary). */
 function queueItemSubmissionTimeMs(student: CopilotStudentQueueItem): number {
   const raw =
+    student.session_created_at ??
     student.lesson_submitted_at ??
     student.submitted_at ??
+    student.created_at ??
     student.updated_at ??
     student.completed_at ??
-    student.created_at ??
     student.profile?.completed_at ??
     null;
   if (!raw) return Number.POSITIVE_INFINITY;
@@ -83,11 +84,12 @@ function queueItemSubmissionTimeMs(student: CopilotStudentQueueItem): number {
 
 function formatLessonSubmissionDate(student: CopilotStudentQueueItem): string {
   const raw =
+    student.session_created_at ??
     student.lesson_submitted_at ??
     student.submitted_at ??
+    student.created_at ??
     student.updated_at ??
     student.completed_at ??
-    student.created_at ??
     student.profile?.completed_at ??
     null;
   if (!raw) return "Submission date unknown";
@@ -110,11 +112,12 @@ function queueStateDot(state: CopilotStudentQueueItem["state"]): string {
 
 function queueRecency(student: CopilotStudentQueueItem): string {
   const raw =
+    student.session_created_at ??
     student.lesson_submitted_at ??
     student.submitted_at ??
+    student.created_at ??
     student.updated_at ??
     student.completed_at ??
-    student.created_at ??
     student.profile?.completed_at ??
     null;
   if (!raw) return "recently";

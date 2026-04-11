@@ -12,6 +12,9 @@ type RawStudent = {
   stage?: string | null;
   justification?: string | null;
   canonical_score_for_display?: number | null;
+  session_created_at?: string | null;
+  sessionCreatedAt?: string | null;
+  session?: { created_at?: string | null; createdAt?: string | null } | null;
   submitted_at?: string | null;
   lesson_submitted_at?: string | null;
   lessonSubmittedAt?: string | null;
@@ -19,6 +22,22 @@ type RawStudent = {
   updated_at?: string | null;
   completed_at?: string | null;
 };
+
+function trimIso(s: string | null | undefined): string | null {
+  if (typeof s !== "string") return null;
+  const t = s.trim();
+  return t || null;
+}
+
+function sessionCreatedFromRaw(raw: RawStudent): string | null {
+  return (
+    trimIso(raw.session_created_at) ??
+    trimIso(raw.sessionCreatedAt) ??
+    trimIso(raw.session?.created_at) ??
+    trimIso(raw.session?.createdAt) ??
+    null
+  );
+}
 
 function cohortSyntheticId(cohort: Record<string, unknown>): string {
   const profile =
@@ -37,6 +56,7 @@ function normalizeStudent(raw: RawStudent) {
     draft_count: raw.pending_count ?? 1,
     ready_count: 0,
     sent_count: 0,
+    session_created_at: sessionCreatedFromRaw(raw),
     submitted_at: raw.submitted_at ?? null,
     lesson_submitted_at: raw.lesson_submitted_at ?? raw.lessonSubmittedAt ?? null,
     created_at: raw.created_at ?? null,

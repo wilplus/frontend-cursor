@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Lottie from "lottie-react";
@@ -31,6 +32,22 @@ interface Step3ReportScreenProps {
   onDoHomeworkAgain: () => void;
 }
 
+const REPORT_LOADING_PHRASES = [
+  "Calculating",
+  "Smoothing the average",
+  "Affirming your greatness",
+  "Manifesting progress",
+] as const;
+
+function shuffleReportLoadingPhrases(phrases: readonly string[]): string[] {
+  const shuffled = [...phrases];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 export default function Step3ReportScreen({
   reportData,
   reportLoading,
@@ -50,6 +67,31 @@ export default function Step3ReportScreen({
   onLeaveReport,
   onDoHomeworkAgain,
 }: Step3ReportScreenProps) {
+  const showReportLoading =
+    !recordingProcessingFailed && (reportLoading || reportNotReady);
+
+  const [loadingPhraseIndex, setLoadingPhraseIndex] = useState(0);
+  const [loadingPhrases, setLoadingPhrases] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!showReportLoading) {
+      setLoadingPhraseIndex(0);
+      setLoadingPhrases(null);
+      return;
+    }
+    const shuffled = shuffleReportLoadingPhrases(REPORT_LOADING_PHRASES);
+    setLoadingPhrases(shuffled);
+    setLoadingPhraseIndex(0);
+    const n = shuffled.length;
+    const id = setInterval(() => {
+      setLoadingPhraseIndex((i) => (i + 1) % n);
+    }, 5500);
+    return () => clearInterval(id);
+  }, [showReportLoading]);
+
+  const reportLoadingMessage =
+    loadingPhrases?.[loadingPhraseIndex] ?? REPORT_LOADING_PHRASES[0];
+
   if (recordingProcessingFailed) {
     return (
       <div className="mx-auto -mt-4 max-w-2xl space-y-4 animate-fade-in sm:-mt-6">
@@ -196,10 +238,9 @@ export default function Step3ReportScreen({
                 <div className="h-12 w-12 animate-spin rounded-full border-2 border-primary/60 border-t-transparent" />
               )}
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              We are baking your fresh lesson report 🤓
-            </p>
-          </div>
+            <p className="text-sm text-muted-foreground text-center min-h-[1.25rem] transition-opacity duration-300">
+              {reportLoadingMessage}
+            </p>          </div>
         ) : null}
 
         {/* Score headline — only show when backend confirms a number */}
