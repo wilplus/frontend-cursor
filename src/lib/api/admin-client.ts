@@ -682,6 +682,8 @@ export interface CopilotCohortStack {
 export interface CopilotStudentQueueItem {
   student_id: string;
   session_id?: string | null;
+  /** Session row `created_at` from DB (ISO), when backend exposes it */
+  session_created_at?: string | null;
   queue_position?: number;
   state: CopilotDraftStatus;
   /** When the student submitted the lesson / entered the queue (ISO), if backend sends it */
@@ -704,6 +706,24 @@ export interface CopilotStudentQueueItem {
     completed_at?: string | null;
     canonical_score_for_display?: number | null;
   } | null;
+}
+
+/** Normalize cohort queue rows so `session_created_at` is set from common API aliases. */
+function enrichCopilotStudentQueueItem(student: CopilotStudentQueueItem): CopilotStudentQueueItem {
+  const record = asRecord(student as unknown);
+  if (!record) return student;
+  const sessionObj = asRecord(record.session);
+  const resolved =
+    asTrimmedString(student.session_created_at) ??
+    asTrimmedString(record.session_created_at) ??
+    asTrimmedString(record.sessionCreatedAt) ??
+    (sessionObj
+      ? asTrimmedString(sessionObj.created_at) ?? asTrimmedString(sessionObj.createdAt)
+      : null) ??
+    asTrimmedString(record.created_at);
+  if (!resolved) return student;
+  if (student.session_created_at === resolved) return student;
+  return { ...student, session_created_at: resolved };
 }
 
 export interface CopilotStudentDraft {
@@ -995,7 +1015,11 @@ export const adminApi = {
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return adminFetch<{ students: CopilotStudentQueueItem[] }>(
       `/copilot/cohorts/${cohortId}/students${suffix}`
-    );
+    ).then((res) => ({
+      students: (Array.isArray(res.students) ? res.students : []).map((s) =>
+        enrichCopilotStudentQueueItem(s)
+      ),
+    }));
   },
 
   getCopilotStudentDrafts: (studentId: string, params?: { session_id?: string }) => {
