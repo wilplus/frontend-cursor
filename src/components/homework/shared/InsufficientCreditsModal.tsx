@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { X } from "lucide-react";
 
 interface InsufficientCreditsModalProps {
@@ -34,15 +35,13 @@ export default function InsufficientCreditsModal({ open, onClose }: Insufficient
         <p className="text-sm text-muted-foreground text-center">
           Your current credits balance is insufficient to start a homework session. Top up to continue practising.
         </p>
-        <a
-          href="https://buy.stripe.com/bJe28q4ch5VrfGCb9Z6wE0d"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full rounded-xl h-12 flex items-center justify-center bg-primary text-white font-semibold text-base hover:bg-primary/90 transition-colors"
+        <Link
+          href="/dashboard/pricing"
+          className="w-full rounded-xl h-12 flex items-center justify-center bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 transition-colors"
           onClick={onClose}
         >
           Top up credits
-        </a>
+        </Link>
       </div>
     </div>
   );
