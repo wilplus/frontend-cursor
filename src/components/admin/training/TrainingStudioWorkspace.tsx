@@ -12,7 +12,7 @@ import LatestSessionMetrics from "@/components/admin/LatestSessionMetrics";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
-import { stripHtmlToText } from "@/lib/sanitizeRichHtml";
+import { adminRichTextContentClassName, sanitizeRichHtml, stripHtmlToText } from "@/lib/sanitizeRichHtml";
 import { formatTaskTemplateLabel, isTaskTemplateActive } from "@/lib/tasks/taskTemplateLabels";
 import { resolveSessionRowWpm } from "@/lib/admin/resolveWpm";
 import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports/compact-preview";
@@ -2224,13 +2224,17 @@ export default function TrainingStudioWorkspace() {
                         <div className="min-w-0 flex-1">
                           {editingTaskOptionId === `${task.source}:${task.id}` ? (
                             <textarea
-                              rows={3}
+                              rows={6}
                               value={taskOptionEditValue}
                               onChange={(event) => setTaskOptionEditValue(event.target.value)}
-                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed"
+                              spellCheck={false}
+                              className="w-full min-h-[140px] resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words"
                             />
                           ) : (
-                            <p className="text-base line-clamp-4">{stripHtmlToText(task.text)}</p>
+                            <div
+                              className={`${adminRichTextContentClassName} [&_p]:mb-1 [&_p:last-child]:mb-0`}
+                              dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(task.text) }}
+                            />
                           )}
                           {task.subLabel ? (
                             <p className="mt-1 text-xs text-muted-foreground">{task.subLabel}</p>
