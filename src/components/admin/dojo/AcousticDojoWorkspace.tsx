@@ -287,8 +287,7 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
 
                 <div className="flex justify-center gap-3">
                   <Button
-                    variant="outline"
-                    className="h-14 min-w-[140px] text-xl border-2 border-emerald-600/70 text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 dark:border-emerald-500 dark:text-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60"
+                    className="h-14 min-w-[140px] text-xl bg-emerald-600 text-white shadow-md hover:bg-emerald-700 focus-visible:ring-emerald-500"
                     onClick={() => void labelSnippet(currentSnippet, "no_stress")}
                     disabled={labelingId === currentSnippet.id}
                   >
@@ -296,7 +295,7 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
                     No Stress
                   </Button>
                   <Button
-                    className="h-14 min-w-[140px] text-xl bg-rose-600 text-white shadow-md hover:bg-rose-700 focus-visible:ring-rose-500"
+                    className="h-14 min-w-[140px] text-xl bg-red-600 text-white shadow-md hover:bg-red-700 focus-visible:ring-red-500"
                     onClick={() => void labelSnippet(currentSnippet, "stress")}
                     disabled={labelingId === currentSnippet.id}
                   >
