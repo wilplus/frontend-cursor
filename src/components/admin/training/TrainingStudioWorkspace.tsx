@@ -26,6 +26,7 @@ import {
   type StudentTask,
   type TasksPoolItem,
 } from "@/lib/api/admin-client";
+import { homeworkApi } from "@/lib/api/homework-client";
 import {
   DRAFT_GENERATION_MAX_RETRIES,
   getDraftGenerationBannerState,
@@ -327,6 +328,12 @@ export default function TrainingStudioWorkspace() {
   const [draftGenerationRetriesExhausted, setDraftGenerationRetriesExhausted] = useState(false);
   const [draftGenerationPolling, setDraftGenerationPolling] = useState(false);
   const [hasUsableDraftFromServer, setHasUsableDraftFromServer] = useState(false);
+  const [homeworkPlayback, setHomeworkPlayback] = useState<{
+    loading: boolean;
+    error: string | null;
+    audioUrl: string | null;
+    failed: boolean;
+  }>({ loading: false, error: null, audioUrl: null, failed: false });
   const activeStudentKeyRef = useRef<string | null>(null);
   const hasUnsavedDraftEditsRef = useRef(false);
 
@@ -834,6 +841,59 @@ export default function TrainingStudioWorkspace() {
     const fromDraft = selectedDraft?.session_id?.trim();
     return fromDraft || null;
   }, [selectedDraft?.session_id, selectedStudent?.session_id]);
+
+  useEffect(() => {
+    const sid = copilotSessionId;
+    if (!sid) {
+      setHomeworkPlayback({ loading: false, error: null, audioUrl: null, failed: false });
+      return;
+    }
+    let cancelled = false;
+    setHomeworkPlayback({ loading: true, error: null, audioUrl: null, failed: false });
+    homeworkApi
+      .getReport(sid)
+      .then(async (data) => {
+        if (cancelled) return;
+        const direct =
+          data.final_recording?.audio_url ?? data.recording?.audio_url ?? data.recording_1?.audio_url ?? null;
+        if (direct) {
+          setHomeworkPlayback({ loading: false, error: null, audioUrl: direct, failed: false });
+          return;
+        }
+        const recordingId = data.final_recording?.id ?? data.recording_1?.id;
+        if (recordingId) {
+          try {
+            const r = await homeworkApi.getRecordingPlaybackUrl(recordingId);
+            if (cancelled) return;
+            setHomeworkPlayback({
+              loading: false,
+              error: null,
+              audioUrl: r.audio_url?.trim() ? r.audio_url : null,
+              failed: false,
+            });
+          } catch {
+            if (!cancelled) {
+              setHomeworkPlayback({ loading: false, error: null, audioUrl: null, failed: false });
+            }
+          }
+          return;
+        }
+        setHomeworkPlayback({ loading: false, error: null, audioUrl: null, failed: false });
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setHomeworkPlayback({
+            loading: false,
+            error: e instanceof Error ? e.message : "Failed to load homework playback",
+            audioUrl: null,
+            failed: false,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [copilotSessionId]);
 
   /**
    * Queue rows often omit session_id; React state can also lag behind the network response.
@@ -1802,6 +1862,27 @@ export default function TrainingStudioWorkspace() {
               >
                 {saving ? "Saving..." : "Save feedback"}
               </Button>
+            </div>
+            <div className="border-b px-5 py-4">
+              <p className="mb-2 text-sm font-medium text-muted-foreground">Homework playback</p>
+              {!copilotSessionId ? (
+                <p className="text-sm text-muted-foreground">No homework session linked for this student yet.</p>
+              ) : homeworkPlayback.loading ? (
+                <p className="text-sm text-muted-foreground">Loading recording…</p>
+              ) : homeworkPlayback.error ? (
+                <p className="text-sm text-muted-foreground">{homeworkPlayback.error}</p>
+              ) : homeworkPlayback.audioUrl && !homeworkPlayback.failed ? (
+                <audio
+                  controls
+                  src={homeworkPlayback.audioUrl}
+                  className="w-full max-w-md rounded-lg border border-border"
+                  onError={() => setHomeworkPlayback((p) => ({ ...p, failed: true }))}
+                />
+              ) : homeworkPlayback.failed ? (
+                <p className="text-sm text-muted-foreground">Playback failed. The audio may be unavailable.</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Playback not available for this session yet.</p>
+              )}
             </div>
             <div className="grid gap-6 px-5 py-4 sm:grid-cols-2">
               <div className="space-y-2">
