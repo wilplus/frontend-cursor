@@ -18,6 +18,22 @@ function fmtMs(ms?: number | null): string {
   return `${(n / 1000).toFixed(1)}s`;
 }
 
+function snippetRecordingId(s: StressSnippet): string | null {
+  const id = s.recording_id ?? (s as { recordingId?: string }).recordingId;
+  return typeof id === "string" && id.trim() ? id.trim() : null;
+}
+
+function snippetInlineAudioUrl(s: StressSnippet): string | null {
+  const url = s.audio_url ?? (s as { audioUrl?: string }).audioUrl;
+  return typeof url === "string" && url.trim() ? url.trim() : null;
+}
+
+function withMediaFragment(url: string, startMs: number, endMs: number): string {
+  if (!url || endMs <= startMs) return url;
+  const base = url.includes("#") ? url.split("#")[0]! : url;
+  return `${base}#t=${startMs / 1000},${endMs / 1000}`;
+}
+
 export default function AcousticDojoWorkspace({ showHeader = true }: { showHeader?: boolean }) {
   const [sourceType, setSourceType] = useState<"student" | "internet">("student");
   const [snippets, setSnippets] = useState<StressSnippet[]>([]);
@@ -26,6 +42,8 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
   const [notesBySnippetId, setNotesBySnippetId] = useState<Record<string, string>>({});
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
   const [loading, setLoading] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [playbackLoading, setPlaybackLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadSnippets = useCallback(async () => {
@@ -122,6 +140,47 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
       ? startMs + Number(currentSnippet.snippet_duration_ms)
       : startMs);
 
+  useEffect(() => {
+    if (!currentSnippet) {
+      setPlaybackUrl(null);
+      setPlaybackLoading(false);
+      return;
+    }
+    setPlaybackUrl(null);
+    setPlaybackLoading(true);
+    const recId = snippetRecordingId(currentSnippet);
+    const inline = snippetInlineAudioUrl(currentSnippet);
+    let cancelled = false;
+
+    async function resolve() {
+      try {
+        if (recId) {
+          const { audio_url: signed } = await adminApi.getRecordingPlaybackUrl(recId);
+          if (!cancelled && typeof signed === "string" && signed.trim()) {
+            setPlaybackUrl(withMediaFragment(signed.trim(), startMs, endMs));
+            return;
+          }
+        }
+        if (!cancelled && inline) {
+          setPlaybackUrl(withMediaFragment(inline, startMs, endMs));
+        } else if (!cancelled) {
+          setPlaybackUrl(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setPlaybackUrl(inline ? withMediaFragment(inline, startMs, endMs) : null);
+        }
+      } finally {
+        if (!cancelled) setPlaybackLoading(false);
+      }
+    }
+
+    void resolve();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSnippet, startMs, endMs]);
+
   return (
     <div className="space-y-5 animate-fade-in-short">
       {showHeader ? (
@@ -192,8 +251,19 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
 
               <div className="space-y-5 px-5 pb-5">
                 <div className="rounded-xl border bg-muted/20 p-5">
-                  {currentSnippet.audio_url ? (
-                    <audio key={currentSnippet.id} controls className="w-full" src={currentSnippet.audio_url} />
+                  {playbackLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading audio…</p>
+                  ) : playbackUrl ? (
+                    <audio
+                      key={`${currentSnippet.id}-${playbackUrl}`}
+                      controls
+                      preload="metadata"
+                      className="w-full"
+                      src={playbackUrl}
+                      onError={() =>
+                        toast.error("Could not load audio. Try refresh or check the recording on the backend.")
+                      }
+                    />
                   ) : (
                     <p className="text-sm text-muted-foreground">No audio URL available for this snippet.</p>
                   )}
