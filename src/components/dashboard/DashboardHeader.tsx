@@ -15,8 +15,6 @@ const CAL_LESSON_URL = "https://cal.com/artur-willonski-zywzu7/lesson";
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
 const ADMIN_EMAIL = "artur@willonski.com";
-const CREDITS_STRIPE_URL = "https://buy.stripe.com/bJe28q4ch5VrfGCb9Z6wE0d";
-
 export default function DashboardHeader() {
   const router = useRouter();
   const supabase = createClient();
@@ -147,16 +145,14 @@ export default function DashboardHeader() {
           )}
         </div>
         {credits !== null && (
-          <a
-            href={CREDITS_STRIPE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/dashboard/pricing"
             title="Top up credits"
             className="flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <span className="text-base leading-none">🎓</span>
             <span>{credits}</span>
-          </a>
+          </Link>
         )}
         <div className="relative flex shrink-0" ref={menuRef}>
           <Button
