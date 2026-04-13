@@ -35,10 +35,12 @@ export function formatClaimErrorBody(body: unknown): string | null {
 }
 
 /** If true, claim won't be fixed by polling status — show error and stop. */
-function shouldAbortPollingAfterClaim(status: number, body: unknown): boolean {
+function shouldAbortPollingAfterClaim(status: number, _body: unknown): boolean {
   if (status === 401 || status === 403 || status === 404) return true;
   if (status === 422) return false;
   if (status === 400 || status === 503) return true;
+  /**5xx: backend/BFF error — do not spin loading + poll ~45s; show error and fix Railway/Stripe. */
+  if (status >= 500) return true;
   return false;
 }
 
