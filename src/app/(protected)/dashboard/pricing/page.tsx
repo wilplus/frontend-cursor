@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import CreditPricingCards from "@/components/credits/CreditPricingCards";
+import { getCheckoutCreditPackDisplay } from "@/lib/stripe/checkoutCreditPacks.server";
 
 export const metadata: Metadata = {
   title: "Credits & pricing | Willab",
 };
 
 export default function PricingPage() {
+  const packs = getCheckoutCreditPackDisplay();
   return (
     <DashboardShell>
       <div className="w-full max-w-3xl space-y-2 pb-8 text-center sm:space-y-3">
@@ -16,7 +18,7 @@ export default function PricingPage() {
         </p>
       </div>
       <div className="w-full max-w-4xl">
-        <CreditPricingCards />
+        <CreditPricingCards packs={packs} />
       </div>
     </DashboardShell>
   );
