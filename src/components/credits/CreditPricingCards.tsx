@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { homeworkApi } from "@/lib/api/homework-client";
+import { PRE_CHECKOUT_CREDITS_KEY } from "@/lib/homework/pollCreditsAfterCheckout";
 import type { CreditPackDisplay } from "@/lib/stripe/creditPacks";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,14 @@ export default function CreditPricingCards({ packs }: { packs: CreditPackDisplay
         return;
       }
       if (data.url) {
+        try {
+          const status = await homeworkApi.getStatus();
+          if (status?.credits != null && Number.isFinite(status.credits)) {
+            sessionStorage.setItem(PRE_CHECKOUT_CREDITS_KEY, String(status.credits));
+          }
+        } catch {
+          // ignore — poll fallback still works without baseline
+        }
         window.location.href = data.url;
         return;
       }

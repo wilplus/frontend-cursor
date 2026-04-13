@@ -3,7 +3,10 @@
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT } from "@/lib/willabWindowEvents";
+import {
+  WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
+  type CreditsCheckoutSuccessDetail,
+} from "@/lib/willabWindowEvents";
 
 /** Shows a toast after Stripe redirects to `/dashboard?credits=success|cancelled` and clears the query param. */
 export default function CreditsCheckoutReturnToast() {
@@ -18,7 +21,13 @@ export default function CreditsCheckoutReturnToast() {
     handled.current = true;
 
     if (raw === "success") {
-      window.dispatchEvent(new Event(WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT));
+      const checkoutSessionId = searchParams.get("session_id");
+      window.dispatchEvent(
+        new CustomEvent<CreditsCheckoutSuccessDetail>(
+          WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
+          { detail: { checkoutSessionId } }
+        )
+      );
     } else {
       toast.message("Checkout cancelled", {
         description: "No charge was made. You can choose a pack anytime from the credits page.",
@@ -27,6 +36,7 @@ export default function CreditsCheckoutReturnToast() {
 
     const next = new URLSearchParams(searchParams.toString());
     next.delete("credits");
+    next.delete("session_id");
     const q = next.toString();
     router.replace(q ? `/dashboard?${q}` : "/dashboard", { scroll: false });
   }, [router, searchParams]);
