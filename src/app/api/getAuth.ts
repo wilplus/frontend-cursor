@@ -1,5 +1,6 @@
 import "server-only";
 import type { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 /** Private URL for BFF→backend (e.g. Railway: http://backend.railway.internal:PORT). When set, used instead of public URL. */
@@ -131,11 +132,60 @@ export async function getV2AccessToken(req: NextRequest): Promise<string | null>
 }
 
 /**
- * Get the current user's id (for BFF routes that need to call backend as "current user").
- * Uses Supabase session from cookies. Requires backend to allow GET /v2/admin/students/:id
- * when id === token's user id (in addition to admin-for-any-user).
+ * Supabase user id for Route Handlers (e.g. Stripe checkout).
+ * 1) Authorization: Bearer … → validate JWT with getUser(jwt) so clients that send the token (not only cookies) match Stripe client_reference_id.
+ * 2) Cookie session via next/headers cookies().getAll() / setAll (Supabase SSR).
  */
 export async function getCurrentUserId(req: NextRequest): Promise<string | null> {
-  const identity = await getCurrentUserIdentity(req);
-  return identity.id;
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const jwt = authHeader.slice(7).trim();
+    if (jwt && jwt !== "undefined" && jwt !== "null") {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return [];
+            },
+            setAll() {},
+          },
+        }
+      );
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(jwt);
+      if (!error && user?.id) return user.id;
+    }
+  }
+
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            /* Route handlers may not allow mutating cookies in all contexts */
+          }
+        },
+      },
+    }
+  );
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user?.id) return null;
+  return user.id;
 }
