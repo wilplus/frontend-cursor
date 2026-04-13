@@ -51,9 +51,14 @@ export default function DashboardHeader() {
           });
           return;
         }
+        if (result.reason === "claim_failed" && result.message) {
+          toast.error(result.message, { id: toastId, duration: 14_000 });
+          return;
+        }
         toast.error(
-          "We could not confirm your new balance yet. Refresh the page in a moment, or contact support if credits stay wrong.",
-          { id: toastId, duration: 10_000 }
+          result.message ??
+            "We could not confirm your new balance yet. Refresh the page in a moment, or contact support if credits stay wrong.",
+          { id: toastId, duration: 12_000 }
         );
       })();
     };

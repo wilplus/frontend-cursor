@@ -22,6 +22,12 @@ export default function CreditsCheckoutReturnToast() {
 
     if (raw === "success") {
       const checkoutSessionId = searchParams.get("session_id");
+      if (!checkoutSessionId?.trim()) {
+        toast.error(
+          "Payment may have succeeded, but the return URL is missing the Stripe session id (?session_id=). Credits cannot be claimed automatically — refresh after a minute or contact support.",
+          { duration: 16_000 }
+        );
+      }
       window.dispatchEvent(
         new CustomEvent<CreditsCheckoutSuccessDetail>(
           WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
