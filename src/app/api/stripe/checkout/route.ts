@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getCurrentUserId } from "@/app/api/getAuth";
-import { CREDIT_PACKS } from "@/lib/stripe/creditPacks";
+import { getCheckoutCreditPacks } from "@/lib/stripe/checkoutCreditPacks.server";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
       ? (body as { priceId: string }).priceId.trim()
       : "";
 
-  if (!priceId || CREDIT_PACKS[priceId] === undefined) {
+  const packs = getCheckoutCreditPacks();
+  if (!priceId || packs[priceId] === undefined) {
     return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });
   }
 

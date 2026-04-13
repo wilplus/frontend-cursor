@@ -5,11 +5,11 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { CREDIT_PACK_DISPLAY } from "@/lib/stripe/creditPacks";
+import type { CreditPackDisplay } from "@/lib/stripe/creditPacks";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default function CreditPricingCards() {
+export default function CreditPricingCards({ packs }: { packs: CreditPackDisplay[] }) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const supabase = createClient();
 
@@ -52,7 +52,7 @@ export default function CreditPricingCards() {
         Most students pick <span className="font-semibold text-foreground">Standard</span> — best credits per dollar.
       </p>
       <div className="grid gap-4 sm:grid-cols-3 sm:items-stretch sm:gap-3">
-        {CREDIT_PACK_DISPLAY.map((pack) => {
+        {packs.map((pack) => {
           const isMiddle = pack.tier === "standard";
           return (
             <div
