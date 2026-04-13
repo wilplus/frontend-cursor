@@ -10,6 +10,7 @@ import { homeworkApi } from "@/lib/api/homework-client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT } from "@/lib/willabWindowEvents";
 
 const CAL_LESSON_URL = "https://cal.com/artur-willonski-zywzu7/lesson";
 const SUPPORT_EMAIL = "artur@willonski.com";
@@ -26,6 +27,58 @@ export default function DashboardHeader() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const openByKeyboardRef = useRef(false);
+  const creditsRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    creditsRef.current = credits;
+  }, [credits]);
+
+  /** After Stripe checkout, poll until homework status reflects new credits (backend webhook is async). */
+  useEffect(() => {
+    const onCheckoutSuccess = () => {
+      void (async () => {
+        const toastId = toast.loading("Payment received — updating your credits…");
+        const delayMs = 1200;
+        const maxAttempts = 40;
+        const before = creditsRef.current;
+
+        async function readCredits(): Promise<number | null> {
+          try {
+            const status = await homeworkApi.getStatus();
+            return status?.credits != null ? status.credits : null;
+          } catch {
+            return null;
+          }
+        }
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          if (attempt > 1) {
+            await new Promise((r) => setTimeout(r, delayMs));
+          }
+          const next = await readCredits();
+          if (typeof next !== "number") continue;
+          setCredits(next);
+
+          const increased = typeof before === "number" && next > before;
+          const appeared =
+            before === null && attempt >= 2 && typeof next === "number";
+          if (increased || appeared) {
+            toast.success(`You now have ${next} credits.`, { id: toastId });
+            return;
+          }
+        }
+
+        toast.error(
+          "We could not confirm your new balance yet. Refresh the page in a moment, or contact support if credits stay wrong.",
+          { id: toastId, duration: 10_000 }
+        );
+      })();
+    };
+
+    window.addEventListener(WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT, onCheckoutSuccess);
+    return () =>
+      window.removeEventListener(WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT, onCheckoutSuccess);
+  }, []);
 
   /** Credits: single source of truth — same field as homework flow (`GET /homework/session/status`). */
   useEffect(() => {
