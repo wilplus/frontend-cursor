@@ -28,13 +28,26 @@ export async function POST(req: NextRequest) {
     body = {};
   }
 
-  const upstreamRes = await fetch(`${backend}/v2/homework/stripe/claim-checkout`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body && typeof body === "object" ? body : {}),
-  });
+  let upstreamRes: Response;
+  try {
+    upstreamRes = await fetch(`${backend}/v2/homework/stripe/claim-checkout`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body && typeof body === "object" ? body : {}),
+    });
+  } catch (e) {
+    console.error("[homework/stripe/claim-checkout] upstream fetch failed", e);
+    return NextResponse.json(
+      {
+        code: "BFF_UPSTREAM_UNREACHABLE",
+        error:
+          "Could not reach the API server. Set NEXT_PUBLIC_API_URL, NEXT_PUBLIC_BACKEND_URL, or BACKEND_URL to your Railway URL.",
+      },
+      { status: 502 }
+    );
+  }
   return proxyResponse(upstreamRes);
 }
