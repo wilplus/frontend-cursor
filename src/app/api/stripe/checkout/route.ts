@@ -68,6 +68,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url });
   } catch (e) {
     console.error("[stripe/checkout]", e);
+    if (e instanceof Stripe.errors.StripeError) {
+      const code = e.statusCode;
+      const clientErr = code != null && code >= 400 && code < 500;
+      return NextResponse.json(
+        { error: e.message },
+        { status: clientErr ? code : 502 }
+      );
+    }
     return NextResponse.json({ error: "Failed to create checkout session" }, { status: 502 });
   }
 }
