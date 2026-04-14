@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronRight, PencilLine, Send, Sparkles, Waves } from "lucide-react";
+import { Archive, Check, ChevronRight, PencilLine, Send, Sparkles, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,6 +42,9 @@ import {
 type QueueFilter = "all" | "pending" | "audit" | "done";
 type PipelineStage = "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed";
 
+const TRAINING_STUDIO_QUEUE_ARCHIVED_KEY = "training-studio-queue-archived-v1";
+const QUEUE_POLL_INTERVAL_MS = 25_000;
+
 const REFERENCE_VIDEOS_PAGE_SIZE = 10;
 const PIPELINE_TERMINAL_STAGES = new Set<PipelineStage>(["sent", "failed"]);
 const PIPELINE_STAGES: PipelineStage[] = [
@@ -80,35 +83,23 @@ function formatName(student: CopilotStudentQueueItem): string {
   );
 }
 
-/** Best-effort lesson submission instant for sorting / display (backend field names vary). */
-function queueItemSubmissionTimeMs(student: CopilotStudentQueueItem): number {
-  const raw =
-    student.session_created_at ??
-    student.lesson_submitted_at ??
-    student.submitted_at ??
-    student.created_at ??
-    student.updated_at ??
-    student.completed_at ??
-    student.profile?.completed_at ??
-    null;
+function queueArchiveKey(student: CopilotStudentQueueItem): string {
+  return `${student.student_id}:${student.session_id ?? ""}`;
+}
+
+/** Session / queue row creation time for sorting (not lesson submission aliases). */
+function queueItemSessionTimeMs(student: CopilotStudentQueueItem): number {
+  const raw = student.session_created_at ?? student.created_at ?? null;
   if (!raw) return Number.POSITIVE_INFINITY;
   const t = new Date(raw).getTime();
   return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
 }
 
-function formatLessonSubmissionDate(student: CopilotStudentQueueItem): string {
-  const raw =
-    student.session_created_at ??
-    student.lesson_submitted_at ??
-    student.submitted_at ??
-    student.created_at ??
-    student.updated_at ??
-    student.completed_at ??
-    student.profile?.completed_at ??
-    null;
-  if (!raw) return "Submission date unknown";
+function formatSessionCreatedDate(student: CopilotStudentQueueItem): string {
+  const raw = student.session_created_at ?? student.created_at ?? null;
+  if (!raw) return "Session date unknown";
   const when = new Date(raw);
-  if (Number.isNaN(when.getTime())) return "Submission date unknown";
+  if (Number.isNaN(when.getTime())) return "Session date unknown";
   return when.toLocaleString(undefined, {
     year: "numeric",
     month: "short",
@@ -118,22 +109,15 @@ function formatLessonSubmissionDate(student: CopilotStudentQueueItem): string {
   });
 }
 
-function queueStateDot(state: CopilotStudentQueueItem["state"]): string {
-  if (state === "Sent") return "bg-emerald-500";
-  if (state === "Ready") return "bg-amber-500";
+/** Red = not yet reviewed (Draft), yellow = in progress / needs review (Ready), green = sent. */
+function coachQueueStatusDotClass(student: CopilotStudentQueueItem): string {
+  if (student.state === "Sent") return "bg-emerald-500";
+  if (student.state === "Ready") return "bg-amber-400";
   return "bg-rose-500";
 }
 
 function queueRecency(student: CopilotStudentQueueItem): string {
-  const raw =
-    student.session_created_at ??
-    student.lesson_submitted_at ??
-    student.submitted_at ??
-    student.created_at ??
-    student.updated_at ??
-    student.completed_at ??
-    student.profile?.completed_at ??
-    null;
+  const raw = student.session_created_at ?? student.created_at ?? null;
   if (!raw) return "recently";
   const when = new Date(raw);
   if (Number.isNaN(when.getTime())) return "recently";
@@ -308,6 +292,7 @@ export default function TrainingStudioWorkspace() {
   const [selectedDraft, setSelectedDraft] = useState<CopilotStudentDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingQueue, setLoadingQueue] = useState(false);
+  const [archivedQueueKeys, setArchivedQueueKeys] = useState<Set<string>>(() => new Set());
   const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
   const [selectedArchetype, setSelectedArchetype] = useState<string>(LEARNING_ARCHETYPES[0].key);
   const [profileJustificationInput, setProfileJustificationInput] = useState("");
@@ -379,12 +364,27 @@ export default function TrainingStudioWorkspace() {
   }>({ loading: false, error: null, audioUrl: null, failed: false });
   const activeStudentKeyRef = useRef<string | null>(null);
   const hasUnsavedDraftEditsRef = useRef(false);
+  const queuePollInFlightRef = useRef(false);
 
   useBodyScrollLock(taskModalOpen);
 
   useEffect(() => {
     setIsMounted(true);
     return () => setIsMounted(false);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TRAINING_STUDIO_QUEUE_ARCHIVED_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      setArchivedQueueKeys(
+        new Set(parsed.filter((x): x is string => typeof x === "string"))
+      );
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const loadCohorts = useCallback(async () => {
@@ -399,10 +399,17 @@ export default function TrainingStudioWorkspace() {
     }
   }, []);
 
-  const loadStudents = useCallback(async (cohortIds: string[]) => {
+  const loadStudents = useCallback(async (cohortIds: string[], options?: { quiet?: boolean }) => {
+    const quiet = options?.quiet === true;
+    if (quiet && queuePollInFlightRef.current) {
+      return [] as CopilotStudentQueueItem[];
+    }
+    if (quiet) queuePollInFlightRef.current = true;
+
     if (cohortIds.length === 0) {
       setStudents([]);
       setSelectedStudent(null);
+      if (quiet) queuePollInFlightRef.current = false;
       return [] as CopilotStudentQueueItem[];
     }
 
@@ -425,7 +432,7 @@ export default function TrainingStudioWorkspace() {
       return list;
     };
 
-    setLoadingQueue(true);
+    if (!quiet) setLoadingQueue(true);
     try {
       let firstErrorShown = false;
       await Promise.all(
@@ -441,7 +448,7 @@ export default function TrainingStudioWorkspace() {
             }
             applyList();
           } catch (error) {
-            if (!firstErrorShown) {
+            if (!firstErrorShown && !quiet) {
               firstErrorShown = true;
               toast.error(error instanceof Error ? error.message : "Failed to load students");
             }
@@ -450,8 +457,25 @@ export default function TrainingStudioWorkspace() {
       );
       return applyList();
     } finally {
-      setLoadingQueue(false);
+      if (!quiet) setLoadingQueue(false);
+      if (quiet) queuePollInFlightRef.current = false;
     }
+  }, []);
+
+  const archiveStudentQueueRow = useCallback((student: CopilotStudentQueueItem) => {
+    const key = queueArchiveKey(student);
+    setArchivedQueueKeys((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      try {
+        localStorage.setItem(TRAINING_STUDIO_QUEUE_ARCHIVED_KEY, JSON.stringify([...next]));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+    toast.success("Session hidden from this list");
   }, []);
 
   const profileLearningMeta = useMemo(() => {
@@ -664,6 +688,15 @@ export default function TrainingStudioWorkspace() {
   }, [cohorts, loadStudents]);
 
   useEffect(() => {
+    const cohortIds = cohorts.map((cohort) => cohort.id).filter(Boolean);
+    if (cohortIds.length === 0) return;
+    const interval = window.setInterval(() => {
+      void loadStudents(cohortIds, { quiet: true });
+    }, QUEUE_POLL_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [cohorts, loadStudents]);
+
+  useEffect(() => {
     if (!selectedStudent) {
       void loadDraft(null);
       return;
@@ -872,7 +905,7 @@ export default function TrainingStudioWorkspace() {
     return [...students].sort((a, b) => {
       const stateDiff = statusOrder[a.state] - statusOrder[b.state];
       if (stateDiff !== 0) return stateDiff;
-      const timeDiff = queueItemSubmissionTimeMs(a) - queueItemSubmissionTimeMs(b);
+      const timeDiff = queueItemSessionTimeMs(a) - queueItemSessionTimeMs(b);
       if (timeDiff !== 0) return timeDiff;
       const queueA = a.queue_position ?? Number.MAX_SAFE_INTEGER;
       const queueB = b.queue_position ?? Number.MAX_SAFE_INTEGER;
@@ -881,20 +914,42 @@ export default function TrainingStudioWorkspace() {
     });
   }, [students]);
 
+  const studentsMinusArchived = useMemo(
+    () => sortedStudents.filter((s) => !archivedQueueKeys.has(queueArchiveKey(s))),
+    [sortedStudents, archivedQueueKeys]
+  );
+
   const queueCounts = useMemo(() => {
-    const all = sortedStudents.length;
-    const pending = sortedStudents.filter((item) => item.state === "Draft").length;
-    const audit = sortedStudents.filter((item) => item.state === "Ready").length;
-    const done = sortedStudents.filter((item) => item.state === "Sent").length;
+    const list = studentsMinusArchived;
+    const all = list.length;
+    const pending = list.filter((item) => item.state === "Draft").length;
+    const audit = list.filter((item) => item.state === "Ready").length;
+    const done = list.filter((item) => item.state === "Sent").length;
     return { all, pending, audit, done };
-  }, [sortedStudents]);
+  }, [studentsMinusArchived]);
 
   const filteredStudents = useMemo(() => {
-    if (queueFilter === "all") return sortedStudents;
-    if (queueFilter === "pending") return sortedStudents.filter((item) => item.state === "Draft");
-    if (queueFilter === "audit") return sortedStudents.filter((item) => item.state === "Ready");
-    return sortedStudents.filter((item) => item.state === "Sent");
-  }, [queueFilter, sortedStudents]);
+    const list = studentsMinusArchived;
+    if (queueFilter === "all") return list;
+    if (queueFilter === "pending") return list.filter((item) => item.state === "Draft");
+    if (queueFilter === "audit") return list.filter((item) => item.state === "Ready");
+    return list.filter((item) => item.state === "Sent");
+  }, [queueFilter, studentsMinusArchived]);
+
+  useEffect(() => {
+    if (!selectedStudent) return;
+    if (!archivedQueueKeys.has(queueArchiveKey(selectedStudent))) return;
+    const base = sortedStudents.filter((s) => !archivedQueueKeys.has(queueArchiveKey(s)));
+    const visible =
+      queueFilter === "all"
+        ? base
+        : queueFilter === "pending"
+          ? base.filter((item) => item.state === "Draft")
+          : queueFilter === "audit"
+            ? base.filter((item) => item.state === "Ready")
+            : base.filter((item) => item.state === "Sent");
+    setSelectedStudent(visible[0] ?? null);
+  }, [archivedQueueKeys, queueFilter, selectedStudent, sortedStudents]);
 
   const canLoadPreviousReferenceVideos = referenceVideosOffset > 0;
   const canLoadNextReferenceVideos =
@@ -1846,16 +1901,35 @@ export default function TrainingStudioWorkspace() {
                   >
                     <div className="mb-1 flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-semibold leading-none">{formatName(student)}</p>
-                      {student.state === "Sent" ? (
-                        <span className="inline-grid h-5 w-5 place-items-center rounded bg-emerald-500 text-white">
-                          <Check className="h-3 w-3" />
-                        </span>
-                      ) : (
-                        <span className={`h-3 w-3 rounded-full ${queueStateDot(student.state)}`} />
-                      )}
+                      <div className="flex shrink-0 items-center gap-1">
+                        {queueFilter === "all" ? (
+                          <button
+                            type="button"
+                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-label="Hide session from list"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              archiveStudentQueueRow(student);
+                            }}
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                        <span
+                          className={`h-3 w-3 rounded-full ${coachQueueStatusDotClass(student)}`}
+                          title={
+                            student.state === "Sent"
+                              ? "Homework sent"
+                              : student.state === "Ready"
+                                ? "In progress / needs review"
+                                : "Not reviewed yet"
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <p>{formatLessonSubmissionDate(student)}</p>
+                      <p>{formatSessionCreatedDate(student)}</p>
                       <p>{queueRecency(student)}</p>
                     </div>
                     <p className="text-xs text-destructive/90">
@@ -1877,7 +1951,7 @@ export default function TrainingStudioWorkspace() {
               ) : null}
               <p className="mt-1 text-xs text-muted-foreground">
                 {selectedStudent
-                  ? `${formatLessonSubmissionDate(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
+                  ? `${formatSessionCreatedDate(selectedStudent)} · Score: ${displayScorePercent != null ? `${displayScorePercent}%` : "—"}`
                   : "No student selected"}
               </p>
               {selectedStudent ? (
