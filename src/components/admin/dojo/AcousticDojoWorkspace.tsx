@@ -1,11 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Check, RefreshCcw, UploadCloud, X } from "lucide-react";
+import {
+  Check,
+  RefreshCcw,
+  RotateCcw,
+  SkipForward,
+  UploadCloud,
+  Wand2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminApi, type StressSnippet } from "@/lib/api/admin-client";
+
+type SourceFilter = "all" | "student" | "internet";
+type LabelFilter = "unlabeled" | "labeled" | "all";
+type SortOption = "newest" | "oldest";
 
 interface RecentReview {
   snippetId: string;
@@ -13,37 +25,59 @@ interface RecentReview {
   label: "Stress" | "No Stress";
 }
 
-function fmtMs(ms?: number | null): string {
-  const n = Number(ms || 0);
-  return `${(n / 1000).toFixed(1)}s`;
+const REGEN_MAX_SNIPPETS = 8;
+const REGEN_CLIP_SECONDS = 5;
+
+/**
+ * Format a seconds field with a legacy `_ms` fallback. Backend emits both, but
+ * older rows may have `*_sec === 0` with only `*_ms` populated.
+ */
+function secondsWithMsFallback(seconds: number | null | undefined, ms: number | null | undefined): number {
+  if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) return seconds;
+  if (typeof ms === "number" && Number.isFinite(ms)) return ms / 1000;
+  return 0;
 }
 
-function snippetRecordingId(s: StressSnippet): string | null {
-  const id = s.recording_id ?? (s as { recordingId?: string }).recordingId;
-  return typeof id === "string" && id.trim() ? id.trim() : null;
+function snippetStartSec(s: StressSnippet): number {
+  return secondsWithMsFallback(s.start_sec ?? s.startSec, s.start_ms);
 }
 
-function snippetInlineAudioUrl(s: StressSnippet): string | null {
-  const url = s.audio_url ?? (s as { audioUrl?: string }).audioUrl;
-  return typeof url === "string" && url.trim() ? url.trim() : null;
+function snippetEndSec(s: StressSnippet): number {
+  return secondsWithMsFallback(s.end_sec ?? s.endSec, s.end_ms);
 }
 
-function withMediaFragment(url: string, startMs: number, endMs: number): string {
-  if (!url || endMs <= startMs) return url;
-  const base = url.includes("#") ? url.split("#")[0]! : url;
-  return `${base}#t=${startMs / 1000},${endMs / 1000}`;
+function snippetDurationSec(s: StressSnippet): number {
+  return secondsWithMsFallback(s.duration_sec ?? s.durationSec, s.duration_ms);
+}
+
+function formatTimingRange(s: StressSnippet): string {
+  const start = snippetStartSec(s);
+  const end = snippetEndSec(s);
+  const duration = snippetDurationSec(s);
+  return `${start.toFixed(1)}s – ${end.toFixed(1)}s (${duration.toFixed(1)}s)`;
 }
 
 export default function AcousticDojoWorkspace({ showHeader = true }: { showHeader?: boolean }) {
-  const [sourceType, setSourceType] = useState<"student" | "internet">("student");
+  const [sourceType, setSourceType] = useState<SourceFilter>("student");
+  const [labelState, setLabelState] = useState<LabelFilter>("unlabeled");
+  const [sort, setSort] = useState<SortOption>("newest");
+  const [hideSkipped, setHideSkipped] = useState(true);
+  const [recordingIdFilter, setRecordingIdFilter] = useState<string>("");
+
   const [snippets, setSnippets] = useState<StressSnippet[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
   const [uploading, setUploading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenTargetId, setRegenTargetId] = useState("");
+
+  const [autoExtractEnabled, setAutoExtractEnabled] = useState<boolean | null>(null);
+  const [autoExtractSaving, setAutoExtractSaving] = useState(false);
+
   const [labelingId, setLabelingId] = useState<string | null>(null);
   const [notesBySnippetId, setNotesBySnippetId] = useState<Record<string, string>>({});
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
-  const [playbackLoading, setPlaybackLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadSnippets = useCallback(async () => {
@@ -51,173 +85,309 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
     try {
       const response = await adminApi.listStressSnippets({
         source_type: sourceType,
-        label_state: "unlabeled",
-        limit: 40,
+        label_state: labelState,
+        sort,
+        exclude_queue_skipped: hideSkipped,
+        recording_id: recordingIdFilter.trim() || undefined,
+        limit: 50,
         offset: 0,
       });
-      setSnippets(response.snippets ?? []);
+      setSnippets(response.snippets);
+      setTotalCount(response.count);
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to load snippets");
     } finally {
       setLoading(false);
     }
-  }, [sourceType]);
+  }, [sourceType, labelState, sort, hideSkipped, recordingIdFilter]);
 
   useEffect(() => {
     void loadSnippets();
   }, [loadSnippets]);
 
-  const unlabeledCount = useMemo(() => snippets.filter((item) => !item.coach_label).length, [snippets]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSettings() {
+      try {
+        const res = await adminApi.getStressSnippetSettings();
+        if (!cancelled) setAutoExtractEnabled(Boolean(res.auto_extract_enabled));
+      } catch (error) {
+        if (!cancelled) console.error(error);
+      }
+    }
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleAutoExtract = useCallback(async () => {
+    if (autoExtractEnabled == null) return;
+    const next = !autoExtractEnabled;
+    setAutoExtractSaving(true);
+    setAutoExtractEnabled(next); // optimistic
+    try {
+      const res = await adminApi.updateStressSnippetSettings(next);
+      setAutoExtractEnabled(Boolean(res.auto_extract_enabled));
+      toast.success(`Auto-extract ${next ? "enabled" : "disabled"}`);
+    } catch (error) {
+      setAutoExtractEnabled(!next); // roll back
+      toast.error(error instanceof Error ? error.message : "Failed to update setting");
+    } finally {
+      setAutoExtractSaving(false);
+    }
+  }, [autoExtractEnabled]);
 
   const onPickUpload = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
-  const uploadFile = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) return;
+  const uploadFile = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      if (!file) return;
 
-    const formData = new FormData();
-    formData.set("audio_file", file);
-    formData.set("source_kind", "coach_upload");
-    formData.set("overall_quality", "good");
-    formData.set("confidence_score", "8");
-    formData.set("coach_style_score", "8");
-    formData.set("rubric_version", "v1");
-    formData.set("language_code", "en");
+      const formData = new FormData();
+      formData.set("audio_file", file);
+      formData.set("source_kind", "coach_upload");
+      formData.set("overall_quality", "good");
+      formData.set("confidence_score", "8");
+      formData.set("coach_style_score", "8");
+      formData.set("rubric_version", "v1");
+      formData.set("language_code", "en");
 
-    setUploading(true);
-    try {
-      const response = await adminApi.uploadExternalRecording(formData);
-      const generated = Number(response.generated_snippets_count ?? 0);
-      toast.success(
-        generated > 0
-          ? `Uploaded. Generated ${generated} snippet${generated === 1 ? "" : "s"}.`
-          : "Uploaded recording."
-      );
-      setSourceType("internet");
-      await loadSnippets();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      event.target.value = "";
-    }
-  }, [loadSnippets]);
+      setUploading(true);
+      try {
+        const response = await adminApi.uploadExternalRecording(formData);
+        const generated = Number(response.generated_snippets_count ?? 0);
+        toast.success(
+          generated > 0
+            ? `Uploaded. Generated ${generated} snippet${generated === 1 ? "" : "s"}.`
+            : "Uploaded recording."
+        );
+        setSourceType("internet");
+        await loadSnippets();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Upload failed");
+      } finally {
+        setUploading(false);
+        event.target.value = "";
+      }
+    },
+    [loadSnippets]
+  );
 
-  const labelSnippet = useCallback(async (snippet: StressSnippet, label: "stress" | "no_stress") => {
-    setLabelingId(snippet.id);
-    try {
-      const notes = (notesBySnippetId[snippet.id] || "").trim();
-      await adminApi.labelStressSnippet(snippet.id, {
-        label,
-        notes: notes || null,
-      });
-      const reviewLabel: RecentReview["label"] = label === "stress" ? "Stress" : "No Stress";
-      setRecentReviews((prev) => [
-        {
-          snippetId: snippet.id,
-          source: snippet.source_type ?? "unknown",
-          label: reviewLabel,
-        },
-        ...prev,
-      ].slice(0, 8));
+  const labelSnippet = useCallback(
+    async (snippet: StressSnippet, label: "stress" | "no_stress") => {
+      setLabelingId(snippet.id);
+      // optimistic: remove from current list (it no longer matches `unlabeled`)
+      const prevSnippets = snippets;
       setSnippets((prev) => prev.filter((item) => item.id !== snippet.id));
-      toast.success("Label saved");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save label");
-    } finally {
-      setLabelingId(null);
-    }
-  }, [notesBySnippetId]);
+      try {
+        const notes = (notesBySnippetId[snippet.id] || "").trim();
+        await adminApi.labelStressSnippet(snippet.id, {
+          label,
+          notes: notes || null,
+        });
+        const reviewLabel: RecentReview["label"] = label === "stress" ? "Stress" : "No Stress";
+        setRecentReviews((prev) =>
+          [
+            {
+              snippetId: snippet.id,
+              source: snippet.source_type ?? "unknown",
+              label: reviewLabel,
+            },
+            ...prev,
+          ].slice(0, 8)
+        );
+        toast.success("Label saved");
+      } catch (error) {
+        setSnippets(prevSnippets); // roll back
+        toast.error(error instanceof Error ? error.message : "Failed to save label");
+      } finally {
+        setLabelingId(null);
+      }
+    },
+    [notesBySnippetId, snippets]
+  );
+
+  const undoLabel = useCallback(
+    async (snippet: StressSnippet) => {
+      setLabelingId(snippet.id);
+      const prevSnippets = snippets;
+      setSnippets((prev) =>
+        prev.map((item) =>
+          item.id === snippet.id
+            ? { ...item, coach_label: null, coach_label_notes: null }
+            : item
+        )
+      );
+      try {
+        await adminApi.unlabelStressSnippet(snippet.id);
+        toast.success("Label removed");
+      } catch (error) {
+        setSnippets(prevSnippets);
+        toast.error(error instanceof Error ? error.message : "Failed to undo label");
+      } finally {
+        setLabelingId(null);
+      }
+    },
+    [snippets]
+  );
+
+  const toggleSkip = useCallback(
+    async (snippet: StressSnippet) => {
+      const willSkip = !snippet.queue_skipped;
+      setLabelingId(snippet.id);
+      const prevSnippets = snippets;
+      setSnippets((prev) =>
+        prev.map((item) =>
+          item.id === snippet.id ? { ...item, queue_skipped: willSkip } : item
+        )
+      );
+      try {
+        if (willSkip) {
+          await adminApi.queueSkipStressSnippet(snippet.id);
+        } else {
+          await adminApi.queueUnskipStressSnippet(snippet.id);
+        }
+        toast.success(willSkip ? "Snippet skipped" : "Snippet restored");
+        if (willSkip && hideSkipped) {
+          setSnippets((prev) => prev.filter((item) => item.id !== snippet.id));
+        }
+      } catch (error) {
+        setSnippets(prevSnippets);
+        toast.error(error instanceof Error ? error.message : "Failed to update skip state");
+      } finally {
+        setLabelingId(null);
+      }
+    },
+    [snippets, hideSkipped]
+  );
+
+  const regenerateForRecording = useCallback(
+    async (recordingId: string) => {
+      const trimmed = recordingId.trim();
+      if (!trimmed) {
+        toast.error("Recording ID required");
+        return;
+      }
+      setRegenerating(true);
+      try {
+        const res = await adminApi.generateStressSnippets(trimmed, {
+          max_snippets: REGEN_MAX_SNIPPETS,
+          clip_seconds: REGEN_CLIP_SECONDS,
+          clear_existing: true,
+        });
+        const count = Number(res.generated_count ?? res.snippets?.length ?? 0);
+        toast.success(
+          count > 0
+            ? `Regenerated ${count} snippet${count === 1 ? "" : "s"}.`
+            : "Regenerated (no snippets produced)."
+        );
+        setRegenTargetId("");
+        await loadSnippets();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Regenerate failed");
+      } finally {
+        setRegenerating(false);
+      }
+    },
+    [loadSnippets]
+  );
 
   const currentSnippet = useMemo(() => snippets[0] ?? null, [snippets]);
-  const startMs = currentSnippet?.snippet_start_ms ?? 0;
-  const endMs =
-    currentSnippet?.snippet_end_ms ??
-    (currentSnippet?.snippet_duration_ms != null
-      ? startMs + Number(currentSnippet.snippet_duration_ms)
-      : startMs);
 
-  useEffect(() => {
-    if (!currentSnippet) {
-      setPlaybackUrl(null);
-      setPlaybackLoading(false);
-      return;
+  const emptyStateMessage = useMemo(() => {
+    if (loading) return null;
+    if (snippets.length > 0) return null;
+    if (recordingIdFilter.trim()) {
+      return "This recording has no snippets — click Regenerate to produce fresh clips.";
     }
-    setPlaybackUrl(null);
-    setPlaybackLoading(true);
-    const recId = snippetRecordingId(currentSnippet);
-    const inline = snippetInlineAudioUrl(currentSnippet);
-    let cancelled = false;
-
-    async function resolve() {
-      try {
-        if (recId) {
-          const { audio_url: signed } = await adminApi.getRecordingPlaybackUrl(recId);
-          if (!cancelled && typeof signed === "string" && signed.trim()) {
-            setPlaybackUrl(withMediaFragment(signed.trim(), startMs, endMs));
-            return;
-          }
-        }
-        if (!cancelled && inline) {
-          setPlaybackUrl(withMediaFragment(inline, startMs, endMs));
-        } else if (!cancelled) {
-          setPlaybackUrl(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setPlaybackUrl(inline ? withMediaFragment(inline, startMs, endMs) : null);
-        }
-      } finally {
-        if (!cancelled) setPlaybackLoading(false);
-      }
+    if (autoExtractEnabled === false && sourceType !== "internet") {
+      return "Auto-extract is off — enable it to start seeing student snippets.";
     }
-
-    void resolve();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentSnippet, startMs, endMs]);
+    return "No snippets match this filter.";
+  }, [loading, snippets.length, recordingIdFilter, autoExtractEnabled, sourceType]);
 
   return (
     <div className="space-y-5 animate-fade-in-short">
       {showHeader ? (
-        <div>
-          <h1 className="text-2xl font-semibold">Voice Pipeline</h1>
-          <p className="text-sm text-muted-foreground">
-            Label stress/no stress for student clips and uploaded recordings.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="mx-auto max-w-[760px] space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex rounded-lg border border-border bg-card p-1">
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 text-sm ${sourceType === "student" ? "bg-background text-foreground" : "text-muted-foreground"}`}
-              onClick={() => setSourceType("student")}
-            >
-              Student recordings
-            </button>
-            <button
-              type="button"
-              className={`rounded-md px-3 py-1.5 text-sm ${sourceType === "internet" ? "bg-background text-foreground" : "text-muted-foreground"}`}
-              onClick={() => setSourceType("internet")}
-            >
-              Uploaded recordings
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Voice Pipeline</h1>
+            <p className="text-sm text-muted-foreground">
+              Label stress/no stress for ≤5s student and uploaded clips.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <AutoExtractToggle
+            enabled={autoExtractEnabled}
+            saving={autoExtractSaving}
+            onToggle={toggleAutoExtract}
+          />
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <AutoExtractToggle
+            enabled={autoExtractEnabled}
+            saving={autoExtractSaving}
+            onToggle={toggleAutoExtract}
+          />
+        </div>
+      )}
+
+      <div className="mx-auto max-w-[880px] space-y-4">
+        {/* Filters row */}
+        <Card className="border-border/80 bg-card/95 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterPillGroup
+              label="Source"
+              value={sourceType}
+              onChange={(next) => setSourceType(next)}
+              options={[
+                { value: "all", label: "All" },
+                { value: "student", label: "Student" },
+                { value: "internet", label: "Internet" },
+              ]}
+            />
+            <FilterPillGroup
+              label="Label"
+              value={labelState}
+              onChange={(next) => setLabelState(next)}
+              options={[
+                { value: "unlabeled", label: "Unlabeled" },
+                { value: "labeled", label: "Labeled" },
+                { value: "all", label: "All" },
+              ]}
+            />
+            <FilterPillGroup
+              label="Sort"
+              value={sort}
+              onChange={(next) => setSort(next)}
+              options={[
+                { value: "newest", label: "Newest" },
+                { value: "oldest", label: "Oldest" },
+              ]}
+            />
+            <label className="ml-auto inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={hideSkipped}
+                onChange={(e) => setHideSkipped(e.target.checked)}
+              />
+              Hide skipped
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => void loadSnippets()} disabled={loading}>
               <RefreshCcw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
             <Button size="sm" onClick={onPickUpload} disabled={uploading}>
               <UploadCloud className="mr-2 h-4 w-4" />
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? "Uploading..." : "Upload recording"}
             </Button>
             <input
               ref={fileInputRef}
@@ -226,98 +396,119 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
               onChange={uploadFile}
               className="hidden"
             />
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Recording ID"
+                value={regenTargetId}
+                onChange={(e) => setRegenTargetId(e.target.value)}
+                className="h-9 w-[220px] rounded-md border border-input bg-background px-3 text-sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void regenerateForRecording(regenTargetId)}
+                disabled={regenerating || !regenTargetId.trim()}
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                {regenerating ? "Regenerating..." : "Regenerate"}
+              </Button>
+            </div>
           </div>
+        </Card>
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            Showing <span className="font-medium text-foreground">{snippets.length}</span> of{" "}
+            <span className="font-medium text-foreground">{totalCount}</span>
+          </span>
+          {recordingIdFilter.trim() ? (
+            <button
+              type="button"
+              className="text-amber-600 hover:text-amber-700"
+              onClick={() => setRecordingIdFilter("")}
+            >
+              Clear recording filter
+            </button>
+          ) : null}
         </div>
 
-        <div className="text-sm text-muted-foreground">
-          Unlabeled in this source: <span className="font-medium text-foreground">{unlabeledCount}</span>
-        </div>
-
+        {/* Focus card = first row */}
         <Card className="space-y-5 border-border/80 bg-card/95 p-0">
           {loading ? (
             <p className="p-5 text-sm text-muted-foreground">Loading snippets...</p>
           ) : currentSnippet == null ? (
-            <p className="rounded-md border border-dashed m-5 p-4 text-sm text-muted-foreground">
-              No clips available right now.
-            </p>
+            <div className="m-5 rounded-md border border-dashed p-6 text-center">
+              <p className="text-sm text-muted-foreground">{emptyStateMessage}</p>
+              {recordingIdFilter.trim() ? (
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  onClick={() => void regenerateForRecording(recordingIdFilter)}
+                  disabled={regenerating}
+                >
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  {regenerating ? "Regenerating..." : "Regenerate for this recording"}
+                </Button>
+              ) : null}
+            </div>
           ) : (
-            <>
-              <div className="flex items-center justify-between border-b px-5 py-4">
-                <h2 className="text-3xl font-semibold tracking-tight">Stress Label</h2>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                  {currentSnippet.source_type ?? "unknown"} · {fmtMs(startMs)} - {fmtMs(endMs)}
-                </span>
-              </div>
-
-              <div className="space-y-5 px-5 pb-5">
-                <div className="rounded-xl border bg-muted/20 p-5">
-                  {playbackLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading audio…</p>
-                  ) : playbackUrl ? (
-                    <audio
-                      key={`${currentSnippet.id}-${playbackUrl}`}
-                      controls
-                      preload="metadata"
-                      className="w-full"
-                      src={playbackUrl}
-                      onError={() =>
-                        toast.error("Could not load audio. Try refresh or check the recording on the backend.")
-                      }
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No audio URL available for this snippet.</p>
-                  )}
-                  <p className="mt-3 text-sm text-muted-foreground line-clamp-3">
-                    {currentSnippet.transcript_text || currentSnippet.transcript || "No transcript available"}
-                  </p>
-                  <textarea
-                    rows={2}
-                    value={notesBySnippetId[currentSnippet.id] ?? ""}
-                    onChange={(event) =>
-                      setNotesBySnippetId((prev) => ({ ...prev, [currentSnippet.id]: event.target.value }))
-                    }
-                    placeholder="Optional notes"
-                    className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <p className="text-center text-2xl font-semibold">
-                  Is this snippet stress or no stress?
-                </p>
-
-                <div className="flex justify-center gap-3">
-                  <Button
-                    className="h-14 min-w-[140px] text-xl bg-emerald-600 text-white shadow-md hover:bg-emerald-700 focus-visible:ring-emerald-500"
-                    onClick={() => void labelSnippet(currentSnippet, "no_stress")}
-                    disabled={labelingId === currentSnippet.id}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    No Stress
-                  </Button>
-                  <Button
-                    className="h-14 min-w-[140px] text-xl bg-red-600 text-white shadow-md hover:bg-red-700 focus-visible:ring-red-500"
-                    onClick={() => void labelSnippet(currentSnippet, "stress")}
-                    disabled={labelingId === currentSnippet.id}
-                  >
-                    <Check className="mr-2 h-4 w-4" />
-                    Stress
-                  </Button>
-                </div>
-              </div>
-            </>
+            <SnippetFocusCard
+              snippet={currentSnippet}
+              labeling={labelingId === currentSnippet.id}
+              notes={notesBySnippetId[currentSnippet.id] ?? ""}
+              onNotesChange={(value) =>
+                setNotesBySnippetId((prev) => ({ ...prev, [currentSnippet.id]: value }))
+              }
+              onLabel={(label) => void labelSnippet(currentSnippet, label)}
+              onUndo={() => void undoLabel(currentSnippet)}
+              onSkipToggle={() => void toggleSkip(currentSnippet)}
+              onRegenerate={() => void regenerateForRecording(currentSnippet.recording_id)}
+              regenerating={regenerating}
+            />
           )}
         </Card>
 
+        {/* Queue list */}
+        {snippets.length > 1 ? (
+          <Card className="border-border/80 bg-card/95 p-0">
+            <div className="border-b px-5 py-3">
+              <h3 className="text-base font-semibold">Queue</h3>
+            </div>
+            <div className="divide-y">
+              {snippets.slice(1).map((snippet) => (
+                <SnippetRow
+                  key={snippet.id}
+                  snippet={snippet}
+                  labeling={labelingId === snippet.id}
+                  notes={notesBySnippetId[snippet.id] ?? ""}
+                  onNotesChange={(value) =>
+                    setNotesBySnippetId((prev) => ({ ...prev, [snippet.id]: value }))
+                  }
+                  onLabel={(label) => void labelSnippet(snippet, label)}
+                  onUndo={() => void undoLabel(snippet)}
+                  onSkipToggle={() => void toggleSkip(snippet)}
+                  onRegenerate={() => void regenerateForRecording(snippet.recording_id)}
+                  regenerating={regenerating}
+                />
+              ))}
+            </div>
+          </Card>
+        ) : null}
+
         <Card className="border-border/80 bg-card/95 p-0">
           <div className="border-b px-5 py-4">
-            <h3 className="text-2xl font-semibold">Recent Reviews</h3>
+            <h3 className="text-base font-semibold">Recent reviews</h3>
           </div>
           <div className="space-y-2 px-5 py-4">
             {recentReviews.length === 0 ? (
               <p className="text-sm text-muted-foreground">No reviews in this session yet.</p>
             ) : (
               recentReviews.map((item) => (
-                <div key={`${item.snippetId}-${item.label}`} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <div
+                  key={`${item.snippetId}-${item.label}`}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2"
+                >
                   <div className="flex items-center gap-2">
                     <span className="text-emerald-600">✓</span>
                     <span className="text-base">{item.label}</span>
@@ -328,6 +519,281 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
             )}
           </div>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function AutoExtractToggle({
+  enabled,
+  saving,
+  onToggle,
+}: {
+  enabled: boolean | null;
+  saving: boolean;
+  onToggle: () => void;
+}) {
+  const label = enabled == null ? "…" : enabled ? "On" : "Off";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={saving || enabled == null}
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${
+        enabled ? "border-emerald-500/50 bg-emerald-50 text-emerald-700" : "border-border bg-card text-muted-foreground"
+      }`}
+    >
+      <span className="text-xs font-medium uppercase tracking-wide">Auto-extract</span>
+      <span className="font-semibold">{label}</span>
+    </button>
+  );
+}
+
+function FilterPillGroup<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: T;
+  onChange: (next: T) => void;
+  options: Array<{ value: T; label: string }>;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <div className="inline-flex rounded-lg border border-border bg-card p-1">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`rounded-md px-3 py-1 text-sm ${
+              value === opt.value ? "bg-background text-foreground" : "text-muted-foreground"
+            }`}
+            onClick={() => onChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface SnippetCardProps {
+  snippet: StressSnippet;
+  labeling: boolean;
+  notes: string;
+  onNotesChange: (value: string) => void;
+  onLabel: (label: "stress" | "no_stress") => void;
+  onUndo: () => void;
+  onSkipToggle: () => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
+}
+
+function SnippetAudio({ snippet }: { snippet: StressSnippet }) {
+  // NEVER fall back to the parent recording's audio — that's the 5-min source.
+  // Only play `audio_url`, which the backend guarantees is a signed URL to the
+  // per-snippet ≤5s mp3 at `stress_snippets/<recording_id>/<snippet_id>.mp3`.
+  if (!snippet.playable || !snippet.audio_url) return null;
+  return (
+    <audio
+      key={snippet.id}
+      controls
+      preload="none"
+      className="w-full"
+      src={snippet.audio_url}
+    />
+  );
+}
+
+function SnippetFocusCard({
+  snippet,
+  labeling,
+  notes,
+  onNotesChange,
+  onLabel,
+  onUndo,
+  onSkipToggle,
+  onRegenerate,
+  regenerating,
+}: SnippetCardProps) {
+  const canPlay = snippet.playable && !!snippet.audio_url;
+  return (
+    <>
+      <div className="flex items-center justify-between border-b px-5 py-4">
+        <div>
+          <h2 className="text-3xl font-semibold tracking-tight">Stress Label</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Scenario: <span className="font-medium text-foreground">{snippet.scenario}</span>
+            {snippet.queue_skipped ? (
+              <span className="ml-2 rounded bg-zinc-200 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-700">
+                skipped
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+          {snippet.source_type} · {formatTimingRange(snippet)}
+        </span>
+      </div>
+
+      <div className="space-y-5 px-5 pb-5">
+        <div className="rounded-xl border bg-muted/20 p-5">
+          {canPlay ? (
+            <SnippetAudio snippet={snippet} />
+          ) : (
+            <div className="flex flex-col items-start gap-2">
+              <p className="text-sm text-muted-foreground">
+                Clip unavailable — the mp3 is missing or hasn&apos;t been produced yet.
+              </p>
+              <Button size="sm" variant="outline" onClick={onRegenerate} disabled={regenerating}>
+                <Wand2 className="mr-2 h-4 w-4" />
+                {regenerating ? "Regenerating..." : "Regenerate"}
+              </Button>
+            </div>
+          )}
+          {snippet.transcript_excerpt ? (
+            <p className="mt-3 text-sm text-muted-foreground line-clamp-3">
+              {snippet.transcript_excerpt}
+            </p>
+          ) : null}
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            placeholder="Optional notes"
+            className="mt-3 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+
+        <p className="text-center text-2xl font-semibold">Is this snippet stress or no stress?</p>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button
+            className="h-14 min-w-[140px] text-xl bg-emerald-600 text-white shadow-md hover:bg-emerald-700 focus-visible:ring-emerald-500"
+            onClick={() => onLabel("no_stress")}
+            disabled={labeling}
+          >
+            <X className="mr-2 h-4 w-4" />
+            No Stress
+          </Button>
+          <Button
+            className="h-14 min-w-[140px] text-xl bg-red-600 text-white shadow-md hover:bg-red-700 focus-visible:ring-red-500"
+            onClick={() => onLabel("stress")}
+            disabled={labeling}
+          >
+            <Check className="mr-2 h-4 w-4" />
+            Stress
+          </Button>
+          {snippet.coach_label ? (
+            <Button variant="outline" size="sm" onClick={onUndo} disabled={labeling}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Undo
+            </Button>
+          ) : null}
+          <Button variant="ghost" size="sm" onClick={onSkipToggle} disabled={labeling}>
+            <SkipForward className="mr-2 h-4 w-4" />
+            {snippet.queue_skipped ? "Unskip" : "Skip"}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SnippetRow({
+  snippet,
+  labeling,
+  notes,
+  onNotesChange,
+  onLabel,
+  onUndo,
+  onSkipToggle,
+  onRegenerate,
+  regenerating,
+}: SnippetCardProps) {
+  const canPlay = snippet.playable && !!snippet.audio_url;
+  return (
+    <div className="flex flex-col gap-3 px-5 py-4">
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-2">
+          <span className="rounded bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">
+            {snippet.source_type}
+          </span>
+          <span>{formatTimingRange(snippet)}</span>
+          <span className="text-zinc-400">·</span>
+          <span>{snippet.scenario}</span>
+          {snippet.coach_label ? (
+            <span
+              className={`rounded px-2 py-0.5 font-semibold ${
+                snippet.coach_label === "stress"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {snippet.coach_label === "stress" ? "Stress" : "No stress"}
+            </span>
+          ) : null}
+          {snippet.queue_skipped ? (
+            <span className="rounded bg-zinc-200 px-2 py-0.5 uppercase tracking-wide text-zinc-700">
+              skipped
+            </span>
+          ) : null}
+        </span>
+      </div>
+      <div className="rounded-lg border bg-muted/10 p-3">
+        {canPlay ? (
+          <SnippetAudio snippet={snippet} />
+        ) : (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-muted-foreground">Clip unavailable — regenerate required.</p>
+            <Button size="sm" variant="outline" onClick={onRegenerate} disabled={regenerating}>
+              <Wand2 className="mr-2 h-4 w-4" />
+              {regenerating ? "Regenerating..." : "Regenerate"}
+            </Button>
+          </div>
+        )}
+        {snippet.transcript_excerpt ? (
+          <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+            {snippet.transcript_excerpt}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          className="bg-red-600 text-white hover:bg-red-700"
+          onClick={() => onLabel("stress")}
+          disabled={labeling}
+        >
+          Stress
+        </Button>
+        <Button
+          size="sm"
+          className="bg-emerald-600 text-white hover:bg-emerald-700"
+          onClick={() => onLabel("no_stress")}
+          disabled={labeling}
+        >
+          No stress
+        </Button>
+        {snippet.coach_label ? (
+          <Button variant="outline" size="sm" onClick={onUndo} disabled={labeling}>
+            Undo
+          </Button>
+        ) : null}
+        <Button variant="ghost" size="sm" onClick={onSkipToggle} disabled={labeling}>
+          {snippet.queue_skipped ? "Unskip" : "Skip"}
+        </Button>
+        <input
+          type="text"
+          value={notes}
+          onChange={(event) => onNotesChange(event.target.value)}
+          placeholder="Notes (optional)"
+          className="ml-auto h-9 w-full max-w-[240px] rounded-md border border-input bg-background px-3 text-sm"
+        />
       </div>
     </div>
   );
