@@ -36,14 +36,6 @@ export function openingTaskTextFromApiPayload(data: Record<string, unknown> | nu
   return "";
 }
 
-const STEP0_VIDEO_URL_KEYS = [
-  "tutor_video_url",
-  "video_url",
-  "homework_video_url",
-  "coach_video_url",
-  "assignment_video_url",
-] as const;
-
 function trimStr(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
@@ -60,22 +52,11 @@ export function resolveStep0VideoUrlFromStatusPayload(
     raw.session && typeof raw.session === "object" && raw.session !== null
       ? (raw.session as Record<string, unknown>)
       : null;
-  for (const key of STEP0_VIDEO_URL_KEYS) {
-    const top = trimStr(raw[key]);
-    if (top) return top;
-    if (session) {
-      const s = trimStr(session[key]);
-      if (s) return s;
-    }
-  }
-  const ex = raw.assigned_exercises;
-  if (Array.isArray(ex)) {
-    for (const item of ex) {
-      if (item && typeof item === "object" && item !== null) {
-        const u = trimStr((item as { video_url?: unknown }).video_url);
-        if (u) return u;
-      }
-    }
+  const top = trimStr(raw.tutor_video_url);
+  if (top) return top;
+  if (session) {
+    const nested = trimStr(session.tutor_video_url);
+    if (nested) return nested;
   }
   return null;
 }
@@ -177,18 +158,6 @@ export function getStep0HomeworkAssignmentFingerprint(
     hasAssignedHomework,
     homeworkReady,
   });
-}
-
-/** Extract Vimeo video id from vimeo.com/123, vimeo.com/video/123, or player.vimeo.com/video/123. */
-export function parseVimeoId(url: string): string | null {
-  const u = url.trim();
-  if (!u) return null;
-  try {
-    const match = u.match(/(?:vimeo\.com\/video\/|vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/i);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Display title for an assigned exercise: avoid showing raw id (e.g. "0-intro"); prefer title or friendly label. */

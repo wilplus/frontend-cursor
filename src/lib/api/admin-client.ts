@@ -925,6 +925,38 @@ export interface CopilotAnnotationChip {
   section?: string | null;
 }
 
+export type ReferenceVideoTranscriptionStatus = "processing" | "done" | "failed" | string;
+
+export interface AdminCopilotReferenceVideo {
+  id: string;
+  user_id?: string | null;
+  session_id?: string | null;
+  draft_id?: string | null;
+  title?: string | null;
+  original_filename?: string | null;
+  reference_tags?: string[] | null;
+  is_universal_video?: boolean;
+  created_at?: string | null;
+  transcription_status?: ReferenceVideoTranscriptionStatus | null;
+  transcription_error?: string | null;
+  transcript_text?: string | null;
+  preview_url?: string | null;
+}
+
+export interface AdminCopilotReferenceVideosResponse {
+  reference_videos: AdminCopilotReferenceVideo[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminCopilotDraftPipelineStatusResponse {
+  status?: string | null;
+  stage?: "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed" | string | null;
+  error?: string | null;
+  [key: string]: unknown;
+}
+
 export interface AcousticDojoClip {
   clip_id: string;
   source_type: "student" | "external";
@@ -1089,6 +1121,110 @@ export const adminApi = {
     adminFetch<CopilotSendResponse>(
       `/copilot/students/${studentId}/send`,
       { method: "POST", body: body ?? {} }
+    ),
+
+  approveSendCopilotDraft: (
+    studentId: string,
+    draftId: string,
+    body?: { session_id?: string; idempotency_key?: string }
+  ) =>
+    adminFetch<Record<string, unknown>>(
+      `/copilot/students/${studentId}/drafts/${draftId}/approve-send`,
+      { method: "POST", body: body ?? {} }
+    ),
+
+  getCopilotDraftPipelineStatus: (studentId: string, draftId: string) =>
+    adminFetch<AdminCopilotDraftPipelineStatusResponse>(
+      `/students/${studentId}/drafts/${draftId}/pipeline-status`
+    ),
+
+  getCopilotDraftFeedbackVideoUrl: (studentId: string, draftId: string) =>
+    adminFetch<{ video_url?: string | null; feedback_video_url?: string | null }>(
+      `/students/${studentId}/drafts/${draftId}/feedback-video-url`
+    ),
+
+  getCopilotReferenceVideos: (params?: {
+    limit?: number;
+    offset?: number;
+    include_preview_url?: boolean;
+  }) => {
+    const search = new URLSearchParams();
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    if (typeof params?.include_preview_url === "boolean") {
+      search.set("include_preview_url", params.include_preview_url ? "true" : "false");
+    }
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<Record<string, unknown>>(`/copilot/reference-videos${suffix}`).then((res) => {
+      const list = Array.isArray((res as { reference_videos?: unknown[] }).reference_videos)
+        ? ((res as { reference_videos?: unknown[] }).reference_videos as Array<Record<string, unknown>>)
+        : [];
+      const normalized: AdminCopilotReferenceVideo[] = [];
+      for (const item of list) {
+        const id = asTrimmedString(item.id);
+        if (!id) continue;
+        const tagsRaw = item.reference_tags;
+        const tags = Array.isArray(tagsRaw)
+          ? tagsRaw.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
+          : typeof tagsRaw === "string"
+            ? tagsRaw
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0)
+            : null;
+        normalized.push({
+          id,
+          user_id: asTrimmedString(item.user_id),
+          session_id: asTrimmedString(item.session_id),
+          draft_id: asTrimmedString(item.draft_id),
+          title: asTrimmedString(item.title),
+          original_filename: asTrimmedString(item.original_filename),
+          reference_tags: tags,
+          is_universal_video: typeof item.is_universal_video === "boolean" ? item.is_universal_video : false,
+          created_at: asTrimmedString(item.created_at),
+          transcription_status: asTrimmedString(item.transcription_status),
+          transcription_error: asTrimmedString(item.transcription_error),
+          transcript_text: asTrimmedString(item.transcript_text),
+          preview_url: asTrimmedString(item.preview_url),
+        });
+      }
+      return {
+        reference_videos: normalized,
+        total: asNumber((res as { total?: unknown }).total) ?? normalized.length,
+        limit: asNumber((res as { limit?: unknown }).limit) ?? params?.limit ?? normalized.length,
+        offset: asNumber((res as { offset?: unknown }).offset) ?? params?.offset ?? 0,
+      } satisfies AdminCopilotReferenceVideosResponse;
+    });
+  },
+
+  uploadCopilotReferenceVideo: (formData: FormData) =>
+    adminFetch<{
+      reference_video?: AdminCopilotReferenceVideo;
+      transcription_status?: string | null;
+      transcription_error?: string | null;
+      transcript_text?: string | null;
+      preview_url?: string | null;
+    }>("/copilot/reference-videos/upload", { method: "POST", body: formData }),
+
+  getCopilotReferenceVideoPlaybackUrl: (referenceVideoId: string, expiresIn = 3600) => {
+    const search = new URLSearchParams();
+    search.set("expires_in", String(expiresIn));
+    return adminFetch<{ signed_url?: string | null; expires_in?: number }>(
+      `/copilot/reference-videos/${referenceVideoId}/playback-url?${search.toString()}`
+    );
+  },
+
+  attachReferenceVideoToCopilotDraft: (
+    studentId: string,
+    draftId: string,
+    referenceVideoId: string
+  ) =>
+    adminFetch<Record<string, unknown>>(
+      `/copilot/students/${studentId}/drafts/${draftId}/attach-reference-video`,
+      {
+        method: "POST",
+        body: { reference_video_id: referenceVideoId },
+      }
     ),
 
   getCopilotAnnotationChips: () =>
