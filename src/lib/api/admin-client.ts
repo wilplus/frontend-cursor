@@ -717,6 +717,10 @@ function enrichCopilotStudentQueueItem(student: CopilotStudentQueueItem): Copilo
     asTrimmedString(student.session_created_at) ??
     asTrimmedString(record.session_created_at) ??
     asTrimmedString(record.sessionCreatedAt) ??
+    asTrimmedString(record.homework_session_created_at) ??
+    asTrimmedString(record.homeworkSessionCreatedAt) ??
+    asTrimmedString(record.report_created_at) ??
+    asTrimmedString(record.reportCreatedAt) ??
     (sessionObj
       ? asTrimmedString(sessionObj.created_at) ?? asTrimmedString(sessionObj.createdAt)
       : null) ??
