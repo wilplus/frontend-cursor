@@ -58,9 +58,6 @@ export default function CreditPricingCards({ packs }: { packs: CreditPackDisplay
 
   return (
     <div className="w-full space-y-6">
-      <p className="text-center text-sm text-muted-foreground sm:text-base">
-        Most students pick <span className="font-semibold text-foreground">Standard</span> — best credits per dollar.
-      </p>
       <div className="grid gap-4 sm:grid-cols-3 sm:items-stretch sm:gap-3">
         {packs.map((pack) => {
           const isMiddle = pack.tier === "standard";

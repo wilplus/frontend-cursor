@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu, Settings } from "lucide-react";
@@ -32,14 +32,17 @@ export default function DashboardHeader() {
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
   const openByKeyboardRef = useRef(false);
 
-  /** After Stripe checkout: claim session server-side (instant), then poll if needed. */
-  useEffect(() => {
+  /** After Stripe checkout: claim session server-side (instant), then poll if needed.
+   *  useLayoutEffect so the listener is registered before sibling CreditsCheckoutReturnToast fires the event in useEffect. */
+  useLayoutEffect(() => {
     const onCheckoutSuccess = (e: Event) => {
       const detail = (e as CustomEvent<CreditsCheckoutSuccessDetail>).detail;
       const checkoutSessionId = detail?.checkoutSessionId?.trim() || undefined;
       void (async () => {
         const toastId = toast.loading("Payment received — updating your credits…");
         const result = await pollCreditsAfterCheckout({ checkoutSessionId });
+        const fallbackMsg =
+          "We could not confirm your new balance. Check Network → claim-checkout and session/status, or refresh.";
         if (result.ok) {
           setCredits(result.credits);
           toast.success(`You now have ${result.credits} credits.`, { id: toastId });
@@ -51,15 +54,11 @@ export default function DashboardHeader() {
           });
           return;
         }
-        if (result.reason === "claim_failed" && result.message) {
-          toast.error(result.message, { id: toastId, duration: 14_000 });
+        if (result.reason === "claim_failed") {
+          toast.error(result.message?.trim() || fallbackMsg, { id: toastId, duration: 14_000 });
           return;
         }
-        toast.error(
-          result.message ??
-            "We could not confirm your new balance yet. Refresh the page in a moment, or contact support if credits stay wrong.",
-          { id: toastId, duration: 12_000 }
-        );
+        toast.error(result.message?.trim() || fallbackMsg, { id: toastId, duration: 12_000 });
       })();
     };
 
