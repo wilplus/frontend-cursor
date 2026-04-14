@@ -18,6 +18,7 @@ import { resolveSessionRowWpm } from "@/lib/admin/resolveWpm";
 import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports/compact-preview";
 import {
   adminApi,
+  type AdminCopilotReferenceVideo,
   type CopilotCohortStack,
   type DraftGenerationStatus,
   type CopilotStudentDraft,
@@ -39,6 +40,18 @@ import {
 } from "@/components/admin/training/draft-generation";
 
 type QueueFilter = "all" | "pending" | "audit" | "done";
+type PipelineStage = "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed";
+
+const REFERENCE_VIDEOS_PAGE_SIZE = 10;
+const PIPELINE_TERMINAL_STAGES = new Set<PipelineStage>(["sent", "failed"]);
+const PIPELINE_STAGES: PipelineStage[] = [
+  "queued",
+  "running_tts",
+  "running_video",
+  "uploading",
+  "sent",
+  "failed",
+];
 
 const LEARNING_ARCHETYPES = [
   {
@@ -161,6 +174,36 @@ function statusDisplayLabel(state: CopilotStudentQueueItem["state"]): string {
   return "Sent";
 }
 
+function toPipelineStage(value: unknown): PipelineStage | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim().toLowerCase();
+  if (v === "queued" || v === "running_tts" || v === "running_video" || v === "uploading" || v === "sent" || v === "failed") {
+    return v;
+  }
+  return null;
+}
+
+function formatPipelineStageLabel(stage: PipelineStage): string {
+  if (stage === "running_tts") return "Running TTS";
+  if (stage === "running_video") return "Rendering Video";
+  if (stage === "queued") return "Queued";
+  if (stage === "uploading") return "Uploading";
+  if (stage === "sent") return "Sent";
+  return "Failed";
+}
+
+function formatReferenceTags(tags: string[] | null | undefined): string {
+  if (!Array.isArray(tags) || tags.length === 0) return "No tags";
+  return tags.join(", ");
+}
+
+function formatReferenceCreatedAt(raw: string | null | undefined): string {
+  if (!raw) return "Unknown date";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "Unknown date";
+  return date.toLocaleString();
+}
+
 function matchesQueueFilter(item: CopilotStudentQueueItem, filter: QueueFilter): boolean {
   if (filter === "all") return true;
   if (filter === "pending") return item.state === "Draft";
@@ -192,25 +235,6 @@ function reviewerScoreFromMetadata(metadata: CopilotStudentDraft["metadata"]): s
   if (typeof raw === "number" && Number.isFinite(raw)) return String(raw);
   if (typeof raw === "string") return raw;
   return "";
-}
-
-/** Video link for student homework (POST send-homework); read from copilot draft metadata when present. */
-function homeworkVideoUrlFromDraft(draft: CopilotStudentDraft | null): string | undefined {
-  if (!draft?.metadata || typeof draft.metadata !== "object" || Array.isArray(draft.metadata)) {
-    return undefined;
-  }
-  const meta = draft.metadata as Record<string, unknown>;
-  for (const key of [
-    "video_url",
-    "tutor_video_url",
-    "coach_video_url",
-    "homework_video_url",
-    "vimeo_url",
-  ]) {
-    const v = meta[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-  }
-  return undefined;
 }
 
 function parseOptionalPercent(raw: string): number | null {
@@ -301,6 +325,25 @@ export default function TrainingStudioWorkspace() {
   const [saving, setSaving] = useState(false);
   const [approvingAll, setApprovingAll] = useState(false);
   const [sendingHomework, setSendingHomework] = useState(false);
+  const [pipelineStage, setPipelineStage] = useState<PipelineStage | null>(null);
+  const [pipelineStatusError, setPipelineStatusError] = useState<string | null>(null);
+  const [pipelineStatusPolling, setPipelineStatusPolling] = useState(false);
+  const [latestFeedbackVideoUrl, setLatestFeedbackVideoUrl] = useState<string | null>(null);
+  const [referenceVideos, setReferenceVideos] = useState<AdminCopilotReferenceVideo[]>([]);
+  const [referenceVideosTotal, setReferenceVideosTotal] = useState(0);
+  const [referenceVideosOffset, setReferenceVideosOffset] = useState(0);
+  const [referenceVideosLoading, setReferenceVideosLoading] = useState(false);
+  const [referenceVideosRefreshing, setReferenceVideosRefreshing] = useState(false);
+  const [referenceVideosUploadLoading, setReferenceVideosUploadLoading] = useState(false);
+  const [referenceVideoFile, setReferenceVideoFile] = useState<File | null>(null);
+  const [referenceVideoTitle, setReferenceVideoTitle] = useState("");
+  const [referenceVideoTags, setReferenceVideoTags] = useState("");
+  const [referenceVideoUniversal, setReferenceVideoUniversal] = useState(false);
+  const [referenceVideoExpandedTranscriptIds, setReferenceVideoExpandedTranscriptIds] = useState<string[]>([]);
+  const [referenceVideoPlaybackUrlById, setReferenceVideoPlaybackUrlById] = useState<Record<string, string>>({});
+  const [referenceVideoPreviewLoadingId, setReferenceVideoPreviewLoadingId] = useState<string | null>(null);
+  const [attachReferenceVideoLoadingId, setAttachReferenceVideoLoadingId] = useState<string | null>(null);
+  const [fullOverrideAttached, setFullOverrideAttached] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [loadingTaskOptions, setLoadingTaskOptions] = useState(false);
   const [savingTaskOptionId, setSavingTaskOptionId] = useState<string | null>(null);
@@ -645,6 +688,20 @@ export default function TrainingStudioWorkspace() {
     ]
   );
 
+  useEffect(() => {
+    const metadata =
+      selectedDraft?.metadata &&
+      typeof selectedDraft.metadata === "object" &&
+      !Array.isArray(selectedDraft.metadata)
+        ? (selectedDraft.metadata as Record<string, unknown>)
+        : null;
+    const attached =
+      metadata?.full_video_override === true ||
+      metadata?.has_full_video_override === true ||
+      typeof metadata?.reference_video_id === "string";
+    setFullOverrideAttached(attached);
+  }, [selectedDraft?.metadata]);
+
   const effectiveDraftGenerationStatus = useMemo(
     () =>
       getEffectiveDraftGenerationStatus({
@@ -733,6 +790,11 @@ export default function TrainingStudioWorkspace() {
   useEffect(() => {
     setSelectedReasonChips([]);
     setReasonChipCustom("");
+    setPipelineStage(null);
+    setPipelineStatusError(null);
+    setPipelineStatusPolling(false);
+    setLatestFeedbackVideoUrl(null);
+    setFullOverrideAttached(false);
   }, [selectedStudent?.student_id, selectedStudent?.session_id]);
 
   useEffect(() => {
@@ -834,6 +896,10 @@ export default function TrainingStudioWorkspace() {
     return sortedStudents.filter((item) => item.state === "Sent");
   }, [queueFilter, sortedStudents]);
 
+  const canLoadPreviousReferenceVideos = referenceVideosOffset > 0;
+  const canLoadNextReferenceVideos =
+    referenceVideosOffset + REFERENCE_VIDEOS_PAGE_SIZE < referenceVideosTotal;
+
   /** Cohort queue rows often omit session_id; the loaded draft usually has it (required for insight-audit BFF fallback). */
   const copilotSessionId = useMemo(() => {
     const fromQueue = selectedStudent?.session_id?.trim();
@@ -844,26 +910,38 @@ export default function TrainingStudioWorkspace() {
 
   useEffect(() => {
     const sid = copilotSessionId;
+    const studentId = selectedStudent?.student_id?.trim();
     if (!sid) {
       setHomeworkPlayback({ loading: false, error: null, audioUrl: null, failed: false });
       return;
     }
     let cancelled = false;
     setHomeworkPlayback({ loading: true, error: null, audioUrl: null, failed: false });
-    homeworkApi
-      .getReport(sid)
+    /** Coach/student homework report routes differ; Training Studio must load the student's report as admin. */
+    const reportPromise =
+      studentId != null && studentId !== ""
+        ? adminApi.getStudentSessionReport(studentId, sid)
+        : homeworkApi.getReport(sid);
+    reportPromise
       .then(async (data) => {
         if (cancelled) return;
+        const rec1 = "recording_1" in data ? data.recording_1 : undefined;
         const direct =
-          data.final_recording?.audio_url ?? data.recording?.audio_url ?? data.recording_1?.audio_url ?? null;
+          data.final_recording?.audio_url ??
+          data.recording?.audio_url ??
+          rec1?.audio_url ??
+          null;
         if (direct) {
           setHomeworkPlayback({ loading: false, error: null, audioUrl: direct, failed: false });
           return;
         }
-        const recordingId = data.final_recording?.id ?? data.recording_1?.id;
+        const recordingId = data.final_recording?.id ?? rec1?.id;
         if (recordingId) {
           try {
-            const r = await homeworkApi.getRecordingPlaybackUrl(recordingId);
+            const r =
+              studentId != null && studentId !== ""
+                ? await adminApi.getRecordingPlaybackUrl(recordingId)
+                : await homeworkApi.getRecordingPlaybackUrl(recordingId);
             if (cancelled) return;
             setHomeworkPlayback({
               loading: false,
@@ -893,7 +971,7 @@ export default function TrainingStudioWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [copilotSessionId]);
+  }, [copilotSessionId, selectedStudent?.student_id]);
 
   /**
    * Queue rows often omit session_id; React state can also lag behind the network response.
@@ -1321,6 +1399,141 @@ export default function TrainingStudioWorkspace() {
     selectedStudent,
   ]);
 
+  const loadReferenceVideos = useCallback(
+    async (offset = referenceVideosOffset, mode: "load" | "refresh" = "load") => {
+      if (mode === "refresh") setReferenceVideosRefreshing(true);
+      else setReferenceVideosLoading(true);
+      try {
+        const response = await adminApi.getCopilotReferenceVideos({
+          limit: REFERENCE_VIDEOS_PAGE_SIZE,
+          offset,
+          include_preview_url: true,
+        });
+        setReferenceVideos(response.reference_videos ?? []);
+        setReferenceVideosTotal(response.total ?? 0);
+        setReferenceVideosOffset(response.offset ?? offset);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to load reference videos");
+      } finally {
+        setReferenceVideosLoading(false);
+        setReferenceVideosRefreshing(false);
+      }
+    },
+    [referenceVideosOffset]
+  );
+
+  const loadReferenceVideoPlaybackUrl = useCallback(async (referenceVideoId: string) => {
+    if (!referenceVideoId) return;
+    setReferenceVideoPreviewLoadingId(referenceVideoId);
+    try {
+      const response = await adminApi.getCopilotReferenceVideoPlaybackUrl(referenceVideoId, 3600);
+      const signed = response.signed_url?.trim();
+      if (!signed) {
+        toast.error("No signed playback URL returned.");
+        return;
+      }
+      setReferenceVideoPlaybackUrlById((previous) => ({ ...previous, [referenceVideoId]: signed }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load playback URL");
+    } finally {
+      setReferenceVideoPreviewLoadingId(null);
+    }
+  }, []);
+
+  const uploadReferenceVideo = useCallback(async () => {
+    if (!referenceVideoFile) {
+      toast.error("Choose a video file first.");
+      return;
+    }
+    setReferenceVideosUploadLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("video_file", referenceVideoFile);
+      if (selectedStudent?.student_id) formData.append("user_id", selectedStudent.student_id);
+      if (copilotSessionId) formData.append("session_id", copilotSessionId);
+      if (selectedDraft?.id) formData.append("draft_id", selectedDraft.id);
+      if (referenceVideoTitle.trim()) formData.append("title", referenceVideoTitle.trim());
+      if (referenceVideoTags.trim()) formData.append("reference_tags", referenceVideoTags.trim());
+      formData.append("is_universal_video", referenceVideoUniversal ? "true" : "false");
+      const response = await adminApi.uploadCopilotReferenceVideo(formData);
+      const uploaded = response.reference_video;
+      if (uploaded?.id) {
+        setReferenceVideos((previous) => {
+          const deduped = previous.filter((item) => item.id !== uploaded.id);
+          const withPreview =
+            response.preview_url && response.preview_url.trim()
+              ? { ...uploaded, preview_url: response.preview_url.trim() }
+              : uploaded;
+          return [withPreview, ...deduped];
+        });
+        if (response.preview_url?.trim()) {
+          setReferenceVideoPlaybackUrlById((previous) => ({
+            ...previous,
+            [uploaded.id]: response.preview_url!.trim(),
+          }));
+        }
+        setReferenceVideosTotal((previous) => previous + 1);
+      }
+      setReferenceVideoFile(null);
+      setReferenceVideoTitle("");
+      setReferenceVideoTags("");
+      setReferenceVideoUniversal(false);
+      toast.success("Reference video uploaded.");
+      await loadReferenceVideos(referenceVideosOffset, "refresh");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to upload reference video");
+    } finally {
+      setReferenceVideosUploadLoading(false);
+    }
+  }, [
+    copilotSessionId,
+    loadReferenceVideos,
+    referenceVideoFile,
+    referenceVideoTags,
+    referenceVideoTitle,
+    referenceVideoUniversal,
+    referenceVideosOffset,
+    selectedDraft?.id,
+    selectedStudent?.student_id,
+  ]);
+
+  const attachReferenceVideoToDraft = useCallback(
+    async (referenceVideoId: string) => {
+      if (!selectedStudent || !selectedDraft?.id) {
+        toast.error("Select a student draft first.");
+        return;
+      }
+      setAttachReferenceVideoLoadingId(referenceVideoId);
+      try {
+        await adminApi.attachReferenceVideoToCopilotDraft(
+          selectedStudent.student_id,
+          selectedDraft.id,
+          referenceVideoId
+        );
+        setFullOverrideAttached(true);
+        await loadDraft(selectedStudent);
+        toast.success("Full override video attached.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to attach reference video");
+      } finally {
+        setAttachReferenceVideoLoadingId(null);
+      }
+    },
+    [loadDraft, selectedDraft?.id, selectedStudent]
+  );
+
+  const toggleTranscriptExpanded = useCallback((referenceVideoId: string) => {
+    setReferenceVideoExpandedTranscriptIds((previous) =>
+      previous.includes(referenceVideoId)
+        ? previous.filter((item) => item !== referenceVideoId)
+        : [...previous, referenceVideoId]
+    );
+  }, []);
+
+  useEffect(() => {
+    void loadReferenceVideos(referenceVideosOffset, "load");
+  }, [loadReferenceVideos, referenceVideosOffset]);
+
   const loadTaskOptionsForStudent = useCallback(async () => {
     if (!selectedStudent) {
       setTaskOptions([]);
@@ -1453,6 +1666,8 @@ export default function TrainingStudioWorkspace() {
     }
 
     setSendingHomework(true);
+    setPipelineStatusError(null);
+    setLatestFeedbackVideoUrl(null);
     try {
       const resolved = await resolveCopilotSessionAndDraftId();
       if (!resolved) {
@@ -1473,7 +1688,6 @@ export default function TrainingStudioWorkspace() {
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
 
-      let refetchedForVideo: CopilotStudentDraft | null = null;
       if (!draftId) {
         const { drafts } = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id, {
           session_id: resolved.sessionId,
@@ -1482,7 +1696,6 @@ export default function TrainingStudioWorkspace() {
           drafts.find((d) => (d.session_id ?? "").trim() === resolved.sessionId) ?? drafts[0] ?? null;
         if (pick?.id?.trim()) {
           draftId = pick.id;
-          refetchedForVideo = pick;
         }
       }
 
@@ -1493,25 +1706,42 @@ export default function TrainingStudioWorkspace() {
         return;
       }
 
-      await adminApi.approveCopilotStudent(selectedStudent.student_id, {
+      await adminApi.approveSendCopilotDraft(selectedStudent.student_id, draftId, {
         session_id: resolved.sessionId,
-        draft_id: draftId,
         idempotency_key: crypto.randomUUID(),
       });
+      setPipelineStage("queued");
+      setPipelineStatusPolling(true);
 
-      await adminApi.sendCopilotStudent(selectedStudent.student_id, {
-        session_id: resolved.sessionId,
-        draft_id: draftId,
-        idempotency_key: crypto.randomUUID(),
-      });
+      let finalStage: PipelineStage | null = null;
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        const statusPayload = await adminApi.getCopilotDraftPipelineStatus(
+          selectedStudent.student_id,
+          draftId
+        );
+        const stage = toPipelineStage(statusPayload.stage ?? statusPayload.status);
+        if (stage) {
+          setPipelineStage(stage);
+          finalStage = stage;
+        }
+        if (stage && PIPELINE_TERMINAL_STAGES.has(stage)) break;
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
+      }
 
-      await adminApi.sendAssignment(selectedStudent.student_id, {
-        video_url:
-          homeworkVideoUrlFromDraft(selectedDraft) ?? homeworkVideoUrlFromDraft(refetchedForVideo) ?? undefined,
-        video_description: videoDescription || undefined,
-      });
+      try {
+        const feedback = await adminApi.getCopilotDraftFeedbackVideoUrl(selectedStudent.student_id, draftId);
+        const feedbackUrl = feedback.video_url?.trim() || feedback.feedback_video_url?.trim() || null;
+        setLatestFeedbackVideoUrl(feedbackUrl);
+      } catch {
+        setLatestFeedbackVideoUrl(null);
+      }
 
-      toast.success("Homework sent.");
+      if (finalStage === "failed") {
+        setPipelineStatusError("Pipeline failed while sending homework.");
+        toast.error("Approve & Send failed.");
+      } else {
+        toast.success(finalStage === "sent" ? "Homework sent." : "Approve & Send queued.");
+      }
 
       await loadDraft(selectedStudent);
       const refreshed = await loadStudents(cohorts.map((cohort) => cohort.id));
@@ -1519,7 +1749,9 @@ export default function TrainingStudioWorkspace() {
       setSelectedStudent(nextReviewable ?? refreshed[0] ?? null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send homework");
+      setPipelineStatusError(error instanceof Error ? error.message : "Failed to send homework");
     } finally {
+      setPipelineStatusPolling(false);
       setSendingHomework(false);
     }
   }, [
@@ -2251,6 +2483,245 @@ export default function TrainingStudioWorkspace() {
             </div>
           </Card>
 
+          <Card className="border-border/80 bg-card/95 p-0">
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Add videos</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadReferenceVideos(referenceVideosOffset, "refresh")}
+                disabled={referenceVideosRefreshing || referenceVideosLoading}
+              >
+                {referenceVideosRefreshing ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+            <div className="space-y-4 px-5 py-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm text-muted-foreground">Video file</label>
+                  <Input
+                    type="file"
+                    accept="video/*"
+                    onChange={(event) =>
+                      setReferenceVideoFile(event.target.files && event.target.files.length > 0 ? event.target.files[0] : null)
+                    }
+                    disabled={referenceVideosUploadLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Title (optional)</label>
+                  <Input
+                    value={referenceVideoTitle}
+                    onChange={(event) => setReferenceVideoTitle(event.target.value)}
+                    placeholder="Coach intro — confidence reset"
+                    disabled={referenceVideosUploadLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Tags (comma-separated)</label>
+                  <Input
+                    value={referenceVideoTags}
+                    onChange={(event) => setReferenceVideoTags(event.target.value)}
+                    placeholder="confidence, pacing"
+                    disabled={referenceVideosUploadLoading}
+                  />
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={referenceVideoUniversal}
+                    onChange={(event) => setReferenceVideoUniversal(event.target.checked)}
+                    disabled={referenceVideosUploadLoading}
+                  />
+                  Universal video
+                </label>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Selected context: {selectedStudent?.student_id ? `${formatName(selectedStudent)} · ${selectedDraft?.id ?? "No draft"}` : "No student selected"}
+                </p>
+                <Button
+                  className="h-9 px-3 text-sm"
+                  onClick={() => void uploadReferenceVideo()}
+                  disabled={referenceVideosUploadLoading}
+                >
+                  {referenceVideosUploadLoading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+              {fullOverrideAttached ? (
+                <p className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  Full override video attached.
+                </p>
+              ) : null}
+              <div className="space-y-3">
+                {referenceVideosLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading internal library…</p>
+                ) : referenceVideos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No uploaded videos yet.</p>
+                ) : (
+                  referenceVideos.map((video) => {
+                    const previewUrl =
+                      referenceVideoPlaybackUrlById[video.id] ??
+                      (video.preview_url && video.preview_url.trim() ? video.preview_url.trim() : null);
+                    const transcriptionStatus = (video.transcription_status ?? "processing").toString().toLowerCase();
+                    const transcriptExpanded = referenceVideoExpandedTranscriptIds.includes(video.id);
+                    return (
+                      <div key={video.id} className="rounded-lg border border-border/80 bg-muted/10 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">
+                            {(video.title && video.title.trim()) ||
+                              (video.original_filename && video.original_filename.trim()) ||
+                              video.id}
+                          </p>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              transcriptionStatus === "done"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : transcriptionStatus === "failed"
+                                  ? "bg-rose-100 text-rose-700"
+                                  : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {transcriptionStatus}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatReferenceCreatedAt(video.created_at)} · {formatReferenceTags(video.reference_tags)}
+                          {video.is_universal_video ? " · universal" : ""}
+                        </p>
+                        {video.transcription_error ? (
+                          <p className="mt-1 text-xs text-rose-600">{video.transcription_error}</p>
+                        ) : null}
+                        {transcriptionStatus === "done" && video.transcript_text ? (
+                          <div className="mt-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => toggleTranscriptExpanded(video.id)}
+                            >
+                              {transcriptExpanded ? "Hide transcript" : "Show transcript"}
+                            </Button>
+                            {transcriptExpanded ? (
+                              <p className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md border bg-background px-2 py-1 text-xs">
+                                {video.transcript_text}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <div className="mt-2 space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-3 text-xs"
+                              onClick={() => void loadReferenceVideoPlaybackUrl(video.id)}
+                              disabled={referenceVideoPreviewLoadingId === video.id}
+                            >
+                              {referenceVideoPreviewLoadingId === video.id ? "Loading preview..." : "Load internal preview"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 px-3 text-xs"
+                              onClick={() => void attachReferenceVideoToDraft(video.id)}
+                              disabled={!selectedStudent || !selectedDraft || attachReferenceVideoLoadingId === video.id}
+                            >
+                              {attachReferenceVideoLoadingId === video.id
+                                ? "Attaching..."
+                                : "Use this video as full override"}
+                            </Button>
+                          </div>
+                          {previewUrl ? (
+                            <video controls src={previewUrl} className="w-full max-w-md rounded-lg border border-border" />
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() =>
+                    setReferenceVideosOffset((previous) =>
+                      Math.max(0, previous - REFERENCE_VIDEOS_PAGE_SIZE)
+                    )
+                  }
+                  disabled={!canLoadPreviousReferenceVideos || referenceVideosLoading}
+                >
+                  Previous
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  {referenceVideosTotal === 0
+                    ? "0 videos"
+                    : `${referenceVideosOffset + 1}-${Math.min(referenceVideosOffset + referenceVideos.length, referenceVideosTotal)} of ${referenceVideosTotal}`}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() =>
+                    setReferenceVideosOffset((previous) => previous + REFERENCE_VIDEOS_PAGE_SIZE)
+                  }
+                  disabled={!canLoadNextReferenceVideos || referenceVideosLoading}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {(pipelineStage || pipelineStatusError || latestFeedbackVideoUrl) ? (
+            <Card className="border-border/80 bg-card/95 p-0">
+              <div className="border-b px-5 py-3">
+                <p className="text-xs font-medium text-muted-foreground">Approve &amp; Send pipeline</p>
+              </div>
+              <div className="space-y-3 px-5 py-4">
+                <div className="flex flex-wrap gap-2">
+                  {PIPELINE_STAGES.map((stage) => {
+                    const active = pipelineStage === stage;
+                    const reached = pipelineStage ? PIPELINE_STAGES.indexOf(stage) <= PIPELINE_STAGES.indexOf(pipelineStage) : false;
+                    return (
+                      <span
+                        key={stage}
+                        className={`rounded-full px-2 py-1 text-xs ${
+                          active
+                            ? "bg-amber-100 text-amber-700"
+                            : reached
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {formatPipelineStageLabel(stage)}
+                      </span>
+                    );
+                  })}
+                </div>
+                {pipelineStatusPolling ? (
+                  <p className="text-xs text-muted-foreground">Polling pipeline status…</p>
+                ) : null}
+                {pipelineStatusError ? (
+                  <p className="text-sm text-rose-600">{pipelineStatusError}</p>
+                ) : null}
+                {latestFeedbackVideoUrl ? (
+                  <video
+                    controls
+                    src={latestFeedbackVideoUrl}
+                    className="w-full max-w-md rounded-lg border border-border"
+                  />
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
+
           <div className="flex justify-end">
             <Button
               className="h-11 px-5 text-sm"
@@ -2258,7 +2729,7 @@ export default function TrainingStudioWorkspace() {
               disabled={sendingHomework || !selectedStudent || loading}
             >
               <Send className="mr-2 h-4 w-4" />
-              {sendingHomework ? "Sending…" : "Send homework"}
+              {sendingHomework ? "Sending…" : "Approve & Send"}
             </Button>
           </div>
         </div>

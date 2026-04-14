@@ -11,7 +11,6 @@ import Step0WaitingCard from "@/components/homework/step0/Step0WaitingCard";
 import Step0AssignmentCard from "@/components/homework/step0/Step0AssignmentCard";
 import type { UserSniperProfile } from "@/lib/sniper/types";
 import type { CompactReportPreview } from "@/lib/reports/compact-preview";
-import { parseVimeoId } from "@/lib/api/homework-utils";
 
 const STEP0_REPORTS_PAGE_SIZE = 5;
 
@@ -91,10 +90,8 @@ export default function Step0Screen({
   onOpenReportModal,
   onCloseReportModal,
 }: Step0ScreenProps) {
-  const ex = assignedExercises[0];
-  const fallbackExerciseVideoUrl = ex?.video_url?.trim() ?? null;
-  const videoUrl = step0TutorVideoUrl ?? fallbackExerciseVideoUrl;
-  const vimeoId = videoUrl ? parseVimeoId(videoUrl) : null;
+  void assignedExercises;
+  const videoUrl = step0TutorVideoUrl?.trim() ? step0TutorVideoUrl.trim() : null;
 
   const visibleStep0Sessions = step0Sessions.slice(0, visibleReportsCount);
   const canLoadMoreReports = visibleReportsCount < step0Sessions.length;
@@ -109,7 +106,6 @@ export default function Step0Screen({
             ) : (
               <Step0AssignmentCard
                 videoUrl={videoUrl ?? null}
-                vimeoId={vimeoId}
                 introText={step0TutorVideoDescription}
                 loading={loading}
                 error={error}
