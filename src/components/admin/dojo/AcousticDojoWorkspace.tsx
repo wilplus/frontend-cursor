@@ -27,6 +27,7 @@ interface RecentReview {
 
 const REGEN_MAX_SNIPPETS = 8;
 const REGEN_CLIP_SECONDS = 5;
+const AUDIO_URL_REFRESH_MS = 45_000;
 
 /**
  * Format a seconds field with a legacy `_ms` fallback. Backend emits both, but
@@ -79,9 +80,13 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
   const [notesBySnippetId, setNotesBySnippetId] = useState<Record<string, string>>({});
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const refreshInFlightRef = useRef(false);
 
-  const loadSnippets = useCallback(async () => {
-    setLoading(true);
+  const loadSnippets = useCallback(async (options?: { quiet?: boolean }) => {
+    const quiet = options?.quiet === true;
+    if (quiet && refreshInFlightRef.current) return;
+    if (quiet) refreshInFlightRef.current = true;
+    if (!quiet) setLoading(true);
     try {
       const response = await adminApi.listStressSnippets({
         source_type: sourceType,
@@ -96,14 +101,24 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
       setTotalCount(response.count);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to load snippets");
+      if (!quiet) {
+        toast.error(error instanceof Error ? error.message : "Failed to load snippets");
+      }
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
+      if (quiet) refreshInFlightRef.current = false;
     }
   }, [sourceType, labelState, sort, hideSkipped, recordingIdFilter]);
 
   useEffect(() => {
     void loadSnippets();
+  }, [loadSnippets]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void loadSnippets({ quiet: true });
+    }, AUDIO_URL_REFRESH_MS);
+    return () => window.clearInterval(interval);
   }, [loadSnippets]);
 
   useEffect(() => {
@@ -608,7 +623,7 @@ function SnippetAudio({
   if (!snippet.playable || !snippet.audio_url) return null;
   return (
     <audio
-      key={snippet.id}
+      key={`${snippet.id}:${snippet.audio_url ?? "none"}`}
       controls
       preload="none"
       className="w-full"
