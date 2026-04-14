@@ -28,3 +28,26 @@ export async function PATCH(
   }
   return NextResponse.json(data);
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ snippetId: string }> }
+) {
+  const token = await getV2AccessToken(request);
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const backend = getBackendUrl();
+  const { snippetId } = await params;
+  const res = await fetch(`${backend}/v2/admin/stress-snippets/${snippetId}/label`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return NextResponse.json(data, { status: res.status });
+  }
+  return NextResponse.json(data);
+}
