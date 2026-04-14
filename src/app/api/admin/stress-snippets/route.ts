@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
   const qs = searchParams.toString();
   const res = await fetch(`${backend}/v2/admin/stress-snippets${qs ? `?${qs}` : ""}`, {
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    next: { revalidate: 0 },
   });
 
   const data = await res.json().catch(() => ({}));
