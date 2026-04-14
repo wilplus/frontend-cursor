@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Archive, Check, ChevronRight, PencilLine, Send, Sparkles, Waves } from "lucide-react";
+import { Archive, Check, ChevronRight, PencilLine, RefreshCw, Send, Sparkles, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -43,7 +43,6 @@ type QueueFilter = "all" | "pending" | "audit" | "done";
 type PipelineStage = "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed";
 
 const TRAINING_STUDIO_QUEUE_ARCHIVED_KEY = "training-studio-queue-archived-v1";
-const QUEUE_POLL_INTERVAL_MS = 25_000;
 
 const REFERENCE_VIDEOS_PAGE_SIZE = 10;
 const PIPELINE_TERMINAL_STAGES = new Set<PipelineStage>(["sent", "failed"]);
@@ -364,7 +363,6 @@ export default function TrainingStudioWorkspace() {
   }>({ loading: false, error: null, audioUrl: null, failed: false });
   const activeStudentKeyRef = useRef<string | null>(null);
   const hasUnsavedDraftEditsRef = useRef(false);
-  const queuePollInFlightRef = useRef(false);
 
   useBodyScrollLock(taskModalOpen);
 
@@ -399,17 +397,10 @@ export default function TrainingStudioWorkspace() {
     }
   }, []);
 
-  const loadStudents = useCallback(async (cohortIds: string[], options?: { quiet?: boolean }) => {
-    const quiet = options?.quiet === true;
-    if (quiet && queuePollInFlightRef.current) {
-      return [] as CopilotStudentQueueItem[];
-    }
-    if (quiet) queuePollInFlightRef.current = true;
-
+  const loadStudents = useCallback(async (cohortIds: string[]) => {
     if (cohortIds.length === 0) {
       setStudents([]);
       setSelectedStudent(null);
-      if (quiet) queuePollInFlightRef.current = false;
       return [] as CopilotStudentQueueItem[];
     }
 
@@ -432,7 +423,7 @@ export default function TrainingStudioWorkspace() {
       return list;
     };
 
-    if (!quiet) setLoadingQueue(true);
+    setLoadingQueue(true);
     try {
       let firstErrorShown = false;
       await Promise.all(
@@ -448,7 +439,7 @@ export default function TrainingStudioWorkspace() {
             }
             applyList();
           } catch (error) {
-            if (!firstErrorShown && !quiet) {
+            if (!firstErrorShown) {
               firstErrorShown = true;
               toast.error(error instanceof Error ? error.message : "Failed to load students");
             }
@@ -457,8 +448,7 @@ export default function TrainingStudioWorkspace() {
       );
       return applyList();
     } finally {
-      if (!quiet) setLoadingQueue(false);
-      if (quiet) queuePollInFlightRef.current = false;
+      setLoadingQueue(false);
     }
   }, []);
 
@@ -685,15 +675,6 @@ export default function TrainingStudioWorkspace() {
       return;
     }
     void loadStudents(cohortIds);
-  }, [cohorts, loadStudents]);
-
-  useEffect(() => {
-    const cohortIds = cohorts.map((cohort) => cohort.id).filter(Boolean);
-    if (cohortIds.length === 0) return;
-    const interval = window.setInterval(() => {
-      void loadStudents(cohortIds, { quiet: true });
-    }, QUEUE_POLL_INTERVAL_MS);
-    return () => window.clearInterval(interval);
   }, [cohorts, loadStudents]);
 
   useEffect(() => {
@@ -1868,6 +1849,20 @@ export default function TrainingStudioWorkspace() {
       <>
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="overflow-hidden border-border/90 bg-card/95 p-0 shadow-sm">
+          <div className="flex items-center justify-end border-b bg-muted/20 px-2 py-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+              aria-label="Refresh queue"
+              title="Refresh queue"
+              disabled={loadingQueue}
+              onClick={() => void loadCohorts()}
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingQueue ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
           <div className="grid grid-cols-4 border-b bg-muted/35 text-center text-xs font-medium">
             <button className={`px-2 py-2 ${queueFilter === "all" ? "border-b-2 border-amber-500 text-foreground" : "text-muted-foreground"}`} onClick={() => setQueueFilter("all")} type="button">
               All ({queueCounts.all})
