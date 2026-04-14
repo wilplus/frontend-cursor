@@ -730,6 +730,36 @@ function enrichCopilotStudentQueueItem(student: CopilotStudentQueueItem): Copilo
   return { ...student, session_created_at: resolved };
 }
 
+const queueSessionCreatedAtByStudent = new Map<string, Map<string, string>>();
+
+async function getSessionCreatedAtFromStudentProfile(
+  studentId: string,
+  sessionId: string
+): Promise<string | null> {
+  if (!studentId || !sessionId) return null;
+  const cachedBySession = queueSessionCreatedAtByStudent.get(studentId);
+  if (cachedBySession?.has(sessionId)) {
+    return cachedBySession.get(sessionId) ?? null;
+  }
+
+  const profile = await adminFetch<Record<string, unknown>>(`/students/${studentId}`);
+  const sessionsRaw = Array.isArray((profile as { sessions?: unknown[] }).sessions)
+    ? ((profile as { sessions?: unknown[] }).sessions as Array<Record<string, unknown>>)
+    : [];
+
+  const bySession = cachedBySession ?? new Map<string, string>();
+  for (const row of sessionsRaw) {
+    const sid = asTrimmedString(row.id) ?? asTrimmedString(row.session_id);
+    const created =
+      asTrimmedString(row.created_at) ??
+      asTrimmedString(row.session_created_at) ??
+      asTrimmedString(row.submitted_at);
+    if (sid && created) bySession.set(sid, created);
+  }
+  queueSessionCreatedAtByStudent.set(studentId, bySession);
+  return bySession.get(sessionId) ?? null;
+}
+
 export interface CopilotStudentDraft {
   id: string;
   student_id: string;
@@ -1109,11 +1139,48 @@ export const adminApi = {
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return adminFetch<{ students: CopilotStudentQueueItem[] }>(
       `/copilot/cohorts/${cohortId}/students${suffix}`
-    ).then((res) => ({
-      students: (Array.isArray(res.students) ? res.students : []).map((s) =>
+    ).then(async (res) => {
+      const enriched = (Array.isArray(res.students) ? res.students : []).map((s) =>
         enrichCopilotStudentQueueItem(s)
-      ),
-    }));
+      );
+      const missing = enriched.filter(
+        (row) =>
+          !asTrimmedString(row.session_created_at) &&
+          !!asTrimmedString(row.student_id) &&
+          !!asTrimmedString(row.session_id)
+      );
+      if (missing.length === 0) return { students: enriched };
+
+      const updates = await Promise.all(
+        missing.map(async (row) => {
+          const sid = asTrimmedString(row.session_id);
+          const studentId = asTrimmedString(row.student_id);
+          if (!sid || !studentId) return null;
+          try {
+            const createdAt = await getSessionCreatedAtFromStudentProfile(studentId, sid);
+            return createdAt ? { studentId, sid, createdAt } : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const byKey = new Map<string, string>();
+      for (const item of updates) {
+        if (!item) continue;
+        byKey.set(`${item.studentId}:${item.sid}`, item.createdAt);
+      }
+
+      return {
+        students: enriched.map((row) => {
+          if (asTrimmedString(row.session_created_at)) return row;
+          const sid = asTrimmedString(row.session_id);
+          const studentId = asTrimmedString(row.student_id);
+          if (!sid || !studentId) return row;
+          const resolved = byKey.get(`${studentId}:${sid}`);
+          return resolved ? { ...row, session_created_at: resolved } : row;
+        }),
+      };
+    });
   },
 
   getCopilotStudentDrafts: (studentId: string, params?: { session_id?: string }) => {
