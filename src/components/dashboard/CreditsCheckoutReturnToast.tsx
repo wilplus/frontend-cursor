@@ -28,23 +28,31 @@ export default function CreditsCheckoutReturnToast() {
           { duration: 16_000 }
         );
       }
-      window.dispatchEvent(
-        new CustomEvent<CreditsCheckoutSuccessDetail>(
-          WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
-          { detail: { checkoutSessionId } }
-        )
-      );
+      const sid = checkoutSessionId?.trim() || null;
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("credits");
+      next.delete("session_id");
+      const q = next.toString();
+      /** Dispatch after replace would race listeners; microtask runs after layout effects on this commit. */
+      queueMicrotask(() => {
+        window.dispatchEvent(
+          new CustomEvent<CreditsCheckoutSuccessDetail>(
+            WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
+            { detail: { checkoutSessionId: sid } }
+          )
+        );
+        router.replace(q ? `/dashboard?${q}` : "/dashboard", { scroll: false });
+      });
     } else {
       toast.message("Checkout cancelled", {
         description: "No charge was made. You can choose a pack anytime from the credits page.",
       });
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("credits");
+      next.delete("session_id");
+      const q = next.toString();
+      router.replace(q ? `/dashboard?${q}` : "/dashboard", { scroll: false });
     }
-
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete("credits");
-    next.delete("session_id");
-    const q = next.toString();
-    router.replace(q ? `/dashboard?${q}` : "/dashboard", { scroll: false });
   }, [router, searchParams]);
 
   return null;
