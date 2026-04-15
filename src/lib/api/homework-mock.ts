@@ -35,7 +35,6 @@ export function mockStartResponse() {
     session_id: uuid(),
     task: text,
     task_text: text,
-    warm_up_task_text: text,
   };
 }
 

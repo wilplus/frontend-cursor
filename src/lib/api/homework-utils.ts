@@ -22,7 +22,7 @@ export function resolveTaskText(text: unknown): string {
 
 /**
  * Opening step-1 prompt from POST /session/start or GET /session/status payloads.
- * Prefers `task`, `task_text`, `tasks_pool` / `task_pool` (top-level then nested `session`); legacy `warm_up_*` last.
+ * Prefers `task` (string or `{ text }`), `task_text`, `tasks_pool` / `task_pool` (top-level then nested `session`).
  */
 export function openingTaskTextFromApiPayload(data: Record<string, unknown> | null | undefined): string {
   if (!data) return "";

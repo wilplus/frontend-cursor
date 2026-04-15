@@ -44,11 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: res.status });
   }
   const opening = openingTaskTextFromApiPayload(data);
+  const fromBackendTask = typeof data.task === "string" ? data.task.trim() : "";
+  const fromBackendTaskText = typeof data.task_text === "string" ? data.task_text.trim() : "";
+  const resolved = opening || fromBackendTask || fromBackendTaskText || "";
   const normalized = {
     ...data,
-    task: opening || null,
-    warm_up_task: data.warm_up_task ?? null,
-    warm_up_task_text: opening || (typeof data.warm_up_task_text === "string" ? data.warm_up_task_text : "") || "",
+    task: resolved || null,
+    task_text: resolved,
   };
   return NextResponse.json(normalized, { status: res.status });
 }

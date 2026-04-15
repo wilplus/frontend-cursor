@@ -3,7 +3,7 @@
  * Backend may not implement these yet; BFF and client are ready for when it does.
  */
 
-import { firstTaskTextFromPool, mergeHomeworkTaskPair } from "@/lib/api/homework-task-fields";
+import { firstTaskTextFromPool, mergeHomeworkTaskPair, taskFieldText } from "@/lib/api/homework-task-fields";
 
 export type UUID = string;
 
@@ -198,12 +198,6 @@ export function toPublicStatus(s: unknown): PublicHomeworkStatus {
   return "none";
 }
 
-/** Legacy opening task shape; prefer top-level `task` / `task_text` / `tasks_pool` from backend. */
-export interface HomeworkSessionTask {
-  id: string;
-  text: string;
-}
-
 // —— Start homework session ——
 export interface HomeworkStartResponse {
   session_id: UUID;
@@ -308,8 +302,6 @@ export interface AssignedExercise {
 export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): HomeworkResponse {
   const status = toPublicStatus(raw.status ?? raw.session?.status);
   const legacyRaw = raw as HomeworkSessionStatus & {
-    warm_up_task?: HomeworkSessionTask | null;
-    warm_up_task_text?: string | null;
     task_text?: string | null;
     final_task?: string | { text?: string } | null;
     final_task_text?: string | null;
@@ -320,14 +312,12 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
       task_text?: string | null;
       tasks_pool?: HomeworkSessionStatus["tasks_pool"];
       task_pool?: HomeworkSessionStatus["task_pool"];
-      warm_up_task?: HomeworkSessionTask | null;
-      warm_up_task_text?: string | null;
       final_task_text?: string | null;
     };
   };
   const nested = legacyRaw.session;
   const taskFromFields = mergeHomeworkTaskPair(
-    trimStr(raw.task) ?? trimStr(nested?.task) ?? null,
+    taskFieldText(raw.task) ?? taskFieldText(nested?.task) ?? null,
     trimStr(legacyRaw.task_text) ?? trimStr(nested?.task_text) ?? null
   );
   const task =
@@ -339,10 +329,6 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     (typeof legacyRaw.final_task === "string" ? legacyRaw.final_task : null) ??
     legacyRaw.final_task_text ??
     legacyRaw.session?.final_task_text ??
-    legacyRaw.warm_up_task?.text ??
-    legacyRaw.warm_up_task_text ??
-    legacyRaw.session?.warm_up_task?.text ??
-    legacyRaw.session?.warm_up_task_text ??
     null;
   return {
     status,

@@ -7,6 +7,17 @@ function trimStr(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
+/** `task` as plain string or `{ text: string }` (API may send either). */
+export function taskFieldText(field: unknown): string | null {
+  const s = trimStr(field);
+  if (s) return s;
+  if (field && typeof field === "object" && field !== null && "text" in field) {
+    const t = (field as { text: unknown }).text;
+    if (typeof t === "string" && t.trim()) return t.trim();
+  }
+  return null;
+}
+
 /**
  * Combine a short label and a longer prompt when the backend sends both (e.g. `task` + `task_text`).
  * If one contains the other, returns the longer; if both differ, returns "short\n\nlong".
@@ -42,11 +53,11 @@ export function taskTextFromPoolItem(first: unknown): string | null {
   );
 }
 
-/** Top-level or nested session record: task + task_text + pool + warm-up (same order as status/start consumers). */
+/** Top-level or nested session record: `task` (string or `{ text }`) + `task_text` + pool. */
 export function openingTaskTextFromRecord(rec: Record<string, unknown>): string {
-  const task = trimStr(rec.task);
+  const taskStr = taskFieldText(rec.task);
   const taskText = trimStr(rec.task_text);
-  const mergedFields = mergeHomeworkTaskPair(task, taskText);
+  const mergedFields = mergeHomeworkTaskPair(taskStr, taskText);
   if (mergedFields) return mergedFields;
 
   const pool = rec.tasks_pool ?? rec.task_pool;
@@ -55,12 +66,5 @@ export function openingTaskTextFromRecord(rec: Record<string, unknown>): string 
     if (fromPool) return fromPool;
   }
 
-  const warmObj = rec.warm_up_task;
-  if (warmObj && typeof warmObj === "object" && warmObj !== null && "text" in warmObj) {
-    const t = (warmObj as { text: unknown }).text;
-    if (typeof t === "string" && t.trim()) return t.trim();
-  }
-  const wtext = trimStr(rec.warm_up_task_text);
-  if (wtext) return wtext;
   return "";
 }
