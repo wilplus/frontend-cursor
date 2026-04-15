@@ -617,10 +617,53 @@ function SnippetAudio({
   onError?: () => void;
   onLoadStart?: () => void;
 }) {
+  const [urlValid, setUrlValid] = useState<boolean | null>(null);
+
+  // Validate the URL with a HEAD request before rendering the audio element.
+  // This catches expired/invalid signed URLs (403/404) immediately instead of
+  // hanging on the browser's audio element.
+  useEffect(() => {
+    if (!snippet.audio_url) {
+      setUrlValid(false);
+      return;
+    }
+
+    let cancelled = false;
+    const validateUrl = async () => {
+      try {
+        const res = await fetch(snippet.audio_url!, { method: "HEAD", credentials: "include" });
+        if (!cancelled) {
+          if (res.ok) {
+            setUrlValid(true);
+          } else {
+            console.warn(`[SnippetAudio] URL validation failed for snippet ${snippet.id}`, {
+              status: res.status,
+              audio_url: snippet.audio_url?.slice(0, 50) + "...",
+            });
+            setUrlValid(false);
+            onError?.();
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn(`[SnippetAudio] URL validation error for snippet ${snippet.id}`, err);
+          setUrlValid(false);
+          onError?.();
+        }
+      }
+    };
+
+    void validateUrl();
+    return () => {
+      cancelled = true;
+    };
+  }, [snippet.id, snippet.audio_url, onError]);
+
   // NEVER fall back to the parent recording's audio — that's the 5-min source.
   // Only play `audio_url`, which the backend guarantees is a signed URL to the
   // per-snippet ≤5s mp3 at `stress_snippets/<recording_id>/<snippet_id>.mp3`.
-  if (!snippet.playable || !snippet.audio_url) return null;
+  if (!snippet.playable || !snippet.audio_url || !urlValid) return null;
+
   return (
     <audio
       key={`${snippet.id}:${snippet.audio_url ?? "none"}`}
