@@ -21,6 +21,7 @@ import {
   COPILOT_REFERENCE_VIDEO_MAX_BYTES,
   uploadCopilotReferenceVideoWithProgress,
   type AdminCopilotReferenceVideo,
+  type CopilotReferenceVideoUploadJobPayload,
   type CopilotCohortStack,
   type CopilotReferenceVideoUploadProgress,
   type DraftGenerationStatus,
@@ -328,6 +329,8 @@ export default function TrainingStudioWorkspace() {
   const [referenceVideosUploadLoading, setReferenceVideosUploadLoading] = useState(false);
   const [referenceVideoUploadProgress, setReferenceVideoUploadProgress] =
     useState<CopilotReferenceVideoUploadProgress | null>(null);
+  const [referenceVideoServerJob, setReferenceVideoServerJob] =
+    useState<CopilotReferenceVideoUploadJobPayload | null>(null);
   const [referenceVideoFile, setReferenceVideoFile] = useState<File | null>(null);
   const [referenceVideoTitle, setReferenceVideoTitle] = useState("");
   const [referenceVideoTags, setReferenceVideoTags] = useState("");
@@ -1512,6 +1515,7 @@ export default function TrainingStudioWorkspace() {
     }
     referenceVideoUploadProgressPendingRef.current = null;
     setReferenceVideoUploadProgress(null);
+    setReferenceVideoServerJob(null);
   }, []);
 
   const uploadReferenceVideo = useCallback(async () => {
@@ -1539,6 +1543,8 @@ export default function TrainingStudioWorkspace() {
       const response = await uploadCopilotReferenceVideoWithProgress(formData, {
         signal: abortController.signal,
         onProgress: scheduleReferenceVideoUploadProgress,
+        onJobProgress: (job) => setReferenceVideoServerJob({ ...job }),
+        jobPollIntervalMs: 750,
       });
       const uploaded = response.reference_video;
       if (uploaded?.id) {
@@ -2700,58 +2706,99 @@ export default function TrainingStudioWorkspace() {
                 </div>
               </div>
               {referenceVideosUploadLoading ? (
-                <div className="space-y-2 rounded-md border border-border/80 bg-muted/20 px-3 py-3">
-                  <div
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={
-                      referenceVideoUploadProgress?.percent != null
-                        ? referenceVideoUploadProgress.percent
-                        : undefined
-                    }
-                    aria-valuetext={
-                      referenceVideoUploadProgress
-                        ? referenceVideoUploadProgress.percent != null
-                          ? `${referenceVideoUploadProgress.percent}% · ${formatMegabytes(referenceVideoUploadProgress.loaded)} / ${formatMegabytes(referenceVideoUploadProgress.total)} MB`
-                          : `Uploading, ${formatMegabytes(referenceVideoUploadProgress.loaded)} MB transferred`
-                        : "Starting upload"
-                    }
-                    aria-label="Reference video upload progress"
-                    className="space-y-2"
-                  >
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                      {referenceVideoUploadProgress?.percent != null ? (
-                        <div
-                          className="h-full bg-primary transition-[width] duration-150 ease-linear"
-                          style={{ width: `${referenceVideoUploadProgress.percent}%` }}
-                        />
-                      ) : (
-                        <div className="h-full w-full animate-pulse bg-primary/50" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {referenceVideoUploadProgress ? (
-                        referenceVideoUploadProgress.lengthComputable &&
-                        referenceVideoUploadProgress.total > 0 ? (
-                          <>
-                            {referenceVideoUploadProgress.percent != null
-                              ? `${referenceVideoUploadProgress.percent}% · `
-                              : null}
-                            {formatMegabytes(referenceVideoUploadProgress.loaded)} /{" "}
-                            {formatMegabytes(referenceVideoUploadProgress.total)} MB
-                          </>
+                <div className="space-y-4 rounded-md border border-border/80 bg-muted/20 px-3 py-3">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">1. Sending file to server</p>
+                    <div
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={
+                        referenceVideoUploadProgress?.percent != null
+                          ? referenceVideoUploadProgress.percent
+                          : undefined
+                      }
+                      aria-valuetext={
+                        referenceVideoUploadProgress
+                          ? referenceVideoUploadProgress.percent != null
+                            ? `${referenceVideoUploadProgress.percent}% · ${formatMegabytes(referenceVideoUploadProgress.loaded)} / ${formatMegabytes(referenceVideoUploadProgress.total)} MB`
+                            : `Uploading, ${formatMegabytes(referenceVideoUploadProgress.loaded)} MB transferred`
+                          : "Starting upload"
+                      }
+                      aria-label="Multipart upload progress"
+                      className="space-y-2"
+                    >
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                        {referenceVideoUploadProgress?.percent != null ? (
+                          <div
+                            className="h-full bg-primary transition-[width] duration-150 ease-linear"
+                            style={{ width: `${referenceVideoUploadProgress.percent}%` }}
+                          />
                         ) : (
-                          <>
-                            Uploading… (connection in progress) · {formatMegabytes(referenceVideoUploadProgress.loaded)}{" "}
-                            MB
-                          </>
-                        )
-                      ) : (
-                        "Starting upload…"
-                      )}
-                    </p>
+                          <div className="h-full w-full animate-pulse bg-primary/50" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {referenceVideoUploadProgress ? (
+                          referenceVideoUploadProgress.lengthComputable &&
+                          referenceVideoUploadProgress.total > 0 ? (
+                            <>
+                              {referenceVideoUploadProgress.percent != null
+                                ? `${referenceVideoUploadProgress.percent}% · `
+                                : null}
+                              {formatMegabytes(referenceVideoUploadProgress.loaded)} /{" "}
+                              {formatMegabytes(referenceVideoUploadProgress.total)} MB
+                            </>
+                          ) : (
+                            <>
+                              Uploading… (connection in progress) ·{" "}
+                              {formatMegabytes(referenceVideoUploadProgress.loaded)} MB
+                            </>
+                          )
+                        ) : (
+                          "Starting upload…"
+                        )}
+                      </p>
+                    </div>
                   </div>
+                  {referenceVideoServerJob ? (
+                    <div className="space-y-2 border-t border-border/60 pt-3">
+                      <p className="text-xs font-medium text-muted-foreground">2. Server processing</p>
+                      <div
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={referenceVideoServerJob.percent}
+                        aria-valuetext={`${referenceVideoServerJob.percent}% · ${referenceVideoServerJob.stage}${referenceVideoServerJob.message ? ` · ${referenceVideoServerJob.message}` : ""}`}
+                        aria-label="Server reference video job progress"
+                        className="space-y-2"
+                      >
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full bg-emerald-600/90 transition-[width] duration-300 ease-linear"
+                            style={{ width: `${Math.max(0, Math.min(100, referenceVideoServerJob.percent))}%` }}
+                          />
+                        </div>
+                        {referenceVideoServerJob.error?.trim() ? (
+                          <p className="text-xs text-rose-600">{referenceVideoServerJob.error.trim()}</p>
+                        ) : null}
+                        <p className="text-xs text-muted-foreground">
+                          {referenceVideoServerJob.message?.trim() ||
+                            `Stage: ${referenceVideoServerJob.stage || "…"}`}
+                        </p>
+                        {/*
+                          Backend reference pipeline: .mov/.avi/.mkv → ffmpeg → mono MP3 → Whisper;
+                          .mp4/.webm/.m4v → Whisper on original bytes. Long clips: first N seconds server-side.
+                        */}
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                          .mov, .avi, .mkv: the server may extract audio (ffmpeg) before Whisper. .mp4, .webm, .m4v can go
+                          to Whisper directly. Very long videos may use only the first portion of audio (server cap).
+                          Transcription can take a few minutes. If it fails (e.g. ffmpeg not installed on the host),
+                          check the error above or the video row’s transcription error after upload.
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               {fullOverrideAttached ? (
