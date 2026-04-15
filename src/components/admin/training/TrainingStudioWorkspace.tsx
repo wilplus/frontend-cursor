@@ -18,6 +18,7 @@ import { resolveSessionRowWpm } from "@/lib/admin/resolveWpm";
 import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports/compact-preview";
 import {
   adminApi,
+  COPILOT_REFERENCE_VIDEO_MAX_BYTES,
   type AdminCopilotReferenceVideo,
   type CopilotCohortStack,
   type DraftGenerationStatus,
@@ -1481,6 +1482,10 @@ export default function TrainingStudioWorkspace() {
       toast.error("Choose a video file first.");
       return;
     }
+    if (referenceVideoFile.size > COPILOT_REFERENCE_VIDEO_MAX_BYTES) {
+      toast.error(`Video must be at most ${Math.round(COPILOT_REFERENCE_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`);
+      return;
+    }
     setReferenceVideosUploadLoading(true);
     try {
       const formData = new FormData();
@@ -2571,11 +2576,25 @@ export default function TrainingStudioWorkspace() {
                   <Input
                     type="file"
                     accept="video/*"
-                    onChange={(event) =>
-                      setReferenceVideoFile(event.target.files && event.target.files.length > 0 ? event.target.files[0] : null)
-                    }
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      if (file && file.size > COPILOT_REFERENCE_VIDEO_MAX_BYTES) {
+                        toast.error(
+                          `Video must be at most ${Math.round(COPILOT_REFERENCE_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`
+                        );
+                        setReferenceVideoFile(null);
+                        event.target.value = "";
+                        return;
+                      }
+                      setReferenceVideoFile(file);
+                    }}
                     disabled={referenceVideosUploadLoading}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Max file size {Math.round(COPILOT_REFERENCE_VIDEO_MAX_BYTES / (1024 * 1024))} MB. Large uploads use your API URL directly (
+                    <code className="text-[11px]">NEXT_PUBLIC_API_URL</code>
+                    ).
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm text-muted-foreground">Title (optional)</label>
