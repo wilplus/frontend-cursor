@@ -1502,6 +1502,9 @@ export const adminApi = {
       { method: "POST" }
     ),
 
+  getStressSnippetPlaybackUrl: (snippetId: string) =>
+    adminFetch<{ audio_url: string | null }>(`/stress-snippets/${snippetId}/playback-url`),
+
   exportDpoData: (params?: { from?: string; to?: string; format?: "json" | "csv" }) => {
     const search = new URLSearchParams();
     if (params?.from) search.set("from", params.from);
