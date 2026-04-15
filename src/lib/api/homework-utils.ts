@@ -40,9 +40,71 @@ function trimStr(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
+function resolveMediaUrlCandidate(value: unknown): string | null {
+  const raw = trimStr(value);
+  if (!raw) return null;
+  // Absolute URLs or protocol-relative URLs are ready to use.
+  if (/^(https?:)?\/\//i.test(raw)) return raw;
+  // Backend may already return storage API paths.
+  if (raw.startsWith("/storage/")) return raw;
+  return null;
+}
+
+function buildSupabaseStoragePublicUrl(
+  bucketValue: unknown,
+  storagePathValue: unknown
+): string | null {
+  const bucket = trimStr(bucketValue);
+  const storagePath = trimStr(storagePathValue).replace(/^\/+/, "");
+  if (!bucket || !storagePath) return null;
+  const base = trimStr(process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, "");
+  if (!base) return null;
+  return `${base}/storage/v1/object/public/${encodeURIComponent(bucket)}/${storagePath}`;
+}
+
+function resolveVideoUrlFromRecord(record: Record<string, unknown>): string | null {
+  const urlKeys = [
+    "tutor_video_url",
+    "video_url",
+    "homework_video_url",
+    "coach_video_url",
+    "assignment_video_url",
+  ] as const;
+  for (const key of urlKeys) {
+    const resolved = resolveMediaUrlCandidate(record[key]);
+    if (resolved) return resolved;
+  }
+
+  const bucketKeys = [
+    "tutor_video_bucket",
+    "video_bucket",
+    "homework_video_bucket",
+    "coach_video_bucket",
+    "assignment_video_bucket",
+    "bucket",
+  ] as const;
+  const pathKeys = [
+    "tutor_video_storage_path",
+    "video_storage_path",
+    "homework_video_storage_path",
+    "coach_video_storage_path",
+    "assignment_video_storage_path",
+    "storage_path",
+    "path",
+  ] as const;
+  for (const bucketKey of bucketKeys) {
+    for (const pathKey of pathKeys) {
+      const built = buildSupabaseStoragePublicUrl(record[bucketKey], record[pathKey]);
+      if (built) return built;
+    }
+  }
+  return null;
+}
+
 /**
  * Step-0 video URL from GET /homework/session/status (or start) payloads.
- * Checks common top-level and `session` keys plus `assigned_exercises[].video_url`.
+ * Checks top-level + nested session URL aliases and Supabase storage fields.
+ * Falls back to the first non-empty assigned exercise video URL.
  */
 export function resolveStep0VideoUrlFromStatusPayload(
   raw: Record<string, unknown> | null | undefined
@@ -52,11 +114,22 @@ export function resolveStep0VideoUrlFromStatusPayload(
     raw.session && typeof raw.session === "object" && raw.session !== null
       ? (raw.session as Record<string, unknown>)
       : null;
-  const top = trimStr(raw.tutor_video_url);
+
+  const top = resolveVideoUrlFromRecord(raw);
   if (top) return top;
   if (session) {
-    const nested = trimStr(session.tutor_video_url);
+    const nested = resolveVideoUrlFromRecord(session);
     if (nested) return nested;
+  }
+
+  const exercisesRaw = raw.assigned_exercises;
+  if (Array.isArray(exercisesRaw)) {
+    for (const exercise of exercisesRaw) {
+      if (!exercise || typeof exercise !== "object") continue;
+      const exRecord = exercise as Record<string, unknown>;
+      const exUrl = resolveMediaUrlCandidate(exRecord.video_url);
+      if (exUrl) return exUrl;
+    }
   }
   return null;
 }
