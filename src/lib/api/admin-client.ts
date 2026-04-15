@@ -18,6 +18,68 @@ export type AdminApiError = Error & {
   recording_1_processing_error_code?: string;
 };
 
+/** Align with backend / proxy max body; client rejects larger files before upload. */
+export const COPILOT_REFERENCE_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+
+function getBrowserPublicBackendUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw =
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    process.env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
+    "";
+  return raw ? raw.replace(/\/+$/, "") : null;
+}
+
+/** Large multipart uploads fail on many Next hosts (e.g. Vercel ~4.5MB). Bypass BFF when public backend URL exists. */
+async function uploadCopilotReferenceVideoDirect(formData: FormData): Promise<unknown> {
+  const base = getBrowserPublicBackendUrl();
+  if (!base) {
+    throw new Error(
+      "Set NEXT_PUBLIC_API_URL to your backend base URL so large videos can upload directly (Next.js body limit)."
+    );
+  }
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error("Not signed in");
+
+  const url = `${base}/v2/admin/copilot/reference-videos/upload`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = data as {
+      error?: string;
+      message?: string;
+      code?: string;
+      details?: string;
+    };
+    const msg =
+      res.status === 413
+        ? "Upload rejected: file too large for the proxy, or server body limit (HTTP 413). Use a smaller file or raise nginx/backend client_max_body_size."
+        : err.error ||
+          err.message ||
+          err.code ||
+          err.details ||
+          `HTTP ${res.status} for reference video upload`;
+    const apiError = new Error(msg) as AdminApiError;
+    apiError.status = res.status;
+    if (err.code) apiError.code = err.code;
+    if (err.error) apiError.error = err.error;
+    throw apiError;
+  }
+  return data;
+}
+
 async function adminFetch<T>(
   path: string,
   options: AdminFetchOptions = {}
@@ -47,7 +109,9 @@ async function adminFetch<T>(
       recording_1_processing_error_code?: string;
     };
     const msg =
-      err.error || err.message || err.code || err.details || `HTTP ${res.status} for ${path}`;
+      res.status === 413
+        ? "Upload too large for this app server (HTTP 413). Set NEXT_PUBLIC_API_URL and retry, or use a smaller file."
+        : err.error || err.message || err.code || err.details || `HTTP ${res.status} for ${path}`;
     const apiError = new Error(msg) as AdminApiError;
     apiError.status = res.status;
     if (err.code) apiError.code = err.code;
@@ -1326,14 +1390,24 @@ export const adminApi = {
     });
   },
 
-  uploadCopilotReferenceVideo: (formData: FormData) =>
-    adminFetch<{
+  uploadCopilotReferenceVideo: (formData: FormData) => {
+    if (typeof window !== "undefined" && getBrowserPublicBackendUrl()) {
+      return uploadCopilotReferenceVideoDirect(formData) as Promise<{
+        reference_video?: AdminCopilotReferenceVideo;
+        transcription_status?: string | null;
+        transcription_error?: string | null;
+        transcript_text?: string | null;
+        preview_url?: string | null;
+      }>;
+    }
+    return adminFetch<{
       reference_video?: AdminCopilotReferenceVideo;
       transcription_status?: string | null;
       transcription_error?: string | null;
       transcript_text?: string | null;
       preview_url?: string | null;
-    }>("/copilot/reference-videos/upload", { method: "POST", body: formData }),
+    }>("/copilot/reference-videos/upload", { method: "POST", body: formData });
+  },
 
   getCopilotReferenceVideoPlaybackUrl: (referenceVideoId: string, expiresIn = 3600) => {
     const search = new URLSearchParams();
