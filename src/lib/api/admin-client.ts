@@ -21,6 +21,17 @@ export type AdminApiError = Error & {
 /** Align with backend / proxy max body; client rejects larger files before upload. */
 export const COPILOT_REFERENCE_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
 
+/** Slow networks + 500 MB — align with reverse-proxy / app server timeouts. */
+export const COPILOT_REFERENCE_VIDEO_UPLOAD_XHR_TIMEOUT_MS = 45 * 60 * 1000;
+
+export type CopilotReferenceVideoUploadProgress = {
+  loaded: number;
+  total: number;
+  lengthComputable: boolean;
+  /** Set when `lengthComputable` and `total > 0`. */
+  percent: number | null;
+};
+
 function getBrowserPublicBackendUrl(): string | null {
   if (typeof window === "undefined") return null;
   const raw =
@@ -28,56 +39,6 @@ function getBrowserPublicBackendUrl(): string | null {
     process.env.NEXT_PUBLIC_BACKEND_URL?.trim() ||
     "";
   return raw ? raw.replace(/\/+$/, "") : null;
-}
-
-/** Large multipart uploads fail on many Next hosts (e.g. Vercel ~4.5MB). Bypass BFF when public backend URL exists. */
-async function uploadCopilotReferenceVideoDirect(formData: FormData): Promise<unknown> {
-  const base = getBrowserPublicBackendUrl();
-  if (!base) {
-    throw new Error(
-      "Set NEXT_PUBLIC_API_URL to your backend base URL so large videos can upload directly (Next.js body limit)."
-    );
-  }
-  const { createClient } = await import("@/lib/supabase/client");
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  if (!token) throw new Error("Not signed in");
-
-  const url = `${base}/v2/admin/copilot/reference-videos/upload`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-    body: formData,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = data as {
-      error?: string;
-      message?: string;
-      code?: string;
-      details?: string;
-    };
-    const msg =
-      res.status === 413
-        ? "Upload rejected: file too large for the proxy, or server body limit (HTTP 413). Use a smaller file or raise nginx/backend client_max_body_size."
-        : err.error ||
-          err.message ||
-          err.code ||
-          err.details ||
-          `HTTP ${res.status} for reference video upload`;
-    const apiError = new Error(msg) as AdminApiError;
-    apiError.status = res.status;
-    if (err.code) apiError.code = err.code;
-    if (err.error) apiError.error = err.error;
-    throw apiError;
-  }
-  return data;
 }
 
 async function adminFetch<T>(
@@ -1048,6 +1009,196 @@ export interface AdminCopilotReferenceVideosResponse {
   offset: number;
 }
 
+export type CopilotReferenceVideoUploadResult = {
+  reference_video?: AdminCopilotReferenceVideo;
+  transcription_status?: string | null;
+  transcription_error?: string | null;
+  transcript_text?: string | null;
+  preview_url?: string | null;
+};
+
+function referenceVideoUploadErrorFromXhr(status: number, data: unknown): AdminApiError {
+  const err = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as {
+    error?: string;
+    message?: string;
+    code?: string;
+    details?: string;
+  };
+  const code = typeof err.code === "string" ? err.code : undefined;
+  const is413 = status === 413 || code === "PAYLOAD_TOO_LARGE";
+  const msg = is413
+    ? code === "PAYLOAD_TOO_LARGE"
+      ? "Upload rejected: file too large (PAYLOAD_TOO_LARGE). Use a smaller file or raise server / proxy body limits."
+      : err.error ||
+        err.message ||
+        "Upload rejected: file too large for the proxy or server (HTTP 413). Set NEXT_PUBLIC_API_URL for direct upload, shrink the file, or raise client_max_body_size."
+    : status === 500
+      ? err.error ||
+        err.message ||
+        err.code ||
+        err.details ||
+        "Server error (HTTP 500) while uploading reference video."
+      : err.error ||
+        err.message ||
+        err.code ||
+        err.details ||
+        `HTTP ${status} for reference video upload`;
+  const apiError = new Error(msg) as AdminApiError;
+  apiError.status = status;
+  if (code) apiError.code = code;
+  if (err.error) apiError.error = err.error;
+  return apiError;
+}
+
+function createReferenceVideoUploadXhr(
+  url: string,
+  headers: Record<string, string>,
+  withCredentials: boolean,
+  onProgress: ((progress: CopilotReferenceVideoUploadProgress) => void) | undefined,
+  signal: AbortSignal | undefined,
+  resolve: (value: CopilotReferenceVideoUploadResult) => void,
+  reject: (reason: unknown) => void
+): XMLHttpRequest {
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", url);
+  xhr.timeout = COPILOT_REFERENCE_VIDEO_UPLOAD_XHR_TIMEOUT_MS;
+  xhr.withCredentials = withCredentials;
+  for (const [key, value] of Object.entries(headers)) {
+    xhr.setRequestHeader(key, value);
+  }
+
+  xhr.upload.onprogress = (event) => {
+    const lengthComputable = event.lengthComputable;
+    const loaded = event.loaded;
+    const total = event.total;
+    const percent =
+      lengthComputable && total > 0 ? Math.round((loaded / total) * 100) : null;
+    onProgress?.({ loaded, total, lengthComputable, percent });
+  };
+
+  const onAbort = () => {
+    xhr.abort();
+  };
+  if (signal) {
+    if (signal.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return xhr;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  const cleanupAbort = () => {
+    if (signal) signal.removeEventListener("abort", onAbort);
+  };
+
+  xhr.onload = () => {
+    cleanupAbort();
+    const text = xhr.responseText ?? "";
+    let data: unknown = {};
+    try {
+      if (text.trim()) data = JSON.parse(text) as unknown;
+    } catch {
+      data = {};
+    }
+    if (xhr.status >= 200 && xhr.status < 300) {
+      resolve(data as CopilotReferenceVideoUploadResult);
+      return;
+    }
+    reject(referenceVideoUploadErrorFromXhr(xhr.status, data));
+  };
+
+  xhr.onerror = () => {
+    cleanupAbort();
+    reject(new Error("Network error during reference video upload"));
+  };
+
+  xhr.ontimeout = () => {
+    cleanupAbort();
+    reject(
+      new Error(
+        "Upload timed out. Try a smaller file, a faster connection, or ask ops to raise proxy timeouts."
+      )
+    );
+  };
+
+  xhr.onabort = () => {
+    cleanupAbort();
+    reject(new DOMException("Aborted", "AbortError"));
+  };
+
+  return xhr;
+}
+
+/**
+ * Multipart reference video upload with real upload progress (XHR).
+ * Uses direct backend URL when set (large bodies); otherwise BFF with cookies.
+ */
+export function uploadCopilotReferenceVideoWithProgress(
+  formData: FormData,
+  options?: {
+    onProgress?: (progress: CopilotReferenceVideoUploadProgress) => void;
+    signal?: AbortSignal;
+  }
+): Promise<CopilotReferenceVideoUploadResult> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Reference video upload is only available in the browser"));
+  }
+
+  const onProgress = options?.onProgress;
+  const signal = options?.signal;
+
+  return new Promise((resolve, reject) => {
+    void (async () => {
+      if (signal?.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      const base = getBrowserPublicBackendUrl();
+
+      if (base) {
+        const url = `${base}/v2/admin/copilot/reference-videos/upload`;
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          reject(new Error("Not signed in"));
+          return;
+        }
+        if (signal?.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+        const xhr = createReferenceVideoUploadXhr(
+          url,
+          { Authorization: `Bearer ${token}`, Accept: "application/json" },
+          false,
+          onProgress,
+          signal,
+          resolve,
+          reject
+        );
+        xhr.send(formData);
+        return;
+      }
+
+      const url = `${getBase()}/api/admin/copilot/reference-videos/upload`;
+      const xhr = createReferenceVideoUploadXhr(
+        url,
+        { Accept: "application/json" },
+        true,
+        onProgress,
+        signal,
+        resolve,
+        reject
+      );
+      xhr.send(formData);
+    })().catch(reject);
+  });
+}
+
 export interface AdminCopilotDraftPipelineStatusResponse {
   status?: string | null;
   stage?: "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed" | string | null;
@@ -1390,24 +1541,8 @@ export const adminApi = {
     });
   },
 
-  uploadCopilotReferenceVideo: (formData: FormData) => {
-    if (typeof window !== "undefined" && getBrowserPublicBackendUrl()) {
-      return uploadCopilotReferenceVideoDirect(formData) as Promise<{
-        reference_video?: AdminCopilotReferenceVideo;
-        transcription_status?: string | null;
-        transcription_error?: string | null;
-        transcript_text?: string | null;
-        preview_url?: string | null;
-      }>;
-    }
-    return adminFetch<{
-      reference_video?: AdminCopilotReferenceVideo;
-      transcription_status?: string | null;
-      transcription_error?: string | null;
-      transcript_text?: string | null;
-      preview_url?: string | null;
-    }>("/copilot/reference-videos/upload", { method: "POST", body: formData });
-  },
+  uploadCopilotReferenceVideo: (formData: FormData) =>
+    uploadCopilotReferenceVideoWithProgress(formData),
 
   getCopilotReferenceVideoPlaybackUrl: (referenceVideoId: string, expiresIn = 3600) => {
     const search = new URLSearchParams();

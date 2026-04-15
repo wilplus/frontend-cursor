@@ -19,8 +19,10 @@ import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports
 import {
   adminApi,
   COPILOT_REFERENCE_VIDEO_MAX_BYTES,
+  uploadCopilotReferenceVideoWithProgress,
   type AdminCopilotReferenceVideo,
   type CopilotCohortStack,
+  type CopilotReferenceVideoUploadProgress,
   type DraftGenerationStatus,
   type CopilotStudentDraft,
   type CopilotStudentQueueItem,
@@ -188,6 +190,10 @@ function formatReferenceCreatedAt(raw: string | null | undefined): string {
   return date.toLocaleString();
 }
 
+function formatMegabytes(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1);
+}
+
 function matchesQueueFilter(item: CopilotStudentQueueItem, filter: QueueFilter): boolean {
   if (filter === "all") return true;
   if (filter === "pending") return item.state === "Draft";
@@ -320,6 +326,8 @@ export default function TrainingStudioWorkspace() {
   const [referenceVideosLoading, setReferenceVideosLoading] = useState(false);
   const [referenceVideosRefreshing, setReferenceVideosRefreshing] = useState(false);
   const [referenceVideosUploadLoading, setReferenceVideosUploadLoading] = useState(false);
+  const [referenceVideoUploadProgress, setReferenceVideoUploadProgress] =
+    useState<CopilotReferenceVideoUploadProgress | null>(null);
   const [referenceVideoFile, setReferenceVideoFile] = useState<File | null>(null);
   const [referenceVideoTitle, setReferenceVideoTitle] = useState("");
   const [referenceVideoTags, setReferenceVideoTags] = useState("");
@@ -364,6 +372,9 @@ export default function TrainingStudioWorkspace() {
   }>({ loading: false, error: null, audioUrl: null, failed: false });
   const activeStudentKeyRef = useRef<string | null>(null);
   const hasUnsavedDraftEditsRef = useRef(false);
+  const referenceVideoUploadAbortRef = useRef<AbortController | null>(null);
+  const referenceVideoUploadProgressRafRef = useRef<number | null>(null);
+  const referenceVideoUploadProgressPendingRef = useRef<CopilotReferenceVideoUploadProgress | null>(null);
 
   useBodyScrollLock(taskModalOpen);
 
@@ -1477,6 +1488,32 @@ export default function TrainingStudioWorkspace() {
     }
   }, []);
 
+  const flushReferenceVideoUploadProgress = useCallback(() => {
+    const latest = referenceVideoUploadProgressPendingRef.current;
+    if (latest) setReferenceVideoUploadProgress({ ...latest });
+  }, []);
+
+  const scheduleReferenceVideoUploadProgress = useCallback(
+    (progress: CopilotReferenceVideoUploadProgress) => {
+      referenceVideoUploadProgressPendingRef.current = progress;
+      if (referenceVideoUploadProgressRafRef.current != null) return;
+      referenceVideoUploadProgressRafRef.current = requestAnimationFrame(() => {
+        referenceVideoUploadProgressRafRef.current = null;
+        flushReferenceVideoUploadProgress();
+      });
+    },
+    [flushReferenceVideoUploadProgress]
+  );
+
+  const clearReferenceVideoUploadProgressUi = useCallback(() => {
+    if (referenceVideoUploadProgressRafRef.current != null) {
+      cancelAnimationFrame(referenceVideoUploadProgressRafRef.current);
+      referenceVideoUploadProgressRafRef.current = null;
+    }
+    referenceVideoUploadProgressPendingRef.current = null;
+    setReferenceVideoUploadProgress(null);
+  }, []);
+
   const uploadReferenceVideo = useCallback(async () => {
     if (!referenceVideoFile) {
       toast.error("Choose a video file first.");
@@ -1486,6 +1523,9 @@ export default function TrainingStudioWorkspace() {
       toast.error(`Video must be at most ${Math.round(COPILOT_REFERENCE_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`);
       return;
     }
+    clearReferenceVideoUploadProgressUi();
+    const abortController = new AbortController();
+    referenceVideoUploadAbortRef.current = abortController;
     setReferenceVideosUploadLoading(true);
     try {
       const formData = new FormData();
@@ -1496,7 +1536,10 @@ export default function TrainingStudioWorkspace() {
       if (referenceVideoTitle.trim()) formData.append("title", referenceVideoTitle.trim());
       if (referenceVideoTags.trim()) formData.append("reference_tags", referenceVideoTags.trim());
       formData.append("is_universal_video", referenceVideoUniversal ? "true" : "false");
-      const response = await adminApi.uploadCopilotReferenceVideo(formData);
+      const response = await uploadCopilotReferenceVideoWithProgress(formData, {
+        signal: abortController.signal,
+        onProgress: scheduleReferenceVideoUploadProgress,
+      });
       const uploaded = response.reference_video;
       if (uploaded?.id) {
         setReferenceVideos((previous) => {
@@ -1522,11 +1565,18 @@ export default function TrainingStudioWorkspace() {
       toast.success("Reference video uploaded.");
       await loadReferenceVideos(referenceVideosOffset, "refresh");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to upload reference video");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        toast.info("Upload cancelled.");
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to upload reference video");
+      }
     } finally {
+      referenceVideoUploadAbortRef.current = null;
+      clearReferenceVideoUploadProgressUi();
       setReferenceVideosUploadLoading(false);
     }
   }, [
+    clearReferenceVideoUploadProgressUi,
     copilotSessionId,
     loadReferenceVideos,
     referenceVideoFile,
@@ -1534,6 +1584,7 @@ export default function TrainingStudioWorkspace() {
     referenceVideoTitle,
     referenceVideoUniversal,
     referenceVideosOffset,
+    scheduleReferenceVideoUploadProgress,
     selectedDraft?.id,
     selectedStudent?.student_id,
   ]);
@@ -2624,18 +2675,85 @@ export default function TrainingStudioWorkspace() {
                   Universal video
                 </label>
               </div>
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
                   Selected context: {selectedStudent?.student_id ? `${formatName(selectedStudent)} · ${selectedDraft?.id ?? "No draft"}` : "No student selected"}
                 </p>
-                <Button
-                  className="h-9 px-3 text-sm"
-                  onClick={() => void uploadReferenceVideo()}
-                  disabled={referenceVideosUploadLoading}
-                >
-                  {referenceVideosUploadLoading ? "Uploading..." : "Upload"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {referenceVideosUploadLoading ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 px-3 text-sm"
+                      onClick={() => referenceVideoUploadAbortRef.current?.abort()}
+                    >
+                      Cancel upload
+                    </Button>
+                  ) : null}
+                  <Button
+                    className="h-9 px-3 text-sm"
+                    onClick={() => void uploadReferenceVideo()}
+                    disabled={referenceVideosUploadLoading}
+                  >
+                    {referenceVideosUploadLoading ? "Uploading…" : "Upload"}
+                  </Button>
+                </div>
               </div>
+              {referenceVideosUploadLoading ? (
+                <div className="space-y-2 rounded-md border border-border/80 bg-muted/20 px-3 py-3">
+                  <div
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={
+                      referenceVideoUploadProgress?.percent != null
+                        ? referenceVideoUploadProgress.percent
+                        : undefined
+                    }
+                    aria-valuetext={
+                      referenceVideoUploadProgress
+                        ? referenceVideoUploadProgress.percent != null
+                          ? `${referenceVideoUploadProgress.percent}% · ${formatMegabytes(referenceVideoUploadProgress.loaded)} / ${formatMegabytes(referenceVideoUploadProgress.total)} MB`
+                          : `Uploading, ${formatMegabytes(referenceVideoUploadProgress.loaded)} MB transferred`
+                        : "Starting upload"
+                    }
+                    aria-label="Reference video upload progress"
+                    className="space-y-2"
+                  >
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      {referenceVideoUploadProgress?.percent != null ? (
+                        <div
+                          className="h-full bg-primary transition-[width] duration-150 ease-linear"
+                          style={{ width: `${referenceVideoUploadProgress.percent}%` }}
+                        />
+                      ) : (
+                        <div className="h-full w-full animate-pulse bg-primary/50" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {referenceVideoUploadProgress ? (
+                        referenceVideoUploadProgress.lengthComputable &&
+                        referenceVideoUploadProgress.total > 0 ? (
+                          <>
+                            {referenceVideoUploadProgress.percent != null
+                              ? `${referenceVideoUploadProgress.percent}% · `
+                              : null}
+                            {formatMegabytes(referenceVideoUploadProgress.loaded)} /{" "}
+                            {formatMegabytes(referenceVideoUploadProgress.total)} MB
+                          </>
+                        ) : (
+                          <>
+                            Uploading… (connection in progress) · {formatMegabytes(referenceVideoUploadProgress.loaded)}{" "}
+                            MB
+                          </>
+                        )
+                      ) : (
+                        "Starting upload…"
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
               {fullOverrideAttached ? (
                 <p className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                   Full override video attached.
