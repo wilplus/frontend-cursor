@@ -608,7 +608,15 @@ interface SnippetCardProps {
   regenerating: boolean;
 }
 
-function SnippetAudio({ snippet }: { snippet: StressSnippet }) {
+function SnippetAudio({
+  snippet,
+  onError,
+  onLoadStart,
+}: {
+  snippet: StressSnippet;
+  onError?: () => void;
+  onLoadStart?: () => void;
+}) {
   // NEVER fall back to the parent recording's audio — that's the 5-min source.
   // Only play `audio_url`, which the backend guarantees is a signed URL to the
   // per-snippet ≤5s mp3 at `stress_snippets/<recording_id>/<snippet_id>.mp3`.
@@ -620,6 +628,15 @@ function SnippetAudio({ snippet }: { snippet: StressSnippet }) {
       preload="none"
       className="w-full"
       src={snippet.audio_url}
+      onError={() => {
+        console.warn(`[SnippetAudio] Failed to load audio for snippet ${snippet.id}`, {
+          audio_url: snippet.audio_url?.slice(0, 50) + "...",
+        });
+        onError?.();
+      }}
+      onLoadStart={() => {
+        onLoadStart?.();
+      }}
     />
   );
 }
@@ -635,7 +652,22 @@ function SnippetFocusCard({
   onRegenerate,
   regenerating,
 }: SnippetCardProps) {
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
   const canPlay = snippet.playable && !!snippet.audio_url;
+
+  const handleAudioError = useCallback(() => {
+    setAudioLoading(false);
+    setAudioError("Failed to play audio. The file may be corrupted, unavailable, or the link has expired.");
+    toast.error("Failed to load audio");
+  }, []);
+
+  const handleAudioLoadStart = useCallback(() => {
+    setAudioLoading(true);
+    setAudioError(null);
+  }, []);
+
   return (
     <>
       <div className="flex items-center justify-between border-b px-5 py-4">
@@ -658,7 +690,24 @@ function SnippetFocusCard({
       <div className="space-y-5 px-5 pb-5">
         <div className="rounded-xl border bg-muted/20 p-5">
           {canPlay ? (
-            <SnippetAudio snippet={snippet} />
+            <>
+              <SnippetAudio
+                snippet={snippet}
+                onError={handleAudioError}
+                onLoadStart={handleAudioLoadStart}
+              />
+              {audioLoading && (
+                <p className="mt-2 text-sm text-muted-foreground">Loading audio…</p>
+              )}
+              {audioError && (
+                <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
+                  <p className="text-sm text-destructive">{audioError}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Try clicking <strong>Regenerate</strong> to produce a fresh clip.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex flex-col items-start gap-2">
               <p className="text-sm text-muted-foreground">
@@ -730,7 +779,22 @@ function SnippetRow({
   onRegenerate,
   regenerating,
 }: SnippetCardProps) {
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
   const canPlay = snippet.playable && !!snippet.audio_url;
+
+  const handleAudioError = useCallback(() => {
+    setAudioLoading(false);
+    setAudioError("Failed to load audio");
+    toast.error("Failed to load audio");
+  }, []);
+
+  const handleAudioLoadStart = useCallback(() => {
+    setAudioLoading(true);
+    setAudioError(null);
+  }, []);
+
   return (
     <div className="flex flex-col gap-3 px-5 py-4">
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
@@ -761,7 +825,21 @@ function SnippetRow({
       </div>
       <div className="rounded-lg border bg-muted/10 p-3">
         {canPlay ? (
-          <SnippetAudio snippet={snippet} />
+          <>
+            <SnippetAudio
+              snippet={snippet}
+              onError={handleAudioError}
+              onLoadStart={handleAudioLoadStart}
+            />
+            {audioError && (
+              <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5">
+                <p className="text-xs text-destructive">{audioError}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Try <strong>Regenerate</strong> to produce a fresh clip.
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-muted-foreground">Clip unavailable — regenerate required.</p>
