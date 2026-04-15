@@ -1017,6 +1017,184 @@ export type CopilotReferenceVideoUploadResult = {
   preview_url?: string | null;
 };
 
+/** Normalized row from GET upload-jobs/:id (job object). */
+export type CopilotReferenceVideoUploadJobPayload = {
+  stage: string;
+  percent: number;
+  message: string | null;
+  reference_video_id?: string | null;
+  error?: string | null;
+  reference_video?: AdminCopilotReferenceVideo | null;
+  preview_url?: string | null;
+};
+
+export type CopilotReferenceVideoUploadAccepted = {
+  kind: "accepted";
+  job_id: string;
+  poll_url?: string;
+  message?: string;
+};
+
+export type CopilotReferenceVideoUploadOutcome =
+  | ({ kind: "completed" } & CopilotReferenceVideoUploadResult)
+  | CopilotReferenceVideoUploadAccepted;
+
+function referenceVideoRowFromUnknown(raw: unknown): AdminCopilotReferenceVideo | null {
+  const item = asRecord(raw);
+  if (!item) return null;
+  const id = asTrimmedString(item.id);
+  if (!id) return null;
+  const tagsRaw = item.reference_tags;
+  const tags = Array.isArray(tagsRaw)
+    ? tagsRaw.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
+    : typeof tagsRaw === "string"
+      ? tagsRaw
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0)
+      : null;
+  return {
+    id,
+    user_id: asTrimmedString(item.user_id),
+    session_id: asTrimmedString(item.session_id),
+    draft_id: asTrimmedString(item.draft_id),
+    title: asTrimmedString(item.title),
+    original_filename: asTrimmedString(item.original_filename),
+    reference_tags: tags,
+    is_universal_video: typeof item.is_universal_video === "boolean" ? item.is_universal_video : false,
+    created_at: asTrimmedString(item.created_at),
+    transcription_status: asTrimmedString(item.transcription_status),
+    transcription_error: asTrimmedString(item.transcription_error),
+    transcript_text: asTrimmedString(item.transcript_text),
+    preview_url: asTrimmedString(item.preview_url),
+  };
+}
+
+function normalizeCopilotReferenceVideoJobPayload(raw: unknown): CopilotReferenceVideoUploadJobPayload {
+  const j = asRecord(raw) ?? {};
+  const pctRaw = j.percent;
+  const pct =
+    typeof pctRaw === "number" && Number.isFinite(pctRaw)
+      ? Math.max(0, Math.min(100, Math.round(pctRaw)))
+      : 0;
+  const rvRaw = j.reference_video;
+  const refVideo = referenceVideoRowFromUnknown(rvRaw);
+  return {
+    stage: typeof j.stage === "string" ? j.stage : "",
+    percent: pct,
+    message: typeof j.message === "string" ? j.message : null,
+    reference_video_id: asTrimmedString(j.reference_video_id),
+    error: typeof j.error === "string" ? j.error : null,
+    reference_video: refVideo,
+    preview_url: asTrimmedString(j.preview_url),
+  };
+}
+
+function parseCopilotReferenceVideoJobPollBody(data: unknown): {
+  status?: string;
+  job: CopilotReferenceVideoUploadJobPayload;
+} {
+  const o = asRecord(data) ?? {};
+  const jobRaw = o.job;
+  return {
+    status: typeof o.status === "string" ? o.status : undefined,
+    job: normalizeCopilotReferenceVideoJobPayload(jobRaw),
+  };
+}
+
+function completedOutcomeToResult(o: Extract<CopilotReferenceVideoUploadOutcome, { kind: "completed" }>): CopilotReferenceVideoUploadResult {
+  const { kind: _k, ...rest } = o;
+  return rest;
+}
+
+function jobPayloadToUploadResult(job: CopilotReferenceVideoUploadJobPayload): CopilotReferenceVideoUploadResult {
+  const rv =
+    job.reference_video ??
+    (job.reference_video_id ? ({ id: job.reference_video_id } satisfies AdminCopilotReferenceVideo) : undefined);
+  return {
+    reference_video: rv,
+    preview_url: job.preview_url ?? null,
+    transcription_status: rv?.transcription_status ?? null,
+    transcription_error: rv?.transcription_error ?? null,
+    transcript_text: rv?.transcript_text ?? null,
+  };
+}
+
+async function fetchCopilotReferenceVideoUploadJob(
+  jobId: string,
+  signal?: AbortSignal
+): Promise<{ status?: string; job: CopilotReferenceVideoUploadJobPayload }> {
+  const id = encodeURIComponent(jobId.trim());
+  if (!id) throw new Error("Missing upload job id");
+  const base = getBrowserPublicBackendUrl();
+  if (base) {
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) throw new Error("Not signed in");
+    const res = await fetch(`${base}/v2/admin/copilot/reference-videos/upload-jobs/${id}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw referenceVideoUploadErrorFromXhr(res.status, data);
+    }
+    return parseCopilotReferenceVideoJobPollBody(data);
+  }
+  const res = await fetch(`${getBase()}/api/admin/copilot/reference-videos/upload-jobs/${id}`, {
+    method: "GET",
+    credentials: "include",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw referenceVideoUploadErrorFromXhr(res.status, data);
+  }
+  return parseCopilotReferenceVideoJobPollBody(data);
+}
+
+async function pollCopilotReferenceVideoUploadJobUntilDone(
+  jobId: string,
+  options: {
+    signal?: AbortSignal;
+    onJobProgress?: (job: CopilotReferenceVideoUploadJobPayload) => void;
+    intervalMs?: number;
+    initialHint?: string;
+  }
+): Promise<CopilotReferenceVideoUploadResult> {
+  const interval = options.intervalMs ?? 750;
+  options.onJobProgress?.({
+    stage: "queued",
+    percent: 0,
+    message: options.initialHint ?? "Upload received, processing on server…",
+  });
+  for (;;) {
+    if (options.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    const { job } = await fetchCopilotReferenceVideoUploadJob(jobId, options.signal);
+    options.onJobProgress?.(job);
+    const stage = job.stage.trim().toLowerCase();
+    if (stage === "failed") {
+      throw new Error(
+        job.error?.trim() || job.message?.trim() || "Reference video processing failed."
+      );
+    }
+    if (stage === "completed") {
+      return jobPayloadToUploadResult(job);
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, interval);
+    });
+  }
+}
+
 function referenceVideoUploadErrorFromXhr(status: number, data: unknown): AdminApiError {
   const err = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as {
     error?: string;
@@ -1056,7 +1234,7 @@ function createReferenceVideoUploadXhr(
   withCredentials: boolean,
   onProgress: ((progress: CopilotReferenceVideoUploadProgress) => void) | undefined,
   signal: AbortSignal | undefined,
-  resolve: (value: CopilotReferenceVideoUploadResult) => void,
+  resolve: (value: CopilotReferenceVideoUploadOutcome) => void,
   reject: (reason: unknown) => void
 ): XMLHttpRequest {
   const xhr = new XMLHttpRequest();
@@ -1100,8 +1278,23 @@ function createReferenceVideoUploadXhr(
     } catch {
       data = {};
     }
+    if (xhr.status === 202) {
+      const body = asRecord(data) ?? {};
+      const jobId = asTrimmedString(body.job_id);
+      if (!jobId) {
+        reject(new Error("Server accepted async upload (202) but did not return job_id."));
+        return;
+      }
+      resolve({
+        kind: "accepted",
+        job_id: jobId,
+        poll_url: asTrimmedString(body.poll_url) ?? undefined,
+        message: asTrimmedString(body.message) ?? undefined,
+      });
+      return;
+    }
     if (xhr.status >= 200 && xhr.status < 300) {
-      resolve(data as CopilotReferenceVideoUploadResult);
+      resolve({ kind: "completed", ...(data as CopilotReferenceVideoUploadResult) });
       return;
     }
     reject(referenceVideoUploadErrorFromXhr(xhr.status, data));
@@ -1132,12 +1325,18 @@ function createReferenceVideoUploadXhr(
 /**
  * Multipart reference video upload with real upload progress (XHR).
  * Uses direct backend URL when set (large bodies); otherwise BFF with cookies.
+ * When `trackServerJob` is true (default), sends `track_progress=1`; on HTTP 202 polls upload-jobs until completed/failed.
  */
 export function uploadCopilotReferenceVideoWithProgress(
   formData: FormData,
   options?: {
     onProgress?: (progress: CopilotReferenceVideoUploadProgress) => void;
+    onJobProgress?: (job: CopilotReferenceVideoUploadJobPayload) => void;
     signal?: AbortSignal;
+    /** Polling interval when the server returns 202 + job_id. Default 750ms. */
+    jobPollIntervalMs?: number;
+    /** When true (default), append `track_progress=1` and poll job status after 202. */
+    trackServerJob?: boolean;
   }
 ): Promise<CopilotReferenceVideoUploadResult> {
   if (typeof window === "undefined") {
@@ -1145,57 +1344,93 @@ export function uploadCopilotReferenceVideoWithProgress(
   }
 
   const onProgress = options?.onProgress;
+  const onJobProgress = options?.onJobProgress;
   const signal = options?.signal;
+  const trackServerJob = options?.trackServerJob !== false;
+
+  if (trackServerJob && !formData.has("track_progress")) {
+    formData.append("track_progress", "1");
+  }
 
   return new Promise((resolve, reject) => {
     void (async () => {
-      if (signal?.aborted) {
-        reject(new DOMException("Aborted", "AbortError"));
-        return;
-      }
-      const base = getBrowserPublicBackendUrl();
-
-      if (base) {
-        const url = `${base}/v2/admin/copilot/reference-videos/upload`;
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (!token) {
-          reject(new Error("Not signed in"));
-          return;
-        }
+      try {
         if (signal?.aborted) {
           reject(new DOMException("Aborted", "AbortError"));
           return;
         }
-        const xhr = createReferenceVideoUploadXhr(
-          url,
-          { Authorization: `Bearer ${token}`, Accept: "application/json" },
-          false,
-          onProgress,
-          signal,
-          resolve,
-          reject
-        );
-        xhr.send(formData);
-        return;
-      }
+        const base = getBrowserPublicBackendUrl();
 
-      const url = `${getBase()}/api/admin/copilot/reference-videos/upload`;
-      const xhr = createReferenceVideoUploadXhr(
-        url,
-        { Accept: "application/json" },
-        true,
-        onProgress,
-        signal,
-        resolve,
-        reject
-      );
-      xhr.send(formData);
-    })().catch(reject);
+        const outcome = await new Promise<CopilotReferenceVideoUploadOutcome>((res, rej) => {
+          void (async () => {
+            try {
+              if (base) {
+                const url = `${base}/v2/admin/copilot/reference-videos/upload`;
+                const { createClient } = await import("@/lib/supabase/client");
+                const supabase = createClient();
+                const {
+                  data: { session },
+                } = await supabase.auth.getSession();
+                const token = session?.access_token;
+                if (!token) {
+                  rej(new Error("Not signed in"));
+                  return;
+                }
+                if (signal?.aborted) {
+                  rej(new DOMException("Aborted", "AbortError"));
+                  return;
+                }
+                const xhr = createReferenceVideoUploadXhr(
+                  url,
+                  { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                  false,
+                  onProgress,
+                  signal,
+                  res,
+                  rej
+                );
+                xhr.send(formData);
+                return;
+              }
+
+              const url = `${getBase()}/api/admin/copilot/reference-videos/upload`;
+              const xhr = createReferenceVideoUploadXhr(
+                url,
+                { Accept: "application/json" },
+                true,
+                onProgress,
+                signal,
+                res,
+                rej
+              );
+              xhr.send(formData);
+            } catch (err) {
+              rej(err);
+            }
+          })();
+        });
+
+        if (outcome.kind === "completed") {
+          resolve(completedOutcomeToResult(outcome));
+          return;
+        }
+
+        if (!trackServerJob) {
+          reject(new Error("Async upload (202) received but server job polling is disabled."));
+          return;
+        }
+
+        const result = await pollCopilotReferenceVideoUploadJobUntilDone(outcome.job_id, {
+          signal,
+          onJobProgress,
+          intervalMs: options?.jobPollIntervalMs,
+          initialHint: outcome.message ?? undefined,
+        });
+        resolve(result);
+      } catch (err) {
+        reject(err);
+      }
+    })();
   });
 }
 
