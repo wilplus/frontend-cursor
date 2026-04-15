@@ -617,78 +617,50 @@ function SnippetAudio({
   onError?: () => void;
   onLoadStart?: () => void;
 }) {
-  const [urlValid, setUrlValid] = useState<boolean | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
 
-  // Fetch fresh signed URL and validate it before rendering the audio element.
-  // This ensures the URL is always valid and eliminates expired URL errors.
+  // Fetch fresh signed URL from the backend endpoint.
+  // The <audio> element handles validation/loading in no-cors mode.
   useEffect(() => {
     if (!snippet.audio_url) {
-      setUrlValid(false);
+      setPlaybackUrl(null);
       return;
     }
 
     let cancelled = false;
-    const fetchAndValidateUrl = async () => {
+    const fetchFreshUrl = async () => {
       try {
         // Fetch fresh signed URL from the dedicated endpoint
-        const { audio_url: freshUrl } = await adminApi.getStressSnippetPlaybackUrl(snippet.id);
+        const { playback_url: freshUrl } = await adminApi.getStressSnippetPlaybackUrl(snippet.id);
 
-        if (!freshUrl || cancelled) {
-          // Fallback to original URL if endpoint fails
-          console.warn(`[SnippetAudio] Failed to fetch fresh URL for snippet ${snippet.id}, falling back to original`);
-          setPlaybackUrl(snippet.audio_url);
-        } else {
+        if (cancelled) return;
+
+        if (freshUrl) {
           setPlaybackUrl(freshUrl);
-        }
-
-        // Validate the URL (fresh or fallback) with a HEAD request
-        const urlToValidate = freshUrl || snippet.audio_url;
-        const res = await fetch(urlToValidate!, { method: "HEAD", credentials: "include" });
-
-        if (!cancelled) {
-          if (res.ok) {
-            setUrlValid(true);
-          } else {
-            console.warn(`[SnippetAudio] URL validation failed for snippet ${snippet.id}`, {
-              status: res.status,
-              audio_url: urlToValidate?.slice(0, 50) + "...",
-            });
-            setUrlValid(false);
-            onError?.();
-          }
+        } else {
+          // Fallback to original URL if endpoint returns empty
+          console.warn(`[SnippetAudio] Fresh URL endpoint returned empty for snippet ${snippet.id}, using original`);
+          setPlaybackUrl(snippet.audio_url);
         }
       } catch (err) {
-        if (!cancelled) {
-          console.warn(`[SnippetAudio] URL fetch/validation error for snippet ${snippet.id}`, err);
-          // Fallback: try the original URL
-          setPlaybackUrl(snippet.audio_url);
-          try {
-            const res = await fetch(snippet.audio_url!, { method: "HEAD", credentials: "include" });
-            if (res.ok) {
-              setUrlValid(true);
-            } else {
-              setUrlValid(false);
-              onError?.();
-            }
-          } catch {
-            setUrlValid(false);
-            onError?.();
-          }
-        }
+        if (cancelled) return;
+
+        // Fallback to original URL if endpoint fetch fails (network error, 404, etc.)
+        console.warn(`[SnippetAudio] Failed to fetch fresh URL for snippet ${snippet.id}, falling back to original`, err);
+        setPlaybackUrl(snippet.audio_url);
       }
     };
 
-    void fetchAndValidateUrl();
+    void fetchFreshUrl();
     return () => {
       cancelled = true;
     };
-  }, [snippet.id, snippet.audio_url, onError]);
+  }, [snippet.id, snippet.audio_url]);
 
   // NEVER fall back to the parent recording's audio — that's the 5-min source.
   // Only play `audio_url`, which the backend guarantees is a signed URL to the
   // per-snippet ≤5s mp3 at `stress_snippets/<recording_id>/<snippet_id>.mp3`.
-  if (!snippet.playable || !playbackUrl || !urlValid) return null;
+  if (!snippet.playable || !playbackUrl) return null;
 
   return (
     <audio
