@@ -97,7 +97,9 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
         limit: 50,
         offset: 0,
       });
-      setSnippets(response.snippets);
+      // Filter out corrupted/unplayable snippets: only show snippets where playable=true and audio_url exists
+      const playableSnippets = response.snippets.filter((s) => s.playable && s.audio_url);
+      setSnippets(playableSnippets);
       setTotalCount(response.count);
     } catch (error) {
       console.error(error);
