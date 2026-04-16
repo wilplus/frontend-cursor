@@ -1568,7 +1568,15 @@ export default function TrainingStudioWorkspace() {
       setReferenceVideoTitle("");
       setReferenceVideoTags("");
       setReferenceVideoUniversal(false);
-      toast.success("Reference video uploaded.");
+      if (response.degraded_job_tracking) {
+        toast.warning(
+          response.reference_video?.id
+            ? "Video uploaded. Job status tracking is unavailable on this server; refreshing the list."
+            : "Upload may have completed, but job status could not be tracked. Refreshing the list — check below."
+        );
+      } else {
+        toast.success("Reference video uploaded.");
+      }
       await loadReferenceVideos(referenceVideosOffset, "refresh");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -1810,19 +1818,35 @@ export default function TrainingStudioWorkspace() {
       });
       setPipelineStage("queued");
       setPipelineStatusPolling(true);
+      setPipelineStatusError(null);
 
       let finalStage: PipelineStage | null = null;
+      let transientPipelineErrors = 0;
       for (let attempt = 0; attempt < 60; attempt += 1) {
-        const statusPayload = await adminApi.getCopilotDraftPipelineStatus(
-          selectedStudent.student_id,
-          draftId
-        );
-        const stage = toPipelineStage(statusPayload.stage ?? statusPayload.status);
-        if (stage) {
-          setPipelineStage(stage);
-          finalStage = stage;
+        try {
+          const statusPayload = await adminApi.getCopilotDraftPipelineStatus(
+            selectedStudent.student_id,
+            draftId
+          );
+          transientPipelineErrors = 0;
+          setPipelineStatusError(null);
+          const stage = toPipelineStage(statusPayload.stage ?? statusPayload.status);
+          if (stage) {
+            setPipelineStage(stage);
+            finalStage = stage;
+          }
+          if (stage && PIPELINE_TERMINAL_STAGES.has(stage)) break;
+        } catch (pollError) {
+          transientPipelineErrors += 1;
+          const message = pollError instanceof Error ? pollError.message : "Failed to fetch pipeline status";
+          if (transientPipelineErrors >= 6) {
+            throw new Error(
+              message.trim() || "Failed to fetch pipeline status after multiple retries."
+            );
+          }
+          // Keep polling on transient backend/network hiccups while pipeline is still running.
+          setPipelineStatusError(message.trim() || "Retrying pipeline status fetch…");
         }
-        if (stage && PIPELINE_TERMINAL_STAGES.has(stage)) break;
         await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
       }
 

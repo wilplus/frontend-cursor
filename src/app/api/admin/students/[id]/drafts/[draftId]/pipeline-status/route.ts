@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyAdminWithCodes } from "@/app/api/admin/_proxyWithCodes";
+import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export async function GET(
   request: NextRequest,
@@ -13,9 +13,44 @@ export async function GET(
     return NextResponse.json({ code: "BAD_REQUEST", error: "Missing draftId" }, { status: 400 });
   }
   const qs = request.nextUrl.search || "";
-  return proxyAdminWithCodes(request, {
-    method: "GET",
-    backendPath: `/v2/admin/students/${encodeURIComponent(id)}/drafts/${encodeURIComponent(draftId)}/pipeline-status${qs}`,
-  });
+  const token = await getV2AccessToken(request);
+  if (!token) {
+    return NextResponse.json({ code: "UNAUTHORIZED", error: "Unauthorized" }, { status: 401 });
+  }
+  const backend = getBackendUrl();
+  const paths = [
+    `/v2/admin/students/${encodeURIComponent(id)}/drafts/${encodeURIComponent(draftId)}/pipeline-status${qs}`,
+    `/v2/admin/copilot/students/${encodeURIComponent(id)}/drafts/${encodeURIComponent(draftId)}/pipeline-status${qs}`,
+  ];
+
+  let lastStatus = 502;
+  let lastPayload: unknown = { code: "UPSTREAM_FETCH_FAILED", error: "Failed to fetch pipeline status" };
+  for (const path of paths) {
+    try {
+      const response = await fetch(`${backend}${path}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      const raw = await response.text();
+      const parsed = raw.trim() ? JSON.parse(raw) : {};
+      if (response.status === 404) {
+        lastStatus = 404;
+        lastPayload = parsed;
+        continue;
+      }
+      return NextResponse.json(parsed, { status: response.status });
+    } catch (error) {
+      lastStatus = 502;
+      lastPayload = {
+        code: "UPSTREAM_FETCH_FAILED",
+        error: error instanceof Error ? error.message : "Failed to fetch pipeline status",
+      };
+    }
+  }
+
+  return NextResponse.json(lastPayload, { status: lastStatus });
 }
 

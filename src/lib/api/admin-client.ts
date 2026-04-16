@@ -1016,6 +1016,8 @@ export type CopilotReferenceVideoUploadResult = {
   transcription_error?: string | null;
   transcript_text?: string | null;
   preview_url?: string | null;
+  /** True when upload/register succeeded but polling upload-jobs failed (e.g. jobs table unavailable). */
+  degraded_job_tracking?: boolean;
 };
 
 /** Normalized row from GET upload-jobs/:id (job object). */
@@ -1034,6 +1036,8 @@ export type CopilotReferenceVideoUploadAccepted = {
   job_id: string;
   poll_url?: string;
   message?: string;
+  /** When the backend embeds the row on register (optional). */
+  reference_video?: AdminCopilotReferenceVideo | null;
 };
 
 function referenceVideoRowFromUnknown(raw: unknown): AdminCopilotReferenceVideo | null {
@@ -1230,6 +1234,23 @@ function referenceVideoUploadErrorFromXhr(status: number, data: unknown): AdminA
   return apiError;
 }
 
+/** True when GET upload-jobs (or related) failed because the Supabase job table / feature is off in this env. */
+export function isCopilotReferenceUploadJobsUnavailableError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const ae = err as AdminApiError;
+  if (ae.code === "UPLOAD_JOBS_UNAVAILABLE") return true;
+  if (ae.status === 503 && typeof ae.message === "string" && ae.message.toLowerCase().includes("upload job")) {
+    return true;
+  }
+  if (!(err instanceof Error)) return false;
+  const m = err.message.toLowerCase();
+  return (
+    m.includes("upload job tracking table") ||
+    m.includes("upload_jobs_unavailable") ||
+    m.includes("job tracking table is unavailable")
+  );
+}
+
 type ReferenceVideoUploadUrlResponse = {
   upload_url: string;
   storage_path: string;
@@ -1409,11 +1430,13 @@ async function registerReferenceVideoFromStorage(
   if (!jobId) {
     throw new Error("Backend did not return job_id from register-from-storage.");
   }
+  const reference_video = referenceVideoRowFromUnknown(obj.reference_video);
   return {
     kind: "accepted",
     job_id: jobId,
     poll_url: asTrimmedString(obj.poll_url) ?? undefined,
     message: asTrimmedString(obj.message) ?? undefined,
+    ...(reference_video ? { reference_video } : {}),
   };
 }
 
@@ -1511,12 +1534,37 @@ export function uploadCopilotReferenceVideoWithProgress(
           return;
         }
 
-        const result = await pollCopilotReferenceVideoUploadJobUntilDone(accepted.job_id, {
-          signal,
-          onJobProgress,
-          intervalMs: options?.jobPollIntervalMs,
-          initialHint: accepted.message ?? undefined,
-        });
+        let result: CopilotReferenceVideoUploadResult;
+        try {
+          result = await pollCopilotReferenceVideoUploadJobUntilDone(accepted.job_id, {
+            signal,
+            onJobProgress,
+            intervalMs: options?.jobPollIntervalMs,
+            initialHint: accepted.message ?? undefined,
+          });
+        } catch (err) {
+          if (!isCopilotReferenceUploadJobsUnavailableError(err)) {
+            throw err;
+          }
+          const rv = accepted.reference_video;
+          result = rv
+            ? {
+                reference_video: rv,
+                preview_url: rv.preview_url ?? null,
+                transcription_status: rv.transcription_status ?? null,
+                transcription_error: rv.transcription_error ?? null,
+                transcript_text: rv.transcript_text ?? null,
+                degraded_job_tracking: true,
+              }
+            : {
+                reference_video: undefined,
+                preview_url: null,
+                transcription_status: null,
+                transcription_error: null,
+                transcript_text: null,
+                degraded_job_tracking: true,
+              };
+        }
         resolve(result);
       } catch (err) {
         reject(err);
