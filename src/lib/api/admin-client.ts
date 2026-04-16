@@ -1036,10 +1036,6 @@ export type CopilotReferenceVideoUploadAccepted = {
   message?: string;
 };
 
-export type CopilotReferenceVideoUploadOutcome =
-  | ({ kind: "completed" } & CopilotReferenceVideoUploadResult)
-  | CopilotReferenceVideoUploadAccepted;
-
 function referenceVideoRowFromUnknown(raw: unknown): AdminCopilotReferenceVideo | null {
   const item = asRecord(raw);
   if (!item) return null;
@@ -1101,11 +1097,6 @@ function parseCopilotReferenceVideoJobPollBody(data: unknown): {
     status: typeof o.status === "string" ? o.status : undefined,
     job: normalizeCopilotReferenceVideoJobPayload(jobRaw),
   };
-}
-
-function completedOutcomeToResult(o: Extract<CopilotReferenceVideoUploadOutcome, { kind: "completed" }>): CopilotReferenceVideoUploadResult {
-  const { kind: _k, ...rest } = o;
-  return rest;
 }
 
 function jobPayloadToUploadResult(job: CopilotReferenceVideoUploadJobPayload): CopilotReferenceVideoUploadResult {
@@ -1201,9 +1192,15 @@ function referenceVideoUploadErrorFromXhr(status: number, data: unknown): AdminA
     error?: string;
     message?: string;
     code?: string;
-    details?: string;
+    details?: unknown;
   };
   const code = typeof err.code === "string" ? err.code : undefined;
+  const detailsText =
+    typeof err.details === "string"
+      ? err.details
+      : err.details != null
+        ? JSON.stringify(err.details)
+        : "";
   const is413 = status === 413 || code === "PAYLOAD_TOO_LARGE";
   const msg = is413
     ? code === "PAYLOAD_TOO_LARGE"
@@ -1215,12 +1212,16 @@ function referenceVideoUploadErrorFromXhr(status: number, data: unknown): AdminA
       ? err.error ||
         err.message ||
         err.code ||
-        err.details ||
+        detailsText ||
         "Server error (HTTP 500) while uploading reference video."
+      : status === 400
+        ? [err.error, err.message, err.code, detailsText, "Bad upload request (HTTP 400) from backend."]
+            .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
+            .join(" ")
       : err.error ||
         err.message ||
         err.code ||
-        err.details ||
+        detailsText ||
         `HTTP ${status} for reference video upload`;
   const apiError = new Error(msg) as AdminApiError;
   apiError.status = status;
@@ -1229,22 +1230,25 @@ function referenceVideoUploadErrorFromXhr(status: number, data: unknown): AdminA
   return apiError;
 }
 
-// ---------------------------------------------------------------------------
-// Signed-upload-URL flow helpers (3-step: get URL → PUT to Supabase → register)
-// ---------------------------------------------------------------------------
-
-type SignedUploadUrlResponse = {
+type ReferenceVideoUploadUrlResponse = {
   upload_url: string;
   storage_path: string;
-  bucket: string;
-  upload_token?: string;
+  bucket?: string;
+  content_type: string;
 };
 
-/** Step 1: ask the backend for a signed Supabase Storage upload URL. */
-async function requestSignedUploadUrl(
-  filename: string,
+async function requestReferenceVideoUploadUrl(
+  file: File,
   signal?: AbortSignal
-): Promise<SignedUploadUrlResponse> {
+): Promise<ReferenceVideoUploadUrlResponse> {
+  const fallbackContentType =
+    (file.type || "application/octet-stream").split(";")[0].trim() || "application/octet-stream";
+  const payload = {
+    filename: file.name,
+    file_size_bytes: file.size,
+    content_type: fallbackContentType,
+    storage_provider: "r2",
+  };
   const base = getBrowserPublicBackendUrl();
   let res: Response;
   if (base) {
@@ -1262,7 +1266,7 @@ async function requestSignedUploadUrl(
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ filename }),
+      body: JSON.stringify(payload),
       signal,
     });
   } else {
@@ -1270,7 +1274,7 @@ async function requestSignedUploadUrl(
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ filename }),
+      body: JSON.stringify(payload),
       signal,
     });
   }
@@ -1281,23 +1285,21 @@ async function requestSignedUploadUrl(
   const obj = asRecord(data) ?? {};
   const upload_url = asTrimmedString(obj.upload_url);
   const storage_path = asTrimmedString(obj.storage_path);
-  const bucket = asTrimmedString(obj.bucket);
-  if (!upload_url || !storage_path || !bucket) {
-    throw new Error("Backend did not return upload_url / storage_path / bucket.");
+  if (!upload_url || !storage_path) {
+    throw new Error("Backend did not return upload_url / storage_path.");
   }
   return {
     upload_url,
     storage_path,
-    bucket,
-    upload_token: asTrimmedString(obj.upload_token) ?? undefined,
+    bucket: asTrimmedString(obj.bucket) ?? undefined,
+    content_type: asTrimmedString(obj.content_type) || fallbackContentType,
   };
 }
 
-/** Step 2: PUT the file directly to Supabase Storage via the signed URL. */
-function uploadFileToSignedUrl(
+function uploadReferenceVideoToR2(
   uploadUrl: string,
   file: File,
-  uploadToken: string | undefined,
+  contentType: string,
   onProgress: ((progress: CopilotReferenceVideoUploadProgress) => void) | undefined,
   signal: AbortSignal | undefined
 ): Promise<void> {
@@ -1305,7 +1307,7 @@ function uploadFileToSignedUrl(
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", uploadUrl);
     xhr.timeout = COPILOT_REFERENCE_VIDEO_UPLOAD_XHR_TIMEOUT_MS;
-    xhr.setRequestHeader("x-upsert", "true");
+    xhr.setRequestHeader("Content-Type", contentType);
 
     xhr.upload.onprogress = (event) => {
       const lengthComputable = event.lengthComputable;
@@ -1334,33 +1336,29 @@ function uploadFileToSignedUrl(
         resolve();
         return;
       }
-      reject(new Error(`Supabase Storage upload failed (HTTP ${xhr.status})`));
+      reject(new Error(`Cloudflare R2 upload failed (HTTP ${xhr.status})`));
     };
     xhr.onerror = () => {
       cleanupAbort();
-      reject(new Error("Network error during Supabase Storage upload"));
+      reject(new Error("Network error during Cloudflare R2 upload"));
     };
     xhr.ontimeout = () => {
       cleanupAbort();
-      reject(new Error("Supabase Storage upload timed out."));
+      reject(new Error("Cloudflare R2 upload timed out."));
     };
     xhr.onabort = () => {
       cleanupAbort();
       reject(new DOMException("Aborted", "AbortError"));
     };
-
-    const form = new FormData();
-    form.append("", file);
-    if (uploadToken) {
-      form.append("upload_token", uploadToken);
-    }
-    xhr.send(form);
+    xhr.send(file);
   });
 }
 
-type RegisterFromStorageParams = {
+type RegisterReferenceVideoFromStorageParams = {
   storage_path: string;
-  bucket: string;
+  storage_provider: "r2";
+  bucket?: string;
+  session_id?: string;
   user_id?: string;
   draft_id?: string;
   track_progress?: boolean;
@@ -1369,9 +1367,8 @@ type RegisterFromStorageParams = {
   is_universal_video?: boolean;
 };
 
-/** Step 3: tell the backend the file is in storage so it can process it. */
-async function registerVideoFromStorage(
-  params: RegisterFromStorageParams,
+async function registerReferenceVideoFromStorage(
+  params: RegisterReferenceVideoFromStorageParams,
   signal?: AbortSignal
 ): Promise<CopilotReferenceVideoUploadAccepted> {
   const base = getBrowserPublicBackendUrl();
@@ -1420,172 +1417,9 @@ async function registerVideoFromStorage(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Legacy direct-upload XHR (kept for fallback on files under ~50 MB)
-// ---------------------------------------------------------------------------
-
-function createReferenceVideoUploadXhr(
-  url: string,
-  headers: Record<string, string>,
-  withCredentials: boolean,
-  onProgress: ((progress: CopilotReferenceVideoUploadProgress) => void) | undefined,
-  signal: AbortSignal | undefined,
-  resolve: (value: CopilotReferenceVideoUploadOutcome) => void,
-  reject: (reason: unknown) => void
-): XMLHttpRequest {
-  const xhr = new XMLHttpRequest();
-  xhr.open("POST", url);
-  xhr.timeout = COPILOT_REFERENCE_VIDEO_UPLOAD_XHR_TIMEOUT_MS;
-  xhr.withCredentials = withCredentials;
-  for (const [key, value] of Object.entries(headers)) {
-    xhr.setRequestHeader(key, value);
-  }
-
-  xhr.upload.onprogress = (event) => {
-    const lengthComputable = event.lengthComputable;
-    const loaded = event.loaded;
-    const total = event.total;
-    const percent =
-      lengthComputable && total > 0 ? Math.round((loaded / total) * 100) : null;
-    onProgress?.({ loaded, total, lengthComputable, percent });
-  };
-
-  const onAbort = () => {
-    xhr.abort();
-  };
-  if (signal) {
-    if (signal.aborted) {
-      reject(new DOMException("Aborted", "AbortError"));
-      return xhr;
-    }
-    signal.addEventListener("abort", onAbort, { once: true });
-  }
-
-  const cleanupAbort = () => {
-    if (signal) signal.removeEventListener("abort", onAbort);
-  };
-
-  xhr.onload = () => {
-    cleanupAbort();
-    const text = xhr.responseText ?? "";
-    let data: unknown = {};
-    try {
-      if (text.trim()) data = JSON.parse(text) as unknown;
-    } catch {
-      data = {};
-    }
-    if (xhr.status === 202) {
-      const body = asRecord(data) ?? {};
-      const jobId = asTrimmedString(body.job_id);
-      if (!jobId) {
-        reject(new Error("Server accepted async upload (202) but did not return job_id."));
-        return;
-      }
-      resolve({
-        kind: "accepted",
-        job_id: jobId,
-        poll_url: asTrimmedString(body.poll_url) ?? undefined,
-        message: asTrimmedString(body.message) ?? undefined,
-      });
-      return;
-    }
-    if (xhr.status >= 200 && xhr.status < 300) {
-      resolve({ kind: "completed", ...(data as CopilotReferenceVideoUploadResult) });
-      return;
-    }
-    reject(referenceVideoUploadErrorFromXhr(xhr.status, data));
-  };
-
-  xhr.onerror = () => {
-    cleanupAbort();
-    reject(new Error("Network error during reference video upload"));
-  };
-
-  xhr.ontimeout = () => {
-    cleanupAbort();
-    reject(
-      new Error(
-        "Upload timed out. Try a smaller file, a faster connection, or ask ops to raise proxy timeouts."
-      )
-    );
-  };
-
-  xhr.onabort = () => {
-    cleanupAbort();
-    reject(new DOMException("Aborted", "AbortError"));
-  };
-
-  return xhr;
-}
-
-/** Legacy single-POST upload via XHR. Used as fallback for small files. */
-function legacyDirectUpload(
-  formData: FormData,
-  onProgress: ((progress: CopilotReferenceVideoUploadProgress) => void) | undefined,
-  signal: AbortSignal | undefined
-): Promise<CopilotReferenceVideoUploadOutcome> {
-  return new Promise<CopilotReferenceVideoUploadOutcome>((res, rej) => {
-    void (async () => {
-      try {
-        const base = getBrowserPublicBackendUrl();
-        if (base) {
-          const url = `${base}/v2/admin/copilot/reference-videos/upload`;
-          const { createClient } = await import("@/lib/supabase/client");
-          const supabase = createClient();
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          const token = session?.access_token;
-          if (!token) {
-            rej(new Error("Not signed in"));
-            return;
-          }
-          if (signal?.aborted) {
-            rej(new DOMException("Aborted", "AbortError"));
-            return;
-          }
-          const xhr = createReferenceVideoUploadXhr(
-            url,
-            { Authorization: `Bearer ${token}`, Accept: "application/json" },
-            false,
-            onProgress,
-            signal,
-            res,
-            rej
-          );
-          xhr.send(formData);
-          return;
-        }
-
-        const url = `${getBase()}/api/admin/copilot/reference-videos/upload`;
-        const xhr = createReferenceVideoUploadXhr(
-          url,
-          { Accept: "application/json" },
-          true,
-          onProgress,
-          signal,
-          res,
-          rej
-        );
-        xhr.send(formData);
-      } catch (err) {
-        rej(err);
-      }
-    })();
-  });
-}
-
 /**
- * Reference video upload with real upload progress.
- *
- * Uses a 3-step signed-upload-URL flow to bypass Railway's CDN body limit:
- *   1. POST /upload-url  → signed Supabase Storage URL + storage_path
- *   2. PUT  signed URL   → upload file directly to Supabase (XHR for progress)
- *   3. POST /register-from-storage → server processes the file, returns job_id
- *   4. Poll upload-jobs/:id until completed/failed
- *
- * Falls back to the legacy single POST /upload for files under ~50 MB when the
- * upload-url endpoint is unavailable (404).
+ * Cloudflare R2 3-step reference video upload with progress:
+ * 1) POST /upload-url  2) PUT raw bytes to signed URL  3) POST /register-from-storage.
  */
 export function uploadCopilotReferenceVideoWithProgress(
   formData: FormData,
@@ -1616,88 +1450,67 @@ export function uploadCopilotReferenceVideoWithProgress(
           return;
         }
 
-        // Extract file + metadata from the FormData built by the caller.
         const videoFile = formData.get("video_file");
         if (!(videoFile instanceof File)) {
           reject(new Error("FormData is missing a valid video_file entry."));
           return;
         }
 
-        // ---- Try the signed-URL flow; fall back to legacy for small files ----
-        let accepted: CopilotReferenceVideoUploadAccepted | null = null;
-        try {
-          // ------- Step 1: get a signed upload URL -------
-          const signed = await requestSignedUploadUrl(videoFile.name, signal);
+        const userIdRaw = formData.get("user_id");
+        const draftIdRaw = formData.get("draft_id");
+        const sessionIdRaw = formData.get("session_id");
+        const titleRaw = formData.get("title");
+        const tagsRaw = formData.get("reference_tags");
+        const isUniversalRaw = formData.get("is_universal_video");
+        const user_id = typeof userIdRaw === "string" && userIdRaw.trim() ? userIdRaw.trim() : undefined;
+        const draft_id = typeof draftIdRaw === "string" && draftIdRaw.trim() ? draftIdRaw.trim() : undefined;
+        const session_id =
+          typeof sessionIdRaw === "string" && sessionIdRaw.trim() ? sessionIdRaw.trim() : undefined;
+        const title = typeof titleRaw === "string" && titleRaw.trim() ? titleRaw.trim() : undefined;
+        const reference_tags = typeof tagsRaw === "string" && tagsRaw.trim() ? tagsRaw.trim() : undefined;
+        const is_universal_video = isUniversalRaw === "true";
 
-          if (signal?.aborted) {
-            reject(new DOMException("Aborted", "AbortError"));
-            return;
-          }
+        const uploadTarget = await requestReferenceVideoUploadUrl(videoFile, signal);
 
-          // ------- Step 2: PUT file to Supabase Storage -------
-          await uploadFileToSignedUrl(
-            signed.upload_url,
-            videoFile,
-            signed.upload_token,
-            onProgress,
-            signal
-          );
-
-          if (signal?.aborted) {
-            reject(new DOMException("Aborted", "AbortError"));
-            return;
-          }
-
-          // ------- Step 3: register the uploaded file -------
-          const userId = formData.get("user_id") as string | null;
-          const draftId = formData.get("draft_id") as string | null;
-          const title = formData.get("title") as string | null;
-          const referenceTags = formData.get("reference_tags") as string | null;
-          const isUniversalRaw = formData.get("is_universal_video") as string | null;
-          const isUniversal = isUniversalRaw === "true";
-
-          const regParams: RegisterFromStorageParams = {
-            storage_path: signed.storage_path,
-            bucket: signed.bucket,
-            track_progress: trackServerJob,
-            ...(userId ? { user_id: userId } : {}),
-            ...(draftId ? { draft_id: draftId } : {}),
-            ...(title?.trim() ? { title: title.trim() } : {}),
-            ...(referenceTags?.trim() ? { reference_tags: referenceTags.trim() } : {}),
-            is_universal_video: isUniversal,
-          };
-          accepted = await registerVideoFromStorage(regParams, signal);
-        } catch (signedUrlErr) {
-          // If the upload-url endpoint doesn't exist yet (404), fall back to the
-          // legacy single-POST /upload. In a local/dev environment this works for
-          // any file size. On Railway production it will 413 for large files, but
-          // that's the honest error — better than a silent pre-emptive throw here.
-          const is404 =
-            signedUrlErr instanceof Error &&
-            "status" in signedUrlErr &&
-            (signedUrlErr as AdminApiError).status === 404;
-
-          if (!is404) throw signedUrlErr;
-
-          // Legacy path: send the original FormData through POST /upload.
-          if (trackServerJob && !formData.has("track_progress")) {
-            formData.append("track_progress", "1");
-          }
-          const outcome = await legacyDirectUpload(formData, onProgress, signal);
-
-          if (outcome.kind === "completed") {
-            resolve(completedOutcomeToResult(outcome));
-            return;
-          }
-          accepted = outcome;
+        if (signal?.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
         }
+
+        await uploadReferenceVideoToR2(
+          uploadTarget.upload_url,
+          videoFile,
+          uploadTarget.content_type,
+          onProgress,
+          signal
+        );
+
+        if (signal?.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
+        }
+
+        const accepted = await registerReferenceVideoFromStorage(
+          {
+            storage_path: uploadTarget.storage_path,
+            storage_provider: "r2",
+            bucket: uploadTarget.bucket,
+            session_id,
+            user_id,
+            draft_id,
+            track_progress: trackServerJob,
+            title,
+            reference_tags,
+            is_universal_video,
+          },
+          signal
+        );
 
         if (!trackServerJob) {
           reject(new Error("Async upload (202) received but server job polling is disabled."));
           return;
         }
 
-        // ------- Step 4: poll for server-side processing progress -------
         const result = await pollCopilotReferenceVideoUploadJobUntilDone(accepted.job_id, {
           signal,
           onJobProgress,
