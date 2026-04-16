@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Archive, Check, ChevronRight, PencilLine, RefreshCw, Send, Sparkles, Waves } from "lucide-react";
+import { Archive, Check, ChevronRight, PencilLine, RefreshCw, Send, Sparkles, Star, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AcousticDojoWorkspace from "@/components/admin/dojo/AcousticDojoWorkspace";
+import CharismaDojoWorkspace from "@/components/admin/dojo/CharismaDojoWorkspace";
 import LatestSessionMetrics from "@/components/admin/LatestSessionMetrics";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
@@ -292,7 +293,7 @@ function draftEditorValuesFromDraft(draft: CopilotStudentDraft | null) {
 }
 
 export default function TrainingStudioWorkspace() {
-  const [pipelineView, setPipelineView] = useState<"agentic" | "voice">("agentic");
+  const [pipelineView, setPipelineView] = useState<"agentic" | "voice" | "charisma">("agentic");
   const [cohorts, setCohorts] = useState<CopilotCohortStack[]>([]);
   const [students, setStudents] = useState<CopilotStudentQueueItem[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<CopilotStudentQueueItem | null>(null);
@@ -1927,10 +1928,22 @@ export default function TrainingStudioWorkspace() {
           <Waves className="h-4 w-4" />
           Voice Pipeline
         </button>
+        <button
+          type="button"
+          onClick={() => setPipelineView("charisma")}
+          className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium ${
+            pipelineView === "charisma" ? "bg-background text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          <Star className="h-4 w-4" />
+          Charisma Pipeline
+        </button>
       </div>
 
       {pipelineView === "voice" ? (
         <AcousticDojoWorkspace showHeader={false} />
+      ) : pipelineView === "charisma" ? (
+        <CharismaDojoWorkspace showHeader={false} />
       ) : (
       <>
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
