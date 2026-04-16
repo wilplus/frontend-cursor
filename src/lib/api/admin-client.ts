@@ -1630,6 +1630,72 @@ export interface StressSnippetSettings {
   raw_value?: string | null;
 }
 
+/**
+ * Charisma snippets mirror the stress-snippet shape exactly. Only the coach_label
+ * domain differs: "charisma" / "no_charisma" (vs "stress" / "no_stress").
+ */
+export type CharismaSnippetScenario = StressSnippetScenario;
+export type CharismaSnippetFeatures = StressSnippetFeatures;
+
+export interface CharismaSnippet {
+  id: string;
+  recording_id: string;
+  session_id: string | null;
+  user_id: string | null;
+  source_type: "student" | "internet";
+  scenario: CharismaSnippetScenario;
+
+  // ms fields (legacy; backend still emits them)
+  start_ms: number;
+  end_ms: number;
+  duration_ms: number;
+
+  // seconds fields — snake_case
+  start_sec: number;
+  end_sec: number;
+  duration_sec: number;
+
+  // seconds fields — camelCase (Training Studio / Next clients)
+  startSec: number;
+  endSec: number;
+  durationSec: number;
+
+  // playback
+  audio_url: string | null;
+  playable: boolean;
+  storage_path: string | null;
+
+  // labeling
+  coach_label: "charisma" | "no_charisma" | null;
+  coach_label_notes: string | null;
+  queue_skipped: boolean;
+
+  classifier_stress_probability: number | null;
+  classifier_confidence: number | null;
+  selection_score: number | null;
+
+  transcript_excerpt: string | null;
+  features: CharismaSnippetFeatures | null;
+  created_at: string;
+}
+
+export interface CharismaSnippetListResponse {
+  snippets: CharismaSnippet[];
+  source_type: string;
+  label_state: string;
+  sort: "newest" | "oldest";
+  exclude_queue_skipped: boolean;
+  limit: number;
+  offset: number;
+  count: number;
+}
+
+export interface CharismaSnippetSettings {
+  auto_extract_enabled: boolean;
+  runtime_key?: string;
+  raw_value?: string | null;
+}
+
 export const adminApi = {
   getCopilotCohorts: (params?: {
     profile_bucket?: string;
@@ -2040,6 +2106,105 @@ export const adminApi = {
   getStressSnippetPlaybackUrl: (snippetId: string) =>
     adminFetch<{ playback_url: string | null; expires_at?: string; snippet_id?: string }>(
       `/stress-snippets/${snippetId}/playback-url`
+    ),
+
+  // ─── Charisma snippets ───────────────────────────────────────────────────
+  // Mirror of stress-snippet methods against /charisma-snippets/* endpoints.
+  listCharismaSnippets: (params?: {
+    source_type?: "student" | "internet" | "all";
+    label_state?: "all" | "labeled" | "unlabeled";
+    recording_id?: string;
+    sort?: "newest" | "oldest";
+    exclude_queue_skipped?: boolean;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params?.source_type) search.set("source_type", params.source_type);
+    if (params?.label_state) search.set("label_state", params.label_state);
+    if (params?.recording_id) search.set("recording_id", params.recording_id);
+    if (params?.sort) search.set("sort", params.sort);
+    if (typeof params?.exclude_queue_skipped === "boolean") {
+      search.set("exclude_queue_skipped", params.exclude_queue_skipped ? "true" : "false");
+    }
+    if (typeof params?.limit === "number") search.set("limit", String(params.limit));
+    if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return adminFetch<CharismaSnippetListResponse>(`/charisma-snippets${suffix}`).then((res) => ({
+      snippets: Array.isArray(res.snippets) ? res.snippets : [],
+      source_type: res.source_type ?? params?.source_type ?? "all",
+      label_state: res.label_state ?? params?.label_state ?? "all",
+      sort: res.sort ?? params?.sort ?? "newest",
+      exclude_queue_skipped: Boolean(res.exclude_queue_skipped),
+      limit: typeof res.limit === "number" ? res.limit : params?.limit ?? 0,
+      offset: typeof res.offset === "number" ? res.offset : params?.offset ?? 0,
+      count: typeof res.count === "number" ? res.count : (res.snippets?.length ?? 0),
+    }));
+  },
+
+  getCharismaSnippetSettings: () =>
+    adminFetch<{ settings?: CharismaSnippetSettings; auto_extract_enabled?: boolean }>(
+      "/charisma-snippets/settings"
+    ).then((res) => ({
+      auto_extract_enabled:
+        typeof res.settings?.auto_extract_enabled === "boolean"
+          ? res.settings.auto_extract_enabled
+          : Boolean(res.auto_extract_enabled),
+      runtime_key: res.settings?.runtime_key,
+      raw_value: res.settings?.raw_value ?? null,
+    })),
+
+  updateCharismaSnippetSettings: (autoExtractEnabled: boolean) =>
+    adminFetch<{ settings?: CharismaSnippetSettings; auto_extract_enabled?: boolean }>(
+      "/charisma-snippets/settings",
+      { method: "PUT", body: { auto_extract_enabled: autoExtractEnabled } }
+    ).then((res) => ({
+      auto_extract_enabled:
+        typeof res.settings?.auto_extract_enabled === "boolean"
+          ? res.settings.auto_extract_enabled
+          : Boolean(res.auto_extract_enabled),
+    })),
+
+  generateCharismaSnippets: (
+    recordingId: string,
+    body?: { max_snippets?: number; clip_seconds?: number; clear_existing?: boolean }
+  ) =>
+    adminFetch<{
+      generated_count?: number;
+      status?: string;
+      snippets?: CharismaSnippet[];
+    }>(`/recordings/${recordingId}/charisma-snippets/generate`, { method: "POST", body: body ?? {} }),
+
+  labelCharismaSnippet: (
+    snippetId: string,
+    body: { label: "charisma" | "no_charisma"; notes?: string | null }
+  ) =>
+    adminFetch<{ status?: string; snippet?: CharismaSnippet }>(
+      `/charisma-snippets/${snippetId}/label`,
+      { method: "PATCH", body }
+    ),
+
+  unlabelCharismaSnippet: (snippetId: string) =>
+    adminFetch<{ status?: string; snippet?: CharismaSnippet }>(
+      `/charisma-snippets/${snippetId}/label`,
+      { method: "DELETE" }
+    ),
+
+  queueSkipCharismaSnippet: (snippetId: string) =>
+    adminFetch<{ status?: string; snippet?: CharismaSnippet }>(
+      `/charisma-snippets/${snippetId}/queue-skip`,
+      { method: "POST" }
+    ),
+
+  queueUnskipCharismaSnippet: (snippetId: string) =>
+    adminFetch<{ status?: string; snippet?: CharismaSnippet }>(
+      `/charisma-snippets/${snippetId}/queue-unskip`,
+      { method: "POST" }
+    ),
+
+  getCharismaSnippetPlaybackUrl: (snippetId: string) =>
+    adminFetch<{ playback_url: string | null; expires_at?: string; snippet_id?: string }>(
+      `/charisma-snippets/${snippetId}/playback-url`
     ),
 
   exportDpoData: (params?: { from?: string; to?: string; format?: "json" | "csv" }) => {
