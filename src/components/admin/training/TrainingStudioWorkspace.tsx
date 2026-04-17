@@ -32,7 +32,6 @@ import {
   type StudentTask,
   type TasksPoolItem,
 } from "@/lib/api/admin-client";
-import { homeworkApi } from "@/lib/api/homework-client";
 import {
   DRAFT_GENERATION_MAX_RETRIES,
   getDraftGenerationBannerState,
@@ -963,37 +962,31 @@ export default function TrainingStudioWorkspace() {
   useEffect(() => {
     const sid = copilotSessionId;
     const studentId = selectedStudent?.student_id?.trim();
-    if (!sid) {
+    // Training Studio is always an admin context — we must use the admin report
+    // endpoint which requires both sessionId AND the student's userId.
+    // If either is missing there is nothing safe to fetch; bail out silently.
+    if (!sid || !studentId) {
       setHomeworkPlayback({ loading: false, error: null, audioUrl: null, failed: false });
       return;
     }
     let cancelled = false;
     setHomeworkPlayback({ loading: true, error: null, audioUrl: null, failed: false });
-    /** Coach/student homework report routes differ; Training Studio must load the student's report as admin. */
-    const reportPromise =
-      studentId != null && studentId !== ""
-        ? adminApi.getStudentSessionReport(studentId, sid)
-        : homeworkApi.getReport(sid);
+    const reportPromise = adminApi.getStudentSessionReport(studentId, sid);
     reportPromise
       .then(async (data) => {
         if (cancelled) return;
-        const rec1 = "recording_1" in data ? data.recording_1 : undefined;
         const direct =
           data.final_recording?.audio_url ??
           data.recording?.audio_url ??
-          rec1?.audio_url ??
           null;
         if (direct) {
           setHomeworkPlayback({ loading: false, error: null, audioUrl: direct, failed: false });
           return;
         }
-        const recordingId = data.final_recording?.id ?? rec1?.id;
+        const recordingId = data.final_recording?.id;
         if (recordingId) {
           try {
-            const r =
-              studentId != null && studentId !== ""
-                ? await adminApi.getRecordingPlaybackUrl(recordingId)
-                : await homeworkApi.getRecordingPlaybackUrl(recordingId);
+            const r = await adminApi.getRecordingPlaybackUrl(recordingId);
             if (cancelled) return;
             setHomeworkPlayback({
               loading: false,
