@@ -1557,6 +1557,23 @@ export default function TrainingStudioWorkspace() {
           }));
         }
         setReferenceVideosTotal((previous) => previous + 1);
+
+        // Auto-attach to the current draft so the admin doesn't have to click
+        // "Attach" manually before "Approve & Send". Without this the backend
+        // never sets tutor_video_url and the student sees "No video".
+        if (selectedStudent?.student_id && selectedDraft?.id) {
+          try {
+            await adminApi.attachReferenceVideoToCopilotDraft(
+              selectedStudent.student_id,
+              selectedDraft.id,
+              uploaded.id
+            );
+            setFullOverrideAttached(true);
+            await loadDraft(selectedStudent);
+          } catch {
+            // Non-fatal — admin can still attach manually from the list.
+          }
+        }
       }
       setReferenceVideoFile(null);
       setReferenceVideoTitle("");
@@ -1569,7 +1586,7 @@ export default function TrainingStudioWorkspace() {
             : "Upload may have completed, but job status could not be tracked. Refreshing the list — check below."
         );
       } else {
-        toast.success("Reference video uploaded.");
+        toast.success("Reference video uploaded and attached.");
       }
       await loadReferenceVideos(referenceVideosOffset, "refresh");
     } catch (error) {
@@ -1586,6 +1603,7 @@ export default function TrainingStudioWorkspace() {
   }, [
     clearReferenceVideoUploadProgressUi,
     copilotSessionId,
+    loadDraft,
     loadReferenceVideos,
     referenceVideoFile,
     referenceVideoTags,
@@ -1594,7 +1612,7 @@ export default function TrainingStudioWorkspace() {
     referenceVideosOffset,
     scheduleReferenceVideoUploadProgress,
     selectedDraft?.id,
-    selectedStudent?.student_id,
+    selectedStudent,
   ]);
 
   const attachReferenceVideoToDraft = useCallback(
