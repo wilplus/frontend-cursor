@@ -1810,64 +1810,65 @@ export default function TrainingStudioWorkspace() {
         session_id: resolved.sessionId,
         idempotency_key: crypto.randomUUID(),
       });
+
+      // The backend creates the student's session synchronously inside approve-send,
+      // so the reference video is live for the student the moment this resolves.
+      // Show success immediately and unblock the UI — don't wait for the async
+      // AI-generation pipeline (TTS → video → uploading → sent).
       setPipelineStage("queued");
       setPipelineStatusPolling(true);
       setPipelineStatusError(null);
-
-      let finalStage: PipelineStage | null = null;
-      let transientPipelineErrors = 0;
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        try {
-          const statusPayload = await adminApi.getCopilotDraftPipelineStatus(
-            selectedStudent.student_id,
-            draftId
-          );
-          transientPipelineErrors = 0;
-          setPipelineStatusError(null);
-          const stage = toPipelineStage(statusPayload.stage ?? statusPayload.status);
-          if (stage) {
-            setPipelineStage(stage);
-            finalStage = stage;
-          }
-          if (stage && PIPELINE_TERMINAL_STAGES.has(stage)) break;
-        } catch (pollError) {
-          transientPipelineErrors += 1;
-          const message = pollError instanceof Error ? pollError.message : "Failed to fetch pipeline status";
-          if (transientPipelineErrors >= 6) {
-            throw new Error(
-              message.trim() || "Failed to fetch pipeline status after multiple retries."
-            );
-          }
-          // Keep polling on transient backend/network hiccups while pipeline is still running.
-          setPipelineStatusError(message.trim() || "Retrying pipeline status fetch…");
-        }
-        await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
-      }
-
-      try {
-        const feedback = await adminApi.getCopilotDraftFeedbackVideoUrl(selectedStudent.student_id, draftId);
-        const feedbackUrl = feedback.video_url?.trim() || feedback.feedback_video_url?.trim() || null;
-        setLatestFeedbackVideoUrl(feedbackUrl);
-      } catch {
-        setLatestFeedbackVideoUrl(null);
-      }
-
-      if (finalStage === "failed") {
-        setPipelineStatusError("Pipeline failed while sending homework.");
-        toast.error("Approve & Send failed.");
-      } else {
-        toast.success(finalStage === "sent" ? "Homework sent." : "Approve & Send queued.");
-      }
+      toast.success("Homework sent.");
 
       await loadDraft(selectedStudent);
       const refreshed = await loadStudents(cohorts.map((cohort) => cohort.id));
       const nextReviewable = refreshed.find((item) => item.state !== "Sent") ?? null;
       setSelectedStudent(nextReviewable ?? refreshed[0] ?? null);
+
+      // Capture loop variables before the async closure below.
+      const pollStudentId = selectedStudent.student_id;
+      const pollDraftId = draftId;
+
+      // Poll pipeline status in the background so the progress indicator stays
+      // accurate, but without blocking the admin from moving to the next student.
+      void (async () => {
+        let transientPipelineErrors = 0;
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          try {
+            const statusPayload = await adminApi.getCopilotDraftPipelineStatus(
+              pollStudentId,
+              pollDraftId
+            );
+            transientPipelineErrors = 0;
+            setPipelineStatusError(null);
+            const stage = toPipelineStage(statusPayload.stage ?? statusPayload.status);
+            if (stage) setPipelineStage(stage);
+            if (stage === "failed") {
+              setPipelineStatusError("Pipeline failed while sending homework.");
+              break;
+            }
+            if (stage && PIPELINE_TERMINAL_STAGES.has(stage)) break;
+          } catch (pollError) {
+            transientPipelineErrors += 1;
+            if (transientPipelineErrors >= 6) break;
+            const message = pollError instanceof Error ? pollError.message : "Failed to fetch pipeline status";
+            setPipelineStatusError(message.trim() || "Retrying pipeline status fetch…");
+          }
+          await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
+        }
+        try {
+          const feedback = await adminApi.getCopilotDraftFeedbackVideoUrl(pollStudentId, pollDraftId);
+          const feedbackUrl = feedback.video_url?.trim() || feedback.feedback_video_url?.trim() || null;
+          setLatestFeedbackVideoUrl(feedbackUrl);
+        } catch {
+          // Feedback video URL is best-effort; don't surface an error.
+        }
+        setPipelineStatusPolling(false);
+      })();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send homework");
       setPipelineStatusError(error instanceof Error ? error.message : "Failed to send homework");
     } finally {
-      setPipelineStatusPolling(false);
       setSendingHomework(false);
     }
   }, [
