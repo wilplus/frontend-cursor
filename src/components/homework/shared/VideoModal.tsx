@@ -39,12 +39,12 @@ export default function VideoModal({ url, onClose }: VideoModalProps) {
           <X className="h-5 w-5" />
         </button>
         <div className="aspect-[9/16] w-full overflow-hidden rounded-t-xl bg-black">
-          <iframe
+          <video
             src={url}
-            title="Video"
             className="h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
+            controls
+            autoPlay
+            playsInline
           />
         </div>
       </div>
