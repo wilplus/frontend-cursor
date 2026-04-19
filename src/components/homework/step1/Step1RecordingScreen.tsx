@@ -100,20 +100,22 @@ export default function Step1RecordingScreen({
           minDurationSeconds={RECORDING_1_DURATION_MIN}
           sniperMode
           sniperProfile={sniperProfile}
+          bottomSlot={
+            sessionId && sessionId !== "mock-session" ? (
+              <div className="flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={onAbandon}
+                  disabled={loading}
+                >
+                  Abandon session
+                </Button>
+              </div>
+            ) : null
+          }
         />
-      )}
-      {sessionId && sessionId !== "mock-session" && (
-        <div className="mt-[1px] flex justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive"
-            onClick={onAbandon}
-            disabled={loading}
-          >
-            Abandon session
-          </Button>
-        </div>
       )}
     </StepFlowWrapper>
   );
