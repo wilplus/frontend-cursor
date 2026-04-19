@@ -137,6 +137,7 @@ export default function HomeworkFlowCard() {
   const [mainScreenMessage, setMainScreenMessage] = useState<string | null>(null);
   const [step0TutorVideoUrl, setStep0TutorVideoUrl] = useState<string | null>(null);
   const [step0TutorVideoDescription, setStep0TutorVideoDescription] = useState<string | null>(null);
+  const [step0TutorVideoIsUniversal, setStep0TutorVideoIsUniversal] = useState<boolean>(false);
   const [coachMessageAfterHomework, setCoachMessageAfterHomework] = useState<string | null>(null);
   const [assignedExercises, setAssignedExercises] = useState<Array<{ id: string; title: string; video_url?: string | null; description?: string | null }>>([]);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
@@ -253,6 +254,7 @@ export default function HomeworkFlowCard() {
           ? tutorVideoDescription.trim()
           : null
       );
+      setStep0TutorVideoIsUniversal(statusRes?.tutor_video_is_universal === true);
 
       if (Array.isArray(statusRes?.assigned_exercises)) {
         setAssignedExercises(statusRes!.assigned_exercises!);
@@ -299,6 +301,7 @@ export default function HomeworkFlowCard() {
     setMainScreenMessage(null);
     setStep0TutorVideoUrl(null);
     setStep0TutorVideoDescription(null);
+    setStep0TutorVideoIsUniversal(false);
   }, []);
 
   const activateForcedStep0Waiting = useCallback(() => {
@@ -327,6 +330,7 @@ export default function HomeworkFlowCard() {
     setReportLoading(false);
     setStep0TutorVideoUrl(null);
     setStep0TutorVideoDescription(null);
+    setStep0TutorVideoIsUniversal(false);
     setReviewPending(true);
     setMainScreenMessage(REVIEW_PENDING_DEFAULT_MESSAGE);
     setStep(0);
@@ -587,6 +591,7 @@ export default function HomeworkFlowCard() {
       } else {
         setStep0TutorVideoDescription(null);
       }
+      setStep0TutorVideoIsUniversal(res.tutor_video_is_universal === true);
       setCoachMessageAfterHomework(null);
       setPendingRetrySelfRating(null);
       hasSetPendingRetryFrom409Ref.current = false;
@@ -627,6 +632,7 @@ export default function HomeworkFlowCard() {
       setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
+    setStep0TutorVideoIsUniversal(res.tutor_video_is_universal === true);
     if (Array.isArray(res.assigned_exercises)) {
       setAssignedExercises(res.assigned_exercises);
     }
@@ -1487,6 +1493,7 @@ export default function HomeworkFlowCard() {
       sniperProfile={sniperProfile}
       step0TutorVideoUrl={step0TutorVideoUrl}
       step0TutorVideoDescription={step0TutorVideoDescription}
+      step0TutorVideoIsUniversal={step0TutorVideoIsUniversal}
       assignedExercises={assignedExercises}
       loading={loading}
       error={error}

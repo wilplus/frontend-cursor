@@ -165,6 +165,8 @@ export interface HomeworkResponse {
   tutor_video_url?: string | null;
   /** Optional coach intro text for the current homework. Can accompany tutor_video_url on step 0 and other flow messaging. */
   tutor_video_description?: string | null;
+  /** When true: tutor_video_url is the generic "welcome video" fallback (first-time users with no personal coach assignment yet). Show a friendlier welcome label and hide the Start homework CTA. */
+  tutor_video_is_universal?: boolean | null;
   /** When has_active_session === false: exercises assigned to this student. Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
   review_pending?: boolean | null;
@@ -260,6 +262,8 @@ export interface HomeworkSessionStatus {
   tutor_video_url?: string | null;
   /** Optional coach intro text for the current homework. Can accompany tutor_video_url on step 0 and other flow messaging. */
   tutor_video_description?: string | null;
+  /** When true: tutor_video_url is the generic "welcome video" fallback (first-time users with no personal coach assignment yet). Show a friendlier welcome label and hide the Start homework CTA. */
+  tutor_video_is_universal?: boolean | null;
   /** When has_active_session === false: exercises assigned to this student (e.g. from admin assigned_next_exercise_id). Shown on step 0 below Start homework. */
   assigned_exercises?: AssignedExercise[];
   review_pending?: boolean | null;
@@ -341,6 +345,7 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     tutor_feedback_message: raw.tutor_feedback_message ?? null,
     tutor_video_url: raw.tutor_video_url ?? raw.session?.tutor_video_url ?? null,
     tutor_video_description: raw.tutor_video_description ?? raw.session?.tutor_video_description ?? null,
+    tutor_video_is_universal: raw.tutor_video_is_universal ?? null,
     assigned_exercises: Array.isArray(raw.assigned_exercises) ? raw.assigned_exercises : [],
     review_pending: raw.review_pending ?? null,
     main_screen_state: raw.main_screen_state ?? null,
