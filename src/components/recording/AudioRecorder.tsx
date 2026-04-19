@@ -84,6 +84,8 @@ interface AudioRecorderProps {
   onSniperSnapshot?: (snapshot: LiveCoachSnapshot) => void;
   /** Current student profile used to resolve the active realtime level/step. */
   sniperProfile?: UserSniperProfile | null;
+  /** Extra node rendered at the bottom of the controls area (sniperMode only). Use for Abandon session. */
+  bottomSlot?: React.ReactNode;
 }
 
 export default function AudioRecorder({
@@ -100,6 +102,7 @@ export default function AudioRecorder({
   sniperMode = false,
   onSniperSnapshot,
   sniperProfile = null,
+  bottomSlot,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -139,7 +142,7 @@ export default function AudioRecorder({
     [sniperProfile]
   );
   const promptTypographyClass = sniperMode
-    ? "text-left [&_h1]:mb-2 [&_h1]:text-[1.2rem] [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-[1.2rem] [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-[1.2rem] [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-[1.2rem] [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-[1.2rem] [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-[1.2rem] [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-[18px] [&_p]:leading-7 [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:space-y-1 [&_ol]:pl-5 [&_ol]:text-[18px] [&_ol]:leading-7 [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-outside [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:text-[18px] [&_ul]:leading-7 [&_ul]:text-muted-foreground [&_li]:leading-7 [&_a]:underline"
+    ? "text-left [&_h1]:mb-2 [&_h1]:text-[2.4rem] [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-[2.4rem] [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-[2.4rem] [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-[2.4rem] [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-[2.4rem] [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-[2.4rem] [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-[36px] [&_p]:leading-[1.3] [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:space-y-1 [&_ol]:pl-5 [&_ol]:text-[36px] [&_ol]:leading-[1.3] [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-outside [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:text-[36px] [&_ul]:leading-[1.3] [&_ul]:text-muted-foreground [&_li]:leading-[1.3] [&_a]:underline"
     : "text-left [&_h1]:mb-2 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:mb-2 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h5]:mb-2 [&_h5]:text-sm [&_h5]:font-semibold [&_h5]:text-foreground [&_h6]:mb-2 [&_h6]:text-sm [&_h6]:font-semibold [&_h6]:text-foreground [&_p]:mb-3 [&_p]:text-sm [&_p]:text-muted-foreground [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:space-y-1 [&_ol]:pl-5 [&_ol]:text-sm [&_ol]:text-muted-foreground [&_ul]:list-disc [&_ul]:list-outside [&_ul]:space-y-1 [&_ul]:pl-5 [&_ul]:text-sm [&_ul]:text-muted-foreground [&_li]:leading-6 [&_a]:underline";
   const currentRealtimeLevel = Math.max(1, sniperProfile?.realtime_level ?? activeRealtimeStep.level ?? 1);
   const currentRealtimeStep = useMemo(() => {
@@ -651,25 +654,92 @@ export default function AudioRecorder({
   // Progress toward max duration (5 min): 0–100%
   const progressPercent = Math.min(100, (elapsedSeconds / MAX_DURATION_SECONDS) * 100);
 
-  // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
-  return (
-    <div
-      className={`w-full mx-auto ${
-        sniperMode
-          ? "max-w-xl px-0 py-2 space-y-2 min-h-[calc(100svh-12rem)] flex flex-col justify-center"
-          : "max-w-lg px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5"
-      }`}
-    >
-      <div className={`${sniperMode ? "space-y-2 px-0 pt-0" : "space-y-5 p-2 sm:p-6"}`}>
-        <div className="flex flex-col items-center gap-1 w-full">
-          <div
-            className={`sticky z-20 flex w-full flex-col items-center text-center bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 ${
-              sniperMode ? "top-2" : "top-2 sm:top-3"
-            }`}
+  // ─── Recording buttons (shared between sniperMode and normal) ───────────────
+  const recordingButtons = (
+    <div className={sniperMode ? "space-y-2" : "space-y-3"}>
+      {!isRecording ? (
+        <Button
+          onPointerDown={() => {
+            if (
+              typeof navigator !== "undefined" &&
+              navigator.mediaDevices?.getUserMedia &&
+              !streamRef.current &&
+              !streamPromiseRef.current
+            ) {
+              streamPromiseRef.current = navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+          }}
+          onClick={startRecording}
+          className="h-12 w-full rounded-xl font-semibold active:scale-[0.98]"
+        >
+          <Mic className="mr-2 h-5 w-5" aria-hidden />
+          Record an answer
+        </Button>
+      ) : isPaused ? (
+        <div className="flex gap-2">
+          <Button
+            onClick={resumeRecording}
+            className="h-12 flex-1 rounded-xl font-semibold active:scale-[0.98]"
           >
-            <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
-            <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
-          </div>
+            <Play className="mr-2 h-5 w-5 fill-current" aria-hidden />
+            Resume
+          </Button>
+          <Button
+            onClick={stopRecording}
+            disabled={uploading || elapsedSeconds < minDurationSeconds}
+            className={`h-12 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
+          >
+            <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
+            {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Button
+            onClick={pauseRecording}
+            variant="outline"
+            disabled={uploading}
+            className="h-12 flex-1 rounded-xl font-semibold bg-muted/50 border-input text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98]"
+          >
+            <Pause className="mr-2 h-4 w-4" aria-hidden />
+            Pause
+          </Button>
+          <Button
+            onClick={stopRecording}
+            disabled={uploading || elapsedSeconds < minDurationSeconds}
+            className={`h-12 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
+          >
+            <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
+            {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
+          </Button>
+        </div>
+      )}
+      {!stopAndSend && onCancel && !isRecording && (
+        <div className="flex justify-center">
+          <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+            Cancel
+          </Button>
+        </div>
+      )}
+      {!stopAndSend && onBack && <FlowBackLink onClick={onBack} />}
+      {!stopAndSend && isRecording && onStartAgain && (
+        <FlowBackLink onClick={handleStartAgain}>start again</FlowBackLink>
+      )}
+    </div>
+  );
+
+  // ─── sniperMode: full-screen three-section layout ────────────────────────
+  if (sniperMode) {
+    return (
+      <div className="w-full mx-auto max-w-xl flex flex-col min-h-[calc(100svh-3rem)]">
+        {/* TOP: level + progress, ~24 px from top */}
+        <div className="flex flex-col items-center pt-6 pb-2">
+          <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
+          <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
+        </div>
+
+        {/* MIDDLE: sniper wheel + task, vertically centred */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-0">
           <div className="animation-div w-full">
             <StepVisualRenderer
               activeStep={activeRealtimeStep}
@@ -679,11 +749,7 @@ export default function AudioRecorder({
             />
           </div>
           {hasPrompt ? (
-            <div
-              className={`w-full rounded-lg border border-border bg-muted/30 ${
-                sniperMode ? "mb-4 max-w-xl p-4" : "mb-6 max-w-lg p-5"
-              }`}
-            >
+            <div className="w-full rounded-lg border border-border bg-muted/30 px-4 py-4">
               <div
                 className={promptTypographyClass}
                 dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
@@ -696,93 +762,77 @@ export default function AudioRecorder({
             </p>
           ) : null}
         </div>
-        <div className={sniperMode ? "space-y-1" : "space-y-1.5"}>
-          <div className={`w-full overflow-hidden rounded-full bg-muted ${sniperMode ? "h-1.5" : "h-2"}`}>
+
+        {/* BOTTOM: progress bar + timer + buttons + optional slot, ~24 px from bottom */}
+        <div className="px-0 pt-2 pb-6 space-y-2">
+          <div className="space-y-1">
+            <div className="w-full overflow-hidden rounded-full bg-muted h-1.5">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">min. {minDurationSeconds}s</span>
+              <span className={`font-semibold ${isRecording ? "text-primary" : "text-foreground"}`}>
+                {formatTime(elapsedSeconds)}/5:00
+              </span>
+            </div>
+          </div>
+          {recordingButtons}
+          {bottomSlot}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Normal (non-sniper) layout ───────────────────────────────────────────
+  // MediaRecorder mode: wheel always visible on dashboard; readout when mic is active
+  return (
+    <div className="w-full mx-auto max-w-lg px-0 sm:px-2 pt-2 sm:pt-3 pb-5 space-y-5">
+      <div className="space-y-5 p-2 sm:p-6">
+        <div className="flex flex-col items-center gap-1 w-full">
+          <div className="sticky top-2 sm:top-3 z-20 flex w-full flex-col items-center text-center bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
+            <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
+            <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
+          </div>
+          <div className="animation-div w-full">
+            <StepVisualRenderer
+              activeStep={activeRealtimeStep}
+              realtimeStrengthPace={realtimeStrengthPace}
+              dartboardRef={dartboardRef}
+              sniperMode={false}
+            />
+          </div>
+          {hasPrompt ? (
+            <div className="w-full rounded-lg border border-border bg-muted/30 mb-6 max-w-lg p-5">
+              <div
+                className={promptTypographyClass}
+                dangerouslySetInnerHTML={{ __html: sanitizedPromptHtml }}
+              />
+            </div>
+          ) : null}
+          {!realtimeStrengthPace.isActive && !isRecording && micPreviewError ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              {micPreviewError}
+            </p>
+          ) : null}
+        </div>
+        <div className="space-y-1.5">
+          <div className="w-full overflow-hidden rounded-full bg-muted h-2">
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
-              min. {minDurationSeconds}s
-            </span>
+            <span className="text-muted-foreground">min. {minDurationSeconds}s</span>
             <span className={`font-semibold ${isRecording ? "text-primary" : "text-foreground"}`}>
               {formatTime(elapsedSeconds)}/5:00
             </span>
           </div>
         </div>
-
-        <div className={sniperMode ? "space-y-2" : "space-y-3"}>
-          {!isRecording ? (
-            <Button
-              onPointerDown={() => {
-              if (
-                typeof navigator !== "undefined" &&
-                navigator.mediaDevices?.getUserMedia &&
-                !streamRef.current &&
-                !streamPromiseRef.current
-              ) {
-                streamPromiseRef.current = navigator.mediaDevices.getUserMedia({ audio: true });
-              }
-            }}
-            onClick={startRecording}
-            className="h-12 w-full rounded-xl font-semibold active:scale-[0.98]"
-          >
-            <Mic className="mr-2 h-5 w-5" aria-hidden />
-            Record an answer
-          </Button>
-        ) : isPaused ? (
-          <div className="flex gap-2">
-            <Button
-              onClick={resumeRecording}
-              className="h-12 flex-1 rounded-xl font-semibold active:scale-[0.98]"
-            >
-              <Play className="mr-2 h-5 w-5 fill-current" aria-hidden />
-              Resume
-            </Button>
-            <Button
-              onClick={stopRecording}
-              disabled={uploading || elapsedSeconds < minDurationSeconds}
-              className={`h-12 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
-            >
-              <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
-              {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              onClick={pauseRecording}
-              variant="outline"
-              disabled={uploading}
-              className="h-12 flex-1 rounded-xl font-semibold bg-muted/50 border-input text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98]"
-            >
-              <Pause className="mr-2 h-4 w-4" aria-hidden />
-              Pause
-            </Button>
-            <Button
-              onClick={stopRecording}
-              disabled={uploading || elapsedSeconds < minDurationSeconds}
-              className={`h-12 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] ${stopAndSend ? "bg-primary hover:bg-primary/90" : "bg-red-500 hover:bg-red-600"}`}
-            >
-              <Square className="mr-2 h-4 w-4 fill-current" aria-hidden />
-              {uploading ? "Uploading…" : stopAndSend ? "Stop & Send" : "Stop"}
-            </Button>
-          </div>
-        )}
-        {!stopAndSend && onCancel && !isRecording && (
-          <div className="flex justify-center">
-            <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
-              Cancel
-            </Button>
-          </div>
-        )}
-        {!stopAndSend && onBack && <FlowBackLink onClick={onBack} />}
-        {!stopAndSend && isRecording && onStartAgain && (
-          <FlowBackLink onClick={handleStartAgain}>start again</FlowBackLink>
-        )}
-        </div>
+        {recordingButtons}
       </div>
     </div>
   );

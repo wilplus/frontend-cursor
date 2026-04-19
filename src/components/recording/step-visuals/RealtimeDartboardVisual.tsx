@@ -23,7 +23,7 @@ export default function RealtimeDartboardVisual({
         <div
           className={
             sniperMode
-              ? "w-[62%] min-w-[215px] max-w-[384px]"
+              ? "w-[74%] min-w-[256px] max-w-[457px]"
               : "w-[clamp(420px,60vw,680px)]"
           }
         >
