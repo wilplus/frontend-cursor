@@ -2870,11 +2870,21 @@ export default function TrainingStudioWorkspace() {
                     return (
                       <div key={video.id} className="rounded-lg border border-border/80 bg-muted/10 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-semibold">
-                            {(video.title && video.title.trim()) ||
-                              (video.original_filename && video.original_filename.trim()) ||
-                              video.id}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold">
+                              {(video.title && video.title.trim()) ||
+                                (video.original_filename && video.original_filename.trim()) ||
+                                video.id}
+                            </p>
+                            {video.is_universal_video ? (
+                              <span
+                                className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700"
+                                title="Served as the universal welcome video on step 0 for users with no personal coach assignment yet."
+                              >
+                                Universal welcome
+                              </span>
+                            ) : null}
+                          </div>
                           <span
                             className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                               transcriptionStatus === "done"
@@ -2889,7 +2899,6 @@ export default function TrainingStudioWorkspace() {
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {formatReferenceCreatedAt(video.created_at)} · {formatReferenceTags(video.reference_tags)}
-                          {video.is_universal_video ? " · universal" : ""}
                         </p>
                         {video.transcription_error ? (
                           <p className="mt-1 text-xs text-rose-600">{video.transcription_error}</p>

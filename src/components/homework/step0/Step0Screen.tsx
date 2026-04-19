@@ -35,6 +35,8 @@ interface Step0ScreenProps {
   // video / assignment
   step0TutorVideoUrl: string | null;
   step0TutorVideoDescription: string | null;
+  /** When true, the step-0 video is the generic "welcome video" fallback (no coach assignment yet). Show welcome copy and hide the Start CTA. */
+  step0TutorVideoIsUniversal: boolean;
   assignedExercises: Array<{ id: string; title: string; video_url?: string | null; description?: string | null }>;
   loading: boolean;
   error: string | null;
@@ -68,6 +70,7 @@ export default function Step0Screen({
   sniperProfile,
   step0TutorVideoUrl,
   step0TutorVideoDescription,
+  step0TutorVideoIsUniversal,
   assignedExercises,
   loading,
   error,
@@ -107,10 +110,10 @@ export default function Step0Screen({
               <Step0AssignmentCard
                 videoUrl={videoUrl ?? null}
                 introText={step0TutorVideoDescription}
+                isUniversalWelcome={step0TutorVideoIsUniversal}
                 loading={loading}
                 error={error}
                 onStart={onStart}
-                onOpenVideoModal={onOpenVideoModal}
               />
             )}
 

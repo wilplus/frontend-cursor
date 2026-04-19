@@ -5,8 +5,8 @@
 import type { AssignedExercise } from "@/lib/api/types-homework";
 import { openingTaskTextFromRecord } from "@/lib/api/homework-task-fields";
 
-/** Default task prompt when the backend assigns none. */
-export const DEFAULT_TASK_PROMPT = "How was your day so far?";
+/** Default task prompt when the backend assigns none (first-time users, no coach-assigned task yet). */
+export const DEFAULT_TASK_PROMPT = "Do you think you are a good communicator? Why?";
 
 export function formatCountdown(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
