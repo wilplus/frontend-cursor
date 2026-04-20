@@ -100,15 +100,13 @@ export default function Step0AssignmentCard({
         </p>
       ) : null}
 
-      {!isUniversalWelcome ? (
-        <Button
-          onClick={onStart}
-          disabled={loading}
-          className="w-full max-w-[280px] rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
-        >
-          {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
-        </Button>
-      ) : null}
+      <Button
+        onClick={onStart}
+        disabled={loading}
+        className="w-full max-w-[280px] rounded-xl h-12 bg-primary text-white font-semibold hover:bg-primary/90"
+      >
+        {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
+      </Button>
     </>
   );
 }
