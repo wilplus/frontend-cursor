@@ -26,11 +26,6 @@ export default function Step0AssignmentCard({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const heading = isUniversalWelcome ? "Welcome from your coach" : null;
-  const waitingCopy = isUniversalWelcome
-    ? "Waiting for your coach to send your first assignment."
-    : null;
-
   const handleVideoClick = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -47,19 +42,15 @@ export default function Step0AssignmentCard({
     if (!v) return;
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
-    } else {
+    } else if (v.requestFullscreen) {
       v.requestFullscreen().catch(() => {});
+    } else if ((v as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen) {
+      (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
     }
   };
 
   return (
     <>
-      {heading ? (
-        <p className="w-full text-center text-sm font-medium text-muted-foreground">
-          {heading}
-        </p>
-      ) : null}
-
       <div className="w-full">
         {videoUrl ? (
           <div
@@ -109,11 +100,7 @@ export default function Step0AssignmentCard({
         </p>
       ) : null}
 
-      {isUniversalWelcome ? (
-        <p className="w-full text-center text-sm text-muted-foreground">
-          {waitingCopy}
-        </p>
-      ) : (
+      {!isUniversalWelcome ? (
         <Button
           onClick={onStart}
           disabled={loading}
@@ -121,7 +108,7 @@ export default function Step0AssignmentCard({
         >
           {error ? "Try again" : loading ? "Starting…" : "Start Your Practice"}
         </Button>
-      )}
+      ) : null}
     </>
   );
 }
