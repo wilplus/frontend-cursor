@@ -1887,11 +1887,7 @@ export const adminApi = {
     return adminFetch<{ audit: CopilotStudentDraft | null }>(
       `/copilot/students/${studentId}/audit${suffix}`
     ).then((res) => {
-      const rawAudit = res.audit;
-      const record =
-        rawAudit != null && typeof rawAudit === "object" && !Array.isArray(rawAudit)
-          ? (rawAudit as Record<string, unknown>)
-          : null;
+      const record = asRecord(res.audit);
       return {
         audit: record ? normalizeCopilotStudentDraft(record) : null,
       };
