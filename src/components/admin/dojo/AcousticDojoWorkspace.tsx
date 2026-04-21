@@ -27,7 +27,6 @@ interface RecentReview {
 
 const REGEN_MAX_SNIPPETS = 8;
 const REGEN_CLIP_SECONDS = 5;
-const AUDIO_URL_REFRESH_MS = 45_000;
 
 /**
  * Format a seconds field with a legacy `_ms` fallback. Backend emits both, but
@@ -80,13 +79,9 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
   const [notesBySnippetId, setNotesBySnippetId] = useState<Record<string, string>>({});
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const refreshInFlightRef = useRef(false);
 
-  const loadSnippets = useCallback(async (options?: { quiet?: boolean }) => {
-    const quiet = options?.quiet === true;
-    if (quiet && refreshInFlightRef.current) return;
-    if (quiet) refreshInFlightRef.current = true;
-    if (!quiet) setLoading(true);
+  const loadSnippets = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await adminApi.listStressSnippets({
         source_type: sourceType,
@@ -97,30 +92,19 @@ export default function AcousticDojoWorkspace({ showHeader = true }: { showHeade
         limit: 50,
         offset: 0,
       });
-      // Filter out corrupted/unplayable snippets: only show snippets where playable=true and audio_url exists
       const playableSnippets = response.snippets.filter((s) => s.playable && s.audio_url);
       setSnippets(playableSnippets);
       setTotalCount(response.count);
     } catch (error) {
       console.error(error);
-      if (!quiet) {
-        toast.error(error instanceof Error ? error.message : "Failed to load snippets");
-      }
+      toast.error(error instanceof Error ? error.message : "Failed to load snippets");
     } finally {
-      if (!quiet) setLoading(false);
-      if (quiet) refreshInFlightRef.current = false;
+      setLoading(false);
     }
   }, [sourceType, labelState, sort, hideSkipped, recordingIdFilter]);
 
   useEffect(() => {
     void loadSnippets();
-  }, [loadSnippets]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      void loadSnippets({ quiet: true });
-    }, AUDIO_URL_REFRESH_MS);
-    return () => window.clearInterval(interval);
   }, [loadSnippets]);
 
   useEffect(() => {
