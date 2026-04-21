@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -14,6 +16,7 @@ export async function GET(
   const backend = getBackendUrl();
   const res = await fetch(`${backend}/v2/admin/students/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,6 +19,7 @@ export async function GET(
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
+    cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
   return NextResponse.json(data, { status: res.status });

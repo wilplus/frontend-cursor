@@ -18,7 +18,7 @@ async function proxy(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ code: "UNAUTHORIZED", error: "Unauthorized" }, { status: 401 });
   }
   const backend = getBackendUrl().replace(/\/$/, "");
-  const url = new URL(`${backend}/v2/admin/copilot/students/${encodeURIComponent(studentId)}/audit`);
+  const url = new URL(`${backend}/v2/admin/copilot/students/${encodeURIComponent(studentId)}/drafts/audit`);
   req.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
 
   const method = req.method.toUpperCase();
@@ -63,4 +63,3 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 export async function POST(req: NextRequest, ctx: Ctx) {
   return proxy(req, ctx);
 }
-
