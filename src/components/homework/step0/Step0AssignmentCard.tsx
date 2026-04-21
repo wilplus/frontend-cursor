@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 
 interface Step0AssignmentCardProps {
   videoUrl: string | null;
-  introText: string | null;
   /** When true, this is the generic "welcome video" fallback (no coach assignment yet).
    *  Render a welcome label and hide the Start Your Practice CTA. */
   isUniversalWelcome?: boolean;
@@ -17,7 +16,6 @@ interface Step0AssignmentCardProps {
 
 export default function Step0AssignmentCard({
   videoUrl,
-  introText,
   isUniversalWelcome = false,
   loading,
   error,
@@ -93,12 +91,6 @@ export default function Step0AssignmentCard({
           </div>
         )}
       </div>
-
-      {introText && introText.trim() ? (
-        <p className="w-full text-sm text-muted-foreground whitespace-pre-line">
-          {introText.trim()}
-        </p>
-      ) : null}
 
       <Button
         onClick={onStart}

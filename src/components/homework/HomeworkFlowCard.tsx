@@ -1496,7 +1496,6 @@ export default function HomeworkFlowCard() {
       waitingMessage={mainScreenMessage ?? REVIEW_PENDING_DEFAULT_MESSAGE}
       sniperProfile={sniperProfile}
       step0TutorVideoUrl={step0TutorVideoUrl}
-      step0TutorVideoDescription={step0TutorVideoDescription}
       step0TutorVideoIsUniversal={step0TutorVideoIsUniversal}
       assignedExercises={assignedExercises}
       loading={loading}
