@@ -85,6 +85,18 @@ function statusPayloadRecord(
   return s as unknown as Record<string, unknown>;
 }
 
+/** When GET status omits `assigned_exercises`, keep using the last list for step-0 video resolution. */
+function mergeStep0StatusPayloadWithStoredExercises(
+  base: Record<string, unknown> | null,
+  stored: Array<{ id: string; title: string; video_url?: string | null; description?: string | null }>
+): Record<string, unknown> | null {
+  if (!base) return null;
+  if (!Array.isArray(base.assigned_exercises) && stored.length > 0) {
+    return { ...base, assigned_exercises: stored };
+  }
+  return base;
+}
+
 function hasStep0AssignmentPayload(statusRes: HomeworkSessionStatus | null | undefined): boolean {
   return hasStep0HomeworkContentSignalsFromPayload(statusPayloadRecord(statusRes));
 }
@@ -141,6 +153,8 @@ export default function HomeworkFlowCard() {
   const [step0TutorVideoIsUniversal, setStep0TutorVideoIsUniversal] = useState<boolean>(false);
   const [coachMessageAfterHomework, setCoachMessageAfterHomework] = useState<string | null>(null);
   const [assignedExercises, setAssignedExercises] = useState<Array<{ id: string; title: string; video_url?: string | null; description?: string | null }>>([]);
+  const assignedExercisesRef = useRef(assignedExercises);
+  assignedExercisesRef.current = assignedExercises;
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
   const [sniperSnapshot, setSniperSnapshot] = useState<LiveCoachSnapshot | null>(null);
   const sniperSnapshotRef = useRef<LiveCoachSnapshot | null>(null);
@@ -248,7 +262,11 @@ export default function HomeworkFlowCard() {
       );
 
       const statusPayload = statusPayloadRecord(statusRes);
-      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayload));
+      const step0VideoPayload = mergeStep0StatusPayloadWithStoredExercises(
+        statusPayload,
+        assignedExercisesRef.current
+      );
+      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0VideoPayload));
       const tutorVideoDescription =
         statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
       setStep0TutorVideoDescription(
@@ -256,12 +274,10 @@ export default function HomeworkFlowCard() {
           ? tutorVideoDescription.trim()
           : null
       );
-      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(statusPayload));
+      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0VideoPayload));
 
       if (Array.isArray(statusRes?.assigned_exercises)) {
         setAssignedExercises(statusRes!.assigned_exercises!);
-      } else {
-        setAssignedExercises([]);
       }
 
       setSniperProfile((prev) => getSniperProfileFromStatusPayload(statusRes, prev) ?? prev);
@@ -587,14 +603,18 @@ export default function HomeworkFlowCard() {
           : null
       );
       const step0Payload = statusPayloadRecord(res);
-      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0Payload));
+      const step0VideoPayload = mergeStep0StatusPayloadWithStoredExercises(
+        step0Payload,
+        assignedExercisesRef.current
+      );
+      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0VideoPayload));
       if ("tutor_video_description" in res) {
         const desc = res.tutor_video_description;
         setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       } else {
         setStep0TutorVideoDescription(null);
       }
-      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0Payload));
+      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0VideoPayload));
       setCoachMessageAfterHomework(null);
       setPendingRetrySelfRating(null);
       hasSetPendingRetryFrom409Ref.current = false;
@@ -630,13 +650,17 @@ export default function HomeworkFlowCard() {
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
     }
     const step0Payload = statusPayloadRecord(res);
-    setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0Payload));
+    const step0VideoPayload = mergeStep0StatusPayloadWithStoredExercises(
+      step0Payload,
+      assignedExercisesRef.current
+    );
+    setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0VideoPayload));
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
       setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
-    setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0Payload));
+    setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0VideoPayload));
     if (Array.isArray(res.assigned_exercises)) {
       setAssignedExercises(res.assigned_exercises);
     }
