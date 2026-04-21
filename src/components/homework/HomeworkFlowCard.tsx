@@ -55,6 +55,30 @@ import {
   persistForcedStep0WaitingState,
   clearForcedStep0WaitingState,
 } from "@/lib/storage/homeworkStorage";
+
+// ─── Coach-video lock ────────────────────────────────────────────────────────
+// Once the backend sends a real (non-universal) coach video URL we persist it
+// in localStorage so it survives abandons, page refreshes, and re-polls.
+// The universal "welcome" fallback is shown only to users who have NEVER had
+// a coach-specific video — as soon as one arrives it becomes the permanent
+// override and is never reverted to the universal.
+const COACH_VIDEO_LOCK_KEY = "wl_coach_video_url";
+
+function readLockedCoachVideo(): string | null {
+  try {
+    return typeof window !== "undefined" ? localStorage.getItem(COACH_VIDEO_LOCK_KEY) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLockedCoachVideo(url: string): void {
+  try {
+    localStorage.setItem(COACH_VIDEO_LOCK_KEY, url);
+  } catch {
+    // storage unavailable — in-memory ref still works for this session
+  }
+}
 import {
   getSniperProfileFromReport,
   getSniperProfileFromStatusPayload,
@@ -151,6 +175,8 @@ export default function HomeworkFlowCard() {
   const [step0TutorVideoUrl, setStep0TutorVideoUrl] = useState<string | null>(null);
   const [step0TutorVideoDescription, setStep0TutorVideoDescription] = useState<string | null>(null);
   const [step0TutorVideoIsUniversal, setStep0TutorVideoIsUniversal] = useState<boolean>(false);
+  /** Persisted coach-specific video URL — once set, supersedes any universal fallback. */
+  const lockedCoachVideoRef = useRef<string | null>(readLockedCoachVideo());
   const [coachMessageAfterHomework, setCoachMessageAfterHomework] = useState<string | null>(null);
   const [assignedExercises, setAssignedExercises] = useState<Array<{ id: string; title: string; video_url?: string | null; description?: string | null }>>([]);
   const assignedExercisesRef = useRef(assignedExercises);
@@ -266,7 +292,35 @@ export default function HomeworkFlowCard() {
         statusPayload,
         assignedExercisesRef.current
       );
-      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0VideoPayload));
+
+      const rawVideoUrl = resolveStep0VideoUrlFromStatusPayload(step0VideoPayload);
+      const rawIsUniversal = resolveStep0VideoIsUniversalFromStatusPayload(step0VideoPayload);
+
+      // ── Coach-video lock logic ──────────────────────────────────────────────
+      // Rule: show universal ONLY when the user has NEVER had a coach-specific video.
+      // Once a real (non-universal) URL arrives, lock it in and always use it going
+      // forward — even when the backend later returns the universal fallback after
+      // an abandon or re-poll.
+      let effectiveVideoUrl: string | null;
+      let effectiveIsUniversal: boolean;
+
+      if (rawVideoUrl && !rawIsUniversal) {
+        // Backend sent a coach-assigned video → update the persistent lock
+        lockedCoachVideoRef.current = rawVideoUrl;
+        saveLockedCoachVideo(rawVideoUrl);
+        effectiveVideoUrl = rawVideoUrl;
+        effectiveIsUniversal = false;
+      } else if (lockedCoachVideoRef.current) {
+        // Backend returned universal/null but user already has a coach video → keep it
+        effectiveVideoUrl = lockedCoachVideoRef.current;
+        effectiveIsUniversal = false;
+      } else {
+        // Truly new user — no coach video ever seen; show whatever backend gave us
+        effectiveVideoUrl = rawVideoUrl;
+        effectiveIsUniversal = rawIsUniversal;
+      }
+
+      setStep0TutorVideoUrl(effectiveVideoUrl);
       const tutorVideoDescription =
         statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
       setStep0TutorVideoDescription(
@@ -274,7 +328,7 @@ export default function HomeworkFlowCard() {
           ? tutorVideoDescription.trim()
           : null
       );
-      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0VideoPayload));
+      setStep0TutorVideoIsUniversal(effectiveIsUniversal);
 
       if (Array.isArray(statusRes?.assigned_exercises)) {
         setAssignedExercises(statusRes!.assigned_exercises!);
