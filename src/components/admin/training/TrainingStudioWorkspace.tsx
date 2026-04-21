@@ -1415,17 +1415,6 @@ export default function TrainingStudioWorkspace() {
       });
       toast.success("AI suggestions approved for this student.");
       await loadDraft(selectedStudent);
-      const refreshed = await loadStudents(cohorts.map((cohort) => cohort.id));
-      const exactFallback =
-        fallbackFromCurrentTab == null
-          ? null
-          : refreshed.find(
-              (item) =>
-                item.student_id === fallbackFromCurrentTab.student_id &&
-                (item.session_id ?? "") === (fallbackFromCurrentTab.session_id ?? "")
-            ) ?? null;
-      const firstInCurrentTab = refreshed.find((item) => matchesQueueFilter(item, currentFilter)) ?? null;
-      setSelectedStudent(exactFallback ?? firstInCurrentTab ?? refreshed[0] ?? null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Approve failed");
     } finally {
@@ -1435,7 +1424,6 @@ export default function TrainingStudioWorkspace() {
     cohorts,
     filteredStudents,
     loadDraft,
-    loadStudents,
     queueFilter,
     reasonChipCustom,
     resolveCopilotSessionAndDraftId,
@@ -1839,9 +1827,17 @@ export default function TrainingStudioWorkspace() {
       toast.success("Homework sent.");
 
       await loadDraft(selectedStudent);
-      const refreshed = await loadStudents(cohorts.map((cohort) => cohort.id));
-      const nextReviewable = refreshed.find((item) => item.state !== "Sent") ?? null;
-      setSelectedStudent(nextReviewable ?? refreshed[0] ?? null);
+      setStudents((prev) =>
+        prev.map((s) =>
+          s.student_id === selectedStudent.student_id &&
+          (s.session_id ?? "") === (selectedStudent.session_id ?? "")
+            ? { ...s, state: "Sent" as const }
+            : s
+        )
+      );
+      setSelectedStudent((prev) =>
+        prev?.student_id === selectedStudent.student_id ? { ...prev, state: "Sent" as const } : prev
+      );
 
       // Capture loop variables before the async closure below.
       const pollStudentId = selectedStudent.student_id;
@@ -1890,9 +1886,7 @@ export default function TrainingStudioWorkspace() {
       setSendingHomework(false);
     }
   }, [
-    cohorts,
     loadDraft,
-    loadStudents,
     messageValue,
     reasonChipCustom,
     resolveCopilotSessionAndDraftId,
@@ -2049,6 +2043,19 @@ export default function TrainingStudioWorkspace() {
         </Card>
 
         <div className="space-y-4">
+          {/* Sticky student indicator visible while scrolling */}
+          {selectedStudent ? (
+            <div className="sticky top-0 z-20 -mx-1 flex items-center gap-3 rounded-lg border border-border/60 bg-background/95 px-4 py-2 shadow-sm backdrop-blur-sm">
+              <span className="truncate text-sm font-semibold text-foreground">{studentHeadlineName}</span>
+              {selectedProfileEmail ? (
+                <span className="hidden truncate text-xs text-muted-foreground sm:block">{selectedProfileEmail}</span>
+              ) : null}
+              <span className={`ml-auto inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${queueStateBadge(selectedStudent.state)}`}>
+                {statusDisplayLabel(selectedStudent.state)}
+              </span>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xl font-semibold leading-tight text-foreground">{studentHeadlineName}</p>
