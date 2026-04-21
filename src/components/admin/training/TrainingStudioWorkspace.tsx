@@ -354,6 +354,8 @@ export default function TrainingStudioWorkspace() {
   const [reasonChipCustom, setReasonChipCustom] = useState("");
   const [savingProfileClassification, setSavingProfileClassification] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const studentHeaderRef = useRef<HTMLDivElement>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsProfile, setDetailsProfile] = useState<StudentProfile | null>(null);
@@ -825,6 +827,17 @@ export default function TrainingStudioWorkspace() {
     setLatestFeedbackVideoUrl(null);
     setFullOverrideAttached(false);
   }, [selectedStudent?.student_id, selectedStudent?.session_id]);
+
+  useEffect(() => {
+    const el = studentHeaderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0, rootMargin: "0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [selectedStudent?.student_id]);
 
   useEffect(() => {
     setDetailsOpen(false);
@@ -2043,8 +2056,8 @@ export default function TrainingStudioWorkspace() {
         </Card>
 
         <div className="space-y-4">
-          {/* Sticky student indicator visible while scrolling */}
-          {selectedStudent ? (
+          {/* Sticky student indicator — only visible after scrolling past the header */}
+          {selectedStudent && showStickyBar ? (
             <div className="sticky top-0 z-20 -mx-1 flex items-center gap-3 rounded-lg border border-border/60 bg-background/95 px-4 py-2 shadow-sm backdrop-blur-sm">
               <span className="truncate text-sm font-semibold text-foreground">{studentHeadlineName}</span>
               {selectedProfileEmail ? (
@@ -2056,7 +2069,7 @@ export default function TrainingStudioWorkspace() {
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div ref={studentHeaderRef} className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xl font-semibold leading-tight text-foreground">{studentHeadlineName}</p>
               {showStudentEmailBelow ? (
