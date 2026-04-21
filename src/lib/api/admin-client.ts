@@ -861,11 +861,17 @@ export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): Copi
       ? (raw.metadata as Record<string, unknown>)
       : draftPayload;
   const textSources: Array<Record<string, unknown> | null> = [raw, draftPayload, metadata];
+  const sessionFromNested = pickStrFromCandidates([draftPayload, metadata], [
+    "session_id",
+    "sessionId",
+    "homework_session_id",
+    "homeworkSessionId",
+  ]);
 
   return {
     id: String(raw.id ?? raw.draft_id ?? ""),
     student_id: String(raw.student_id ?? raw.user_id ?? ""),
-    session_id: pickStrFromRaw(raw, "session_id", "sessionId"),
+    session_id: pickStrFromRaw(raw, "session_id", "sessionId") ?? sessionFromNested,
     status: (typeof raw.status === "string" ? raw.status : "Draft") as CopilotDraftStatus,
     ai_insight: pickStrFromRaw(raw, "ai_insight", "aiInsight"),
     corrected_insight: pickStrFromRaw(raw, "corrected_insight", "correctedInsight"),
@@ -1880,7 +1886,16 @@ export const adminApi = {
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return adminFetch<{ audit: CopilotStudentDraft | null }>(
       `/copilot/students/${studentId}/audit${suffix}`
-    );
+    ).then((res) => {
+      const rawAudit = res.audit;
+      const record =
+        rawAudit != null && typeof rawAudit === "object" && !Array.isArray(rawAudit)
+          ? (rawAudit as Record<string, unknown>)
+          : null;
+      return {
+        audit: record ? normalizeCopilotStudentDraft(record) : null,
+      };
+    });
   },
 
   updateCopilotStudentAudit: (studentId: string, body: CopilotAuditPayload) =>

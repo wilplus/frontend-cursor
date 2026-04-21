@@ -50,6 +50,18 @@ function resolveMediaUrlCandidate(value: unknown): string | null {
   return null;
 }
 
+function resolveUniversalVideoFlagFromRecord(record: Record<string, unknown> | null): boolean {
+  if (!record) return false;
+  return (
+    record.tutor_video_is_universal === true ||
+    record.video_is_universal === true ||
+    record.homework_video_is_universal === true ||
+    record.coach_video_is_universal === true ||
+    record.assignment_video_is_universal === true ||
+    record.is_universal_video === true
+  );
+}
+
 function buildSupabaseStoragePublicUrl(
   bucketValue: unknown,
   storagePathValue: unknown
@@ -101,6 +113,59 @@ function resolveVideoUrlFromRecord(record: Record<string, unknown>): string | nu
   return null;
 }
 
+export type Step0VideoAssignment = {
+  url: string | null;
+  isUniversal: boolean;
+};
+
+/**
+ * Step-0 video selection with precedence:
+ * 1) explicit non-universal URL (top-level first, then nested session)
+ * 2) fallback URL (universal/default) if no specific URL exists
+ * 3) first assigned exercise video URL
+ */
+export function resolveStep0VideoAssignmentFromStatusPayload(
+  raw: Record<string, unknown> | null | undefined
+): Step0VideoAssignment {
+  if (!raw || raw.has_active_session === true) return { url: null, isUniversal: false };
+  const session =
+    raw.session && typeof raw.session === "object" && raw.session !== null
+      ? (raw.session as Record<string, unknown>)
+      : null;
+
+  const top = {
+    url: resolveVideoUrlFromRecord(raw),
+    isUniversal: resolveUniversalVideoFlagFromRecord(raw),
+  };
+  const nested = {
+    url: session ? resolveVideoUrlFromRecord(session) : null,
+    isUniversal: resolveUniversalVideoFlagFromRecord(session),
+  };
+
+  if (top.url && !top.isUniversal) return { url: top.url, isUniversal: false };
+  if (nested.url && !nested.isUniversal) return { url: nested.url, isUniversal: false };
+
+  // If top-level is explicitly universal but nested differs, prefer nested as student-specific.
+  if (top.url && nested.url && top.url !== nested.url && top.isUniversal) {
+    return { url: nested.url, isUniversal: false };
+  }
+
+  if (top.url) return { url: top.url, isUniversal: top.isUniversal };
+  if (nested.url) return { url: nested.url, isUniversal: nested.isUniversal };
+
+  const exercisesRaw = raw.assigned_exercises;
+  if (Array.isArray(exercisesRaw)) {
+    for (const exercise of exercisesRaw) {
+      if (!exercise || typeof exercise !== "object") continue;
+      const exRecord = exercise as Record<string, unknown>;
+      const exUrl = resolveMediaUrlCandidate(exRecord.video_url);
+      if (exUrl) return { url: exUrl, isUniversal: false };
+    }
+  }
+
+  return { url: null, isUniversal: false };
+}
+
 /**
  * Step-0 video URL from GET /homework/session/status (or start) payloads.
  * Checks top-level + nested session URL aliases and Supabase storage fields.
@@ -109,29 +174,13 @@ function resolveVideoUrlFromRecord(record: Record<string, unknown>): string | nu
 export function resolveStep0VideoUrlFromStatusPayload(
   raw: Record<string, unknown> | null | undefined
 ): string | null {
-  if (!raw || raw.has_active_session === true) return null;
-  const session =
-    raw.session && typeof raw.session === "object" && raw.session !== null
-      ? (raw.session as Record<string, unknown>)
-      : null;
+  return resolveStep0VideoAssignmentFromStatusPayload(raw).url;
+}
 
-  const top = resolveVideoUrlFromRecord(raw);
-  if (top) return top;
-  if (session) {
-    const nested = resolveVideoUrlFromRecord(session);
-    if (nested) return nested;
-  }
-
-  const exercisesRaw = raw.assigned_exercises;
-  if (Array.isArray(exercisesRaw)) {
-    for (const exercise of exercisesRaw) {
-      if (!exercise || typeof exercise !== "object") continue;
-      const exRecord = exercise as Record<string, unknown>;
-      const exUrl = resolveMediaUrlCandidate(exRecord.video_url);
-      if (exUrl) return exUrl;
-    }
-  }
-  return null;
+export function resolveStep0VideoIsUniversalFromStatusPayload(
+  raw: Record<string, unknown> | null | undefined
+): boolean {
+  return resolveStep0VideoAssignmentFromStatusPayload(raw).isUniversal;
 }
 
 const ASSIGNMENT_MAIN_SCREEN_STATES = new Set([

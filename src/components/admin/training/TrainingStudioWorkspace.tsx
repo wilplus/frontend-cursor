@@ -964,13 +964,16 @@ export default function TrainingStudioWorkspace() {
   const canLoadNextReferenceVideos =
     referenceVideosOffset + REFERENCE_VIDEOS_PAGE_SIZE < referenceVideosTotal;
 
-  /** Cohort queue rows often omit session_id; the loaded draft usually has it (required for insight-audit BFF fallback). */
+  /** Cohort queue rows often omit session_id; draft row, metadata, or draft_generation_session_id may carry it. */
   const copilotSessionId = useMemo(() => {
     const fromQueue = selectedStudent?.session_id?.trim();
     if (fromQueue) return fromQueue;
     const fromDraft = selectedDraft?.session_id?.trim();
-    return fromDraft || null;
-  }, [selectedDraft?.session_id, selectedStudent?.session_id]);
+    if (fromDraft) return fromDraft;
+    const fromGen = draftGenerationSessionId?.trim();
+    if (fromGen) return fromGen;
+    return null;
+  }, [draftGenerationSessionId, selectedDraft?.session_id, selectedStudent?.session_id]);
 
   useEffect(() => {
     const sid = copilotSessionId;
@@ -1058,12 +1061,21 @@ export default function TrainingStudioWorkspace() {
     }
 
     try {
-      const { drafts } = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id);
+      const response = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id);
+      const drafts = response.drafts ?? [];
       const withSession = drafts.find((d) => d.session_id?.trim());
       if (withSession?.session_id?.trim()) {
         return {
           sessionId: withSession.session_id.trim(),
           draftId: withSession.id?.trim() ? withSession.id : undefined,
+        };
+      }
+      const genSid = response.draft_generation_session_id?.trim();
+      if (genSid) {
+        const pick = drafts[0];
+        return {
+          sessionId: genSid,
+          draftId: pick?.id?.trim() ? pick.id : undefined,
         };
       }
     } catch {
