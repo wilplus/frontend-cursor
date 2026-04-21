@@ -756,6 +756,11 @@ export default function AdminStudentProfilePage() {
         }
 
         const p = profileRes.value;
+        if (p.user_id && p.user_id !== id) {
+          throw new Error(
+            `Profile mismatch: requested student ${id} but received ${p.user_id}.`
+          );
+        }
         setProfile(p);
         const profileSniperProgress = getStudentSniperProgressFromProfile(p);
         setStudentSniperProgress(profileSniperProgress);

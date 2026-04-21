@@ -1,185 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyAdminWithCodes } from "@/app/api/admin/_proxyWithCodes";
-import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
+import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
-function rowStr(row: Record<string, unknown>, snake: string, camel: string): string | null {
-  const a = row[snake];
-  const b = row[camel];
-  if (typeof a === "string") return a;
-  if (typeof b === "string") return b;
-  return null;
-}
+type Ctx = { params: Promise<{ studentId: string }> };
 
-function rowStrCandidates(
-  row: Record<string, unknown>,
-  keys: string[],
-  nested?: Record<string, unknown> | null
-): string | null {
-  const sources: Array<Record<string, unknown> | null> = [row, nested ?? null];
-  for (const source of sources) {
-    if (!source) continue;
-    for (const key of keys) {
-      const value = source[key];
-      if (typeof value === "string" && value.trim()) return value;
-    }
+const passthrough = (h: Headers, key: string) => {
+  const v = h.get(key);
+  return v ? { [key]: v } : {};
+};
+
+async function proxy(req: NextRequest, ctx: Ctx) {
+  const { studentId } = await ctx.params;
+  if (!studentId || !studentId.trim()) {
+    return NextResponse.json({ code: "BAD_REQUEST", error: "Missing studentId" }, { status: 400 });
   }
-  return null;
-}
+  const token = await getV2AccessToken(req);
+  if (!token) {
+    return NextResponse.json({ code: "UNAUTHORIZED", error: "Unauthorized" }, { status: 401 });
+  }
+  const backend = getBackendUrl().replace(/\/$/, "");
+  const url = new URL(`${backend}/v2/admin/copilot/students/${encodeURIComponent(studentId)}/drafts`);
+  req.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
 
-function rowNum(row: Record<string, unknown>, snake: string, camel: string): number | null {
-  const a = row[snake];
-  const b = row[camel];
-  if (typeof a === "number" && Number.isFinite(a)) return a;
-  if (typeof b === "number" && Number.isFinite(b)) return b;
-  return null;
-}
+  const method = req.method.toUpperCase();
+  const hasBody = method !== "GET" && method !== "HEAD";
+  const rawBody = hasBody ? await req.text() : undefined;
 
-function badRequest(message: string) {
-  return NextResponse.json({ code: "BAD_REQUEST", error: message }, { status: 400 });
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ studentId: string }> }
-) {
-  const { studentId } = await params;
-  if (!studentId || !studentId.trim()) return badRequest("Missing studentId");
-  const qs = request.nextUrl.search || "";
-  const primary = await proxyAdminWithCodes(request, {
-    method: "GET",
-    backendPath: `/v2/admin/copilot/students/${encodeURIComponent(studentId)}/drafts${qs}`,
-  });
-  if (primary.status !== 404) return primary;
-
-  // Fallback: derive student's rows from /copilot/next-clips dump.
-  const token = await getV2AccessToken(request);
-  if (!token) return NextResponse.json({ code: "UNAUTHORIZED", error: "Unauthorized" }, { status: 401 });
-  const backend = getBackendUrl();
-  const sessionId = request.nextUrl.searchParams.get("session_id");
-  const nextClipsResponse = await fetch(`${backend}/v2/admin/copilot/next-clips`, {
-    method: "GET",
+  const res = await fetch(url.toString(), {
+    method,
     headers: {
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
+      ...(rawBody
+        ? { "Content-Type": req.headers.get("content-type") || "application/json" }
+        : {}),
     },
+    body: rawBody,
+    cache: "no-store",
   });
-  const payload = (await nextClipsResponse.json().catch(() => null)) as
-    | {
-        clips?: Array<Record<string, unknown>>;
-        drafts?: Array<Record<string, unknown>>;
-        draft_generation_status?: string;
-        draft_generation_session_id?: string | null;
-      }
-    | null;
-  if (!nextClipsResponse.ok || !payload) {
-    return NextResponse.json(
-      { code: "COPILOT_DRAFTS_UNAVAILABLE", error: "Copilot per-student drafts endpoint is unavailable" },
-      { status: 501 }
-    );
-  }
-  const rows = Array.isArray(payload.drafts)
-    ? payload.drafts
-    : Array.isArray(payload.clips)
-      ? payload.clips
-      : [];
-  const drafts = rows
-    .filter((row) => {
-      const rowStudent = String(row.student_id ?? row.user_id ?? "");
-      if (rowStudent !== studentId) return false;
-      if (sessionId) {
-        const rowSession = String(row.session_id ?? "");
-        return rowSession === sessionId;
-      }
-      return true;
-    })
-    .map((row, index) => {
-      const r = row as Record<string, unknown>;
-      const draftPayload =
-        r.draft_payload && typeof r.draft_payload === "object"
-          ? (r.draft_payload as Record<string, unknown>)
-          : null;
-      return {
-        id: String(row.draft_id ?? row.id ?? `${studentId}-draft-${index}`),
-        student_id: String(row.student_id ?? row.user_id ?? studentId),
-        session_id: rowStr(r, "session_id", "sessionId"),
-        status: String(row.status ?? "Draft"),
-        ai_insight: rowStr(r, "ai_insight", "aiInsight"),
-        corrected_insight: rowStr(r, "corrected_insight", "correctedInsight"),
-        good_as_is: typeof row.good_as_is === "boolean" ? row.good_as_is : undefined,
-        ai_grade_draft: rowNum(r, "ai_grade_draft", "aiGradeDraft"),
-        ai_comment_draft: rowStr(r, "ai_comment_draft", "aiCommentDraft"),
-        ai_email_draft: rowStrCandidates(
-          r,
-          ["ai_email_draft", "aiEmailDraft", "homework_message", "homeworkMessage"],
-          draftPayload
-        ),
-        ai_task_suggestion: rowStrCandidates(
-          r,
-          ["ai_task_suggestion", "aiTaskSuggestion", "task_suggestion", "taskSuggestion"],
-          draftPayload
-        ),
-        ai_script_draft: rowStrCandidates(
-          r,
-          ["ai_script_draft", "aiScriptDraft", "video_script", "videoScript"],
-          draftPayload
-        ),
-        grade_draft: rowNum(r, "grade_draft", "gradeDraft"),
-        comment_draft: rowStr(r, "comment_draft", "commentDraft"),
-        task_draft: rowStrCandidates(
-          r,
-          ["task_draft", "taskDraft", "task_suggestion", "taskSuggestion"],
-          draftPayload
-        ),
-        email_draft: rowStrCandidates(
-          r,
-          ["email_draft", "emailDraft", "homework_message", "homeworkMessage"],
-          draftPayload
-        ),
-        script_draft: rowStrCandidates(
-          r,
-          ["script_draft", "scriptDraft", "video_script", "videoScript"],
-          draftPayload
-        ),
-        metadata:
-          row.draft_payload && typeof row.draft_payload === "object"
-            ? (row.draft_payload as Record<string, unknown>)
-            : row.metadata && typeof row.metadata === "object"
-              ? (row.metadata as Record<string, unknown>)
-              : null,
-      };
-    });
-  const draftGenerationStatus =
-    typeof payload.draft_generation_status === "string"
-      ? payload.draft_generation_status
-      : "not_started";
-  const draftGenerationSessionId =
-    typeof payload.draft_generation_session_id === "string"
-      ? payload.draft_generation_session_id
-      : payload.draft_generation_session_id === null
-        ? null
-        : null;
 
-  return NextResponse.json({
-    drafts,
-    draft_generation_status: draftGenerationStatus,
-    draft_generation_session_id: draftGenerationSessionId,
+  const text = await res.text();
+  const contentType = res.headers.get("content-type") || "application/json";
+  return new NextResponse(text, {
+    status: res.status,
+    headers: {
+      "content-type": contentType,
+      ...passthrough(res.headers, "cache-control"),
+    },
   });
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ studentId: string }> }
-) {
-  const { studentId } = await params;
-  if (!studentId || !studentId.trim()) return badRequest("Missing studentId");
-  const body = await request.json().catch(() => null);
-  if (body == null || typeof body !== "object") {
-    return badRequest("Invalid JSON body");
-  }
-  return proxyAdminWithCodes(request, {
-    method: "PUT",
-    backendPath: `/v2/admin/copilot/students/${encodeURIComponent(studentId)}/drafts`,
-    body,
-  });
+export async function GET(req: NextRequest, ctx: Ctx) {
+  return proxy(req, ctx);
+}
+
+export async function PUT(req: NextRequest, ctx: Ctx) {
+  return proxy(req, ctx);
+}
+
+export async function PATCH(req: NextRequest, ctx: Ctx) {
+  return proxy(req, ctx);
+}
+
+export async function POST(req: NextRequest, ctx: Ctx) {
+  return proxy(req, ctx);
 }
 
