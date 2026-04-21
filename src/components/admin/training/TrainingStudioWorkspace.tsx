@@ -1182,8 +1182,10 @@ export default function TrainingStudioWorkspace() {
       if (!selectedStudent) return;
       setSelectedArchetype(archetype);
       setSavingProfileClassification(true);
+      const overrideJustification = profileJustificationInput.trim() || null;
+      const sid = selectedStudent.student_id;
+      const sess = selectedStudent.session_id ?? "";
       try {
-        const overrideJustification = profileJustificationInput.trim() || null;
         await adminApi.patchStudentProfileClassification(selectedStudent.student_id, {
           coach_override_profile: archetype,
           profile_override_justification: overrideJustification,
@@ -1192,14 +1194,41 @@ export default function TrainingStudioWorkspace() {
           ...(reasonChipCustom.trim() ? { reason_chip_custom: reasonChipCustom.trim() } : {}),
         });
         toast.success("Learning profile saved.");
-        await loadStudents(cohorts.map((cohort) => cohort.id));
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.student_id === sid && (s.session_id ?? "") === sess
+              ? {
+                  ...s,
+                  profile: {
+                    ...s.profile,
+                    behavioral_profile: archetype,
+                    behavioral_profile_justification:
+                      overrideJustification ?? s.profile?.behavioral_profile_justification ?? null,
+                  },
+                }
+              : s
+          )
+        );
+        setSelectedStudent((prev) =>
+          prev && prev.student_id === sid && (prev.session_id ?? "") === sess
+            ? {
+                ...prev,
+                profile: {
+                  ...prev.profile,
+                  behavioral_profile: archetype,
+                  behavioral_profile_justification:
+                    overrideJustification ?? prev.profile?.behavioral_profile_justification ?? null,
+                },
+              }
+            : prev
+        );
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to save profile");
       } finally {
         setSavingProfileClassification(false);
       }
     },
-    [cohorts, loadStudents, profileJustificationInput, reasonChipCustom, selectedReasonChips, selectedStudent]
+    [profileJustificationInput, reasonChipCustom, selectedReasonChips, selectedStudent]
   );
 
   const saveScoreGradeComment = useCallback(async () => {
@@ -1248,18 +1277,15 @@ export default function TrainingStudioWorkspace() {
           : null) ?? refreshed.drafts?.[0] ?? null;
       hydrateDraftEditor(selectedStudent, refreshedDraft);
       toast.success("Feedback saved. Click Accept AI for this student to move it to the next review state.");
-      await loadStudents(cohorts.map((cohort) => cohort.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save feedback");
     } finally {
       setSaving(false);
     }
   }, [
-    cohorts,
     commentInput,
     gradeInput,
     loadDraft,
-    loadStudents,
     messageValue,
     reviewerScoreInput,
     selectedDraft?.metadata,
@@ -1323,18 +1349,15 @@ export default function TrainingStudioWorkspace() {
           : null) ?? refreshed.drafts?.[0] ?? null;
       hydrateDraftEditor(selectedStudent, refreshedDraft);
       toast.success("Saved.");
-      await loadStudents(cohorts.map((cohort) => cohort.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save");
     } finally {
       setSaving(false);
     }
   }, [
-    cohorts,
     commentInput,
     copilotSessionId,
     gradeInput,
-    loadStudents,
     messageValue,
     reviewerScoreInput,
     reasonChipCustom,

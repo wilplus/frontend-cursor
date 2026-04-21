@@ -145,8 +145,8 @@ export default function CopilotInboxWorkspace({
             studentId={selectedStudent.student_id}
             sessionId={selectedStudent.session_id ?? undefined}
             chips={chips}
-            onStateMutated={async () => {
-              if (selectedCohortId) {
+            onStateMutated={async (reason) => {
+              if (reason === "workflow" && selectedCohortId) {
                 await loadStudents(selectedCohortId);
               }
             }}

@@ -7,11 +7,14 @@ import { Card } from "@/components/ui/card";
 import { adminApi, type CopilotAnnotationChip, type CopilotStudentDraft } from "@/lib/api/admin-client";
 import ReasonChipSelector, { type SelectedReasonChip } from "./ReasonChipSelector";
 
+/** persist = draft/audit save; workflow = approve/send (may change queue state). */
+export type StudentReviewMutationReason = "persist" | "workflow";
+
 interface StudentReviewCardProps {
   studentId: string;
   sessionId?: string | null;
   chips: CopilotAnnotationChip[];
-  onStateMutated?: () => Promise<void> | void;
+  onStateMutated?: (reason: StudentReviewMutationReason) => Promise<void> | void;
 }
 
 interface DraftFormState {
@@ -132,7 +135,7 @@ export default function StudentReviewCard({
       });
       toast.success("Audit updated.");
       await refresh();
-      await onStateMutated?.();
+      await onStateMutated?.("persist");
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to update audit");
@@ -176,7 +179,7 @@ export default function StudentReviewCard({
       });
       toast.success("Draft updated.");
       await refresh();
-      await onStateMutated?.();
+      await onStateMutated?.("persist");
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to update draft");
@@ -195,7 +198,7 @@ export default function StudentReviewCard({
       });
       toast.success("Draft approved.");
       await refresh();
-      await onStateMutated?.();
+      await onStateMutated?.("workflow");
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to approve draft");
@@ -214,7 +217,7 @@ export default function StudentReviewCard({
       });
       toast.success("Draft sent.");
       await refresh();
-      await onStateMutated?.();
+      await onStateMutated?.("workflow");
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : "Failed to send draft");
