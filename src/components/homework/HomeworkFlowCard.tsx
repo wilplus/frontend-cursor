@@ -32,6 +32,7 @@ import {
   getStep0HomeworkAssignmentFingerprint,
   hasStep0HomeworkContentSignalsFromPayload,
   openingTaskTextFromApiPayload,
+  resolveStep0VideoIsUniversalFromStatusPayload,
   resolveStep0VideoUrlFromStatusPayload,
   resolveTaskText,
 } from "@/lib/api/homework-utils";
@@ -246,7 +247,8 @@ export default function HomeworkFlowCard() {
               : null
       );
 
-      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayloadRecord(statusRes)));
+      const statusPayload = statusPayloadRecord(statusRes);
+      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayload));
       const tutorVideoDescription =
         statusRes?.tutor_video_description ?? statusRes?.session?.tutor_video_description ?? null;
       setStep0TutorVideoDescription(
@@ -254,7 +256,7 @@ export default function HomeworkFlowCard() {
           ? tutorVideoDescription.trim()
           : null
       );
-      setStep0TutorVideoIsUniversal(statusRes?.tutor_video_is_universal === true);
+      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(statusPayload));
 
       if (Array.isArray(statusRes?.assigned_exercises)) {
         setAssignedExercises(statusRes!.assigned_exercises!);
@@ -584,14 +586,15 @@ export default function HomeworkFlowCard() {
           ? res.main_screen_message.trim()
           : null
       );
-      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayloadRecord(res)));
+      const step0Payload = statusPayloadRecord(res);
+      setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0Payload));
       if ("tutor_video_description" in res) {
         const desc = res.tutor_video_description;
         setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       } else {
         setStep0TutorVideoDescription(null);
       }
-      setStep0TutorVideoIsUniversal(res.tutor_video_is_universal === true);
+      setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0Payload));
       setCoachMessageAfterHomework(null);
       setPendingRetrySelfRating(null);
       hasSetPendingRetryFrom409Ref.current = false;
@@ -626,13 +629,14 @@ export default function HomeworkFlowCard() {
       const msg = res.tutor_feedback_message;
       setTutorFeedbackMessage(typeof msg === "string" && msg.trim() ? msg.trim() : null);
     }
-    setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(statusPayloadRecord(res)));
+    const step0Payload = statusPayloadRecord(res);
+    setStep0TutorVideoUrl(resolveStep0VideoUrlFromStatusPayload(step0Payload));
     if ("tutor_video_description" in res) {
       const desc = res.tutor_video_description;
       setStep0TutorVideoDescription(typeof desc === "string" && desc.trim() ? desc.trim() : null);
       setCoachMessageAfterHomework(typeof desc === "string" && desc.trim() ? desc.trim() : null);
     }
-    setStep0TutorVideoIsUniversal(res.tutor_video_is_universal === true);
+    setStep0TutorVideoIsUniversal(resolveStep0VideoIsUniversalFromStatusPayload(step0Payload));
     if (Array.isArray(res.assigned_exercises)) {
       setAssignedExercises(res.assigned_exercises);
     }
