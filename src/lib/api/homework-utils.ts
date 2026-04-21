@@ -121,8 +121,8 @@ export type Step0VideoAssignment = {
 /**
  * Step-0 video selection with precedence:
  * 1) explicit non-universal URL (top-level first, then nested session)
- * 2) fallback URL (universal/default) if no specific URL exists
- * 3) first assigned exercise video URL
+ * 2) first assigned exercise `video_url` (beats universal welcome URL at top level)
+ * 3) fallback URL (universal/default) at top or nested session
  */
 export function resolveStep0VideoAssignmentFromStatusPayload(
   raw: Record<string, unknown> | null | undefined
@@ -150,9 +150,9 @@ export function resolveStep0VideoAssignmentFromStatusPayload(
     return { url: nested.url, isUniversal: false };
   }
 
-  if (top.url) return { url: top.url, isUniversal: top.isUniversal };
-  if (nested.url) return { url: nested.url, isUniversal: nested.isUniversal };
-
+  // Assigned exercise clips (coach uploads / per-student assignments) must beat the
+  // platform universal welcome URL at top level — otherwise a later status that only
+  // fills `tutor_video_url` (universal) would override the exercise `video_url`.
   const exercisesRaw = raw.assigned_exercises;
   if (Array.isArray(exercisesRaw)) {
     for (const exercise of exercisesRaw) {
@@ -162,6 +162,9 @@ export function resolveStep0VideoAssignmentFromStatusPayload(
       if (exUrl) return { url: exUrl, isUniversal: false };
     }
   }
+
+  if (top.url) return { url: top.url, isUniversal: top.isUniversal };
+  if (nested.url) return { url: nested.url, isUniversal: nested.isUniversal };
 
   return { url: null, isUniversal: false };
 }
