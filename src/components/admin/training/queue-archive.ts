@@ -41,7 +41,9 @@ export function resolveQueueArchiveSessionId(args: {
   const rowRecord = asRecord(student as unknown);
   const fromDraftGeneration = rowRecord
     ? asTrimmedString(rowRecord.draft_generation_session_id) ??
-      asTrimmedString(rowRecord.draftGenerationSessionId)
+      asTrimmedString(rowRecord.draftGenerationSessionId) ??
+      asTrimmedString(rowRecord.homework_session_id) ??
+      asTrimmedString(rowRecord.homeworkSessionId)
     : null;
   if (fromDraftGeneration) return fromDraftGeneration;
 
