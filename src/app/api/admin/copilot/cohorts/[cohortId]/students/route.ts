@@ -98,6 +98,7 @@ export async function GET(
   const backend = getBackendUrl();
   const cohortsResponse = await fetch(`${backend}/v2/admin/copilot/cohorts${qs}`, {
     method: "GET",
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",

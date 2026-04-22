@@ -24,6 +24,7 @@ export async function proxyAdminWithCodes(request: NextRequest, options: ProxyOp
   const url = `${backend}${options.backendPath}`;
   const response = await fetch(url, {
     method: options.method,
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",

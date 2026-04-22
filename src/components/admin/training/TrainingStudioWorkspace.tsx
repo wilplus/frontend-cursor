@@ -42,11 +42,13 @@ import {
   shouldHydrateDraftEditor,
   shouldPollDraftGeneration,
 } from "@/components/admin/training/draft-generation";
+import {
+  removeArchivedQueueRowByBackendResult,
+  resolveQueueArchiveSessionId,
+} from "@/components/admin/training/queue-archive";
 
 type QueueFilter = "all" | "pending" | "audit" | "done";
 type PipelineStage = "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed";
-
-const TRAINING_STUDIO_QUEUE_ARCHIVED_KEY = "training-studio-queue-archived-v1";
 
 const REFERENCE_VIDEOS_PAGE_SIZE = 10;
 const PIPELINE_TERMINAL_STAGES = new Set<PipelineStage>(["sent", "failed"]);
@@ -351,7 +353,11 @@ export default function TrainingStudioWorkspace() {
   const [selectedDraft, setSelectedDraft] = useState<CopilotStudentDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingQueue, setLoadingQueue] = useState(false);
-  const [archivedQueueKeys, setArchivedQueueKeys] = useState<Set<string>>(() => new Set());
+  const [archivingQueueRowKey, setArchivingQueueRowKey] = useState<string | null>(null);
+  const [recentArchivedSession, setRecentArchivedSession] = useState<{
+    userId: string;
+    sessionId: string;
+  } | null>(null);
   const [queueFilter, setQueueFilter] = useState<QueueFilter>("all");
   const [selectedArchetype, setSelectedArchetype] = useState<string>(LEARNING_ARCHETYPES[0].key);
   const [profileJustificationInput, setProfileJustificationInput] = useState("");
@@ -429,6 +435,7 @@ export default function TrainingStudioWorkspace() {
   }>({ loading: false, error: null, audioUrl: null, failed: false });
   const activeStudentKeyRef = useRef<string | null>(null);
   const hasUnsavedDraftEditsRef = useRef(false);
+  const resolvedDraftSessionByStudentIdRef = useRef<Map<string, string>>(new Map());
   const referenceVideoUploadAbortRef = useRef<AbortController | null>(null);
   const referenceVideoUploadProgressRafRef = useRef<number | null>(null);
   const referenceVideoUploadProgressPendingRef = useRef<CopilotReferenceVideoUploadProgress | null>(null);
@@ -438,20 +445,6 @@ export default function TrainingStudioWorkspace() {
   useEffect(() => {
     setIsMounted(true);
     return () => setIsMounted(false);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(TRAINING_STUDIO_QUEUE_ARCHIVED_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return;
-      setArchivedQueueKeys(
-        new Set(parsed.filter((x): x is string => typeof x === "string"))
-      );
-    } catch {
-      /* ignore */
-    }
   }, []);
 
   const loadCohorts = useCallback(async () => {
@@ -477,6 +470,17 @@ export default function TrainingStudioWorkspace() {
     const deduped = new Map<string, CopilotStudentQueueItem>();
     const applyList = () => {
       const list = Array.from(deduped.values());
+      const nextResolved = new Map(resolvedDraftSessionByStudentIdRef.current);
+      for (const student of list) {
+        const resolvedSessionId = resolveQueueArchiveSessionId({
+          student,
+          resolvedDraftSessionByStudentId: nextResolved,
+        });
+        if (resolvedSessionId) {
+          nextResolved.set(student.student_id, resolvedSessionId);
+        }
+      }
+      resolvedDraftSessionByStudentIdRef.current = nextResolved;
       setStudents(list);
       setSelectedStudent((previous) => {
         if (!previous) return list[0] ?? null;
@@ -501,6 +505,7 @@ export default function TrainingStudioWorkspace() {
             const response = await adminApi.getCopilotCohortStudents(cohortId, {
               limit: 100,
               offset: 0,
+              include_archived: false,
             });
             for (const student of response.students ?? []) {
               const key = `${student.student_id}:${student.session_id ?? ""}`;
@@ -521,21 +526,71 @@ export default function TrainingStudioWorkspace() {
     }
   }, []);
 
-  const archiveStudentQueueRow = useCallback((student: CopilotStudentQueueItem) => {
-    const key = queueArchiveKey(student);
-    setArchivedQueueKeys((prev) => {
-      if (prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.add(key);
-      try {
-        localStorage.setItem(TRAINING_STUDIO_QUEUE_ARCHIVED_KEY, JSON.stringify([...next]));
-      } catch {
-        /* ignore */
-      }
-      return next;
+  const archiveStudentQueueRow = useCallback(async (student: CopilotStudentQueueItem) => {
+    const rowKey = queueArchiveKey(student);
+    const sessionId = resolveQueueArchiveSessionId({
+      student,
+      resolvedDraftSessionByStudentId: resolvedDraftSessionByStudentIdRef.current,
     });
-    toast.success("Session hidden from this list");
-  }, []);
+    if (!sessionId) {
+      toast.error("Could not resolve session_id for archive. Refresh and retry.");
+      return;
+    }
+
+    const previousStudents = students;
+    const previousSelected = selectedStudent;
+    setArchivingQueueRowKey(rowKey);
+    setStudents((prev) => prev.filter((item) => queueArchiveKey(item) !== rowKey));
+    if (selectedStudent && queueArchiveKey(selectedStudent) === rowKey) {
+      const fallback = students.find((item) => queueArchiveKey(item) !== rowKey) ?? null;
+      setSelectedStudent(fallback);
+    }
+
+    try {
+      const result = await adminApi.setCopilotQueueArchived(student.student_id, {
+        session_id: sessionId,
+        sessionId: sessionId,
+      });
+      const backendSessionId = result.session_id?.trim() || sessionId;
+      resolvedDraftSessionByStudentIdRef.current.set(student.student_id, backendSessionId);
+      setStudents((prev) =>
+        removeArchivedQueueRowByBackendResult(prev, {
+          user_id: result.user_id,
+          session_id: backendSessionId,
+          archived: result.archived,
+        })
+      );
+      setRecentArchivedSession({ userId: result.user_id, sessionId: backendSessionId });
+      toast.success("Session archived.");
+    } catch (error) {
+      setStudents(previousStudents);
+      setSelectedStudent(previousSelected);
+      toast.error(error instanceof Error ? error.message : "Failed to archive session");
+    } finally {
+      setArchivingQueueRowKey(null);
+    }
+  }, [selectedStudent, students]);
+
+  const unarchiveLatestSession = useCallback(async () => {
+    if (!recentArchivedSession) return;
+    setLoadingQueue(true);
+    try {
+      const result = await adminApi.unsetCopilotQueueArchived(recentArchivedSession.userId, {
+        session_id: recentArchivedSession.sessionId,
+        sessionId: recentArchivedSession.sessionId,
+      });
+      const backendSessionId = result.session_id?.trim() || recentArchivedSession.sessionId;
+      resolvedDraftSessionByStudentIdRef.current.set(result.user_id, backendSessionId);
+      setRecentArchivedSession(null);
+      const cohortIds = cohorts.map((cohort) => cohort.id).filter(Boolean);
+      await loadStudents(cohortIds);
+      toast.success("Session restored to queue.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to restore archived session");
+    } finally {
+      setLoadingQueue(false);
+    }
+  }, [cohorts, loadStudents, recentArchivedSession]);
 
   const profileLearningMeta = useMemo(() => {
     const profile = selectedStudent?.profile as Record<string, unknown> | undefined;
@@ -985,42 +1040,22 @@ export default function TrainingStudioWorkspace() {
     });
   }, [students]);
 
-  const studentsMinusArchived = useMemo(
-    () => sortedStudents.filter((s) => !archivedQueueKeys.has(queueArchiveKey(s))),
-    [sortedStudents, archivedQueueKeys]
-  );
-
   const queueCounts = useMemo(() => {
-    const list = studentsMinusArchived;
+    const list = sortedStudents;
     const all = list.length;
     const pending = list.filter((item) => item.state === "Draft").length;
     const audit = list.filter((item) => item.state === "Ready").length;
     const done = list.filter((item) => item.state === "Sent").length;
     return { all, pending, audit, done };
-  }, [studentsMinusArchived]);
+  }, [sortedStudents]);
 
   const filteredStudents = useMemo(() => {
-    const list = studentsMinusArchived;
+    const list = sortedStudents;
     if (queueFilter === "all") return list;
     if (queueFilter === "pending") return list.filter((item) => item.state === "Draft");
     if (queueFilter === "audit") return list.filter((item) => item.state === "Ready");
     return list.filter((item) => item.state === "Sent");
-  }, [queueFilter, studentsMinusArchived]);
-
-  useEffect(() => {
-    if (!selectedStudent) return;
-    if (!archivedQueueKeys.has(queueArchiveKey(selectedStudent))) return;
-    const base = sortedStudents.filter((s) => !archivedQueueKeys.has(queueArchiveKey(s)));
-    const visible =
-      queueFilter === "all"
-        ? base
-        : queueFilter === "pending"
-          ? base.filter((item) => item.state === "Draft")
-          : queueFilter === "audit"
-            ? base.filter((item) => item.state === "Ready")
-            : base.filter((item) => item.state === "Sent");
-    setSelectedStudent(visible[0] ?? null);
-  }, [archivedQueueKeys, queueFilter, selectedStudent, sortedStudents]);
+  }, [queueFilter, sortedStudents]);
 
   const canLoadPreviousReferenceVideos = referenceVideosOffset > 0;
   const canLoadNextReferenceVideos =
@@ -1108,6 +1143,7 @@ export default function TrainingStudioWorkspace() {
 
     const fromQueue = selectedStudent.session_id?.trim();
     if (fromQueue) {
+      resolvedDraftSessionByStudentIdRef.current.set(selectedStudent.student_id, fromQueue);
       return {
         sessionId: fromQueue,
         draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined,
@@ -1116,6 +1152,7 @@ export default function TrainingStudioWorkspace() {
 
     const fromDraftState = selectedDraft?.session_id?.trim();
     if (fromDraftState) {
+      resolvedDraftSessionByStudentIdRef.current.set(selectedStudent.student_id, fromDraftState);
       return {
         sessionId: fromDraftState,
         draftId: selectedDraft?.id?.trim() ? selectedDraft.id : undefined,
@@ -1127,6 +1164,10 @@ export default function TrainingStudioWorkspace() {
       const drafts = response.drafts ?? [];
       const withSession = drafts.find((d) => d.session_id?.trim());
       if (withSession?.session_id?.trim()) {
+        resolvedDraftSessionByStudentIdRef.current.set(
+          selectedStudent.student_id,
+          withSession.session_id.trim()
+        );
         return {
           sessionId: withSession.session_id.trim(),
           draftId: withSession.id?.trim() ? withSession.id : undefined,
@@ -1134,6 +1175,7 @@ export default function TrainingStudioWorkspace() {
       }
       const genSid = response.draft_generation_session_id?.trim();
       if (genSid) {
+        resolvedDraftSessionByStudentIdRef.current.set(selectedStudent.student_id, genSid);
         const pick = drafts[0];
         return {
           sessionId: genSid,
@@ -1148,6 +1190,7 @@ export default function TrainingStudioWorkspace() {
       const { audit } = await adminApi.getCopilotStudentAudit(selectedStudent.student_id);
       const sid = audit?.session_id?.trim();
       if (sid) {
+        resolvedDraftSessionByStudentIdRef.current.set(selectedStudent.student_id, sid);
         return {
           sessionId: sid,
           draftId: audit?.id?.trim() ? audit.id : undefined,
@@ -2096,7 +2139,21 @@ export default function TrainingStudioWorkspace() {
       <>
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="overflow-hidden border-border/90 bg-card/95 p-0 shadow-sm">
-          <div className="flex items-center justify-end border-b bg-muted/20 px-2 py-1">
+          <div className="flex items-center justify-between border-b bg-muted/20 px-2 py-1">
+            <div>
+              {recentArchivedSession ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  disabled={loadingQueue}
+                  onClick={() => void unarchiveLatestSession()}
+                >
+                  Undo archive
+                </Button>
+              ) : null}
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -2149,10 +2206,11 @@ export default function TrainingStudioWorkspace() {
                             type="button"
                             className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                             aria-label="Hide session from list"
+                            disabled={archivingQueueRowKey === queueArchiveKey(student)}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              archiveStudentQueueRow(student);
+                              void archiveStudentQueueRow(student);
                             }}
                           >
                             <Archive className="h-3.5 w-3.5" />
