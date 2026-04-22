@@ -438,6 +438,7 @@ export default function TrainingStudioWorkspace() {
   const resolvedDraftSessionByStudentIdRef = useRef<Map<string, string>>(new Map());
   /** Same value as `copilotSessionId` (draft/queue/gen); ref so archive can read it before that useMemo. */
   const selectedCopilotSessionIdRef = useRef<string | null>(null);
+  const referenceVideoInputRef = useRef<HTMLInputElement | null>(null);
   const referenceVideoUploadAbortRef = useRef<AbortController | null>(null);
   const referenceVideoUploadProgressRafRef = useRef<number | null>(null);
   const referenceVideoUploadProgressPendingRef = useRef<CopilotReferenceVideoUploadProgress | null>(null);
@@ -1717,12 +1718,27 @@ export default function TrainingStudioWorkspace() {
     setReferenceVideoServerJob(null);
   }, []);
 
+  const resetReferenceVideoUploadInput = useCallback(() => {
+    if (referenceVideoInputRef.current) {
+      referenceVideoInputRef.current.value = "";
+    }
+    setReferenceVideoFile(null);
+    clearReferenceVideoUploadProgressUi();
+  }, [clearReferenceVideoUploadProgressUi]);
+
+  useEffect(() => {
+    referenceVideoUploadAbortRef.current?.abort();
+    resetReferenceVideoUploadInput();
+  }, [copilotSessionId, resetReferenceVideoUploadInput, selectedDraft?.id, selectedStudent?.student_id]);
+
   const uploadReferenceVideo = useCallback(async () => {
-    if (!referenceVideoFile) {
+    const inputFile = referenceVideoInputRef.current?.files?.[0] ?? null;
+    const fileToUpload = inputFile ?? referenceVideoFile;
+    if (!fileToUpload) {
       toast.error("Choose a video file first.");
       return;
     }
-    if (referenceVideoFile.size > COPILOT_REFERENCE_VIDEO_MAX_BYTES) {
+    if (fileToUpload.size > COPILOT_REFERENCE_VIDEO_MAX_BYTES) {
       toast.error(`Video must be at most ${Math.round(COPILOT_REFERENCE_VIDEO_MAX_BYTES / (1024 * 1024))} MB.`);
       return;
     }
@@ -1732,7 +1748,7 @@ export default function TrainingStudioWorkspace() {
     setReferenceVideosUploadLoading(true);
     try {
       const formData = new FormData();
-      formData.append("video_file", referenceVideoFile);
+      formData.append("video_file", fileToUpload);
       if (selectedStudent?.student_id) formData.append("user_id", selectedStudent.student_id);
       if (copilotSessionId) formData.append("session_id", copilotSessionId);
       if (selectedDraft?.id) formData.append("draft_id", selectedDraft.id);
@@ -1780,7 +1796,7 @@ export default function TrainingStudioWorkspace() {
           }
         }
       }
-      setReferenceVideoFile(null);
+      resetReferenceVideoUploadInput();
       setReferenceVideoTitle("");
       setReferenceVideoTags("");
       setReferenceVideoUniversal(false);
@@ -1815,6 +1831,7 @@ export default function TrainingStudioWorkspace() {
     referenceVideoTitle,
     referenceVideoUniversal,
     referenceVideosOffset,
+    resetReferenceVideoUploadInput,
     scheduleReferenceVideoUploadProgress,
     selectedDraft?.id,
     selectedStudent,
@@ -2919,6 +2936,8 @@ export default function TrainingStudioWorkspace() {
                 <div className="space-y-2 sm:col-span-2">
                   <label className="text-sm text-muted-foreground">Video file</label>
                   <Input
+                    key={`add-video-${selectedStudent?.student_id ?? "none"}-${copilotSessionId ?? selectedDraft?.id ?? "none"}`}
+                    ref={referenceVideoInputRef}
                     type="file"
                     accept="video/*"
                     onChange={(event) => {
