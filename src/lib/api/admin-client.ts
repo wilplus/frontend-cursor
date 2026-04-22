@@ -814,6 +814,7 @@ export interface CopilotStudentDraft {
   score_for_display?: number | null;
   reason_chip_required?: boolean;
   metadata?: Record<string, unknown> | null;
+  updated_at?: string | null;
 }
 
 export type DraftGenerationStatus = "pending" | "ready" | "failed" | "not_started";
@@ -822,6 +823,8 @@ export interface CopilotStudentDraftsResponse {
   drafts: CopilotStudentDraft[];
   draft_generation_status?: DraftGenerationStatus;
   draft_generation_session_id?: string | null;
+  /** Disambiguates which draft row reflects the most recent Send; null when nothing has ever been sent. */
+  latest_sent_draft_id?: string | null;
 }
 
 function pickStrFromRaw(raw: Record<string, unknown>, snake: string, camel: string): string | null {
@@ -945,6 +948,7 @@ export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): Copi
           ? raw.reasonChipRequired
           : undefined,
     metadata,
+    updated_at: pickStrFromRaw(raw, "updated_at", "updatedAt"),
   };
 }
 
@@ -1848,11 +1852,15 @@ export const adminApi = {
     });
   },
 
-  getCopilotStudentDrafts: (studentId: string, params?: { session_id?: string }) => {
+  getCopilotStudentDrafts: (
+    studentId: string,
+    params?: { session_id?: string; auto_create?: boolean }
+  ) => {
     const search = new URLSearchParams();
     if (params?.session_id) search.set("session_id", params.session_id);
+    if (params?.auto_create === false) search.set("auto_create", "false");
     const suffix = search.toString() ? `?${search.toString()}` : "";
-    return adminFetch<CopilotStudentDraftsResponse>(
+    return adminFetch<CopilotStudentDraftsResponse & { latest_sent_draft_id?: string | null }>(
       `/copilot/students/${studentId}/drafts${suffix}`
     ).then((res) => ({
       drafts: (Array.isArray(res.drafts) ? res.drafts : []).map((d) => {
@@ -1867,6 +1875,12 @@ export const adminApi = {
         typeof res.draft_generation_session_id === "string"
           ? res.draft_generation_session_id
           : res.draft_generation_session_id === null
+            ? null
+            : undefined,
+      latest_sent_draft_id:
+        typeof res.latest_sent_draft_id === "string"
+          ? res.latest_sent_draft_id
+          : res.latest_sent_draft_id === null
             ? null
             : undefined,
     }));
