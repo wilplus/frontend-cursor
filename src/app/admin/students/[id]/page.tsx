@@ -786,14 +786,20 @@ export default function AdminStudentProfilePage() {
         const rawCredits = p.credits ?? null;
         setCreditsValue(rawCredits == null ? "" : String(rawCredits));
         const sp = p.speaker_profile || {};
-        const parts = [
+        const legacyJoined = [
           sp.main_goal,
           sp.motivation,
           sp.strong_points,
           sp.weak_points,
+          sp.charismatic_traits,
+          sp.hobbies_interests,
+          sp.personality_type,
           sp.coach_notes,
-        ].filter(Boolean);
-        setContextDraft(parts.join("\n\n"));
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        // “Student Learning Profile” saves this textarea to `coach_notes` only; prefer it when set so reload matches save.
+        setContextDraft(typeof sp.coach_notes === "string" ? sp.coach_notes : legacyJoined);
         setPendingTasksPoolIds(null);
         setPendingFocusIds(null);
         setPendingPostQuestionIds(null);
