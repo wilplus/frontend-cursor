@@ -390,6 +390,11 @@ export default function TrainingStudioWorkspace() {
   const [referenceVideoServerJob, setReferenceVideoServerJob] =
     useState<CopilotReferenceVideoUploadJobPayload | null>(null);
   const [referenceVideoFile, setReferenceVideoFile] = useState<File | null>(null);
+  /** Shown after a successful upload so the file input clearing does not look like a failed send. */
+  const [lastReferenceVideoUpload, setLastReferenceVideoUpload] = useState<{
+    fileName: string;
+    videoId?: string;
+  } | null>(null);
   const [referenceVideoTitle, setReferenceVideoTitle] = useState("");
   const [referenceVideoTags, setReferenceVideoTags] = useState("");
   const [referenceVideoUniversal, setReferenceVideoUniversal] = useState(false);
@@ -1729,6 +1734,7 @@ export default function TrainingStudioWorkspace() {
   useEffect(() => {
     referenceVideoUploadAbortRef.current?.abort();
     resetReferenceVideoUploadInput();
+    setLastReferenceVideoUpload(null);
   }, [copilotSessionId, resetReferenceVideoUploadInput, selectedDraft?.id, selectedStudent?.student_id]);
 
   const uploadReferenceVideo = useCallback(async () => {
@@ -1800,6 +1806,10 @@ export default function TrainingStudioWorkspace() {
       setReferenceVideoTitle("");
       setReferenceVideoTags("");
       setReferenceVideoUniversal(false);
+      setLastReferenceVideoUpload({
+        fileName: fileToUpload.name,
+        ...(uploaded?.id ? { videoId: uploaded.id } : {}),
+      });
       if (response.degraded_job_tracking) {
         toast.warning(
           response.reference_video?.id
@@ -1809,7 +1819,8 @@ export default function TrainingStudioWorkspace() {
       } else {
         toast.success("Reference video uploaded and attached.");
       }
-      await loadReferenceVideos(referenceVideosOffset, "refresh");
+      // Always reload page 1 so the new row is visible (refreshing with a non-zero offset can show an empty page).
+      await loadReferenceVideos(0, "refresh");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         toast.info("Upload cancelled.");
@@ -1830,7 +1841,6 @@ export default function TrainingStudioWorkspace() {
     referenceVideoTags,
     referenceVideoTitle,
     referenceVideoUniversal,
-    referenceVideosOffset,
     resetReferenceVideoUploadInput,
     scheduleReferenceVideoUploadProgress,
     selectedDraft?.id,
@@ -2950,6 +2960,7 @@ export default function TrainingStudioWorkspace() {
                         event.target.value = "";
                         return;
                       }
+                      setLastReferenceVideoUpload(null);
                       setReferenceVideoFile(file);
                     }}
                     disabled={referenceVideosUploadLoading}
@@ -2959,6 +2970,15 @@ export default function TrainingStudioWorkspace() {
                     <code className="text-[11px]">NEXT_PUBLIC_API_URL</code>
                     ).
                   </p>
+                  {lastReferenceVideoUpload ? (
+                    <p className="text-xs text-emerald-800">
+                      Last sent:{" "}
+                      <span className="font-medium text-foreground">{lastReferenceVideoUpload.fileName}</span>
+                      {lastReferenceVideoUpload.videoId
+                        ? " — it should appear in the list below (page 1)."
+                        : " — check the list below after refresh."}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm text-muted-foreground">Title (optional)</label>
