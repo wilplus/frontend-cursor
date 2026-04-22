@@ -9,6 +9,7 @@ type AdminFetchOptions = {
   method?: string;
   body?: unknown;
   headers?: HeadersInit;
+  cache?: RequestCache;
 };
 
 export type AdminApiError = Error & {
@@ -46,13 +47,14 @@ async function adminFetch<T>(
   path: string,
   options: AdminFetchOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, headers = {} } = options;
+  const { method = "GET", body, headers = {}, cache } = options;
   const url = `${getBase()}/api/admin${path}`;
   const bodySerialized: BodyInit | null =
     body == null ? null : body instanceof FormData ? body : JSON.stringify(body);
   const init: RequestInit = {
     method,
     credentials: "include",
+    ...(cache ? { cache } : {}),
     headers: {
       ...(typeof headers === "object" && headers !== null ? headers : {}),
       ...(bodySerialized != null && !(body instanceof FormData)
@@ -708,6 +710,7 @@ export interface CopilotCohortStack {
 export interface CopilotStudentQueueItem {
   student_id: string;
   session_id?: string | null;
+  draft_generation_session_id?: string | null;
   /** Session row `created_at` from DB (ISO), when backend exposes it */
   session_created_at?: string | null;
   queue_position?: number;
@@ -1801,13 +1804,18 @@ export const adminApi = {
     });
   },
 
-  getCopilotCohortStudents: (cohortId: string, params?: { limit?: number; offset?: number }) => {
+  getCopilotCohortStudents: (
+    cohortId: string,
+    params?: { limit?: number; offset?: number; include_archived?: boolean }
+  ) => {
     const search = new URLSearchParams();
     if (typeof params?.limit === "number") search.set("limit", String(params.limit));
     if (typeof params?.offset === "number") search.set("offset", String(params.offset));
+    search.set("include_archived", params?.include_archived ? "true" : "false");
     const suffix = search.toString() ? `?${search.toString()}` : "";
     return adminFetch<{ students: CopilotStudentQueueItem[] }>(
-      `/copilot/cohorts/${cohortId}/students${suffix}`
+      `/copilot/cohorts/${cohortId}/students${suffix}`,
+      { cache: "no-store" }
     ).then(async (res) => {
       const enriched = (Array.isArray(res.students) ? res.students : []).map((s) =>
         enrichCopilotStudentQueueItem(s)
@@ -1851,6 +1859,24 @@ export const adminApi = {
       };
     });
   },
+
+  setCopilotQueueArchived: (
+    studentId: string,
+    body: { session_id: string; sessionId: string }
+  ) =>
+    adminFetch<{ user_id: string; session_id: string; archived: boolean }>(
+      `/copilot/students/${studentId}/queue-archive`,
+      { method: "POST", body }
+    ),
+
+  unsetCopilotQueueArchived: (
+    studentId: string,
+    body: { session_id: string; sessionId: string }
+  ) =>
+    adminFetch<{ user_id: string; session_id: string; archived: boolean }>(
+      `/copilot/students/${studentId}/queue-archive`,
+      { method: "DELETE", body }
+    ),
 
   getCopilotStudentDrafts: (
     studentId: string,
