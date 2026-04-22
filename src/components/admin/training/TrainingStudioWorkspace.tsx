@@ -494,13 +494,19 @@ export default function TrainingStudioWorkspace() {
   }, [selectedStudent?.profile]);
 
   const displayJustification = useMemo(() => {
-    const fromLearningProfile = profileLearningMeta?.display_justification;
-    if (typeof fromLearningProfile === "string" && fromLearningProfile.trim()) {
-      return fromLearningProfile.trim();
+    const profileRecord = selectedStudent?.profile as Record<string, unknown> | undefined;
+    // Coach override must win over AI `display_justification`, or saves look “lost” after reload.
+    const fromOverrideNested = profileLearningMeta?.profile_override_justification;
+    if (typeof fromOverrideNested === "string" && fromOverrideNested.trim()) {
+      return fromOverrideNested.trim();
     }
-    const fromOverride = profileLearningMeta?.profile_override_justification;
-    if (typeof fromOverride === "string" && fromOverride.trim()) {
-      return fromOverride.trim();
+    const fromOverrideTop = profileRecord?.profile_override_justification;
+    if (typeof fromOverrideTop === "string" && fromOverrideTop.trim()) {
+      return fromOverrideTop.trim();
+    }
+    const fromLearningDisplay = profileLearningMeta?.display_justification;
+    if (typeof fromLearningDisplay === "string" && fromLearningDisplay.trim()) {
+      return fromLearningDisplay.trim();
     }
     const fromBehavioral = selectedStudent?.profile?.behavioral_profile_justification;
     if (typeof fromBehavioral === "string" && fromBehavioral.trim()) return fromBehavioral.trim();
@@ -508,6 +514,7 @@ export default function TrainingStudioWorkspace() {
   }, [
     profileLearningMeta?.display_justification,
     profileLearningMeta?.profile_override_justification,
+    selectedStudent?.profile,
     selectedStudent?.profile?.behavioral_profile_justification,
     selectedStudent?.profile?.justification,
   ]);
@@ -1206,6 +1213,17 @@ export default function TrainingStudioWorkspace() {
           ...(reasonChipCustom.trim() ? { reason_chip_custom: reasonChipCustom.trim() } : {}),
         });
         toast.success("Learning profile saved.");
+        const prevLearning =
+          selectedStudent.profile && typeof (selectedStudent.profile as Record<string, unknown>).learning_profile === "object" && (selectedStudent.profile as Record<string, unknown>).learning_profile !== null
+            ? ({
+                ...((selectedStudent.profile as Record<string, unknown>).learning_profile as Record<string, unknown>),
+              } as Record<string, unknown>)
+            : {};
+        const nextLearningProfile = {
+          ...prevLearning,
+          coach_override_profile: archetype,
+          profile_override_justification: overrideJustification,
+        };
         setStudents((prev) =>
           prev.map((s) =>
             s.student_id === sid && (s.session_id ?? "") === sess
@@ -1216,6 +1234,8 @@ export default function TrainingStudioWorkspace() {
                     behavioral_profile: archetype,
                     behavioral_profile_justification:
                       overrideJustification ?? s.profile?.behavioral_profile_justification ?? null,
+                    learning_profile: nextLearningProfile,
+                    profile_override_justification: overrideJustification,
                   },
                 }
               : s
@@ -1230,6 +1250,8 @@ export default function TrainingStudioWorkspace() {
                   behavioral_profile: archetype,
                   behavioral_profile_justification:
                     overrideJustification ?? prev.profile?.behavioral_profile_justification ?? null,
+                  learning_profile: nextLearningProfile,
+                  profile_override_justification: overrideJustification,
                 },
               }
             : prev

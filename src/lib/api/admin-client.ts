@@ -728,6 +728,10 @@ export interface CopilotStudentQueueItem {
     justification?: string | null;
     behavioral_profile?: string | null;
     behavioral_profile_justification?: string | null;
+    /** Coach PATCH `/profile-classification`; may mirror nested `learning_profile`. */
+    profile_override_justification?: string | null;
+    coach_override_profile?: string | null;
+    learning_profile?: Record<string, unknown> | null;
     session_count?: number | null;
     completed_at?: string | null;
     canonical_score_for_display?: number | null;

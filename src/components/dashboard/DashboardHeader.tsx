@@ -184,67 +184,69 @@ export default function DashboardHeader() {
             </Link>
           )}
         </div>
-        {credits !== null && (
-          <Link
-            href="/dashboard/pricing"
-            title="Top up credits"
-            className="flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <span className="text-base leading-none">🎓</span>
-            <span>{credits}</span>
-          </Link>
-        )}
-        <div className="relative flex shrink-0" ref={menuRef}>
-          <Button
-            ref={buttonRef}
-            variant="outline"
-            size="icon"
-            onClick={() => setMenuOpen((o) => !o)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") openByKeyboardRef.current = true;
-            }}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-            aria-haspopup="true"
-            aria-controls={menuOpen ? HEADER_MENU_ID : undefined}
-            className="h-10 w-10"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          {menuOpen && (
-            <div
-              id={HEADER_MENU_ID}
-              className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
+        <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
+          {credits !== null && (
+            <Link
+              href="/dashboard/pricing"
+              title="Top up credits"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <a
-                ref={firstLinkRef}
-                href={CAL_LESSON_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
-                onClick={() => setMenuOpen(false)}
-              >
-                Book a lesson
-              </a>
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
-                onClick={() => setMenuOpen(false)}
-              >
-                Support
-              </a>
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={loading}
-                className={cn(
-                  "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:opacity-50"
-                )}
-              >
-                {loading ? "Logging out…" : "Log out"}
-              </button>
-            </div>
+              <span className="text-base leading-none">🎓</span>
+              <span>{credits}</span>
+            </Link>
           )}
+          <div className="relative flex shrink-0" ref={menuRef}>
+            <Button
+              ref={buttonRef}
+              variant="outline"
+              size="icon"
+              onClick={() => setMenuOpen((o) => !o)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") openByKeyboardRef.current = true;
+              }}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
+              aria-controls={menuOpen ? HEADER_MENU_ID : undefined}
+              className="h-10 w-10"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            {menuOpen && (
+              <div
+                id={HEADER_MENU_ID}
+                className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
+              >
+                <a
+                  ref={firstLinkRef}
+                  href={CAL_LESSON_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Book a lesson
+                </a>
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Support
+                </a>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loading}
+                  className={cn(
+                    "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:opacity-50"
+                  )}
+                >
+                  {loading ? "Logging out…" : "Log out"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
