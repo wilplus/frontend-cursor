@@ -42,6 +42,13 @@ describe("queue-archive helpers", () => {
 
     expect(
       resolveQueueArchiveSessionId({
+        student: queueRow({ homework_session_id: "sess-hw" } as unknown as CopilotStudentQueueItem),
+        resolvedDraftSessionByStudentId: fallbackMap,
+      })
+    ).toBe("sess-hw");
+
+    expect(
+      resolveQueueArchiveSessionId({
         student: queueRow({
           profile: {
             learning_profile: {

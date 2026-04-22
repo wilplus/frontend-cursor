@@ -436,6 +436,8 @@ export default function TrainingStudioWorkspace() {
   const activeStudentKeyRef = useRef<string | null>(null);
   const hasUnsavedDraftEditsRef = useRef(false);
   const resolvedDraftSessionByStudentIdRef = useRef<Map<string, string>>(new Map());
+  /** Same value as `copilotSessionId` (draft/queue/gen); ref so archive can read it before that useMemo. */
+  const selectedCopilotSessionIdRef = useRef<string | null>(null);
   const referenceVideoUploadAbortRef = useRef<AbortController | null>(null);
   const referenceVideoUploadProgressRafRef = useRef<number | null>(null);
   const referenceVideoUploadProgressPendingRef = useRef<CopilotReferenceVideoUploadProgress | null>(null);
@@ -528,10 +530,36 @@ export default function TrainingStudioWorkspace() {
 
   const archiveStudentQueueRow = useCallback(async (student: CopilotStudentQueueItem) => {
     const rowKey = queueArchiveKey(student);
-    const sessionId = resolveQueueArchiveSessionId({
+    const preferredForSelected =
+      selectedStudent && queueArchiveKey(student) === queueArchiveKey(selectedStudent)
+        ? selectedCopilotSessionIdRef.current
+        : null;
+    let sessionId = resolveQueueArchiveSessionId({
       student,
+      preferredSessionId: preferredForSelected,
       resolvedDraftSessionByStudentId: resolvedDraftSessionByStudentIdRef.current,
     });
+    if (!sessionId) {
+      try {
+        const draftRes = await adminApi.getCopilotStudentDrafts(student.student_id, { auto_create: false });
+        sessionId =
+          draftRes.draft_generation_session_id?.trim() ??
+          (draftRes.drafts ?? [])
+            .map((d) => d.session_id?.trim())
+            .find((s): s is string => Boolean(s)) ??
+          null;
+      } catch {
+        sessionId = null;
+      }
+    }
+    if (!sessionId) {
+      try {
+        const { audit } = await adminApi.getCopilotStudentAudit(student.student_id);
+        sessionId = audit?.session_id?.trim() ?? null;
+      } catch {
+        sessionId = null;
+      }
+    }
     if (!sessionId) {
       toast.error("Could not resolve session_id for archive. Refresh and retry.");
       return;
@@ -1071,6 +1099,10 @@ export default function TrainingStudioWorkspace() {
     if (fromGen) return fromGen;
     return null;
   }, [draftGenerationSessionId, selectedDraft?.session_id, selectedStudent?.session_id]);
+
+  useEffect(() => {
+    selectedCopilotSessionIdRef.current = copilotSessionId;
+  }, [copilotSessionId]);
 
   useEffect(() => {
     const sid = copilotSessionId;
