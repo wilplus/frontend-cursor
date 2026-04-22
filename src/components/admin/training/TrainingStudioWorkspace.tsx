@@ -202,6 +202,41 @@ function matchesQueueFilter(item: CopilotStudentQueueItem, filter: QueueFilter):
   return item.state === "Sent";
 }
 
+/**
+ * Choose the draft row to render:
+ * - Sent view: prefer `latest_sent_draft_id`, then newest `status === "Sent"` by `updated_at`.
+ * - Otherwise: keep the previously selected row if still present, else first pending row.
+ */
+function pickDraftForView(args: {
+  drafts: CopilotStudentDraft[];
+  isSentView: boolean;
+  latestSentDraftId: string | null;
+  preferredDraftId: string | null;
+}): CopilotStudentDraft | null {
+  const { drafts, isSentView, latestSentDraftId, preferredDraftId } = args;
+  if (!drafts.length) return null;
+  if (isSentView) {
+    if (latestSentDraftId) {
+      const match = drafts.find((d) => d.id === latestSentDraftId);
+      if (match) return match;
+    }
+    const sent = drafts.filter((d) => d.status === "Sent");
+    if (sent.length) {
+      const sorted = [...sent].sort((a, b) => {
+        const aTs = a.updated_at ? Date.parse(a.updated_at) : 0;
+        const bTs = b.updated_at ? Date.parse(b.updated_at) : 0;
+        return bTs - aTs;
+      });
+      return sorted[0] ?? null;
+    }
+    return drafts[0] ?? null;
+  }
+  const preferred = preferredDraftId
+    ? drafts.find((item) => item.id === preferredDraftId) ?? null
+    : null;
+  return preferred ?? drafts[0] ?? null;
+}
+
 function toEvidence(insight: string, fallback: string): string[] {
   const text = insight.trim() || fallback.trim();
   if (!text) return [];
@@ -272,6 +307,23 @@ function formatAiBaselineText(label: string, ai: string | null | undefined, curr
     return `AI ${label} differs from your edit`;
   }
   return `AI ${label}`;
+}
+
+/** Compare editor text (trimmed, null == ""); lets us confirm PUT persisted what the admin typed. */
+function sameDraftText(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? "").trim() === (b ?? "").trim();
+}
+
+function draftMatchesTypedValues(
+  saved: CopilotStudentDraft | null | undefined,
+  typed: { email: string; task: string; script: string }
+): boolean {
+  if (!saved) return false;
+  return (
+    sameDraftText(saved.email_draft, typed.email) &&
+    sameDraftText(saved.task_draft, typed.task) &&
+    sameDraftText(saved.script_draft, typed.script)
+  );
 }
 
 function draftEditorValuesFromDraft(draft: CopilotStudentDraft | null) {
@@ -629,10 +681,13 @@ export default function TrainingStudioWorkspace() {
       if (!isBackground) setLoading(true);
       try {
         const sessionHint = student.session_id?.trim() || selectedDraft?.session_id?.trim() || undefined;
-        const response = await adminApi.getCopilotStudentDrafts(
-          student.student_id,
-          sessionHint ? { session_id: sessionHint } : undefined
-        );
+        const isSentView = student.state === "Sent";
+        const response = await adminApi.getCopilotStudentDrafts(student.student_id, {
+          ...(sessionHint ? { session_id: sessionHint } : {}),
+          // For Sent students, don't let the backend auto-create a fresh blank draft — we
+          // want to view the row that was actually sent, not the next-cycle AI baseline.
+          ...(isSentView ? { auto_create: false } : {}),
+        });
         const requestStudentKey = `${student.student_id}::${student.session_id ?? ""}`;
         if (activeStudentKeyRef.current !== requestStudentKey) return null;
         const hasUsableFromResponse = hasAnyUsableDraftContent(response.drafts);
@@ -641,12 +696,12 @@ export default function TrainingStudioWorkspace() {
         setDraftGenerationStatus(response.draft_generation_status ?? null);
         setDraftGenerationSessionId(response.draft_generation_session_id ?? null);
 
-        const draft =
-          (selectedDraft?.id
-            ? response.drafts?.find((item) => item.id === selectedDraft.id) ?? null
-            : null) ??
-          response.drafts?.[0] ??
-          null;
+        const draft = pickDraftForView({
+          drafts: response.drafts ?? [],
+          isSentView,
+          latestSentDraftId: response.latest_sent_draft_id ?? null,
+          preferredDraftId: selectedDraft?.id ?? null,
+        });
 
         const shouldHydrate = shouldHydrateDraftEditor({
           isBackgroundRefresh: isBackground,
@@ -1291,25 +1346,33 @@ export default function TrainingStudioWorkspace() {
         );
         return;
       }
-      await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
+      const typedTask = taskValue.trim();
+      const typedMessage = messageValue.trim();
+      const typedScript = scriptValue.trim();
+      const putResponse = await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
         session_id: resolved.sessionId,
         grade_draft: grade,
         comment_draft: commentInput.trim() || null,
-        task_draft: taskValue.trim() || null,
-        email_draft: messageValue.trim() || null,
-        script_draft: scriptValue.trim() || null,
+        task_draft: typedTask || null,
+        email_draft: typedMessage || null,
+        script_draft: typedScript || null,
         metadata: mergeMetadataReviewerScore(selectedDraft?.metadata, reviewerScore),
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
-      const refreshed = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id, {
-        session_id: resolved.sessionId,
-      });
-      const refreshedDraft =
-        (resolved.draftId
-          ? refreshed.drafts.find((item) => item.id === resolved.draftId) ?? null
-          : null) ?? refreshed.drafts?.[0] ?? null;
-      hydrateDraftEditor(selectedStudent, refreshedDraft);
+      // Use the draft returned by PUT directly — re-issuing GET /drafts races with
+      // auto-creation of a fresh Draft after Send and clobbers admin overrides.
+      const savedDraft = putResponse.draft ?? null;
+      if (!savedDraft) {
+        toast.error("Save returned no draft — refresh and retry.");
+        return;
+      }
+      if (!draftMatchesTypedValues(savedDraft, { email: typedMessage, task: typedTask, script: typedScript })) {
+        toast.error("Save did not persist your edits. Refresh and retry.");
+        hydrateDraftEditor(selectedStudent, savedDraft);
+        return;
+      }
+      hydrateDraftEditor(selectedStudent, savedDraft);
       toast.success("Feedback saved. Click Accept AI for this student to move it to the next review state.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save feedback");
@@ -1319,7 +1382,6 @@ export default function TrainingStudioWorkspace() {
   }, [
     commentInput,
     gradeInput,
-    loadDraft,
     messageValue,
     reviewerScoreInput,
     selectedDraft?.metadata,
@@ -1362,26 +1424,36 @@ export default function TrainingStudioWorkspace() {
         );
         return;
       }
-      await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
+      const typedTask =
+        patch.task_draft !== undefined ? (patch.task_draft ?? "") : taskValue;
+      const typedMessage =
+        patch.email_draft !== undefined ? (patch.email_draft ?? "") : messageValue;
+      const typedScript =
+        patch.script_draft !== undefined
+          ? (patch.script_draft ?? "")
+          : scriptValue.trim();
+      const putResponse = await adminApi.updateCopilotStudentDrafts(selectedStudent.student_id, {
         session_id: resolved.sessionId,
         grade_draft,
         comment_draft,
-        task_draft: (patch.task_draft ?? taskValue) || null,
-        email_draft: (patch.email_draft ?? messageValue) || null,
-        script_draft:
-          patch.script_draft !== undefined ? patch.script_draft : scriptValue.trim() || null,
+        task_draft: typedTask || null,
+        email_draft: typedMessage || null,
+        script_draft: typedScript || null,
         metadata: mergeMetadataReviewerScore(selectedDraft?.metadata, reviewerScore),
         reason_chips: selectedReasonChips.map((chip_key) => ({ chip_key })),
         reason_chip_custom: reasonChipCustom.trim() || null,
       });
-      const refreshed = await adminApi.getCopilotStudentDrafts(selectedStudent.student_id, {
-        session_id: resolved.sessionId,
-      });
-      const refreshedDraft =
-        (resolved.draftId
-          ? refreshed.drafts.find((item) => item.id === resolved.draftId) ?? null
-          : null) ?? refreshed.drafts?.[0] ?? null;
-      hydrateDraftEditor(selectedStudent, refreshedDraft);
+      const savedDraft = putResponse.draft ?? null;
+      if (!savedDraft) {
+        toast.error("Save returned no draft — refresh and retry.");
+        return;
+      }
+      if (!draftMatchesTypedValues(savedDraft, { email: typedMessage, task: typedTask, script: typedScript })) {
+        toast.error("Save did not persist your edits. Refresh and retry.");
+        hydrateDraftEditor(selectedStudent, savedDraft);
+        return;
+      }
+      hydrateDraftEditor(selectedStudent, savedDraft);
       toast.success("Saved.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save");
