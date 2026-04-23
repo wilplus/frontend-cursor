@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { adminApi, type CopilotAnnotationChip, type CopilotStudentDraft } from "@/lib/api/admin-client";
+import {
+  adminApi,
+  isCopilotDeliveryInProgressError,
+  type CopilotAnnotationChip,
+  type CopilotStudentDraft,
+} from "@/lib/api/admin-client";
 import ReasonChipSelector, { type SelectedReasonChip } from "./ReasonChipSelector";
 
 /** persist = draft/audit save; workflow = approve/send (may change queue state). */
@@ -191,16 +196,25 @@ export default function StudentReviewCard({
   const approve = useCallback(async () => {
     setApproving(true);
     try {
-      await adminApi.approveCopilotStudent(studentId, {
+      const approved = await adminApi.approveCopilotStudent(studentId, {
         session_id: sessionId ?? undefined,
         draft_id: selectedDraft?.id,
         idempotency_key: crypto.randomUUID(),
       });
-      toast.success("Draft approved.");
+      if (approved.email_failed_but_unlocked) {
+        toast.success("Draft approved — student dashboard updated.");
+        toast.warning("Email to the student may not have been delivered.");
+      } else {
+        toast.success("Draft approved.");
+      }
       await refresh();
       await onStateMutated?.("workflow");
     } catch (error) {
       console.error(error);
+      if (isCopilotDeliveryInProgressError(error)) {
+        toast.info("Send already in progress. Try again shortly.");
+        return;
+      }
       toast.error(error instanceof Error ? error.message : "Failed to approve draft");
     } finally {
       setApproving(false);
@@ -210,16 +224,25 @@ export default function StudentReviewCard({
   const send = useCallback(async () => {
     setSending(true);
     try {
-      await adminApi.sendCopilotStudent(studentId, {
+      const sent = await adminApi.sendCopilotStudent(studentId, {
         session_id: sessionId ?? undefined,
         draft_id: selectedDraft?.id,
         idempotency_key: crypto.randomUUID(),
       });
-      toast.success("Draft sent.");
+      if (sent.email_failed_but_unlocked) {
+        toast.success("Assignment is live for the student.");
+        toast.warning("Email to the student may not have been delivered.");
+      } else {
+        toast.success("Draft sent.");
+      }
       await refresh();
       await onStateMutated?.("workflow");
     } catch (error) {
       console.error(error);
+      if (isCopilotDeliveryInProgressError(error)) {
+        toast.info("Send already in progress. Try again shortly.");
+        return;
+      }
       toast.error(error instanceof Error ? error.message : "Failed to send draft");
     } finally {
       setSending(false);

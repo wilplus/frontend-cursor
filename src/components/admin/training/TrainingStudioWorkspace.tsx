@@ -20,8 +20,10 @@ import { toCompactReportPreview, type CompactReportPreview } from "@/lib/reports
 import {
   adminApi,
   COPILOT_REFERENCE_VIDEO_MAX_BYTES,
+  isCopilotDeliveryInProgressError,
   uploadCopilotReferenceVideoWithProgress,
   type AdminCopilotReferenceVideo,
+  type CopilotDeliveryLifecycle,
   type CopilotReferenceVideoUploadJobPayload,
   type CopilotCohortStack,
   type CopilotReferenceVideoUploadProgress,
@@ -379,6 +381,9 @@ export default function TrainingStudioWorkspace() {
   const [pipelineStatusError, setPipelineStatusError] = useState<string | null>(null);
   const [pipelineStatusPolling, setPipelineStatusPolling] = useState(false);
   const [latestFeedbackVideoUrl, setLatestFeedbackVideoUrl] = useState<string | null>(null);
+  const [assignmentDeliveryLifecycle, setAssignmentDeliveryLifecycle] = useState<CopilotDeliveryLifecycle | null>(null);
+  const [emailFailedButUnlockedAfterSend, setEmailFailedButUnlockedAfterSend] = useState(false);
+  const [retryingAssignmentEmail, setRetryingAssignmentEmail] = useState(false);
   const [referenceVideos, setReferenceVideos] = useState<AdminCopilotReferenceVideo[]>([]);
   const [referenceVideosTotal, setReferenceVideosTotal] = useState(0);
   const [referenceVideosOffset, setReferenceVideosOffset] = useState(0);
@@ -977,7 +982,15 @@ export default function TrainingStudioWorkspace() {
     setPipelineStatusPolling(false);
     setLatestFeedbackVideoUrl(null);
     setFullOverrideAttached(false);
+    setAssignmentDeliveryLifecycle(null);
+    setEmailFailedButUnlockedAfterSend(false);
   }, [selectedStudent?.student_id, selectedStudent?.session_id]);
+
+  useEffect(() => {
+    if (selectedDraft?.delivery_email_soft_failed === false) {
+      setEmailFailedButUnlockedAfterSend(false);
+    }
+  }, [selectedDraft?.delivery_email_soft_failed, selectedDraft?.id]);
 
   useEffect(() => {
     const el = studentHeaderRef.current;
@@ -2056,19 +2069,30 @@ export default function TrainingStudioWorkspace() {
         return;
       }
 
-      await adminApi.approveSendCopilotDraft(selectedStudent.student_id, draftId, {
+      const sendResult = await adminApi.approveSendCopilotDraft(selectedStudent.student_id, draftId, {
         session_id: resolved.sessionId,
         idempotency_key: crypto.randomUUID(),
       });
+      if (sendResult.draft) {
+        setSelectedDraft(sendResult.draft);
+      }
+      if (sendResult.email_failed_but_unlocked) {
+        setEmailFailedButUnlockedAfterSend(true);
+        toast.success("Assignment is live on the student’s dashboard.");
+        toast.warning("Email to the student may not have been delivered. You can retry with “Retry notification email” below — the student still has access.");
+      } else {
+        setEmailFailedButUnlockedAfterSend(false);
+        toast.success("Homework sent.");
+      }
 
       // The backend creates the student's session synchronously inside approve-send,
       // so the reference video is live for the student the moment this resolves.
       // Show success immediately and unblock the UI — don't wait for the async
       // AI-generation pipeline (TTS → video → uploading → sent).
       setPipelineStage("queued");
+      setAssignmentDeliveryLifecycle("delivering");
       setPipelineStatusPolling(true);
       setPipelineStatusError(null);
-      toast.success("Homework sent.");
 
       await loadDraft(selectedStudent);
       setStudents((prev) =>
@@ -2099,6 +2123,20 @@ export default function TrainingStudioWorkspace() {
             );
             transientPipelineErrors = 0;
             setPipelineStatusError(null);
+            if (statusPayload.delivery_lifecycle) {
+              setAssignmentDeliveryLifecycle(statusPayload.delivery_lifecycle);
+            }
+            if (statusPayload.delivery_lifecycle === "failed") {
+              const step = statusPayload.delivery_failed_step;
+              setPipelineStatusError(
+                step === "email"
+                  ? "Assignment delivery failed at the email step (student access may still be updated — check the dashboard)."
+                  : step === "render"
+                    ? "Assignment delivery failed at the video render step."
+                    : "Assignment delivery failed."
+              );
+              break;
+            }
             const stage = toPipelineStage(statusPayload.stage ?? statusPayload.status);
             if (stage) setPipelineStage(stage);
             if (stage === "failed") {
@@ -2124,6 +2162,10 @@ export default function TrainingStudioWorkspace() {
         setPipelineStatusPolling(false);
       })();
     } catch (error) {
+      if (isCopilotDeliveryInProgressError(error)) {
+        toast.info("Send already in progress for this draft. Wait for it to finish or try again in a moment.");
+        return;
+      }
       toast.error(error instanceof Error ? error.message : "Failed to send homework");
       setPipelineStatusError(error instanceof Error ? error.message : "Failed to send homework");
     } finally {
@@ -2138,6 +2180,36 @@ export default function TrainingStudioWorkspace() {
     selectedReasonChips,
     selectedStudent,
   ]);
+
+  const retryAssignmentNotificationEmail = useCallback(async () => {
+    if (!selectedStudent || !selectedDraft?.id) return;
+    setRetryingAssignmentEmail(true);
+    try {
+      const result = await adminApi.retryCopilotAssignmentEmail(selectedStudent.student_id, selectedDraft.id);
+      if (result.draft) {
+        setSelectedDraft(result.draft);
+      } else {
+        await loadDraft(selectedStudent);
+      }
+      if (result.email_failed_but_unlocked) {
+        toast.warning("Email still could not be confirmed. The student’s dashboard access is unchanged; you can try again later.");
+        setEmailFailedButUnlockedAfterSend(true);
+      } else {
+        setEmailFailedButUnlockedAfterSend(false);
+        toast.success("Notification email retried.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to retry email");
+    } finally {
+      setRetryingAssignmentEmail(false);
+    }
+  }, [loadDraft, selectedDraft?.id, selectedStudent]);
+
+  const emailSoftWarningVisible =
+    Boolean(selectedDraft?.delivery_email_soft_failed) || emailFailedButUnlockedAfterSend;
+  const canRetryAssignmentEmail =
+    selectedDraft?.status === "Sent" &&
+    (Boolean(selectedDraft.delivery_email_soft_failed) || emailFailedButUnlockedAfterSend);
 
   const selectedProfileName = selectedStudent?.profile?.name?.trim() ?? "";
   const selectedProfileEmail = selectedStudent?.profile?.email?.trim() ?? "";
@@ -3268,12 +3340,27 @@ export default function TrainingStudioWorkspace() {
             </div>
           </Card>
 
-          {(pipelineStage || pipelineStatusError || latestFeedbackVideoUrl) ? (
+          {(pipelineStage || pipelineStatusError || latestFeedbackVideoUrl || assignmentDeliveryLifecycle) ? (
             <Card className="border-border/80 bg-card/95 p-0">
               <div className="border-b px-5 py-3">
                 <p className="text-xs font-medium text-muted-foreground">Approve &amp; Send pipeline</p>
               </div>
               <div className="space-y-3 px-5 py-4">
+                {assignmentDeliveryLifecycle && assignmentDeliveryLifecycle !== "idle" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Assignment delivery:{" "}
+                    <span className="font-medium text-foreground">
+                      {assignmentDeliveryLifecycle === "delivering"
+                        ? "Delivering…"
+                        : assignmentDeliveryLifecycle === "delivered"
+                          ? "Delivered"
+                          : assignmentDeliveryLifecycle === "failed"
+                            ? "Failed"
+                            : "Idle"}
+                    </span>{" "}
+                    (video pipeline stages below)
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   {PIPELINE_STAGES.map((stage) => {
                     const active = pipelineStage === stage;
@@ -3311,11 +3398,40 @@ export default function TrainingStudioWorkspace() {
             </Card>
           ) : null}
 
+          {emailSoftWarningVisible ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-medium">Email may not have reached the student</p>
+              <p className="mt-1 text-xs leading-snug text-amber-950/80">
+                Their homework dashboard is still unlocked — email failure does not block access. Retry the notification
+                below if needed.
+              </p>
+              {canRetryAssignmentEmail ? (
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => void retryAssignmentNotificationEmail()}
+                    disabled={retryingAssignmentEmail}
+                  >
+                    {retryingAssignmentEmail ? "Retrying…" : "Retry notification email"}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex justify-end">
             <Button
               className="h-11 px-5 text-sm"
               onClick={() => void sendHomework()}
-              disabled={sendingHomework || !selectedStudent || loading}
+              disabled={
+                sendingHomework ||
+                !selectedStudent ||
+                loading ||
+                selectedDraft?.delivery_lifecycle === "delivering"
+              }
             >
               <Send className="mr-2 h-4 w-4" />
               {sendingHomework ? "Sending…" : "Approve & Send"}
