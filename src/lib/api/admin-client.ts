@@ -19,6 +19,12 @@ export type AdminApiError = Error & {
   recording_1_processing_error_code?: string;
 };
 
+/** 409 from approve-send when delivery already running or draft locked */
+export function isCopilotDeliveryInProgressError(err: unknown): boolean {
+  const e = err as AdminApiError;
+  return e?.status === 409 && (e.code === "DELIVERY_IN_PROGRESS" || e.code === "DELIVERY_CONFLICT");
+}
+
 /** Align with backend / proxy max body; client rejects larger files before upload. */
 export const COPILOT_REFERENCE_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
 
@@ -793,11 +799,21 @@ async function getSessionCreatedAtFromStudentProfile(
   return bySession.get(sessionId) ?? null;
 }
 
+/** Server-driven assignment delivery; prefer over inferring from status alone. */
+export type CopilotDeliveryLifecycle = "idle" | "delivering" | "delivered" | "failed";
+export type CopilotDeliveryFailedStep = "render" | "email";
+
 export interface CopilotStudentDraft {
   id: string;
   student_id: string;
   session_id?: string | null;
   status: CopilotDraftStatus;
+  /** Assignment pipeline: idle → delivering → delivered | failed */
+  delivery_lifecycle?: CopilotDeliveryLifecycle | null;
+  /** When delivery_lifecycle is failed, which step failed */
+  delivery_failed_step?: CopilotDeliveryFailedStep | null;
+  /** Email notify failed but student dashboard/assignment is unlocked */
+  delivery_email_soft_failed?: boolean | null;
   ai_insight?: string | null;
   corrected_insight?: string | null;
   good_as_is?: boolean;
@@ -878,11 +894,27 @@ export function normalizeCopilotStudentDraft(raw: Record<string, unknown>): Copi
     "homeworkSessionId",
   ]);
 
+  const lifeRaw = raw.delivery_lifecycle ?? raw.deliveryLifecycle;
+  const life =
+    typeof lifeRaw === "string" && ["idle", "delivering", "delivered", "failed"].includes(lifeRaw)
+      ? (lifeRaw as CopilotDeliveryLifecycle)
+      : null;
+  const stepRaw = raw.delivery_failed_step ?? raw.deliveryFailedStep;
+  const failedStep =
+    stepRaw === "render" || stepRaw === "email" ? (stepRaw as CopilotDeliveryFailedStep) : null;
+  const softEmail =
+    typeof (raw.delivery_email_soft_failed ?? raw.deliveryEmailSoftFailed) === "boolean"
+      ? Boolean(raw.delivery_email_soft_failed ?? raw.deliveryEmailSoftFailed)
+      : null;
+
   return {
     id: String(raw.id ?? raw.draft_id ?? ""),
     student_id: String(raw.student_id ?? raw.user_id ?? ""),
     session_id: pickStrFromRaw(raw, "session_id", "sessionId") ?? sessionFromNested,
     status: (typeof raw.status === "string" ? raw.status : "Draft") as CopilotDraftStatus,
+    delivery_lifecycle: life,
+    delivery_failed_step: failedStep,
+    delivery_email_soft_failed: softEmail,
     ai_insight: pickStrFromRaw(raw, "ai_insight", "aiInsight"),
     corrected_insight: pickStrFromRaw(raw, "corrected_insight", "correctedInsight"),
     good_as_is:
@@ -992,6 +1024,8 @@ export interface CopilotSendResponse {
   realtime_level?: number | null;
   realtime_step?: number | null;
   sniper_profile?: StudentSniperProgress | null;
+  /** Approve/Send: assignment visible to student but email delivery may have failed */
+  email_failed_but_unlocked?: boolean;
 }
 
 export interface CopilotAnnotationChip {
@@ -1594,7 +1628,61 @@ export interface AdminCopilotDraftPipelineStatusResponse {
   status?: string | null;
   stage?: "queued" | "running_tts" | "running_video" | "uploading" | "sent" | "failed" | string | null;
   error?: string | null;
+  delivery_lifecycle?: CopilotDeliveryLifecycle | null;
+  delivery_failed_step?: CopilotDeliveryFailedStep | null;
+  delivery_email_soft_failed?: boolean | null;
   [key: string]: unknown;
+}
+
+function pickFirstString(...vals: unknown[]): string | null {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim()) return v;
+  }
+  return null;
+}
+
+/** Merge root + nested `draft` fields from pipeline-status JSON. */
+export function normalizeAdminCopilotDraftPipelineStatus(raw: unknown): AdminCopilotDraftPipelineStatusResponse {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { status: null, stage: null };
+  }
+  const o = raw as Record<string, unknown>;
+  const nested =
+    o.draft && typeof o.draft === "object" && !Array.isArray(o.draft) ? (o.draft as Record<string, unknown>) : null;
+  const life =
+    (typeof o.delivery_lifecycle === "string" && o.delivery_lifecycle) ||
+    (typeof o.deliveryLifecycle === "string" && o.deliveryLifecycle) ||
+    (nested && typeof nested.delivery_lifecycle === "string" && nested.delivery_lifecycle) ||
+    (nested && typeof nested.deliveryLifecycle === "string" && nested.deliveryLifecycle) ||
+    null;
+  const validLife =
+    life && ["idle", "delivering", "delivered", "failed"].includes(life) ? (life as CopilotDeliveryLifecycle) : null;
+  const stepRaw = pickFirstString(
+    o.delivery_failed_step,
+    o.deliveryFailedStep,
+    nested?.delivery_failed_step,
+    nested?.deliveryFailedStep
+  );
+  const failedStep: CopilotDeliveryFailedStep | null =
+    stepRaw === "render" || stepRaw === "email" ? stepRaw : null;
+  const softA = o.delivery_email_soft_failed ?? o.deliveryEmailSoftFailed;
+  const softB = nested?.delivery_email_soft_failed ?? nested?.deliveryEmailSoftFailed;
+  const soft: boolean | null =
+    typeof softA === "boolean" ? softA : typeof softB === "boolean" ? softB : null;
+  return {
+    ...o,
+    status: (pickFirstString(o.status, nested?.status) ?? o.status) as string | null | undefined,
+    stage: (pickFirstString(
+      o.stage,
+      o.pipeline_stage,
+      nested?.stage,
+      nested?.pipeline_stage
+    ) ?? o.stage) as AdminCopilotDraftPipelineStatusResponse["stage"],
+    error: (pickFirstString(o.error, o.message, nested?.error) ?? o.error) as string | null | undefined,
+    delivery_lifecycle: validLife ?? null,
+    delivery_failed_step: failedStep,
+    delivery_email_soft_failed: soft,
+  };
 }
 
 export interface AcousticDojoClip {
@@ -1962,20 +2050,43 @@ export const adminApi = {
       { method: "POST", body: body ?? {} }
     ),
 
-  approveSendCopilotDraft: (
-    studentId: string,
-    draftId: string,
-    body?: { session_id?: string; idempotency_key?: string }
-  ) =>
+  approveSendCopilotDraft: (studentId: string, draftId: string, body?: { session_id?: string; idempotency_key?: string }) =>
     adminFetch<Record<string, unknown>>(
       `/copilot/students/${studentId}/drafts/${draftId}/approve-send`,
       { method: "POST", body: body ?? {} }
-    ),
+    ).then((res) => {
+      const raw = res as Record<string, unknown>;
+      const draftRec = raw.draft;
+      return {
+        ...res,
+        email_failed_but_unlocked: typeof raw.email_failed_but_unlocked === "boolean" ? raw.email_failed_but_unlocked : false,
+        draft:
+          draftRec && typeof draftRec === "object" && !Array.isArray(draftRec)
+            ? normalizeCopilotStudentDraft(draftRec as Record<string, unknown>)
+            : undefined,
+      };
+    }),
 
   getCopilotDraftPipelineStatus: (studentId: string, draftId: string) =>
-    adminFetch<AdminCopilotDraftPipelineStatusResponse>(
-      `/students/${studentId}/drafts/${draftId}/pipeline-status`
+    adminFetch<unknown>(`/students/${studentId}/drafts/${draftId}/pipeline-status`, { cache: "no-store" }).then(
+      normalizeAdminCopilotDraftPipelineStatus
     ),
+
+  retryCopilotAssignmentEmail: (studentId: string, draftId: string) =>
+    adminFetch<{ status?: string; draft?: CopilotStudentDraft; email_failed_but_unlocked?: boolean }>(
+      `/copilot/students/${studentId}/drafts/${draftId}/retry-assignment-email`,
+      { method: "POST", body: {} }
+    ).then((res) => {
+      const raw = res as Record<string, unknown>;
+      const d = raw.draft;
+      return {
+        ...res,
+        draft:
+          d && typeof d === "object" && !Array.isArray(d)
+            ? normalizeCopilotStudentDraft(d as Record<string, unknown>)
+            : undefined,
+      };
+    }),
 
   getCopilotDraftFeedbackVideoUrl: (studentId: string, draftId: string) =>
     adminFetch<{ video_url?: string | null; feedback_video_url?: string | null }>(
