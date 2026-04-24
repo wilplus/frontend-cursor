@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 
 interface Step0AssignmentCardProps {
   videoUrl: string | null;
+  /** Coach message when backend omits `tutor_video_url` (e.g. signed URL not ready). */
+  videoDescription?: string | null;
   /** When true, this is the generic "welcome video" fallback (no coach assignment yet).
    *  Render a welcome label and hide the Start Your Practice CTA. */
   isUniversalWelcome?: boolean;
@@ -16,6 +18,7 @@ interface Step0AssignmentCardProps {
 
 export default function Step0AssignmentCard({
   videoUrl,
+  videoDescription = null,
   isUniversalWelcome = false,
   loading,
   error,
@@ -47,17 +50,20 @@ export default function Step0AssignmentCard({
     }
   };
 
+  const trimmedUrl = videoUrl?.trim() ?? "";
+  const trimmedDesc = typeof videoDescription === "string" ? videoDescription.trim() : "";
+
   return (
     <>
       <div className="w-full">
-        {videoUrl ? (
+        {trimmedUrl ? (
           <div
             onClick={handleVideoClick}
             className="relative flex aspect-[9/16] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-muted"
           >
             <video
               ref={videoRef}
-              src={videoUrl}
+              src={trimmedUrl}
               className="h-full w-full rounded-lg object-cover"
               playsInline
               preload="metadata"
@@ -84,6 +90,13 @@ export default function Step0AssignmentCard({
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
+          </div>
+        ) : isUniversalWelcome ? (
+          <div className="w-full space-y-3 rounded-lg border border-border bg-muted/20 px-4 py-5 text-center">
+            {trimmedDesc ? (
+              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{trimmedDesc}</p>
+            ) : null}
+            <p className="text-sm text-muted-foreground">Your coach will send you a welcome video soon.</p>
           </div>
         ) : (
           <div className="flex aspect-[9/16] w-full items-center justify-center rounded-lg bg-muted/50 border border-border">
