@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { AlertTriangle, ChevronLeft, ChevronRight, Send, Pencil, Trash2, Check, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Send, Pencil, Trash2, Check, X, Loader2, Upload } from "lucide-react";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import ReportDetailModal from "@/components/admin/ReportDetailModal";
 import CompactReportPreviewCard from "@/components/reports/CompactReportPreviewCard";
@@ -713,6 +713,19 @@ export default function AdminStudentProfilePage() {
     (NonNullable<StudentProfile["sessions"]>[number] & { report_preview?: { report_text_preview?: string } }) | null
   >(null);
 
+  // Recommendation Engine Calibration state
+  const [calibrationFile, setCalibrationFile] = useState<File | null>(null);
+  const [calibrationFileError, setCalibrationFileError] = useState<string | null>(null);
+  const [calibrationStatus, setCalibrationStatus] = useState<
+    "idle" | "uploading" | "analyzing"
+  >("idle");
+  const [calibrationStepIndex, setCalibrationStepIndex] = useState(0);
+  const calibrationAbortRef = useRef<AbortController | null>(null);
+  const calibrationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const calibrationStepRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const calibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const calibrationFileInputRef = useRef<HTMLInputElement | null>(null);
+
   // AI Coach Assistant state
   const [aiMessage, setAiMessage] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -1386,6 +1399,162 @@ export default function AdminStudentProfilePage() {
     return () => clearInterval(id);
   }, [reports]);
 
+  // —— Recommendation Engine Calibration ——————————————————————————————————————
+  const CALIBRATION_MAX_BYTES = 25 * 1024 * 1024;
+  const CALIBRATION_ALLOWED_EXTS = [".mp3", ".wav", ".webm", ".m4a", ".ogg", ".flac"];
+  const CALIBRATION_STEP_LABELS = [
+    "Transcribing…",
+    "Computing acoustic metrics…",
+    "Classifying profile…",
+  ];
+  const CALIBRATION_POLL_INTERVAL_MS = 2000;
+  const CALIBRATION_TIMEOUT_MS = 60_000;
+  const CALIBRATION_STEP_ROTATE_MS = 4000;
+
+  const clearCalibrationTimers = useCallback(() => {
+    if (calibrationPollRef.current) {
+      clearInterval(calibrationPollRef.current);
+      calibrationPollRef.current = null;
+    }
+    if (calibrationStepRef.current) {
+      clearInterval(calibrationStepRef.current);
+      calibrationStepRef.current = null;
+    }
+    if (calibrationTimeoutRef.current) {
+      clearTimeout(calibrationTimeoutRef.current);
+      calibrationTimeoutRef.current = null;
+    }
+  }, []);
+
+  const resetCalibrationFormState = useCallback(() => {
+    setCalibrationFile(null);
+    setCalibrationFileError(null);
+    setCalibrationStepIndex(0);
+    setCalibrationStatus("idle");
+    if (calibrationFileInputRef.current) {
+      calibrationFileInputRef.current.value = "";
+    }
+  }, []);
+
+  // Cleanup on unmount: cancel in-flight upload + clear timers.
+  useEffect(() => {
+    return () => {
+      calibrationAbortRef.current?.abort();
+      clearCalibrationTimers();
+    };
+  }, [clearCalibrationTimers]);
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const validateCalibrationFile = (file: File): string | null => {
+    const lowerName = file.name.toLowerCase();
+    const dotIndex = lowerName.lastIndexOf(".");
+    const ext = dotIndex >= 0 ? lowerName.slice(dotIndex) : "";
+    if (!CALIBRATION_ALLOWED_EXTS.includes(ext)) {
+      return `Unsupported format. Allowed: ${CALIBRATION_ALLOWED_EXTS.join(", ")}.`;
+    }
+    if (file.size > CALIBRATION_MAX_BYTES) {
+      return `File is ${formatBytes(file.size)}; max is 25 MB.`;
+    }
+    return null;
+  };
+
+  const handleCalibrationFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) {
+      setCalibrationFile(null);
+      setCalibrationFileError(null);
+      return;
+    }
+    const err = validateCalibrationFile(file);
+    if (err) {
+      setCalibrationFile(null);
+      setCalibrationFileError(err);
+      if (calibrationFileInputRef.current) {
+        calibrationFileInputRef.current.value = "";
+      }
+      return;
+    }
+    setCalibrationFile(file);
+    setCalibrationFileError(null);
+  };
+
+  const handleCalibrationUpload = async () => {
+    if (!id || !calibrationFile || calibrationStatus !== "idle") return;
+
+    const controller = new AbortController();
+    calibrationAbortRef.current = controller;
+    setCalibrationStatus("uploading");
+
+    let uploadResponse: Awaited<ReturnType<typeof adminApi.uploadStudentRecording>>;
+    try {
+      uploadResponse = await adminApi.uploadStudentRecording(id, calibrationFile, {
+        signal: controller.signal,
+      });
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      const err = e as Error;
+      toast.error(err?.message ?? "Upload failed.");
+      setCalibrationStatus("idle");
+      calibrationAbortRef.current = null;
+      return;
+    }
+    calibrationAbortRef.current = null;
+
+    const newSessionId = uploadResponse.session_id;
+    setCalibrationStatus("analyzing");
+    setCalibrationStepIndex(0);
+
+    calibrationStepRef.current = setInterval(() => {
+      setCalibrationStepIndex((i) => (i + 1) % CALIBRATION_STEP_LABELS.length);
+    }, CALIBRATION_STEP_ROTATE_MS);
+
+    const finishWith = (
+      action: "open-modal" | "timeout-toast",
+      session?: NonNullable<StudentProfile["sessions"]>[number]
+    ) => {
+      clearCalibrationTimers();
+      if (action === "open-modal" && session) {
+        setReportModalSession(session);
+        toast.success("Analysis complete.");
+      } else if (action === "timeout-toast") {
+        toast.message(
+          "Pipeline is still running. Refresh the Reports History to check progress."
+        );
+      }
+      resetCalibrationFormState();
+    };
+
+    const pollOnce = async () => {
+      try {
+        const fresh = await adminApi.getStudentProfile(id);
+        setProfile(fresh);
+        const target = fresh.sessions?.find((s) => s.id === newSessionId);
+        if (!target) return;
+        const targetRow = target as NonNullable<StudentProfile["sessions"]>[number] & {
+          ai_suggested_profile?: string | null;
+        };
+        const isComplete =
+          target.status === "completed" || targetRow.ai_suggested_profile != null;
+        if (isComplete) {
+          finishWith("open-modal", target);
+        }
+      } catch {
+        // Transient errors during polling are ignored; the timeout will catch a stuck state.
+      }
+    };
+
+    void pollOnce();
+    calibrationPollRef.current = setInterval(pollOnce, CALIBRATION_POLL_INTERVAL_MS);
+    calibrationTimeoutRef.current = setTimeout(() => {
+      finishWith("timeout-toast");
+    }, CALIBRATION_TIMEOUT_MS);
+  };
+
   /** Metrics are batched; onSave only updates local state. Persisted on "Save all changes". */
   const setMetricsDraft = (data: {
     metric_question_1: string;
@@ -1967,6 +2136,70 @@ export default function AdminStudentProfilePage() {
               </div>
             );
           })()}
+        </div>
+      </SectionCard>
+
+      {/* Recommendation Engine Calibration — admin-only test upload */}
+      <SectionCard
+        title="Recommendation Engine Calibration"
+        description="Upload curated audio (e.g. a known-Master TED talk) to generate a real session and verify the AI suggestion. Same pipeline as a live recording."
+      >
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              ref={calibrationFileInputRef}
+              type="file"
+              accept=".mp3,.wav,.webm,.m4a,.ogg,.flac"
+              onChange={handleCalibrationFileChange}
+              disabled={calibrationStatus !== "idle"}
+              className="block max-w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted/80 disabled:opacity-50"
+            />
+            <Button
+              type="button"
+              onClick={handleCalibrationUpload}
+              disabled={!calibrationFile || calibrationStatus !== "idle"}
+              className="gap-2"
+            >
+              {calibrationStatus === "uploading" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Uploading…
+                </>
+              ) : calibrationStatus === "analyzing" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Analyzing…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" aria-hidden /> Upload &amp; Analyze
+                </>
+              )}
+            </Button>
+          </div>
+
+          {calibrationFile && calibrationStatus === "idle" && (
+            <p className="text-xs text-muted-foreground">
+              Selected: <span className="font-medium text-foreground">{calibrationFile.name}</span>{" "}
+              ({formatBytes(calibrationFile.size)})
+            </p>
+          )}
+
+          {calibrationFileError && (
+            <p className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+              {calibrationFileError}
+            </p>
+          )}
+
+          {calibrationStatus === "analyzing" && (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              <span>{CALIBRATION_STEP_LABELS[calibrationStepIndex]}</span>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Allowed formats: mp3, wav, webm, m4a, ogg, flac. Max 25 MB.
+          </p>
         </div>
       </SectionCard>
 

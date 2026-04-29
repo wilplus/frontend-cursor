@@ -10,6 +10,7 @@ type AdminFetchOptions = {
   body?: unknown;
   headers?: HeadersInit;
   cache?: RequestCache;
+  signal?: AbortSignal;
 };
 
 export type AdminApiError = Error & {
@@ -53,7 +54,7 @@ async function adminFetch<T>(
   path: string,
   options: AdminFetchOptions = {}
 ): Promise<T> {
-  const { method = "GET", body, headers = {}, cache } = options;
+  const { method = "GET", body, headers = {}, cache, signal } = options;
   const url = `${getBase()}/api/admin${path}`;
   const bodySerialized: BodyInit | null =
     body == null ? null : body instanceof FormData ? body : JSON.stringify(body);
@@ -61,6 +62,7 @@ async function adminFetch<T>(
     method,
     credentials: "include",
     ...(cache ? { cache } : {}),
+    ...(signal ? { signal } : {}),
     headers: {
       ...(typeof headers === "object" && headers !== null ? headers : {}),
       ...(bodySerialized != null && !(body instanceof FormData)
@@ -2475,6 +2477,35 @@ export const adminApi = {
     adminFetch<AdminSessionReportResponse>(
       `/students/${userId}/sessions/${sessionId}/report`
     ),
+
+  /**
+   * Admin-only: upload a curated audio file for a student. Backend creates a fresh
+   * v2 homework session, stores the audio, and runs the same analysis pipeline as
+   * a live recording (Whisper, sniper metrics, recommendation classifier).
+   * Used to calibrate the recommendation engine against reference audio.
+   */
+  uploadStudentRecording: (
+    userId: string,
+    audioFile: File,
+    opts?: { durationSeconds?: number; signal?: AbortSignal }
+  ) => {
+    const form = new FormData();
+    form.append("audio_file", audioFile);
+    if (opts?.durationSeconds != null) {
+      form.append("duration_seconds", String(opts.durationSeconds));
+    }
+    return adminFetch<{
+      status: "ok";
+      session_id: string;
+      recording_id: string;
+      storage_path: string;
+      message: string;
+    }>(`/students/${userId}/sessions/upload-recording`, {
+      method: "POST",
+      body: form,
+      ...(opts?.signal ? { signal: opts.signal } : {}),
+    });
+  },
 
   /** Playback URL for a recording (admin). Use when report modal has recording_id but no audio_url. */
   getRecordingPlaybackUrl: (recordingId: string) =>
