@@ -1,16 +1,15 @@
 "use client";
 
-import { Suspense, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import AuthGate from "@/components/funnel/AuthGate";
-import FunnelReturnToast from "@/components/funnel/FunnelReturnToast";
+import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import SectionCard from "@/components/admin/SectionCard";
 import {
   GuestUploadFailure,
   uploadGuestRecording,
 } from "@/lib/api/public-client";
 
-type Phase = "idle" | "uploading" | "uploaded" | "rate_limited" | "disabled";
+type Phase = "idle" | "uploading" | "done" | "rate_limited" | "disabled";
 
 const FUNNEL_PROMPT =
   "Tell us, in your own words: do you think you're a good communicator? Why?";
@@ -26,7 +25,7 @@ export default function ShakyVoiceFunnelPage() {
       setErrorMessage(null);
       try {
         await uploadGuestRecording(blob, durationSeconds);
-        setPhase("uploaded");
+        setPhase("done");
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
           if (err.status === 429 || err.code === "RATE_LIMITED") {
@@ -51,9 +50,6 @@ export default function ShakyVoiceFunnelPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <Suspense fallback={null}>
-        <FunnelReturnToast />
-      </Suspense>
       <div className="mx-auto w-full max-w-3xl px-4 py-8">
         {phase === "rate_limited" ? (
           <SectionCard title="You've tried a few times">
@@ -67,8 +63,8 @@ export default function ShakyVoiceFunnelPage() {
               We've paused the voice trial briefly. Please check back shortly.
             </p>
           </SectionCard>
-        ) : phase === "uploaded" ? (
-          <AuthGate />
+        ) : phase === "done" ? (
+          <AfterwardsVideo />
         ) : (
           <div className="w-full space-y-3">
             <AudioRecorder
