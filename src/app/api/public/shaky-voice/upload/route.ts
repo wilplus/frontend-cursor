@@ -3,9 +3,6 @@ import { getBackendUrl } from "@/app/api/getAuth";
 
 export const runtime = "nodejs";
 
-const GUEST_COOKIE_NAME = "willab_guest_session";
-const GUEST_COOKIE_MAX_AGE_SECONDS = 60 * 60;
-
 export async function POST(req: NextRequest) {
   const backend = getBackendUrl();
   if (!backend) {
@@ -87,30 +84,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(json ?? fallback, { status: upstream.status });
   }
 
-  const guestSessionId =
-    json && typeof json === "object"
-      ? (json as { guest_session_id?: unknown }).guest_session_id
-      : undefined;
-
-  if (typeof guestSessionId !== "string" || !guestSessionId) {
-    return NextResponse.json(
-      {
-        code: "INVALID_RESPONSE",
-        error: "Backend response missing guest_session_id.",
-      },
-      { status: 502 }
-    );
-  }
-
-  const response = NextResponse.json(json, { status: upstream.status });
-  response.cookies.set({
-    name: GUEST_COOKIE_NAME,
-    value: guestSessionId,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: GUEST_COOKIE_MAX_AGE_SECONDS,
-  });
-  return response;
+  return NextResponse.json(json, { status: upstream.status });
 }
