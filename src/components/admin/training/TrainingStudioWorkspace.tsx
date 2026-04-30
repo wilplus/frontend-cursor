@@ -2248,7 +2248,7 @@ export default function TrainingStudioWorkspace() {
           }`}
         >
           <Waves className="h-4 w-4" />
-          Voice Pipeline
+          Stress Pipeline
         </button>
         <button
           type="button"
