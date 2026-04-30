@@ -4,6 +4,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/change-password"];
 const ADMIN_ROUTES = ["/admin"];
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
+/** Routes that must always be reachable without auth (Curiosity Gate funnel). */
+const PUBLIC_ROUTES = ["/try/shaky-voice"];
 
 /** Query param names that must never be in URLs (avoid sharing auth when link is shared). */
 const AUTH_PARAMS = ["access_token", "refresh_token", "token", "api_key", "supabase_key"];
@@ -50,6 +52,12 @@ function isProtected(pathname: string) {
 
 function isAuthRoute(pathname: string) {
   return AUTH_ROUTES.some((route) => pathname === route);
+}
+
+function isPublicFunnelRoute(pathname: string) {
+  return PUBLIC_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 }
 
 export async function middleware(req: NextRequest) {
@@ -104,6 +112,12 @@ export async function middleware(req: NextRequest) {
   const cspDirectives = getCspDirectives();
   res.headers.set("Content-Security-Policy", cspDirectives);
   res.headers.set("X-Content-Security-Policy", cspDirectives);
+
+  // Public funnel routes are always reachable, regardless of auth state.
+  // Anonymous visitors must reach /try/shaky-voice; logged-in users are not redirected away.
+  if (isPublicFunnelRoute(pathname)) {
+    return res;
+  }
 
   const isProd = process.env.NODE_ENV === "production";
   const supabase = createServerClient(
