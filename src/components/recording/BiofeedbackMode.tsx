@@ -49,12 +49,12 @@ const METRIC_DEFS = [
 ] as const;
 
 const PRESSURE_DEFS = [
-  { key: "pace",     label: "Pace",   negLabel: "Too slow", posLabel: "Too fast"   },
-  { key: "pause",    label: "Pause",  negLabel: "Too few",  posLabel: "Too long"   },
-  { key: "dynamic",  label: "Dyn",    negLabel: "Too flat", posLabel: "Too erratic"},
+  { key: "pace",     label: "Pace",   negLabel: "Slow",     posLabel: "Fast"       },
+  { key: "pause",    label: "Pause",  negLabel: "Few",      posLabel: "Long"       },
+  { key: "dynamic",  label: "Dyn",    negLabel: "Flat",     posLabel: "Erratic"    },
   { key: "emphasis", label: "Emph",   negLabel: "Monotone", posLabel: "Over-emph"  },
   { key: "energy",   label: "Energy", negLabel: "Declining",posLabel: "Building"   },
-  { key: "pitch",    label: "Pitch",  negLabel: "Monotone", posLabel: "Too wide"   },
+  { key: "pitch",    label: "Pitch",  negLabel: "Monotone", posLabel: "Wide"       },
 ] as const;
 
 const LIGHT = {

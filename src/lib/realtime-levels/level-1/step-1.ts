@@ -17,7 +17,7 @@ export const LEVEL_1_STEP_1: RealtimeTrainingStep = {
   yAxis: {
     metric: "pace",
     label: "Slow - Fast",
-    negativeHint: "Too slow",
-    positiveHint: "Too fast",
+    negativeHint: "Slow",
+    positiveHint: "Fast",
   },
 };
