@@ -85,6 +85,50 @@ export async function uploadGuestRecording(
   return body;
 }
 
+export interface GuestClaimResponse {
+  status: "ok";
+  session_id: UUID;
+  analysis_status: "queued" | "already_claimed";
+}
+
+/**
+ * Bind the just-uploaded guest session to the freshly authenticated user and
+ * enqueue the analysis pipeline. The backend reads the cookie set on upload;
+ * we still pass guest_session_id explicitly so the call also works in flows
+ * where the cookie wasn't preserved (e.g. SPA same-tab signup).
+ *
+ * Idempotent: calling twice returns 200 with analysis_status=already_claimed.
+ */
+export async function claimGuestSession(
+  guestSessionId: string,
+  accessToken: string
+): Promise<GuestClaimResponse> {
+  const resp = await fetch("/api/public/shaky-voice/claim", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ guest_session_id: guestSessionId }),
+  });
+
+  let json: unknown = null;
+  try {
+    json = await resp.json();
+  } catch {
+    json = null;
+  }
+
+  if (!resp.ok) {
+    const code = (json as ApiError | null)?.code ?? `HTTP_${resp.status}`;
+    const message =
+      (json as ApiError | null)?.error ?? resp.statusText ?? "Claim failed";
+    throw new GuestUploadFailure(code, message, resp.status);
+  }
+
+  return json as GuestClaimResponse;
+}
+
 function blobFilename(blob: Blob): string {
   const type = blob.type || "";
   if (type.includes("webm")) return "recording.webm";
