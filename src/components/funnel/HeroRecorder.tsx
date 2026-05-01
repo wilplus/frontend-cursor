@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
+import FunnelSignupForm from "@/components/funnel/FunnelSignupForm";
 import SectionCard from "@/components/admin/SectionCard";
 import WillabLogo from "@/components/WillabLogo";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
   uploadGuestRecording,
 } from "@/lib/api/public-client";
 
-type Phase = "idle" | "uploading" | "done" | "rate_limited" | "disabled";
+type Phase = "idle" | "uploading" | "auth_wall" | "done" | "rate_limited" | "disabled";
 type AuthState = "unknown" | "anonymous" | "signed_in";
 
 const FUNNEL_PROMPT =
@@ -39,6 +40,7 @@ export default function HeroRecorder() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [authState, setAuthState] = useState<AuthState>("unknown");
+  const guestSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +61,13 @@ export default function HeroRecorder() {
       setPhase("uploading");
       setErrorMessage(null);
       try {
-        await uploadGuestRecording(blob, durationSeconds);
-        setPhase("done");
+        const result = await uploadGuestRecording(blob, durationSeconds);
+        guestSessionIdRef.current = result.guest_session_id;
+        if (authState === "signed_in") {
+          setPhase("done");
+        } else {
+          setPhase("auth_wall");
+        }
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
           if (err.status === 429 || err.code === "RATE_LIMITED") {
@@ -80,7 +87,7 @@ export default function HeroRecorder() {
         setPhase("idle");
       }
     },
-    []
+    [authState]
   );
 
   return (
@@ -98,6 +105,11 @@ export default function HeroRecorder() {
               We've paused the voice trial briefly. Please check back shortly.
             </p>
           </SectionCard>
+        ) : phase === "auth_wall" ? (
+          <FunnelSignupForm
+            guestSessionId={guestSessionIdRef.current!}
+            onComplete={() => setPhase("done")}
+          />
         ) : phase === "done" ? (
           <AfterwardsVideo />
         ) : (
