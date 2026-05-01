@@ -1,24 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import AudioRecorder from "@/components/recording/AudioRecorder";
-import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import SectionCard from "@/components/admin/SectionCard";
+import SignupForm from "@/components/auth/SignupForm";
+import LoginForm from "@/components/auth/LoginForm";
 import WillabLogo from "@/components/WillabLogo";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import {
   GuestUploadFailure,
+  claimGuestSession,
   uploadGuestRecording,
 } from "@/lib/api/public-client";
 
-type Phase = "idle" | "uploading" | "done" | "rate_limited" | "disabled";
-type AuthState = "unknown" | "anonymous" | "signed_in";
+/**
+ * Curiosity Gate state machine.
+ *
+ * idle         — explainer video + Start CTA. AudioRecorder is mounted but
+ *                hasn't been started by the user yet.
+ * recording    — user is mid-recording. Explainer video hidden.
+ * processing   — upload is in flight + an anticipation animation runs for at
+ *                least MIN_PROCESSING_MS so the UI doesn't snap straight to
+ *                the gate even on a fast network.
+ * auth_wall    — blurred mock-dashboard background with SignupForm overlay.
+ *                The cookie set during /upload is what links anonymous bytes
+ *                to the soon-to-be-created account.
+ * rate_limited — 429 from /upload (per-IP cap exceeded).
+ * disabled     — 503 GUEST_FUNNEL_DISABLED (feature flag off in Railway).
+ */
+type Status =
+  | "idle"
+  | "recording"
+  | "processing"
+  | "auth_wall"
+  | "rate_limited"
+  | "disabled";
 
 const FUNNEL_PROMPT =
   "Tell us, in your own words: do you think you're a good communicator? Why?";
 const MIN_DURATION_SECONDS = 15;
+const MIN_PROCESSING_MS = 3500;
+
+const PROCESSING_LABELS = [
+  "Analyzing stress patterns…",
+  "Mapping charisma markers…",
+  "Detecting filler-word density…",
+  "Finalizing your report…",
+];
+
+/* -------------------------------------------------------------------------- */
+/* Sub-components                                                              */
+/* -------------------------------------------------------------------------- */
 
 function AnonymousTopBar() {
   return (
@@ -35,49 +70,236 @@ function AnonymousTopBar() {
   );
 }
 
-export default function HeroRecorder() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [authState, setAuthState] = useState<AuthState>("unknown");
+/**
+ * 1-minute explainer video, lazily fetched. The endpoint can return no URL or
+ * fail entirely — in either case we render nothing so the recorder CTA is
+ * never blocked behind a missing video.
+ */
+function ExplainerVideo() {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/funnel/afterwards-video")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const v = data?.video_url;
+        if (typeof v === "string" && v) setUrl(v);
+      })
+      .catch(() => {
+        /* silent — explainer is optional */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!url) return null;
+  return (
+    <video
+      src={url}
+      className="aspect-video w-full rounded-xl bg-black shadow-sm"
+      controls
+      playsInline
+    />
+  );
+}
 
+function ProcessingScreen() {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(
+      () => setIdx((i) => (i + 1) % PROCESSING_LABELS.length),
+      1500
+    );
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div
+      className="flex min-h-[50vh] flex-col items-center justify-center gap-6"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader2 className="h-10 w-10 animate-spin text-orange-500" aria-hidden />
+      <p className="text-base font-medium text-foreground">
+        {PROCESSING_LABELS[idx]}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * CSS-blurred fake dashboard panels. Pure visual tease — no fetches, no real
+ * data, no risk of leaking anything before auth.
+ */
+function MockDashboardBackground() {
+  const cards = [
+    { label: "Behavioral Profile", value: "The Master" },
+    { label: "Words / minute", value: "142" },
+    { label: "Filler words", value: "3" },
+    { label: "Stage score", value: "87 / 100" },
+  ];
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 -z-10 select-none"
+      aria-hidden
+      style={{ filter: "blur(10px)" }}
+    >
+      <div className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-4 px-4 py-8 opacity-70">
+        {cards.map((m) => (
+          <div
+            key={m.label}
+            className="rounded-xl border bg-card p-6 shadow-sm"
+          >
+            <div className="text-xs text-muted-foreground">{m.label}</div>
+            <div className="mt-2 text-2xl font-semibold">{m.value}</div>
+          </div>
+        ))}
+        <div className="col-span-2 h-40 rounded-xl border bg-card shadow-sm" />
+      </div>
+    </div>
+  );
+}
+
+function AuthWall() {
+  const [mode, setMode] = useState<"signup" | "login">("signup");
+  return (
+    <div className="relative min-h-[70vh]">
+      <MockDashboardBackground />
+      <div className="relative mx-auto max-w-md space-y-4 rounded-2xl border bg-background/95 p-6 shadow-xl backdrop-blur-sm">
+        <div className="space-y-1 text-center">
+          <h2 className="text-xl font-semibold">
+            Success! Your voice analysis is ready 🎯
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Create a free account to unlock your personal results.
+          </p>
+        </div>
+        {mode === "signup" ? <SignupForm /> : <LoginForm />}
+        <button
+          type="button"
+          onClick={() => setMode((m) => (m === "signup" ? "login" : "signup"))}
+          className="block w-full text-center text-sm text-muted-foreground underline"
+        >
+          {mode === "signup"
+            ? "Already have an account? Log in"
+            : "New here? Create an account"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main                                                                        */
+/* -------------------------------------------------------------------------- */
+
+export default function HeroRecorder() {
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<
+    "unknown" | "anonymous" | "signed_in"
+  >("unknown");
+
+  // Remember the guest_session_id returned by /upload so the post-auth claim
+  // call can pass it explicitly. (The backend also reads the cookie, but the
+  // explicit field defends against same-tab signup races where the cookie
+  // hasn't yet been re-attached to the new session.)
+  const guestSessionIdRef = useRef<string | null>(null);
+
+  // Detect existing auth (rare on this funnel, but possible if the user
+  // returns mid-flow). We don't redirect them — they can still record again.
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (cancelled) return;
-      setAuthState(data.user ? "signed_in" : "anonymous");
-    }).catch(() => {
-      if (!cancelled) setAuthState("anonymous");
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAuthState(data.user ? "signed_in" : "anonymous");
+      })
+      .catch(() => {
+        if (!cancelled) setAuthState("anonymous");
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  /**
+   * Auth-state listener: when status is auth_wall and the user signs in/up,
+   * immediately call /claim and redirect to the session detail page. Wins
+   * the race against SignupForm's own setTimeout(100ms) → /dashboard redirect.
+   */
+  useEffect(() => {
+    if (status !== "auth_wall") return;
+    const supabase = createClient();
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED") return;
+        const accessToken = session?.access_token;
+        const guestId = guestSessionIdRef.current;
+        if (!accessToken || !guestId) return;
+        try {
+          const claim = await claimGuestSession(guestId, accessToken);
+          window.location.href = `/dashboard/session/${claim.session_id}`;
+        } catch (err) {
+          // If claim fails (expired / already claimed by someone else / etc.)
+          // fall back to the dashboard root. A claim-on-mount on the dashboard
+          // can be a future safety net.
+          console.error("Guest claim failed:", err);
+          window.location.href = "/dashboard";
+        }
+      }
+    );
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, [status]);
+
+  const handleRecordingStart = useCallback(() => {
+    setStatus("recording");
+  }, []);
+
   const handleRecordingComplete = useCallback(
     async (blob: Blob, durationSeconds: number) => {
-      setPhase("uploading");
+      setStatus("processing");
       setErrorMessage(null);
+      const startedAt = Date.now();
       try {
-        await uploadGuestRecording(blob, durationSeconds);
-        setPhase("done");
+        const { guest_session_id } = await uploadGuestRecording(
+          blob,
+          durationSeconds
+        );
+        guestSessionIdRef.current = guest_session_id;
+
+        // Anticipation hold: keep the processing screen up for at least
+        // MIN_PROCESSING_MS so the rotating labels actually rotate even when
+        // the upload is sub-second. Pure UX, no analysis happens here.
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, MIN_PROCESSING_MS - elapsed);
+        if (remaining > 0) {
+          await new Promise((r) => setTimeout(r, remaining));
+        }
+        setStatus("auth_wall");
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
           if (err.status === 429 || err.code === "RATE_LIMITED") {
-            setPhase("rate_limited");
+            setStatus("rate_limited");
             return;
           }
           if (err.status === 503 || err.code === "GUEST_FUNNEL_DISABLED") {
-            setPhase("disabled");
+            setStatus("disabled");
             return;
           }
           setErrorMessage(err.message);
         } else {
           setErrorMessage(
-            err instanceof Error ? err.message : "Upload failed. Please try again."
+            err instanceof Error
+              ? err.message
+              : "Upload failed. Please try again."
           );
         }
-        setPhase("idle");
+        setStatus("idle");
       }
     },
     []
@@ -86,33 +308,43 @@ export default function HeroRecorder() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-3xl px-4 py-8">
-        {phase === "rate_limited" ? (
+        {status === "rate_limited" ? (
           <SectionCard title="You've tried a few times">
             <p className="text-sm text-muted-foreground">
-              Give it 15 minutes and come back. We rate-limit to keep it fast for everyone.
+              Give it 15 minutes and come back. We rate-limit to keep it fast
+              for everyone.
             </p>
           </SectionCard>
-        ) : phase === "disabled" ? (
+        ) : status === "disabled" ? (
           <SectionCard title="Trial temporarily unavailable">
             <p className="text-sm text-muted-foreground">
               We've paused the voice trial briefly. Please check back shortly.
             </p>
           </SectionCard>
-        ) : phase === "done" ? (
-          <AfterwardsVideo />
+        ) : status === "auth_wall" ? (
+          <AuthWall />
+        ) : status === "processing" ? (
+          <ProcessingScreen />
         ) : (
-          <div className="w-full space-y-3">
+          // idle + recording share the same mount: AudioRecorder must persist
+          // across the transition so its internal state (mic stream, chunks)
+          // is preserved. We toggle the explainer video visibility instead.
+          <div className="space-y-4">
+            {status === "idle" && <ExplainerVideo />}
             <AudioRecorder
               prompt={FUNNEL_PROMPT}
+              onRecordingStart={handleRecordingStart}
               onRecordingComplete={handleRecordingComplete}
               stopAndSend
-              uploading={phase === "uploading"}
+              uploading={false}
               minDurationSeconds={MIN_DURATION_SECONDS}
               sniperMode
               sniperProfile={null}
-              topSlot={authState === "anonymous" ? <AnonymousTopBar /> : undefined}
+              topSlot={
+                authState === "anonymous" ? <AnonymousTopBar /> : undefined
+              }
             />
-            {errorMessage && phase === "idle" && (
+            {errorMessage && status === "idle" && (
               <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                 {errorMessage}
               </p>
