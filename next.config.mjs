@@ -11,6 +11,12 @@ const nextConfig = {
         destination: "/icon",
         permanent: false,
       },
+      // PLG pivot: permanently redirect legacy funnel URL to new root landing page
+      {
+        source: "/try/shaky-voice",
+        destination: "/",
+        permanent: true,
+      },
     ];
   },
 };

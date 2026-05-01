@@ -1,20 +1,11 @@
-import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import HeroRecorder from "@/components/funnel/HeroRecorder";
 
-export default async function Home() {
-  const supabase = createServerSupabaseClient();
-  
-  // Use getUser() instead of getSession() to avoid cookie modifications
-  // getUser() doesn't trigger session refresh which would modify cookies
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+export const metadata = {
+  title: "Master Your Speaking Confidence | willab",
+  description: "Overcome stage fright and public speaking anxiety. Record a short voice message and get instant feedback to build your communication confidence.",
+};
 
-  if (user) {
-    redirect("/dashboard");
-  }
-
-  redirect("/login");
+export default function Home() {
+  return <HeroRecorder />;
 }
 
