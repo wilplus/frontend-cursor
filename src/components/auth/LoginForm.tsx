@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
-export default function LoginForm() {
+interface LoginFormProps {
+  onSuccess?: () => void;
+}
+
+export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState("");
@@ -76,15 +80,15 @@ export default function LoginForm() {
       // Brief delay so cookies are committed before navigation
       await new Promise((r) => setTimeout(r, 200));
       
+      if (onSuccess) {
+        onSuccess();
+        return;
+      }
       setTimeout(() => {
         if (redirectTo) {
-          // Decode and redirect to the original destination (e.g., feedback page from email)
-          // redirectTo is already a full path with query params, so use it directly
           const decodedRedirect = decodeURIComponent(redirectTo);
-          console.log("[LoginForm] Redirecting to:", decodedRedirect);
           router.push(decodedRedirect);
         } else {
-          // Default redirect to dashboard
           router.push("/dashboard");
         }
       }, 100);

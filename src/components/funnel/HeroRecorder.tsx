@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import AudioRecorder from "@/components/recording/AudioRecorder";
+import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import SectionCard from "@/components/admin/SectionCard";
 import SignupForm from "@/components/auth/SignupForm";
 import LoginForm from "@/components/auth/LoginForm";
@@ -36,6 +37,7 @@ type Status =
   | "recording"
   | "processing"
   | "auth_wall"
+  | "done"
   | "rate_limited"
   | "disabled";
 
@@ -160,7 +162,7 @@ function MockDashboardBackground() {
   );
 }
 
-function AuthWall() {
+function AuthWall({ onSuccess }: { onSuccess: () => void }) {
   const [mode, setMode] = useState<"signup" | "login">("signup");
   return (
     <div className="relative min-h-[70vh]">
@@ -174,7 +176,11 @@ function AuthWall() {
             Create a free account to unlock your personal results.
           </p>
         </div>
-        {mode === "signup" ? <SignupForm /> : <LoginForm />}
+        {mode === "signup" ? (
+          <SignupForm onSuccess={onSuccess} />
+        ) : (
+          <LoginForm onSuccess={onSuccess} />
+        )}
         <button
           type="button"
           onClick={() => setMode((m) => (m === "signup" ? "login" : "signup"))}
@@ -230,31 +236,21 @@ export default function HeroRecorder() {
    * immediately call /claim and redirect to the session detail page. Wins
    * the race against SignupForm's own setTimeout(100ms) → /dashboard redirect.
    */
-  useEffect(() => {
-    if (status !== "auth_wall") return;
-    const supabase = createClient();
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event !== "SIGNED_IN" && event !== "TOKEN_REFRESHED") return;
-        const accessToken = session?.access_token;
-        const guestId = guestSessionIdRef.current;
-        if (!accessToken || !guestId) return;
-        try {
-          const claim = await claimGuestSession(guestId, accessToken);
-          window.location.href = `/dashboard/session/${claim.session_id}`;
-        } catch (err) {
-          // If claim fails (expired / already claimed by someone else / etc.)
-          // fall back to the dashboard root. A claim-on-mount on the dashboard
-          // can be a future safety net.
-          console.error("Guest claim failed:", err);
-          window.location.href = "/dashboard";
+  const handleAuthWallSuccess = useCallback(() => {
+    const guestId = guestSessionIdRef.current;
+    if (guestId) {
+      const supabase = createClient();
+      supabase.auth.getSession().then(({ data }) => {
+        const token = data.session?.access_token;
+        if (token) {
+          claimGuestSession(guestId, token).catch((err) =>
+            console.error("Guest claim failed:", err)
+          );
         }
-      }
-    );
-    return () => {
-      sub.subscription.unsubscribe();
-    };
-  }, [status]);
+      });
+    }
+    setStatus("done");
+  }, []);
 
   const handleRecordingStart = useCallback(() => {
     setStatus("recording");
@@ -322,7 +318,9 @@ export default function HeroRecorder() {
             </p>
           </SectionCard>
         ) : status === "auth_wall" ? (
-          <AuthWall />
+          <AuthWall onSuccess={handleAuthWallSuccess} />
+        ) : status === "done" ? (
+          <AfterwardsVideo />
         ) : status === "processing" ? (
           <ProcessingScreen />
         ) : (

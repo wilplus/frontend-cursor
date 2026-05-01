@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 
-export default function SignupForm() {
+interface SignupFormProps {
+  onSuccess?: () => void;
+}
+
+export default function SignupForm({ onSuccess }: SignupFormProps = {}) {
   const router = useRouter();
   const supabase = createClient();
   const [name, setName] = useState("");
@@ -97,7 +101,10 @@ export default function SignupForm() {
           console.error("Error confirming session:", err);
         }
 
-        // Small delay then redirect
+        if (onSuccess) {
+          onSuccess();
+          return;
+        }
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 100);
