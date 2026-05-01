@@ -5,7 +5,7 @@ const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/change-pass
 const ADMIN_ROUTES = ["/admin"];
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
 /** Routes that must always be reachable without auth (Curiosity Gate funnel). */
-const PUBLIC_ROUTES = ["/try/shaky-voice"];
+const PUBLIC_ROUTES = ["/"];
 
 /** Query param names that must never be in URLs (avoid sharing auth when link is shared). */
 const AUTH_PARAMS = ["access_token", "refresh_token", "token", "api_key", "supabase_key"];

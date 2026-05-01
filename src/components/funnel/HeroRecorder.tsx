@@ -35,7 +35,7 @@ function AnonymousTopBar() {
   );
 }
 
-export default function ShakyVoiceFunnelPage() {
+export default function HeroRecorder() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [authState, setAuthState] = useState<AuthState>("unknown");
