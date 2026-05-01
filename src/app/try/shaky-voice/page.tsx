@@ -1,23 +1,58 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import SectionCard from "@/components/admin/SectionCard";
+import WillabLogo from "@/components/WillabLogo";
+import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 import {
   GuestUploadFailure,
   uploadGuestRecording,
 } from "@/lib/api/public-client";
 
 type Phase = "idle" | "uploading" | "done" | "rate_limited" | "disabled";
+type AuthState = "unknown" | "anonymous" | "signed_in";
 
 const FUNNEL_PROMPT =
   "Tell us, in your own words: do you think you're a good communicator? Why?";
 const MIN_DURATION_SECONDS = 15;
 
+function AnonymousTopBar() {
+  return (
+    <div className="flex w-full items-center justify-between">
+      <Link href="/" aria-label="Willab home">
+        <WillabLogo size="md" />
+      </Link>
+      <Link href="/login">
+        <Button variant="outline" size="sm">
+          Log in
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
 export default function ShakyVoiceFunnelPage() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<AuthState>("unknown");
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return;
+      setAuthState(data.user ? "signed_in" : "anonymous");
+    }).catch(() => {
+      if (!cancelled) setAuthState("anonymous");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleRecordingComplete = useCallback(
     async (blob: Blob, durationSeconds: number) => {
@@ -75,6 +110,7 @@ export default function ShakyVoiceFunnelPage() {
               minDurationSeconds={MIN_DURATION_SECONDS}
               sniperMode
               sniperProfile={null}
+              topSlot={authState === "anonymous" ? <AnonymousTopBar /> : undefined}
             />
             {errorMessage && phase === "idle" && (
               <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">

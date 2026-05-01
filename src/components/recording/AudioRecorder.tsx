@@ -86,6 +86,8 @@ interface AudioRecorderProps {
   sniperProfile?: UserSniperProfile | null;
   /** Extra node rendered at the bottom of the controls area (sniperMode only). Use for Abandon session. */
   bottomSlot?: React.ReactNode;
+  /** When provided in sniperMode, replaces the default "Level X 🐛" + progress header at the top. */
+  topSlot?: React.ReactNode;
 }
 
 export default function AudioRecorder({
@@ -103,6 +105,7 @@ export default function AudioRecorder({
   onSniperSnapshot,
   sniperProfile = null,
   bottomSlot,
+  topSlot,
 }: AudioRecorderProps) {
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
@@ -732,11 +735,15 @@ export default function AudioRecorder({
   if (sniperMode) {
     return (
       <div className="w-full mx-auto max-w-xl flex flex-col min-h-[calc(100svh-3rem)]">
-        {/* TOP: level + progress, ~24 px from top */}
-        <div className="flex flex-col items-center pt-6 pb-2">
-          <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
-          <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
-        </div>
+        {/* TOP: level + progress, ~24 px from top (or caller-supplied topSlot) */}
+        {topSlot != null ? (
+          <div className="pt-6 pb-2">{topSlot}</div>
+        ) : (
+          <div className="flex flex-col items-center pt-6 pb-2">
+            <p className="text-xl font-semibold text-foreground">Level {currentRealtimeLevel} 🐛</p>
+            <LevelProgress current={currentRealtimeStep} total={LEVEL_1_TOTAL_STEPS} />
+          </div>
+        )}
 
         {/* MIDDLE: sniper wheel + task, vertically centred */}
         <div className="flex-1 flex flex-col items-center justify-center gap-4 px-0">
