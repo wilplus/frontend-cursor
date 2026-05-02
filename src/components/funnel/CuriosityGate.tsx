@@ -127,41 +127,55 @@ export default function CuriosityGate({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Listen for auth state changes to claim the guest session after signup
+  // Claim guest session after user signs up (guests) or on mount (logged-in users)
   useEffect(() => {
-    if (!isGuest || !guestSessionId) return;
+    if (!guestSessionId) return;
 
     let unsubscribe: (() => void) | null = null;
 
+    const claimSession = async (accessToken: string) => {
+      setIsAuthenticating(true);
+      try {
+        const response = await fetch("/api/public/shaky-voice/claim", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ guest_session_id: guestSessionId }),
+        });
+
+        if (response.ok) {
+          onSuccess();
+        } else {
+          console.error("Claim failed:", response.status);
+          setIsAuthenticating(false);
+        }
+      } catch (err) {
+        console.error("Claim error:", err);
+        setIsAuthenticating(false);
+      }
+    };
+
     const setupAuthListener = async () => {
       const supabase = createClient();
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "SIGNED_IN" && session?.access_token) {
-          setIsAuthenticating(true);
-          // Claim the guest session with the new user
-          fetch("/api/public/shaky-voice/claim", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ guest_session_id: guestSessionId }),
-          })
-            .then((res) => {
-              if (res.ok) {
-                onSuccess();
-              } else {
-                console.error("Claim failed:", res.status);
-                setIsAuthenticating(false);
-              }
-            })
-            .catch((err) => {
-              console.error("Claim error:", err);
-              setIsAuthenticating(false);
-            });
-        }
-      });
 
-      unsubscribe = data?.subscription?.unsubscribe || null;
+      // For guests: wait for SIGNED_IN event after signup
+      if (isGuest) {
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === "SIGNED_IN" && session?.access_token) {
+            claimSession(session.access_token);
+          }
+        });
+
+        unsubscribe = data?.subscription?.unsubscribe || null;
+      } else {
+        // For logged-in users: claim immediately
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!error && session?.access_token) {
+          claimSession(session.access_token);
+        }
+      }
     };
 
     setupAuthListener();
