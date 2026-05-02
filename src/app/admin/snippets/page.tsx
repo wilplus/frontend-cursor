@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AdminShell from "@/components/admin/AdminShell";
+import { getAuthToken } from "@/lib/api/auth-client";
 
 interface Snippet {
   id: string;
@@ -52,7 +53,18 @@ export default function AdminSnippetsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/v2/admin/users/${userId}/snippets`);
+      const token = await getAuthToken();
+      if (!token) {
+        setError("Not authenticated. Please log in.");
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`/api/v2/admin/users/${userId}/snippets`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error("Failed to fetch snippets");
       const data = await response.json();
       setSnippets(data.snippets || []);
@@ -75,9 +87,19 @@ export default function AdminSnippetsPage() {
   const saveSnippet = async (snippetId: string) => {
     setSaving(true);
     try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError("Not authenticated. Please log in.");
+        setSaving(false);
+        return;
+      }
+
       const response = await fetch(`/api/v2/admin/snippets/${snippetId}/comment`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           admin_comment: edits[snippetId].comment || null,
           snippet_type: edits[snippetId].type,
