@@ -329,7 +329,7 @@ export default function HeroRecorder() {
               stopAndSend
               uploading={false}
               minDurationSeconds={MIN_DURATION_SECONDS}
-              sniperMode
+              sniperMode={authState !== "anonymous"}
               sniperProfile={null}
               topSlot={
                 authState === "anonymous" ? <AnonymousTopBar /> : undefined
