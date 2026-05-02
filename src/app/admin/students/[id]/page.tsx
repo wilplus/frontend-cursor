@@ -1117,6 +1117,33 @@ export default function AdminStudentProfilePage() {
       .catch((e) => toast.error(e.message));
   };
 
+  const publishResults = async () => {
+    if (!profile?.v2_session_id) {
+      toast.error("No session found for this student");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/v2/internal/publish-session-results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ session_id: profile.v2_session_id }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to publish results");
+      }
+
+      const data = await response.json();
+      toast.success(`Results published to ${data.email_sent_to}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to publish results");
+    }
+  };
+
   // Tasks (mirrors focus_tasks): pool + per-student list; confirm = PUT sync pool_task_ids.
   const tasksPoolModalItems: PoolItem[] = tasksPoolItems.map((p) => ({
     id: p.id,
@@ -1862,12 +1889,23 @@ export default function AdminStudentProfilePage() {
             />
           )}
 
-          <Button type="button" onClick={sendAssignment} className="gap-2">
-            <Send className="h-4 w-4" aria-hidden />
-            {selectedSimilarIds.size > 0
-              ? `Send Homework to ${1 + selectedSimilarIds.size} students`
-              : "Send Homework"}
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" onClick={sendAssignment} className="gap-2">
+              <Send className="h-4 w-4" aria-hidden />
+              {selectedSimilarIds.size > 0
+                ? `Send Homework to ${1 + selectedSimilarIds.size} students`
+                : "Send Homework"}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => publishResults()}
+              className="gap-2"
+              variant="outline"
+            >
+              <Send className="h-4 w-4" aria-hidden />
+              Publish Results
+            </Button>
+          </div>
         </div>
       </SectionCard>
 
