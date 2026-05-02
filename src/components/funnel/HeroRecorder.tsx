@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import AudioRecorder from "@/components/recording/AudioRecorder";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
+import CuriosityGate from "@/components/funnel/CuriosityGate";
 import SectionCard from "@/components/admin/SectionCard";
 import SignupForm from "@/components/auth/SignupForm";
 import LoginForm from "@/components/auth/LoginForm";
@@ -20,23 +21,23 @@ import {
 /**
  * Curiosity Gate state machine.
  *
- * idle         — explainer video + Start CTA. AudioRecorder is mounted but
- *                hasn't been started by the user yet.
- * recording    — user is mid-recording. Explainer video hidden.
- * processing   — upload is in flight + an anticipation animation runs for at
- *                least MIN_PROCESSING_MS so the UI doesn't snap straight to
- *                the gate even on a fast network.
- * auth_wall    — blurred mock-dashboard background with SignupForm overlay.
- *                The cookie set during /upload is what links anonymous bytes
- *                to the soon-to-be-created account.
- * rate_limited — 429 from /upload (per-IP cap exceeded).
- * disabled     — 503 GUEST_FUNNEL_DISABLED (feature flag off in Railway).
+ * idle            — explainer video + Start CTA. AudioRecorder is mounted but
+ *                   hasn't been started by the user yet.
+ * recording       — user is mid-recording. Explainer video hidden.
+ * processing      — upload is in flight + an anticipation animation runs for at
+ *                   least MIN_PROCESSING_MS so the UI doesn't snap straight to
+ *                   the gate even on a fast network.
+ * curiosity_gate  — post-recording flow with video + signup form (guest) or
+ *                   waiting message (logged in). On signup, claims the session.
+ * done            — shows the afterwards video. User can navigate away or re-record.
+ * rate_limited    — 429 from /upload (per-IP cap exceeded).
+ * disabled        — 503 GUEST_FUNNEL_DISABLED (feature flag off in Railway).
  */
 type Status =
   | "idle"
   | "recording"
   | "processing"
-  | "auth_wall"
+  | "curiosity_gate"
   | "done"
   | "rate_limited"
   | "disabled";
@@ -232,23 +233,11 @@ export default function HeroRecorder() {
   }, []);
 
   /**
-   * Auth-state listener: when status is auth_wall and the user signs in/up,
-   * immediately call /claim and redirect to the session detail page. Wins
-   * the race against SignupForm's own setTimeout(100ms) → /dashboard redirect.
+   * Handler called when guest signs up/logs in via CuriosityGate.
+   * The claim is handled by CuriosityGate component itself, so we just
+   * transition to "done" state.
    */
-  const handleAuthWallSuccess = useCallback(() => {
-    const guestId = guestSessionIdRef.current;
-    if (guestId) {
-      const supabase = createClient();
-      supabase.auth.getSession().then(({ data }) => {
-        const token = data.session?.access_token;
-        if (token) {
-          claimGuestSession(guestId, token).catch((err) =>
-            console.error("Guest claim failed:", err)
-          );
-        }
-      });
-    }
+  const handleCuriosityGateSuccess = useCallback(() => {
     setStatus("done");
   }, []);
 
@@ -276,7 +265,7 @@ export default function HeroRecorder() {
         if (remaining > 0) {
           await new Promise((r) => setTimeout(r, remaining));
         }
-        setStatus("auth_wall");
+        setStatus("curiosity_gate");
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
           if (err.status === 429 || err.code === "RATE_LIMITED") {
@@ -317,8 +306,12 @@ export default function HeroRecorder() {
               We've paused the voice trial briefly. Please check back shortly.
             </p>
           </SectionCard>
-        ) : status === "auth_wall" ? (
-          <AuthWall onSuccess={handleAuthWallSuccess} />
+        ) : status === "curiosity_gate" ? (
+          <CuriosityGate
+            isGuest={authState === "anonymous"}
+            guestSessionId={guestSessionIdRef.current}
+            onSuccess={handleCuriosityGateSuccess}
+          />
         ) : status === "done" ? (
           <AfterwardsVideo />
         ) : status === "processing" ? (
