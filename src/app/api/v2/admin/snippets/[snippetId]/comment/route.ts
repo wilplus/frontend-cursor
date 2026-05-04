@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/v2/admin/snippets/[snippetId]/comment
@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const snippetId = params.snippetId;
-    const supabase = await createClient();
+    const supabase = createServerSupabaseClient();
 
     // Check if user is authenticated
     const {

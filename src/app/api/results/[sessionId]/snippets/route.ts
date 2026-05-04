@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/results/[sessionId]/snippets
@@ -12,7 +12,7 @@ export async function GET(
 ) {
   try {
     const sessionId = params.sessionId;
-    const supabase = await createClient();
+    const supabase = createServerSupabaseClient();
 
     // Get authenticated user
     const {
