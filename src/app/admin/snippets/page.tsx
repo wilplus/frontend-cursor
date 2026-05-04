@@ -114,7 +114,7 @@ export default function AdminSnippetsPage() {
   };
 
   return (
-    <AdminShell title="Snippet Management" description="Review and label charisma snippets">
+    <AdminShell>
       <div className="space-y-6">
         {/* User Filter */}
         <div className="space-y-2">
