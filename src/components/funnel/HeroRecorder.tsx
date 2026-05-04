@@ -253,28 +253,32 @@ export default function HeroRecorder() {
           // idle + recording share the same mount. The visual swap moves the
           // sniper UI out and renders the chat layout instead. All upload +
           // routing logic still lives in handleRecordingComplete below.
-          <div className="space-y-6">
-            {authState === "anonymous" && <AnonymousTopBar />}
-            {status === "idle" && <ExplainerVideo />}
-            <ChatBubble type="bot" content={FUNNEL_PROMPT} />
-            <div className="flex flex-col items-center gap-2 pt-2">
+          // Layout: top stack for the chat thread, bottom-pinned mic so the
+          // user's eye lands on the action with comfortable breathing room.
+          <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
+            <div className="space-y-6">
+              {authState === "anonymous" && <AnonymousTopBar />}
+              {status === "idle" && <ExplainerVideo />}
+              <ChatBubble type="bot" content={FUNNEL_PROMPT} />
+            </div>
+            <div className="mt-auto flex flex-col items-center gap-3 pb-10 pt-12">
               <VoiceRecordButton
                 onStart={handleRecordingStart}
                 onSend={handleRecordingComplete}
                 minDurationSeconds={MIN_DURATION_SECONDS}
               />
               {status === "idle" && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-center text-xs text-muted-foreground">
                   Tap the mic to begin. Aim for at least {MIN_DURATION_SECONDS}{" "}
                   seconds.
                 </p>
               )}
+              {errorMessage && status === "idle" && (
+                <p className="w-full max-w-sm rounded-md border border-red-200 bg-red-50 p-3 text-center text-sm text-red-800">
+                  {errorMessage}
+                </p>
+              )}
             </div>
-            {errorMessage && status === "idle" && (
-              <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                {errorMessage}
-              </p>
-            )}
           </div>
         )}
       </div>
