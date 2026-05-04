@@ -4,13 +4,6 @@ import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import AdminShell from "@/components/admin/AdminShell";
 import { getAuthToken } from "@/lib/api/auth-client";
 
@@ -174,27 +167,23 @@ export default function AdminSnippetsPage() {
                   <label className="text-xs font-medium text-muted-foreground">
                     Snippet Type
                   </label>
-                  <Select
+                  <select
                     value={edits[snippet.id]?.type || "unlabeled"}
-                    onValueChange={(value) =>
+                    onChange={(e) =>
                       setEdits((prev) => ({
                         ...prev,
                         [snippet.id]: {
                           ...prev[snippet.id],
-                          type: value,
+                          type: e.target.value,
                         },
                       }))
                     }
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="charisma">Charisma</SelectItem>
-                      <SelectItem value="stress">Stress</SelectItem>
-                      <SelectItem value="unlabeled">Unlabeled</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="charisma">Charisma</option>
+                    <option value="stress">Stress</option>
+                    <option value="unlabeled">Unlabeled</option>
+                  </select>
                 </div>
               </div>
 
