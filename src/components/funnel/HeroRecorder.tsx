@@ -138,6 +138,13 @@ export default function HeroRecorder() {
   const [authState, setAuthState] = useState<
     "unknown" | "anonymous" | "signed_in"
   >("unknown");
+  // Mirror of the user's recorded clip so we can render it as a chat bubble
+  // (right side, with playback) once the mic finishes capturing. Cleared on
+  // Redo. The button itself only renders Send/Redo controls in this state.
+  const [userMessage, setUserMessage] = useState<{
+    audioUrl: string;
+    durationSeconds: number;
+  } | null>(null);
 
   // Remember the guest_session_id returned by /upload so the post-auth claim
   // call can pass it explicitly. (The backend also reads the cookie, but the
@@ -176,6 +183,19 @@ export default function HeroRecorder() {
 
   const handleRecordingStart = useCallback(() => {
     setStatus("recording");
+    setUserMessage(null);
+  }, []);
+
+  const handleRecorded = useCallback(
+    (audioUrl: string, durationSeconds: number) => {
+      setUserMessage({ audioUrl, durationSeconds });
+    },
+    []
+  );
+
+  const handleRedo = useCallback(() => {
+    setUserMessage(null);
+    setStatus("idle");
   }, []);
 
   const handleRecordingComplete = useCallback(
@@ -250,24 +270,36 @@ export default function HeroRecorder() {
         ) : status === "processing" ? (
           <ProcessingScreen />
         ) : (
-          // idle + recording share the same mount. The visual swap moves the
-          // sniper UI out and renders the chat layout instead. All upload +
-          // routing logic still lives in handleRecordingComplete below.
-          // Layout: top stack for the chat thread, bottom-pinned mic so the
-          // user's eye lands on the action with comfortable breathing room.
+          // idle + recording + recorded share the same mount and behave like a
+          // real messaging surface: bot question sits at the bottom of the
+          // thread, the user's voice reply slides in beneath it as the
+          // newest message, and the mic stays pinned just below as the input.
+          // All upload + routing logic still lives in handleRecordingComplete.
           <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
-            <div className="space-y-6">
+            {/* Top: nav bar + optional explainer (idle only) */}
+            <div className="space-y-4">
               {authState === "anonymous" && <AnonymousTopBar />}
-              {status === "idle" && <ExplainerVideo />}
-              <ChatBubble type="bot" content={FUNNEL_PROMPT} />
+              {status === "idle" && !userMessage && <ExplainerVideo />}
             </div>
-            <div className="mt-auto flex flex-col items-center gap-3 pb-10 pt-12">
+
+            {/* Chat thread: fills remaining space, messages anchored to bottom */}
+            <div className="flex flex-1 flex-col justify-end gap-3 py-6">
+              <ChatBubble type="bot" content={FUNNEL_PROMPT} />
+              {userMessage && (
+                <ChatBubble type="user" audioUrl={userMessage.audioUrl} />
+              )}
+            </div>
+
+            {/* Bottom: input area — mic + helper, with breathing room */}
+            <div className="flex flex-col items-center gap-3 pb-8">
               <VoiceRecordButton
                 onStart={handleRecordingStart}
                 onSend={handleRecordingComplete}
+                onRecorded={handleRecorded}
+                onRedo={handleRedo}
                 minDurationSeconds={MIN_DURATION_SECONDS}
               />
-              {status === "idle" && (
+              {status === "idle" && !userMessage && (
                 <p className="text-center text-xs text-muted-foreground">
                   Tap the mic to begin. Aim for at least {MIN_DURATION_SECONDS}{" "}
                   seconds.
