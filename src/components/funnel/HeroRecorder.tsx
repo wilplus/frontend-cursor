@@ -238,9 +238,8 @@ export default function HeroRecorder() {
    * transition to "done" state.
    */
   const handleCuriosityGateSuccess = useCallback(() => {
-    // Redirect to training studio instead of showing aftermath video
-    // This allows first-time users to see their session for admin analysis
-    window.location.href = "/studio";
+    // No-op: CuriosityGate handles its own post-claim UI
+    // (shows "Homework submitted!" waiting card)
   }, []);
 
   const handleRecordingStart = useCallback(() => {
