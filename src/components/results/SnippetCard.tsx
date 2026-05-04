@@ -1,7 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-
 interface SnippetData {
   id: string;
   session_id: string;
@@ -51,7 +49,7 @@ export default function SnippetCard({ snippet }: SnippetCardProps) {
 
       {/* Metadata */}
       <div className="flex items-center gap-3">
-        <Badge className={typeColor}>{typeLabel}</Badge>
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${typeColor}`}>{typeLabel}</span>
         <p className="text-xs text-muted-foreground">
           {durationSeconds}s · Offset {(snippet.start_offset_ms / 1000).toFixed(1)}s
         </p>
