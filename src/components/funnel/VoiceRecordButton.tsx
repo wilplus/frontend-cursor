@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, Send, RotateCcw, Square } from "lucide-react";
+import { Loader2, Mic, RotateCcw, Send, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type State = "idle" | "recording" | "recorded";
@@ -15,6 +15,14 @@ interface VoiceRecordButtonProps {
   onSend: (blob: Blob, durationSeconds: number) => void | Promise<void>;
   /** Fired when the mic is acquired and capture begins. */
   onStart?: () => void;
+  /**
+   * Fired when the recording stops and a playable Object URL is ready.
+   * The parent typically renders this URL inside a chat bubble (the button
+   * itself only shows the Send / Redo controls in the "recorded" state).
+   */
+  onRecorded?: (audioUrl: string, durationSeconds: number) => void;
+  /** Fired when the user taps Redo, so the parent can clear its preview bubble. */
+  onRedo?: () => void;
   /**
    * Optional minimum duration enforcement. Send is disabled until reached;
    * the recorded chip surfaces the gap so the user knows why.
@@ -54,13 +62,16 @@ function formatDuration(totalSeconds: number): string {
  * Owns MediaRecorder + state machine. Three visual states:
  *   - idle:      single round mic button (primary)
  *   - recording: same button shown red with `animate-pulse-ring` halo + Stop icon
- *   - recorded:  inline player + Redo + Send
+ *   - recorded:  Redo + Send buttons. The recorded audio is exposed via
+ *               `onRecorded` so the parent can render it as a chat bubble.
  *
  * The parent handles upload + routing via `onSend`.
  */
 export default function VoiceRecordButton({
   onSend,
   onStart,
+  onRecorded,
+  onRedo,
   minDurationSeconds,
   uploading = false,
   disabled = false,
@@ -124,9 +135,12 @@ export default function VoiceRecordButton({
         const blob = new Blob(chunksRef.current, { type });
         blobRef.current = blob;
         if (audioUrl) URL.revokeObjectURL(audioUrl);
-        setAudioUrl(URL.createObjectURL(blob));
+        const nextUrl = URL.createObjectURL(blob);
+        setAudioUrl(nextUrl);
         setState("recorded");
         releaseStream();
+        const seconds = Math.floor(finalDurationRef.current);
+        onRecorded?.(nextUrl, seconds);
       };
 
       recorder.start();
@@ -165,7 +179,8 @@ export default function VoiceRecordButton({
     finalDurationRef.current = 0;
     setElapsed(0);
     setState("idle");
-  }, [audioUrl]);
+    onRedo?.();
+  }, [audioUrl, onRedo]);
 
   const handleSend = useCallback(() => {
     const blob = blobRef.current;
@@ -212,30 +227,30 @@ export default function VoiceRecordButton({
       )}
 
       {state === "recorded" && audioUrl && (
-        <div className="flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
-          <audio controls src={audioUrl} className="w-full" />
-          <div className="flex w-full items-center justify-between">
-            <button
-              type="button"
-              onClick={resetRecording}
-              disabled={uploading}
-              aria-label="Re-record"
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden />
-              Redo
-            </button>
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={sendDisabled}
-              aria-label="Send recording"
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Send className="h-4 w-4" aria-hidden />
-              {uploading ? "Sending…" : "Send"}
-            </button>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={resetRecording}
+            disabled={uploading}
+            aria-label="Re-record"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden />
+            Redo
+          </button>
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={sendDisabled}
+            aria-label={uploading ? "Sending" : "Send recording"}
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {uploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            ) : (
+              <Send className="h-5 w-5" aria-hidden />
+            )}
+          </button>
         </div>
       )}
 
