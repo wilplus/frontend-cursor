@@ -129,6 +129,130 @@ export async function claimGuestSession(
   return json as GuestClaimResponse;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Interview (multi-turn) endpoints                                           */
+/* -------------------------------------------------------------------------- */
+
+export interface InterviewQuestion {
+  question: string;
+  tone: "charisma" | "stress";
+  turn_number: number;
+}
+
+export async function fetchNextQuestion(
+  turnNumber: number
+): Promise<InterviewQuestion> {
+  let resp: Response;
+  try {
+    resp = await fetch("/api/public/interview/next-question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turn_number: turnNumber }),
+    });
+  } catch (err) {
+    throw new GuestUploadFailure(
+      "NETWORK_ERROR",
+      err instanceof Error ? err.message : "Network error",
+      0
+    );
+  }
+
+  let json: unknown = null;
+  try {
+    json = await resp.json();
+  } catch {
+    json = null;
+  }
+
+  if (!resp.ok) {
+    const code = (json as ApiError | null)?.code ?? `HTTP_${resp.status}`;
+    const message =
+      (json as ApiError | null)?.error ?? "Failed to get question";
+    throw new GuestUploadFailure(code, message, resp.status);
+  }
+
+  return json as InterviewQuestion;
+}
+
+export interface InterviewUploadResponse {
+  status: "ok";
+  guest_session_id: string;
+  snippet_id: string | null;
+  duration_seconds: number | null;
+  total_session_duration_seconds: number;
+  metrics: Record<string, unknown> | null;
+}
+
+export async function uploadInterviewAnswer(
+  blob: Blob,
+  opts: {
+    guestSessionId?: string | null;
+    turnNumber: number;
+    questionTone: string;
+    durationSeconds: number | null;
+  }
+): Promise<InterviewUploadResponse> {
+  if (blob.size > MAX_AUDIO_BYTES) {
+    throw new GuestUploadFailure(
+      "FILE_TOO_LARGE",
+      "Recording is over the 5 MB limit.",
+      413
+    );
+  }
+
+  const form = new FormData();
+  const filename = blobFilename(blob);
+  form.append("audio_file", blob, filename);
+  form.append("turn_number", String(opts.turnNumber));
+  form.append("question_tone", opts.questionTone);
+  if (opts.guestSessionId) {
+    form.append("guest_session_id", opts.guestSessionId);
+  }
+  if (opts.durationSeconds != null && Number.isFinite(opts.durationSeconds)) {
+    form.append("duration_seconds", String(opts.durationSeconds));
+  }
+
+  let resp: Response;
+  try {
+    resp = await fetch("/api/public/interview/upload-answer", {
+      method: "POST",
+      body: form,
+    });
+  } catch (err) {
+    throw new GuestUploadFailure(
+      "NETWORK_ERROR",
+      err instanceof Error ? err.message : "Network error",
+      0
+    );
+  }
+
+  let json: unknown = null;
+  try {
+    json = await resp.json();
+  } catch {
+    json = null;
+  }
+
+  if (!resp.ok) {
+    const code =
+      (json as ApiError | null)?.code ?? `HTTP_${resp.status}`;
+    const message =
+      (json as ApiError | null)?.error ?? "Upload failed";
+    throw new GuestUploadFailure(code, message, resp.status);
+  }
+
+  const body = json as InterviewUploadResponse | null;
+  if (!body || body.status !== "ok" || !body.guest_session_id) {
+    throw new GuestUploadFailure(
+      "INVALID_RESPONSE",
+      "Backend returned an unexpected response.",
+      resp.status
+    );
+  }
+
+  return body;
+}
+
 function blobFilename(blob: Blob): string {
   const type = blob.type || "";
   if (type.includes("webm")) return "recording.webm";
