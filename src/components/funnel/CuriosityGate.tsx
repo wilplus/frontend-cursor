@@ -139,8 +139,11 @@ export default function CuriosityGate({
   guestSessionId,
   onSuccess,
 }: CuriosityGateProps) {
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [claimed, setClaimed] = useState(false);
+  // For logged-in users we show the "homework being processed" banner
+  // immediately and run the session-claim silently in the background.
+  // For guests we show the signup form first, then flip to the banner the
+  // moment the SIGNED_IN event fires (claim still runs silently after).
+  const [signedUp, setSignedUp] = useState(false);
 
   // Claim guest session after user signs up (guests) or on mount (logged-in users)
   useEffect(() => {
@@ -149,7 +152,6 @@ export default function CuriosityGate({
     let unsubscribe: (() => void) | null = null;
 
     const claimSession = async (accessToken: string) => {
-      setIsAuthenticating(true);
       try {
         const response = await fetch("/api/public/shaky-voice/claim", {
           method: "POST",
@@ -159,35 +161,30 @@ export default function CuriosityGate({
           },
           body: JSON.stringify({ guest_session_id: guestSessionId }),
         });
-
-        if (response.ok) {
-          // Show the waiting card instead of redirecting
-          setClaimed(true);
-          setIsAuthenticating(false);
-        } else {
+        if (!response.ok) {
           console.error("Claim failed:", response.status);
-          setIsAuthenticating(false);
         }
       } catch (err) {
         console.error("Claim error:", err);
-        setIsAuthenticating(false);
       }
     };
 
     const setupAuthListener = async () => {
       const supabase = createClient();
 
-      // For guests: wait for SIGNED_IN event after signup
       if (isGuest) {
+        // Wait for SIGNED_IN after signup; flip the UI to the banner the
+        // instant auth flips, regardless of whether the claim has finished.
         const { data } = supabase.auth.onAuthStateChange((event, session) => {
           if (event === "SIGNED_IN" && session?.access_token) {
+            setSignedUp(true);
             claimSession(session.access_token);
           }
         });
-
         unsubscribe = data?.subscription?.unsubscribe || null;
       } else {
-        // For logged-in users: claim immediately
+        // Logged-in users: claim in the background; UI already shows the
+        // banner so there's nothing to wait for here.
         const { data: { session }, error } = await supabase.auth.getSession();
         if (!error && session?.access_token) {
           claimSession(session.access_token);
@@ -200,36 +197,22 @@ export default function CuriosityGate({
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [isGuest, guestSessionId, onSuccess]);
+  }, [isGuest, guestSessionId]);
+
+  // Match the spec exactly:
+  //   - logged-in user        → video + "homework being processed" banner
+  //   - guest (pre-signup)    → video + signup form
+  //   - guest (post-signup)   → video + same banner as logged-in
+  const showBanner = !isGuest || signedUp;
 
   return (
     <main className="willab-chat min-h-screen bg-background">
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
         <ExplainerVideo />
-
-        {claimed ? (
+        {showBanner ? (
           <SubmittedWaitingCard />
-        ) : isAuthenticating ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                Setting up your account...
-              </p>
-            </div>
-          </div>
-        ) : isGuest ? (
-          <GuestSignupSection onSuccess={onSuccess} />
         ) : (
-          /* Logged-in users see a brief loader while auto-claim runs */
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                Processing your recording...
-              </p>
-            </div>
-          </div>
+          <GuestSignupSection onSuccess={onSuccess} />
         )}
       </div>
     </main>
