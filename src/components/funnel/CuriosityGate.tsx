@@ -93,18 +93,33 @@ function GuestSignupSection({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-function LoggedInSection() {
+/**
+ * Waiting card shown after successful signup + claim.
+ * Same visual style as the homework Step0WaitingCard.
+ */
+function SubmittedWaitingCard() {
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl border bg-background/95 p-6 shadow-xl backdrop-blur-sm">
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Analysis in Progress</h2>
-        <p className="text-sm text-muted-foreground">
-          We're analyzing your voice. We'll email you when your Charisma Snippets are ready.
+    <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-muted/40 px-5 py-6 text-center shadow-sm">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 6v6l4 2" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      </div>
+      <div className="mt-4 space-y-3">
+        <p className="text-xl font-semibold text-foreground">Homework submitted!</p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Your recording has been sent and is now being reviewed. We'll email you when your Charisma Snippets are ready.
         </p>
-        <div className="flex items-center gap-2 pt-2">
-          <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
-          <p className="text-xs text-muted-foreground">Processing...</p>
-        </div>
       </div>
     </div>
   );
@@ -114,10 +129,10 @@ function LoggedInSection() {
  * Curiosity Gate: Post-recording flow
  *
  * Shows the explainer video, then:
- * - For guests: Email capture + signup form
- * - For logged-in users: Waiting message
+ * - For guests: Signup form below the video
+ * - For logged-in users: Auto-claims then shows waiting card
  *
- * On guest signup, claims the guest session and fires onSuccess callback.
+ * After signup + claim: shows "Homework submitted!" waiting card.
  */
 export default function CuriosityGate({
   isGuest,
@@ -125,8 +140,8 @@ export default function CuriosityGate({
   onSuccess,
 }: CuriosityGateProps) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [claimed, setClaimed] = useState(false);
 
-  // Listen for auth state changes to claim the guest session after signup
   // Claim guest session after user signs up (guests) or on mount (logged-in users)
   useEffect(() => {
     if (!guestSessionId) return;
@@ -146,7 +161,9 @@ export default function CuriosityGate({
         });
 
         if (response.ok) {
-          onSuccess();
+          // Show the waiting card instead of redirecting
+          setClaimed(true);
+          setIsAuthenticating(false);
         } else {
           console.error("Claim failed:", response.status);
           setIsAuthenticating(false);
@@ -190,7 +207,9 @@ export default function CuriosityGate({
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
         <ExplainerVideo />
 
-        {isAuthenticating ? (
+        {claimed ? (
+          <SubmittedWaitingCard />
+        ) : isAuthenticating ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
               <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
@@ -202,7 +221,15 @@ export default function CuriosityGate({
         ) : isGuest ? (
           <GuestSignupSection onSuccess={onSuccess} />
         ) : (
-          <LoggedInSection />
+          /* Logged-in users see a brief loader while auto-claim runs */
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                Processing your recording...
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </main>
