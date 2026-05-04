@@ -29,11 +29,24 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        // Willab chat (funnel) — pulsing-ring around the active record button
+        // and the chat-bubble entrance animation.
+        "pulse-ring": {
+          "0%": { transform: "scale(1)", opacity: "0.6" },
+          "100%": { transform: "scale(1.8)", opacity: "0" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "question-in": "question-fade-in 0.25s ease-out forwards",
         "fade-in": "fade-in 0.4s ease-out forwards",
         "fade-in-short": "fade-in-short 0.2s ease-out forwards",
+        "pulse-ring":
+          "pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite",
+        "fade-in-up": "fade-in-up 0.4s ease-out",
       },
       colors: {
         background: "hsl(var(--background))",
@@ -66,6 +79,11 @@ const config: Config = {
           bg: "hsl(var(--email-bg))",
           divider: "hsl(var(--email-divider))",
         },
+        // Willab chat (funnel) — bubbles + recording-state highlight
+        "chat-bot": "hsl(var(--chat-bubble-bot))",
+        "chat-user": "hsl(var(--chat-bubble-user))",
+        "chat-user-foreground": "hsl(var(--chat-bubble-user-foreground))",
+        "recording-pulse": "hsl(var(--recording-pulse))",
       },
     },
   },
