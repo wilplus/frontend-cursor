@@ -42,6 +42,37 @@
     --email-bg: 220 14% 96%;
     --email-divider: 220 13% 91%;
     --primary-foreground: 0 0% 100%;
+
+    /* Willab chat (Curiosity-Gate funnel) — bubbles + recording pulse */
+    --chat-bubble-bot: 35 30% 98%;
+    --chat-bubble-user: 25 95% 55%;
+    --chat-bubble-user-foreground: 0 0% 100%;
+    --recording-pulse: 0 84% 60%;
+  }
+
+  /*
+   * .willab-chat: warm-palette scope for the Curiosity-Gate funnel.
+   * Mirrors the reference design system (warm off-whites + saturated orange).
+   * Apply to a wrapper element on funnel pages — does not affect admin/dashboard.
+   */
+  .willab-chat {
+    --background: 30 25% 97%;
+    --foreground: 20 15% 15%;
+    --card: 35 30% 98%;
+    --card-foreground: 20 15% 15%;
+    --popover: 35 30% 98%;
+    --popover-foreground: 20 15% 15%;
+    --primary: 25 95% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 20% 92%;
+    --secondary-foreground: 20 15% 15%;
+    --muted: 30 15% 90%;
+    --muted-foreground: 20 10% 50%;
+    --accent: 25 80% 93%;
+    --accent-foreground: 25 90% 35%;
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 25 95% 55%;
   }
 
   /* Email template scope: design system for assignment email (backend can replicate) */

@@ -203,7 +203,7 @@ export default function CuriosityGate({
   }, [isGuest, guestSessionId, onSuccess]);
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="willab-chat min-h-screen bg-background">
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
         <ExplainerVideo />
 
@@ -212,7 +212,7 @@ export default function CuriosityGate({
         ) : isAuthenticating ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
               <p className="mt-2 text-sm text-muted-foreground">
                 Setting up your account...
               </p>
@@ -224,7 +224,7 @@ export default function CuriosityGate({
           /* Logged-in users see a brief loader while auto-claim runs */
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-orange-500" />
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
               <p className="mt-2 text-sm text-muted-foreground">
                 Processing your recording...
               </p>

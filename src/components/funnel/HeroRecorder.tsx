@@ -3,18 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import AudioRecorder from "@/components/recording/AudioRecorder";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import CuriosityGate from "@/components/funnel/CuriosityGate";
+import ChatBubble from "@/components/funnel/ChatBubble";
+import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
 import SectionCard from "@/components/admin/SectionCard";
-import SignupForm from "@/components/auth/SignupForm";
-import LoginForm from "@/components/auth/LoginForm";
 import WillabLogo from "@/components/WillabLogo";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import {
   GuestUploadFailure,
-  claimGuestSession,
   uploadGuestRecording,
 } from "@/lib/api/public-client";
 
@@ -122,76 +120,10 @@ function ProcessingScreen() {
       role="status"
       aria-live="polite"
     >
-      <Loader2 className="h-10 w-10 animate-spin text-orange-500" aria-hidden />
+      <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden />
       <p className="text-base font-medium text-foreground">
         {PROCESSING_LABELS[idx]}
       </p>
-    </div>
-  );
-}
-
-/**
- * CSS-blurred fake dashboard panels. Pure visual tease — no fetches, no real
- * data, no risk of leaking anything before auth.
- */
-function MockDashboardBackground() {
-  const cards = [
-    { label: "Behavioral Profile", value: "The Master" },
-    { label: "Words / minute", value: "142" },
-    { label: "Filler words", value: "3" },
-    { label: "Stage score", value: "87 / 100" },
-  ];
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 -z-10 select-none"
-      aria-hidden
-      style={{ filter: "blur(10px)" }}
-    >
-      <div className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-4 px-4 py-8 opacity-70">
-        {cards.map((m) => (
-          <div
-            key={m.label}
-            className="rounded-xl border bg-card p-6 shadow-sm"
-          >
-            <div className="text-xs text-muted-foreground">{m.label}</div>
-            <div className="mt-2 text-2xl font-semibold">{m.value}</div>
-          </div>
-        ))}
-        <div className="col-span-2 h-40 rounded-xl border bg-card shadow-sm" />
-      </div>
-    </div>
-  );
-}
-
-function AuthWall({ onSuccess }: { onSuccess: () => void }) {
-  const [mode, setMode] = useState<"signup" | "login">("signup");
-  return (
-    <div className="relative min-h-[70vh]">
-      <MockDashboardBackground />
-      <div className="relative mx-auto max-w-md space-y-4 rounded-2xl border bg-background/95 p-6 shadow-xl backdrop-blur-sm">
-        <div className="space-y-1 text-center">
-          <h2 className="text-xl font-semibold">
-            Success! Your voice analysis is ready 🎯
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Create a free account to unlock your personal results.
-          </p>
-        </div>
-        {mode === "signup" ? (
-          <SignupForm onSuccess={onSuccess} />
-        ) : (
-          <LoginForm onSuccess={onSuccess} />
-        )}
-        <button
-          type="button"
-          onClick={() => setMode((m) => (m === "signup" ? "login" : "signup"))}
-          className="block w-full text-center text-sm text-muted-foreground underline"
-        >
-          {mode === "signup"
-            ? "Already have an account? Log in"
-            : "New here? Create an account"}
-        </button>
-      </div>
     </div>
   );
 }
@@ -292,7 +224,7 @@ export default function HeroRecorder() {
   );
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="willab-chat min-h-screen bg-background">
       <div className="mx-auto w-full max-w-3xl px-4 py-8">
         {status === "rate_limited" ? (
           <SectionCard title="You've tried a few times">
@@ -318,24 +250,26 @@ export default function HeroRecorder() {
         ) : status === "processing" ? (
           <ProcessingScreen />
         ) : (
-          // idle + recording share the same mount: AudioRecorder must persist
-          // across the transition so its internal state (mic stream, chunks)
-          // is preserved. We toggle the explainer video visibility instead.
-          <div className="space-y-4">
+          // idle + recording share the same mount. The visual swap moves the
+          // sniper UI out and renders the chat layout instead. All upload +
+          // routing logic still lives in handleRecordingComplete below.
+          <div className="space-y-6">
+            {authState === "anonymous" && <AnonymousTopBar />}
             {status === "idle" && <ExplainerVideo />}
-            <AudioRecorder
-              prompt={FUNNEL_PROMPT}
-              onRecordingStart={handleRecordingStart}
-              onRecordingComplete={handleRecordingComplete}
-              stopAndSend
-              uploading={false}
-              minDurationSeconds={MIN_DURATION_SECONDS}
-              sniperMode={authState !== "anonymous"}
-              sniperProfile={null}
-              topSlot={
-                authState === "anonymous" ? <AnonymousTopBar /> : undefined
-              }
-            />
+            <ChatBubble type="bot" content={FUNNEL_PROMPT} />
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <VoiceRecordButton
+                onStart={handleRecordingStart}
+                onSend={handleRecordingComplete}
+                minDurationSeconds={MIN_DURATION_SECONDS}
+              />
+              {status === "idle" && (
+                <p className="text-xs text-muted-foreground">
+                  Tap the mic to begin. Aim for at least {MIN_DURATION_SECONDS}{" "}
+                  seconds.
+                </p>
+              )}
+            </div>
             {errorMessage && status === "idle" && (
               <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                 {errorMessage}
