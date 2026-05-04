@@ -5,45 +5,35 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import CuriosityGate from "@/components/funnel/CuriosityGate";
-import ChatBubble from "@/components/funnel/ChatBubble";
-import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
+import ChatInterview from "@/components/funnel/ChatInterview";
 import SectionCard from "@/components/admin/SectionCard";
 import WillabLogo from "@/components/WillabLogo";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import {
-  GuestUploadFailure,
-  uploadGuestRecording,
-} from "@/lib/api/public-client";
 
 /**
- * Curiosity Gate state machine.
+ * Curiosity Gate state machine (multi-turn interview version).
  *
- * idle            — explainer video + Start CTA. AudioRecorder is mounted but
- *                   hasn't been started by the user yet.
- * recording       — user is mid-recording. Explainer video hidden.
- * processing      — upload is in flight + an anticipation animation runs for at
- *                   least MIN_PROCESSING_MS so the UI doesn't snap straight to
- *                   the gate even on a fast network.
- * curiosity_gate  — post-recording flow with video + signup form (guest) or
+ * idle            — explainer video + chat interview begins (first question loaded).
+ * interviewing    — multi-turn Q&A in progress. User records answers,
+ *                   new questions appear until aggregate duration >= 30s.
+ * processing      — brief anticipation hold before gate (optional, kept short).
+ * curiosity_gate  — post-interview flow with video + signup form (guest) or
  *                   waiting message (logged in). On signup, claims the session.
- * done            — shows the afterwards video. User can navigate away or re-record.
+ * done            — shows the afterwards video. User can navigate away.
  * rate_limited    — 429 from /upload (per-IP cap exceeded).
  * disabled        — 503 GUEST_FUNNEL_DISABLED (feature flag off in Railway).
  */
 type Status =
   | "idle"
-  | "recording"
+  | "interviewing"
   | "processing"
   | "curiosity_gate"
   | "done"
   | "rate_limited"
   | "disabled";
 
-const FUNNEL_PROMPT =
-  "Tell us, in your own words: do you think you're a good communicator? Why?";
-const MIN_DURATION_SECONDS = 15;
-const MIN_PROCESSING_MS = 3500;
+const MIN_PROCESSING_MS = 2500;
 
 const PROCESSING_LABELS = [
   "Analyzing stress patterns…",
@@ -134,22 +124,12 @@ function ProcessingScreen() {
 
 export default function HeroRecorder() {
   const [status, setStatus] = useState<Status>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [authState, setAuthState] = useState<
     "unknown" | "anonymous" | "signed_in"
   >("unknown");
-  // Mirror of the user's recorded clip so we can render it as a chat bubble
-  // (right side, with playback) once the mic finishes capturing. Cleared on
-  // Redo. The button itself only renders Send/Redo controls in this state.
-  const [userMessage, setUserMessage] = useState<{
-    audioUrl: string;
-    durationSeconds: number;
-  } | null>(null);
 
-  // Remember the guest_session_id returned by /upload so the post-auth claim
-  // call can pass it explicitly. (The backend also reads the cookie, but the
-  // explicit field defends against same-tab signup races where the cookie
-  // hasn't yet been re-attached to the new session.)
+  // Remember the guest_session_id returned by the interview upload so the
+  // post-auth claim call can pass it explicitly.
   const guestSessionIdRef = useRef<string | null>(null);
 
   // Detect existing auth (rare on this funnel, but possible if the user
@@ -174,74 +154,48 @@ export default function HeroRecorder() {
   /**
    * Handler called when guest signs up/logs in via CuriosityGate.
    * The claim is handled by CuriosityGate component itself, so we just
-   * transition to "done" state.
+   * leave the state as-is (CuriosityGate shows waiting card).
    */
   const handleCuriosityGateSuccess = useCallback(() => {
     // No-op: CuriosityGate handles its own post-claim UI
     // (shows "Homework submitted!" waiting card)
   }, []);
 
-  const handleRecordingStart = useCallback(() => {
-    setStatus("recording");
-    setUserMessage(null);
-  }, []);
-
-  const handleRecorded = useCallback(
-    (audioUrl: string, durationSeconds: number) => {
-      setUserMessage({ audioUrl, durationSeconds });
+  /**
+   * Called by ChatInterview when aggregate recording time >= 30s.
+   * Transitions through a brief processing screen to the gate.
+   */
+  const handleThresholdReached = useCallback(
+    async (guestSessionId: string) => {
+      guestSessionIdRef.current = guestSessionId;
+      setStatus("processing");
+      // Brief anticipation hold so the transition isn't jarring
+      await new Promise((r) => setTimeout(r, MIN_PROCESSING_MS));
+      setStatus("curiosity_gate");
     },
     []
   );
 
-  const handleRedo = useCallback(() => {
-    setUserMessage(null);
-    setStatus("idle");
-  }, []);
-
-  const handleRecordingComplete = useCallback(
-    async (blob: Blob, durationSeconds: number) => {
-      setStatus("processing");
-      setErrorMessage(null);
-      const startedAt = Date.now();
-      try {
-        const { guest_session_id } = await uploadGuestRecording(
-          blob,
-          durationSeconds
-        );
-        guestSessionIdRef.current = guest_session_id;
-
-        // Anticipation hold: keep the processing screen up for at least
-        // MIN_PROCESSING_MS so the rotating labels actually rotate even when
-        // the upload is sub-second. Pure UX, no analysis happens here.
-        const elapsed = Date.now() - startedAt;
-        const remaining = Math.max(0, MIN_PROCESSING_MS - elapsed);
-        if (remaining > 0) {
-          await new Promise((r) => setTimeout(r, remaining));
-        }
-        setStatus("curiosity_gate");
-      } catch (err) {
-        if (err instanceof GuestUploadFailure) {
-          if (err.status === 429 || err.code === "RATE_LIMITED") {
-            setStatus("rate_limited");
-            return;
-          }
-          if (err.status === 503 || err.code === "GUEST_FUNNEL_DISABLED") {
-            setStatus("disabled");
-            return;
-          }
-          setErrorMessage(err.message);
-        } else {
-          setErrorMessage(
-            err instanceof Error
-              ? err.message
-              : "Upload failed. Please try again."
-          );
-        }
-        setStatus("idle");
+  /**
+   * Error handler from ChatInterview (rate limit, funnel disabled).
+   */
+  const handleInterviewError = useCallback(
+    (code: string) => {
+      if (code === "RATE_LIMITED") {
+        setStatus("rate_limited");
+      } else if (code === "GUEST_FUNNEL_DISABLED") {
+        setStatus("disabled");
       }
     },
     []
   );
+
+  // Auto-start the interview as soon as auth state is known
+  useEffect(() => {
+    if (authState !== "unknown" && status === "idle") {
+      setStatus("interviewing");
+    }
+  }, [authState, status]);
 
   return (
     <main className="willab-chat min-h-screen bg-background">
@@ -256,7 +210,7 @@ export default function HeroRecorder() {
         ) : status === "disabled" ? (
           <SectionCard title="Trial temporarily unavailable">
             <p className="text-sm text-muted-foreground">
-              We've paused the voice trial briefly. Please check back shortly.
+              We&apos;ve paused the voice trial briefly. Please check back shortly.
             </p>
           </SectionCard>
         ) : status === "curiosity_gate" ? (
@@ -269,48 +223,24 @@ export default function HeroRecorder() {
           <AfterwardsVideo />
         ) : status === "processing" ? (
           <ProcessingScreen />
-        ) : (
-          // idle + recording + recorded share the same mount and behave like a
-          // real messaging surface: bot question sits at the bottom of the
-          // thread, the user's voice reply slides in beneath it as the
-          // newest message, and the mic stays pinned just below as the input.
-          // All upload + routing logic still lives in handleRecordingComplete.
+        ) : status === "interviewing" ? (
           <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
-            {/* Top: nav bar + optional explainer (idle only) */}
+            {/* Top: nav bar + optional explainer */}
             <div className="space-y-4">
               {authState === "anonymous" && <AnonymousTopBar />}
-              {status === "idle" && !userMessage && <ExplainerVideo />}
+              <ExplainerVideo />
             </div>
 
-            {/* Chat thread: fills remaining space, messages anchored to bottom */}
-            <div className="flex flex-1 flex-col justify-end gap-3 py-6">
-              <ChatBubble type="bot" content={FUNNEL_PROMPT} />
-              {userMessage && (
-                <ChatBubble type="user" audioUrl={userMessage.audioUrl} />
-              )}
-            </div>
-
-            {/* Bottom: input area — mic + helper, with breathing room */}
-            <div className="flex flex-col items-center gap-3 pb-8">
-              <VoiceRecordButton
-                onStart={handleRecordingStart}
-                onSend={handleRecordingComplete}
-                onRecorded={handleRecorded}
-                onRedo={handleRedo}
-                minDurationSeconds={MIN_DURATION_SECONDS}
-              />
-              {status === "idle" && !userMessage && (
-                <p className="text-center text-xs text-muted-foreground">
-                  Tap the mic to begin. Aim for at least {MIN_DURATION_SECONDS}{" "}
-                  seconds.
-                </p>
-              )}
-              {errorMessage && status === "idle" && (
-                <p className="w-full max-w-sm rounded-md border border-red-200 bg-red-50 p-3 text-center text-sm text-red-800">
-                  {errorMessage}
-                </p>
-              )}
-            </div>
+            {/* Multi-turn interview chat */}
+            <ChatInterview
+              onThresholdReached={handleThresholdReached}
+              onError={handleInterviewError}
+            />
+          </div>
+        ) : (
+          /* idle: waiting for auth state */
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         )}
       </div>
