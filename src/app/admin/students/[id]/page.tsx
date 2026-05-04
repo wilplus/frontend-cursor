@@ -1118,7 +1118,8 @@ export default function AdminStudentProfilePage() {
   };
 
   const publishResults = async () => {
-    if (!profile?.v2_session_id) {
+    const latestSession = profile?.sessions?.[0];
+    if (!latestSession?.id) {
       toast.error("No session found for this student");
       return;
     }
@@ -1129,7 +1130,7 @@ export default function AdminStudentProfilePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ session_id: profile.v2_session_id }),
+        body: JSON.stringify({ session_id: latestSession.id }),
       });
 
       if (!response.ok) {
