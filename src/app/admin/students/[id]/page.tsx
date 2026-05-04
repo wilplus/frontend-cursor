@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/admin-client";
 import type { CompactReportPreview } from "@/lib/reports/compact-preview";
 import { toCompactReportPreview } from "@/lib/reports/compact-preview";
+import { getAuthToken } from "@/lib/api/auth-client";
 // Metrics question UI is currently hidden; avoid loading/saving dead data paths here.
 import MetricsSection from "@/components/admin/MetricsSection";
 import { toast } from "sonner";
@@ -1125,10 +1126,17 @@ export default function AdminStudentProfilePage() {
     }
 
     try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
+      }
+
       const response = await fetch("/api/v2/internal/publish-session-results", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ session_id: latestSession.id }),
       });
