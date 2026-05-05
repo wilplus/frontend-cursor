@@ -424,6 +424,16 @@ export default function AdminUserDetailPage() {
   // Per-snippet save state.
   const [savingSnippetId, setSavingSnippetId] = useState<string | null>(null);
 
+  // Timeline / AI summary (fetched when session is known).
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiScore, setAiScore] = useState<number | null>(null);
+  const [interviewTurns, setInterviewTurns] = useState<Array<{
+    turn_number: number | null;
+    question: { text: string | null; tone: string | null };
+    answer: { audio_url: string | null; duration_ms: number | null };
+  }>>([]);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
+
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -479,6 +489,59 @@ export default function AdminUserDetailPage() {
     if (!latestSession) return [];
     return snippets.filter((s) => s.session_id === latestSession.id);
   }, [snippets, latestSession]);
+
+  // Fetch timeline (AI summary + interview turns) + recording playback URL
+  useEffect(() => {
+    if (!latestSession?.id || !userId) return;
+    let cancelled = false;
+
+    // Timeline
+    (async () => {
+      try {
+        const token = await getAuthToken();
+        if (!token || cancelled) return;
+        const res = await fetch(
+          `/api/v2/admin/users/${userId}/timeline?session_id=${latestSession.id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setAiSummary(data.ai_summary ?? null);
+        setAiScore(data.ai_score ?? null);
+        if (Array.isArray(data.interview_turns)) {
+          setInterviewTurns(data.interview_turns);
+        }
+      } catch {
+        /* non-fatal */
+      }
+    })();
+
+    // Recording playback URL
+    const recId =
+      (latestSession as Record<string, unknown>).recording_1_id ??
+      (latestSession.recording_preview as Record<string, unknown> | undefined)
+        ?.recording_id;
+    if (recId && typeof recId === "string") {
+      (async () => {
+        try {
+          const token = await getAuthToken();
+          if (!token || cancelled) return;
+          const res = await fetch(
+            `/api/v2/admin/recordings/${recId}/playback-url`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (!res.ok || cancelled) return;
+          const data = await res.json();
+          if (!cancelled && data.url) setRecordingUrl(data.url);
+        } catch {
+          /* non-fatal */
+        }
+      })();
+    }
+
+    return () => { cancelled = true; };
+  }, [latestSession, userId]);
 
   /** Aggregate metrics for the latest session, drawn from the row's
    *  recording_preview + sniper_metrics. Anything missing is shown as "—". */
@@ -630,20 +693,95 @@ export default function AdminUserDetailPage() {
     []
   );
 
-  const handleAdjustBounds = useCallback(() => {
-    // TODO(backend): PATCH /api/v2/admin/snippets/[id]/bounds. Disabled for now.
-    toast.info("Boundary adjustment endpoint not yet wired on backend");
-  }, []);
+  const handleAdjustBounds = useCallback(
+    async (snippetId: string, edge: "start" | "end", deltaMs: number) => {
+      const target = snippets.find((s) => s.id === snippetId);
+      if (!target) return;
 
-  const handleSkipSnippet = useCallback((snippetId: string) => {
-    // TODO(backend): PATCH /api/v2/admin/snippets/[id]/skip { is_skipped: true }.
+      // Compute current boundaries (from snippet fields or derive from offset/duration)
+      const currentStartMs = target.start_offset_ms ?? 0;
+      const currentEndMs = currentStartMs + (target.duration_ms ?? 0);
+      const currentStart = currentStartMs / 1000;
+      const currentEnd = currentEndMs / 1000;
+
+      const deltaSec = deltaMs / 1000;
+      const newStart = edge === "start" ? Math.max(0, currentStart + deltaSec) : currentStart;
+      const newEnd = edge === "end" ? Math.max(newStart + 0.5, currentEnd + deltaSec) : currentEnd;
+
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          toast.error("Not authenticated");
+          return;
+        }
+        const res = await fetch(
+          `/api/v2/admin/snippets/${snippetId}/bounds`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ start_time: newStart, end_time: newEnd }),
+          }
+        );
+        if (!res.ok) throw new Error(`Adjust failed (HTTP ${res.status})`);
+        const data = await res.json();
+        if (data.snippet) {
+          setSnippets((prev) =>
+            prev.map((s) => (s.id === snippetId ? { ...s, ...data.snippet } : s))
+          );
+        }
+        toast.success(
+          data.metrics_recomputed
+            ? "Boundaries adjusted — metrics recomputed"
+            : "Boundaries adjusted"
+        );
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to adjust bounds");
+      }
+    },
+    [snippets]
+  );
+
+  const handleSkipSnippet = useCallback(async (snippetId: string) => {
+    const target = snippets.find((s) => s.id === snippetId);
+    const newSkipped = !target?.is_skipped;
+    // Optimistic update
     setSnippets((prev) =>
       prev.map((s) =>
-        s.id === snippetId ? { ...s, is_skipped: !s.is_skipped } : s
+        s.id === snippetId ? { ...s, is_skipped: newSkipped } : s
       )
     );
-    toast.info("Skip flag toggled locally — backend endpoint not yet wired");
-  }, []);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
+      }
+      const res = await fetch(
+        `/api/v2/admin/snippets/${snippetId}/skip`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ is_skipped: newSkipped }),
+        }
+      );
+      if (!res.ok) throw new Error(`Skip failed (HTTP ${res.status})`);
+      toast.success(newSkipped ? "Snippet skipped" : "Snippet restored");
+    } catch (e) {
+      // Revert optimistic
+      setSnippets((prev) =>
+        prev.map((s) =>
+          s.id === snippetId ? { ...s, is_skipped: !newSkipped } : s
+        )
+      );
+      toast.error(e instanceof Error ? e.message : "Failed to skip snippet");
+    }
+  }, [snippets]);
 
   const handlePublish = useCallback(async () => {
     if (!latestSession) {
@@ -779,10 +917,15 @@ export default function AdminUserDetailPage() {
                 <div>
                   <h3 className="text-base font-semibold">AI Session Summary</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {/* TODO(backend): expose ai_summary + ai_score on session. */}
-                    Auto-generated summary will appear here once the backend
-                    exposes <code className="font-mono">ai_summary</code>.
+                    {aiSummary
+                      ? aiSummary
+                      : "Run “Compute Metrics” to generate the AI summary."}
                   </p>
+                  {aiScore != null && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      AI Alignment Score: <span className="font-semibold text-foreground">{Math.round(aiScore)}/100</span>
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-primary">
@@ -806,23 +949,14 @@ export default function AdminUserDetailPage() {
                   ? ` — ${formatRange(0, latestSession.recording_preview.duration_ms).split(" – ")[1]}`
                   : ""}
               </h3>
-              {/* The session row carries `recording_id` but no playback URL —
-                  fetched on demand if you wire `getRecordingPlaybackUrl`. */}
               <AudioPlayer
-                src={null}
+                src={recordingUrl}
                 duration={
                   latestSession?.recording_preview?.duration_ms != null
                     ? `${(latestSession.recording_preview.duration_ms / 1000).toFixed(0)}s`
                     : undefined
                 }
               />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Playback URL is fetched lazily; wire{" "}
-                <code className="font-mono">
-                  adminApi.getRecordingPlaybackUrl(recording_id)
-                </code>{" "}
-                to populate.
-              </p>
             </Card>
 
             {/* Snippets list — visually nested under the recording */}
@@ -860,18 +994,48 @@ export default function AdminUserDetailPage() {
               <p className="mb-4 text-sm text-muted-foreground">
                 The Q&amp;A flow from the user&apos;s most recent interview.
               </p>
-              {/* TODO(backend): expose interview turns (question text + audio
-                  ref) on the session. Until then we surface the report
-                  transcript text if available. */}
               <div className="space-y-3">
-                {latestSession?.recording_preview?.transcription_preview ? (
+                {interviewTurns.length > 0 ? (
+                  interviewTurns.map((turn, idx) => (
+                    <div key={idx} className="space-y-2">
+                      {/* Bot question bubble */}
+                      {turn.question?.text && (
+                        <div className="flex items-start gap-2">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                            W
+                          </div>
+                          <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
+                            <span className="mr-2 text-[10px] font-medium uppercase text-muted-foreground">
+                              {turn.question.tone ?? ""}
+                            </span>
+                            {turn.question.text}
+                          </div>
+                        </div>
+                      )}
+                      {/* User audio bubble */}
+                      {turn.answer?.audio_url && (
+                        <div className="ml-9">
+                          <audio
+                            controls
+                            src={turn.answer.audio_url}
+                            className="w-full max-w-xs"
+                          />
+                          {turn.answer.duration_ms != null && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              {(turn.answer.duration_ms / 1000).toFixed(1)}s
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : latestSession?.recording_preview?.transcription_preview ? (
                   <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
                     {latestSession.recording_preview.transcription_preview}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Transcript will appear once the backend exposes structured
-                    interview turns.
+                    No interview turns recorded for this session yet.
                   </p>
                 )}
               </div>
@@ -944,11 +1108,31 @@ export default function AdminUserDetailPage() {
                 <select
                   defaultValue="stressor"
                   className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onChange={() =>
-                    toast.info(
-                      "Learning-profile override endpoint not yet wired"
-                    )
-                  }
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    try {
+                      const token = await getAuthToken();
+                      if (!token) {
+                        toast.error("Not authenticated");
+                        return;
+                      }
+                      const res = await fetch(
+                        `/api/v2/admin/users/${userId}/learning-profile`,
+                        {
+                          method: "PATCH",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: JSON.stringify({ learning_profile: val }),
+                        }
+                      );
+                      if (!res.ok) throw new Error(`Save failed (HTTP ${res.status})`);
+                      toast.success(`Learning profile set to "${val}"`);
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Failed to save");
+                    }
+                  }}
                 >
                   <option value="stressor">Stressor</option>
                   <option value="racer">Racer</option>
