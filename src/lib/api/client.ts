@@ -223,6 +223,36 @@ export async function updateUserAdminEmail(
   return handleResponse<UserAdminContext>(res);
 }
 
+/**
+ * Patch any subset of admin context fields. Empty strings are sent as null
+ * so the backend can clear the value.
+ */
+export async function updateUserAdminContext(
+  userId: string,
+  patch: {
+    general_notes?: string | null;
+    custom_instructions?: string | null;
+    max_words?: number | null;
+  }
+): Promise<UserAdminContext> {
+  const normalize = (v: string | null | undefined) =>
+    v === undefined ? undefined : v && v.trim() ? v : null;
+  const body: Record<string, unknown> = {};
+  if (patch.general_notes !== undefined) body.general_notes = normalize(patch.general_notes);
+  if (patch.custom_instructions !== undefined)
+    body.custom_instructions = normalize(patch.custom_instructions);
+  if (patch.max_words !== undefined) body.max_words = patch.max_words;
+
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch(`/api/admin/user/${userId}/context`, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json" },
+    credentials,
+    body: JSON.stringify(body),
+  });
+  return handleResponse<UserAdminContext>(res);
+}
+
 export async function getAuthUserEmail(userId: string): Promise<{ email: string | null }> {
   const { headers, credentials } = await getAuthFetchOptions();
   const res = await fetch(`/api/admin/user/${userId}/auth-email`, { headers, credentials });
