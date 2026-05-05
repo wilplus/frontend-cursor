@@ -4,28 +4,14 @@ import Link from "next/link";
 import { ChevronRight, Flame, Droplet, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import AcousticToggle, {
-  type AcousticMetric,
-} from "@/components/results/journey/AcousticToggle";
+import AcousticToggle from "@/components/results/journey/AcousticToggle";
+import type { Snippet } from "@/lib/results/types";
 
-export interface JourneySnippet {
-  id: string;
-  type: "charisma" | "stress";
-  /** Display duration label, e.g. "0:15". */
-  duration: string;
-  /** Pill text near the play control, e.g. "Charisma Moment". */
-  badgeLabel: string;
-  /** Coach's insight body shown under the player. */
-  insight: string;
-  /** CTA copy on the action button. */
-  ctaLabel: string;
-  metrics: AcousticMetric[];
-  /** Optional: real audio URL when wired. Not required for the mock view. */
-  audioUrl?: string;
-}
+/** Back-compat alias — preferred name is `Snippet` from @/lib/results/types. */
+export type JourneySnippet = Snippet;
 
 interface JourneySnippetCardProps {
-  snippet: JourneySnippet;
+  snippet: Snippet;
   /** Index used to stagger the fade-in-up entrance. */
   index?: number;
 }
