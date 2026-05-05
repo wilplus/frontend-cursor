@@ -70,6 +70,14 @@ export default function ChatInterview({
   const guestSessionIdRef = useRef<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const thresholdReachedRef = useRef(false);
+  const farewellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up the farewell timeout if the component unmounts early
+  useEffect(() => {
+    return () => {
+      if (farewellTimerRef.current) clearTimeout(farewellTimerRef.current);
+    };
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -153,11 +161,27 @@ export default function ChatInterview({
         const newTotal = result.total_session_duration_seconds;
         setTotalDuration(newTotal);
 
-        // Check threshold
+        // Check threshold — graceful exit with farewell message
         if (newTotal >= AGGREGATE_THRESHOLD_SECONDS) {
           thresholdReachedRef.current = true;
-          setUploading(false);
-          onThresholdReached(result.guest_session_id);
+          setCurrentQuestion(null);
+
+          // Push the farewell bot bubble into the chat thread
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "farewell",
+              type: "bot",
+              content:
+                "For today we have got it, thanks! Now we will analyse it! 🚀",
+            },
+          ]);
+
+          // Give the user ~3 seconds to read the goodbye, then transition
+          const sid = result.guest_session_id;
+          farewellTimerRef.current = setTimeout(() => {
+            onThresholdReached(sid);
+          }, 3000);
           return;
         }
 
