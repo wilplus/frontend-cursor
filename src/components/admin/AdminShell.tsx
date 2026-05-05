@@ -14,6 +14,7 @@ export default function AdminShell({
   onLogout?: () => void;
 }) {
   const pathname = usePathname();
+  const usersActive = pathname?.startsWith("/admin/users");
   const studentsActive = pathname?.startsWith("/admin/students");
   const trainingStudioActive =
     pathname?.startsWith("/admin/training-studio") ||
@@ -25,8 +26,16 @@ export default function AdminShell({
       <header className="sticky top-0 z-10 h-14 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
           <div className="flex items-center gap-3">
-            <Link href="/admin/students" className="text-lg font-bold text-foreground">
+            <Link href="/admin/users" className="text-lg font-bold text-foreground">
               Admin
+            </Link>
+            <Link
+              href="/admin/users"
+              className={`text-sm font-medium transition-colors ${
+                usersActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Users
             </Link>
             <Link
               href="/admin/students"
@@ -34,7 +43,7 @@ export default function AdminShell({
                 studentsActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Students
+              Students (legacy)
             </Link>
             <Link
               href="/admin/training-studio"
