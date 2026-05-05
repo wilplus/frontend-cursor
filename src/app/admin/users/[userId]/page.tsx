@@ -507,6 +507,31 @@ export default function AdminUserDetailPage() {
     ];
   }, [latestSession]);
 
+  /**
+   * Canonical session KPI score (0.0–1.0) computed by the backend after each
+   * session — same value rendered as a percentage in CompletedCard /
+   * KPILineChart. Lives inside performance_metrics_v2 on the session row;
+   * we walk the common shapes defensively because the admin endpoint may
+   * return either nested-under-performance_score or flattened.
+   */
+  const finalKpi = useMemo<number | null>(() => {
+    const candidates: Array<Record<string, unknown> | null | undefined> = [
+      latestSession?.performance_metrics_v2,
+      latestSession?.recording_preview?.performance_metrics_v2,
+    ];
+    for (const blob of candidates) {
+      if (!blob) continue;
+      const ps = (blob as { performance_score?: unknown }).performance_score;
+      if (ps && typeof ps === "object") {
+        const k = (ps as { final_kpi?: unknown }).final_kpi;
+        if (typeof k === "number" && Number.isFinite(k)) return k;
+      }
+      const flat = (blob as { final_kpi?: unknown }).final_kpi;
+      if (typeof flat === "number" && Number.isFinite(flat)) return flat;
+    }
+    return null;
+  }, [latestSession]);
+
   /* -------------------------------------------------------------------- */
   /* Save handlers                                                          */
   /* -------------------------------------------------------------------- */
@@ -761,12 +786,13 @@ export default function AdminUserDetailPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-primary">
-                    {typeof latestSession?.score === "number"
-                      ? latestSession.score.toFixed(1)
-                      : "—"}
+                    {finalKpi == null ? "—" : Math.round(finalKpi * 100)}
                     <span className="text-base font-normal text-muted-foreground">
-                      /10
+                      {finalKpi == null ? "" : "%"}
                     </span>
+                  </p>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    KPI
                   </p>
                 </div>
               </div>
