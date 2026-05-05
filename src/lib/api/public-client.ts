@@ -189,6 +189,7 @@ export async function uploadInterviewAnswer(
     guestSessionId?: string | null;
     turnNumber: number;
     questionTone: string;
+    questionText?: string | null;
     durationSeconds: number | null;
   }
 ): Promise<InterviewUploadResponse> {
@@ -205,6 +206,9 @@ export async function uploadInterviewAnswer(
   form.append("audio_file", blob, filename);
   form.append("turn_number", String(opts.turnNumber));
   form.append("question_tone", opts.questionTone);
+  if (opts.questionText) {
+    form.append("question_text", opts.questionText);
+  }
   if (opts.guestSessionId) {
     form.append("guest_session_id", opts.guestSessionId);
   }

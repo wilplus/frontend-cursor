@@ -145,6 +145,7 @@ export default function ChatInterview({
           guestSessionId: guestSessionIdRef.current,
           turnNumber,
           questionTone: currentQuestion?.tone || "charisma",
+          questionText: currentQuestion?.text || null,
           durationSeconds,
         });
 
