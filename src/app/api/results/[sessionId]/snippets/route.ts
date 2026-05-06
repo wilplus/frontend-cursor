@@ -3,8 +3,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/results/[sessionId]/snippets
- * Fetch snippets with admin comments for a specific session.
+ * Fetch non-skipped snippets for a specific session.
  * Auth required: User can only view their own session's snippets.
+ *
+ * Returns all non-skipped snippets with their metrics, admin comments,
+ * transcript, question context, and audio URLs — ready for SnippetCard rendering.
  */
 export async function GET(
   req: NextRequest,
@@ -27,10 +30,10 @@ export async function GET(
       );
     }
 
-    // Fetch session to verify ownership
+    // Fetch session to verify ownership + check publish status
     const { data: session, error: sessionError } = await supabase
       .from("v2_sessions")
-      .select("id, user_id")
+      .select("id, user_id, results_published_at")
       .eq("id", sessionId)
       .single();
 
@@ -49,27 +52,49 @@ export async function GET(
       );
     }
 
-    // Fetch snippets with admin comments (only those the admin has labeled)
+    // Only return snippets if results have been published by admin
+    if (!session.results_published_at) {
+      return NextResponse.json(
+        {
+          status: "ok",
+          snippets: [],
+          published: false,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Fetch all non-skipped snippets with full data
     const { data: snippets, error: snippetError } = await supabase
       .from("charisma_snippets")
       .select(
         `
         id,
         session_id,
-        user_id,
         recording_id,
         start_offset_ms,
         duration_ms,
         audio_segment_path,
         snippet_type,
         admin_comment,
-        admin_user_id,
-        created_at,
-        updated_at
+        transcript,
+        turn_number,
+        question_text,
+        question_tone,
+        wpm,
+        fillers,
+        pause_ms,
+        dynamic_db,
+        pitch_center,
+        energy,
+        is_skipped,
+        created_at
       `
       )
       .eq("session_id", sessionId)
-      .not("admin_comment", "is", null)
+      .eq("user_id", user.id)
+      .eq("is_skipped", false)
+      .order("turn_number", { ascending: true })
       .order("start_offset_ms", { ascending: true });
 
     if (snippetError) {
@@ -83,7 +108,26 @@ export async function GET(
     return NextResponse.json(
       {
         status: "ok",
-        snippets: snippets || [],
+        published: true,
+        snippets: (snippets || []).map((s) => ({
+          id: s.id,
+          snippet_type: s.snippet_type,
+          admin_comment: s.admin_comment,
+          audio_url: s.audio_segment_path,
+          transcript: s.transcript,
+          turn_number: s.turn_number,
+          question_text: s.question_text,
+          question_tone: s.question_tone,
+          duration_ms: s.duration_ms,
+          metrics: {
+            wpm: s.wpm,
+            fillers: s.fillers,
+            pause_ms: s.pause_ms,
+            dynamic_db: s.dynamic_db,
+            pitch_center: s.pitch_center,
+            energy: s.energy,
+          },
+        })),
       },
       { status: 200 }
     );
