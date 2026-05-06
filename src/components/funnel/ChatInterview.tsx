@@ -38,6 +38,16 @@ interface ChatInterviewProps {
    * show the appropriate error state.
    */
   onError?: (code: string, message: string, status: number) => void;
+  /**
+   * If provided, skip the initial fetchNextQuestion(1) call and use this
+   * pre-fetched question instead. Used by the contextual retention-loop chat
+   * where the first question comes from a different endpoint.
+   */
+  initialQuestion?: { text: string; tone: "charisma" | "stress" };
+  /**
+   * Custom farewell message. Defaults to the standard wrap-up text.
+   */
+  farewellMessage?: string;
 }
 
 const AGGREGATE_THRESHOLD_SECONDS = 30;
@@ -55,6 +65,8 @@ function formatDuration(totalSeconds: number): string {
 export default function ChatInterview({
   onThresholdReached,
   onError,
+  initialQuestion,
+  farewellMessage,
 }: ChatInterviewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<{
@@ -84,9 +96,24 @@ export default function ChatInterview({
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loadingQuestion]);
 
-  // Fetch the first question on mount
+  // Fetch the first question on mount (or use pre-fetched initialQuestion)
   useEffect(() => {
     let cancelled = false;
+
+    if (initialQuestion) {
+      // Use the pre-fetched contextual question (retention-loop chat)
+      setCurrentQuestion({ text: initialQuestion.text, tone: initialQuestion.tone });
+      setMessages([
+        {
+          id: "q-1",
+          type: "bot",
+          content: initialQuestion.text,
+          tone: initialQuestion.tone,
+        },
+      ]);
+      return;
+    }
+
     const loadFirst = async () => {
       setLoadingQuestion(true);
       try {
@@ -115,6 +142,7 @@ export default function ChatInterview({
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -173,6 +201,7 @@ export default function ChatInterview({
               id: "farewell",
               type: "bot",
               content:
+                farewellMessage ||
                 "For today we have got it, thanks! Now we will analyse it! 🚀",
             },
           ]);
