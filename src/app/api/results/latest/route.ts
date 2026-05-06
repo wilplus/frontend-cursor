@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
+/** Uses cookies / request — must not be statically analyzed as a static route. */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
 /**
  * GET /api/results/latest
  *
