@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Globe2, Hourglass, Play, Share2 } from "lucide-react";
+import { Globe2, Play, Share2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import JourneySnippetCard from "@/components/results/journey/JourneySnippetCard";
 import type {
   JourneySession,
@@ -102,22 +103,21 @@ interface PageProps {
 
 export default function VoiceJourneyPage({ searchParams }: PageProps) {
   const status = resolveStatus(searchParams?.status, MOCK_PAYLOAD.status);
-  const isReady = status === "ready" || status === "completed";
 
+  // Navbar stays mounted for both states so the user feels grounded in the
+  // app no matter which view is rendered. Inner views own their own widths.
   return (
     <div className="willab-chat min-h-screen bg-background">
       <Navbar />
-      <main className="mx-auto max-w-3xl px-6 py-10">
-        {isReady ? (
-          <ReadyView
-            sessions={MOCK_PAYLOAD.sessions}
-            current={MOCK_PAYLOAD.current_session_index}
-            total={MOCK_PAYLOAD.total_sessions}
-          />
-        ) : (
-          <ProcessingView />
-        )}
-      </main>
+      {status === "processing" ? (
+        <ProcessingState />
+      ) : (
+        <CompletedResultsView
+          sessions={MOCK_PAYLOAD.sessions}
+          current={MOCK_PAYLOAD.current_session_index}
+          total={MOCK_PAYLOAD.total_sessions}
+        />
+      )}
     </div>
   );
 }
@@ -148,56 +148,60 @@ function Navbar() {
  * STATE 1 — Processing
  * ------------------------------------------------------------------------- */
 
-function ProcessingView() {
+function ProcessingState() {
   return (
-    <section
-      className="animate-fade-in-up flex flex-col items-center text-center"
+    <main
+      className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center gap-6 p-6 text-center animate-fade-in-up"
       aria-live="polite"
     >
-      {/* Pulsing badge */}
-      <span className="mb-6 inline-flex animate-pulse items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-        <Hourglass className="h-3 w-3" aria-hidden />
-        Analysis in Progress
+      {/* Pulsing status badge — neutral border per spec */}
+      <span className="inline-flex animate-pulse items-center rounded-full border border-border px-3 py-1 text-xs">
+        ⏳ Analysis in Progress
       </span>
 
       {/* Header */}
-      <h1 className="text-3xl font-bold tracking-tight">
-        We are analyzing your voice baseline
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        We are analyzing your voice baseline.
       </h1>
 
-      {/* Vertical 9:16 video placeholder */}
-      <div className="mt-8 aspect-[9/16] w-64 overflow-hidden rounded-2xl border border-border bg-muted shadow-sm sm:w-72">
+      {/* Vertical 9:16 video placeholder with caption */}
+      <div className="relative mx-auto flex aspect-[9/16] w-64 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border border-border bg-muted sm:w-72">
         {/* TODO(backend): swap for a real <video> tag when the founder
             "we're analysing your voice now" clip is uploaded and exposed
             via /api/public/funnel/afterwards-video. */}
-        <div className="flex h-full w-full items-center justify-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg">
-            <Play className="h-7 w-7 fill-current" aria-hidden />
-          </span>
-        </div>
+        <button
+          type="button"
+          aria-label="Play founder message"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+        >
+          <Play className="h-6 w-6 fill-current" aria-hidden />
+        </button>
+        <p className="text-sm font-medium text-muted-foreground">
+          Founder Message
+        </p>
       </div>
 
       {/* Description */}
-      <div className="mt-8 max-w-md space-y-3 text-sm text-muted-foreground">
-        <p>
-          Our AI and human coaches are listening to every breath, beat, and
-          inflection in your recording. This usually takes a few hours — never
-          longer than 24h.
-        </p>
-        <p>
-          We&apos;ll email you the moment your Charisma Snippets are ready.
-          You can safely close this tab.
-        </p>
-      </div>
-    </section>
+      <p className="mx-auto max-w-[280px] text-sm leading-relaxed text-muted-foreground sm:max-w-sm">
+        Our AI engine and expert coaches are currently extracting your
+        Charisma and Stress snippets. This process usually takes a little
+        while. You can safely close this page—we will email you the moment
+        your customized insights are ready.
+      </p>
+
+      {/* Return action */}
+      <Button asChild variant="outline" className="mt-4 rounded-full">
+        <Link href="/">Return to Homepage</Link>
+      </Button>
+    </main>
   );
 }
 
 /* ----------------------------------------------------------------------------
- * STATE 2 — Journey (ready / completed)
+ * STATE 2 — Completed Results (a.k.a. "ready") — Voice Journey timeline
  * ------------------------------------------------------------------------- */
 
-function ReadyView({
+function CompletedResultsView({
   sessions,
   current,
   total,
@@ -210,7 +214,7 @@ function ReadyView({
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
-    <>
+    <main className="mx-auto max-w-3xl px-6 py-10">
       {/* Page heading */}
       <header className="mb-8 animate-fade-in-up">
         <h1 className="text-3xl font-bold tracking-tight">Your Voice Journey</h1>
@@ -302,6 +306,6 @@ function ReadyView({
       <p className="mt-12 text-center text-xs text-muted-foreground">
         More sessions unlock as you keep recording.
       </p>
-    </>
+    </main>
   );
 }
