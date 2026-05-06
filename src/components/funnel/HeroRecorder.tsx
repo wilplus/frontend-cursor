@@ -197,9 +197,11 @@ export default function HeroRecorder() {
     }
   }, [authState, status]);
 
+  // Viewport-locked: page fits the device exactly. Inner regions own their
+  // own scrolling (chat thread). The body never scrolls.
   return (
-    <main className="willab-chat min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-8">
         {status === "rate_limited" ? (
           <SectionCard title="You've tried a few times">
             <p className="text-sm text-muted-foreground">
@@ -224,14 +226,15 @@ export default function HeroRecorder() {
         ) : status === "processing" ? (
           <ProcessingScreen />
         ) : status === "interviewing" ? (
-          <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
-            {/* Top: nav bar + optional explainer */}
-            <div className="space-y-4">
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Top: nav bar + optional explainer (shrink-0 so the chat
+                thread below gets the rest of the height) */}
+            <div className="shrink-0 space-y-4">
               {authState === "anonymous" && <AnonymousTopBar />}
               <ExplainerVideo />
             </div>
 
-            {/* Multi-turn interview chat */}
+            {/* Multi-turn interview chat — owns its own internal scroll */}
             <ChatInterview
               onThresholdReached={handleThresholdReached}
               onError={handleInterviewError}
@@ -239,7 +242,7 @@ export default function HeroRecorder() {
           </div>
         ) : (
           /* idle: waiting for auth state */
-          <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         )}
