@@ -7,13 +7,12 @@ export async function GET(req: NextRequest) {
   const type = requestUrl.searchParams.get("type"); // Supabase adds ?type=recovery for password reset
   const next = requestUrl.searchParams.get("next");
 
-  // Password recovery: always send user to /update-password (not dashboard).
-  // Supabase may send type=recovery; some setups send only code. Treat callback with code but no type (or type not magiclink/signup) as recovery.
+  // Password recovery: only treat as recovery when explicitly flagged.
+  // OAuth providers (LinkedIn, etc.) return ?code=xxx with no type param —
+  // those must NOT be treated as recovery.
   const isRecovery =
     type === "recovery" ||
-    next === "/update-password" ||
-    (!!code && !type) ||
-    (!!code && type !== "magiclink" && type !== "signup");
+    next === "/update-password";
 
   if (isRecovery) {
     // If we have a code in query params, exchange it first
