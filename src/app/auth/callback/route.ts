@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Normal auth flow (not password reset)
-  const redirectPath = next || "/dashboard";
+  const redirectPath = next || "/chat";
   const response = NextResponse.redirect(new URL(redirectPath, req.url));
 
   const supabase = createServerClient(

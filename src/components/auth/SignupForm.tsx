@@ -8,14 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 
 interface SignupFormProps {
   onSuccess?: () => void;
+  /** Skip the provider picker and go straight to the email form. */
+  skipProviderPicker?: boolean;
 }
 
-export default function SignupForm({ onSuccess }: SignupFormProps = {}) {
+export default function SignupForm({ onSuccess, skipProviderPicker }: SignupFormProps = {}) {
   const router = useRouter();
   const supabase = createClient();
+  const [showEmailForm, setShowEmailForm] = useState(!!skipProviderPicker);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -146,6 +150,44 @@ export default function SignupForm({ onSuccess }: SignupFormProps = {}) {
     }
   };
 
+  // Provider picker: LinkedIn vs email
+  if (!showEmailForm) {
+    return (
+      <Card className="p-6">
+        <div className="space-y-3">
+          <LinkedInAuthButton mode="signup" />
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="default"
+            className="w-full"
+            onClick={() => setShowEmailForm(true)}
+          >
+            Sign up with email
+          </Button>
+        </div>
+
+        <div className="mt-4 text-center text-sm">
+          <p>
+            Already have an account?{" "}
+            <Link href="/login" className="text-orange-500 hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6">
       <form onSubmit={handleSignup} className="space-y-4">
@@ -203,6 +245,14 @@ export default function SignupForm({ onSuccess }: SignupFormProps = {}) {
           {loading ? "Creating account..." : "Sign up"}
         </Button>
       </form>
+
+      <button
+        type="button"
+        onClick={() => setShowEmailForm(false)}
+        className="mt-3 block w-full text-center text-sm text-muted-foreground hover:underline"
+      >
+        Back to sign up options
+      </button>
 
       <div className="mt-4 text-center text-sm">
         <p>
