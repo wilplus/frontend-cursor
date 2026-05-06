@@ -105,8 +105,27 @@ export default function SignupForm({ onSuccess }: SignupFormProps = {}) {
           onSuccess();
           return;
         }
+
+        // Smart redirect: published results → /results/[id], otherwise → /chat
+        const session = data.session;
+        if (session?.access_token) {
+          try {
+            const latestRes = await fetch("/api/results/latest", {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (latestRes.ok) {
+              const latestData = await latestRes.json();
+              if (latestData.session_id && latestData.status === "completed") {
+                window.location.href = `/results/${latestData.session_id}`;
+                return;
+              }
+            }
+          } catch {
+            /* non-fatal — fall through to /chat */
+          }
+        }
         setTimeout(() => {
-          window.location.href = "/dashboard";
+          window.location.href = "/chat";
         }, 100);
       }
     } catch (err) {
