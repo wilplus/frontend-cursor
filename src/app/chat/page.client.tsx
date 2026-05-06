@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import ChatInterview from "@/components/funnel/ChatInterview";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
 
@@ -128,6 +129,7 @@ export default function ChatPageClient({
 
   return (
     <main className="willab-chat min-h-screen bg-background">
+      <DashboardHeader />
       <div className="mx-auto w-full max-w-3xl px-4 py-8">
         {chatState === "loading" && (
           <div className="flex min-h-[50vh] items-center justify-center">
