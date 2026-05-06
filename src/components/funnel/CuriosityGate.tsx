@@ -13,56 +13,6 @@ interface CuriosityGateProps {
   onSuccess: () => void;
 }
 
-function ExplainerVideo() {
-  const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch("/api/public/funnel/afterwards-video")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled) return;
-        const v = data?.video_url;
-        if (typeof v === "string" && v) setUrl(v);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-xl bg-muted">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!url) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-xl bg-muted">
-        <p className="text-sm text-muted-foreground">Video unavailable</p>
-      </div>
-    );
-  }
-
-  return (
-    <video
-      src={url}
-      className="aspect-video w-full rounded-xl bg-black shadow-sm"
-      controls
-      playsInline
-      autoPlay
-    />
-  );
-}
-
 function GuestSignupSection({ onSuccess }: { onSuccess: () => void }) {
   const [mode, setMode] = useState<"signup" | "login">("signup");
 
@@ -109,12 +59,11 @@ function RedirectingCard() {
 /**
  * Curiosity Gate: Post-recording flow
  *
- * Shows the explainer video, then:
- * - For guests: Signup form below the video
+ * - For guests: Signup form (no video)
  * - For logged-in users: Auto-claims then redirects
  *
- * After signup + claim: redirects to /results (if published snippets exist)
- * or /chat (to start a new conversation).
+ * After signup + claim: always redirects to /results/[sessionId]
+ * (which shows the waiting screen with video until admin publishes).
  */
 export default function CuriosityGate({
   isGuest,
@@ -124,27 +73,6 @@ export default function CuriosityGate({
   const router = useRouter();
   const [signedUp, setSignedUp] = useState(false);
 
-  // After claim, determine redirect target and navigate
-  const redirectAfterClaim = async (accessToken: string) => {
-    try {
-      // Check if user already has published results
-      const res = await fetch("/api/results/latest", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.session_id && data.status === "completed") {
-          router.push(`/results/${data.session_id}`);
-          return;
-        }
-      }
-    } catch {
-      /* non-fatal — fall through to /chat */
-    }
-    // No published results yet → go to chat (or home)
-    router.push("/chat");
-  };
-
   // Claim guest session after user signs up (guests) or on mount (logged-in users)
   useEffect(() => {
     if (!guestSessionId) return;
@@ -152,6 +80,7 @@ export default function CuriosityGate({
     let unsubscribe: (() => void) | null = null;
 
     const claimSession = async (accessToken: string) => {
+      let claimedSessionId: string | null = null;
       try {
         const response = await fetch("/api/public/shaky-voice/claim", {
           method: "POST",
@@ -161,14 +90,37 @@ export default function CuriosityGate({
           },
           body: JSON.stringify({ guest_session_id: guestSessionId }),
         });
-        if (!response.ok) {
+        if (response.ok) {
+          const data = await response.json();
+          claimedSessionId = data?.session_id || null;
+        } else {
           console.error("Claim failed:", response.status);
         }
       } catch (err) {
         console.error("Claim error:", err);
       }
-      // Redirect regardless of claim outcome
-      await redirectAfterClaim(accessToken);
+
+      // Always go to results page — it shows waiting screen until published
+      if (claimedSessionId) {
+        router.push(`/results/${claimedSessionId}`);
+      } else {
+        // Fallback: check if there's a latest session
+        try {
+          const res = await fetch("/api/results/latest", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.session_id) {
+              router.push(`/results/${data.session_id}`);
+              return;
+            }
+          }
+        } catch {
+          /* fall through */
+        }
+        router.push("/chat");
+      }
     };
 
     const setupAuthListener = async () => {
@@ -200,15 +152,11 @@ export default function CuriosityGate({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest, guestSessionId]);
 
-  // Show:
-  //   - logged-in user or post-signup → brief "redirecting" card
-  //   - guest (pre-signup) → video + signup form
   const showRedirecting = !isGuest || signedUp;
 
   return (
     <main className="willab-chat min-h-screen bg-background">
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
-        {!showRedirecting && <ExplainerVideo />}
         {showRedirecting ? (
           <RedirectingCard />
         ) : (
