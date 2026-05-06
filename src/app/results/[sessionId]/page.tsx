@@ -24,6 +24,81 @@ interface Snippet {
 
 type ResultsStatus = "processing" | "completed" | "unknown";
 
+/* -------------------------------------------------------------------------- */
+/* Waiting / Processing View                                                  */
+/* -------------------------------------------------------------------------- */
+
+function ProcessingView() {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/funnel/afterwards-video")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const v = data?.video_url;
+        if (typeof v === "string" && v) setVideoUrl(v);
+        setVideoLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setVideoLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+      <div className="mb-8 space-y-2">
+        <h1 className="text-3xl font-bold text-foreground">Your Charisma Moments</h1>
+        <p className="text-muted-foreground">
+          We&apos;re analyzing your recording. Your personalized feedback will appear here soon.
+        </p>
+      </div>
+
+      {/* Video area — same spot where snippets will appear later */}
+      <div className="space-y-4">
+        {videoLoading && (
+          <div className="flex aspect-video items-center justify-center rounded-xl bg-muted">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {!videoLoading && videoUrl && (
+          <video
+            src={videoUrl}
+            className="aspect-video w-full rounded-xl bg-black shadow-sm"
+            controls
+            playsInline
+            autoPlay
+          />
+        )}
+
+        {!videoLoading && !videoUrl && (
+          <div className="flex aspect-video items-center justify-center rounded-xl bg-muted">
+            <div className="text-center space-y-2">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Analysis in progress…</p>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-dashed border-border bg-muted/50 p-6 text-center">
+          <p className="text-muted-foreground">
+            Your coach will analyze your recording and add personalized feedback soon.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We&apos;ll email you when your Charisma Snippets are ready.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompletedResultsView({
   sessionId,
 }: {
@@ -168,12 +243,9 @@ export default function ResultsPage() {
 
         const data = (await response.json()) as { status?: string };
 
-        // No published results yet → redirect to chat instead of showing a 0-state
-        if (data?.status !== "completed") {
-          if (!cancelled) router.push("/chat");
-          return;
+        if (!cancelled) {
+          setStatus(data?.status === "completed" ? "completed" : "processing");
         }
-        if (!cancelled) setStatus("completed");
       } catch (err) {
         console.error("Error fetching results status:", err);
         if (!cancelled) setStatusError("An error occurred while loading your session status.");
@@ -218,6 +290,10 @@ export default function ResultsPage() {
             </Button>
           </div>
         </div>
+      )}
+
+      {!statusLoading && !statusError && status === "processing" && (
+        <ProcessingView />
       )}
 
       {!statusLoading && !statusError && status === "completed" && (
