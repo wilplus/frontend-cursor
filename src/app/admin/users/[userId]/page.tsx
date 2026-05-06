@@ -231,7 +231,7 @@ interface SnippetCardProps {
   onSaveComment: (snippetId: string, comment: string) => Promise<void>;
   onSkip: (snippetId: string) => void;
   saving?: boolean;
-  /** Visual hint: backend endpoints for some controls aren't wired yet. */
+  /** Disable boundary +/- controls (e.g. while saving). */
   boundaryDisabled?: boolean;
   skipDisabled?: boolean;
 }
@@ -977,7 +977,7 @@ export default function AdminUserDetailPage() {
                     onLabel={handleSnippetLabel}
                     onSaveComment={handleSaveSnippetComment}
                     onSkip={handleSkipSnippet}
-                    boundaryDisabled
+                    boundaryDisabled={false}
                     skipDisabled={false}
                   />
                 ))
