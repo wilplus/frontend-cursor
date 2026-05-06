@@ -104,10 +104,11 @@ interface PageProps {
 export default function VoiceJourneyPage({ searchParams }: PageProps) {
   const status = resolveStatus(searchParams?.status, MOCK_PAYLOAD.status);
 
-  // Navbar stays mounted for both states so the user feels grounded in the
-  // app no matter which view is rendered. Inner views own their own widths.
+  // Viewport-locked layout: page is exactly 100dvh tall; the navbar stays
+  // pinned at the top, and only the active inner view (Processing or
+  // Completed) is allowed to scroll. The body never scrolls.
   return (
-    <div className="willab-chat min-h-screen bg-background">
+    <div className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
       <Navbar />
       {status === "processing" ? (
         <ProcessingState />
@@ -128,7 +129,7 @@ export default function VoiceJourneyPage({ searchParams }: PageProps) {
 
 function Navbar() {
   return (
-    <header className="bg-foreground text-primary-foreground">
+    <header className="shrink-0 bg-foreground text-primary-foreground">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
         <Link href="/" aria-label="Willab home" className="inline-flex items-baseline">
           <span className="text-lg font-bold italic tracking-tight">Willab</span>
@@ -151,7 +152,7 @@ function Navbar() {
 function ProcessingState() {
   return (
     <main
-      className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center gap-6 p-6 text-center animate-fade-in-up"
+      className="animate-fade-in-up mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 overflow-y-auto p-6 text-center"
       aria-live="polite"
     >
       {/* Pulsing status badge — neutral border per spec */}
@@ -214,7 +215,7 @@ function CompletedResultsView({
   const progressPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-6 py-10">
       {/* Page heading */}
       <header className="mb-8 animate-fade-in-up">
         <h1 className="text-3xl font-bold tracking-tight">Your Voice Journey</h1>

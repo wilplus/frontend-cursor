@@ -292,10 +292,12 @@ export default function ChatInterview({
   }, []);
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
-      {/* Progress bar (aggregate time) */}
+    // Fills the parent's allotted height; the thread is the only element
+    // that can scroll, so the mic + progress bar stay anchored.
+    <div className="flex h-full flex-1 flex-col overflow-hidden">
+      {/* Progress bar (aggregate time) — pinned above the thread */}
       {totalDuration > 0 && (
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm px-1 py-2">
+        <div className="shrink-0 bg-background/80 backdrop-blur-sm px-1 py-2">
           <div className="flex items-center gap-2">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
               <div
@@ -315,8 +317,8 @@ export default function ChatInterview({
         </div>
       )}
 
-      {/* Chat thread */}
-      <div className="flex flex-1 flex-col justify-end gap-3 py-6">
+      {/* Chat thread — internal scroll only; messages anchor to the bottom */}
+      <div className="flex flex-1 flex-col justify-end gap-3 overflow-y-auto py-6">
         {messages.map((msg) => (
           <ChatBubble
             key={msg.id}
@@ -346,8 +348,8 @@ export default function ChatInterview({
         <div ref={threadEndRef} />
       </div>
 
-      {/* Bottom: record control */}
-      <div className="flex flex-col items-center gap-3 pb-8">
+      {/* Bottom: record control — pinned, never compressed */}
+      <div className="flex shrink-0 flex-col items-center gap-3 pb-8">
         {!loadingQuestion && currentQuestion && !thresholdReachedRef.current && (
           <VoiceRecordButton
             onSend={handleSend}

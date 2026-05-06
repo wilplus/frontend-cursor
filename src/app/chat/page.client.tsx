@@ -13,7 +13,7 @@ type ChatState = "loading" | "interviewing" | "complete" | "error";
 
 function TrainingCompleteScreen() {
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 text-center animate-fade-in-up">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-fade-in-up">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
         <CheckCircle2 className="h-8 w-8 text-primary" />
       </div>
@@ -127,18 +127,22 @@ export default function ChatPageClient({
       ? "That's all for today's session. Great work opening up — we'll analyze this for you! 🙌"
       : "Training complete for today! We've captured everything we need. 🚀";
 
+  // Viewport-locked: outer fills the device exactly; only the inner thread
+  // scrolls if its messages overflow. The body never scrolls.
   return (
-    <main className="willab-chat min-h-screen bg-background">
-      <DashboardHeader />
-      <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <div className="shrink-0">
+        <DashboardHeader />
+      </div>
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-8">
         {chatState === "loading" && (
-          <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         )}
 
         {chatState === "error" && (
-          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <p className="max-w-sm text-sm text-muted-foreground">
               {errorMsg || "Something went wrong."}
             </p>
