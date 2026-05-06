@@ -166,6 +166,28 @@ export default function ChatInterview({
     [turnNumber, currentQuestion]
   );
 
+  // Client-side duration accumulator (fallback when backend total is unreliable)
+  const clientDurationRef = useRef(0);
+
+  /**
+   * Build the conversation history from the messages array so the LLM
+   * knows which questions it already asked and doesn't repeat them.
+   */
+  const buildPreviousTurns = useCallback(
+    (): { question: string; transcript?: string }[] => {
+      const turns: { question: string; transcript?: string }[] = [];
+      for (const msg of messages) {
+        if (msg.type === "bot" && msg.content && msg.id !== "farewell") {
+          turns.push({ question: msg.content });
+        }
+        // We don't have transcripts on the client side, but the question
+        // history alone is enough for the LLM to avoid repetition.
+      }
+      return turns;
+    },
+    [messages]
+  );
+
   /**
    * Called when the user taps Send. Uploads the chunk, then either
    * fetches the next question or triggers the threshold callback.
@@ -175,6 +197,9 @@ export default function ChatInterview({
       if (thresholdReachedRef.current) return;
       setUploading(true);
       setErrorMessage(null);
+
+      // Accumulate client-side duration as a safety net
+      clientDurationRef.current += durationSeconds;
 
       try {
         const result = await uploadInterviewAnswer(blob, {
@@ -186,11 +211,13 @@ export default function ChatInterview({
         });
 
         guestSessionIdRef.current = result.guest_session_id;
-        const newTotal = result.total_session_duration_seconds;
-        setTotalDuration(newTotal);
+        // Use whichever total is higher: backend or client accumulation
+        const backendTotal = result.total_session_duration_seconds;
+        const effectiveTotal = Math.max(backendTotal, clientDurationRef.current);
+        setTotalDuration(effectiveTotal);
 
         // Check threshold — graceful exit with farewell message
-        if (newTotal >= AGGREGATE_THRESHOLD_SECONDS) {
+        if (effectiveTotal >= AGGREGATE_THRESHOLD_SECONDS) {
           thresholdReachedRef.current = true;
           setCurrentQuestion(null);
 
@@ -214,12 +241,13 @@ export default function ChatInterview({
           return;
         }
 
-        // Fetch next question
+        // Fetch next question — pass conversation history so LLM doesn't repeat
         const nextTurn = turnNumber + 1;
         setTurnNumber(nextTurn);
         setLoadingQuestion(true);
 
-        const q = await fetchNextQuestion(nextTurn);
+        const previousTurns = buildPreviousTurns();
+        const q = await fetchNextQuestion(nextTurn, previousTurns);
         setCurrentQuestion({ text: q.question, tone: q.tone });
         setMessages((prev) => [
           ...prev,
@@ -251,7 +279,7 @@ export default function ChatInterview({
         setLoadingQuestion(false);
       }
     },
-    [turnNumber, currentQuestion, onThresholdReached, onError]
+    [turnNumber, currentQuestion, onThresholdReached, onError, buildPreviousTurns, farewellMessage]
   );
 
   const handleRedo = useCallback(() => {
