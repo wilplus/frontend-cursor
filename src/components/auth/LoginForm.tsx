@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -117,6 +118,19 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
 
   return (
     <Card className="min-w-0 p-4 sm:p-6">
+      <div className="mb-4 space-y-3">
+        <LinkedInAuthButton mode="login" />
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">or</span>
+          </div>
+        </div>
+      </div>
+
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
           <label className="mb-2 block text-base font-medium sm:text-sm">Email</label>
