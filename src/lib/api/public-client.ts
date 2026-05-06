@@ -140,14 +140,18 @@ export interface InterviewQuestion {
 }
 
 export async function fetchNextQuestion(
-  turnNumber: number
+  turnNumber: number,
+  previousTurns?: { question: string; transcript?: string }[]
 ): Promise<InterviewQuestion> {
   let resp: Response;
   try {
     resp = await fetch("/api/public/interview/next-question", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ turn_number: turnNumber }),
+      body: JSON.stringify({
+        turn_number: turnNumber,
+        previous_turns: previousTurns?.length ? previousTurns : undefined,
+      }),
     });
   } catch (err) {
     throw new GuestUploadFailure(
