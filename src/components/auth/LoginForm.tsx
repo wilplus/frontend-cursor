@@ -76,22 +76,37 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
       // Check for redirectTo parameter (from email links or protected routes)
       const searchParams = new URLSearchParams(window.location.search);
       const redirectTo = searchParams.get("redirectTo");
-      
+
       // Brief delay so cookies are committed before navigation
       await new Promise((r) => setTimeout(r, 200));
-      
+
       if (onSuccess) {
         onSuccess();
         return;
       }
-      setTimeout(() => {
-        if (redirectTo) {
-          const decodedRedirect = decodeURIComponent(redirectTo);
-          router.push(decodedRedirect);
-        } else {
-          router.push("/dashboard");
+
+      // If there's an explicit redirect target, honour it
+      if (redirectTo) {
+        setTimeout(() => router.push(decodeURIComponent(redirectTo)), 100);
+        return;
+      }
+
+      // Smart redirect: published results → /results/[id], otherwise → /chat
+      try {
+        const latestRes = await fetch("/api/results/latest", {
+          headers: { Authorization: `Bearer ${newSession.access_token}` },
+        });
+        if (latestRes.ok) {
+          const data = await latestRes.json();
+          if (data.session_id && data.status === "completed") {
+            router.push(`/results/${data.session_id}`);
+            return;
+          }
         }
-      }, 100);
+      } catch {
+        /* non-fatal — fall through to /chat */
+      }
+      router.push("/chat");
     } catch (err) {
       console.error(err);
       toast.error("An unexpected error occurred");
