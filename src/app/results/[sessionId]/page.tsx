@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Loader2, Play } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SnippetCard from "@/components/results/SnippetCard";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -23,39 +23,6 @@ interface Snippet {
 }
 
 type ResultsStatus = "processing" | "completed" | "unknown";
-
-function ProcessingState({ onReturnHome }: { onReturnHome: () => void }) {
-  return (
-    <div className="animate-fade-in-up">
-      <div className="flex flex-col items-center justify-center min-h-[80vh] max-w-md mx-auto text-center gap-6 p-6">
-        <div className="rounded-full border border-border px-3 py-1 text-xs animate-pulse">
-          ⏳ Analysis in Progress
-        </div>
-
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
-          We are analyzing your voice baseline.
-        </h1>
-
-        <div className="aspect-[9/16] w-64 sm:w-72 rounded-2xl border border-border bg-muted overflow-hidden relative flex flex-col items-center justify-center gap-4 mx-auto">
-          <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground transition-transform hover:scale-105">
-            <Play className="h-6 w-6" />
-          </div>
-          <div className="text-sm font-medium text-muted-foreground">Founder Message</div>
-        </div>
-
-        <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px] sm:max-w-sm mx-auto">
-          Our AI engine and expert coaches are currently extracting your Charisma and Stress
-          snippets. This process usually takes a little while. You can safely close this page—we
-          will email you the moment your customized insights are ready.
-        </p>
-
-        <Button variant="outline" className="rounded-full mt-4" onClick={onReturnHome}>
-          Return to Homepage
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 function CompletedResultsView({
   sessionId,
@@ -171,7 +138,6 @@ export default function ResultsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId: number | null = null;
 
     const fetchStatus = async () => {
       try {
@@ -201,13 +167,13 @@ export default function ResultsPage() {
         }
 
         const data = (await response.json()) as { status?: string };
-        const next =
-          data?.status === "completed"
-            ? ("completed" as const)
-            : data?.status === "processing"
-              ? ("processing" as const)
-              : ("processing" as const);
-        if (!cancelled) setStatus(next);
+
+        // No published results yet → redirect to chat instead of showing a 0-state
+        if (data?.status !== "completed") {
+          if (!cancelled) router.push("/chat");
+          return;
+        }
+        if (!cancelled) setStatus("completed");
       } catch (err) {
         console.error("Error fetching results status:", err);
         if (!cancelled) setStatusError("An error occurred while loading your session status.");
@@ -218,14 +184,8 @@ export default function ResultsPage() {
 
     void fetchStatus();
 
-    intervalId = window.setInterval(() => {
-      if (cancelled) return;
-      if (status === "processing" || status === "unknown") void fetchStatus();
-    }, 5000);
-
     return () => {
       cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
     };
   }, [sessionId, router]);
 
@@ -258,10 +218,6 @@ export default function ResultsPage() {
             </Button>
           </div>
         </div>
-      )}
-
-      {!statusLoading && !statusError && status === "processing" && (
-        <ProcessingState onReturnHome={() => router.push("/")} />
       )}
 
       {!statusLoading && !statusError && status === "completed" && (
