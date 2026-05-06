@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import SignupForm from "@/components/auth/SignupForm";
 import LoginForm from "@/components/auth/LoginForm";
@@ -94,33 +95,13 @@ function GuestSignupSection({ onSuccess }: { onSuccess: () => void }) {
 }
 
 /**
- * Waiting card shown after successful signup + claim.
- * Same visual style as the homework Step0WaitingCard.
+ * Brief interstitial shown while we determine where to redirect after claim.
  */
-function SubmittedWaitingCard() {
+function RedirectingCard() {
   return (
     <div className="mx-auto w-full max-w-md rounded-3xl border border-border bg-muted/40 px-5 py-6 text-center shadow-sm">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <svg
-          viewBox="0 0 24 24"
-          className="h-6 w-6"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M12 6v6l4 2" />
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-      </div>
-      <div className="mt-4 space-y-3">
-        <p className="text-xl font-semibold text-foreground">Homework submitted!</p>
-        <p className="text-sm leading-6 text-muted-foreground">
-          Your recording has been sent and is now being reviewed. We'll email you when your Charisma Snippets are ready.
-        </p>
-      </div>
+      <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+      <p className="mt-4 text-sm text-muted-foreground">Setting up your account…</p>
     </div>
   );
 }
@@ -130,20 +111,39 @@ function SubmittedWaitingCard() {
  *
  * Shows the explainer video, then:
  * - For guests: Signup form below the video
- * - For logged-in users: Auto-claims then shows waiting card
+ * - For logged-in users: Auto-claims then redirects
  *
- * After signup + claim: shows "Homework submitted!" waiting card.
+ * After signup + claim: redirects to /results (if published snippets exist)
+ * or /chat (to start a new conversation).
  */
 export default function CuriosityGate({
   isGuest,
   guestSessionId,
   onSuccess,
 }: CuriosityGateProps) {
-  // For logged-in users we show the "homework being processed" banner
-  // immediately and run the session-claim silently in the background.
-  // For guests we show the signup form first, then flip to the banner the
-  // moment the SIGNED_IN event fires (claim still runs silently after).
+  const router = useRouter();
   const [signedUp, setSignedUp] = useState(false);
+
+  // After claim, determine redirect target and navigate
+  const redirectAfterClaim = async (accessToken: string) => {
+    try {
+      // Check if user already has published results
+      const res = await fetch("/api/results/latest", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.session_id && data.status === "completed") {
+          router.push(`/results/${data.session_id}`);
+          return;
+        }
+      }
+    } catch {
+      /* non-fatal — fall through to /chat */
+    }
+    // No published results yet → go to chat (or home)
+    router.push("/chat");
+  };
 
   // Claim guest session after user signs up (guests) or on mount (logged-in users)
   useEffect(() => {
@@ -167,14 +167,15 @@ export default function CuriosityGate({
       } catch (err) {
         console.error("Claim error:", err);
       }
+      // Redirect regardless of claim outcome
+      await redirectAfterClaim(accessToken);
     };
 
     const setupAuthListener = async () => {
       const supabase = createClient();
 
       if (isGuest) {
-        // Wait for SIGNED_IN after signup; flip the UI to the banner the
-        // instant auth flips, regardless of whether the claim has finished.
+        // Wait for SIGNED_IN after signup
         const { data } = supabase.auth.onAuthStateChange((event, session) => {
           if (event === "SIGNED_IN" && session?.access_token) {
             setSignedUp(true);
@@ -183,8 +184,7 @@ export default function CuriosityGate({
         });
         unsubscribe = data?.subscription?.unsubscribe || null;
       } else {
-        // Logged-in users: claim in the background; UI already shows the
-        // banner so there's nothing to wait for here.
+        // Logged-in users: claim + redirect immediately
         const { data: { session }, error } = await supabase.auth.getSession();
         if (!error && session?.access_token) {
           claimSession(session.access_token);
@@ -197,20 +197,20 @@ export default function CuriosityGate({
     return () => {
       if (unsubscribe) unsubscribe();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest, guestSessionId]);
 
-  // Match the spec exactly:
-  //   - logged-in user        → video + "homework being processed" banner
-  //   - guest (pre-signup)    → video + signup form
-  //   - guest (post-signup)   → video + same banner as logged-in
-  const showBanner = !isGuest || signedUp;
+  // Show:
+  //   - logged-in user or post-signup → brief "redirecting" card
+  //   - guest (pre-signup) → video + signup form
+  const showRedirecting = !isGuest || signedUp;
 
   return (
     <main className="willab-chat min-h-screen bg-background">
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
-        <ExplainerVideo />
-        {showBanner ? (
-          <SubmittedWaitingCard />
+        {!showRedirecting && <ExplainerVideo />}
+        {showRedirecting ? (
+          <RedirectingCard />
         ) : (
           <GuestSignupSection onSuccess={onSuccess} />
         )}
