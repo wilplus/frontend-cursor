@@ -55,6 +55,13 @@ interface AdminSnippet {
   follow_up_question?: string | null;
   // Spec fields the backend may not yet supply — surfaced where present.
   is_skipped?: boolean | null;
+  /**
+   * Admin-adjusted trim boundaries in seconds (relative to the start of
+   * the audio segment file). Set by the /boundaries endpoint; null means
+   * not yet adjusted (original extraction boundaries apply).
+   */
+  start_time?: number | null;
+  end_time?: number | null;
   metrics?: {
     wpm?: number | null;
     pitch?: string | null;
@@ -73,6 +80,17 @@ function formatRange(startMs: number, durationMs: number): string {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
   return `${fmt(startMs)} – ${fmt(startMs + durationMs)}`;
+}
+
+/**
+ * Format seconds with one decimal place of precision for trim boundary
+ * display (e.g. 5.5 → "0:05.5", 72.0 → "1:12.0").
+ */
+function formatSec(sec: number): string {
+  const s = Math.max(0, sec);
+  const m = Math.floor(s / 60);
+  const rem = (s % 60).toFixed(1).padStart(4, "0");
+  return `${m}:${rem}`;
 }
 
 function formatSessionDate(iso: string | null | undefined): string {
@@ -150,6 +168,83 @@ function AudioPlayer({ src, duration, label }: AudioPlayerProps) {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Snippet audio player with optional start/end clamping so admins can
+ * instantly hear the effect of a boundary adjustment without re-loading the
+ * page.
+ *
+ * `seekTo`  — seconds into the file to jump to on every play event.
+ * `clipEnd` — seconds into the file at which playback is paused and reset to
+ *             `seekTo`. When undefined the player plays to the natural end of
+ *             the audio file.
+ *
+ * Both values update reactively: when the admin clicks ±0.5s / ±1s and the
+ * API responds, the parent re-renders with new seekTo/clipEnd and the player
+ * reflects the new trim on the next press of play.
+ */
+function SnippetPreviewPlayer({
+  src,
+  seekTo = 0,
+  clipEnd,
+}: {
+  src?: string | null;
+  seekTo?: number;
+  clipEnd?: number;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Whenever boundaries change (after API response), pre-position the
+  // playhead so the admin can immediately press play at the right spot.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !el.paused) return;
+    el.currentTime = seekTo;
+  }, [seekTo]);
+
+  const handlePlay = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    // Jump to trimmed start if the playhead is outside the trimmed window.
+    if (
+      el.currentTime < seekTo ||
+      (clipEnd != null && el.currentTime >= clipEnd)
+    ) {
+      el.currentTime = seekTo;
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    const el = audioRef.current;
+    if (!el || clipEnd == null) return;
+    if (el.currentTime >= clipEnd) {
+      el.pause();
+      el.currentTime = seekTo;
+    }
+  };
+
+  if (!src) {
+    return (
+      <div className="flex h-10 items-center rounded-xl border border-border bg-muted/30 px-3">
+        <span className="text-xs text-muted-foreground">No audio available</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3">
+      <audio
+        ref={audioRef}
+        controls
+        src={src}
+        controlsList="nodownload"
+        className="w-full"
+        onPlay={handlePlay}
+        onTimeUpdate={handleTimeUpdate}
+      />
     </div>
   );
 }
@@ -271,6 +366,21 @@ function SnippetCard({
 
   const isSkipped = !!snippet.is_skipped;
 
+  // Effective trim boundaries in seconds (relative to the audio file start).
+  // start_time / end_time are populated by the /boundaries API after the first
+  // admin adjustment. Before that, default to file-start / natural file-end.
+  const effectiveStartSec =
+    snippet.start_time != null ? snippet.start_time : 0;
+  const effectiveEndSec =
+    snippet.end_time != null
+      ? snippet.end_time
+      : snippet.duration_ms / 1000;
+
+  // Seek position and clip-end passed to the audio player so it plays only
+  // the trimmed window without requiring a page reload.
+  const seekTo = effectiveStartSec;
+  const clipEnd = effectiveEndSec;
+
   return (
     <Card
       className={`rounded-2xl border-border p-4 transition-opacity ${
@@ -295,52 +405,77 @@ function SnippetCard({
         </div>
       </div>
 
-      {/* Mini audio player */}
+      {/* Mini audio player — plays only within the admin-adjusted trim window */}
       <div className="mb-3">
-        <AudioPlayer
+        <SnippetPreviewPlayer
           src={snippet.audio_segment_path}
-          duration={`${(snippet.duration_ms / 1000).toFixed(1)}s`}
+          seekTo={seekTo}
+          clipEnd={clipEnd}
         />
       </div>
 
-      {/* Boundary controls */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={boundaryDisabled}
-          onClick={() => onAdjustBounds(snippet.id, "start", -2000)}
-        >
-          <Minus className="mr-1 h-3 w-3" /> 2s Start
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={boundaryDisabled}
-          onClick={() => onAdjustBounds(snippet.id, "start", 2000)}
-        >
-          <Plus className="mr-1 h-3 w-3" /> 2s Start
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={boundaryDisabled}
-          onClick={() => onAdjustBounds(snippet.id, "end", -2000)}
-        >
-          <Minus className="mr-1 h-3 w-3" /> 2s End
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={boundaryDisabled}
-          onClick={() => onAdjustBounds(snippet.id, "end", 2000)}
-        >
-          <Plus className="mr-1 h-3 w-3" /> 2s End
-        </Button>
+      {/* Boundary trim controls
+          Two rows: Start and End, each offering −1s / −0.5s / +0.5s / +1s.
+          Current boundaries are shown inline so the admin sees real-time values. */}
+      <div className="mb-3 space-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+        {/* Start row */}
+        <div className="flex items-center gap-2">
+          <span className="w-10 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Start
+          </span>
+          <span className="w-14 shrink-0 text-center font-mono text-xs tabular-nums text-foreground">
+            {formatSec(effectiveStartSec)}
+          </span>
+          {([-1000, -500, 500, 1000] as const).map((deltaMs) => (
+            <Button
+              key={`start-${deltaMs}`}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[11px]"
+              disabled={boundaryDisabled}
+              onClick={() => onAdjustBounds(snippet.id, "start", deltaMs)}
+            >
+              {deltaMs < 0 ? (
+                <Minus className="mr-0.5 h-2.5 w-2.5" />
+              ) : (
+                <Plus className="mr-0.5 h-2.5 w-2.5" />
+              )}
+              {Math.abs(deltaMs) === 500 ? "0.5s" : "1s"}
+            </Button>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-border" />
+
+        {/* End row */}
+        <div className="flex items-center gap-2">
+          <span className="w-10 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            End
+          </span>
+          <span className="w-14 shrink-0 text-center font-mono text-xs tabular-nums text-foreground">
+            {formatSec(effectiveEndSec)}
+          </span>
+          {([-1000, -500, 500, 1000] as const).map((deltaMs) => (
+            <Button
+              key={`end-${deltaMs}`}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[11px]"
+              disabled={boundaryDisabled}
+              onClick={() => onAdjustBounds(snippet.id, "end", deltaMs)}
+            >
+              {deltaMs < 0 ? (
+                <Minus className="mr-0.5 h-2.5 w-2.5" />
+              ) : (
+                <Plus className="mr-0.5 h-2.5 w-2.5" />
+              )}
+              {Math.abs(deltaMs) === 500 ? "0.5s" : "1s"}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Quick label buttons */}
