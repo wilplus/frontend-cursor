@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
 import {
@@ -87,6 +88,13 @@ interface ChatInterviewProps {
    * Custom farewell message. Defaults to the standard wrap-up text.
    */
   farewellMessage?: string;
+  /**
+   * True when the recorder is in the cold-start guest funnel (no Supabase
+   * session yet). Surfaces the GDPR micro-disclaimer below the mic for
+   * the very first recording — required because we capture audio before
+   * the user has formally signed up. Logged-in users hide it.
+   */
+  isGuest?: boolean;
 }
 
 const AGGREGATE_THRESHOLD_SECONDS = 30;
@@ -161,6 +169,7 @@ export default function ChatInterview({
   onError,
   initialQuestion,
   farewellMessage,
+  isGuest = false,
 }: ChatInterviewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<{
@@ -622,6 +631,28 @@ export default function ChatInterview({
             Tap the mic to answer.
           </p>
         )}
+
+        {/* GDPR micro-disclaimer — guests only, first turn only.
+            Vanishes the moment the user records (turnNumber flips to 2). */}
+        {isGuest &&
+          turnNumber === 1 &&
+          currentQuestion &&
+          !loadingQuestion &&
+          !uploading &&
+          !thresholdReachedRef.current && (
+            <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
+              By recording, you agree to our{" "}
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          )}
 
         {errorMessage && (
           <p className="w-full max-w-sm rounded-md border border-red-200 bg-red-50 p-3 text-center text-sm text-red-800">
