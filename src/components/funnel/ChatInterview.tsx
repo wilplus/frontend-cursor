@@ -104,7 +104,7 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-3",
     content:
-      "We are going to map your personal Charismatic Flow State. I will help you recognize this energy and learn how to trigger it on demand.\n\nBut first, a quick question to set our baseline: Are you good at math?",
+      "We are going to map your personal Charismatic Flow State. I will help you recognize this energy and learn how to trigger it on demand.\n\nHit record to answer my first question when you are ready.",
   },
 ];
 
@@ -358,6 +358,16 @@ export default function ChatInterview({
         setLoadingQuestion(true);
 
         const previousTurns = buildPreviousTurns();
+
+        // Attach Whisper transcript from this upload to the last previous turn
+        // so the EBCP LLM can branch on the user's actual response (e.g. YES/NO to math)
+        if (result.transcript && previousTurns.length > 0) {
+          previousTurns[previousTurns.length - 1] = {
+            ...previousTurns[previousTurns.length - 1],
+            transcript: result.transcript,
+          };
+        }
+
         const q = await fetchNextQuestion(nextTurn, previousTurns);
         setCurrentQuestion({ text: q.question, tone: q.tone });
         setMessages((prev) => [

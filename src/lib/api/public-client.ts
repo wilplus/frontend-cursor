@@ -185,6 +185,8 @@ export interface InterviewUploadResponse {
   duration_seconds: number | null;
   total_session_duration_seconds: number;
   metrics: Record<string, unknown> | null;
+  /** Whisper transcript of the user's answer — used for EBCP branching logic. */
+  transcript?: string | null;
 }
 
 export async function uploadInterviewAnswer(
