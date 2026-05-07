@@ -122,7 +122,7 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-2",
     content:
-      "Since charisma is inherently social we aren't going to practice it here, instead we are going to do something much more powerful!",
+      "Charisma is social and you can't drill it. So we'll do something different!",
   },
   {
     id: "ob-3",
