@@ -615,8 +615,10 @@ export default function ChatInterview({
         <div ref={threadEndRef} />
       </div>
 
-      {/* Bottom: record control — pinned, never compressed */}
-      <div className="flex shrink-0 flex-col items-center gap-3 pb-8">
+      {/* Bottom: record control — pinned, never compressed.
+          Tight gap-1 so the helper text + GDPR disclaimer feel
+          attached to the mic instead of floating beneath it. */}
+      <div className="flex shrink-0 flex-col items-center gap-1 pb-4">
         {!loadingQuestion && currentQuestion && !thresholdReachedRef.current && (
           <VoiceRecordButton
             onSend={handleSend}
@@ -640,7 +642,7 @@ export default function ChatInterview({
           !loadingQuestion &&
           !uploading &&
           !thresholdReachedRef.current && (
-            <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
+            <p className="text-center text-[10px] leading-tight text-muted-foreground">
               By recording, you agree to our{" "}
               <Link
                 href="/privacy"

@@ -10,9 +10,9 @@ import Link from "next/link";
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="flex flex-col sm:flex-row justify-between items-center shrink-0 px-6 py-3 border-t border-border text-xs text-muted-foreground gap-4 sm:gap-0">
-      <span>© {year} Willab</span>
-      <div className="flex gap-4 items-center">
+    <footer className="flex flex-row justify-between items-center shrink-0 px-4 py-2 border-t border-border text-[11px] sm:text-xs text-muted-foreground gap-3 sm:px-6 sm:py-3">
+      <span className="whitespace-nowrap">© {year} Willab</span>
+      <div className="flex gap-3 items-center sm:gap-4">
         <Link
           href="/science"
           className="no-underline hover:text-foreground transition-colors"
