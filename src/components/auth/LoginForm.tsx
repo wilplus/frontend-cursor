@@ -100,7 +100,10 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
         return;
       }
 
-      // Smart redirect: published results → /results/[id], otherwise → /chat
+      // Smart redirect: published results → /results/[id], else → /results
+      // (Voice Journey overview, which surfaces the processing screen for
+      // a baseline that's still being analysed). Login no longer drops
+      // users back into the recorder at /chat by default.
       try {
         const latestRes = await fetch("/api/results/latest", {
           headers: { Authorization: `Bearer ${newSession.access_token}` },
@@ -113,9 +116,9 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
           }
         }
       } catch {
-        /* non-fatal — fall through to /chat */
+        /* non-fatal — fall through to /results */
       }
-      router.push("/chat");
+      router.push("/results");
     } catch (err) {
       console.error(err);
       toast.error("An unexpected error occurred");

@@ -122,6 +122,10 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
       }
 
       // ── 4. Smart redirect ─────────────────────────────────────────────
+      // Prefer a published session (jump straight to that report). If the
+      // user has a claimed-but-still-processing baseline, /results shows
+      // the waiting screen. The /chat fallback is gone — post-signup
+      // belongs on the results surface, not back in the recorder.
       if (accessToken) {
         try {
           const latestRes = await fetch("/api/results/latest", {
@@ -135,12 +139,12 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             }
           }
         } catch {
-          /* non-fatal — fall through to /chat */
+          /* non-fatal — fall through to /results */
         }
       }
 
       setTimeout(() => {
-        window.location.href = "/chat";
+        window.location.href = "/results";
       }, 100);
 
     } catch (err) {
