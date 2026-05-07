@@ -75,16 +75,21 @@ export default function LinkedInAuthButton({
     <Button
       type="button"
       variant="outline"
-      className={`w-full gap-2 ${className ?? ""}`}
+      // Same width + font-weight as the primary "Sign up with email" CTA so
+      // the two stack as a unified pair. shrink-0 keeps the LinkedIn glyph
+      // anchored when the label wraps on narrow viewports.
+      className={`w-full gap-2 font-medium ${className ?? ""}`}
       onClick={handleLinkedIn}
       disabled={loading}
     >
-      <LinkedInIcon className="h-5 w-5" />
-      {loading
-        ? "Connecting..."
-        : mode === "login"
-          ? "Sign in with LinkedIn"
-          : "Sign up with LinkedIn"}
+      <LinkedInIcon className="h-5 w-5 shrink-0" />
+      <span>
+        {loading
+          ? "Connecting..."
+          : mode === "login"
+            ? "Sign in with LinkedIn"
+            : "Sign up with LinkedIn"}
+      </span>
     </Button>
   );
 }
