@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
 import {
@@ -9,6 +8,34 @@ import {
   uploadInterviewAnswer,
   GuestUploadFailure,
 } from "@/lib/api/public-client";
+
+/**
+ * TypingIndicator — three bouncing dots, messenger-style. Sits inside the
+ * bot bubble while we simulate the bot composing a reply. Animation delays
+ * are inline so we don't pollute tailwind.config with one-off keyframes.
+ */
+function TypingIndicator() {
+  return (
+    <div
+      className="flex items-center gap-1 px-1 py-1"
+      role="status"
+      aria-label="Bot is typing"
+    >
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+        style={{ animationDelay: "0ms", animationDuration: "900ms" }}
+      />
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+        style={{ animationDelay: "150ms", animationDuration: "900ms" }}
+      />
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+        style={{ animationDelay: "300ms", animationDuration: "900ms" }}
+      />
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -81,10 +108,13 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   },
 ];
 
-/** Delay (ms) between consecutive onboarding bubbles. */
-const ONBOARDING_STEP_MS = 1500;
-/** Extra breathing room after the last onboarding bubble before Q1 lands. */
-const ONBOARDING_TO_QUESTION_DELAY_MS = 800;
+/**
+ * Per-message "typing" durations for the cold-start onboarding chain.
+ * The bot shows the TypingIndicator for `[i]` ms, *then* renders message i.
+ * Tuned so each message gets a slightly longer think-time than the last,
+ * matching how a real person would compose progressively richer answers.
+ */
+const ONBOARDING_TYPING_MS = [1500, 2000, 2500] as const;
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -132,9 +162,11 @@ export default function ChatInterview({
   }, [messages, loadingQuestion]);
 
   // Mount: warm start (initialQuestion provided) → load Q1 immediately.
-  // Cold start (no initialQuestion) → run the 3-message onboarding sequence,
-  // then fetch Q1. The mic button is gated on `currentQuestion` being set, so
-  // it stays disabled throughout onboarding and lights up the moment Q1 lands.
+  // Cold start (no initialQuestion) → live-text the onboarding sequence:
+  //   typing 1.5s → M1, typing 2s → M2, typing 2.5s → M3, then fetch Q1.
+  // The TypingIndicator bubble is gated on `loadingQuestion`; the mic on
+  // `currentQuestion` (only set after Q1 lands), so the user can't record
+  // until the whole sequence has played out.
   useEffect(() => {
     let cancelled = false;
 
@@ -152,9 +184,11 @@ export default function ChatInterview({
       return;
     }
 
-    // Cold start — onboarding bubbles + first real question
+    // Cold start — typing → message chain, then fetch Q1.
+
     const fetchFirstQuestion = async () => {
-      setLoadingQuestion(true);
+      // loadingQuestion is already true (carried over from the M3 typing
+      // window), so the typing indicator stays on through the network call.
       try {
         const q = await fetchNextQuestion(1);
         if (cancelled) return;
@@ -174,37 +208,45 @@ export default function ChatInterview({
       }
     };
 
-    // M1 lands immediately on mount.
-    setMessages([
-      { id: ONBOARDING_MESSAGES[0].id, type: "bot", content: ONBOARDING_MESSAGES[0].content },
-    ]);
-
-    // M2 + M3 stagger in via setTimeout so the user reads them as a rhythm,
-    // not a wall. Each timer is tracked so unmount can cancel cleanly.
-    ONBOARDING_MESSAGES.slice(1).forEach((msg, idx) => {
-      const timer = setTimeout(
-        () => {
-          if (cancelled) return;
-          setMessages((prev) => [
-            ...prev,
-            { id: msg.id, type: "bot", content: msg.content },
-          ]);
-        },
-        (idx + 1) * ONBOARDING_STEP_MS
-      );
-      onboardingTimersRef.current.push(timer);
-    });
-
-    // After the last onboarding bubble + a short breath, fetch Q1.
-    const firstQuestionTimer = setTimeout(
-      () => {
+    /**
+     * Schedule a single onboarding step: hold the typing indicator for the
+     * configured duration, then drop the indicator + append the message.
+     * The next step (or the Q1 fetch) is queued from the timer callback so
+     * the user always sees typing → message → typing → message rhythm.
+     */
+    const scheduleStep = (idx: number) => {
+      const typingMs = ONBOARDING_TYPING_MS[idx];
+      const timer = setTimeout(() => {
         if (cancelled) return;
-        void fetchFirstQuestion();
-      },
-      (ONBOARDING_MESSAGES.length - 1) * ONBOARDING_STEP_MS +
-        ONBOARDING_TO_QUESTION_DELAY_MS
-    );
-    onboardingTimersRef.current.push(firstQuestionTimer);
+        const msg = ONBOARDING_MESSAGES[idx];
+        setMessages((prev) => [
+          ...prev,
+          { id: msg.id, type: "bot", content: msg.content },
+        ]);
+
+        if (idx < ONBOARDING_MESSAGES.length - 1) {
+          // More messages — drop typing for one frame so the bubble has a
+          // beat to land before the indicator returns. Keeping it always on
+          // would visually merge the message and the next typing bubble.
+          setLoadingQuestion(false);
+          const gap = setTimeout(() => {
+            if (cancelled) return;
+            setLoadingQuestion(true);
+            scheduleStep(idx + 1);
+          }, 250);
+          onboardingTimersRef.current.push(gap);
+        } else {
+          // Last onboarding message in. Keep typing on while we fetch Q1.
+          void fetchFirstQuestion();
+        }
+      }, typingMs);
+      onboardingTimersRef.current.push(timer);
+    };
+
+    // Kick off the chain — typing indicator on, no messages yet.
+    setMessages([]);
+    setLoadingQuestion(true);
+    scheduleStep(0);
 
     return () => {
       cancelled = true;
@@ -408,7 +450,7 @@ export default function ChatInterview({
                 </span>
               </div>
               <div className="rounded-2xl rounded-tl-sm border border-border bg-chat-bot px-4 py-3 shadow-sm">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <TypingIndicator />
               </div>
             </div>
           </div>
