@@ -153,11 +153,14 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
   // Provider picker: LinkedIn vs email
   if (!showEmailForm) {
     return (
-      <Card className="p-6">
-        <div className="space-y-3">
+      <Card className="p-5 sm:p-6">
+        {/* Auth provider buttons + OR separator share equal vertical padding
+            (my-5 above and below the rule) so the column reads as a single
+            visual rhythm. */}
+        <div className="flex flex-col">
           <LinkedInAuthButton mode="signup" />
 
-          <div className="relative my-4">
+          <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border" />
             </div>
@@ -169,27 +172,25 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
           <Button
             type="button"
             variant="default"
-            className="w-full"
+            className="w-full font-medium"
             onClick={() => setShowEmailForm(true)}
           >
             Sign up with email
           </Button>
         </div>
 
-        <div className="mt-4 text-center text-sm">
-          <p>
-            Already have an account?{" "}
-            <Link href="/login" className="text-orange-500 hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </div>
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
       </Card>
     );
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-5 sm:p-6">
       <form onSubmit={handleSignup} className="space-y-4">
         <div>
           <label className="mb-2 block text-sm font-medium">Name</label>
@@ -254,14 +255,12 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
         Back to sign up options
       </button>
 
-      <div className="mt-4 text-center text-sm">
-        <p>
-          Already have an account?{" "}
-          <Link href="/login" className="text-orange-500 hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/login" className="font-medium text-primary hover:underline">
+          Sign in
+        </Link>
+      </p>
     </Card>
   );
 }

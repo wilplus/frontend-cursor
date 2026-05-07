@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import SignupForm from "@/components/auth/SignupForm";
-import LoginForm from "@/components/auth/LoginForm";
 import { createClient } from "@/lib/supabase/client";
 
 interface CuriosityGateProps {
@@ -13,33 +12,26 @@ interface CuriosityGateProps {
   onSuccess: () => void;
 }
 
+/**
+ * Funnel-flavoured signup pane. The duplicated "Already have an account?"
+ * toggle that used to live below the grey-bordered Card has been removed
+ * — the SignupForm itself ships an "Already have an account? Sign in" link
+ * inside the card, which is the single canonical entry to /login.
+ */
 function GuestSignupSection({ onSuccess }: { onSuccess: () => void }) {
-  const [mode, setMode] = useState<"signup" | "login">("signup");
-
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl border bg-background/95 p-6 shadow-xl backdrop-blur-sm">
-      <div className="space-y-1 text-center">
-        <h2 className="text-xl font-semibold">Where should we send your Charisma Snippets?</h2>
+    <div className="mx-auto w-full max-w-md rounded-2xl border bg-background/95 px-4 py-6 shadow-xl backdrop-blur-sm sm:px-6 sm:py-7">
+      <div className="space-y-1.5 text-center">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          Where should we send your Charisma Snippets?
+        </h2>
         <p className="text-sm text-muted-foreground">
           Create a free account to get your personalized voice analysis.
         </p>
       </div>
       <div className="mt-6">
-        {mode === "signup" ? (
-          <SignupForm onSuccess={onSuccess} />
-        ) : (
-          <LoginForm onSuccess={onSuccess} />
-        )}
+        <SignupForm onSuccess={onSuccess} />
       </div>
-      <button
-        type="button"
-        onClick={() => setMode((m) => (m === "signup" ? "login" : "signup"))}
-        className="mt-4 block w-full text-center text-sm text-muted-foreground underline"
-      >
-        {mode === "signup"
-          ? "Already have an account? Log in"
-          : "New here? Create an account"}
-      </button>
     </div>
   );
 }
