@@ -24,127 +24,130 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+    // ── Client-side validation ─────────────────────────────────────────
+    if (!name.trim()) {
+      toast.error("Name is required.");
       return;
     }
 
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error("Password must be at least 6 characters.");
       return;
     }
 
-    if (!name.trim()) {
-      toast.error("Name is required");
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    // Consent is also validated server-side, but we give immediate feedback
+    // here so the user doesn't have to wait for a network round-trip.
+    if (!termsAccepted) {
+      toast.error(
+        "You must accept the Terms of Service and Privacy Policy to create an account."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name.trim(),
-            display_name: name.trim(),
-          },
-          // Disable email confirmation for testing (if enabled in Supabase)
-          emailRedirectTo: undefined,
-        },
+      // ── 1. Call backend via BFF — validates consent, creates user, ────
+      //       records terms_accepted_at, returns session tokens.
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          name: name.trim(),
+          terms_accepted: true, // validated above; always true at this point
+        }),
       });
 
-      if (error) {
-        console.error("Signup error:", error);
-        
-        // Handle specific Supabase errors with user-friendly messages
-        if (error.message.includes("User already registered")) {
+      const resData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const code = resData?.code as string | undefined;
+        const message = resData?.error as string | undefined;
+
+        if (code === "TERMS_NOT_ACCEPTED") {
+          toast.error(
+            "You must accept the Terms of Service and Privacy Policy to register."
+          );
+          return;
+        }
+        if (code === "EMAIL_IN_USE" || res.status === 409) {
           toast.error("This email is already registered. Please sign in instead.");
           router.push("/login");
           return;
         }
-        
-        if (error.message.includes("Database error")) {
-          toast.error(
-            "Database error: Please check your Supabase project settings. This is usually caused by database triggers or RLS policies."
-          );
-          console.error(
-            "Supabase Database Error - Check:\n" +
-            "1. Supabase Dashboard → Logs → Auth/Postgres\n" +
-            "2. Database triggers on auth.users table\n" +
-            "3. RLS policies on related tables\n" +
-            "4. Database connection/status"
-          );
-          return;
-        }
-        
-        toast.error(error.message || "Signup failed");
+        toast.error(message ?? "Registration failed. Please try again.");
         return;
       }
 
-      if (data.user) {
-        toast.success("Account created! Redirecting...");
-        
-        // Call server route to ensure httpOnly cookies are set server-side
-        try {
-          const confirmRes = await fetch("/api/auth/confirm-session", {
-            method: "POST",
-            credentials: "include", // Important: include cookies
-          });
+      // ── 2. Establish the browser session using the tokens returned ────
+      //       by the backend so the Supabase client is immediately authed.
+      const accessToken: string | undefined = resData.access_token;
+      const refreshToken: string | undefined = resData.refresh_token;
 
-          if (!confirmRes.ok) {
-            console.error("Failed to confirm session on server");
-          }
-        } catch (err) {
-          console.error("Error confirming session:", err);
-        }
-
-        if (onSuccess) {
-          onSuccess();
-          return;
-        }
-
-        // Smart redirect: published results → /results/[id], otherwise → /chat
-        const session = data.session;
-        if (session?.access_token) {
-          try {
-            const latestRes = await fetch("/api/results/latest", {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            });
-            if (latestRes.ok) {
-              const latestData = await latestRes.json();
-              if (latestData.session_id && latestData.status === "completed") {
-                window.location.href = `/results/${latestData.session_id}`;
-                return;
-              }
-            }
-          } catch {
-            /* non-fatal — fall through to /chat */
-          }
-        }
-        setTimeout(() => {
-          window.location.href = "/chat";
-        }, 100);
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
       }
+
+      toast.success("Account created! Redirecting…");
+
+      // ── 3. Sync httpOnly cookies server-side ─────────────────────────
+      try {
+        await fetch("/api/auth/confirm-session", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch {
+        /* non-fatal */
+      }
+
+      if (onSuccess) {
+        onSuccess();
+        return;
+      }
+
+      // ── 4. Smart redirect ─────────────────────────────────────────────
+      if (accessToken) {
+        try {
+          const latestRes = await fetch("/api/results/latest", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (latestRes.ok) {
+            const latestData = await latestRes.json();
+            if (latestData.session_id && latestData.status === "completed") {
+              window.location.href = `/results/${latestData.session_id}`;
+              return;
+            }
+          }
+        } catch {
+          /* non-fatal — fall through to /chat */
+        }
+      }
+
+      setTimeout(() => {
+        window.location.href = "/chat";
+      }, 100);
+
     } catch (err) {
       console.error("Signup exception:", err);
-      if (err instanceof Error) {
-        if (err.message.includes("CORS") || err.message.includes("access control")) {
-          toast.error(
-            "CORS error: Please check your Supabase URL and CORS settings in your Supabase project dashboard."
-          );
-        } else {
-          toast.error(err.message || "An unexpected error occurred");
-        }
-      } else {
-        toast.error("An unexpected error occurred");
-      }
+      toast.error(
+        err instanceof Error ? err.message : "An unexpected error occurred."
+      );
     } finally {
       setLoading(false);
     }
@@ -240,14 +243,53 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             disabled={loading}
           />
         </div>
-        <LegalConsent />
+        {/* Legal consent checkbox — required before account creation.
+            Gating the submit button ensures the user actively ticks the box
+            before any data is sent; the backend validates terms_accepted=true
+            as a second, server-side enforcement layer. */}
+        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <input
+            id="terms"
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            disabled={loading}
+            required
+            aria-required="true"
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+          />
+          <label
+            htmlFor="terms"
+            className="cursor-pointer text-sm leading-snug text-muted-foreground"
+          >
+            I have read and agree to the{" "}
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </label>
+        </div>
 
         <Button
           type="submit"
           className="w-full"
-          disabled={loading}
+          disabled={loading || !termsAccepted}
         >
-          {loading ? "Creating account..." : "Sign up"}
+          {loading ? "Creating account…" : "Sign up"}
         </Button>
       </form>
 
