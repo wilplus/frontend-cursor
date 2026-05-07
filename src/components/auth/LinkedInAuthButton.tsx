@@ -34,7 +34,11 @@ export default function LinkedInAuthButton({
 
       // Build the callback URL — after OAuth, Supabase redirects here
       const origin = window.location.origin;
-      const callbackUrl = `${origin}/auth/callback?next=/chat`;
+      // Post-auth lands on the user-facing results surface — Voice Journey
+      // when published, processing screen when the baseline is still being
+      // analysed. The /chat surface is reached deliberately later via the
+      // retention-loop snippet CTAs, not by default after signup.
+      const callbackUrl = `${origin}/auth/callback?next=/results`;
 
       // Use skipBrowserRedirect to get the URL and validate it before redirecting
       const { data, error } = await supabase.auth.signInWithOAuth({

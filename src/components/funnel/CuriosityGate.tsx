@@ -87,11 +87,15 @@ export default function CuriosityGate({
         console.error("Claim error:", err);
       }
 
-      // Always go to results page — it shows waiting screen until published
+      // Always go to the user-facing results surface — it shows the
+      // Voice Journey timeline when ready and the "we're analysing your
+      // baseline" waiting screen when still processing.
       if (claimedSessionId) {
         router.push(`/results/${claimedSessionId}`);
       } else {
-        // Fallback: check if there's a latest session
+        // Fallback: check if there's a latest session linked to the now-
+        // authenticated user (covers the rare case where the claim
+        // lookup didn't return the id but the row exists).
         try {
           const res = await fetch("/api/results/latest", {
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -106,7 +110,9 @@ export default function CuriosityGate({
         } catch {
           /* fall through */
         }
-        router.push("/chat");
+        // Last resort: send them to the Voice Journey overview, which
+        // shows the processing-state founder card if no session is ready.
+        router.push("/results");
       }
     };
 
