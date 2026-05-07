@@ -23,7 +23,13 @@ const PAPERS: ReadonlyArray<{
     title: "EBCP — Emotion-Based Collaborative Prompting",
     description:
       "Our framework for using small cognitive-load primes to surface a speaker's authentic baseline before any training interventions.",
-    href: "#",
+    href: "/papers/EBCP.pdf",
+  },
+  {
+    title: "NECP — Naming Emotions Collaborative Prompting",
+    description:
+      "How naming emotions in the corporate workplace reduces emotional bias in competence assessments and provides a scalable method for measuring learnability.",
+    href: "/papers/naming-emotions-paper.pdf",
   },
   {
     title: "Acoustic markers of stress and charisma",
@@ -59,6 +65,8 @@ export default function SciencePage() {
           <a
             key={paper.title}
             href={paper.href}
+            target={paper.href !== "#" ? "_blank" : undefined}
+            rel={paper.href !== "#" ? "noopener noreferrer" : undefined}
             className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-5 no-underline transition-colors hover:bg-secondary/50"
           >
             <FileText className="h-5 w-5 text-primary" aria-hidden />
