@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,14 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Show error toast if redirected here after failed OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "oauth_failed") {
+      toast.error("LinkedIn sign-in failed. Please try again.");
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

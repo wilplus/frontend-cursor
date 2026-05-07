@@ -28,14 +28,20 @@ export default function LinkedInAuthButton({
     try {
       const supabase = createClient();
 
+      // Clear any existing session so OAuth flow starts fresh
+      // (prevents instant redirect when user already has a stale session)
+      await supabase.auth.signOut();
+
       // Build the callback URL — after OAuth, Supabase redirects here
       const origin = window.location.origin;
       const callbackUrl = `${origin}/auth/callback?next=/chat`;
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Use skipBrowserRedirect to get the URL and validate it before redirecting
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "linkedin_oidc",
         options: {
           redirectTo: callbackUrl,
+          skipBrowserRedirect: true,
         },
       });
 
@@ -43,8 +49,21 @@ export default function LinkedInAuthButton({
         console.error("LinkedIn OAuth error:", error);
         toast.error(error.message || "Failed to connect with LinkedIn");
         setLoading(false);
+        return;
       }
-      // If no error, the browser is redirecting to LinkedIn — don't reset loading
+
+      // Validate we got a proper OAuth URL pointing to Supabase/LinkedIn
+      if (!data?.url) {
+        console.error("LinkedIn OAuth: no redirect URL returned");
+        toast.error("Failed to start LinkedIn sign-in. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      console.log("[LinkedIn OAuth] Redirecting to:", data.url);
+
+      // Redirect to the OAuth provider
+      window.location.href = data.url;
     } catch (err) {
       console.error("LinkedIn OAuth exception:", err);
       toast.error("Something went wrong. Please try again.");
