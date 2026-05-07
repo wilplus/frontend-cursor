@@ -52,6 +52,40 @@ interface ChatInterviewProps {
 
 const AGGREGATE_THRESHOLD_SECONDS = 30;
 
+/**
+ * Cold-start onboarding sequence — three bite-sized bot messages that frame
+ * the science of charisma before the first real interview question. Only
+ * appended when no `initialQuestion` is provided (warm-start retention-loop
+ * chats skip this entirely, per spec).
+ *
+ * Markdown emphasis from the original copy was dropped because ChatBubble
+ * renders content as plain text; preserving `**` would surface the literal
+ * asterisks. The phrase "Charismatic Flow State" reads as a defined concept
+ * on its own.
+ */
+const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
+  {
+    id: "ob-1",
+    content:
+      "Stress and charisma are biologically identical. They are both high-energy states. That increased heart rate isn't panic—it's your body pumping oxygen to your brain to prepare you for action. That's why trying to just 'calm down' before speaking rarely works.",
+  },
+  {
+    id: "ob-2",
+    content:
+      "Since charisma is inherently social, we aren't going to practice hand gestures or eye contact with an empty screen here. Instead, we are going to do something much more powerful.",
+  },
+  {
+    id: "ob-3",
+    content:
+      "We are going to map your personal Charismatic Flow State. I will help you recognize this energy and learn how to trigger it on demand, so you can summon it whenever you step onto a stage or into a high-stakes meeting. Ready to begin?",
+  },
+];
+
+/** Delay (ms) between consecutive onboarding bubbles. */
+const ONBOARDING_STEP_MS = 1500;
+/** Extra breathing room after the last onboarding bubble before Q1 lands. */
+const ONBOARDING_TO_QUESTION_DELAY_MS = 800;
+
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = Math.floor(totalSeconds % 60);
@@ -83,6 +117,7 @@ export default function ChatInterview({
   const threadEndRef = useRef<HTMLDivElement>(null);
   const thresholdReachedRef = useRef(false);
   const farewellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onboardingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Clean up the farewell timeout if the component unmounts early
   useEffect(() => {
@@ -96,12 +131,15 @@ export default function ChatInterview({
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loadingQuestion]);
 
-  // Fetch the first question on mount (or use pre-fetched initialQuestion)
+  // Mount: warm start (initialQuestion provided) → load Q1 immediately.
+  // Cold start (no initialQuestion) → run the 3-message onboarding sequence,
+  // then fetch Q1. The mic button is gated on `currentQuestion` being set, so
+  // it stays disabled throughout onboarding and lights up the moment Q1 lands.
   useEffect(() => {
     let cancelled = false;
 
     if (initialQuestion) {
-      // Use the pre-fetched contextual question (retention-loop chat)
+      // Warm start: pre-fetched contextual question from the retention-loop
       setCurrentQuestion({ text: initialQuestion.text, tone: initialQuestion.tone });
       setMessages([
         {
@@ -114,19 +152,16 @@ export default function ChatInterview({
       return;
     }
 
-    const loadFirst = async () => {
+    // Cold start — onboarding bubbles + first real question
+    const fetchFirstQuestion = async () => {
       setLoadingQuestion(true);
       try {
         const q = await fetchNextQuestion(1);
         if (cancelled) return;
         setCurrentQuestion({ text: q.question, tone: q.tone });
-        setMessages([
-          {
-            id: "q-1",
-            type: "bot",
-            content: q.question,
-            tone: q.tone,
-          },
+        setMessages((prev) => [
+          ...prev,
+          { id: "q-1", type: "bot", content: q.question, tone: q.tone },
         ]);
       } catch (err) {
         if (!cancelled) {
@@ -138,9 +173,43 @@ export default function ChatInterview({
         if (!cancelled) setLoadingQuestion(false);
       }
     };
-    loadFirst();
+
+    // M1 lands immediately on mount.
+    setMessages([
+      { id: ONBOARDING_MESSAGES[0].id, type: "bot", content: ONBOARDING_MESSAGES[0].content },
+    ]);
+
+    // M2 + M3 stagger in via setTimeout so the user reads them as a rhythm,
+    // not a wall. Each timer is tracked so unmount can cancel cleanly.
+    ONBOARDING_MESSAGES.slice(1).forEach((msg, idx) => {
+      const timer = setTimeout(
+        () => {
+          if (cancelled) return;
+          setMessages((prev) => [
+            ...prev,
+            { id: msg.id, type: "bot", content: msg.content },
+          ]);
+        },
+        (idx + 1) * ONBOARDING_STEP_MS
+      );
+      onboardingTimersRef.current.push(timer);
+    });
+
+    // After the last onboarding bubble + a short breath, fetch Q1.
+    const firstQuestionTimer = setTimeout(
+      () => {
+        if (cancelled) return;
+        void fetchFirstQuestion();
+      },
+      (ONBOARDING_MESSAGES.length - 1) * ONBOARDING_STEP_MS +
+        ONBOARDING_TO_QUESTION_DELAY_MS
+    );
+    onboardingTimersRef.current.push(firstQuestionTimer);
+
     return () => {
       cancelled = true;
+      onboardingTimersRef.current.forEach(clearTimeout);
+      onboardingTimersRef.current = [];
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
