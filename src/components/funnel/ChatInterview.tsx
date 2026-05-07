@@ -52,6 +52,18 @@ interface ChatMessage {
   duration?: string;
   /** Which tone this turn was: charisma or stress. */
   tone?: "charisma" | "stress";
+  /**
+   * For multi-chunk bot messages (delimited by `|||` from the LLM):
+   * — set on the FIRST chunk only — holds the full pre-split text so
+   * buildPreviousTurns can reconstruct the LLM's original message as a
+   * single "question" when computing context for the next call.
+   */
+  fullText?: string;
+  /**
+   * True on chunks 1..N (continuations). Skipped in buildPreviousTurns
+   * so the LLM doesn't see N entries for one logical message.
+   */
+  isChunkContinuation?: boolean;
 }
 
 interface ChatInterviewProps {
@@ -114,6 +126,26 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
  */
 const ONBOARDING_TYPING_MS = [1500, 2000, 2500] as const;
 
+/** Delimiter the LLM uses to split a single response into multiple bubbles. */
+const CHUNK_DELIMITER = "|||";
+/** Typing indicator duration between chunks of a single LLM response. */
+const CHUNK_TYPING_MS = 1700;
+/** Brief beat between a chunk landing and the next typing indicator
+ *  appearing — without this they visually merge. */
+const CHUNK_BEAT_MS = 250;
+
+/**
+ * Split an LLM message on `|||` into the chunks the UI should render as
+ * separate bubbles. Trims whitespace and drops empties so trailing/leading
+ * delimiters don't produce blank bubbles.
+ */
+function splitChunks(text: string): string[] {
+  return text
+    .split(CHUNK_DELIMITER)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = Math.floor(totalSeconds % 60);
@@ -145,11 +177,18 @@ export default function ChatInterview({
   const threadEndRef = useRef<HTMLDivElement>(null);
   const thresholdReachedRef = useRef(false);
   const farewellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Onboarding + chunked-bot-message timers. Cleared on unmount and
+   *  before each new chunked rendering so stale chunks from a previous
+   *  turn never bleed into the next one. */
   const onboardingTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** Set true on unmount so async chunk callbacks can short-circuit
+   *  cleanly without trying to update state on a torn-down component. */
+  const unmountedRef = useRef(false);
 
-  // Clean up the farewell timeout if the component unmounts early
+  // Clean up the farewell timeout + flag unmount for chunk callbacks
   useEffect(() => {
     return () => {
+      unmountedRef.current = true;
       if (farewellTimerRef.current) clearTimeout(farewellTimerRef.current);
     };
   }, []);
@@ -169,16 +208,17 @@ export default function ChatInterview({
     let cancelled = false;
 
     if (initialQuestion) {
-      // Warm start: pre-fetched contextual question from the retention-loop
-      setCurrentQuestion({ text: initialQuestion.text, tone: initialQuestion.tone });
-      setMessages([
-        {
-          id: "q-1",
-          type: "bot",
-          content: initialQuestion.text,
-          tone: initialQuestion.tone,
-        },
-      ]);
+      // Warm start: pre-fetched contextual question from the retention-loop.
+      // Routed through the chunked renderer so any `|||` from the LLM is
+      // staggered the same way as runtime questions.
+      renderChunkedBotMessage(
+        initialQuestion.text,
+        "q-1",
+        initialQuestion.tone,
+        (joined) => {
+          setCurrentQuestion({ text: joined, tone: initialQuestion.tone });
+        }
+      );
       return;
     }
 
@@ -190,19 +230,19 @@ export default function ChatInterview({
       try {
         const q = await fetchNextQuestion(1);
         if (cancelled) return;
-        setCurrentQuestion({ text: q.question, tone: q.tone });
-        setMessages((prev) => [
-          ...prev,
-          { id: "q-1", type: "bot", content: q.question, tone: q.tone },
-        ]);
+        // Chunked renderer sets currentQuestion via the callback once the
+        // FINAL chunk lands, so the mic stays gated until then.
+        renderChunkedBotMessage(q.question, "q-1", q.tone, (joined) => {
+          if (cancelled) return;
+          setCurrentQuestion({ text: joined, tone: q.tone });
+        });
       } catch (err) {
         if (!cancelled) {
           setErrorMessage(
             err instanceof Error ? err.message : "Failed to start interview"
           );
+          setLoadingQuestion(false);
         }
-      } finally {
-        if (!cancelled) setLoadingQuestion(false);
       }
     };
 
@@ -281,20 +321,116 @@ export default function ChatInterview({
   /**
    * Build the conversation history from the messages array so the LLM
    * knows which questions it already asked and doesn't repeat them.
+   *
+   * Multi-chunk LLM messages collapse back to a single entry: the first
+   * chunk carries `fullText` (the un-split original) and continuations
+   * are flagged so they're skipped. Onboarding bubbles + farewell are
+   * filtered out — the LLM doesn't need them as "previous questions".
    */
   const buildPreviousTurns = useCallback(
     (): { question: string; transcript?: string }[] => {
       const turns: { question: string; transcript?: string }[] = [];
       for (const msg of messages) {
-        if (msg.type === "bot" && msg.content && msg.id !== "farewell") {
-          turns.push({ question: msg.content });
-        }
-        // We don't have transcripts on the client side, but the question
-        // history alone is enough for the LLM to avoid repetition.
+        if (msg.type !== "bot") continue;
+        if (msg.id === "farewell") continue;
+        if (msg.isChunkContinuation) continue;
+        const text = msg.fullText ?? msg.content;
+        if (text) turns.push({ question: text });
       }
       return turns;
     },
     [messages]
+  );
+
+  /**
+   * Render a bot message that may contain `|||` delimiters as a sequence
+   * of separate bubbles, with a TypingIndicator between each. Hides the
+   * mic for the duration (sets currentQuestion to null) and re-enables
+   * it via `onFinalChunkLanded` once the last chunk lands.
+   *
+   * Single-chunk messages (no delimiters) still go through this helper —
+   * the first chunk lands immediately and onFinalChunkLanded fires
+   * synchronously, so behaviour is identical to a plain append.
+   */
+  const renderChunkedBotMessage = useCallback(
+    (
+      fullText: string,
+      baseId: string,
+      tone: "charisma" | "stress" | undefined,
+      onFinalChunkLanded: (joinedText: string) => void
+    ) => {
+      if (unmountedRef.current) return;
+      const chunks = splitChunks(fullText);
+      // Wipe pending chunks from any previous turn before we schedule new
+      // ones — prevents a stale chunk from a slow LLM reply landing inside
+      // the next turn's thread.
+      onboardingTimersRef.current.forEach(clearTimeout);
+      onboardingTimersRef.current = [];
+
+      if (chunks.length === 0) {
+        // Defensive — empty / whitespace-only response
+        setLoadingQuestion(false);
+        onFinalChunkLanded("");
+        return;
+      }
+
+      const joined = chunks.join(" ");
+
+      // Mic is gated on `currentQuestion`. Null it during chunked rendering
+      // so the user can't record while we're still revealing chunks.
+      setCurrentQuestion(null);
+
+      // First chunk lands immediately (typing was already on during the
+      // network call that produced this message).
+      setLoadingQuestion(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${baseId}-0`,
+          type: "bot",
+          content: chunks[0],
+          tone,
+          fullText: chunks.length > 1 ? joined : undefined,
+        },
+      ]);
+
+      if (chunks.length === 1) {
+        onFinalChunkLanded(joined);
+        return;
+      }
+
+      const showChunk = (idx: number) => {
+        if (unmountedRef.current) return;
+        const beat = setTimeout(() => {
+          if (unmountedRef.current) return;
+          setLoadingQuestion(true);
+          const reveal = setTimeout(() => {
+            if (unmountedRef.current) return;
+            setLoadingQuestion(false);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `${baseId}-${idx}`,
+                type: "bot",
+                content: chunks[idx],
+                tone,
+                isChunkContinuation: true,
+              },
+            ]);
+            if (idx < chunks.length - 1) {
+              showChunk(idx + 1);
+            } else {
+              onFinalChunkLanded(joined);
+            }
+          }, CHUNK_TYPING_MS);
+          onboardingTimersRef.current.push(reveal);
+        }, CHUNK_BEAT_MS);
+        onboardingTimersRef.current.push(beat);
+      };
+
+      showChunk(1);
+    },
+    []
   );
 
   /**
@@ -367,16 +503,17 @@ export default function ChatInterview({
         }
 
         const q = await fetchNextQuestion(nextTurn, previousTurns);
-        setCurrentQuestion({ text: q.question, tone: q.tone });
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `q-${nextTurn}`,
-            type: "bot",
-            content: q.question,
-            tone: q.tone,
-          },
-        ]);
+        // Chunked renderer handles `|||` splitting + staggered delivery and
+        // sets currentQuestion via the callback once the FINAL chunk lands,
+        // so the mic stays gated through the whole reveal.
+        renderChunkedBotMessage(
+          q.question,
+          `q-${nextTurn}`,
+          q.tone,
+          (joined) => {
+            setCurrentQuestion({ text: joined, tone: q.tone });
+          }
+        );
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
           if (err.status === 429 || err.code === "RATE_LIMITED") {
