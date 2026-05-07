@@ -59,4 +59,25 @@ export interface VoiceJourneyPayload {
   ai_summary?: string | null;
 }
 
+/**
+ * Per-session row returned by GET /api/results/me. The timeline overview
+ * only needs counts + status (snippet detail lives at /results/[sessionId]).
+ */
+export interface TimelineSession {
+  id: string;
+  created_at: string | null;
+  /** "ready" once admin has published; "processing" otherwise. */
+  status: "ready" | "processing";
+  results_published_at: string | null;
+  snippet_count: number;
+}
+
+/** Top-level payload returned by GET /api/results/me. */
+export interface VoiceJourneyTimelinePayload {
+  status: ResultsStatus;
+  current_session_index: number;
+  total_sessions: number;
+  sessions: TimelineSession[];
+}
+
 export type { AcousticMetric };
