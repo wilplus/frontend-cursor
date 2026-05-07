@@ -104,7 +104,7 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-3",
     content:
-      "We are going to map your personal Charismatic Flow State. I will help you recognize this energy and learn how to trigger it on demand, so you can summon it whenever you step onto a stage or into a high-stakes meeting. Ready to begin?",
+      "We are going to map your personal Charismatic Flow State. I will help you recognize this energy and learn how to trigger it on demand.\n\nBut first, a quick question to set our baseline: Are you good at math?",
   },
 ];
 

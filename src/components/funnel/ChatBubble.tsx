@@ -40,8 +40,12 @@ export default function ChatBubble({
             <span className="text-xs font-bold text-primary-foreground">W</span>
           </div>
           <div className="rounded-2xl rounded-tl-sm border border-border bg-chat-bot px-4 py-3 shadow-sm">
-            {/* Body size matches WhatsApp's default chat message (~15–16px). */}
-            <p className="text-base leading-relaxed text-foreground">{content}</p>
+            {/* Body size matches WhatsApp's default chat message (~15–16px).
+                whitespace-pre-line preserves intentional \n / \n\n breaks
+                so multi-paragraph bot copy renders the way it was authored. */}
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground">
+              {content}
+            </p>
           </div>
         </div>
       </div>
