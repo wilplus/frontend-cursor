@@ -362,7 +362,7 @@ export default function ChatInterview({
         {/* Helper text for first turn */}
         {turnNumber === 1 && messages.length <= 1 && !uploading && (
           <p className="text-center text-xs text-muted-foreground">
-            Tap the mic to answer. Just speak naturally.
+            Tap the mic to answer.
           </p>
         )}
 
