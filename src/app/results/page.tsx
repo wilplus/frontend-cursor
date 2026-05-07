@@ -109,7 +109,7 @@ export default function VoiceJourneyPage({ searchParams }: PageProps) {
   // DashboardHeader sits at the top, and only the active inner view
   // (Processing or Completed) is allowed to scroll. The body never scrolls.
   return (
-    <div className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
+    <div className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">
         <DashboardHeader />
       </div>
