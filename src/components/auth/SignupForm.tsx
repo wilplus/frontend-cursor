@@ -179,6 +179,8 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
           </Button>
         </div>
 
+        <LegalConsent />
+
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-primary hover:underline">
@@ -238,6 +240,8 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             disabled={loading}
           />
         </div>
+        <LegalConsent />
+
         <Button
           type="submit"
           className="w-full"
@@ -262,6 +266,38 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
         </Link>
       </p>
     </Card>
+  );
+}
+
+/**
+ * Frictionless legal consent — sits above the submit CTA and tells the user
+ * that clicking it constitutes acceptance. Per spec we deliberately don't
+ * gate submission on a checkbox; the descriptive claim is sufficient.
+ * Links open in a new tab so the auth flow isn't lost.
+ */
+function LegalConsent() {
+  return (
+    <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
+      By signing up, you agree to our{" "}
+      <Link
+        href="/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-primary hover:underline"
+      >
+        Terms of Use
+      </Link>{" "}
+      and{" "}
+      <Link
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-primary hover:underline"
+      >
+        Privacy Policy
+      </Link>
+      .
+    </p>
   );
 }
 

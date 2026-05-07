@@ -130,7 +130,7 @@ export default function ChatPageClient({
   // Viewport-locked: outer fills the device exactly; only the inner thread
   // scrolls if its messages overflow. The body never scrolls.
   return (
-    <main className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
+    <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">
         <DashboardHeader />
       </div>
