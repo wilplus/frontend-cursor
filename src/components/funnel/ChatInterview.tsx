@@ -100,10 +100,15 @@ interface ChatInterviewProps {
 const AGGREGATE_THRESHOLD_SECONDS = 30;
 
 /**
- * Cold-start onboarding sequence — three bite-sized bot messages that frame
- * the science of charisma before the first real interview question. Only
- * appended when no `initialQuestion` is provided (warm-start retention-loop
- * chats skip this entirely, per spec).
+ * Cold-start onboarding sequence — four bite-sized bot bubbles. The first
+ * three frame the science of charisma; the fourth IS the first interview
+ * question (the EBCP frustration / math probe). The frontend hardcodes
+ * Q1 here instead of asking the backend so the conversational rhythm
+ * stays consistent — backend takes over from Q2 onwards using the
+ * conversation history sent on the first upload.
+ *
+ * Only appended when no `initialQuestion` is provided (warm-start
+ * retention-loop chats skip this entirely).
  *
  * `**...**` runs in `content` are rendered as <strong> by ChatBubble —
  * keep markup minimal (single phrase per bubble at most).
@@ -117,22 +122,32 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-2",
     content:
-      "Since charisma is inherently social, we aren't going to practice hand gestures or eye contact with an empty screen here. Instead, we are going to do something much more powerful.",
+      "Since charisma is inherently social we aren't going to practice it here, instead we are going to do something much more powerful!",
   },
   {
     id: "ob-3",
+    content: "We will map your personal **Charismatic Flow State**.",
+  },
+  {
+    id: "ob-4",
     content:
-      "We are going to map your personal **Charismatic Flow State**.\n\nHit record to answer my first question when you are ready.",
+      "Pardon me for this little awkward question but do you generally like math?",
   },
 ];
+
+/** Tone tagged on the user's first answer + sent as questionTone on the
+ *  upload. The math probe is a stress-response prime per EBCP. */
+const FIRST_QUESTION_TONE: "charisma" | "stress" = "stress";
 
 /**
  * Per-message "typing" durations for the cold-start onboarding chain.
  * The bot shows the TypingIndicator for `[i]` ms, *then* renders message i.
  * Tuned so each message gets a slightly longer think-time than the last,
  * matching how a real person would compose progressively richer answers.
+ * Last entry is the math-probe question — a touch longer to feel like
+ * the bot is "deciding" how to phrase it.
  */
-const ONBOARDING_TYPING_MS = [1500, 2000, 2500] as const;
+const ONBOARDING_TYPING_MS = [1500, 1800, 2000, 2500] as const;
 
 /** Delimiter the LLM uses to split a single response into multiple bubbles. */
 const CHUNK_DELIMITER = "|||";
@@ -231,35 +246,19 @@ export default function ChatInterview({
       return;
     }
 
-    // Cold start — typing → message chain, then fetch Q1.
-
-    const fetchFirstQuestion = async () => {
-      // loadingQuestion is already true (carried over from the M3 typing
-      // window), so the typing indicator stays on through the network call.
-      try {
-        const q = await fetchNextQuestion(1);
-        if (cancelled) return;
-        // Chunked renderer sets currentQuestion via the callback once the
-        // FINAL chunk lands, so the mic stays gated until then.
-        renderChunkedBotMessage(q.question, "q-1", q.tone, (joined) => {
-          if (cancelled) return;
-          setCurrentQuestion({ text: joined, tone: q.tone });
-        });
-      } catch (err) {
-        if (!cancelled) {
-          setErrorMessage(
-            err instanceof Error ? err.message : "Failed to start interview"
-          );
-          setLoadingQuestion(false);
-        }
-      }
-    };
+    // Cold start — typing → message chain through M1..M4, then promote
+    // M4 to "the current question" so the mic appears. Backend Q1 is
+    // intentionally NOT fetched: M4 is the EBCP frustration probe and
+    // serves as turn 1's question. The backend takes over on turn 2
+    // (handleSend → fetchNextQuestion(2, previousTurns)) using the math
+    // answer's transcript to branch.
 
     /**
      * Schedule a single onboarding step: hold the typing indicator for the
      * configured duration, then drop the indicator + append the message.
-     * The next step (or the Q1 fetch) is queued from the timer callback so
-     * the user always sees typing → message → typing → message rhythm.
+     * The next step is queued from the timer callback so the user always
+     * sees typing → message → typing → message rhythm. After the LAST
+     * message we promote it to the current question and re-enable the mic.
      */
     const scheduleStep = (idx: number) => {
       const typingMs = ONBOARDING_TYPING_MS[idx];
@@ -283,8 +282,13 @@ export default function ChatInterview({
           }, 250);
           onboardingTimersRef.current.push(gap);
         } else {
-          // Last onboarding message in. Keep typing on while we fetch Q1.
-          void fetchFirstQuestion();
+          // Last onboarding bubble = Q1 (the math probe). Drop typing,
+          // set currentQuestion so the mic appears in the same frame.
+          setLoadingQuestion(false);
+          setCurrentQuestion({
+            text: msg.content,
+            tone: FIRST_QUESTION_TONE,
+          });
         }
       }, typingMs);
       onboardingTimersRef.current.push(timer);
