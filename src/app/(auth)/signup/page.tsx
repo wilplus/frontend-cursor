@@ -15,7 +15,7 @@ export default function SignupPage() {
             <WillabLogo size="lg" />
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Homework tool for public speaking
+            Turning stress into charisma
           </p>
         </div>
         <SignupForm />

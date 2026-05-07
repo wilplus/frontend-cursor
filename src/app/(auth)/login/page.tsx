@@ -15,7 +15,7 @@ export default function LoginPage() {
             <WillabLogo size="lg" />
           </h1>
           <p className="mt-2 text-base text-muted-foreground sm:text-sm">
-            Homework tool for public speaking
+            Turning stress into charisma
           </p>
         </div>
         <LoginForm />
