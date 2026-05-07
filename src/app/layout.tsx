@@ -7,8 +7,8 @@ import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 // Inter font will be loaded at runtime if available
 
 export const metadata: Metadata = {
-  title: "Master Your Speaking Confidence | willab",
-  description: "Overcome stage fright and public speaking anxiety. Record a short voice message and get instant feedback to build your communication confidence.",
+  title: "Willab — Turning stress into charisma",
+  description: "Turning stress into charisma. Willab analyses your voice and shows you the exact moments where you sound powerful — and where stress takes over.",
   manifest: "/manifest.webmanifest",
   applicationName: "willab",
   appleWebApp: {
