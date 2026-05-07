@@ -434,14 +434,20 @@ export default function ChatInterview({
   );
 
   /**
-   * Called when the user taps Send. Uploads the chunk, then either
-   * fetches the next question or triggers the threshold callback.
+   * Auto-submit. Fires the moment the user stops recording — uploads the
+   * chunk in the background while the UI already shows the "thinking" dots
+   * to mask network latency. The user audio bubble is rendered separately
+   * by handleRecorded (also fired from VoiceRecordButton's onstop).
    */
   const handleSend = useCallback(
     async (blob: Blob, durationSeconds: number) => {
       if (thresholdReachedRef.current) return;
       setUploading(true);
       setErrorMessage(null);
+      // Show the typing indicator IMMEDIATELY so the user sees the bot
+      // "composing" while the audio is still uploading. The mic button
+      // is gated on !loadingQuestion, so it disappears in the same frame.
+      setLoadingQuestion(true);
 
       // Accumulate client-side duration as a safety net
       clientDurationRef.current += durationSeconds;
@@ -465,6 +471,8 @@ export default function ChatInterview({
         if (effectiveTotal >= AGGREGATE_THRESHOLD_SECONDS) {
           thresholdReachedRef.current = true;
           setCurrentQuestion(null);
+          // Stop the typing illusion — no more questions are coming.
+          setLoadingQuestion(false);
 
           // Push the farewell bot bubble into the chat thread
           setMessages((prev) => [
@@ -486,10 +494,11 @@ export default function ChatInterview({
           return;
         }
 
-        // Fetch next question — pass conversation history so LLM doesn't repeat
+        // Fetch next question — pass conversation history so LLM doesn't repeat.
+        // loadingQuestion is already true (set at the top of handleSend), so
+        // the typing dots have been visible since the user clicked Stop.
         const nextTurn = turnNumber + 1;
         setTurnNumber(nextTurn);
-        setLoadingQuestion(true);
 
         const previousTurns = buildPreviousTurns();
 
@@ -538,14 +547,7 @@ export default function ChatInterview({
     [turnNumber, currentQuestion, onThresholdReached, onError, buildPreviousTurns, farewellMessage]
   );
 
-  const handleRedo = useCallback(() => {
-    // Remove the last user message (the one being redone)
-    setMessages((prev) => {
-      const lastUserIdx = prev.findLastIndex((m) => m.type === "user");
-      if (lastUserIdx === -1) return prev;
-      return prev.slice(0, lastUserIdx);
-    });
-  }, []);
+  // (handleRedo removed — Redo flow is gone. Stop = auto-submit, no preview.)
 
   return (
     // Fills the parent's allotted height; the thread is the only element
@@ -610,8 +612,7 @@ export default function ChatInterview({
           <VoiceRecordButton
             onSend={handleSend}
             onRecorded={handleRecorded}
-            onRedo={handleRedo}
-            uploading={uploading}
+            disabled={uploading}
           />
         )}
 

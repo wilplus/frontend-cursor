@@ -1,36 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Mic, RotateCcw, Send, Square } from "lucide-react";
+import { Mic, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type State = "idle" | "recording" | "recorded";
+type State = "idle" | "recording";
 
+/**
+ * VoiceRecordButton — Willab Chat funnel record control.
+ *
+ * Two visual states only — `idle` (mic) and `recording` (red Stop with
+ * a pulsing halo). The previous "recorded" preview state is gone: the
+ * moment the user stops, the audio is submitted automatically. The UX
+ * is strictly **tap to start → tap to stop → upload runs in background**
+ * with no Send button. The parent renders the user's audio bubble + the
+ * typing indicator instantly to mask network latency.
+ */
 interface VoiceRecordButtonProps {
   /**
-   * Called when the user taps the Send icon after recording. Receives the raw
-   * audio blob and the recorded duration in seconds (rounded down). The parent
-   * is responsible for upload + routing.
+   * Auto-submit. Fires the moment the recording stops, with the raw
+   * blob and rounded-down duration in seconds. The parent kicks off
+   * the upload + next-question fetch.
    */
   onSend: (blob: Blob, durationSeconds: number) => void | Promise<void>;
-  /** Fired when the mic is acquired and capture begins. */
+  /** Fires when capture begins (mic acquired, recorder.start()). */
   onStart?: () => void;
   /**
-   * Fired when the recording stops and a playable Object URL is ready.
-   * The parent typically renders this URL inside a chat bubble (the button
-   * itself only shows the Send / Redo controls in the "recorded" state).
+   * Fires alongside onSend with a playable Object URL so the parent
+   * can immediately render the user's audio bubble in the chat thread.
    */
   onRecorded?: (audioUrl: string, durationSeconds: number) => void;
-  /** Fired when the user taps Redo, so the parent can clear its preview bubble. */
-  onRedo?: () => void;
-  /**
-   * Optional minimum duration enforcement. Send is disabled until reached;
-   * the recorded chip surfaces the gap so the user knows why.
-   */
-  minDurationSeconds?: number;
-  /** External "in flight" flag — disables Send while parent uploads. */
-  uploading?: boolean;
-  /** Disables the entire control. */
+  /** Disables the entire control (e.g. while a chunked reply is rendering). */
   disabled?: boolean;
   className?: string;
 }
@@ -56,39 +56,22 @@ function formatDuration(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/**
- * VoiceRecordButton — Willab Chat funnel record control.
- *
- * Owns MediaRecorder + state machine. Three visual states:
- *   - idle:      single round mic button (primary)
- *   - recording: same button shown red with `animate-pulse-ring` halo + Stop icon
- *   - recorded:  Redo + Send buttons. The recorded audio is exposed via
- *               `onRecorded` so the parent can render it as a chat bubble.
- *
- * The parent handles upload + routing via `onSend`.
- */
 export default function VoiceRecordButton({
   onSend,
   onStart,
   onRecorded,
-  onRedo,
-  minDurationSeconds,
-  uploading = false,
   disabled = false,
   className,
 }: VoiceRecordButtonProps) {
   const [state, setState] = useState<State>("idle");
   const [elapsed, setElapsed] = useState(0);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const blobRef = useRef<Blob | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const startedAtRef = useRef<number>(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const finalDurationRef = useRef<number>(0);
 
   const stopTicker = useCallback(() => {
     if (tickRef.current) {
@@ -102,18 +85,16 @@ export default function VoiceRecordButton({
     streamRef.current = null;
   }, []);
 
-  // Cleanup on unmount: release mic + revoke object URL so we don't leak.
+  // Cleanup on unmount: release mic so we don't leave the indicator on.
   useEffect(() => {
     return () => {
       stopTicker();
       releaseStream();
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [releaseStream, stopTicker]);
 
   const startRecording = useCallback(async () => {
-    if (disabled || uploading) return;
+    if (disabled) return;
     setErrorMessage(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -125,22 +106,29 @@ export default function VoiceRecordButton({
       );
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
-      blobRef.current = null;
 
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
       };
+
+      // onstop is the auto-submit hook — build blob, hand it to the parent
+      // (which renders the user bubble + typing dots immediately and
+      // starts the background upload). No preview / Send button.
       recorder.onstop = () => {
         const type = recorder.mimeType || mimeType || "audio/webm";
         const blob = new Blob(chunksRef.current, { type });
-        blobRef.current = blob;
-        if (audioUrl) URL.revokeObjectURL(audioUrl);
-        const nextUrl = URL.createObjectURL(blob);
-        setAudioUrl(nextUrl);
-        setState("recorded");
+        const url = URL.createObjectURL(blob);
+        const seconds = Math.floor(
+          (Date.now() - startedAtRef.current) / 1000
+        );
         releaseStream();
-        const seconds = Math.floor(finalDurationRef.current);
-        onRecorded?.(nextUrl, seconds);
+        // Reset to idle right away — the parent gates re-display via its
+        // own state (loadingQuestion / currentQuestion) so the mic won't
+        // actually flash back into view until the chunked reply finishes.
+        setState("idle");
+        setElapsed(0);
+        onRecorded?.(url, seconds);
+        void onSend(blob, seconds);
       };
 
       recorder.start();
@@ -160,40 +148,14 @@ export default function VoiceRecordButton({
       );
       releaseStream();
     }
-  }, [audioUrl, disabled, releaseStream, stopTicker, uploading]);
+  }, [disabled, onRecorded, onSend, onStart, releaseStream, stopTicker]);
 
   const stopRecording = useCallback(() => {
     const r = mediaRecorderRef.current;
     if (!r || r.state === "inactive") return;
-    finalDurationRef.current = (Date.now() - startedAtRef.current) / 1000;
-    setElapsed(finalDurationRef.current);
     stopTicker();
-    r.stop();
+    r.stop(); // triggers recorder.onstop above → fires onRecorded + onSend
   }, [stopTicker]);
-
-  const resetRecording = useCallback(() => {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl(null);
-    blobRef.current = null;
-    chunksRef.current = [];
-    finalDurationRef.current = 0;
-    setElapsed(0);
-    setState("idle");
-    onRedo?.();
-  }, [audioUrl, onRedo]);
-
-  const handleSend = useCallback(() => {
-    const blob = blobRef.current;
-    if (!blob) return;
-    const seconds = Math.floor(finalDurationRef.current || elapsed);
-    void onSend(blob, seconds);
-  }, [elapsed, onSend]);
-
-  const sendDisabled =
-    uploading ||
-    !blobRef.current ||
-    (typeof minDurationSeconds === "number" &&
-      finalDurationRef.current < minDurationSeconds);
 
   return (
     <div className={cn("flex flex-col items-center gap-3", className)}>
@@ -226,44 +188,9 @@ export default function VoiceRecordButton({
         </div>
       )}
 
-      {state === "recorded" && audioUrl && (
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={resetRecording}
-            disabled={uploading}
-            aria-label="Re-record"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RotateCcw className="h-4 w-4" aria-hidden />
-            Redo
-          </button>
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={sendDisabled}
-            aria-label={uploading ? "Sending" : "Send recording"}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {uploading ? (
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-            ) : (
-              <Send className="h-5 w-5" aria-hidden />
-            )}
-          </button>
-        </div>
-      )}
-
-      {(state === "recording" || state === "recorded") && (
+      {state === "recording" && (
         <p className="text-xs tabular-nums text-muted-foreground">
           {formatDuration(elapsed)}
-          {typeof minDurationSeconds === "number" &&
-            finalDurationRef.current > 0 &&
-            finalDurationRef.current < minDurationSeconds && (
-              <span className="ml-2 text-recording-pulse">
-                (min {minDurationSeconds}s — please record a bit more)
-              </span>
-            )}
         </p>
       )}
 
