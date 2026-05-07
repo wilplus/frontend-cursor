@@ -161,44 +161,49 @@ const CHUNK_BEAT_MS = 250;
 /**
  * Split an LLM message into chunks the UI should render as separate bubbles.
  *
- * 1. Explicit `|||` delimiter takes precedence — backend can chunk however
- *    it wants and we'll respect that exactly.
- * 2. Heuristic fallback when the LLM didn't chunk: if the message ends in
- *    a question AND there's a setup sentence before it, peel that final
- *    question off into its own bubble so long "scenario… now answer this?"
- *    replies feel like a real two-message exchange instead of a wall.
+ * Two-pass:
+ *   1. Split on the explicit `|||` delimiter (backend's authoritative
+ *      chunk-control). If absent, treat the whole message as one chunk.
+ *   2. For EACH resulting chunk, apply the trailing-question heuristic:
+ *      if the chunk ends in a `?` AND there's a setup sentence before it,
+ *      peel that final question off into its own bubble. So a single
+ *      `|||`-chunk that itself has "scenario… now answer this?" shape
+ *      still gets split — the user sees three bubbles for one logical
+ *      "reaction + scenario + question" reply.
  *
- * The heuristic is intentionally conservative — it only splits when:
- *    - the message contains a `?` AND it's the FINAL non-whitespace char,
- *    - there's at least one sentence-terminator (.!?) before the final
- *      question (so we know there's real setup, not just a bare question),
- *    - the setup half is at least 20 chars long (avoids "Hi. What now?" splits).
- *
- * Anything outside that pattern returns as a single chunk.
+ * Heuristic is intentionally conservative — only splits when:
+ *    - the chunk's last non-whitespace char is `?`,
+ *    - there's at least one .!? sentence-terminator before the final
+ *      question (so we know there's real setup, not a bare question),
+ *    - the setup half is ≥ 20 chars (skips "Hi. What now?" pathological splits).
  */
 function splitChunks(text: string): string[] {
-  if (text.includes(CHUNK_DELIMITER)) {
-    return text
-      .split(CHUNK_DELIMITER)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-  }
+  // Pass 1: respect explicit `|||` delimiter; otherwise treat as one chunk.
+  const baseChunks = text.includes(CHUNK_DELIMITER)
+    ? text
+        .split(CHUNK_DELIMITER)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : (() => {
+        const t = text.trim();
+        return t.length > 0 ? [t] : [];
+      })();
 
-  const trimmed = text.trim();
-  if (!trimmed) return [];
-
-  // Greedy match: group 1 = setup ending in .!? ; group 2 = trailing
-  // question (must contain `?` and end the string, no internal .!?).
-  const match = trimmed.match(/^([\s\S]+[.!?])\s+([^.!?]*\?\s*)$/);
-  if (match) {
-    const setup = match[1].trim();
-    const question = match[2].trim();
-    if (setup.length >= 20 && question.length > 0) {
-      return [setup, question];
+  // Pass 2: trailing-question heuristic on each chunk.
+  const result: string[] = [];
+  for (const chunk of baseChunks) {
+    const match = chunk.match(/^([\s\S]+[.!?])\s+([^.!?]*\?\s*)$/);
+    if (match) {
+      const setup = match[1].trim();
+      const question = match[2].trim();
+      if (setup.length >= 20 && question.length > 0) {
+        result.push(setup, question);
+        continue;
+      }
     }
+    result.push(chunk);
   }
-
-  return [trimmed];
+  return result;
 }
 
 function formatDuration(totalSeconds: number): string {
