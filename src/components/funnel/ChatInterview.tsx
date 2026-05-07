@@ -122,16 +122,17 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-2",
     content:
-      "Charisma is social and you can't drill it. So we'll do something different!",
+      "Charisma is social and you can't drill it alone. So we'll do something different.",
   },
   {
     id: "ob-3",
-    content: "We will map your personal **Charismatic Flow State**.",
+    content:
+      "We'll map your personal **Charismatic Flow State**, the moments your voice sounds most magnetic.",
   },
   {
     id: "ob-4",
     content:
-      "Pardon me for this little awkward question but do you generally like math?",
+      "First we need your baseline. Forgive the odd opener, but do you generally like math?",
   },
 ];
 
