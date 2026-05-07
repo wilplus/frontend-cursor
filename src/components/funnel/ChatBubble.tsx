@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,10 @@ import { cn } from "@/lib/utils";
  * Visual tokens come from the `--chat-bubble-*` CSS variables; ensure the
  * component is rendered under the `.willab-chat` scope (or wherever those
  * tokens evaluate to the warm palette).
+ *
+ * Bot `content` supports a single inline-markdown construct: `**bold**`
+ * runs render as <strong>. No other markdown is parsed — keeps the
+ * surface tiny and predictable.
  */
 export interface ChatBubbleProps {
   type: "bot" | "user";
@@ -23,6 +28,26 @@ export interface ChatBubbleProps {
   /** Object URL for the recorded blob; renders an inline `<audio>` player. */
   audioUrl?: string;
   className?: string;
+}
+
+/**
+ * Render plain text with `**bold**` runs converted to <strong>. Splits on
+ * the markdown markers while keeping the order and surrounding text intact.
+ * Cheap regex-based parser — no nested/escape support; if the LLM ever
+ * emits more elaborate markdown we'll swap this for a proper renderer.
+ */
+function renderBoldRuns(text: string): React.ReactNode {
+  const segments = text.split(/(\*\*[^*]+\*\*)/g);
+  return segments.map((seg, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(seg)) {
+      return (
+        <strong key={i} className="font-semibold">
+          {seg.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <Fragment key={i}>{seg}</Fragment>;
+  });
 }
 
 export default function ChatBubble({
@@ -42,9 +67,10 @@ export default function ChatBubble({
           <div className="rounded-2xl rounded-tl-sm border border-border bg-chat-bot px-4 py-3 shadow-sm">
             {/* Body size matches WhatsApp's default chat message (~15–16px).
                 whitespace-pre-line preserves intentional \n / \n\n breaks
-                so multi-paragraph bot copy renders the way it was authored. */}
+                so multi-paragraph bot copy renders the way it was authored.
+                Inline `**bold**` runs are rendered via renderBoldRuns. */}
             <p className="whitespace-pre-line text-base leading-relaxed text-foreground">
-              {content}
+              {content ? renderBoldRuns(content) : null}
             </p>
           </div>
         </div>
