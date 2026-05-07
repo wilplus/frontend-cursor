@@ -11,6 +11,7 @@ import {
   Flame,
   Minus,
   MoreVertical,
+  Pencil,
   Plus,
   Send,
 } from "lucide-react";
@@ -45,6 +46,13 @@ interface AdminSnippet {
   audio_segment_path?: string;
   snippet_type?: string;
   admin_comment?: string | null;
+  /**
+   * Predictive next-question text triggered when the user clicks this
+   * snippet's CTA on the /results page. Pre-populated by the backend
+   * when the snippet is generated; the admin can override before
+   * publishing. Persisted via the same /comment endpoint.
+   */
+  follow_up_question?: string | null;
   // Spec fields the backend may not yet supply — surfaced where present.
   is_skipped?: boolean | null;
   metrics?: {
@@ -228,7 +236,12 @@ interface SnippetCardProps {
     deltaMs: number
   ) => void;
   onLabel: (snippetId: string, type: "charisma" | "stress") => void;
-  onSaveComment: (snippetId: string, comment: string) => Promise<void>;
+  /** Saves admin_comment + follow_up_question + (current) snippet_type. */
+  onSaveComment: (
+    snippetId: string,
+    comment: string,
+    followUpQuestion: string
+  ) => Promise<void>;
   onSkip: (snippetId: string) => void;
   saving?: boolean;
   /** Disable boundary +/- controls (e.g. while saving). */
@@ -247,6 +260,9 @@ function SnippetCard({
   skipDisabled,
 }: SnippetCardProps) {
   const [comment, setComment] = useState(snippet.admin_comment ?? "");
+  const [followUpQuestion, setFollowUpQuestion] = useState(
+    snippet.follow_up_question ?? ""
+  );
   const [activeLabel, setActiveLabel] = useState<"charisma" | "stress" | null>(
     snippet.snippet_type === "charisma" || snippet.snippet_type === "stress"
       ? snippet.snippet_type
@@ -360,12 +376,31 @@ function SnippetCard({
         </Button>
       </div>
 
-      {/* Admin comment */}
+      {/* Admin comment — published verbatim to the user's /results page */}
+      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Coach&apos;s Insight
+      </label>
       <Textarea
         rows={3}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         placeholder="Charisma / stress analysis the user will see…"
+        className="mb-3"
+      />
+
+      {/* Predictive follow-up — drives the contextual chat when the user
+          clicks this snippet's CTA on /results (sourceSnippet → /chat). */}
+      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Next Question{" "}
+        <span className="font-normal normal-case text-muted-foreground/80">
+          (Triggered on click)
+        </span>
+      </label>
+      <Textarea
+        rows={2}
+        value={followUpQuestion}
+        onChange={(e) => setFollowUpQuestion(e.target.value)}
+        placeholder="What the AI should ask next when the user taps this snippet…"
         className="mb-3"
       />
 
@@ -375,7 +410,9 @@ function SnippetCard({
           type="button"
           size="sm"
           disabled={saving}
-          onClick={() => void onSaveComment(snippet.id, comment)}
+          onClick={() =>
+            void onSaveComment(snippet.id, comment, followUpQuestion)
+          }
           className="rounded-full px-4"
         >
           {saving ? "Saving…" : "Save Snippet"}
@@ -428,10 +465,17 @@ export default function AdminUserDetailPage() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiScore, setAiScore] = useState<number | null>(null);
   const [interviewTurns, setInterviewTurns] = useState<Array<{
+    /** Stable PK from the backend timeline payload — used to PATCH the
+     *  question text via /api/v2/admin/turns/[turnId]/question. */
+    id?: string | null;
     turn_number: number | null;
     question: { text: string | null; tone: string | null };
     answer: { audio_url: string | null; duration_ms: number | null };
   }>>([]);
+  /** Index of the turn currently in edit mode (null = none being edited). */
+  const [editingTurnIdx, setEditingTurnIdx] = useState<number | null>(null);
+  const [editingTurnDraft, setEditingTurnDraft] = useState("");
+  const [savingTurnIdx, setSavingTurnIdx] = useState<number | null>(null);
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -614,6 +658,69 @@ export default function AdminUserDetailPage() {
     }
   }, [userId, adminNotes]);
 
+  /**
+   * Persist an admin edit to a bot's interview question text. The PATCH
+   * goes to the backend via the BFF route at
+   *   PATCH /api/v2/admin/turns/[turnId]/question
+   * which proxies to /v2/admin/turns/{turn_id}/question on the backend.
+   * The optimistic UI updates the local `interviewTurns` state so the new
+   * copy is reflected immediately.
+   */
+  const saveTurnEdit = useCallback(
+    async (idx: number) => {
+      const turn = interviewTurns[idx];
+      const turnId = turn?.id;
+      if (!turnId) {
+        toast.error("Cannot edit — turn id missing on payload");
+        return;
+      }
+      const nextText = editingTurnDraft.trim();
+      if (!nextText) {
+        toast.error("Question cannot be empty");
+        return;
+      }
+      setSavingTurnIdx(idx);
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          toast.error("Not authenticated");
+          return;
+        }
+        const res = await fetch(
+          `/api/v2/admin/turns/${encodeURIComponent(turnId)}/question`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ text: nextText }),
+          }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Save failed (HTTP ${res.status})`);
+        }
+        // Optimistic local update so the bubble re-renders with the edit.
+        setInterviewTurns((prev) =>
+          prev.map((t, i) =>
+            i === idx
+              ? { ...t, question: { ...t.question, text: nextText } }
+              : t
+          )
+        );
+        setEditingTurnIdx(null);
+        setEditingTurnDraft("");
+        toast.success("Message updated");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to save edit");
+      } finally {
+        setSavingTurnIdx(null);
+      }
+    },
+    [interviewTurns, editingTurnDraft]
+  );
+
   const saveInstructions = useCallback(async () => {
     setSavingInstructions(true);
     try {
@@ -632,7 +739,7 @@ export default function AdminUserDetailPage() {
   }, [userId, llmInstructions]);
 
   const handleSaveSnippetComment = useCallback(
-    async (snippetId: string, comment: string) => {
+    async (snippetId: string, comment: string, followUpQuestion: string) => {
       setSavingSnippetId(snippetId);
       try {
         const token = await getAuthToken();
@@ -640,6 +747,10 @@ export default function AdminUserDetailPage() {
           toast.error("Not authenticated");
           return;
         }
+        const trimmedComment = comment.trim() ? comment : null;
+        const trimmedFollowUp = followUpQuestion.trim()
+          ? followUpQuestion
+          : null;
         const res = await fetch(
           `/api/v2/admin/snippets/${snippetId}/comment`,
           {
@@ -649,7 +760,8 @@ export default function AdminUserDetailPage() {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-              admin_comment: comment.trim() ? comment : null,
+              admin_comment: trimmedComment,
+              follow_up_question: trimmedFollowUp,
               snippet_type:
                 snippets.find((s) => s.id === snippetId)?.snippet_type ??
                 "unlabeled",
@@ -664,10 +776,16 @@ export default function AdminUserDetailPage() {
             prev.map((s) => (s.id === snippetId ? { ...s, ...updated } : s))
           );
         } else {
-          // Optimistic patch.
+          // Optimistic patch — backend may not echo the snippet yet.
           setSnippets((prev) =>
             prev.map((s) =>
-              s.id === snippetId ? { ...s, admin_comment: comment } : s
+              s.id === snippetId
+                ? {
+                    ...s,
+                    admin_comment: trimmedComment,
+                    follow_up_question: trimmedFollowUp,
+                  }
+                : s
             )
           );
         }
@@ -996,39 +1114,102 @@ export default function AdminUserDetailPage() {
               </p>
               <div className="space-y-3">
                 {interviewTurns.length > 0 ? (
-                  interviewTurns.map((turn, idx) => (
-                    <div key={idx} className="space-y-2">
-                      {/* Bot question bubble */}
-                      {turn.question?.text && (
-                        <div className="flex items-start gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                            W
+                  interviewTurns.map((turn, idx) => {
+                    const isEditing = editingTurnIdx === idx;
+                    const isSavingThis = savingTurnIdx === idx;
+                    const canEdit = !!turn.id;
+                    return (
+                      <div key={turn.id ?? idx} className="space-y-2">
+                        {/* Bot question bubble — admin can edit the text */}
+                        {(turn.question?.text || isEditing) && (
+                          <div className="group flex items-start gap-2">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                              W
+                            </div>
+                            {isEditing ? (
+                              <div className="flex-1 space-y-2">
+                                <Textarea
+                                  rows={3}
+                                  value={editingTurnDraft}
+                                  onChange={(e) =>
+                                    setEditingTurnDraft(e.target.value)
+                                  }
+                                  placeholder="Bot question text…"
+                                  autoFocus
+                                />
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={isSavingThis}
+                                    onClick={() => void saveTurnEdit(idx)}
+                                    className="rounded-full px-4"
+                                  >
+                                    {isSavingThis ? "Saving…" : "Save"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={isSavingThis}
+                                    onClick={() => {
+                                      setEditingTurnIdx(null);
+                                      setEditingTurnDraft("");
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex w-full items-start gap-2">
+                                <div className="flex-1 rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
+                                  <span className="mr-2 text-[10px] font-medium uppercase text-muted-foreground">
+                                    {turn.question.tone ?? ""}
+                                  </span>
+                                  {turn.question.text}
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!canEdit}
+                                  title={
+                                    canEdit
+                                      ? "Edit AI message"
+                                      : "Edit unavailable — turn id missing"
+                                  }
+                                  onClick={() => {
+                                    setEditingTurnIdx(idx);
+                                    setEditingTurnDraft(turn.question.text ?? "");
+                                  }}
+                                  className="shrink-0 gap-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit
+                                </Button>
+                              </div>
+                            )}
                           </div>
-                          <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
-                            <span className="mr-2 text-[10px] font-medium uppercase text-muted-foreground">
-                              {turn.question.tone ?? ""}
-                            </span>
-                            {turn.question.text}
+                        )}
+                        {/* User audio bubble */}
+                        {turn.answer?.audio_url && (
+                          <div className="ml-9">
+                            <audio
+                              controls
+                              src={turn.answer.audio_url}
+                              className="w-full max-w-xs"
+                            />
+                            {turn.answer.duration_ms != null && (
+                              <span className="ml-1 text-[10px] text-muted-foreground">
+                                {(turn.answer.duration_ms / 1000).toFixed(1)}s
+                              </span>
+                            )}
                           </div>
-                        </div>
-                      )}
-                      {/* User audio bubble */}
-                      {turn.answer?.audio_url && (
-                        <div className="ml-9">
-                          <audio
-                            controls
-                            src={turn.answer.audio_url}
-                            className="w-full max-w-xs"
-                          />
-                          {turn.answer.duration_ms != null && (
-                            <span className="ml-1 text-[10px] text-muted-foreground">
-                              {(turn.answer.duration_ms / 1000).toFixed(1)}s
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))
+                        )}
+                      </div>
+                    );
+                  })
                 ) : latestSession?.recording_preview?.transcription_preview ? (
                   <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
                     {latestSession.recording_preview.transcription_preview}
