@@ -117,7 +117,7 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-1",
     content:
-      "Stress and charisma are biologically identical. They are both high-energy states.",
+      "Your stress and your charisma are made of the same stuff. We're here to show you the switch.",
   },
   {
     id: "ob-2",
