@@ -85,10 +85,8 @@ const AGGREGATE_THRESHOLD_SECONDS = 30;
  * appended when no `initialQuestion` is provided (warm-start retention-loop
  * chats skip this entirely, per spec).
  *
- * Markdown emphasis from the original copy was dropped because ChatBubble
- * renders content as plain text; preserving `**` would surface the literal
- * asterisks. The phrase "Charismatic Flow State" reads as a defined concept
- * on its own.
+ * `**...**` runs in `content` are rendered as <strong> by ChatBubble —
+ * keep markup minimal (single phrase per bubble at most).
  */
 const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
@@ -104,7 +102,7 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-3",
     content:
-      "We are going to map your personal Charismatic Flow State. I will help you recognize this energy and learn how to trigger it on demand.\n\nHit record to answer my first question when you are ready.",
+      "We are going to map your personal **Charismatic Flow State**.\n\nHit record to answer my first question when you are ready.",
   },
 ];
 
