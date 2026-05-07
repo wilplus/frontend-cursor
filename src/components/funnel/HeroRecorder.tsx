@@ -185,7 +185,7 @@ export default function HeroRecorder() {
   // DashboardHeader is mounted up top regardless of auth state — it adapts
   // its right-side content (Log in / Sign up vs credits + menu) on its own.
   return (
-    <main className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
+    <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">
         <DashboardHeader />
       </div>
@@ -222,10 +222,13 @@ export default function HeroRecorder() {
               <ExplainerVideo />
             </div>
 
-            {/* Multi-turn interview chat — owns its own internal scroll */}
+            {/* Multi-turn interview chat — owns its own internal scroll.
+                isGuest surfaces the GDPR mic disclaimer for the first
+                recording when the user hasn't signed up yet. */}
             <ChatInterview
               onThresholdReached={handleThresholdReached}
               onError={handleInterviewError}
+              isGuest={authState === "anonymous"}
             />
           </div>
         ) : (
