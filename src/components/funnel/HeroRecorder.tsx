@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import CuriosityGate from "@/components/funnel/CuriosityGate";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import SectionCard from "@/components/admin/SectionCard";
-import WillabLogo from "@/components/WillabLogo";
-import { Button } from "@/components/ui/button";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -45,21 +43,6 @@ const PROCESSING_LABELS = [
 /* -------------------------------------------------------------------------- */
 /* Sub-components                                                              */
 /* -------------------------------------------------------------------------- */
-
-function AnonymousTopBar() {
-  return (
-    <div className="flex w-full items-center justify-between">
-      <Link href="/" aria-label="Willab home">
-        <WillabLogo size="md" />
-      </Link>
-      <Link href="/login">
-        <Button variant="outline" size="sm">
-          Log in
-        </Button>
-      </Link>
-    </div>
-  );
-}
 
 /**
  * 1-minute explainer video, lazily fetched. The endpoint can return no URL or
@@ -198,9 +181,14 @@ export default function HeroRecorder() {
   }, [authState, status]);
 
   // Viewport-locked: page fits the device exactly. Inner regions own their
-  // own scrolling (chat thread). The body never scrolls.
+  // own scrolling (chat thread). The body never scrolls. The unified
+  // DashboardHeader is mounted up top regardless of auth state — it adapts
+  // its right-side content (Log in / Sign up vs credits + menu) on its own.
   return (
     <main className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <div className="shrink-0">
+        <DashboardHeader />
+      </div>
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-8">
         {status === "rate_limited" ? (
           <SectionCard title="You've tried a few times">
@@ -227,10 +215,10 @@ export default function HeroRecorder() {
           <ProcessingScreen />
         ) : status === "interviewing" ? (
           <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Top: nav bar + optional explainer (shrink-0 so the chat
-                thread below gets the rest of the height) */}
+            {/* Optional explainer video sits above the chat (shrink-0 so the
+                thread below gets the rest of the height). The Log-in CTA
+                that used to be inline here is now in the global header. */}
             <div className="shrink-0 space-y-4">
-              {authState === "anonymous" && <AnonymousTopBar />}
               <ExplainerVideo />
             </div>
 
