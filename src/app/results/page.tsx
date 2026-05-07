@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -71,7 +71,37 @@ const PREVIEW_PAYLOAD: VoiceJourneyTimelinePayload = {
   ],
 };
 
+/**
+ * Outer page wrapper — required by Next.js 14: any page-level component that
+ * calls `useSearchParams()` must be inside a Suspense boundary at build time
+ * or static prerender bails with "useSearchParams() should be wrapped in a
+ * suspense boundary". The wrapper is the canonical fix; the inner component
+ * keeps all the data-loading logic.
+ */
 export default function VoiceJourneyPage() {
+  return (
+    <Suspense fallback={<JourneyLoadingShell />}>
+      <VoiceJourneyContent />
+    </Suspense>
+  );
+}
+
+/**
+ * Lightweight fallback while Suspense resolves. Mirrors the eventual layout
+ * (header + centered loader) so the page doesn't visibly shift on hydration.
+ */
+function JourneyLoadingShell() {
+  return (
+    <div className="willab-chat flex h-full flex-col overflow-hidden bg-background">
+      <DashboardHeader />
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    </div>
+  );
+}
+
+function VoiceJourneyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusOverride = resolveStatusOverride(searchParams.get("status"));
