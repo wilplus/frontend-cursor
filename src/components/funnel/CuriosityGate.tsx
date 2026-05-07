@@ -13,25 +13,20 @@ interface CuriosityGateProps {
 }
 
 /**
- * Funnel-flavoured signup pane. The duplicated "Already have an account?"
- * toggle that used to live below the grey-bordered Card has been removed
- * — the SignupForm itself ships an "Already have an account? Sign in" link
- * inside the card, which is the single canonical entry to /login.
+ * Funnel-flavoured signup pane — ultra-minimal.
+ *
+ * Brand presence comes from the GlobalHeader (DashboardHeader) up the tree;
+ * the card itself is just the auth options. No conversational headline or
+ * subheadline — the LinkedIn / Email buttons are the first thing the eye
+ * lands on.
+ *
+ * The single "Already have an account? Sign in" link lives inside the
+ * SignupForm card and is the canonical entry to /login.
  */
 function GuestSignupSection({ onSuccess }: { onSuccess: () => void }) {
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl border bg-background/95 px-4 py-6 shadow-xl backdrop-blur-sm sm:px-6 sm:py-7">
-      <div className="space-y-1.5 text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Where should we send your Charisma Snippets?
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Create a free account to get your personalized voice analysis.
-        </p>
-      </div>
-      <div className="mt-6">
-        <SignupForm onSuccess={onSuccess} />
-      </div>
+    <div className="mx-auto w-full max-w-md rounded-2xl border bg-background/95 p-4 shadow-xl backdrop-blur-sm sm:p-5">
+      <SignupForm onSuccess={onSuccess} />
     </div>
   );
 }
