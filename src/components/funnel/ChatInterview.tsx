@@ -158,15 +158,46 @@ const CHUNK_TYPING_MS = 1700;
 const CHUNK_BEAT_MS = 250;
 
 /**
- * Split an LLM message on `|||` into the chunks the UI should render as
- * separate bubbles. Trims whitespace and drops empties so trailing/leading
- * delimiters don't produce blank bubbles.
+ * Split an LLM message into chunks the UI should render as separate bubbles.
+ *
+ * 1. Explicit `|||` delimiter takes precedence — backend can chunk however
+ *    it wants and we'll respect that exactly.
+ * 2. Heuristic fallback when the LLM didn't chunk: if the message ends in
+ *    a question AND there's a setup sentence before it, peel that final
+ *    question off into its own bubble so long "scenario… now answer this?"
+ *    replies feel like a real two-message exchange instead of a wall.
+ *
+ * The heuristic is intentionally conservative — it only splits when:
+ *    - the message contains a `?` AND it's the FINAL non-whitespace char,
+ *    - there's at least one sentence-terminator (.!?) before the final
+ *      question (so we know there's real setup, not just a bare question),
+ *    - the setup half is at least 20 chars long (avoids "Hi. What now?" splits).
+ *
+ * Anything outside that pattern returns as a single chunk.
  */
 function splitChunks(text: string): string[] {
-  return text
-    .split(CHUNK_DELIMITER)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  if (text.includes(CHUNK_DELIMITER)) {
+    return text
+      .split(CHUNK_DELIMITER)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  // Greedy match: group 1 = setup ending in .!? ; group 2 = trailing
+  // question (must contain `?` and end the string, no internal .!?).
+  const match = trimmed.match(/^([\s\S]+[.!?])\s+([^.!?]*\?\s*)$/);
+  if (match) {
+    const setup = match[1].trim();
+    const question = match[2].trim();
+    if (setup.length >= 20 && question.length > 0) {
+      return [setup, question];
+    }
+  }
+
+  return [trimmed];
 }
 
 function formatDuration(totalSeconds: number): string {
