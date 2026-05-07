@@ -40,7 +40,8 @@ export default function ChatBubble({
             <span className="text-xs font-bold text-primary-foreground">W</span>
           </div>
           <div className="rounded-2xl rounded-tl-sm border border-border bg-chat-bot px-4 py-3 shadow-sm">
-            <p className="text-sm leading-relaxed text-foreground">{content}</p>
+            {/* Body size matches WhatsApp's default chat message (~15–16px). */}
+            <p className="text-base leading-relaxed text-foreground">{content}</p>
           </div>
         </div>
       </div>
@@ -56,7 +57,7 @@ export default function ChatBubble({
             <source src={audioUrl} />
           </audio>
         ) : duration ? (
-          <span className="text-sm font-medium text-chat-user-foreground">
+          <span className="text-base font-medium text-chat-user-foreground">
             {duration}
           </span>
         ) : null}
