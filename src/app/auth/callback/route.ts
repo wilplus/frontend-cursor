@@ -112,8 +112,10 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Normal auth flow (not password reset)
-  const redirectPath = next || "/chat";
+  // Normal auth flow (not password reset).
+  // Default to /results so authenticated users land on their snippets
+  // (or the overview when no session is published yet).
+  const redirectPath = next || "/results";
   const response = NextResponse.redirect(new URL(redirectPath, req.url));
 
   const supabase = createServerClient(
