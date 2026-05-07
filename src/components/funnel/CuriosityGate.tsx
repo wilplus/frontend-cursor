@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import SignupForm from "@/components/auth/SignupForm";
 import { createClient } from "@/lib/supabase/client";
+import { clearPendingSessionId } from "@/lib/funnel/pendingSession";
 
 interface CuriosityGateProps {
   isGuest: boolean;
@@ -80,6 +81,9 @@ export default function CuriosityGate({
         if (response.ok) {
           const data = await response.json();
           claimedSessionId = data?.session_id || null;
+          // Clear the localStorage stash so the global PendingSessionClaim
+          // hook doesn't fire a duplicate claim with the same id later.
+          clearPendingSessionId();
         } else {
           console.error("Claim failed:", response.status);
         }

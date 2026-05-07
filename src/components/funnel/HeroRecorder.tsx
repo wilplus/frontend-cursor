@@ -8,6 +8,7 @@ import ChatInterview from "@/components/funnel/ChatInterview";
 import SectionCard from "@/components/admin/SectionCard";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { createClient } from "@/lib/supabase/client";
+import { setPendingSessionId } from "@/lib/funnel/pendingSession";
 
 /**
  * Curiosity Gate state machine (multi-turn interview version).
@@ -151,6 +152,10 @@ export default function HeroRecorder() {
   const handleThresholdReached = useCallback(
     async (guestSessionId: string) => {
       guestSessionIdRef.current = guestSessionId;
+      // Stash the anonymous session id in localStorage so OAuth round-trips
+      // (LinkedIn etc.) can survive the redirect and the post-auth hook
+      // can claim it for the newly-authenticated user.
+      setPendingSessionId(guestSessionId);
       setStatus("processing");
       // Brief anticipation hold so the transition isn't jarring
       await new Promise((r) => setTimeout(r, MIN_PROCESSING_MS));
