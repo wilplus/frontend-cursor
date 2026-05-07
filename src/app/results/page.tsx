@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Globe2, Play, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import JourneySnippetCard from "@/components/results/journey/JourneySnippetCard";
 import type {
   JourneySession,
@@ -104,12 +105,14 @@ interface PageProps {
 export default function VoiceJourneyPage({ searchParams }: PageProps) {
   const status = resolveStatus(searchParams?.status, MOCK_PAYLOAD.status);
 
-  // Viewport-locked layout: page is exactly 100dvh tall; the navbar stays
-  // pinned at the top, and only the active inner view (Processing or
-  // Completed) is allowed to scroll. The body never scrolls.
+  // Viewport-locked layout: page is exactly 100dvh tall; the unified
+  // DashboardHeader sits at the top, and only the active inner view
+  // (Processing or Completed) is allowed to scroll. The body never scrolls.
   return (
     <div className="willab-chat flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <Navbar />
+      <div className="shrink-0">
+        <DashboardHeader />
+      </div>
       {status === "processing" ? (
         <ProcessingState />
       ) : (
@@ -120,28 +123,6 @@ export default function VoiceJourneyPage({ searchParams }: PageProps) {
         />
       )}
     </div>
-  );
-}
-
-/* ----------------------------------------------------------------------------
- * Navbar — dark band with italic "Willab." wordmark (orange period)
- * ------------------------------------------------------------------------- */
-
-function Navbar() {
-  return (
-    <header className="shrink-0 bg-foreground text-primary-foreground">
-      <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-        <Link href="/" aria-label="Willab home" className="inline-flex items-baseline">
-          <span className="text-lg font-bold italic tracking-tight">Willab</span>
-          <span className="text-lg font-bold italic text-primary">.</span>
-        </Link>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/results" className="opacity-90 hover:opacity-100">
-            Results
-          </Link>
-        </nav>
-      </div>
-    </header>
   );
 }
 

@@ -20,9 +20,12 @@ const CAL_LESSON_URL = "https://cal.com/artur-willonski-zywzu7/lesson";
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
 const ADMIN_EMAIL = "artur@willonski.com";
+type AuthState = "unknown" | "anonymous" | "signed_in";
+
 export default function DashboardHeader() {
   const router = useRouter();
   const supabase = createClient();
+  const [authState, setAuthState] = useState<AuthState>("unknown");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,31 +91,43 @@ export default function DashboardHeader() {
       } = await supabase.auth.getUser();
       if (cancelled) return;
       if (!user) {
+        setAuthState("anonymous");
         setUserEmail(null);
         setCredits(null);
         return;
       }
+      setAuthState("signed_in");
       setUserEmail(user.email ?? null);
       await refreshCreditsFromStatus();
     }
 
     void load();
 
-    const onVisibilityOrFocus = () => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      void refreshCreditsFromStatus();
-    };
-    window.addEventListener("focus", onVisibilityOrFocus);
-    document.addEventListener("visibilitychange", onVisibilityOrFocus);
-    const intervalId = window.setInterval(() => {
-      void refreshCreditsFromStatus();
-    }, 60_000);
+    // Only attach the credits-refresh listeners when we know the user is
+    // signed in — guests don't have credits and shouldn't trigger /status
+    // requests in the background.
+    let cleanupListeners: (() => void) | null = null;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (cancelled || !data.user) return;
+      const onVisibilityOrFocus = () => {
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+        void refreshCreditsFromStatus();
+      };
+      window.addEventListener("focus", onVisibilityOrFocus);
+      document.addEventListener("visibilitychange", onVisibilityOrFocus);
+      const intervalId = window.setInterval(() => {
+        void refreshCreditsFromStatus();
+      }, 60_000);
+      cleanupListeners = () => {
+        window.removeEventListener("focus", onVisibilityOrFocus);
+        document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+        window.clearInterval(intervalId);
+      };
+    });
 
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", onVisibilityOrFocus);
-      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
-      window.clearInterval(intervalId);
+      cleanupListeners?.();
     };
   }, [supabase]);
 
@@ -164,16 +179,17 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="bg-background">
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex max-w-4xl min-w-0 items-center justify-between gap-2 px-[15px] py-4 sm:gap-4">
         <div className="flex shrink-0 items-center gap-2">
           <Link
-            href="/chat"
+            href="/"
             className="hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+            aria-label="Willab home"
           >
             <WillabLogo size="md" />
           </Link>
-          {userEmail === ADMIN_EMAIL && (
+          {authState === "signed_in" && userEmail === ADMIN_EMAIL && (
             <Link
               href="/admin"
               className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -184,69 +200,94 @@ export default function DashboardHeader() {
             </Link>
           )}
         </div>
+
+        {/* Right-side: depends on auth state. While "unknown" we render an
+            invisible spacer of equivalent height so the page doesn't shift
+            when auth resolves. */}
         <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
-          {credits !== null && (
-            <Link
-              href="/dashboard/pricing"
-              title="Top up credits"
-              className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <span className="text-base leading-none">🎓</span>
-              <span>{credits}</span>
-            </Link>
+          {authState === "unknown" && <div className="h-10" aria-hidden />}
+
+          {authState === "anonymous" && (
+            <>
+              <Link href="/login">
+                <Button variant="ghost" size="sm" className="rounded-full">
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button size="sm" className="rounded-full px-4">
+                  Sign up
+                </Button>
+              </Link>
+            </>
           )}
-          <div className="relative flex shrink-0" ref={menuRef}>
-            <Button
-              ref={buttonRef}
-              variant="outline"
-              size="icon"
-              onClick={() => setMenuOpen((o) => !o)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") openByKeyboardRef.current = true;
-              }}
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={menuOpen}
-              aria-haspopup="true"
-              aria-controls={menuOpen ? HEADER_MENU_ID : undefined}
-              className="h-10 w-10"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            {menuOpen && (
-              <div
-                id={HEADER_MENU_ID}
-                className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
-              >
-                <a
-                  ref={firstLinkRef}
-                  href={CAL_LESSON_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
-                  onClick={() => setMenuOpen(false)}
+
+          {authState === "signed_in" && (
+            <>
+              {credits !== null && (
+                <Link
+                  href="/dashboard/pricing"
+                  title="Top up credits"
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  Book a lesson
-                </a>
-                <a
-                  href={`mailto:${SUPPORT_EMAIL}`}
-                  className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
-                  onClick={() => setMenuOpen(false)}
+                  <span className="text-base leading-none">🎓</span>
+                  <span>{credits}</span>
+                </Link>
+              )}
+              <div className="relative flex shrink-0" ref={menuRef}>
+                <Button
+                  ref={buttonRef}
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") openByKeyboardRef.current = true;
+                  }}
+                  aria-label={menuOpen ? "Close menu" : "Open menu"}
+                  aria-expanded={menuOpen}
+                  aria-haspopup="true"
+                  aria-controls={menuOpen ? HEADER_MENU_ID : undefined}
+                  className="h-10 w-10"
                 >
-                  Support
-                </a>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={loading}
-                  className={cn(
-                    "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:opacity-50"
-                  )}
-                >
-                  {loading ? "Logging out…" : "Log out"}
-                </button>
+                  <Menu className="h-5 w-5" />
+                </Button>
+                {menuOpen && (
+                  <div
+                    id={HEADER_MENU_ID}
+                    className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
+                  >
+                    <a
+                      ref={firstLinkRef}
+                      href={CAL_LESSON_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Book a lesson
+                    </a>
+                    <a
+                      href={`mailto:${SUPPORT_EMAIL}`}
+                      className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Support
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      disabled={loading}
+                      className={cn(
+                        "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:opacity-50"
+                      )}
+                    >
+                      {loading ? "Logging out…" : "Log out"}
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
     </header>
