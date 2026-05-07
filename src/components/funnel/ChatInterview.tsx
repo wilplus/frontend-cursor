@@ -94,7 +94,7 @@ const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-1",
     content:
-      "Stress and charisma are biologically identical. They are both high-energy states. That increased heart rate isn't panic—it's your body pumping oxygen to your brain to prepare you for action. That's why trying to just 'calm down' before speaking rarely works.",
+      "Stress and charisma are biologically identical. They are both high-energy states.",
   },
   {
     id: "ob-2",
