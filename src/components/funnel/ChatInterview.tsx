@@ -544,9 +544,40 @@ export default function ChatInterview({
           return;
         }
 
+        // EBCP frustration-probe reaction — when the user just answered the
+        // hardcoded math question (turnNumber === 1), peek at the Whisper
+        // transcript and drop in an empathetic acknowledgement before the
+        // LLM's Q2 lands. Keeps the chat feeling responsive even if the LLM
+        // doesn't naturally branch on the math answer.
+        // Positive answers fall through silently — the Q2 prompt carries
+        // the reaction itself in that path.
+        if (turnNumber === 1 && result.transcript) {
+          const negative =
+            /\b(no|don'?t|hate|dislike|sucks|not really|not a fan|terrible|awful|bad at)\b/i.test(
+              result.transcript
+            );
+          if (negative) {
+            setLoadingQuestion(false);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "ob-4-reaction",
+                type: "bot",
+                content: "Oh ok, then we'll make it quick!",
+              },
+            ]);
+            // Brief beat so the reaction lands distinctly, then the typing
+            // indicator returns for the LLM's Q2.
+            await new Promise((r) => setTimeout(r, 600));
+            if (thresholdReachedRef.current) return;
+            setLoadingQuestion(true);
+          }
+        }
+
         // Fetch next question — pass conversation history so LLM doesn't repeat.
-        // loadingQuestion is already true (set at the top of handleSend), so
-        // the typing dots have been visible since the user clicked Stop.
+        // loadingQuestion is already true (set at the top of handleSend, or
+        // restored just above after the math reaction), so the typing dots
+        // have been visible since the user clicked Stop.
         const nextTurn = turnNumber + 1;
         setTurnNumber(nextTurn);
 
