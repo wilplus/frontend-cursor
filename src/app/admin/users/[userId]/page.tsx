@@ -683,66 +683,146 @@ export default function AdminUserDetailPage() {
     if (!latestSession?.id || !userId) return;
     let cancelled = false;
 
-    // Timeline
+    // Timeline + snippets — fetched from the new comprehensive admin
+    // session endpoint, which eager-loads turns and snippets in one
+    // round-trip. The legacy /admin/users/<id>/timeline endpoint
+    // returned the empty-turn case for extraction-only sessions
+    // (single recording, no interview Q&A), which is why this section
+    // used to render "No interview turns recorded" even when the
+    // recording had been processed and snippets existed.
     (async () => {
       try {
         const token = await getAuthToken();
         if (!token || cancelled) return;
         const res = await fetch(
-          `/api/v2/admin/users/${userId}/timeline?session_id=${latestSession.id}`,
+          `/api/v2/admin/sessions/${latestSession.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok || cancelled) return;
-        const data = await res.json();
+        const data = (await res.json()) as {
+          global_metrics?: {
+            ai_summary?: string | null;
+            ai_score?: number | null;
+          };
+          turns?: Array<{
+            role?: "ai" | "user";
+            content?: string | null;
+            tone?: string | null;
+            audio_url?: string | null;
+            duration_ms?: number | null;
+            snippet_id?: string | null;
+            turn_number?: number | null;
+          }>;
+          snippets?: Array<unknown>;
+        };
         if (cancelled) return;
 
-        // Diagnostic: log the raw shape so backend / frontend keys can be
-        // diff'd at a glance when the timeline appears empty.
         if (typeof window !== "undefined") {
           // eslint-disable-next-line no-console
-          console.log("[admin/timeline] response:", data);
+          console.log("[admin/sessions] response:", data);
         }
 
-        setAiSummary(data.ai_summary ?? null);
-        setAiScore(data.ai_score ?? null);
+        setAiSummary(data.global_metrics?.ai_summary ?? null);
+        setAiScore(data.global_metrics?.ai_score ?? null);
 
-        // Defensive turn-array resolver — backend versions have moved keys
-        // around (timeline → interview_turns alias in the BFF, plus drafts
-        // that nested turns under `session`). Try every plausible path
-        // and use the first non-empty array.
-        const turnCandidates = [
-          (data as Record<string, unknown>).interview_turns,
-          (data as Record<string, unknown>).timeline,
-          (data as Record<string, unknown>).turns,
-          (data as Record<string, unknown>).messages,
-          (data.session as Record<string, unknown> | undefined)?.turns,
-          (data.session as Record<string, unknown> | undefined)?.messages,
-        ];
-        const turns = turnCandidates.find(
-          (c): c is unknown[] => Array.isArray(c) && c.length > 0
-        );
-        if (turns) {
-          setInterviewTurns(turns as typeof interviewTurns);
+        // ── Reshape flat turns → legacy nested shape ─────────────────
+        // The new endpoint returns a flat list alternating
+        // {role:"ai", content, tone, turn_number} and {role:"user",
+        // content, audio_url, ...}. The render code below was written
+        // for a nested {question, answer} shape, so we pair adjacent
+        // ai/user messages by turn_number here rather than rewriting
+        // the JSX.
+        const flat = Array.isArray(data.turns) ? data.turns : [];
+        const nested: typeof interviewTurns = [];
+        let i = 0;
+        while (i < flat.length) {
+          const cur = flat[i];
+          const next = flat[i + 1];
+          if (
+            cur.role === "ai" &&
+            next?.role === "user" &&
+            cur.turn_number != null &&
+            cur.turn_number === next.turn_number
+          ) {
+            nested.push({
+              id: next.snippet_id ?? null,
+              turn_number: next.turn_number ?? null,
+              question: { text: cur.content ?? null, tone: cur.tone ?? null },
+              answer: {
+                audio_url: next.audio_url ?? null,
+                duration_ms: next.duration_ms ?? null,
+                transcript: next.content ?? null,
+              },
+            });
+            i += 2;
+          } else if (cur.role === "user") {
+            nested.push({
+              id: cur.snippet_id ?? null,
+              turn_number: cur.turn_number ?? null,
+              question: { text: null, tone: null },
+              answer: {
+                audio_url: cur.audio_url ?? null,
+                duration_ms: cur.duration_ms ?? null,
+                transcript: cur.content ?? null,
+              },
+            });
+            i += 1;
+          } else {
+            nested.push({
+              id: null,
+              turn_number: cur.turn_number ?? null,
+              question: { text: cur.content ?? null, tone: cur.tone ?? null },
+              answer: {
+                audio_url: null,
+                duration_ms: null,
+                transcript: null,
+              },
+            });
+            i += 1;
+          }
         }
 
-        // If the backend nests snippets in the timeline response (newer
-        // shape), prefer that — saves a round trip and guarantees the
-        // snippet list matches the session we just fetched. Standalone
-        // fetchUserSnippets() ran at mount as a fallback / for older
-        // backends that don't nest.
-        const snippetCandidates = [
-          (data as Record<string, unknown>).snippets,
-          (data.session as Record<string, unknown> | undefined)?.snippets,
-        ];
-        const inlineSnippets = snippetCandidates.find(
-          (c): c is unknown[] => Array.isArray(c) && c.length > 0
-        );
-        if (inlineSnippets) {
-          setSnippets(inlineSnippets as AdminSnippet[]);
+        // ── Snippet fallback for extraction-only sessions ────────────
+        // If the session has no proper interview turns (cold-start
+        // funnel: one recording, no Q&A loop), promote the extracted
+        // snippets to pseudo-turns so the transcript area still shows
+        // useful content. Skipped snippets are excluded.
+        const rawSnippets = Array.isArray(data.snippets) ? data.snippets : [];
+        if (nested.length === 0) {
+          for (const raw of rawSnippets) {
+            const s = raw as {
+              id?: string | null;
+              audio_url?: string | null;
+              duration_ms?: number | null;
+              transcript?: string | null;
+              turn_number?: number | null;
+              is_skipped?: boolean;
+            };
+            if (s.is_skipped) continue;
+            nested.push({
+              id: s.id ?? null,
+              turn_number: s.turn_number ?? null,
+              question: { text: null, tone: null },
+              answer: {
+                audio_url: s.audio_url ?? null,
+                duration_ms: s.duration_ms ?? null,
+                transcript: s.transcript ?? null,
+              },
+            });
+          }
+        }
+
+        setInterviewTurns(nested);
+
+        // The new endpoint always nests snippets — prefer them over
+        // the standalone fetchUserSnippets() result so the snippet
+        // panel matches the session we just loaded.
+        if (rawSnippets.length > 0) {
+          setSnippets(rawSnippets as AdminSnippet[]);
         }
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("[admin/timeline] fetch failed:", err);
+        console.error("[admin/sessions] fetch failed:", err);
       }
     })();
 
