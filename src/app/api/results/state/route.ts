@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -8,75 +8,97 @@ export const runtime = "nodejs";
 /**
  * GET /api/results/state
  *
- * Distinguishes the three routing states the post-auth flow needs:
- *   - "no_session": the user has zero v2_sessions rows. Send them to /chat
- *                   to record a baseline.
- *   - "processing": at least one v2_sessions row exists but its
- *                   `results_published_at` is null. Show the waiting UI on
- *                   /results.
- *   - "completed":  the most recent session has `results_published_at` set.
- *                   Send them to /results/[session_id] for the snippets.
+ * Lightweight 3-way routing decision for post-auth flows
+ * (SignupForm / LoginForm / /results overview):
  *
- * Distinct from /api/results/latest, which only knows about *published*
- * sessions ("completed" vs "no_results") and so cannot tell us whether a
- * user has a session in flight. We query v2_sessions directly via
- * Supabase here for the same reason /api/results/[sessionId]/status does.
+ *   { kind: "no_session" }                            → /chat
+ *   { kind: "processing", session_id: string }        → /results
+ *   { kind: "completed",  session_id: string }        → /results/[id]
  *
- * Response shapes:
- *   200 { kind: "no_session" }
- *   200 { kind: "processing", session_id: string }
- *   200 { kind: "completed",  session_id: string }
- *   401 { code: "UNAUTHENTICATED" }
- *   500 { code: "ERROR" }
+ * Routed through the Flask backend's GET /v2/user/sessions/current
+ * (which uses the service-role key and bypasses RLS) and reduced to the
+ * 3-way enum the callers actually need.
+ *
+ * The previous version queried supabase.from("v2_sessions") directly,
+ * which silently always returned no_session because RLS denies all
+ * SELECTs to the authenticated role on v2_sessions (see
+ * migrations/enable_rls_public_tables.sql).
  */
-export async function GET() {
-  try {
-    const supabase = createServerSupabaseClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    const { data: rows, error: queryError } = await supabase
-      .from("v2_sessions")
-      .select("id, results_published_at, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (queryError) {
-      console.error("/api/results/state — supabase query error:", queryError);
-      return NextResponse.json(
-        { code: "ERROR", error: "Failed to read session state" },
-        { status: 500 }
-      );
-    }
-
-    if (!rows || rows.length === 0) {
-      return NextResponse.json({ kind: "no_session" }, { status: 200 });
-    }
-
-    const latest = rows[0];
-    const isPublished = !!latest.results_published_at;
+export async function GET(req: NextRequest) {
+  const accessToken = await getV2AccessToken(req);
+  if (!accessToken) {
     return NextResponse.json(
-      {
-        kind: isPublished ? "completed" : "processing",
-        session_id: latest.id as string,
-      },
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error("/api/results/state error:", err);
-    return NextResponse.json(
-      { code: "ERROR", error: "Internal server error" },
-      { status: 500 }
+      { code: "UNAUTHENTICATED", error: "Not authenticated" },
+      { status: 401 }
     );
   }
+
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    return NextResponse.json(
+      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
+      { status: 502 }
+    );
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${backendUrl}/v2/user/sessions/current`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("GET /api/results/state — fetch failed:", err);
+    return NextResponse.json(
+      { code: "ERROR", error: "Failed to read session state" },
+      { status: 502 }
+    );
+  }
+
+  const text = await upstream.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return NextResponse.json(
+      { code: "ERROR", error: `Unexpected backend response (HTTP ${upstream.status}).` },
+      { status: upstream.status >= 400 ? upstream.status : 502 }
+    );
+  }
+
+  if (!upstream.ok) {
+    return NextResponse.json(
+      { code: "ERROR", error: "Failed to read session state" },
+      { status: upstream.status }
+    );
+  }
+
+  // Map the backend's richer status enum down to the three branches the
+  // routing callers care about. Anything in flight (processing,
+  // pending_review, error) becomes the "processing" branch — they all
+  // land on /results, which renders the founder-video waiting screen.
+  const hasSession = Boolean(data.has_session);
+  const sessionId = (data.session_id as string) || null;
+  const status = (data.status as string) || "no_session";
+
+  if (!hasSession || status === "no_session") {
+    return NextResponse.json({ kind: "no_session" }, { status: 200 });
+  }
+  if (status === "completed" && sessionId) {
+    return NextResponse.json(
+      { kind: "completed", session_id: sessionId },
+      { status: 200 }
+    );
+  }
+  // processing / pending_review / error all map to "processing" for the
+  // 3-way routing enum. The frontend processing screen is identical for
+  // all three.
+  return NextResponse.json(
+    { kind: "processing", session_id: sessionId ?? "" },
+    { status: 200 }
+  );
 }
