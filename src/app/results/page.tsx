@@ -116,11 +116,14 @@ export default function VoiceJourneyPage() {
     };
   }, [router]);
 
+  // Layout note: outer wrapper grows naturally with content (min-h-full,
+  // no overflow-hidden + h-full lock). The global layout's
+  // <div className="flex-1 overflow-y-auto"> handles scroll once for the
+  // whole page — no inner scroll context here, so we don't render a
+  // second scrollbar gutter on the right when content overflows.
   return (
-    <div className="willab-chat flex h-full flex-col overflow-hidden bg-background">
-      <div className="shrink-0">
-        <DashboardHeader />
-      </div>
+    <div className="willab-chat flex min-h-full flex-col bg-background">
+      <DashboardHeader />
       {state.kind === "loading" && <LoadingShell />}
       {state.kind === "error" && <ErrorShell message={state.message} />}
       {state.kind === "processing" && <ProcessingState />}
@@ -140,7 +143,7 @@ function LoadingShell() {
 
 function ErrorShell({ message }: { message: string }) {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
       <p className="text-sm text-muted-foreground">{message}</p>
       <Button
         type="button"
@@ -162,7 +165,7 @@ function ErrorShell({ message }: { message: string }) {
 function ProcessingState() {
   return (
     <main
-      className="animate-fade-in-up mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 overflow-y-auto p-6 text-center"
+      className="animate-fade-in-up mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-12 text-center"
       aria-live="polite"
     >
       <span className="inline-flex animate-pulse items-center rounded-full border border-border px-3 py-1 text-xs">
