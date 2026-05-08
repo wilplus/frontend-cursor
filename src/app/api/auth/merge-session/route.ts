@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBackendUrl } from "@/app/api/getAuth";
 
 /**
  * POST /api/auth/merge-session
@@ -37,9 +38,21 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
 
-    const backendUrl = (
-      process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:5000"
-    ).replace(/\/$/, "");
+    // Use the shared resolver so we honour BACKEND_URL_INTERNAL /
+    // BACKEND_URL on Vercel (NEXT_PUBLIC_BACKEND_URL is usually unset in
+    // production for security reasons). Falling through to localhost
+    // would ECONNREFUSE and surface as a misleading 502.
+    const backendUrl = getBackendUrl();
+    if (!backendUrl) {
+      console.error("POST /api/auth/merge-session — backend URL is not configured");
+      return NextResponse.json(
+        {
+          code: "BACKEND_UNAVAILABLE",
+          error: "Backend URL is not configured.",
+        },
+        { status: 502 }
+      );
+    }
 
     const upstream = await fetch(`${backendUrl}/v2/auth/merge-session`, {
       method: "POST",
