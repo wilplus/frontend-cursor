@@ -695,13 +695,54 @@ export default function AdminUserDetailPage() {
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (cancelled) return;
+
+        // Diagnostic: log the raw shape so backend / frontend keys can be
+        // diff'd at a glance when the timeline appears empty.
+        if (typeof window !== "undefined") {
+          // eslint-disable-next-line no-console
+          console.log("[admin/timeline] response:", data);
+        }
+
         setAiSummary(data.ai_summary ?? null);
         setAiScore(data.ai_score ?? null);
-        if (Array.isArray(data.interview_turns)) {
-          setInterviewTurns(data.interview_turns);
+
+        // Defensive turn-array resolver — backend versions have moved keys
+        // around (timeline → interview_turns alias in the BFF, plus drafts
+        // that nested turns under `session`). Try every plausible path
+        // and use the first non-empty array.
+        const turnCandidates = [
+          (data as Record<string, unknown>).interview_turns,
+          (data as Record<string, unknown>).timeline,
+          (data as Record<string, unknown>).turns,
+          (data as Record<string, unknown>).messages,
+          (data.session as Record<string, unknown> | undefined)?.turns,
+          (data.session as Record<string, unknown> | undefined)?.messages,
+        ];
+        const turns = turnCandidates.find(
+          (c): c is unknown[] => Array.isArray(c) && c.length > 0
+        );
+        if (turns) {
+          setInterviewTurns(turns as typeof interviewTurns);
         }
-      } catch {
-        /* non-fatal */
+
+        // If the backend nests snippets in the timeline response (newer
+        // shape), prefer that — saves a round trip and guarantees the
+        // snippet list matches the session we just fetched. Standalone
+        // fetchUserSnippets() ran at mount as a fallback / for older
+        // backends that don't nest.
+        const snippetCandidates = [
+          (data as Record<string, unknown>).snippets,
+          (data.session as Record<string, unknown> | undefined)?.snippets,
+        ];
+        const inlineSnippets = snippetCandidates.find(
+          (c): c is unknown[] => Array.isArray(c) && c.length > 0
+        );
+        if (inlineSnippets) {
+          setSnippets(inlineSnippets as AdminSnippet[]);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[admin/timeline] fetch failed:", err);
       }
     })();
 
