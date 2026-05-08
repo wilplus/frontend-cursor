@@ -787,7 +787,16 @@ export default function AdminUserDetailPage() {
         // If the session has no proper interview turns (cold-start
         // funnel: one recording, no Q&A loop), promote the extracted
         // snippets to pseudo-turns so the transcript area still shows
-        // useful content. Skipped snippets are excluded.
+        // useful content.
+        //
+        // Important filter: ML-generator candidate rows (from
+        // charisma_snippet_service) populate `storage_path` but not
+        // `audio_segment_path`, and don't carry a `transcript` either.
+        // They belong in the snippet panel below, not the conversation
+        // timeline. Promoting them here was producing the misleading
+        // "TURN 1, no audio recorded, transcript still processing"
+        // card. We now require a playable audio_url before treating a
+        // snippet as a renderable pseudo-turn.
         const rawSnippets = Array.isArray(data.snippets) ? data.snippets : [];
         if (nested.length === 0) {
           for (const raw of rawSnippets) {
@@ -800,6 +809,9 @@ export default function AdminUserDetailPage() {
               is_skipped?: boolean;
             };
             if (s.is_skipped) continue;
+            // Skip ML candidates with no playable audio — they're not
+            // turns, they're auto-extracted moments.
+            if (!s.audio_url) continue;
             nested.push({
               id: s.id ?? null,
               turn_number: s.turn_number ?? null,
@@ -1444,8 +1456,7 @@ export default function AdminUserDetailPage() {
                             </p>
                           ) : (
                             <p className="text-xs italic text-muted-foreground">
-                              Transcript not available yet (Whisper still
-                              processing).
+                              No transcript captured for this turn.
                             </p>
                           )}
                         </div>
