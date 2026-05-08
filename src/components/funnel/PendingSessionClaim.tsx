@@ -42,13 +42,17 @@ export default function PendingSessionClaim() {
 
       inFlightRef.current = true;
       try {
-        const res = await fetch("/api/public/shaky-voice/claim", {
+        // Post-OAuth backstop uses the dedicated /auth/merge-session
+        // endpoint (vs. the cold-start funnel's /public/shaky-voice/claim).
+        // Both call the same atomic helper on the backend; the split is
+        // purely semantic so logs and metrics stay clean.
+        const res = await fetch("/api/auth/merge-session", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({ guest_session_id: pendingId }),
+          body: JSON.stringify({ anonymous_session_id: pendingId }),
         });
 
         if (res.ok) {
