@@ -100,18 +100,28 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
         return;
       }
 
-      // Smart redirect: published results → /results/[id], else → /results
-      // (Voice Journey overview, which surfaces the processing screen for
-      // a baseline that's still being analysed). Login no longer drops
-      // users back into the recorder at /chat by default.
+      // Smart redirect via /api/results/state — three branches per spec:
+      //   - completed  → /results/[id] (snippets ready)
+      //   - processing → /results       (overview shows the waiting UI)
+      //   - no_session → /chat          (record their baseline first)
+      //
+      // /results does the same routing on its own mount, so a failed
+      // call here just falls through to the overview and self-corrects.
       try {
-        const latestRes = await fetch("/api/results/latest", {
-          headers: { Authorization: `Bearer ${newSession.access_token}` },
+        const stateRes = await fetch("/api/results/state", {
+          cache: "no-store",
         });
-        if (latestRes.ok) {
-          const data = await latestRes.json();
-          if (data.session_id && data.status === "completed") {
-            router.push(`/results/${data.session_id}`);
+        if (stateRes.ok) {
+          const data = (await stateRes.json()) as
+            | { kind: "no_session" }
+            | { kind: "processing"; session_id: string }
+            | { kind: "completed"; session_id: string };
+          if (data.kind === "completed") {
+            router.push(`/results/${encodeURIComponent(data.session_id)}`);
+            return;
+          }
+          if (data.kind === "no_session") {
+            router.push("/chat");
             return;
           }
         }
