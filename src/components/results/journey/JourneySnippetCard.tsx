@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronRight, Flame, Droplet, Play } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronRight, Flame, Droplet, Loader2, Play } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import AcousticToggle from "@/components/results/journey/AcousticToggle";
@@ -29,8 +31,54 @@ export default function JourneySnippetCard({
   snippet,
   index = 0,
 }: JourneySnippetCardProps) {
+  const router = useRouter();
+  const [starting, setStarting] = useState(false);
   const isCharisma = snippet.type === "charisma";
   const Icon = isCharisma ? Flame : Droplet;
+
+  // Click handler: open a coaching loop on this snippet, then navigate
+  // to /coach/[id]. v1 only supports stress intent; charisma snippets
+  // surface a friendly toast until the charisma flow ships.
+  const handleStartCoaching = async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const res = await fetch("/api/coaching/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snippet_id: snippet.id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        coaching_id?: string;
+        code?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        if (data.code === "INTENT_NOT_SUPPORTED") {
+          toast.message(
+            "Charisma coaching is coming next week. Pick a stress moment for now."
+          );
+          return;
+        }
+        if (data.code === "SNIPPET_NOT_COACHABLE") {
+          toast.error(
+            "Your coach hasn't left a comment on this snippet yet."
+          );
+          return;
+        }
+        toast.error(data.error ?? "Couldn't start the coaching session.");
+        return;
+      }
+      if (data.coaching_id) {
+        router.push(`/coach/${encodeURIComponent(data.coaching_id)}`);
+      }
+    } catch (err) {
+      console.error("coaching/start failed:", err);
+      toast.error("Network error. Please try again.");
+    } finally {
+      setStarting(false);
+    }
+  };
 
   return (
     <article
@@ -89,23 +137,28 @@ export default function JourneySnippetCard({
 
       {/* Footer separator + action */}
       <div className="border-t border-border pt-4">
-        <Link
-          href={`/chat?sourceSnippet=${encodeURIComponent(
-            snippet.id
-          )}&intent=${snippet.type}`}
+        <button
+          type="button"
+          onClick={handleStartCoaching}
+          disabled={starting}
           className={cn(
-            "group inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium shadow-sm transition-all",
+            "group inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-60",
             isCharisma
               ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg"
               : "border border-destructive/30 bg-card text-destructive hover:bg-destructive/10 hover:shadow-lg"
           )}
         >
-          {snippet.ctaLabel}
-          <ChevronRight
-            aria-hidden
-            className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-          />
-        </Link>
+          {starting ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : null}
+          {starting ? "Opening coach…" : snippet.ctaLabel}
+          {!starting && (
+            <ChevronRight
+              aria-hidden
+              className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+            />
+          )}
+        </button>
       </div>
     </article>
   );
