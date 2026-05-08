@@ -1,141 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 /**
  * GET /api/results/[sessionId]/snippets
- * Fetch non-skipped snippets for a specific session.
- * Auth required: User can only view their own session's snippets.
  *
- * Returns all non-skipped snippets with their metrics, admin comments,
- * transcript, question context, and audio URLs — ready for SnippetCard rendering.
+ * Non-skipped snippets for a specific session, with metrics, admin
+ * comments, transcripts, and audio URLs — ready for SnippetCard.
+ *
+ * Auth: bearer token. User can only view their own session.
+ *
+ * Routed through the Flask backend (service-role) instead of querying
+ * Supabase directly because v2_sessions / charisma_snippets have RLS
+ * enabled with no permissive policies for the authenticated role. The
+ * previous direct-query version always returned NOT_FOUND for
+ * freshly-claimed sessions because RLS hid the rows from the anon
+ * client.
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
-  try {
-    const sessionId = params.sessionId;
-    const supabase = createServerSupabaseClient();
-
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    // Fetch session to verify ownership + check publish status
-    const { data: session, error: sessionError } = await supabase
-      .from("v2_sessions")
-      .select("id, user_id, results_published_at")
-      .eq("id", sessionId)
-      .single();
-
-    if (sessionError || !session) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", error: "Session not found" },
-        { status: 404 }
-      );
-    }
-
-    // Verify user owns this session
-    if (session.user_id !== user.id) {
-      return NextResponse.json(
-        { code: "FORBIDDEN", error: "You do not have access to this session" },
-        { status: 403 }
-      );
-    }
-
-    // Only return snippets if results have been published by admin
-    if (!session.results_published_at) {
-      return NextResponse.json(
-        {
-          status: "ok",
-          snippets: [],
-          published: false,
-        },
-        { status: 200 }
-      );
-    }
-
-    // Fetch all non-skipped snippets with full data
-    const { data: snippets, error: snippetError } = await supabase
-      .from("charisma_snippets")
-      .select(
-        `
-        id,
-        session_id,
-        recording_id,
-        start_offset_ms,
-        duration_ms,
-        audio_segment_path,
-        snippet_type,
-        admin_comment,
-        transcript,
-        turn_number,
-        question_text,
-        question_tone,
-        wpm,
-        fillers,
-        pause_ms,
-        dynamic_db,
-        pitch_center,
-        energy,
-        is_skipped,
-        created_at
-      `
-      )
-      .eq("session_id", sessionId)
-      .eq("user_id", user.id)
-      .eq("is_skipped", false)
-      .order("turn_number", { ascending: true })
-      .order("start_offset_ms", { ascending: true });
-
-    if (snippetError) {
-      console.error("Failed to fetch snippets:", snippetError);
-      return NextResponse.json(
-        { code: "FETCH_ERROR", error: "Failed to fetch snippets" },
-        { status: 500 }
-      );
-    }
-
+  const accessToken = await getV2AccessToken(req);
+  if (!accessToken) {
     return NextResponse.json(
-      {
-        status: "ok",
-        published: true,
-        snippets: (snippets || []).map((s) => ({
-          id: s.id,
-          snippet_type: s.snippet_type,
-          admin_comment: s.admin_comment,
-          audio_url: s.audio_segment_path,
-          transcript: s.transcript,
-          turn_number: s.turn_number,
-          question_text: s.question_text,
-          question_tone: s.question_tone,
-          duration_ms: s.duration_ms,
-          metrics: {
-            wpm: s.wpm,
-            fillers: s.fillers,
-            pause_ms: s.pause_ms,
-            dynamic_db: s.dynamic_db,
-            pitch_center: s.pitch_center,
-            energy: s.energy,
-          },
-        })),
-      },
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error("Results API error:", err);
-    return NextResponse.json(
-      { code: "ERROR", error: "Internal server error" },
-      { status: 500 }
+      { code: "UNAUTHENTICATED", error: "Sign-in required." },
+      { status: 401 }
     );
   }
+
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    return NextResponse.json(
+      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
+      { status: 502 }
+    );
+  }
+
+  const id = encodeURIComponent(params.sessionId);
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${backendUrl}/v2/user/results/${id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("GET /api/results/[id]/snippets — fetch failed:", err);
+    return NextResponse.json(
+      { code: "PROXY_ERROR", error: "Snippets service unavailable." },
+      { status: 502 }
+    );
+  }
+
+  const text = await upstream.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return NextResponse.json(
+      {
+        code: "UPSTREAM_NON_JSON",
+        error: `Unexpected backend response (HTTP ${upstream.status}).`,
+      },
+      { status: upstream.status >= 400 ? upstream.status : 502 }
+    );
+  }
+
+  if (!upstream.ok) {
+    return NextResponse.json(data, { status: upstream.status });
+  }
+
+  // The backend returns snippets only when results_published_at is set;
+  // otherwise the field is missing/empty. Surface an explicit
+  // `published` flag so the page can distinguish "session not yet
+  // published" from "session published with zero snippets".
+  const status = (data.status as string) || "processing";
+  const snippets = Array.isArray(data.snippets) ? data.snippets : [];
+
+  return NextResponse.json(
+    {
+      status: "ok",
+      published: status === "completed",
+      snippets,
+    },
+    { status: 200 }
+  );
 }
