@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getBackendUrl } from "@/app/api/getAuth";
 
 /**
  * POST /api/auth/signup
@@ -39,9 +40,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const backendUrl = (
-    process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:5000"
-  ).replace(/\/$/, "");
+  // Resolve via the shared helper that checks BACKEND_URL_INTERNAL,
+  // NEXT_PUBLIC_API_URL, NEXT_PUBLIC_BACKEND_URL, and BACKEND_URL in that
+  // order. The previous `process.env.NEXT_PUBLIC_BACKEND_URL ?? localhost`
+  // pattern fell through to localhost in production (Vercel doesn't have
+  // that var by default — only BACKEND_URL_INTERNAL / BACKEND_URL are
+  // typically set), making fetch ECONNREFUSE and surface as the generic
+  // "Registration service unavailable" 502.
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    console.error("POST /api/auth/signup — backend URL is not configured");
+    return NextResponse.json(
+      {
+        code: "BACKEND_UNAVAILABLE",
+        error: "Backend URL is not configured.",
+      },
+      { status: 502 }
+    );
+  }
 
   // The Python backend's auth endpoints live under /v2/auth/* (matches the
   // sibling /v2/auth/merge-session BFF). Earlier this route incorrectly
