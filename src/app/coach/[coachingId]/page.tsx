@@ -75,6 +75,11 @@ export default function CoachingPage({ params }: PageProps) {
   const [stage, setStage] = useState<"awareness" | "trial" | "complete">(
     "awareness"
   );
+  // intent drives copy throughout: the awareness placeholder and the
+  // trial-stage instructions read very differently for stress
+  // (reframe → re-perform same scenario) vs charisma (anchor → strip
+  // the trigger → re-perform a harder scenario).
+  const [intent, setIntent] = useState<"stress" | "charisma">("stress");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [snippet, setSnippet] = useState<SourceSnippet | null>(null);
   const [draft, setDraft] = useState("");
@@ -113,6 +118,7 @@ export default function CoachingPage({ params }: PageProps) {
         if (cancelled) return;
         setSnippet(data.source_snippet);
         setStage(data.current_stage);
+        setIntent(data.intent);
         // Always seed the awareness bubble so users who land in trial
         // mode mid-flow still see the original context above the
         // record control.
@@ -296,7 +302,9 @@ export default function CoachingPage({ params }: PageProps) {
         {snippet?.audio_url ? (
           <div className="mb-6 rounded-2xl border border-border bg-muted/30 p-3">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              The moment we&apos;re working on
+              {intent === "charisma"
+                ? "The magnetic moment"
+                : "The moment we're working on"}
             </p>
             <audio
               controls
@@ -354,7 +362,11 @@ export default function CoachingPage({ params }: PageProps) {
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Be honest — what was actually going through your head?"
+              placeholder={
+                intent === "charisma"
+                  ? "What triggered that confidence? Be specific."
+                  : "Be honest — what was actually going through your head?"
+              }
               rows={2}
               disabled={sending}
               className="flex-1 resize-none rounded-2xl border border-border bg-card px-4 py-3 text-sm shadow-sm focus:border-primary focus:outline-none disabled:opacity-60"
@@ -371,6 +383,7 @@ export default function CoachingPage({ params }: PageProps) {
 
         {stage === "trial" && (
           <TrialRecorder
+            intent={intent}
             recording={recording}
             uploading={uploading}
             onStart={startRecording}
@@ -392,11 +405,13 @@ export default function CoachingPage({ params }: PageProps) {
  * ------------------------------------------------------------------------- */
 
 function TrialRecorder({
+  intent,
   recording,
   uploading,
   onStart,
   onStop,
 }: {
+  intent: "stress" | "charisma";
   recording: boolean;
   uploading: boolean;
   onStart: () => void;
@@ -404,14 +419,22 @@ function TrialRecorder({
 }) {
   const busy = uploading;
 
+  // Stress: re-perform the SAME scenario with the new emotional frame.
+  // Charisma: re-perform a HARDER scenario holding the SAME magnetic
+  // tone the user had originally. Two genuinely different briefs, two
+  // genuinely different bodies of copy.
+  const trialCopy =
+    intent === "charisma"
+      ? "Hold the same magnetic tone. The scenario is harder, the anchor is gone. You can take up to 60 seconds."
+      : "Deliver your line. One shot. The new mindset. You can take up to 60 seconds.";
+
   return (
     <div className="rounded-3xl border border-border bg-muted/40 p-6 text-center">
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Trial — mic on
       </p>
       <p className="mb-5 text-sm leading-relaxed text-foreground">
-        Deliver your line. One shot. The new mindset. You can take up to
-        60 seconds.
+        {trialCopy}
       </p>
 
       <button
