@@ -29,7 +29,8 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
  *
  *   trial:
  *     Text input is hidden. ONE big record button. User re-performs the
- *     stress moment with the new mindset. POST /api/coaching/trial-recording.
+ *     moment (stress OR charisma — backend picks the prompt by `intent`)
+ *     with the new mindset. POST /api/coaching/trial-recording.
  *     Backend creates a v2_session and runs the snippet pipeline. We flip to:
  *
  *   complete:
