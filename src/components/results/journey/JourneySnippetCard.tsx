@@ -37,8 +37,9 @@ export default function JourneySnippetCard({
   const Icon = isCharisma ? Flame : Droplet;
 
   // Click handler: open a coaching loop on this snippet, then navigate
-  // to /coach/[id]. v1 only supports stress intent; charisma snippets
-  // surface a friendly toast until the charisma flow ships.
+  // to /coach/[id]. Both stress and charisma intents are supported on
+  // the backend now — the temporary INTENT_NOT_SUPPORTED toast that
+  // gated charisma in v1 has been removed.
   const handleStartCoaching = async () => {
     if (starting) return;
     setStarting(true);
@@ -54,12 +55,6 @@ export default function JourneySnippetCard({
         error?: string;
       };
       if (!res.ok) {
-        if (data.code === "INTENT_NOT_SUPPORTED") {
-          toast.message(
-            "Charisma coaching is coming next week. Pick a stress moment for now."
-          );
-          return;
-        }
         if (data.code === "SNIPPET_NOT_COACHABLE") {
           toast.error(
             "Your coach hasn't left a comment on this snippet yet."
