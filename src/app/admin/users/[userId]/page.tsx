@@ -605,7 +605,16 @@ export default function AdminUserDetailPage() {
     id?: string | null;
     turn_number: number | null;
     question: { text: string | null; tone: string | null };
-    answer: { audio_url: string | null; duration_ms: number | null };
+    /** Whisper transcript may live under any of these keys depending on
+     *  backend version — surface whichever is present at render time. */
+    answer: {
+      audio_url: string | null;
+      duration_ms: number | null;
+      transcript?: string | null;
+      transcript_text?: string | null;
+      transcription?: string | null;
+    };
+    transcript?: string | null;
   }>>([]);
   /** Index of the turn currently in edit mode (null = none being edited). */
   const [editingTurnIdx, setEditingTurnIdx] = useState<number | null>(null);
@@ -1194,25 +1203,116 @@ export default function AdminUserDetailPage() {
               </div>
             </Card>
 
-            {/* Full Recording */}
-            <Card className="rounded-2xl border-border p-5">
-              <h3 className="mb-3 text-base font-semibold">
-                Full Recording
-                {latestSession?.recording_preview?.duration_ms != null
-                  ? ` — ${formatRange(0, latestSession.recording_preview.duration_ms).split(" – ")[1]}`
-                  : ""}
-              </h3>
-              <AudioPlayer
-                src={recordingUrl}
-                duration={
-                  latestSession?.recording_preview?.duration_ms != null
-                    ? `${(latestSession.recording_preview.duration_ms / 1000).toFixed(0)}s`
-                    : undefined
-                }
-              />
-            </Card>
+            {/* Multi-Turn Audio Timeline — replaces the previous
+                single-recording card. Each turn renders its own
+                <audio> player and Whisper transcript so the admin can
+                review the conversation chronologically and identify
+                snippet candidates per turn. */}
+            <section
+              aria-label="Conversation timeline"
+              className="space-y-4"
+            >
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-base font-semibold">
+                  Conversation Timeline
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {interviewTurns.length === 0
+                    ? "No turns yet"
+                    : `${interviewTurns.length} turn${interviewTurns.length === 1 ? "" : "s"}`}
+                </p>
+              </div>
 
-            {/* Snippets list — visually nested under the recording */}
+              {interviewTurns.length === 0 ? (
+                <Card className="rounded-2xl border-dashed border-border p-5 text-sm text-muted-foreground">
+                  No interview turns recorded for this session yet. The
+                  timeline appears here once the user records their first
+                  answer.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {interviewTurns.map((turn, idx) => {
+                    const turnNumber = turn.turn_number ?? idx + 1;
+                    const transcript =
+                      turn.answer?.transcript ??
+                      turn.answer?.transcript_text ??
+                      turn.answer?.transcription ??
+                      turn.transcript ??
+                      null;
+                    const durationLabel =
+                      turn.answer?.duration_ms != null
+                        ? `${(turn.answer.duration_ms / 1000).toFixed(1)}s`
+                        : null;
+                    return (
+                      <Card
+                        key={turn.id ?? `turn-${idx}`}
+                        className="rounded-2xl border-border p-4"
+                      >
+                        {/* Header: turn number + tone + duration */}
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Turn {turnNumber}
+                          </span>
+                          {turn.question?.tone && (
+                            <Badge variant="outline">
+                              {turn.question.tone}
+                            </Badge>
+                          )}
+                          {durationLabel && (
+                            <span className="text-xs text-muted-foreground">
+                              {durationLabel}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Question that was asked */}
+                        {turn.question?.text && (
+                          <p className="mb-3 text-sm leading-relaxed text-foreground">
+                            <span className="text-muted-foreground">
+                              Q:&nbsp;
+                            </span>
+                            {turn.question.text}
+                          </p>
+                        )}
+
+                        {/* Per-turn audio player */}
+                        {turn.answer?.audio_url ? (
+                          <audio
+                            controls
+                            preload="metadata"
+                            src={turn.answer.audio_url}
+                            className="w-full"
+                          />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            No audio recorded for this turn.
+                          </p>
+                        )}
+
+                        {/* Transcript */}
+                        <div className="mt-3 rounded-lg bg-muted/40 p-3">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Transcript
+                          </p>
+                          {transcript ? (
+                            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                              {transcript}
+                            </p>
+                          ) : (
+                            <p className="text-xs italic text-muted-foreground">
+                              Transcript not available yet (Whisper still
+                              processing).
+                            </p>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Snippets list — visually nested under the timeline */}
             <div className="space-y-4 border-l-2 border-border pl-4">
               {sessionSnippets.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
