@@ -9,6 +9,7 @@ import {
   Droplet,
   EyeOff,
   Flame,
+  Mic,
   Minus,
   MoreVertical,
   Pencil,
@@ -1324,11 +1325,33 @@ export default function AdminUserDetailPage() {
               </div>
             </Card>
 
-            {/* Multi-Turn Audio Timeline — replaces the previous
-                single-recording card. Each turn renders its own
-                <audio> player and Whisper transcript so the admin can
-                review the conversation chronologically and identify
-                snippet candidates per turn. */}
+            {/* Full Recording — the contiguous session audio. Sits ABOVE
+                the per-turn timeline so admins have both: scrub-the-whole-
+                thing (this card) AND pinpoint-a-specific-turn (timeline
+                below). Spec: bg-muted/30 background, orange play button —
+                that's exactly what AudioPlayer renders. */}
+            <Card className="rounded-2xl border-border p-5">
+              <h3 className="mb-3 text-base font-semibold">
+                Full Recording
+                {latestSession?.recording_preview?.duration_ms != null
+                  ? ` — ${formatRange(0, latestSession.recording_preview.duration_ms).split(" – ")[1]}`
+                  : ""}
+              </h3>
+              <AudioPlayer
+                src={recordingUrl}
+                duration={
+                  latestSession?.recording_preview?.duration_ms != null
+                    ? `${(latestSession.recording_preview.duration_ms / 1000).toFixed(0)}s`
+                    : undefined
+                }
+              />
+            </Card>
+
+            {/* Conversation Timeline — per-turn audio + transcript. Sits
+                immediately below Full Recording (per the merge spec) so
+                the two affordances stack naturally. Each turn card uses
+                the same rounded-2xl border-border aesthetic as the rest
+                of the dashboard. */}
             <section
               aria-label="Conversation timeline"
               className="space-y-4"
@@ -1548,19 +1571,30 @@ export default function AdminUserDetailPage() {
                             )}
                           </div>
                         )}
-                        {/* User audio bubble */}
+                        {/* User audio bubble — right-aligned, bg-primary
+                            per the spec. Mirrors the funnel ChatBubble
+                            user variant so admin and end-user see the
+                            same visual grammar for "this is the user's
+                            voice answer". Audio control + duration sit
+                            inside the orange pill. */}
                         {turn.answer?.audio_url && (
-                          <div className="ml-9">
-                            <audio
-                              controls
-                              src={turn.answer.audio_url}
-                              className="w-full max-w-xs"
-                            />
-                            {turn.answer.duration_ms != null && (
-                              <span className="ml-1 text-[10px] text-muted-foreground">
-                                {(turn.answer.duration_ms / 1000).toFixed(1)}s
-                              </span>
-                            )}
+                          <div className="flex justify-end">
+                            <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground shadow-sm">
+                              <Mic
+                                className="h-4 w-4 shrink-0"
+                                aria-hidden
+                              />
+                              <audio
+                                controls
+                                src={turn.answer.audio_url}
+                                className="h-8 max-w-[220px]"
+                              />
+                              {turn.answer.duration_ms != null && (
+                                <span className="text-[11px] tabular-nums opacity-90">
+                                  {(turn.answer.duration_ms / 1000).toFixed(1)}s
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
