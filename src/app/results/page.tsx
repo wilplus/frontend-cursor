@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Play } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import ProcessingState from "@/components/results/ProcessingState";
 
 /**
  * "Your Voice Journey" — user-facing Results overview.
@@ -157,51 +157,5 @@ function ErrorShell({ message }: { message: string }) {
   );
 }
 
-/**
- * Processing state — the user has a recorded session but the admin hasn't
- * published the snippets yet. We show the founder video placeholder and
- * a calm waiting message so the user knows the app is working.
- */
-function ProcessingState() {
-  return (
-    <main
-      className="animate-fade-in-up mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-12 text-center"
-      aria-live="polite"
-    >
-      <span className="inline-flex animate-pulse items-center rounded-full border border-border px-3 py-1 text-xs">
-        ⏳ Analysis in Progress
-      </span>
-
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-        We are analyzing your voice baseline.
-      </h1>
-
-      {/* TODO(backend): swap for a real <video> tag when the founder
-          "we're analysing your voice now" clip is uploaded and exposed
-          via /api/public/funnel/afterwards-video. */}
-      <div className="relative mx-auto flex aspect-[9/16] w-64 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border border-border bg-muted sm:w-72">
-        <button
-          type="button"
-          aria-label="Play founder message"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
-        >
-          <Play className="h-6 w-6 fill-current" aria-hidden />
-        </button>
-        <p className="text-sm font-medium text-muted-foreground">
-          Founder Message
-        </p>
-      </div>
-
-      <p className="mx-auto max-w-[280px] text-sm leading-relaxed text-muted-foreground sm:max-w-sm">
-        Our AI engine and expert coaches are currently analyzing your vocal
-        patterns. This usually takes a little while. You can safely close
-        this page — we will email you the moment your customized insights
-        are ready.
-      </p>
-
-      <Button asChild variant="outline" className="mt-4 rounded-full">
-        <Link href="/">Return to Homepage</Link>
-      </Button>
-    </main>
-  );
-}
+/* ProcessingState now lives in @/components/results/ProcessingState
+   — shared with /results/[sessionId] so both surfaces look identical. */
