@@ -122,25 +122,37 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
       }
 
       // ── 4. Smart redirect ─────────────────────────────────────────────
-      // Prefer a published session (jump straight to that report). If the
-      // user has a claimed-but-still-processing baseline, /results shows
-      // the waiting screen. The /chat fallback is gone — post-signup
-      // belongs on the results surface, not back in the recorder.
-      if (accessToken) {
-        try {
-          const latestRes = await fetch("/api/results/latest", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (latestRes.ok) {
-            const latestData = await latestRes.json();
-            if (latestData.session_id && latestData.status === "completed") {
-              window.location.href = `/results/${latestData.session_id}`;
-              return;
-            }
+      // Hit /api/results/state to learn whether this user has any session
+      // at all. Three branches per spec:
+      //   - completed  → /results/[id] (snippets ready)
+      //   - processing → /results       (overview shows the waiting UI)
+      //   - no_session → /chat          (record their baseline first)
+      //
+      // /results itself does the same routing on mount, so even if this
+      // best-effort call fails we fall through to /results and the page
+      // does the right thing — no mock data ever rendered.
+      try {
+        const stateRes = await fetch("/api/results/state", {
+          cache: "no-store",
+        });
+        if (stateRes.ok) {
+          const data = (await stateRes.json()) as
+            | { kind: "no_session" }
+            | { kind: "processing"; session_id: string }
+            | { kind: "completed"; session_id: string };
+          if (data.kind === "completed") {
+            window.location.href = `/results/${encodeURIComponent(
+              data.session_id
+            )}`;
+            return;
           }
-        } catch {
-          /* non-fatal — fall through to /results */
+          if (data.kind === "no_session") {
+            window.location.href = "/chat";
+            return;
+          }
         }
+      } catch {
+        /* non-fatal — fall through to /results */
       }
 
       setTimeout(() => {

@@ -91,31 +91,15 @@ export default function CuriosityGate({
         console.error("Claim error:", err);
       }
 
-      // Always go to the user-facing results surface — it shows the
-      // Voice Journey timeline when ready and the "we're analysing your
-      // baseline" waiting screen when still processing.
+      // Always go to the user-facing results surface. The /results
+      // overview self-routes via /api/results/state — it'll redirect to
+      // /chat if there's still no session, /results/[id] if completed,
+      // or stay on /results to show the waiting UI if processing. So
+      // pointing at /results unconditionally is safe even when the
+      // claim didn't return a deep-link id.
       if (claimedSessionId) {
         router.push(`/results/${claimedSessionId}`);
       } else {
-        // Fallback: check if there's a latest session linked to the now-
-        // authenticated user (covers the rare case where the claim
-        // lookup didn't return the id but the row exists).
-        try {
-          const res = await fetch("/api/results/latest", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.session_id) {
-              router.push(`/results/${data.session_id}`);
-              return;
-            }
-          }
-        } catch {
-          /* fall through */
-        }
-        // Last resort: send them to the Voice Journey overview, which
-        // shows the processing-state founder card if no session is ready.
         router.push("/results");
       }
     };
