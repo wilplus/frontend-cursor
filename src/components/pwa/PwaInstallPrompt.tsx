@@ -10,9 +10,6 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const DISMISS_KEY = "willab:pwa-install-dismissed:v1";
-/** Engagement fallback — show the banner even if the user hasn't reached
- *  /results yet, so we never miss the install moment for power users. */
-const ENGAGEMENT_TRIGGER_MS = 3 * 60 * 1000;
 
 function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
@@ -37,41 +34,58 @@ function isIosSafari(): boolean {
 }
 
 /**
- * Custom PWA install banner — captures `beforeinstallprompt` immediately so
- * the native event isn't lost, but only renders the banner once one of two
- * triggers fires:
- *   1. The user reaches /results (the natural "you've seen the value" moment)
- *   2. 3 minutes of engagement have elapsed (fallback)
+ * Custom PWA install banner — strictly route-gated.
  *
- * Dismissals are persisted in localStorage so we don't nag returning users.
- * The component renders nothing on desktop, when already installed, or when
- * the user has previously dismissed.
+ * Visible iff ALL of:
+ *   • Mobile device, not already installed (shouldEverPrompt)
+ *   • Current pathname starts with "/results"
+ *   • The browser has fired `beforeinstallprompt` and we've captured it
+ *   • The user hasn't previously dismissed the banner (DISMISS_KEY)
+ *
+ * No engagement timer, no other trigger paths. If the user navigates away
+ * from /results without interacting with the banner, it disappears
+ * automatically (visibility is derived per render, not latched in state).
  */
 export default function PwaInstallPrompt() {
   const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const shouldEverPrompt = useMemo(
     () => isMobileDevice() && !isStandaloneMode(),
     []
   );
 
-  // Register the service worker independently of the banner. Even if the
-  // banner never shows, registration is harmless.
+  // Hydrate the dismissed flag from localStorage on mount so we never re-prompt
+  // a returning user who previously closed the banner.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.localStorage.getItem(DISMISS_KEY) === "1") {
+        setDismissed(true);
+      }
+    } catch {
+      /* swallow — Safari private mode etc. */
+    }
+  }, []);
+
+  // Register the service worker independently of the banner. Harmless if the
+  // banner never shows; install UX still works without SW for browsers that
+  // expose `beforeinstallprompt`.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {
-        /* no-op — install UX still works without SW */
+        /* no-op */
       });
     });
   }, []);
 
-  // Capture the native event the moment the browser fires it. We DO NOT
-  // show the banner here — the event is stashed and waits for a trigger.
+  // Capture the native event the moment the browser fires it. We don't show
+  // the banner here — visibility is derived from pathname + dismissed +
+  // deferredPrompt presence at render time.
   useEffect(() => {
     if (!shouldEverPrompt || typeof window === "undefined") return;
     const onBeforeInstallPrompt = (event: Event) => {
@@ -84,32 +98,15 @@ export default function PwaInstallPrompt() {
     };
   }, [shouldEverPrompt]);
 
-  // Engagement-fallback timer: show the banner after N minutes of use,
-  // regardless of which page the user is on.
-  useEffect(() => {
-    if (!shouldEverPrompt || typeof window === "undefined") return;
-    if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
-    const timer = window.setTimeout(() => {
-      setVisible(true);
-    }, ENGAGEMENT_TRIGGER_MS);
-    return () => window.clearTimeout(timer);
-  }, [shouldEverPrompt]);
-
-  // Pathname trigger: show when the user reaches /results (the moment they
-  // see the value of the app). Fires for /results and /results/[sessionId].
-  useEffect(() => {
-    if (!shouldEverPrompt || typeof window === "undefined") return;
-    if (window.localStorage.getItem(DISMISS_KEY) === "1") return;
-    if (pathname?.startsWith("/results")) {
-      setVisible(true);
-    }
-  }, [pathname, shouldEverPrompt]);
-
   const dismiss = () => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(DISMISS_KEY, "1");
+      try {
+        window.localStorage.setItem(DISMISS_KEY, "1");
+      } catch {
+        /* swallow */
+      }
     }
-    setVisible(false);
+    setDismissed(true);
   };
 
   const handleInstall = async () => {
@@ -119,23 +116,28 @@ export default function PwaInstallPrompt() {
       if (choice.outcome === "accepted") {
         dismiss();
       } else {
-        setVisible(false);
+        // Don't persist dismissal on user-cancel — hide for this view only.
+        setDismissed(true);
       }
       return;
     }
 
-    // iOS Safari has no beforeinstallprompt — fall back to instructions.
+    // Defensive: with the strict gate below the banner can't render unless
+    // deferredPrompt is non-null. Kept for safety in case the gate ever
+    // weakens — iOS Safari has no beforeinstallprompt event.
     if (isIosSafari()) {
       window.alert('To install: tap Share, then "Add to Home Screen".');
       dismiss();
       return;
     }
-
-    // Other browsers without the event — close quietly.
-    setVisible(false);
+    setDismissed(true);
   };
 
-  if (!visible || !shouldEverPrompt) return null;
+  const onResults = pathname?.startsWith("/results") ?? false;
+  const visible =
+    shouldEverPrompt && onResults && !dismissed && deferredPrompt !== null;
+
+  if (!visible) return null;
 
   return (
     <div
