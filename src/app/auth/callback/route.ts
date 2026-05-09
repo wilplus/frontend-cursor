@@ -140,17 +140,60 @@ export async function GET(req: NextRequest) {
   );
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      console.error("[Auth Callback] OAuth code exchange failed:", error.message);
-      // Surface the actual error to /login so we can debug if this
-      // fires again (PKCE / network / token expiry all surface here).
+    let setAllCallCount = 0;
+    let setAllCookieCount = 0;
+    // Wrap the cookie adapter so we can observe whether Supabase
+    // actually triggers a write. Silent failures (exchange returns
+    // { session: null, error: null } without ever calling setAll)
+    // were producing the "code-verifier present but no auth-token"
+    // cookie state we observed in the browser.
+    const observingSupabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            setAllCallCount += 1;
+            setAllCookieCount += cookiesToSet.length;
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set({ name, value, ...options });
+            });
+          },
+        },
+      }
+    );
+
+    const { data, error } = await observingSupabase.auth.exchangeCodeForSession(code);
+
+    console.log("[Auth Callback] exchange result:", {
+      hasError: !!error,
+      errorMessage: error?.message,
+      errorCode: (error as { code?: string } | null)?.code,
+      hasSession: !!data?.session,
+      hasUser: !!data?.user,
+      setAllCallCount,
+      setAllCookieCount,
+    });
+
+    // Two failure modes — the explicit error case AND the "succeeded
+    // but produced no session" case (Supabase sometimes returns
+    // null session without an Error object when the code_verifier
+    // chain is broken in subtle ways).
+    if (error || !data?.session) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("error", "oauth_failed");
       loginUrl.searchParams.set(
         "detail",
-        encodeURIComponent(error.message || "unknown").slice(0, 200)
+        encodeURIComponent(
+          error?.message
+            ?? (data?.session === null ? "no_session_returned" : "unknown")
+        ).slice(0, 200)
       );
+      loginUrl.searchParams.set("set_all_calls", String(setAllCallCount));
+      loginUrl.searchParams.set("cookies_written", String(setAllCookieCount));
       return NextResponse.redirect(loginUrl);
     }
   } else {
