@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 
 export async function GET(req: NextRequest) {
   const requestUrl = new URL(req.url);
@@ -19,26 +19,23 @@ export async function GET(req: NextRequest) {
     if (code) {
       const redirectUrl = new URL("/update-password", req.url);
       const response = NextResponse.redirect(redirectUrl);
+      // Use the modern getAll/setAll cookie API. The legacy
+      // get/set/remove triplet doesn't handle Supabase's chunked
+      // PKCE cookies (`sb-*-auth-token-code-verifier.0`,
+      // `.1`, ...) correctly, which is what was making
+      // exchangeCodeForSession fail with "code verifier should be
+      // non-empty" right after LinkedIn returned the code.
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           cookies: {
-            get(name: string) {
-              return req.cookies.get(name)?.value;
+            getAll() {
+              return req.cookies.getAll();
             },
-            set(name: string, value: string, options: CookieOptions) {
-              response.cookies.set({
-                name,
-                value,
-                ...options,
-              });
-            },
-            remove(name: string, options: CookieOptions) {
-              response.cookies.set({
-                name,
-                value: "",
-                ...options,
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                response.cookies.set({ name, value, ...options });
               });
             },
           },
@@ -118,26 +115,24 @@ export async function GET(req: NextRequest) {
   const redirectPath = next || "/results";
   const response = NextResponse.redirect(new URL(redirectPath, req.url));
 
+  // Use the modern getAll/setAll cookie API so PKCE chunked cookies
+  // (`sb-*-auth-token-code-verifier.0`, `.1`, ...) round-trip
+  // correctly between the OAuth init (browser client) and this
+  // callback (server). The legacy get/set/remove triplet drops
+  // chunked cookies and causes exchangeCodeForSession to throw
+  // "code verifier should be non-empty" — which is what was sending
+  // every LinkedIn signup back to /login?error=oauth_failed.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
+        getAll() {
+          return req.cookies.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value: "",
-            ...options,
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set({ name, value, ...options });
           });
         },
       },
@@ -148,9 +143,14 @@ export async function GET(req: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       console.error("[Auth Callback] OAuth code exchange failed:", error.message);
-      // Redirect to login with error so user can retry
+      // Surface the actual error to /login so we can debug if this
+      // fires again (PKCE / network / token expiry all surface here).
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("error", "oauth_failed");
+      loginUrl.searchParams.set(
+        "detail",
+        encodeURIComponent(error.message || "unknown").slice(0, 200)
+      );
       return NextResponse.redirect(loginUrl);
     }
   } else {
