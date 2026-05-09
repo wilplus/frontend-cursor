@@ -42,13 +42,21 @@ export default function LinkedInAuthButton({
       // (prevents instant redirect when user already has a stale session)
       await supabase.auth.signOut();
 
-      // Build the callback URL — after OAuth, Supabase redirects here
+      // Build the callback URL — after OAuth, Supabase redirects here.
+      //
+      // No query string deliberately. Supabase's redirect-URL allow-list
+      // matcher in some project configurations does NOT accept query
+      // strings even with `**` wildcards — so `?next=/results` was making
+      // Supabase silently fall back to Site URL (`https://...com/`) and
+      // the OAuth code landed on the homepage, never reaching this
+      // route handler.
+      //
+      // The /auth/callback route handler defaults `next` to "/results"
+      // when missing (see src/app/auth/callback/route.ts), so dropping
+      // the query string here is functionally identical for the user
+      // but bulletproof against allow-list matching quirks.
       const origin = window.location.origin;
-      // Post-auth lands on the user-facing results surface — Voice Journey
-      // when published, processing screen when the baseline is still being
-      // analysed. The /chat surface is reached deliberately later via the
-      // retention-loop snippet CTAs, not by default after signup.
-      const callbackUrl = `${origin}/auth/callback?next=/results`;
+      const callbackUrl = `${origin}/auth/callback`;
 
       // Use skipBrowserRedirect to get the URL and validate it before redirecting
       const { data, error } = await supabase.auth.signInWithOAuth({
