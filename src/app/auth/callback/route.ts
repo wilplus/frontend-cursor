@@ -109,96 +109,31 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Normal auth flow (not password reset).
-  // Default to /results so authenticated users land on their snippets
-  // (or the overview when no session is published yet).
-  const redirectPath = next || "/results";
-  const response = NextResponse.redirect(new URL(redirectPath, req.url));
-
-  // Use the modern getAll/setAll cookie API so PKCE chunked cookies
-  // (`sb-*-auth-token-code-verifier.0`, `.1`, ...) round-trip
-  // correctly between the OAuth init (browser client) and this
-  // callback (server). The legacy get/set/remove triplet drops
-  // chunked cookies and causes exchangeCodeForSession to throw
-  // "code verifier should be non-empty" — which is what was sending
-  // every LinkedIn signup back to /login?error=oauth_failed.
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set({ name, value, ...options });
-          });
-        },
-      },
-    }
-  );
-
+  // Normal OAuth flow — forward to the client-side handler.
+  //
+  // Doing the exchange server-side here was producing silent failures:
+  // exchangeCodeForSession returned {session: null, error: null} on
+  // Vercel and the only cookie that made it back to the browser was
+  // the PKCE code-verifier — never the actual auth token. Multiple
+  // attempts at fixing the cookie API, redirect URL allow-list, and
+  // schema didn't move the needle.
+  //
+  // The browser supabase client handles PKCE without any of these
+  // cookie-round-trip quirks (it stores the verifier in localStorage
+  // during init and recovers it from the same place at exchange
+  // time). So we just bounce the user to /auth/oauth-complete with
+  // the code and state intact, and let the client do the work.
   if (code) {
-    let setAllCallCount = 0;
-    let setAllCookieCount = 0;
-    // Wrap the cookie adapter so we can observe whether Supabase
-    // actually triggers a write. Silent failures (exchange returns
-    // { session: null, error: null } without ever calling setAll)
-    // were producing the "code-verifier present but no auth-token"
-    // cookie state we observed in the browser.
-    const observingSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return req.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            setAllCallCount += 1;
-            setAllCookieCount += cookiesToSet.length;
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set({ name, value, ...options });
-            });
-          },
-        },
-      }
-    );
-
-    const { data, error } = await observingSupabase.auth.exchangeCodeForSession(code);
-
-    console.log("[Auth Callback] exchange result:", {
-      hasError: !!error,
-      errorMessage: error?.message,
-      errorCode: (error as { code?: string } | null)?.code,
-      hasSession: !!data?.session,
-      hasUser: !!data?.user,
-      setAllCallCount,
-      setAllCookieCount,
-    });
-
-    // Two failure modes — the explicit error case AND the "succeeded
-    // but produced no session" case (Supabase sometimes returns
-    // null session without an Error object when the code_verifier
-    // chain is broken in subtle ways).
-    if (error || !data?.session) {
-      const loginUrl = new URL("/login", req.url);
-      loginUrl.searchParams.set("error", "oauth_failed");
-      loginUrl.searchParams.set(
-        "detail",
-        encodeURIComponent(
-          error?.message
-            ?? (data?.session === null ? "no_session_returned" : "unknown")
-        ).slice(0, 200)
-      );
-      loginUrl.searchParams.set("set_all_calls", String(setAllCallCount));
-      loginUrl.searchParams.set("cookies_written", String(setAllCookieCount));
-      return NextResponse.redirect(loginUrl);
-    }
-  } else {
-    await supabase.auth.getSession();
+    const target = new URL("/auth/oauth-complete", req.url);
+    target.searchParams.set("code", code);
+    const state = requestUrl.searchParams.get("state");
+    if (state) target.searchParams.set("state", state);
+    if (next) target.searchParams.set("next", next);
+    return NextResponse.redirect(target);
   }
 
-  return response;
+  // No code in the URL — could be a stale callback hit. Just bounce
+  // to /results; if no session, /results' own auth check will
+  // redirect to /login.
+  return NextResponse.redirect(new URL(next || "/results", req.url));
 }
