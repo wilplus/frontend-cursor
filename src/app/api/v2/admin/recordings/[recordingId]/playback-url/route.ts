@@ -1,105 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getV2AccessToken } from "@/app/api/getAuth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 /**
  * GET /api/v2/admin/recordings/[recordingId]/playback-url
- * Generate a signed Supabase Storage URL for the recording's audio file.
- * Returns { url: string, expires_in: number }.
+ *
+ * Returns a playable URL for the recording's audio file.
+ * Proxies to backend GET /v2/admin/recordings/<id>/playback-url
+ * which generates the signed URL via the service-role Supabase client
+ * (bypassing the RLS that was blocking the previous direct query).
+ *
+ * The previous version of this BFF queried Supabase directly:
+ *   - Wrong table name: it queried `recording_1` (table is `recordings`)
+ *   - Wrong client: anon-key with RLS denying authenticated reads
+ * Both compounded to a 404 even when the recording row existed.
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: { recordingId: string } }
 ) {
-  try {
-    const recordingId = params.recordingId;
-
-    const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    const supabase = createServerSupabaseClient();
-
-    // Fetch the recording row to get the storage_path
-    const { data: recording, error: fetchError } = await supabase
-      .from("recording_1")
-      .select("id, storage_path, audio_url")
-      .eq("id", recordingId)
-      .single();
-
-    if (fetchError || !recording) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", error: "Recording not found" },
-        { status: 404 }
-      );
-    }
-
-    const storagePath = recording.storage_path;
-
-    // If there's already a public URL, return it directly
-    if (recording.audio_url && recording.audio_url.startsWith("http")) {
-      return NextResponse.json({
-        status: "ok",
-        url: recording.audio_url,
-        expires_in: null,
-        source: "public_url",
-      });
-    }
-
-    if (!storagePath) {
-      return NextResponse.json(
-        { code: "NO_PATH", error: "Recording has no storage path" },
-        { status: 404 }
-      );
-    }
-
-    // Try to create a signed URL from Supabase Storage
-    // Try audio_recordings bucket first, then coach_feedback_videos
-    const buckets = ["audio_recordings", "coach_feedback_videos"];
-    let signedUrl: string | null = null;
-
-    for (const bucket of buckets) {
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(storagePath, 3600); // 1 hour expiry
-
-      if (!error && data?.signedUrl) {
-        signedUrl = data.signedUrl;
-        break;
-      }
-    }
-
-    if (!signedUrl) {
-      // Fall back to constructing a public URL
-      const { data: publicUrlData } = supabase.storage
-        .from("audio_recordings")
-        .getPublicUrl(storagePath);
-
-      signedUrl = publicUrlData?.publicUrl || null;
-    }
-
-    if (!signedUrl) {
-      return NextResponse.json(
-        { code: "URL_GENERATION_FAILED", error: "Could not generate playback URL" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      status: "ok",
-      url: signedUrl,
-      expires_in: 3600,
-      source: "signed",
-    });
-  } catch (err) {
-    console.error("Recording playback URL error:", err);
+  const accessToken = await getV2AccessToken(req);
+  if (!accessToken) {
     return NextResponse.json(
-      { code: "ERROR", error: "Internal server error" },
-      { status: 500 }
+      { code: "UNAUTHENTICATED", error: "Not authenticated" },
+      { status: 401 }
     );
   }
+
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    return NextResponse.json(
+      { code: "BACKEND_UNAVAILABLE", error: "Backend URL is not configured." },
+      { status: 502 }
+    );
+  }
+
+  const id = encodeURIComponent(params.recordingId);
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(
+      `${backendUrl}/v2/admin/recordings/${id}/playback-url`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+  } catch (err) {
+    console.error("GET /api/v2/admin/recordings/[id]/playback-url — fetch failed:", err);
+    return NextResponse.json(
+      { code: "PROXY_ERROR", error: "Recording service unavailable." },
+      { status: 502 }
+    );
+  }
+
+  const text = await upstream.text();
+  let data: unknown = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return NextResponse.json(
+      {
+        code: "UPSTREAM_NON_JSON",
+        error: `Unexpected backend response (HTTP ${upstream.status}).`,
+      },
+      { status: upstream.status >= 400 ? upstream.status : 502 }
+    );
+  }
+  return NextResponse.json(data, { status: upstream.status });
 }
