@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -34,7 +34,23 @@ function OAuthCompleteInner() {
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Guard against double-fire. React StrictMode mounts effects twice
+  // in development, and Next.js Suspense + force-dynamic can produce
+  // similar duplicate runs on Vercel. The previous version was
+  // calling exchangeCodeForSession twice — first call succeeded and
+  // consumed the PKCE verifier (session cookies were written!), but
+  // the second call failed with "PKCE code verifier not found in
+  // storage". The page treated the second call's error as fatal and
+  // redirected to /login, even though the first call had already
+  // signed the user in. Verified in browser cookies: chunked
+  // sb-…-auth-token.0/.1/.2 cookies were present despite the apparent
+  // failure.
+  const hasRunRef = useRef(false);
+
   useEffect(() => {
+    if (hasRunRef.current) return;
+    hasRunRef.current = true;
+
     const run = async () => {
       const code = searchParams?.get("code");
       const next = searchParams?.get("next") || "/results";
@@ -54,14 +70,32 @@ function OAuthCompleteInner() {
       // localStorage during OAuth init.
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-      if (error || !data?.session) {
+      // Defence in depth: even with the run-once ref above, an error
+      // from this call doesn't mean the session wasn't established.
+      // Always probe getSession() before treating an exchange error
+      // as fatal — if a session exists, the user IS signed in and we
+      // should proceed.
+      let effectiveSession = data?.session ?? null;
+      if (!effectiveSession) {
+        try {
+          const { data: probe } = await supabase.auth.getSession();
+          effectiveSession = probe?.session ?? null;
+        } catch {
+          /* non-fatal — fall through to error path below */
+        }
+      }
+
+      // eslint-disable-next-line no-console
+      console.log("[oauth-complete] exchange:", {
+        hasError: !!error,
+        errorMessage: error?.message,
+        hasSessionFromExchange: !!data?.session,
+        hasSessionFromProbe: !!effectiveSession && !data?.session,
+        proceeding: !!effectiveSession,
+      });
+
+      if (!effectiveSession) {
         const detail = error?.message ?? "no_session_returned";
-        // eslint-disable-next-line no-console
-        console.error("[oauth-complete] exchange failed:", {
-          hasError: !!error,
-          message: error?.message,
-          hasSession: !!data?.session,
-        });
         router.replace(
           `/login?error=oauth_failed&detail=${encodeURIComponent(
             detail
