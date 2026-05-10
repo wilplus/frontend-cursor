@@ -2,28 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 /**
- * "We are analyzing your voice baseline" screen.
+ * "Analysis in progress" screen.
  *
  * Shared between /results (overview) and /results/[sessionId] so both
- * surfaces look identical when the admin hasn't published yet. Fetches
- * the founder video from /api/public/funnel/afterwards-video on mount;
- * gracefully renders a Play-icon placeholder until the URL resolves
- * (or if the backend has nothing configured).
+ * surfaces look identical when the admin hasn't published yet.
+ *
+ * Video resolution: we ship a local founder message at
+ * /videos/founder-message.mp4 as the always-available default. The
+ * BFF (/api/public/funnel/afterwards-video) can override it if the
+ * backend has configured a different (e.g. CDN-hosted) clip. This
+ * means the card NEVER renders an empty/placeholder state — the user
+ * always has something to play while they wait.
  *
  * Sign-out replaces the old "Return to Homepage" CTA — most users at
  * this point have nowhere meaningful to go on the marketing site, but
  * a sign-out is a real action they understand.
  */
+const FALLBACK_VIDEO_URL = "/videos/founder-message.mp4";
+
 export default function ProcessingState() {
   const router = useRouter();
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoLoading, setVideoLoading] = useState(true);
+  const [videoUrl, setVideoUrl] = useState<string>(FALLBACK_VIDEO_URL);
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
@@ -34,10 +38,9 @@ export default function ProcessingState() {
         if (cancelled) return;
         const v = data?.video_url;
         if (typeof v === "string" && v) setVideoUrl(v);
-        setVideoLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setVideoLoading(false);
+        // Keep local fallback — nothing to do.
       });
     return () => {
       cancelled = true;
@@ -68,41 +71,16 @@ export default function ProcessingState() {
         ⏳ Analysis in Progress
       </span>
 
-      {/* Header */}
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-        We are analyzing your voice baseline.
-      </h1>
-
       {/* Vertical 9:16 founder video */}
-      <div className="relative mx-auto flex aspect-[9/16] w-64 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border border-border bg-muted sm:w-72">
-        {videoLoading ? (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
-        ) : videoUrl ? (
-          <video
-            src={videoUrl}
-            className="h-full w-full object-cover"
-            controls
-            playsInline
-            preload="metadata"
-            aria-label="Founder message"
-          />
-        ) : (
-          // No video configured yet — keep the design intent (play icon
-          // + caption) so the layout doesn't collapse to empty.
-          <>
-            <button
-              type="button"
-              aria-label="Founder message unavailable"
-              disabled
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Play className="h-6 w-6 fill-current" aria-hidden />
-            </button>
-            <p className="text-sm font-medium text-muted-foreground">
-              Founder Message
-            </p>
-          </>
-        )}
+      <div className="relative mx-auto aspect-[9/16] w-64 overflow-hidden rounded-2xl border border-border bg-muted sm:w-72">
+        <video
+          src={videoUrl}
+          className="h-full w-full object-cover"
+          controls
+          playsInline
+          preload="metadata"
+          aria-label="Founder message"
+        />
       </div>
 
       {/* Description */}
