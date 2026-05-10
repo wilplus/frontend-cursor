@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +22,14 @@ import { createClient } from "@/lib/supabase/client";
  * Recovery flows still go through the server-side route handler — only
  * OAuth (LinkedIn etc.) redirects here.
  */
-export default function OAuthCompletePage() {
+
+// Never statically prerender — the page depends entirely on runtime
+// URL params (?code=...&state=...) and browser-side localStorage (the
+// PKCE verifier). Without this, Next.js fails the build with
+// "useSearchParams() should be wrapped in a suspense boundary".
+export const dynamic = "force-dynamic";
+
+function OAuthCompleteInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -95,5 +102,28 @@ export default function OAuthCompletePage() {
         </p>
       </div>
     </main>
+  );
+}
+
+/**
+ * Suspense wrapper required by Next.js for any client component that
+ * calls `useSearchParams()` — the inner component bails out of
+ * static rendering, and the boundary lets the build emit a placeholder
+ * fallback while the real component hydrates.
+ */
+export default function OAuthCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-background p-6">
+          <Loader2
+            className="h-8 w-8 animate-spin text-primary"
+            aria-hidden
+          />
+        </main>
+      }
+    >
+      <OAuthCompleteInner />
+    </Suspense>
   );
 }
