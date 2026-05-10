@@ -1,4 +1,8 @@
-const CACHE_NAME = "willab-shell-v2";
+// Bumping the cache name forces every browser to drop the previous SW
+// version and reinstall fresh — that's important after the auth-bypass
+// added below, otherwise users keep running the old SW that still
+// intercepts /auth/* navigations.
+const CACHE_NAME = "willab-shell-v3";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
 self.addEventListener("install", (event) => {
@@ -25,6 +29,21 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
 
   if (request.method !== "GET") return;
+
+  // Auth flows: never intercept. OAuth callback chains (LinkedIn →
+  // Supabase → /auth/callback → /auth/oauth-complete) carry single-use
+  // state tokens; any SW-level fetch/replay can cause Supabase to see
+  // the same state twice and reject with "flow_state_already_used".
+  // Letting the browser handle /auth/* directly removes the SW from
+  // the OAuth network path entirely.
+  try {
+    const authUrl = new URL(request.url);
+    if (authUrl.pathname.startsWith("/auth/")) {
+      return; // browser handles directly, no SW interception
+    }
+  } catch {
+    /* URL parse failed — fall through to normal handling */
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
