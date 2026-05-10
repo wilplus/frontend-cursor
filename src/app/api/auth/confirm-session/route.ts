@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 
 /**
- * This route is called after client-side login to ensure
- * server-side cookies are properly set
+ * Sync the client-side Supabase session into httpOnly server cookies.
+ *
+ * Called after any client-side auth event (password login, OAuth
+ * exchange on /auth/oauth-complete, etc.) so subsequent BFF routes can
+ * read the session from cookies.
+ *
+ * Uses the modern getAll/setAll cookie API — the legacy
+ * get/set/remove triplet drops Supabase's chunked auth-token cookies
+ * (`sb-…-auth-token.0`, `.1`, ...) and was returning 401 even when
+ * the browser client had a valid session.
  */
 export async function POST(req: NextRequest) {
   const response = NextResponse.json({ success: true });
@@ -13,29 +21,18 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
+        getAll() {
+          return req.cookies.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({
-            name,
-            value: "",
-            ...options,
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set({ name, value, ...options });
           });
         },
       },
     }
   );
 
-  // This will read any cookies set by the browser client
-  // and ensure they're properly set as httpOnly cookies
   const {
     data: { session },
   } = await supabase.auth.getSession();

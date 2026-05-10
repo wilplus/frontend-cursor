@@ -22,12 +22,19 @@ function createRequestSupabaseClient(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Modern getAll cookie API — the legacy get(name) variant only
+      // returns the raw cookie value for one name and can't reassemble
+      // Supabase's chunked auth-token cookies (.0/.1/...). On a session
+      // big enough to chunk, getSession() then returns null even when
+      // the browser has a valid session — which was producing 401s on
+      // every BFF call after a successful client-side OAuth exchange.
       cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
+        getAll() {
+          return req.cookies.getAll();
         },
-        set() {},
-        remove() {},
+        // No-op writers — read-only client; route handlers that need
+        // to write cookies have their own response-bound adapter.
+        setAll() {},
       },
     }
   );
