@@ -44,7 +44,20 @@ interface AdminSnippet {
   recording_id?: string;
   start_offset_ms: number;
   duration_ms: number;
+  /**
+   * Legacy column populated by the interview-upload + cold-start
+   * extraction paths. Always a fully-formed URL when present.
+   */
   audio_segment_path?: string;
+  /**
+   * Server-resolved playable URL for this snippet — surfaced by the
+   * /v2/admin/sessions/<id> endpoint. Prefer this when present: it
+   * already accounts for ML-generator rows where audio_segment_path
+   * is null but storage_path holds a Supabase Storage key (the
+   * backend signs it). Falling back to audio_segment_path keeps the
+   * older fetchUserSnippets payload working.
+   */
+  audio_url?: string | null;
   snippet_type?: string;
   admin_comment?: string | null;
   /**
@@ -406,10 +419,13 @@ function SnippetCard({
         </div>
       </div>
 
-      {/* Mini audio player — plays only within the admin-adjusted trim window */}
+      {/* Mini audio player — plays only within the admin-adjusted trim window.
+          Prefer the backend-resolved audio_url (handles ML-generator rows
+          via Supabase signed URL); fall back to audio_segment_path for
+          older fetchUserSnippets payloads. */}
       <div className="mb-3">
         <SnippetPreviewPlayer
-          src={snippet.audio_segment_path}
+          src={snippet.audio_url ?? snippet.audio_segment_path}
           seekTo={seekTo}
           clipEnd={clipEnd}
         />
