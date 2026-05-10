@@ -19,7 +19,7 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,17 +94,6 @@ function formatRange(startMs: number, durationMs: number): string {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
   return `${fmt(startMs)} – ${fmt(startMs + durationMs)}`;
-}
-
-/**
- * Format seconds with one decimal place of precision for trim boundary
- * display (e.g. 5.5 → "0:05.5", 72.0 → "1:12.0").
- */
-function formatSec(sec: number): string {
-  const s = Math.max(0, sec);
-  const m = Math.floor(s / 60);
-  const rem = (s % 60).toFixed(1).padStart(4, "0");
-  return `${m}:${rem}`;
 }
 
 function formatSessionDate(iso: string | null | undefined): string {
@@ -369,14 +358,6 @@ function SnippetCard({
   skipDisabled,
 }: SnippetCardProps) {
   const [comment, setComment] = useState(snippet.admin_comment ?? "");
-  const [followUpQuestion, setFollowUpQuestion] = useState(
-    snippet.follow_up_question ?? ""
-  );
-  const [activeLabel, setActiveLabel] = useState<"charisma" | "stress" | null>(
-    snippet.snippet_type === "charisma" || snippet.snippet_type === "stress"
-      ? snippet.snippet_type
-      : null
-  );
 
   const isSkipped = !!snippet.is_skipped;
 
@@ -395,192 +376,135 @@ function SnippetCard({
   const seekTo = effectiveStartSec;
   const clipEnd = effectiveEndSec;
 
+  // Boundary controls per spec — 4 buttons: ±2s on Start, ±2s on End.
+  const boundaryActions: Array<{
+    edge: "start" | "end";
+    deltaMs: number;
+    Icon: typeof Minus;
+    label: string;
+  }> = [
+    { edge: "start", deltaMs: -2000, Icon: Minus, label: "2s Start" },
+    { edge: "start", deltaMs: 2000, Icon: Plus, label: "2s Start" },
+    { edge: "end", deltaMs: -2000, Icon: Minus, label: "2s End" },
+    { edge: "end", deltaMs: 2000, Icon: Plus, label: "2s End" },
+  ];
+
   return (
     <Card
-      className={`rounded-2xl border-border p-4 transition-opacity ${
-        isSkipped ? "opacity-50" : ""
+      key={snippet.id}
+      className={`rounded-2xl border-border ${
+        isSkipped ? "opacity-50 transition-opacity" : ""
       }`}
     >
-      {/* Header */}
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          Snippet {formatRange(snippet.start_offset_ms, snippet.duration_ms)}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {snippet.metrics?.wpm != null && (
-            <Badge variant="outline">WPM: {snippet.metrics.wpm}</Badge>
-          )}
-          {snippet.metrics?.pitch && (
-            <Badge variant="outline">Pitch: {snippet.metrics.pitch}</Badge>
-          )}
-          {typeof snippet.metrics?.fillers === "number" && (
-            <Badge variant="outline">Fillers: {snippet.metrics.fillers}</Badge>
-          )}
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Snippet {formatRange(snippet.start_offset_ms, snippet.duration_ms)}
+          </CardTitle>
+          <div className="flex flex-wrap gap-1.5">
+            {snippet.metrics?.wpm != null && (
+              <Badge variant="outline" className="bg-muted">
+                WPM: {snippet.metrics.wpm}
+              </Badge>
+            )}
+            {snippet.metrics?.pitch && (
+              <Badge variant="outline" className="bg-muted">
+                Pitch: {snippet.metrics.pitch}
+              </Badge>
+            )}
+          </div>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Mini audio player — plays only within the admin-adjusted trim window.
-          Prefer the backend-resolved audio_url (handles ML-generator rows
-          via Supabase signed URL); fall back to audio_segment_path for
-          older fetchUserSnippets payloads. */}
-      <div className="mb-3">
+      <CardContent className="space-y-4">
+        {/* Mini audio player — plays only within the admin-adjusted trim window.
+            Prefer the backend-resolved audio_url (handles ML-generator rows
+            via Supabase signed URL); fall back to audio_segment_path for
+            older fetchUserSnippets payloads. */}
         <SnippetPreviewPlayer
           src={snippet.audio_url ?? snippet.audio_segment_path}
           seekTo={seekTo}
           clipEnd={clipEnd}
         />
-      </div>
 
-      {/* Boundary trim controls
-          Two rows: Start and End, each offering −1s / −0.5s / +0.5s / +1s.
-          Current boundaries are shown inline so the admin sees real-time values. */}
-      <div className="mb-3 space-y-1.5 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
-        {/* Start row */}
-        <div className="flex items-center gap-2">
-          <span className="w-10 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Start
-          </span>
-          <span className="w-14 shrink-0 text-center font-mono text-xs tabular-nums text-foreground">
-            {formatSec(effectiveStartSec)}
-          </span>
-          {([-1000, -500, 500, 1000] as const).map((deltaMs) => (
+        {/* Boundary controls (±2s Start, ±2s End) */}
+        <div className="flex flex-wrap gap-2">
+          {boundaryActions.map(({ edge, deltaMs, Icon, label }) => (
             <Button
-              key={`start-${deltaMs}`}
+              key={`${edge}-${deltaMs}`}
               type="button"
               variant="outline"
               size="sm"
-              className="h-6 px-2 text-[11px]"
               disabled={boundaryDisabled}
-              onClick={() => onAdjustBounds(snippet.id, "start", deltaMs)}
+              onClick={() => onAdjustBounds(snippet.id, edge, deltaMs)}
             >
-              {deltaMs < 0 ? (
-                <Minus className="mr-0.5 h-2.5 w-2.5" />
-              ) : (
-                <Plus className="mr-0.5 h-2.5 w-2.5" />
-              )}
-              {Math.abs(deltaMs) === 500 ? "0.5s" : "1s"}
+              <Icon className="h-3 w-3" /> {label}
             </Button>
           ))}
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-border" />
-
-        {/* End row */}
-        <div className="flex items-center gap-2">
-          <span className="w-10 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            End
-          </span>
-          <span className="w-14 shrink-0 text-center font-mono text-xs tabular-nums text-foreground">
-            {formatSec(effectiveEndSec)}
-          </span>
-          {([-1000, -500, 500, 1000] as const).map((deltaMs) => (
-            <Button
-              key={`end-${deltaMs}`}
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-[11px]"
-              disabled={boundaryDisabled}
-              onClick={() => onAdjustBounds(snippet.id, "end", deltaMs)}
-            >
-              {deltaMs < 0 ? (
-                <Minus className="mr-0.5 h-2.5 w-2.5" />
-              ) : (
-                <Plus className="mr-0.5 h-2.5 w-2.5" />
-              )}
-              {Math.abs(deltaMs) === 500 ? "0.5s" : "1s"}
-            </Button>
-          ))}
+        {/* Labeling buttons (Charisma / Stress) */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => onLabel(snippet.id, "charisma")}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <Flame className="h-3.5 w-3.5" /> Charisma
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onLabel(snippet.id, "stress")}
+            className="border-destructive/30 text-destructive hover:bg-destructive/10"
+          >
+            <Droplet className="h-3.5 w-3.5" /> Stress
+          </Button>
         </div>
-      </div>
 
-      {/* Quick label buttons */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            setActiveLabel("charisma");
-            onLabel(snippet.id, "charisma");
-          }}
-          className={`gap-1.5 rounded-full ${
-            activeLabel === "charisma"
-              ? "bg-emerald-600 text-white hover:bg-emerald-700"
-              : "bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20"
-          }`}
-        >
-          <Flame className="h-3.5 w-3.5" /> Charisma
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setActiveLabel("stress");
-            onLabel(snippet.id, "stress");
-          }}
-          className={`gap-1.5 rounded-full border-destructive/30 text-destructive hover:bg-destructive/10 ${
-            activeLabel === "stress" ? "bg-destructive/10" : ""
-          }`}
-        >
-          <Droplet className="h-3.5 w-3.5" /> Stress
-        </Button>
-      </div>
+        {/* Admin comment — published verbatim to the user's /results page */}
+        <Textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Coach's insight..."
+          className="bg-background min-h-[80px]"
+        />
 
-      {/* Admin comment — published verbatim to the user's /results page */}
-      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Coach&apos;s Insight
-      </label>
-      <Textarea
-        rows={3}
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Charisma / stress analysis the user will see…"
-        className="mb-3"
-      />
-
-      {/* Predictive follow-up — drives the contextual chat when the user
-          clicks this snippet's CTA on /results (sourceSnippet → /chat). */}
-      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Next Question{" "}
-        <span className="font-normal normal-case text-muted-foreground/80">
-          (Triggered on click)
-        </span>
-      </label>
-      <Textarea
-        rows={2}
-        value={followUpQuestion}
-        onChange={(e) => setFollowUpQuestion(e.target.value)}
-        placeholder="What the AI should ask next when the user taps this snippet…"
-        className="mb-3"
-      />
-
-      {/* Footer */}
-      <div className="flex items-center justify-between">
-        <Button
-          type="button"
-          size="sm"
-          disabled={saving}
-          onClick={() =>
-            void onSaveComment(snippet.id, comment, followUpQuestion)
-          }
-          className="rounded-full px-4"
-        >
-          {saving ? "Saving…" : "Save Snippet"}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={skipDisabled}
-          onClick={() => onSkip(snippet.id)}
-          className="gap-1.5 text-muted-foreground"
-        >
-          <EyeOff className="h-3.5 w-3.5" />
-          {isSkipped ? "Skipped" : "Skip Snippet"}
-        </Button>
-      </div>
+        {/* Action footer (Save / Skip) */}
+        <div className="flex items-center justify-between pt-1">
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving}
+            onClick={() =>
+              // Preserve any backend-supplied follow_up_question — the
+              // current spec drops the dedicated textarea, so we round-trip
+              // the existing value untouched rather than clobbering it.
+              void onSaveComment(
+                snippet.id,
+                comment,
+                snippet.follow_up_question ?? ""
+              )
+            }
+            className="rounded-full px-4"
+          >
+            {saving ? "Saving…" : "Save Snippet"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={skipDisabled}
+            onClick={() => onSkip(snippet.id)}
+            className="text-muted-foreground"
+          >
+            <EyeOff className="h-3.5 w-3.5" />
+            {isSkipped ? "Skipped" : "Skip Snippet"}
+          </Button>
+        </div>
+      </CardContent>
     </Card>
   );
 }
@@ -1484,7 +1408,7 @@ export default function AdminUserDetailPage() {
             </section>
 
             {/* Snippets list — visually nested under the timeline */}
-            <div className="space-y-4 border-l-2 border-border pl-4">
+            <div className="pl-6 border-l-2 border-primary/20 space-y-4">
               {sessionSnippets.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {loading
