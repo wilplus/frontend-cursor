@@ -1306,6 +1306,62 @@ export default function AdminUserDetailPage() {
     }
   }, [latestSession]);
 
+  /**
+   * Trigger the per-turn → canonical-recording concatenation pipeline for
+   * the current session. Manual button so we can prove the pipeline works
+   * on real sessions before commit 3/5 wires it into the automatic
+   * session-completion handler.
+   */
+  const [finalizing, setFinalizing] = useState(false);
+  const handleFinalizeRecording = useCallback(async () => {
+    if (!latestSession) {
+      toast.error("No session available");
+      return;
+    }
+    setFinalizing(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
+      }
+      const res = await fetch(
+        `/api/v2/admin/sessions/${latestSession.id}/finalize-recording`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          (data as { error?: string }).error ||
+          `Finalize failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+      const rewritten = (data as { n_turns_rewritten?: number }).n_turns_rewritten ?? 0;
+      const failed = (data as { n_turns_failed?: number }).n_turns_failed ?? 0;
+      const durationMs = (data as { duration_ms?: number }).duration_ms ?? 0;
+      toast.success(
+        `Recording finalized — ${rewritten} turns anchored` +
+          (failed ? `, ${failed} failed` : "") +
+          (durationMs ? ` (${(durationMs / 1000).toFixed(1)}s)` : "")
+      );
+      // Refetch session so the snippet panel shows the new storage_path /
+      // start_offset_ms values without a full page reload.
+      try {
+        const refreshed = await fetchUserSnippets(userId);
+        setSnippets(refreshed);
+      } catch {
+        /* non-fatal */
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Finalize failed");
+    } finally {
+      setFinalizing(false);
+    }
+  }, [latestSession, userId]);
+
   /* -------------------------------------------------------------------- */
   /* Render                                                                 */
   /* -------------------------------------------------------------------- */
@@ -1341,6 +1397,19 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Manual trigger for the per-turn → canonical-recording
+                concatenation pipeline. Will become automatic once
+                commit 3/5 wires it into session completion. */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleFinalizeRecording}
+              disabled={!latestSession || finalizing}
+              className="rounded-full px-4"
+              title="Concatenate per-turn audio into one canonical recording and re-anchor snippets to it"
+            >
+              {finalizing ? "Finalizing…" : "Finalize Recording"}
+            </Button>
             <Button
               type="button"
               onClick={handlePublish}
