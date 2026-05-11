@@ -142,8 +142,16 @@ interface AudioPlayerProps {
 /**
  * Visual audio player matching the spec layout. Falls back to native <audio>
  * for the actual playback so we don't reinvent timeline scrubbing.
+ *
+ * Surfaces broken sources with a visible badge instead of a silent 0:00
+ * player — same UX contract as SnippetPreviewPlayer + PlayableAudio.
  */
 function AudioPlayer({ src, duration, label }: AudioPlayerProps) {
+  const [errored, setErrored] = useState(false);
+  useEffect(() => {
+    setErrored(false);
+  }, [src]);
+
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-3">
       {label && (
@@ -151,13 +159,25 @@ function AudioPlayer({ src, duration, label }: AudioPlayerProps) {
           {label}
         </p>
       )}
-      {src ? (
+      {src && !errored ? (
         <audio
           controls
           src={src}
           controlsList="nodownload"
           className="w-full"
+          onError={() => setErrored(true)}
         />
+      ) : errored ? (
+        <div
+          className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+          role="status"
+          title={`Audio failed to load. Source: ${src}`}
+        >
+          <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+          <span className="text-xs font-medium text-amber-900">
+            Audio unavailable — source returned 404 (stale reference)
+          </span>
+        </div>
       ) : (
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -199,6 +219,15 @@ function SnippetPreviewPlayer({
   clipEnd?: number;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  // True when the <audio> element fires `error` — usually means the
+  // resource returned 404 (stale R2 / Supabase reference). We render a
+  // visible badge instead of a silent 0:00 player so the admin knows
+  // the audio is gone and not their browser misbehaving. Reset whenever
+  // `src` changes so re-fetched URLs get a fair retry.
+  const [errored, setErrored] = useState(false);
+  useEffect(() => {
+    setErrored(false);
+  }, [src]);
 
   // Whenever boundaries change (after API response), pre-position the
   // playhead so the admin can immediately press play at the right spot.
@@ -237,6 +266,21 @@ function SnippetPreviewPlayer({
     );
   }
 
+  if (errored) {
+    return (
+      <div
+        className="flex h-10 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3"
+        role="status"
+        title={`Audio failed to load. Source: ${src}`}
+      >
+        <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+        <span className="text-xs font-medium text-amber-900">
+          Audio unavailable — source returned 404 (stale reference)
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-3">
       <audio
@@ -247,8 +291,60 @@ function SnippetPreviewPlayer({
         className="w-full"
         onPlay={handlePlay}
         onTimeUpdate={handleTimeUpdate}
+        onError={() => setErrored(true)}
       />
     </div>
+  );
+}
+
+/* ----------------------------------------------------------------------------
+ * Minimal audio player for places that don't need trim/seek — Conversation
+ * Timeline turn audio, Full Recording, etc. Shares the same broken-source
+ * badge UX as SnippetPreviewPlayer so the admin sees a consistent signal
+ * regardless of which player surfaces the 404.
+ * ------------------------------------------------------------------------- */
+
+function PlayableAudio({
+  src,
+  className,
+}: {
+  src?: string | null;
+  className?: string;
+}) {
+  const [errored, setErrored] = useState(false);
+  useEffect(() => {
+    setErrored(false);
+  }, [src]);
+
+  if (!src) {
+    return (
+      <p className="text-xs text-muted-foreground">No audio available.</p>
+    );
+  }
+
+  if (errored) {
+    return (
+      <div
+        className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2"
+        role="status"
+        title={`Audio failed to load. Source: ${src}`}
+      >
+        <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+        <span className="text-xs font-medium text-amber-900">
+          Audio unavailable — source returned 404 (stale reference)
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <audio
+      controls
+      preload="metadata"
+      src={src}
+      className={className ?? "w-full"}
+      onError={() => setErrored(true)}
+    />
   );
 }
 
@@ -1371,14 +1467,12 @@ export default function AdminUserDetailPage() {
                           </p>
                         )}
 
-                        {/* Per-turn audio player */}
+                        {/* Per-turn audio player.
+                            Uses PlayableAudio so a broken source (e.g. stale
+                            R2 URL) surfaces a visible "Audio unavailable"
+                            badge instead of a silent 0:00 player. */}
                         {turn.answer?.audio_url ? (
-                          <audio
-                            controls
-                            preload="metadata"
-                            src={turn.answer.audio_url}
-                            className="w-full"
-                          />
+                          <PlayableAudio src={turn.answer.audio_url} />
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             No audio recorded for this turn.
