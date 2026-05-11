@@ -891,7 +891,11 @@ export default function AdminUserDetailPage() {
           );
           if (!res.ok || cancelled) return;
           const data = await res.json();
-          if (!cancelled && data.url) setRecordingUrl(data.url);
+          // Backend returns { audio_url } (see v2_admin_recording_playback_url
+          // in routes/v2_routes.py); also accept legacy `url` for forward
+          // compatibility if the shape ever flips.
+          const url = (data?.audio_url ?? data?.url) as string | undefined;
+          if (!cancelled && url) setRecordingUrl(url);
         } catch {
           /* non-fatal */
         }
