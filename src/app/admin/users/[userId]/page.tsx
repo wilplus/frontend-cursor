@@ -551,8 +551,21 @@ function SnippetCard({
     >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Snippet {formatRange(snippet.start_offset_ms, snippet.duration_ms)}
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <span>
+              Snippet {formatRange(snippet.start_offset_ms, snippet.duration_ms)}
+            </span>
+            {/* Live snippet length — re-renders the moment
+                handleAdjustBounds updates start_offset_ms / duration_ms,
+                so the admin sees the new total immediately after each
+                ±2s click without needing to do the math from the range. */}
+            <span
+              className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-primary"
+              aria-label="Snippet length"
+              title="Current snippet length (updates as bounds are adjusted)"
+            >
+              {(snippet.duration_ms / 1000).toFixed(1)}s
+            </span>
           </CardTitle>
           <div className="flex flex-wrap gap-1.5">
             {snippet.metrics?.wpm != null && (
