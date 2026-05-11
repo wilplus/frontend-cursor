@@ -308,14 +308,27 @@ function SnippetPreviewPlayer({
 function TranscriptUserAudioBubble({
   src,
   durationMs,
+  turnNumber,
+  turnTotal,
 }: {
   src: string;
   durationMs: number | null | undefined;
+  /** 1-based position of this answer in the interview (e.g. 2). */
+  turnNumber?: number | null;
+  /** Total number of answers in the interview — used for "N / M" labeling. */
+  turnTotal?: number | null;
 }) {
   const [errored, setErrored] = useState(false);
   useEffect(() => {
     setErrored(false);
   }, [src]);
+
+  // "Turn 1 / 3" when both numbers known, "Turn 1" when only the index is.
+  const turnLabel = (() => {
+    if (turnNumber == null) return null;
+    if (turnTotal != null && turnTotal > 0) return `Turn ${turnNumber} / ${turnTotal}`;
+    return `Turn ${turnNumber}`;
+  })();
 
   if (errored) {
     return (
@@ -326,6 +339,11 @@ function TranscriptUserAudioBubble({
           title={`Audio failed to load. Source: ${src}`}
         >
           <Mic className="h-4 w-4 shrink-0" aria-hidden />
+          {turnLabel && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-900/80">
+              {turnLabel}
+            </span>
+          )}
           <span className="text-xs font-medium">
             Audio unavailable — source returned 404 (stale reference)
           </span>
@@ -338,6 +356,14 @@ function TranscriptUserAudioBubble({
     <div className="flex justify-end">
       <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground shadow-sm">
         <Mic className="h-4 w-4 shrink-0" aria-hidden />
+        {turnLabel && (
+          <span
+            className="text-[10px] font-semibold uppercase tracking-wide text-primary-foreground/85"
+            aria-label="Turn position"
+          >
+            {turnLabel}
+          </span>
+        )}
         <audio
           controls
           src={src}
@@ -1715,6 +1741,8 @@ export default function AdminUserDetailPage() {
                           <TranscriptUserAudioBubble
                             src={turn.answer.audio_url}
                             durationMs={turn.answer.duration_ms}
+                            turnNumber={turn.turn_number}
+                            turnTotal={interviewTurns.filter(t => t.answer?.audio_url).length}
                           />
                         )}
                       </div>
