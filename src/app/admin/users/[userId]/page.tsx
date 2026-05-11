@@ -308,20 +308,75 @@ function SnippetPreviewPlayer({
 function TranscriptUserAudioBubble({
   src,
   durationMs,
+  startOffsetMs,
   turnNumber,
   turnTotal,
 }: {
   src: string;
   durationMs: number | null | undefined;
+  /** Offset (ms) within `src` that this turn begins at. ZERO when src
+   *  is the per-turn original file; non-zero when src falls back to
+   *  the concat'd full.webm (e.g. legacy rows where audio_segment_path
+   *  was NULL'd by an earlier finalize). When non-zero we clamp the
+   *  <audio> playback to (start, start + duration) so the bubble still
+   *  plays the right slice. */
+  startOffsetMs?: number | null;
   /** 1-based position of this answer in the interview (e.g. 2). */
   turnNumber?: number | null;
   /** Total number of answers in the interview — used for "N / M" labeling. */
   turnTotal?: number | null;
 }) {
   const [errored, setErrored] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     setErrored(false);
   }, [src]);
+
+  const seekSec = Math.max(0, (startOffsetMs ?? 0) / 1000);
+  const clipEndSec =
+    durationMs != null && durationMs > 0
+      ? seekSec + durationMs / 1000
+      : undefined;
+
+  // Pre-position the playhead so pressing play starts at the turn's offset.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !el.paused) return;
+    if (seekSec > 0) {
+      try {
+        el.currentTime = seekSec;
+      } catch {
+        /* metadata not loaded yet — onLoadedMetadata handles it */
+      }
+    }
+  }, [src, seekSec]);
+
+  const handleLoadedMetadata = () => {
+    const el = audioRef.current;
+    if (el && seekSec > 0 && el.currentTime < seekSec) {
+      el.currentTime = seekSec;
+    }
+  };
+
+  const handlePlay = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (
+      el.currentTime < seekSec ||
+      (clipEndSec != null && el.currentTime >= clipEndSec)
+    ) {
+      el.currentTime = seekSec;
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    const el = audioRef.current;
+    if (!el || clipEndSec == null) return;
+    if (el.currentTime >= clipEndSec) {
+      el.pause();
+      el.currentTime = seekSec;
+    }
+  };
 
   // "Turn 1 / 3" when both numbers known, "Turn 1" when only the index is.
   const turnLabel = (() => {
@@ -365,10 +420,15 @@ function TranscriptUserAudioBubble({
           </span>
         )}
         <audio
+          ref={audioRef}
           controls
           src={src}
+          preload="metadata"
           className="h-8 max-w-[220px]"
           onError={() => setErrored(true)}
+          onLoadedMetadata={handleLoadedMetadata}
+          onPlay={handlePlay}
+          onTimeUpdate={handleTimeUpdate}
         />
         {durationMs != null && (
           <span className="text-[11px] tabular-nums opacity-90">
@@ -743,6 +803,10 @@ export default function AdminUserDetailPage() {
     answer: {
       audio_url: string | null;
       duration_ms: number | null;
+      /** Offset (ms) within audio_url at which this turn begins. Backend
+       *  returns 0 when audio_url is the per-turn original file; non-zero
+       *  when audio_url is the concat'd full.webm and we need to seek. */
+      start_offset_ms?: number | null;
       transcript?: string | null;
       transcript_text?: string | null;
       transcription?: string | null;
@@ -854,6 +918,10 @@ export default function AdminUserDetailPage() {
             tone?: string | null;
             audio_url?: string | null;
             duration_ms?: number | null;
+            /** Backend echoes 0 when audio_url is the per-turn original,
+             *  or the row's actual start_offset_ms when audio_url falls
+             *  back to the concat'd full.webm. */
+            start_offset_ms?: number | null;
             snippet_id?: string | null;
             turn_number?: number | null;
           }>;
@@ -895,6 +963,7 @@ export default function AdminUserDetailPage() {
               answer: {
                 audio_url: next.audio_url ?? null,
                 duration_ms: next.duration_ms ?? null,
+                start_offset_ms: next.start_offset_ms ?? 0,
                 transcript: next.content ?? null,
               },
             });
@@ -907,6 +976,7 @@ export default function AdminUserDetailPage() {
               answer: {
                 audio_url: cur.audio_url ?? null,
                 duration_ms: cur.duration_ms ?? null,
+                start_offset_ms: cur.start_offset_ms ?? 0,
                 transcript: cur.content ?? null,
               },
             });
@@ -1741,6 +1811,7 @@ export default function AdminUserDetailPage() {
                           <TranscriptUserAudioBubble
                             src={turn.answer.audio_url}
                             durationMs={turn.answer.duration_ms}
+                            startOffsetMs={turn.answer.start_offset_ms ?? 0}
                             turnNumber={turn.turn_number}
                             turnTotal={interviewTurns.filter(t => t.answer?.audio_url).length}
                           />
