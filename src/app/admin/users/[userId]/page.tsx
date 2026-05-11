@@ -782,7 +782,18 @@ export default function AdminUserDetailPage() {
 
   const sessionSnippets = useMemo(() => {
     if (!latestSession) return [];
-    return snippets.filter((s) => s.session_id === latestSession.id);
+    // The snippet panel is a highlight reel — extracted moments only.
+    // Turn rows (turn_number IS NOT NULL) belong in the Chat Transcript /
+    // Conversation Timeline, not here. The session-level API filters
+    // them out already, but the user-level fetch (fetchUserSnippets,
+    // which seeds `snippets` state before the session response arrives)
+    // returns both kinds, so we apply the same filter on the client
+    // side to be safe.
+    return snippets.filter((s) => {
+      if (s.session_id !== latestSession.id) return false;
+      const tn = (s as { turn_number?: number | null }).turn_number;
+      return tn === null || tn === undefined;
+    });
   }, [snippets, latestSession]);
 
   // Fetch timeline (AI summary + interview turns) + recording playback URL
