@@ -298,6 +298,63 @@ function SnippetPreviewPlayer({
 }
 
 /* ----------------------------------------------------------------------------
+ * Right-aligned "user voice answer" bubble used in the Chat Transcript &
+ * Override tab. Preserves the spec's orange-pill chat styling but flips
+ * to an amber badge — keeping the right-alignment and Mic icon — when
+ * the audio source fails to load. Same broken-source UX as the rest of
+ * the page so admins get a consistent signal across tabs.
+ * ------------------------------------------------------------------------- */
+
+function TranscriptUserAudioBubble({
+  src,
+  durationMs,
+}: {
+  src: string;
+  durationMs: number | null | undefined;
+}) {
+  const [errored, setErrored] = useState(false);
+  useEffect(() => {
+    setErrored(false);
+  }, [src]);
+
+  if (errored) {
+    return (
+      <div className="flex justify-end">
+        <div
+          className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-sm border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 shadow-sm"
+          role="status"
+          title={`Audio failed to load. Source: ${src}`}
+        >
+          <Mic className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="text-xs font-medium">
+            Audio unavailable — source returned 404 (stale reference)
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-end">
+      <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground shadow-sm">
+        <Mic className="h-4 w-4 shrink-0" aria-hidden />
+        <audio
+          controls
+          src={src}
+          className="h-8 max-w-[220px]"
+          onError={() => setErrored(true)}
+        />
+        {durationMs != null && (
+          <span className="text-[11px] tabular-nums opacity-90">
+            {(durationMs / 1000).toFixed(1)}s
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------------------
  * Minimal audio player for places that don't need trim/seek — Conversation
  * Timeline turn audio, Full Recording, etc. Shares the same broken-source
  * badge UX as SnippetPreviewPlayer so the admin sees a consistent signal
@@ -1625,26 +1682,15 @@ export default function AdminUserDetailPage() {
                             user variant so admin and end-user see the
                             same visual grammar for "this is the user's
                             voice answer". Audio control + duration sit
-                            inside the orange pill. */}
+                            inside the orange pill — and when the source
+                            404s, the bubble flips to an amber "Audio
+                            unavailable" badge in the same alignment so
+                            broken state is visible instead of silent. */}
                         {turn.answer?.audio_url && (
-                          <div className="flex justify-end">
-                            <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground shadow-sm">
-                              <Mic
-                                className="h-4 w-4 shrink-0"
-                                aria-hidden
-                              />
-                              <audio
-                                controls
-                                src={turn.answer.audio_url}
-                                className="h-8 max-w-[220px]"
-                              />
-                              {turn.answer.duration_ms != null && (
-                                <span className="text-[11px] tabular-nums opacity-90">
-                                  {(turn.answer.duration_ms / 1000).toFixed(1)}s
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          <TranscriptUserAudioBubble
+                            src={turn.answer.audio_url}
+                            durationMs={turn.answer.duration_ms}
+                          />
                         )}
                       </div>
                     );
