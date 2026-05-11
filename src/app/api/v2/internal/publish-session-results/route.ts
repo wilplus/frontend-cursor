@@ -1,68 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 /**
  * POST /api/v2/internal/publish-session-results
- * Admin endpoint to publish (email) results for a session.
- * Proxies to backend POST /v2/internal/publish-session-results
+ *
+ * Admin endpoint that flips a session's results_published_at and emails
+ * the user a "Snippets Ready" notification. Proxies to backend
+ * POST /v2/internal/publish-session-results.
+ *
+ * Previously used `process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"`
+ * directly — that env var is intentionally NOT set on Vercel (we use
+ * BACKEND_URL_INTERNAL / BACKEND_URL via getBackendUrl()), so every
+ * publish from production fell back to localhost:5000 and 500'd with a
+ * generic `{code: "ERROR", error: "Internal server error"}`. Same fix
+ * pattern we applied to the comment BFF in 3cfa79f.
  */
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const backend = getBackendUrl();
+    if (!backend) {
+      return NextResponse.json(
+        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
+        { status: 502 }
+      );
+    }
 
-    // Check if user is authenticated
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const token = await getV2AccessToken(req);
+    if (!token) {
       return NextResponse.json(
         { code: "UNAUTHENTICATED", error: "Not authenticated" },
         { status: 401 }
       );
     }
 
-    // Get request body
     const body = await req.json().catch(() => ({}));
 
-    // Call backend API
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-    const adminToken = req.headers.get("authorization");
-
-    if (!adminToken) {
-      return NextResponse.json(
-        { code: "MISSING_AUTH", error: "Missing authorization header" },
-        { status: 401 }
-      );
-    }
-
     const response = await fetch(
-      `${backendUrl}/v2/internal/publish-session-results`,
+      `${backend}/v2/internal/publish-session-results`,
       {
         method: "POST",
         headers: {
-          "Authorization": adminToken,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        cache: "no-store",
       }
     );
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        error,
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: 200 });
+    const data = await response.json().catch(() => ({}));
+    return NextResponse.json(data, { status: response.status });
   } catch (err) {
-    console.error("Publish session results API error:", err);
+    // Self-identifying tag + surfaced error so a 500 here is
+    // diagnosable in one network capture rather than a guessing game.
+    const message = err instanceof Error ? err.message : String(err);
+    const name = err instanceof Error ? err.name : "Unknown";
+    console.error("Publish session results API error:", name, message, err);
     return NextResponse.json(
-      { code: "ERROR", error: "Internal server error" },
+      {
+        code: "BFF_THROWN",
+        error: `BFF threw: ${name}: ${message}`,
+        bff_revision: "publish-session-results-4c09794+",
+      },
       { status: 500 }
     );
   }
