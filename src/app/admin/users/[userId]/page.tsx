@@ -59,6 +59,13 @@ interface AdminSnippet {
    */
   audio_url?: string | null;
   snippet_type?: string;
+  /**
+   * Provenance tag from the backend:
+   *   - "auto_extracted" — highlight produced by snippet_truncation
+   *   - "student"        — user-uploaded clip
+   *   - null             — legacy path-B row (hidden from the panel)
+   */
+  source_type?: string | null;
   admin_comment?: string | null;
   /**
    * Predictive next-question text triggered when the user clicks this
@@ -872,17 +879,22 @@ export default function AdminUserDetailPage() {
 
   const sessionSnippets = useMemo(() => {
     if (!latestSession) return [];
-    // The snippet panel is a highlight reel — extracted moments only.
-    // Turn rows (turn_number IS NOT NULL) belong in the Chat Transcript /
-    // Conversation Timeline, not here. The session-level API filters
-    // them out already, but the user-level fetch (fetchUserSnippets,
-    // which seeds `snippets` state before the session response arrives)
-    // returns both kinds, so we apply the same filter on the client
-    // side to be safe.
+    // The snippet panel is a highlight reel — auto-extracted moments
+    // produced by services.snippet_truncation, plus student-uploaded
+    // clips. Turn rows (turn_number IS NOT NULL) belong in the Chat
+    // Transcript / Conversation Timeline. We also exclude legacy
+    // path-B rows (turn_number NULL, source_type NULL) — those are
+    // stale leftovers from older code paths and the user reported them
+    // showing up as bogus "duplicate" cards alongside the real
+    // highlights.
     return snippets.filter((s) => {
       if (s.session_id !== latestSession.id) return false;
       const tn = (s as { turn_number?: number | null }).turn_number;
-      return tn === null || tn === undefined;
+      if (tn !== null && tn !== undefined) return false;
+      const src = (s as { source_type?: string | null }).source_type;
+      // Recognised origin tags for a highlight card. Anything else
+      // (NULL, unknown extractor variants) is legacy noise we hide.
+      return src === "auto_extracted" || src === "student";
     });
   }, [snippets, latestSession]);
 
