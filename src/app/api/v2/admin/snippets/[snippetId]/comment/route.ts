@@ -57,9 +57,20 @@ export async function POST(
     const data = await response.json().catch(() => ({}));
     return NextResponse.json(data, { status: response.status });
   } catch (err) {
-    console.error("Update snippet comment API error:", err);
+    // Self-identifying tag + surfaced error message so a 500 here is
+    // immediately diagnosable. Before this change the BFF's catch
+    // returned a generic shape identical to the pre-migration version,
+    // making "is the new deploy live?" impossible to answer from the
+    // response alone. The `bff_revision` field flips that.
+    const message = err instanceof Error ? err.message : String(err);
+    const name = err instanceof Error ? err.name : "Unknown";
+    console.error("Update snippet comment API error:", name, message, err);
     return NextResponse.json(
-      { code: "ERROR", error: "Internal server error" },
+      {
+        code: "BFF_THROWN",
+        error: `BFF threw: ${name}: ${message}`,
+        bff_revision: "snippet-comment-3cfa79f+",
+      },
       { status: 500 }
     );
   }
