@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 /**
  * PATCH /api/v2/admin/turns/[turnId]/question
@@ -11,9 +11,13 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * Proxies to backend PATCH /v2/admin/turns/{turn_id}/question.
  *
  * Body: { text: string }
- * TODO(backend): wire the corresponding endpoint on the Python service.
- * Until that ships, this BFF will return whatever status the backend
- * gives (404 if the route isn't mounted yet).
+ *
+ * Previously read `process.env.NEXT_PUBLIC_BACKEND_URL` directly with a
+ * `localhost:5000` fallback — that variable is intentionally NOT set on
+ * Vercel (production uses BACKEND_URL_INTERNAL / BACKEND_URL via
+ * getBackendUrl()), so every admin question-edit silently posted to
+ * localhost and 500'd. Same regression pattern as the comment + publish
+ * BFFs; routed through the shared helpers to match.
  */
 export async function PATCH(
   req: NextRequest,
@@ -21,14 +25,16 @@ export async function PATCH(
 ) {
   try {
     const turnId = params.turnId;
-    const supabase = createServerSupabaseClient();
+    const backend = getBackendUrl();
+    if (!backend) {
+      return NextResponse.json(
+        { code: "BACKEND_UNAVAILABLE", error: "Backend URL not configured" },
+        { status: 502 }
+      );
+    }
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const token = await getV2AccessToken(req);
+    if (!token) {
       return NextResponse.json(
         { code: "UNAUTHENTICATED", error: "Not authenticated" },
         { status: 401 }
@@ -45,37 +51,31 @@ export async function PATCH(
       );
     }
 
-    const adminToken = req.headers.get("authorization");
-    if (!adminToken) {
-      return NextResponse.json(
-        { code: "MISSING_AUTH", error: "Missing authorization header" },
-        { status: 401 }
-      );
-    }
-
-    const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
     const response = await fetch(
-      `${backendUrl}/v2/admin/turns/${encodeURIComponent(turnId)}/question`,
+      `${backend}/v2/admin/turns/${encodeURIComponent(turnId)}/question`,
       {
         method: "PATCH",
         headers: {
-          Authorization: adminToken,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ text: body.text }),
+        cache: "no-store",
       }
     );
 
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(data, { status: response.status });
   } catch (err) {
-    console.error("PATCH turn question API error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    const name = err instanceof Error ? err.name : "Unknown";
+    console.error("PATCH turn question API error:", name, message, err);
     return NextResponse.json(
-      { code: "ERROR", error: "Internal server error" },
+      {
+        code: "BFF_THROWN",
+        error: `BFF threw: ${name}: ${message}`,
+        bff_revision: "turn-question-4c09794+",
+      },
       { status: 500 }
     );
   }
