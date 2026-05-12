@@ -136,6 +136,15 @@ export interface UserAdminContext {
   }>;
   updated_at: ISODateString | null;
   user_email?: string | null;
+  /**
+   * Smart EBCP routing flag — true once the user has completed the
+   * 4-turn EBCP calibration script in any session. Backend uses it
+   * to decide whether the next session enforces the hardcoded EBCP
+   * opener or routes straight into LLM-driven coaching. The
+   * "Reset Acoustic Baseline" admin action flips this back to false.
+   */
+  baseline_established?: boolean | null;
+  baseline_established_at?: ISODateString | null;
 }
 
 export interface RecordingForAdmin {
