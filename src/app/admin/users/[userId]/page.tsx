@@ -680,9 +680,13 @@ function PlayableAudio({
 function HeaderMenu({
   onArchive,
   onDelete,
+  onResetBaseline,
+  resettingBaseline,
 }: {
   onArchive: () => void;
   onDelete: () => void;
+  onResetBaseline: () => void;
+  resettingBaseline: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -712,7 +716,7 @@ function HeaderMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+          className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
         >
           <button
             type="button"
@@ -725,6 +729,25 @@ function HeaderMenu({
           >
             Archive User
           </button>
+
+          {/* Smart EBCP routing override — destructive but
+              recoverable (next session reset only). Sits ABOVE the
+              Delete divider so admins don't accidentally drift
+              past a destructive identity action. */}
+          <div className="h-px bg-border" />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={resettingBaseline}
+            onClick={() => {
+              setOpen(false);
+              onResetBaseline();
+            }}
+            className="block w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 disabled:cursor-wait disabled:opacity-60"
+          >
+            {resettingBaseline ? "Resetting baseline…" : "Reset Baseline"}
+          </button>
+
           <div className="h-px bg-border" />
           <button
             type="button"
@@ -1671,48 +1694,65 @@ export default function AdminUserDetailPage() {
   }, [activeSession?.id, computingMetrics]);
 
   /**
-   * Danger-zone action — flips the user's `baseline_established`
-   * flag back to false on the backend so their next session re-runs
-   * the EBCP acoustic calibration script (turns 1–4). The backend's
-   * Smart EBCP Routing reads this flag to decide whether to enforce
-   * the hardcoded baseline or jump straight into LLM-driven coaching.
+   * Smart EBCP routing override — flips the user's
+   * `baseline_established` flag back to false on the backend so
+   * their next session re-runs the EBCP acoustic calibration script
+   * (turns 1–4) instead of routing straight into LLM-driven coaching.
+   * Lives in the HeaderMenu next to Publish Results.
    *
-   * Wrapped in window.confirm so it can't fire from a stray click —
-   * this is a destructive override that meaningfully changes the
-   * user's next-session experience.
+   * Wrapped in window.confirm so it can't fire from a stray menu
+   * click. On success we apply baseline_established(_at) from the
+   * response onto the local context state — no follow-up GET, no
+   * stale-data window where the menu still implies a recalibration
+   * that's already happened.
    */
   const [resettingBaseline, setResettingBaseline] = useState(false);
   const resetBaseline = useCallback(async () => {
     if (resettingBaseline || !userId) return;
     if (typeof window !== "undefined") {
       const ok = window.confirm(
-        "Reset acoustic baseline?\n\nThis user will be forced to re-take the standardized acoustic calibration script (EBCP turns 1–4) on their next session. Cannot be undone from the UI."
+        "Reset acoustic baseline?\n\nThis user will be forced to re-take the standardized acoustic calibration script (EBCP turns 1–4) on their next session."
       );
       if (!ok) return;
     }
     setResettingBaseline(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        toast.error("Not authenticated.");
-        return;
-      }
+      // Same auth/proxy pattern as /admin/user/<id>/context — cookie
+      // session, legacy proxyJson on the BFF side. No bearer header
+      // needed from the client.
       const res = await fetch(
-        `/api/v2/admin/users/${encodeURIComponent(userId)}/reset-baseline`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        `/api/admin/users/${encodeURIComponent(userId)}/reset-baseline`,
+        { method: "POST" }
       );
-      const data = (await res.json().catch(() => ({}))) as {
-        code?: string;
-        error?: string;
-      };
+      const data = (await res.json().catch(() => ({}))) as
+        | UserAdminContext
+        | { code?: string; error?: string };
       if (!res.ok) {
-        toast.error(data.error ?? `Reset failed (HTTP ${res.status})`);
+        const errMsg =
+          (data as { error?: string }).error ??
+          `Reset failed (HTTP ${res.status})`;
+        toast.error(errMsg);
         return;
       }
-      toast.success("Baseline reset. User will be recalibrated on next session.");
+      // Apply the freshly-flipped flag(s) to local state without
+      // re-fetching. Backend returns the full UserAdminContext; we
+      // patch only the baseline-related fields onto our cached copy
+      // so other in-flight edits (notes draft, instructions draft)
+      // aren't clobbered.
+      const fresh = data as UserAdminContext;
+      setContext((prev) =>
+        prev
+          ? {
+              ...prev,
+              baseline_established: fresh.baseline_established ?? false,
+              baseline_established_at:
+                fresh.baseline_established_at ?? null,
+            }
+          : fresh
+      );
+      toast.success(
+        "Baseline reset — user runs the EBCP opener next session."
+      );
     } catch (err) {
       console.error("resetBaseline failed:", err);
       toast.error("Couldn't reset baseline.");
@@ -2078,6 +2118,8 @@ export default function AdminUserDetailPage() {
               onDelete={() =>
                 toast.info("Delete flow not wired in this PR")
               }
+              onResetBaseline={() => void resetBaseline()}
+              resettingBaseline={resettingBaseline}
             />
           </div>
         </div>
@@ -2809,46 +2851,6 @@ export default function AdminUserDetailPage() {
                 </p>
               </Card>
             </div>
-
-            {/* Danger Zone — destructive overrides that meaningfully
-                change the user's experience. Sits BELOW the 3-column
-                profile grid as a full-width Card so it visually
-                separates from "edit some text" actions above. */}
-            <Card className="mt-4 rounded-2xl border-destructive/30 bg-destructive/5 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-destructive">
-                    Danger Zone
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    System overrides that change how the user&apos;s next
-                    session boots. These can&apos;t be undone from the UI.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 sm:max-w-xl">
-                  <p className="text-sm font-medium text-foreground">
-                    Reset Acoustic Baseline
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Forces the user to re-take the standardized acoustic
-                    calibration script on their next session. Use this if
-                    their hardware changes or after a long break.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0 border-destructive/50 text-destructive hover:bg-destructive/10"
-                  disabled={resettingBaseline}
-                  onClick={() => void resetBaseline()}
-                >
-                  {resettingBaseline ? "Resetting…" : "Reset Acoustic Baseline"}
-                </Button>
-              </div>
-            </Card>
           </TabsContent>
         </Tabs>
       </main>
