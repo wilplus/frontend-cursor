@@ -308,9 +308,12 @@ function deriveSnippet(s: BackendSnippet): JourneySnippet {
   const type: "charisma" | "stress" =
     s.snippet_type === "stress" ? "stress" : "charisma";
 
-  const badgeLabel = type === "charisma" ? "Charisma" : "Stress Pattern";
+  // Labels match the Lovable design — short, brand-consistent copy plus
+  // the leading flame/droplet icon that's rendered by <SnippetCard/>.
+  const badgeLabel =
+    type === "charisma" ? "Charisma Highlight" : "Stress Indicator";
   const ctaLabel =
-    type === "charisma" ? "Try this hook again" : "Reframe this stressor";
+    type === "charisma" ? "Understand your charisma" : "Release your stress";
 
   return {
     id: s.id,
