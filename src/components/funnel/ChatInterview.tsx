@@ -65,6 +65,16 @@ interface ChatMessage {
    * so the LLM doesn't see N entries for one logical message.
    */
   isChunkContinuation?: boolean;
+  /**
+   * Whisper transcript of a user audio answer — attached when the
+   * upload-answer response lands. buildPreviousTurns pairs this with
+   * the immediately-preceding bot question so the LLM gets the full
+   * Q→A chain in `previous_turns`, not just the questions. Required
+   * for the backend's "Anti-Parrot" directive (build upon a specific
+   * element from the user's most recent answer); without it the
+   * model only sees its own questions and ends up repeating itself.
+   */
+  transcript?: string | null;
 }
 
 interface ChatInterviewProps {
@@ -425,12 +435,43 @@ export default function ChatInterview({
   const buildPreviousTurns = useCallback(
     (): { question: string; transcript?: string }[] => {
       const turns: { question: string; transcript?: string }[] = [];
+      // Pair each canonical bot question with the transcript of the
+      // user's NEXT answer. The transcript may be missing for the
+      // most-recent turn — callers (proceedToNextQuestion) override
+      // it with the just-uploaded transcript since setMessages is
+      // async and the new transcript isn't in `messages` yet at the
+      // moment buildPreviousTurns runs.
+      let pendingQuestion: string | null = null;
       for (const msg of messages) {
-        if (msg.type !== "bot") continue;
         if (msg.id === "farewell") continue;
         if (msg.isChunkContinuation) continue;
-        const text = msg.fullText ?? msg.content;
-        if (text) turns.push({ question: text });
+
+        if (msg.type === "bot") {
+          // Two bot messages in a row (e.g. an onboarding chain that
+          // wasn't broken up by a user answer): flush the previous
+          // question with no transcript so the LLM sees what's been
+          // asked, then take the new one as pending.
+          if (pendingQuestion != null) {
+            turns.push({ question: pendingQuestion });
+          }
+          pendingQuestion = msg.fullText ?? msg.content ?? null;
+          continue;
+        }
+
+        if (msg.type === "user" && pendingQuestion != null) {
+          const t = msg.transcript?.trim();
+          turns.push({
+            question: pendingQuestion,
+            transcript: t ? t : undefined,
+          });
+          pendingQuestion = null;
+        }
+      }
+      // Trailing bot question with no user answer yet (e.g. the
+      // current turn is still being recorded). Include it so the LLM
+      // knows what it just asked.
+      if (pendingQuestion != null) {
+        turns.push({ question: pendingQuestion });
       }
       return turns;
     },
@@ -737,6 +778,23 @@ export default function ChatInterview({
         });
 
         const transcript = result.transcript?.trim() ?? "";
+
+        // Hit-through onto the rating audio bubble so the upcoming
+        // proceedToNextQuestion (fired after the rating round-trip
+        // by submitSelfRating) sees the rating in previous_turns too.
+        if (transcript) {
+          setMessages((prev) => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              if (prev[i].type === "user" && prev[i].transcript == null) {
+                const next = [...prev];
+                next[i] = { ...next[i], transcript };
+                return next;
+              }
+            }
+            return prev;
+          });
+        }
+
         await submitSelfRating(transcript);
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
@@ -804,6 +862,26 @@ export default function ChatInterview({
         const backendTotal = result.total_session_duration_seconds;
         const effectiveTotal = Math.max(backendTotal, clientDurationRef.current);
         setTotalDuration(effectiveTotal);
+
+        // Persist Whisper's transcript onto the most-recent user
+        // message so buildPreviousTurns on the NEXT call sees the
+        // full Q→A chain (not just the current turn's). The
+        // immediately-following proceedToNextQuestion call still
+        // also passes `result.transcript` explicitly to handle the
+        // setState-is-async timing race within this same tick.
+        if (result.transcript) {
+          const finalTranscript = result.transcript;
+          setMessages((prev) => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              if (prev[i].type === "user" && prev[i].transcript == null) {
+                const next = [...prev];
+                next[i] = { ...next[i], transcript: finalTranscript };
+                return next;
+              }
+            }
+            return prev;
+          });
+        }
 
         // Check threshold — graceful exit with farewell message
         if (effectiveTotal >= AGGREGATE_THRESHOLD_SECONDS) {
