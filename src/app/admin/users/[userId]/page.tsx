@@ -1717,45 +1717,24 @@ export default function AdminUserDetailPage() {
     }
     setResettingBaseline(true);
     try {
-      // Same auth/proxy pattern as /admin/user/<id>/context — cookie
-      // session, legacy proxyJson on the BFF side. No bearer header
-      // needed from the client.
-      const res = await fetch(
-        `/api/admin/users/${encodeURIComponent(userId)}/reset-baseline`,
-        { method: "POST" }
-      );
-      const data = (await res.json().catch(() => ({}))) as
-        | UserAdminContext
-        | { code?: string; error?: string };
-      if (!res.ok) {
-        const errMsg =
-          (data as { error?: string }).error ??
-          `Reset failed (HTTP ${res.status})`;
-        toast.error(errMsg);
-        return;
-      }
-      // Apply the freshly-flipped flag(s) to local state without
-      // re-fetching. Backend returns the full UserAdminContext; we
-      // patch only the baseline-related fields onto our cached copy
-      // so other in-flight edits (notes draft, instructions draft)
-      // aren't clobbered.
-      const fresh = data as UserAdminContext;
-      setContext((prev) =>
-        prev
-          ? {
-              ...prev,
-              baseline_established: fresh.baseline_established ?? false,
-              baseline_established_at:
-                fresh.baseline_established_at ?? null,
-            }
-          : fresh
-      );
+      // adminApi.resetBaseline POSTs /api/admin/users/<id>/reset-baseline
+      // (cookie session, plural "users" per backend convention).
+      const r = await adminApi.resetBaseline(userId);
+      // The Phase 12/13 reset response doesn't echo a UserAdminContext —
+      // it returns just the flipped flag. The legacy `context` shape
+      // (notes, instructions) is unaffected, so we don't refetch here;
+      // the success toast carries the confirmation. If a "Phase 13
+      // status" indicator gets added to the user block later, swap to a
+      // refetch via getUserAdminContext(userId).
       toast.success(
-        "Baseline reset — user runs the EBCP opener next session."
+        `Baseline reset — user runs the EBCP opener next session. ` +
+          `(baseline_established=${r.baseline_established})`
       );
     } catch (err) {
       console.error("resetBaseline failed:", err);
-      toast.error("Couldn't reset baseline.");
+      toast.error(
+        `Reset failed: ${err instanceof Error ? err.message : String(err)}`
+      );
     } finally {
       setResettingBaseline(false);
     }

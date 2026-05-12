@@ -2822,4 +2822,124 @@ export const adminApi = {
       `/students/${userId}/coach-suggestions/history`,
       { method: "DELETE" }
     ),
+
+  // ── Phase 12 / 13 — Admin user multi-session view + EBCP reset ──
+  //
+  // /admin/user/<id>/context (SINGULAR) is the longitudinal view —
+  // the full {user, sessions[]} payload that backs /admin/users/[id].
+  // /admin/users/<id>/reset-baseline (PLURAL) is part of the
+  // "bulk admin operations on the user record" cluster. Don't
+  // normalise — Flask is registered for the asymmetry. See the
+  // Phase 12/13 catch-up doc §1.
+
+  getUserContext: (userId: string) =>
+    adminFetch<AdminUserContextPayload>(`/user/${userId}/context`),
+
+  updateUserContext: (userId: string, patch: AdminUserContextUpdate) =>
+    adminFetch<AdminUserContextPayload>(`/user/${userId}/context`, {
+      method: "PUT",
+      body: patch,
+    }),
+
+  resetBaseline: (userId: string) =>
+    adminFetch<ResetBaselineResponse>(
+      `/users/${userId}/reset-baseline`,
+      { method: "POST" }
+    ),
 };
+
+/* -------------------------------------------------------------------------- */
+/*  Phase 12 / 13 admin user-context types                                    */
+/*                                                                            */
+/*  Drive the multi-session admin view at /admin/users/[id]. Replace the      */
+/*  legacy `getStudentProfile` shape for the "user view" — sessions list,     */
+/*  per-session metrics + chat + snippets, plus the editable admin fields    */
+/*  (LLM instructions, private notes, queued override, coach override).      */
+/* -------------------------------------------------------------------------- */
+
+export interface AdminUserContextUser {
+  id: string;
+  email: string | null;
+  name: string | null;
+
+  // Free-text admin tools (PUT-able via updateUserContext)
+  custom_llm_instructions: string | null;
+  private_admin_notes: string | null;
+  /** Injected as the next bot turn, then cleared server-side. */
+  queued_override_question: string | null;
+
+  // Behavioral classification
+  /** Effective profile: override OR auto. */
+  behavioral_profile: string | null;
+  /** Raw AI classification, even when overridden. */
+  behavioral_profile_auto: string | null;
+  behavioral_profile_source: "auto" | "admin_override";
+  /** Admin's manual override. null = use auto. */
+  coach_override_profile: string | null;
+
+  // Inferred learner profile (derived from coaching attempts)
+  inferred_learner_profile: Record<string, unknown> | null;
+  admin_profile_override_active: boolean;
+  admin_profile_override_set_at: string | null;
+}
+
+export interface AdminUserContextSnippet {
+  id: string | null;
+  turn_number: number | null;
+  /** Display range "mm:ss - mm:ss". */
+  range: string | null;
+  wpm: number | null;
+  pitch: number | null;
+  type: "charisma" | "stress" | "unlabeled";
+  status: "raw" | "saved" | "published" | "skipped";
+  admin_comment: string | null;
+  ai_draft_admin_comment: string | null;
+  follow_up_question: string | null;
+  ai_draft_follow_up_question: string | null;
+  transcript: string | null;
+  is_skipped: boolean;
+}
+
+export interface AdminUserContextChatTurn {
+  from: "bot" | "user";
+  text: string;
+  turn_number: number | null;
+  snippet_id: string | null;
+}
+
+export interface AdminUserContextSession {
+  id: string | null;
+  created_at: string;
+  /** Pre-formatted display, e.g. "12 May 2026". */
+  date: string | null;
+  /** "8.5/10" style. */
+  score: string | null;
+  status: "Pending Review" | "Completed";
+  summary: string | null;
+  metrics: Array<{ label: string; value: string }>;
+  snippets: AdminUserContextSnippet[];
+  /** Oldest first. */
+  chat: AdminUserContextChatTurn[];
+}
+
+export interface AdminUserContextPayload {
+  user: AdminUserContextUser;
+  /** Newest first. */
+  sessions: AdminUserContextSession[];
+}
+
+/** PUT body — every field optional, only included keys are written.
+ *  null clears. */
+export interface AdminUserContextUpdate {
+  custom_llm_instructions?: string | null;
+  private_admin_notes?: string | null;
+  queued_override_question?: string | null;
+  coach_override_profile?: string | null;
+}
+
+export interface ResetBaselineResponse {
+  status: "ok";
+  user_id: string;
+  baseline_established: false;
+  baseline_established_at: null;
+}
