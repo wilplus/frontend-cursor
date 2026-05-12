@@ -67,7 +67,19 @@ function CompletedResultsView({
         }
 
         const data = await response.json();
-        setSnippets(data.snippets || []);
+        // Filter to publishable snippets only — same rule as the /results
+        // timeline. A snippet is shown only if the coach left a comment
+        // (`admin_comment`) AND the clip is playable
+        // (`audio_segment_path` or backend-resolved `audio_url`). Empty
+        // placeholder cards are never rendered.
+        const all = (data.snippets || []) as Snippet[];
+        setSnippets(
+          all.filter(
+            (s) =>
+              !!(s.admin_comment && s.admin_comment.trim()) &&
+              !!(s.audio_segment_path || (s as Snippet & { audio_url?: string }).audio_url)
+          )
+        );
       } catch (err) {
         console.error("Error fetching snippets:", err);
         setError("An error occurred while loading your snippets.");
