@@ -1413,6 +1413,24 @@ export default function AdminUserDetailPage() {
       toast.error("No session available");
       return;
     }
+
+    // The /results page only renders snippets where admin_comment is
+    // non-empty (db.py::get_snippets_with_comments_by_session). If no
+    // snippet has a comment yet, publishing emails the user a link to
+    // a page that will appear empty — almost never what the admin
+    // wants. Confirm before continuing.
+    const commentedCount = sessionSnippets.reduce(
+      (n, s) => (s.admin_comment && s.admin_comment.trim() ? n + 1 : n),
+      0
+    );
+    if (commentedCount === 0) {
+      const ok = window.confirm(
+        "No snippets have a coach comment yet — the user's /results page " +
+          "will appear empty. Publish and send the email anyway?"
+      );
+      if (!ok) return;
+    }
+
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -1436,7 +1454,7 @@ export default function AdminUserDetailPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Publish failed");
     }
-  }, [latestSession]);
+  }, [latestSession, sessionSnippets]);
 
 
   /* -------------------------------------------------------------------- */
