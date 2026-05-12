@@ -1,27 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
+const BFF_REVISION = "user-self-rating-v2";
+
 /**
- * POST /api/v2/user/coaching/self-rating
+ * POST /api/user/coaching/self-rating
  *
- * Persists the user's 1..10 self-rating for their most-recent (or
- * explicit `attempt_number`) coaching attempt on a snippet. Used by
- * the in-chat rating prompt that appears after turn 1 of a contextual
- * chat — see <ChatInterview/> in src/components/funnel/.
+ * Persists the user's 1..10 self-rating for their most-recent
+ * coaching attempt on a snippet. Wired to the in-chat "vibe check"
+ * composer that appears after turn 1 of a contextual chat — see
+ * <ChatInterview/> in src/components/funnel/.
  *
- * Proxies to backend POST /v2/user/coaching/self-rating. The backend
- * accepts EITHER a parsed `rating` (number, 1..10) or a free-text
- * `rating_text` ("I'd say 8"), and returns RATING_UNPARSEABLE (400)
- * when neither form yields a 1..10. We pass either shape through
- * verbatim so the parser stays canonical on the backend.
+ * Proxies to backend POST /v2/user/coaching/self-rating. Forwards
+ * the body verbatim (the backend is the canonical rating_text
+ * parser; local pre-validation would just risk drifting). Sends the
+ * `bff_revision` header so backend + frontend logs can be correlated
+ * to a specific BFF version when a regression rolls out.
  *
  * Success 200: { status, snippet_id, attempt_number, self_rating,
  *                self_rating_text, self_rating_submitted_at }
  * 400 INVALID_INPUT | RATING_UNPARSEABLE
+ *     RATING_UNPARSEABLE → frontend shows the inline "I didn't
+ *     catch a number — could you try again with just 1–10?" bubble
+ *     and re-arms the composer.
  * 401 UNAUTHENTICATED
  * 404 NOT_FOUND — snippet doesn't belong to caller
  * 425 ATTEMPT_NOT_READY — eval daemon hasn't written the row yet;
- *     client retries with backoff (handled in ChatInterview).
+ *     client retries at +2s, +5s, then soft-fails.
  * 503 — backend unavailable
  */
 export async function POST(req: NextRequest) {
@@ -42,9 +47,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Forward whatever JSON the client sent — backend is the canonical
-    // validator for snippet_id / rating / rating_text shape. Local
-    // pre-validation would just duplicate that logic and risk drifting.
     const body = await req.json().catch(() => ({}));
 
     const upstream = await fetch(`${backend}/v2/user/coaching/self-rating`, {
@@ -53,6 +55,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         Accept: "application/json",
+        bff_revision: BFF_REVISION,
       },
       body: JSON.stringify(body ?? {}),
       cache: "no-store",
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
       {
         code: "BFF_THROWN",
         error: `BFF threw: ${name}: ${message}`,
-        bff_revision: "user-self-rating-v1",
+        bff_revision: BFF_REVISION,
       },
       { status: 500 }
     );
