@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ChevronDown,
   Droplet,
   EyeOff,
   Flame,
@@ -16,6 +17,7 @@ import {
   Plus,
   Send,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1039,14 +1041,39 @@ export default function AdminUserDetailPage() {
   /* Latest session + metrics                                              */
   /* -------------------------------------------------------------------- */
 
-  const latestSession: SessionRow | null = useMemo(() => {
-    const sorted = [...(profile?.sessions ?? [])].sort((a, b) =>
+  /**
+   * Full session list, sorted latest-first per backend contract
+   * (index 0 = newest). Drives both the Tab-1 accordion and the
+   * Tab-2 multi-session chat.
+   */
+  const sessions: SessionRow[] = useMemo(() => {
+    return [...(profile?.sessions ?? [])].sort((a, b) =>
       (b.completed_at || b.created_at || "").localeCompare(
         a.completed_at || a.created_at || ""
       )
     );
-    return sorted[0] ?? null;
   }, [profile]);
+
+  /** The latest (newest) session, used for the "Latest" badge. */
+  const latestSession: SessionRow | null = sessions[0] ?? null;
+
+  /**
+   * Tab-1 accordion: id of the currently expanded session. Defaults
+   * to the latest once the sessions list arrives. Clicking a header
+   * toggles to "" (closed) or another session id. The detail fetch
+   * useEffect below keys on the resulting `activeSession`, so
+   * opening another accordion re-fetches its detail in one go.
+   */
+  const [openId, setOpenId] = useState<string>("");
+  useEffect(() => {
+    if (!openId && latestSession?.id) setOpenId(latestSession.id);
+  }, [openId, latestSession?.id]);
+
+  /** The session whose detail is currently loaded into state. */
+  const activeSession: SessionRow | null = useMemo(
+    () => sessions.find((s) => s.id === openId) ?? latestSession,
+    [sessions, openId, latestSession]
+  );
 
   /**
    * Sort + filter mode for the snippet panel. "default" = chronological
@@ -1062,14 +1089,14 @@ export default function AdminUserDetailPage() {
   >("default");
 
   const sessionSnippets = useMemo(() => {
-    if (!latestSession) return [];
+    if (!activeSession) return [];
     // The snippet panel is a highlight reel — auto-extracted moments
     // produced by services.snippet_truncation, plus student-uploaded
     // clips. Turn rows (turn_number IS NOT NULL) belong in the Chat
     // Transcript / Conversation Timeline. We also exclude legacy
     // path-B rows (turn_number NULL, source_type NULL).
     const filtered = snippets.filter((s) => {
-      if (s.session_id !== latestSession.id) return false;
+      if (s.session_id !== activeSession.id) return false;
       const tn = (s as { turn_number?: number | null }).turn_number;
       if (tn !== null && tn !== undefined) return false;
       const src = (s as { source_type?: string | null }).source_type;
@@ -1105,11 +1132,11 @@ export default function AdminUserDetailPage() {
     // Default chronological order = the order the extractor emitted them
     // (which is already by start_offset_ms ascending on the backend).
     return filtered;
-  }, [snippets, latestSession, snippetSortMode]);
+  }, [snippets, activeSession, snippetSortMode]);
 
   // Fetch timeline (AI summary + interview turns) + recording playback URL
   useEffect(() => {
-    if (!latestSession?.id || !userId) return;
+    if (!activeSession?.id || !userId) return;
     let cancelled = false;
 
     // Timeline + snippets — fetched from the new comprehensive admin
@@ -1124,7 +1151,7 @@ export default function AdminUserDetailPage() {
         const token = await getAuthToken();
         if (!token || cancelled) return;
         const res = await fetch(
-          `/api/v2/admin/sessions/${latestSession.id}`,
+          `/api/v2/admin/sessions/${activeSession.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok || cancelled) return;
@@ -1286,8 +1313,8 @@ export default function AdminUserDetailPage() {
 
     // Recording playback URL
     const recId =
-      (latestSession as Record<string, unknown>).recording_1_id ??
-      (latestSession.recording_preview as Record<string, unknown> | undefined)
+      (activeSession as Record<string, unknown>).recording_1_id ??
+      (activeSession.recording_preview as Record<string, unknown> | undefined)
         ?.recording_id;
     if (recId && typeof recId === "string") {
       (async () => {
@@ -1312,17 +1339,17 @@ export default function AdminUserDetailPage() {
     }
 
     return () => { cancelled = true; };
-  }, [latestSession, userId]);
+  }, [activeSession, userId]);
 
   /** Aggregate metrics for the latest session, drawn from the row's
    *  recording_preview + sniper_metrics. Anything missing is shown as "—". */
   const sessionMetrics = useMemo(() => {
-    const r = latestSession?.recording_preview ?? {};
-    const sn = latestSession?.sniper_metrics ?? {};
+    const r = activeSession?.recording_preview ?? {};
+    const sn = activeSession?.sniper_metrics ?? {};
     const num = (v: unknown, decimals = 0): string =>
       typeof v === "number" && Number.isFinite(v) ? v.toFixed(decimals) : "—";
     const wpm =
-      r?.words_per_minute ?? r?.wpm ?? sn?.wpm ?? latestSession?.words_per_minute ?? null;
+      r?.words_per_minute ?? r?.wpm ?? sn?.wpm ?? activeSession?.words_per_minute ?? null;
     const fillers = r?.filler_words_count?.total ?? null;
     const pauseSec = sn?.pause_ms != null ? sn.pause_ms / 1000 : null;
     const dynamicDb = sn?.dynamic_db ?? null;
@@ -1339,7 +1366,7 @@ export default function AdminUserDetailPage() {
         value: energyRatio == null ? "—" : `${Math.round(energyRatio * 100)}%`,
       },
     ];
-  }, [latestSession]);
+  }, [activeSession]);
 
   /* -------------------------------------------------------------------- */
   /* Save handlers                                                          */
@@ -1366,7 +1393,7 @@ export default function AdminUserDetailPage() {
    *   }
    */
   const computeMetrics = useCallback(async () => {
-    if (!latestSession?.id || computingMetrics) return;
+    if (!activeSession?.id || computingMetrics) return;
     setComputingMetrics(true);
     try {
       const token = await getAuthToken();
@@ -1375,7 +1402,7 @@ export default function AdminUserDetailPage() {
         return;
       }
       const res = await fetch(
-        `/api/v2/admin/sessions/${latestSession.id}/compute-metrics`,
+        `/api/v2/admin/sessions/${activeSession.id}/compute-metrics`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -1412,7 +1439,7 @@ export default function AdminUserDetailPage() {
     } finally {
       setComputingMetrics(false);
     }
-  }, [latestSession?.id, computingMetrics]);
+  }, [activeSession?.id, computingMetrics]);
 
   const saveNotes = useCallback(async () => {
     setSavingNotes(true);
@@ -1673,7 +1700,7 @@ export default function AdminUserDetailPage() {
   }, [snippets]);
 
   const handlePublish = useCallback(async () => {
-    if (!latestSession) {
+    if (!activeSession) {
       toast.error("No session available");
       return;
     }
@@ -1707,7 +1734,7 @@ export default function AdminUserDetailPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ session_id: latestSession.id }),
+        body: JSON.stringify({ session_id: activeSession.id }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -1718,7 +1745,7 @@ export default function AdminUserDetailPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Publish failed");
     }
-  }, [latestSession, sessionSnippets]);
+  }, [activeSession, sessionSnippets]);
 
 
   /* -------------------------------------------------------------------- */
@@ -1759,7 +1786,7 @@ export default function AdminUserDetailPage() {
             <Button
               type="button"
               onClick={handlePublish}
-              disabled={!latestSession}
+              disabled={!activeSession}
               className="rounded-full px-5"
             >
               Publish Results
@@ -1791,24 +1818,115 @@ export default function AdminUserDetailPage() {
             <TabsTrigger value="profile">Long-Term Profile</TabsTrigger>
           </TabsList>
 
-          {/* ---------------- TAB 1 — Sessions & Analysis ---------------- */}
-          <TabsContent value="sessions" className="space-y-6">
+          {/* ---------------- TAB 1 — Sessions accordion -----------------
+              Each entry in `sessions` (sorted latest-first per backend
+              contract) becomes a Card with a clickable header. Opening
+              one closes any other and re-keys the detail fetch to the
+              new session's id via the `openId` → `activeSession`
+              wiring above. The body inside the open branch is the
+              "SessionBody" presenter region — same metrics + audio +
+              snippets layout, now driven by activeSession instead of
+              latestSession everywhere. */}
+          <TabsContent value="sessions" className="space-y-3">
+            {sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {loading ? "Loading sessions…" : "No sessions yet."}
+              </p>
+            ) : (
+              sessions.map((s, idx) => {
+                const isOpen = openId === s.id;
+                const isLatest = idx === 0;
+                const statusRaw = (s.status ?? "").toLowerCase();
+                const isCompleted = statusRaw === "completed";
+                const statusLabel = isCompleted ? "Completed" : "Pending Review";
+                const statusClasses = isCompleted
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-primary/10 text-primary border-primary/20";
+                // Per-session snippet count — same filter as
+                // sessionSnippets (auto-extracted or student-uploaded,
+                // turn_number IS NULL).
+                const snippetCount = snippets.filter((sn) => {
+                  if (sn.session_id !== s.id) return false;
+                  const tn = (sn as { turn_number?: number | null })
+                    .turn_number;
+                  if (tn !== null && tn !== undefined) return false;
+                  const src = (sn as { source_type?: string | null })
+                    .source_type;
+                  return src === "auto_extracted" || src === "student";
+                }).length;
+                const headerScore =
+                  s.score != null ? String(s.score) : "—";
+
+                return (
+                  <Card
+                    key={s.id}
+                    className="rounded-2xl border-border overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(isOpen ? "" : s.id)}
+                      className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="text-sm font-medium text-foreground">
+                          Session —{" "}
+                          {formatSessionDate(s.completed_at ?? s.created_at)}
+                        </span>
+                        {isLatest && (
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/20"
+                          >
+                            Latest
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                        <Badge variant="outline" className="bg-muted">
+                          Score: {headerScore}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="bg-muted hidden sm:inline-flex"
+                        >
+                          {snippetCount} snippets
+                        </Badge>
+                        <Badge variant="outline" className={statusClasses}>
+                          {statusLabel}
+                        </Badge>
+                        <ChevronDown
+                          className={cn(
+                            "h-5 w-5 text-muted-foreground transition-transform",
+                            isOpen && "rotate-180"
+                          )}
+                          aria-hidden
+                        />
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="space-y-6 border-t border-border/60 px-5 pb-6 pt-6">
+                        {/* === SessionBody — renders for the active
+                            session. The fetch useEffect above keys on
+                            activeSession?.id, so opening a different
+                            accordion re-fetches detail into the same
+                            state slots before this body re-renders. */}
             {/* Session header row */}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-base font-medium">
                 Session Date:{" "}
                 <span className="text-muted-foreground">
                   {formatSessionDate(
-                    latestSession?.completed_at ?? latestSession?.created_at
+                    activeSession?.completed_at ?? activeSession?.created_at
                   )}
                 </span>
               </p>
               <Badge
                 variant={
-                  latestSession?.status === "completed" ? "success" : "default"
+                  activeSession?.status === "completed" ? "success" : "default"
                 }
               >
-                {latestSession?.status ?? (loading ? "loading…" : "no session")}
+                {activeSession?.status ?? (loading ? "loading…" : "no session")}
               </Badge>
             </div>
 
@@ -1833,7 +1951,7 @@ export default function AdminUserDetailPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => void computeMetrics()}
-                  disabled={computingMetrics || !latestSession?.id}
+                  disabled={computingMetrics || !activeSession?.id}
                   className="rounded-full"
                 >
                   {computingMetrics ? "Computing…" : "Compute Metrics"}
@@ -1928,15 +2046,15 @@ export default function AdminUserDetailPage() {
             <Card className="rounded-2xl border-border p-5">
               <h3 className="mb-3 text-base font-semibold">
                 Full Recording
-                {latestSession?.recording_preview?.duration_ms != null
-                  ? ` — ${formatRange(0, latestSession.recording_preview.duration_ms).split(" – ")[1]}`
+                {activeSession?.recording_preview?.duration_ms != null
+                  ? ` — ${formatRange(0, activeSession.recording_preview.duration_ms).split(" – ")[1]}`
                   : ""}
               </h3>
               <AudioPlayer
                 src={recordingUrl}
                 duration={
-                  latestSession?.recording_preview?.duration_ms != null
-                    ? `${(latestSession.recording_preview.duration_ms / 1000).toFixed(0)}s`
+                  activeSession?.recording_preview?.duration_ms != null
+                    ? `${(activeSession.recording_preview.duration_ms / 1000).toFixed(0)}s`
                     : undefined
                 }
               />
@@ -2102,20 +2220,73 @@ export default function AdminUserDetailPage() {
                 ))
               )}
             </div>
+                        {/* === /SessionBody === */}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })
+            )}
           </TabsContent>
 
-          {/* ---------------- TAB 2 — Chat Transcript & Override --------- */}
-          <TabsContent value="transcript" className="space-y-6">
-            <Card className="rounded-2xl border-border p-5">
-              <h3 className="mb-1 text-base font-semibold">
-                Conversation Transcript
-              </h3>
-              <p className="mb-4 text-sm text-muted-foreground">
-                The Q&amp;A flow from the user&apos;s most recent interview.
-              </p>
-              <div className="space-y-3">
-                {interviewTurns.length > 0 ? (
-                  interviewTurns.map((turn, idx) => {
+          {/* ---------------- TAB 2 — Multi-session chat + override ------
+              Reverses the latest-first `sessions` list into chronological
+              order, then for each one renders a "Session: {date}"
+              divider followed by its transcript. Only the currently
+              active session has interview turns loaded into state
+              today — the other sessions render the divider with a
+              hint to expand them in Tab 1 so their detail is fetched.
+              (Multi-session bulk fetch is the natural next pass.)
+              The override input is a sticky-bottom sibling inside the
+              same CardContent, NOT inside the scroll region, so it
+              stays pinned as the chat scrolls. */}
+          <TabsContent value="transcript">
+            <Card className="rounded-2xl border-border">
+              <CardContent className="p-0">
+                <div className="max-h-[60vh] space-y-6 overflow-y-auto px-6 py-6">
+                  {sessions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {loading ? "Loading sessions…" : "No sessions yet."}
+                    </p>
+                  ) : (
+                    [...sessions].reverse().map((cs) => {
+                      const isActiveSession = cs.id === activeSession?.id;
+                      const sessionTurns = isActiveSession ? interviewTurns : [];
+                      const fallbackPreview =
+                        isActiveSession &&
+                        sessionTurns.length === 0 &&
+                        cs.recording_preview?.transcription_preview
+                          ? cs.recording_preview.transcription_preview
+                          : null;
+                      return (
+                        <div key={cs.id} className="space-y-3">
+                          {/* Date divider */}
+                          <div className="my-2 flex items-center gap-3">
+                            <div className="h-px flex-1 bg-border" />
+                            <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                              Session:{" "}
+                              {formatSessionDate(
+                                cs.completed_at ?? cs.created_at
+                              )}
+                            </span>
+                            <div className="h-px flex-1 bg-border" />
+                          </div>
+
+                          {!isActiveSession ? (
+                            <p className="px-2 text-center text-xs text-muted-foreground">
+                              Open this session in the Sessions tab to load
+                              its transcript.
+                            </p>
+                          ) : sessionTurns.length === 0 && !fallbackPreview ? (
+                            <p className="px-2 text-center text-xs text-muted-foreground">
+                              No interview turns recorded for this session yet.
+                            </p>
+                          ) : sessionTurns.length === 0 && fallbackPreview ? (
+                            <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
+                              {fallbackPreview}
+                            </div>
+                          ) : (
+                            sessionTurns.map((turn, idx) => {
                     const isEditing = editingTurnIdx === idx;
                     const isSavingThis = savingTurnIdx === idx;
                     const canEdit = !!turn.id;
@@ -2213,20 +2384,22 @@ export default function AdminUserDetailPage() {
                         )}
                       </div>
                     );
-                  })
-                ) : latestSession?.recording_preview?.transcription_preview ? (
-                  <div className="rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
-                    {latestSession.recording_preview.transcription_preview}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No interview turns recorded for this session yet.
-                  </p>
-                )}
-              </div>
-            </Card>
+                            })
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
 
-            <OverrideCard userId={userId} />
+                {/* Sticky-bottom override input — sibling to the scroll
+                    region but inside the same CardContent so the card
+                    chrome encloses both. */}
+                <div className="sticky bottom-0 border-t border-border bg-background/95 p-4 backdrop-blur">
+                  <OverrideCard userId={userId} />
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* ---------------- TAB 3 — Long-Term Profile ------------------ */}
