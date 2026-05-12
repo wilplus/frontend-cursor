@@ -2851,42 +2851,128 @@ export default function AdminUserDetailPage() {
  * ------------------------------------------------------------------------- */
 
 function OverrideCard({ userId }: { userId: string }) {
+  const [queued, setQueued] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const queue = async () => {
-    if (!draft.trim()) return;
-    try {
-      // Stored against the user's custom_instructions for now — backend can
-      // promote this to a per-turn override queue when ready.
-      await updateUserAdminContext(userId, {
-        custom_instructions: draft,
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const hasQueued = !!queued && queued.trim().length > 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi
+      .getUserContext(userId)
+      .then((payload) => {
+        if (!cancelled)
+          setQueued(payload.user?.queued_override_question ?? null);
+      })
+      .catch(() => {
+        // Show empty state rather than blocking the UI; admin can still queue.
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      toast.success("Queued — will be used on the next AI question");
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const submit = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    try {
+      const next = await adminApi.updateUserContext(userId, {
+        queued_override_question: trimmed,
+      });
+      setQueued(next.user?.queued_override_question ?? null);
+      toast.success(
+        hasQueued
+          ? "Updated — will be used on the next AI question"
+          : "Queued — will be used on the next AI question"
+      );
       setDraft("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to queue");
+    } finally {
+      setSaving(false);
     }
   };
+
+  const clear = async () => {
+    setSaving(true);
+    try {
+      const next = await adminApi.updateUserContext(userId, {
+        queued_override_question: null,
+      });
+      setQueued(next.user?.queued_override_question ?? null);
+      toast.success("Cleared the queued question");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to clear");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Card className="rounded-2xl border-border p-5">
       <h3 className="text-base font-semibold">Override Next AI Question</h3>
       <p className="mb-4 text-sm text-muted-foreground">
-        Queue a specific question for the AI to ask next. Persists in the
-        user&apos;s LLM instructions until the next session consumes it.
+        Queue a specific question for the AI to ask next. The backend pops and
+        clears it on the next chat or interview turn.
       </p>
+
+      {hasQueued ? (
+        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+            Currently queued
+          </p>
+          <p className="mb-3 whitespace-pre-wrap text-sm text-foreground">
+            {queued}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => setDraft(queued ?? "")}
+              disabled={saving}
+            >
+              Edit
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-full text-destructive hover:bg-destructive/10"
+              onClick={() => void clear()}
+              disabled={saving}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex gap-2">
         <Input
-          placeholder='e.g. "Ask about their last public-speaking experience"'
+          placeholder={
+            loading
+              ? "Loading current queue…"
+              : 'e.g. "Ask about their last public-speaking experience"'
+          }
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          disabled={loading || saving}
         />
         <Button
           type="button"
-          onClick={() => void queue()}
-          disabled={!draft.trim()}
+          onClick={() => void submit()}
+          disabled={!draft.trim() || loading || saving}
           className="gap-1.5 rounded-full"
         >
           <Send className="h-4 w-4" />
-          Queue
+          {hasQueued ? "Update" : "Queue"}
         </Button>
       </div>
     </Card>
