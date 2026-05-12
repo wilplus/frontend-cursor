@@ -1034,26 +1034,64 @@ export default function AdminUserDetailPage() {
     return sorted[0] ?? null;
   }, [profile]);
 
+  /**
+   * Sort + filter mode for the snippet panel. "default" = chronological
+   * (by start_offset_ms, matching how the timeline reads); "score_desc"
+   * surfaces what worked best; "score_asc" surfaces what didn't — useful
+   * for finding comments that produced weak coaching that the admin
+   * might rewrite. "needs_outcome" hides snippets that already have a
+   * post-turn-1 outcome, so the admin can focus on cards still waiting
+   * for user engagement.
+   */
+  const [snippetSortMode, setSnippetSortMode] = useState<
+    "default" | "score_desc" | "score_asc" | "needs_outcome"
+  >("default");
+
   const sessionSnippets = useMemo(() => {
     if (!latestSession) return [];
     // The snippet panel is a highlight reel — auto-extracted moments
     // produced by services.snippet_truncation, plus student-uploaded
     // clips. Turn rows (turn_number IS NOT NULL) belong in the Chat
     // Transcript / Conversation Timeline. We also exclude legacy
-    // path-B rows (turn_number NULL, source_type NULL) — those are
-    // stale leftovers from older code paths and the user reported them
-    // showing up as bogus "duplicate" cards alongside the real
-    // highlights.
-    return snippets.filter((s) => {
+    // path-B rows (turn_number NULL, source_type NULL).
+    const filtered = snippets.filter((s) => {
       if (s.session_id !== latestSession.id) return false;
       const tn = (s as { turn_number?: number | null }).turn_number;
       if (tn !== null && tn !== undefined) return false;
       const src = (s as { source_type?: string | null }).source_type;
-      // Recognised origin tags for a highlight card. Anything else
-      // (NULL, unknown extractor variants) is legacy noise we hide.
       return src === "auto_extracted" || src === "student";
     });
-  }, [snippets, latestSession]);
+
+    const scoreOf = (s: AdminSnippet): number | null => {
+      const raw = s.follow_up_outcome?.score;
+      if (raw === null || raw === undefined) return null;
+      const v = Number(raw);
+      return Number.isFinite(v) ? v : null;
+    };
+
+    if (snippetSortMode === "needs_outcome") {
+      return filtered.filter((s) => scoreOf(s) === null);
+    }
+
+    if (snippetSortMode === "score_desc" || snippetSortMode === "score_asc") {
+      const dir = snippetSortMode === "score_desc" ? -1 : 1;
+      // Snippets without an outcome sink to the bottom in both
+      // directions — neither "best" nor "worst" coaching has been
+      // demonstrated, so they don't belong at either extreme.
+      return [...filtered].sort((a, b) => {
+        const sa = scoreOf(a);
+        const sb = scoreOf(b);
+        if (sa === null && sb === null) return 0;
+        if (sa === null) return 1;
+        if (sb === null) return -1;
+        return dir * (sa - sb);
+      });
+    }
+
+    // Default chronological order = the order the extractor emitted them
+    // (which is already by start_offset_ms ascending on the backend).
+    return filtered;
+  }, [snippets, latestSession, snippetSortMode]);
 
   // Fetch timeline (AI summary + interview turns) + recording playback URL
   useEffect(() => {
@@ -1872,11 +1910,41 @@ export default function AdminUserDetailPage() {
 
             {/* Snippets list — visually nested under the timeline */}
             <div className="pl-6 border-l-2 border-primary/20 space-y-4">
+              {/* Sort / filter control. Default is chronological;
+                  "score_desc" lets the admin see which comments produced
+                  the most engaged user answers; "score_asc" inverts to
+                  surface coaching that fell flat (worth rewriting);
+                  "needs_outcome" hides snippets the user has already
+                  responded to so the admin can focus on cards still
+                  waiting for engagement. */}
+              <div className="flex items-center justify-between gap-3 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Sort
+                </span>
+                <select
+                  value={snippetSortMode}
+                  onChange={(e) =>
+                    setSnippetSortMode(
+                      e.target.value as typeof snippetSortMode
+                    )
+                  }
+                  className="rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground hover:bg-muted/50 transition-colors"
+                  aria-label="Sort snippets"
+                >
+                  <option value="default">Chronological</option>
+                  <option value="score_desc">Top coaching outcomes first</option>
+                  <option value="score_asc">Weak outcomes first (to rewrite)</option>
+                  <option value="needs_outcome">Waiting for user response</option>
+                </select>
+              </div>
+
               {sessionSnippets.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {loading
                     ? "Loading snippets…"
-                    : "No snippets extracted for this session yet."}
+                    : snippetSortMode === "needs_outcome"
+                      ? "All snippets for this session already have a user response."
+                      : "No snippets extracted for this session yet."}
                 </p>
               ) : (
                 sessionSnippets.map((s) => (
