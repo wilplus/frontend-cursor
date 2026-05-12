@@ -1231,11 +1231,20 @@ export default function AdminUserDetailPage() {
    * toggles to "" (closed) or another session id. The detail fetch
    * useEffect below keys on the resulting `activeSession`, so
    * opening another accordion re-fetches its detail in one go.
+   *
+   * The auto-open only fires once per mount (didAutoOpenRef). Otherwise
+   * collapsing the latest session would immediately re-open it on the
+   * next render because openId went back to "".
    */
   const [openId, setOpenId] = useState<string>("");
+  const didAutoOpenRef = useRef(false);
   useEffect(() => {
-    if (!openId && latestSession?.id) setOpenId(latestSession.id);
-  }, [openId, latestSession?.id]);
+    if (didAutoOpenRef.current) return;
+    if (latestSession?.id) {
+      setOpenId(latestSession.id);
+      didAutoOpenRef.current = true;
+    }
+  }, [latestSession?.id]);
 
   /** The session whose detail is currently loaded into state. */
   const activeSession: SessionRow | null = useMemo(
