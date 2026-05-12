@@ -50,6 +50,13 @@ export default function ChatPageClient({
     tone: "charisma" | "stress";
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  /**
+   * Captured at first-question fetch time so ChatInterview can forward
+   * it to upload-answer for the backend's contextual-chat outcome eval
+   * (services/coaching_outcomes.py). Held in state because the chat
+   * mounts asynchronously after the token round-trip.
+   */
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   const fetchedRef = useRef(false);
 
@@ -66,6 +73,10 @@ export default function ChatPageClient({
           );
           return;
         }
+        // Cache for ChatInterview → upload-answer to forward; the
+        // contextual outcome-eval branch on the backend needs a
+        // verified bearer token to derive the user_id.
+        setAuthToken(token);
 
         if (sourceSnippet && intent) {
           const url = `/api/results/chat/first-question?sourceSnippetId=${encodeURIComponent(sourceSnippet)}&intent=${encodeURIComponent(intent)}`;
@@ -160,6 +171,8 @@ export default function ChatPageClient({
             onError={handleError}
             initialQuestion={initialQuestion ?? undefined}
             farewellMessage={farewell}
+            sourceSnippetId={sourceSnippet}
+            authToken={authToken}
           />
         )}
 

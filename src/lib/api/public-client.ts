@@ -197,6 +197,24 @@ export async function uploadInterviewAnswer(
     questionTone: string;
     questionText?: string | null;
     durationSeconds: number | null;
+    /**
+     * Set when this chat was initiated by clicking a CTA on a
+     * published snippet (/chat?sourceSnippet=<id>&intent=…).
+     * Forwarded to the backend so it can score the user's turn-1
+     * answer against the source snippet's admin coach insight and
+     * record the outcome — the first piece of the coaching-effectiveness
+     * learning loop. Only set on turn 1 of contextual chats; ignored
+     * by the regular guest funnel.
+     */
+    sourceSnippetId?: string | null;
+    /**
+     * Authorization header value (e.g. `Bearer <jwt>`). The
+     * upload-answer endpoint is public, but the coaching-outcome
+     * branch needs a verified user_id to owner-scope the source
+     * snippet lookup. When this is omitted the contextual eval is
+     * silently skipped — guest uploads keep working untouched.
+     */
+    authToken?: string | null;
   }
 ): Promise<InterviewUploadResponse> {
   if (blob.size > MAX_AUDIO_BYTES) {
@@ -221,11 +239,27 @@ export async function uploadInterviewAnswer(
   if (opts.durationSeconds != null && Number.isFinite(opts.durationSeconds)) {
     form.append("duration_seconds", String(opts.durationSeconds));
   }
+  if (opts.sourceSnippetId) {
+    form.append("source_snippet_id", opts.sourceSnippetId);
+  }
+
+  // Forward an Authorization header when the caller has one — the
+  // upload-answer endpoint is public, but the coaching-outcome eval
+  // branch on the backend looks for a Bearer token to derive a
+  // verified user_id when source_snippet_id is set. Guest uploads
+  // (no token) keep working exactly as before.
+  const headers: Record<string, string> = {};
+  if (opts.authToken && opts.authToken.trim()) {
+    headers.Authorization = opts.authToken.trim().startsWith("Bearer ")
+      ? opts.authToken.trim()
+      : `Bearer ${opts.authToken.trim()}`;
+  }
 
   let resp: Response;
   try {
     resp = await fetch("/api/public/interview/upload-answer", {
       method: "POST",
+      headers,
       body: form,
     });
   } catch (err) {
