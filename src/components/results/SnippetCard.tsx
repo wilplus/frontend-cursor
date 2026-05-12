@@ -1,67 +1,135 @@
 "use client";
 
-interface SnippetData {
+import { ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import MediaPlayer from "@/components/results/MediaPlayer";
+import AcousticToggle, {
+  type AcousticMetric,
+} from "@/components/results/AcousticToggle";
+
+/**
+ * Voice-Journey snippet shape consumed by the user-facing cards.
+ *
+ * Backend keys are mapped at the page level (see deriveSnippet in
+ * src/app/results/[sessionId]/page.tsx) into this presentation shape
+ * so the card component never has to know about snake_case API
+ * fields.
+ */
+export interface JourneySnippet {
   id: string;
-  session_id: string;
-  user_id: string;
-  recording_id: string;
-  start_offset_ms: number;
-  duration_ms: number;
-  audio_segment_path: string;
-  snippet_type: string;
-  admin_comment: string | null;
-  admin_user_id: string | null;
-  created_at: string;
-  updated_at: string;
+  type: "charisma" | "stress";
+  badgeLabel: string;
+  duration: string;
+  insight: string;
+  ctaLabel: string;
+  metrics: AcousticMetric[];
+  /** Resolved playable URL (may be null on lookup failure). */
+  audioUrl: string | null;
+  /** Slice start inside the source file (ms). */
+  startOffsetMs: number;
+  /** Slice duration (ms). */
+  durationMs: number;
 }
 
 interface SnippetCardProps {
-  snippet: SnippetData;
+  snippet: JourneySnippet;
+  /** Inline `animationDelay` (ms) so the page can stagger entrances. */
+  animationDelayMs?: number;
 }
 
-export default function SnippetCard({ snippet }: SnippetCardProps) {
-  const durationSeconds = (snippet.duration_ms / 1000).toFixed(1);
-  const typeColor =
-    snippet.snippet_type === "charisma"
-      ? "bg-green-100 text-green-800"
-      : snippet.snippet_type === "stress"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-gray-100 text-gray-800";
-
-  const typeLabel =
-    snippet.snippet_type === "charisma"
-      ? "Charisma Moment"
-      : snippet.snippet_type === "stress"
-        ? "Stress Pattern"
-        : "Unlabeled";
+export default function SnippetCard({
+  snippet,
+  animationDelayMs = 0,
+}: SnippetCardProps) {
+  const isCharisma = snippet.type === "charisma";
 
   return (
-    <div className="space-y-4 rounded-xl border bg-card p-6 shadow-sm">
-      {/* Audio Player */}
-      <div>
-        <audio
-          src={snippet.audio_segment_path}
-          controls
-          className="w-full"
-          controlsList="nodownload"
+    <article
+      className="animate-fade-in-up rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+      style={{ animationDelay: `${animationDelayMs}ms` }}
+    >
+      {/* Top row: badge (left) + duration (right) */}
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium",
+            isCharisma
+              ? // Spec exception: emerald is the only raw-Tailwind colour
+                // allowed (no green token in the design system).
+                "bg-emerald-100 text-emerald-800"
+              : "border border-destructive/30 bg-destructive/5 text-destructive"
+          )}
+        >
+          {snippet.badgeLabel}
+        </span>
+        <span className="text-xs text-muted-foreground">{snippet.duration}</span>
+      </div>
+
+      {/* Coach's Insight */}
+      <p className="mt-4 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Coach&apos;s Insight
+      </p>
+      <p className="mt-1 text-base leading-relaxed text-foreground">
+        {snippet.insight}
+      </p>
+
+      {/* Media player — clamps to start_offset_ms / duration_ms when
+          the URL is a concat'd full.webm file. */}
+      <div className="mt-5">
+        <MediaPlayer
+          src={snippet.audioUrl}
+          startOffsetMs={snippet.startOffsetMs}
+          durationMs={snippet.durationMs}
         />
       </div>
 
-      {/* Metadata */}
-      <div className="flex items-center gap-3">
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${typeColor}`}>{typeLabel}</span>
-        <p className="text-xs text-muted-foreground">
-          {durationSeconds}s · Offset {(snippet.start_offset_ms / 1000).toFixed(1)}s
-        </p>
-      </div>
+      {/* Progressive-disclosure metrics */}
+      <AcousticToggle
+        metrics={snippet.metrics}
+        panelId={`acoustic-${snippet.id}`}
+      />
 
-      {/* Admin Comment */}
-      {snippet.admin_comment && (
-        <div className="space-y-2 rounded-lg bg-muted/50 p-4">
-          <p className="text-xs font-semibold text-muted-foreground">Feedback</p>
-          <p className="text-sm text-foreground">{snippet.admin_comment}</p>
-        </div>
-      )}
-    </div>
+      {/* Hairline + right-aligned CTA */}
+      <hr className="mt-5 border-border" />
+      <div className="mt-4 flex justify-end">
+        {isCharisma ? (
+          <Button
+            asChild
+            className="group rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary hover:shadow-lg"
+          >
+            <a
+              href={`/chat?sourceSnippet=${encodeURIComponent(
+                snippet.id
+              )}&intent=charisma`}
+            >
+              {snippet.ctaLabel}
+              <ChevronRight
+                aria-hidden
+                className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-[2px]"
+              />
+            </a>
+          </Button>
+        ) : (
+          <Button
+            asChild
+            variant="outline"
+            className="group rounded-full border-foreground/20 px-5 text-foreground hover:bg-foreground hover:text-primary-foreground"
+          >
+            <a
+              href={`/chat?sourceSnippet=${encodeURIComponent(
+                snippet.id
+              )}&intent=stress`}
+            >
+              {snippet.ctaLabel}
+              <ChevronRight
+                aria-hidden
+                className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-[2px]"
+              />
+            </a>
+          </Button>
+        )}
+      </div>
+    </article>
   );
 }
