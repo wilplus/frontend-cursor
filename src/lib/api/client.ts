@@ -201,31 +201,82 @@ export async function submitAdminFeedback(
   return handleResponse<AdminFeedbackResponse>(res);
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Legacy admin-context helpers — backward-compat shim over the Phase 12/13  */
+/*  /v2/admin/user/<id>/context endpoint.                                     */
+/*                                                                            */
+/*  Backend changed this endpoint to return the multi-session                  */
+/*  AdminUserContextPayload shape ({user, sessions[]}) and renamed the two   */
+/*  editable text fields:                                                     */
+/*    general_notes        →  user.private_admin_notes                        */
+/*    custom_instructions  →  user.custom_llm_instructions                    */
+/*  The PATCH method is gone; PUT is the new mutator. These shims keep        */
+/*  existing callers (admin/user/[id]/page.tsx, AdminRecordingsList,          */
+/*  the Notes/Instructions cards on admin/users/[id]/page.tsx) working        */
+/*  without requiring every site to migrate at once. New callers should       */
+/*  prefer adminApi.getUserContext / .updateUserContext directly to access    */
+/*  the full payload (sessions, behavioral profile, queued override, etc).   */
+/* -------------------------------------------------------------------------- */
+
+interface NewContextResponse {
+  user: {
+    id: string;
+    email: string | null;
+    name: string | null;
+    custom_llm_instructions: string | null;
+    private_admin_notes: string | null;
+    queued_override_question: string | null;
+    coach_override_profile: string | null;
+    [key: string]: unknown;
+  };
+  sessions?: unknown[];
+}
+
+function toLegacyContext(payload: NewContextResponse): UserAdminContext {
+  const u = payload.user ?? ({} as NewContextResponse["user"]);
+  return {
+    general_notes: u.private_admin_notes ?? null,
+    custom_instructions: u.custom_llm_instructions ?? null,
+    // Legacy shape carried these fields; the new endpoint doesn't —
+    // sane defaults so consumers' truthy guards (e.g.
+    // {context.max_words && (...)}) cleanly hide unsupported sections.
+    max_words: 0,
+    specific_questions: [],
+    updated_at: null,
+    user_email: u.email ?? null,
+  };
+}
+
 export async function getUserAdminContext(
   userId: string
 ): Promise<UserAdminContext> {
   const { headers, credentials } = await getAuthFetchOptions();
   const res = await fetch(`/api/admin/user/${userId}/context`, { headers, credentials });
-  return handleResponse<UserAdminContext>(res);
-}
-
-export async function updateUserAdminEmail(
-  userId: string,
-  user_email: string
-): Promise<UserAdminContext> {
-  const { headers, credentials } = await getAuthFetchOptions();
-  const res = await fetch(`/api/admin/user/${userId}/context`, {
-    method: "PATCH",
-    headers: { ...headers, "Content-Type": "application/json" },
-    credentials,
-    body: JSON.stringify({ user_email: user_email.trim() || null }),
-  });
-  return handleResponse<UserAdminContext>(res);
+  const payload = await handleResponse<NewContextResponse>(res);
+  return toLegacyContext(payload);
 }
 
 /**
- * Patch any subset of admin context fields. Empty strings are sent as null
- * so the backend can clear the value.
+ * No-op shim — the Phase 12/13 endpoint dropped user_email from PUT
+ * payloads. Email lives on the auth user row, not the admin context
+ * surface. Returns the current context unchanged so callers don't
+ * crash, and logs a warning so the regression is visible if anyone
+ * actually relies on this writing.
+ */
+export async function updateUserAdminEmail(
+  userId: string,
+  _userEmail: string
+): Promise<UserAdminContext> {
+  console.warn(
+    `[updateUserAdminEmail] no-op shim — backend dropped user_email from /v2/admin/user/${userId}/context PUTs. Update auth email via the auth admin surface instead.`
+  );
+  return getUserAdminContext(userId);
+}
+
+/**
+ * Patch any subset of legacy admin context fields. Translates to the
+ * new endpoint's field names and PUT method. Empty strings are sent
+ * as null so the backend can clear the value.
  */
 export async function updateUserAdminContext(
   userId: string,
@@ -238,19 +289,27 @@ export async function updateUserAdminContext(
   const normalize = (v: string | null | undefined) =>
     v === undefined ? undefined : v && v.trim() ? v : null;
   const body: Record<string, unknown> = {};
-  if (patch.general_notes !== undefined) body.general_notes = normalize(patch.general_notes);
+  // Legacy → new field-name translation. Backend ignores any unknown
+  // keys so we can safely drop max_words (no longer supported).
+  if (patch.general_notes !== undefined)
+    body.private_admin_notes = normalize(patch.general_notes);
   if (patch.custom_instructions !== undefined)
-    body.custom_instructions = normalize(patch.custom_instructions);
-  if (patch.max_words !== undefined) body.max_words = patch.max_words;
+    body.custom_llm_instructions = normalize(patch.custom_instructions);
+  if (patch.max_words !== undefined) {
+    console.warn(
+      "[updateUserAdminContext] max_words is no longer supported on the Phase 12/13 endpoint — dropping."
+    );
+  }
 
   const { headers, credentials } = await getAuthFetchOptions();
   const res = await fetch(`/api/admin/user/${userId}/context`, {
-    method: "PATCH",
+    method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     credentials,
     body: JSON.stringify(body),
   });
-  return handleResponse<UserAdminContext>(res);
+  const payload = await handleResponse<NewContextResponse>(res);
+  return toLegacyContext(payload);
 }
 
 export async function getAuthUserEmail(userId: string): Promise<{ email: string | null }> {

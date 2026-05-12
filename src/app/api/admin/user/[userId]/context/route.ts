@@ -1,39 +1,68 @@
 import type { NextRequest } from "next/server";
 import { proxyJson } from "@/lib/api/bff";
-import type { UserAdminContext } from "@/lib/api/types";
+import type { AdminUserContextPayload } from "@/lib/api/admin-client";
+
+/**
+ * BFF: /api/admin/user/[userId]/context
+ *
+ * Proxies to the Phase 12/13 multi-session admin context endpoint:
+ *   GET  /v2/admin/user/<id>/context
+ *   PUT  /v2/admin/user/<id>/context
+ *
+ * IMPORTANT path convention (do NOT normalise — see catch-up doc §1):
+ *   • backend uses SINGULAR `/admin/user/...` for this endpoint
+ *   • backend uses PLURAL  `/admin/users/...` for /reset-baseline,
+ *     /settings, /snippets, /timeline (different cluster)
+ * The Next.js route mirrors the backend's path segment so the
+ * BFF→Flask hop is unambiguous.
+ *
+ * Response shape (full longitudinal admin view):
+ *   { user: AdminUserContextUser, sessions: AdminUserContextSession[] }
+ *
+ * PUT body — every field optional, only included keys are written
+ * (null clears):
+ *   {
+ *     custom_llm_instructions?:   string | null,
+ *     private_admin_notes?:        string | null,
+ *     queued_override_question?:   string | null,
+ *     coach_override_profile?:     string | null,
+ *   }
+ *
+ * Returns the full updated payload on PUT — same shape as GET — so
+ * callers can render from one round-trip without a follow-up fetch.
+ */
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   const userId = params.userId;
-  // Backend convention is /v2/admin/users/<id>/context — note the
-  // /v2/ prefix and the plural "users". Our Next.js route here keeps
-  // the legacy singular path (/api/admin/user/<id>/context) so frontend
-  // callers don't have to change; only the proxy target moves.
-  const path = `/v2/admin/users/${userId}/context`;
+  const path = `/v2/admin/user/${userId}/context`;
   console.log(`[API /admin/user/${userId}/context] GET → ${path}`);
-  return proxyJson<UserAdminContext>(path, undefined, req);
+  return proxyJson<AdminUserContextPayload>(path, undefined, req);
 }
 
-type PatchBody = {
-  user_email?: string | null;
-  /** Free-form admin notes about the user. */
-  general_notes?: string | null;
-  /** Persistent rules forwarded to the LLM on the user's next session. */
-  custom_instructions?: string | null;
-  /** Optional max word target the admin wants enforced. */
-  max_words?: number | null;
+type PutBody = {
+  custom_llm_instructions?: string | null;
+  private_admin_notes?: string | null;
+  queued_override_question?: string | null;
+  coach_override_profile?: string | null;
 };
 
-export async function PATCH(
+export async function PUT(
   req: NextRequest,
   { params }: { params: { userId: string } }
 ) {
   const userId = params.userId;
-  // /v2/ prefix + plural "users" per backend convention.
-  const path = `/v2/admin/users/${userId}/context`;
-  const body = (await req.json()) as PatchBody;
-  console.log(`[API /admin/user/${userId}/context] PATCH → ${path}`, Object.keys(body));
-  return proxyJson<PatchBody, UserAdminContext>(path, { method: "PATCH", body }, req);
+  const path = `/v2/admin/user/${userId}/context`;
+  const body = (await req.json()) as PutBody;
+  console.log(
+    `[API /admin/user/${userId}/context] PUT → ${path}`,
+    Object.keys(body)
+  );
+  return proxyJson<PutBody, AdminUserContextPayload>(
+    path,
+    { method: "PUT", body },
+    req
+  );
 }
