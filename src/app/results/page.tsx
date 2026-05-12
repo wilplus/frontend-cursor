@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import ProcessingState from "@/components/results/ProcessingState";
+import MirrorPanel from "@/components/results/MirrorPanel";
 import JourneySnippetCard from "@/components/results/journey/JourneySnippetCard";
 import type {
   JourneySession,
@@ -123,6 +124,11 @@ function Timeline({ sessions }: { sessions: JourneySession[] }) {
           the conversation.
         </p>
       </header>
+
+      {/* User-scoped coaching mirror — sits between the header and the
+          sessions stack; renders nothing when the feature flag is off
+          or the user has no published mirror yet. */}
+      <MirrorPanel />
 
       {/* Sessions stack */}
       <div className="space-y-10">
