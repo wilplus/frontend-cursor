@@ -103,8 +103,8 @@ export default function CreditPricingCards({ packs }: { packs: CreditPackDisplay
         })}
       </div>
       <p className="text-center text-xs text-muted-foreground">
-        <Link href="/dashboard" className="underline-offset-4 hover:underline">
-          Back to dashboard
+        <Link href="/results" className="underline-offset-4 hover:underline">
+          Close
         </Link>
       </p>
     </div>
