@@ -17,9 +17,11 @@ interface AcousticToggleProps {
 }
 
 /**
- * AcousticToggle — pill button that expands to reveal a grid of metric chips.
- * Uses the CSS-grid 0fr → 1fr trick so the height transition is smooth without
- * having to measure DOM height in JS.
+ * AcousticToggle — pill button that expands to reveal a row of metric chips.
+ *
+ * Uses the CSS-grid `0fr → 1fr` height trick (per spec) so the height
+ * transition is smooth without any DOM measurement in JS. Opacity is
+ * animated alongside grid-template-rows for a softer reveal.
  */
 export default function AcousticToggle({ metrics, panelId }: AcousticToggleProps) {
   const [open, setOpen] = useState(false);
@@ -32,7 +34,7 @@ export default function AcousticToggle({ metrics, panelId }: AcousticToggleProps
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={id}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
       >
         {open ? "Hide acoustic data" : "Show acoustic data"}
         <ChevronDown
@@ -46,17 +48,18 @@ export default function AcousticToggle({ metrics, panelId }: AcousticToggleProps
 
       <div
         id={id}
-        className={cn(
-          "grid transition-[grid-template-rows] duration-300 ease-out",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        )}
+        className="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out"
+        style={{
+          gridTemplateRows: open ? "1fr" : "0fr",
+          opacity: open ? 1 : 0,
+        }}
       >
         <div className="overflow-hidden">
           <div className="flex flex-wrap gap-2 pt-1">
             {metrics.map((m) => (
               <span
                 key={`${m.label}-${m.value}`}
-                className="inline-flex items-baseline gap-1 rounded-lg bg-muted px-2.5 py-1 text-xs"
+                className="inline-flex items-baseline gap-1 rounded-lg bg-muted/50 px-3 py-2 text-xs"
               >
                 <span className="text-muted-foreground">{m.label}</span>
                 <span className="font-semibold text-foreground">{m.value}</span>

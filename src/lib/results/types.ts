@@ -43,18 +43,19 @@ export interface JourneySession {
 }
 
 /**
- * Top-level payload the future /api/results/me endpoint should return.
+ * Top-level payload the /api/results/me endpoint returns.
+ *
+ * The page renders the sessions list as a chronological timeline; there
+ * is no "Session X of Y" progress tracker any more, so those fields were
+ * removed. If the backend still returns them, they're simply ignored.
+ *
  * Backend keys to confirm:
- *  - status                — see ResultsStatus
- *  - current_session_index — 1-based number for the progress tracker
- *  - total_sessions        — N in "Session 1 of N"
- *  - sessions[]            — JourneySession[]
- *  - ai_summary?           — TODO(backend): plain-text summary line
+ *  - status      — see ResultsStatus
+ *  - sessions[]  — JourneySession[] (chronological, oldest → newest)
+ *  - ai_summary? — TODO(backend): plain-text summary line (optional)
  */
 export interface VoiceJourneyPayload {
   status: ResultsStatus;
-  current_session_index: number;
-  total_sessions: number;
   sessions: JourneySession[];
   ai_summary?: string | null;
 }

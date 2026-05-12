@@ -1,12 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ChevronRight, Flame, Droplet, Loader2, Play } from "lucide-react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AcousticToggle from "@/components/results/journey/AcousticToggle";
+import MediaPlayer from "@/components/results/journey/MediaPlayer";
 import type { Snippet } from "@/lib/results/types";
 
 /** Back-compat alias — preferred name is `Snippet` from @/lib/results/types. */
@@ -19,140 +16,96 @@ interface JourneySnippetCardProps {
 }
 
 /**
- * Snippet card on the user-facing Voice Journey page.
+ * Voice-Journey snippet card. Pixel-spec layout:
+ *   1. Top row    — coloured badge (left)  +  duration label (right)
+ *   2. MediaPlayer (its own component, see ./MediaPlayer.tsx)
+ *   3. Coach's Insight — uppercase tracking-wider muted label + body
+ *   4. AcousticToggle — progressive disclosure of numeric metrics
+ *   5. <hr/> separator + right-aligned CTA pill (chevron translates on hover)
  *
- * Distinct from `src/components/results/SnippetCard.tsx` (which is the
- * single-session view). This one is part of the "Infinite Retention Loop":
- * its CTA routes back into a contextual chat session at
- * /chat?sourceSnippet={id}&intent={type}. (Note: the /chat route itself
- * isn't built yet — links resolve to a 404 until that ships.)
+ * The CTA navigates to /chat?sourceSnippet={id}&intent={type} per spec —
+ * the contextual "Infinite Retention Loop" hand-off into a follow-up
+ * coaching turn.
  */
 export default function JourneySnippetCard({
   snippet,
   index = 0,
 }: JourneySnippetCardProps) {
-  const router = useRouter();
-  const [starting, setStarting] = useState(false);
   const isCharisma = snippet.type === "charisma";
-  const Icon = isCharisma ? Flame : Droplet;
 
-  // Click handler: open a coaching loop on this snippet, then navigate
-  // to /coach/[id]. Both stress and charisma intents are supported on
-  // the backend now — the temporary INTENT_NOT_SUPPORTED toast that
-  // gated charisma in v1 has been removed.
-  const handleStartCoaching = async () => {
-    if (starting) return;
-    setStarting(true);
-    try {
-      const res = await fetch("/api/coaching/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snippet_id: snippet.id }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        coaching_id?: string;
-        code?: string;
-        error?: string;
-      };
-      if (!res.ok) {
-        if (data.code === "SNIPPET_NOT_COACHABLE") {
-          toast.error(
-            "Your coach hasn't left a comment on this snippet yet."
-          );
-          return;
-        }
-        toast.error(data.error ?? "Couldn't start the coaching session.");
-        return;
-      }
-      if (data.coaching_id) {
-        router.push(`/coach/${encodeURIComponent(data.coaching_id)}`);
-      }
-    } catch (err) {
-      console.error("coaching/start failed:", err);
-      toast.error("Network error. Please try again.");
-    } finally {
-      setStarting(false);
-    }
+  // Spec asks for staggered fade-in: i * 120ms + 120ms.
+  const animationDelay = `${index * 120 + 120}ms`;
+
+  const handleClick = () => {
+    window.location.href = `/chat?sourceSnippet=${encodeURIComponent(
+      snippet.id
+    )}&intent=${encodeURIComponent(snippet.type)}`;
   };
 
   return (
     <article
-      className="animate-fade-in-up rounded-2xl border border-border bg-card p-5 shadow-sm"
-      style={{ animationDelay: `${index * 80}ms` }}
+      className="animate-fade-in-up rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
+      style={{ animationDelay }}
     >
-      {/* Top: badge */}
-      <div className="mb-4 flex items-center gap-2">
-        <Badge variant={isCharisma ? "success" : "destructive"}>
-          <Icon className="h-3 w-3" aria-hidden />
+      {/* 1. Top row: badge + duration */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium",
+            isCharisma
+              ? // Spec exception: solid emerald is the only allowed
+                // raw-Tailwind colour because the design system has
+                // no green token.
+                "bg-emerald-100 text-emerald-800"
+              : "border border-destructive/30 bg-destructive/5 text-destructive"
+          )}
+        >
           {snippet.badgeLabel}
-        </Badge>
+        </span>
+        <span className="text-xs text-muted-foreground">{snippet.duration}</span>
       </div>
 
-      {/* Media player placeholder (uses native audio when audioUrl is set) */}
-      <div className="mb-4 rounded-xl border border-border bg-muted/30 p-3">
-        {snippet.audioUrl ? (
-          <audio
-            controls
-            src={snippet.audioUrl}
-            controlsList="nodownload"
-            className="w-full"
-          />
-        ) : (
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Play className="h-4 w-4 fill-current" aria-hidden />
-            </span>
-            <div className="h-1.5 flex-1 rounded-full bg-border">
-              <div className="h-full w-1/3 rounded-full bg-primary" />
-            </div>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {snippet.duration}
-            </span>
-          </div>
-        )}
+      {/* 2. Media player */}
+      <div className="mb-5">
+        <MediaPlayer audioUrl={snippet.audioUrl} duration={snippet.duration} />
       </div>
 
-      {/* Coach's Insight */}
-      <div className="mb-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {/* 3. Coach's Insight */}
+      <div className="mb-5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Coach&apos;s Insight
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+        <p className="mt-1.5 text-base leading-relaxed text-foreground">
           {snippet.insight}
         </p>
       </div>
 
-      {/* Acoustic data toggle */}
-      <div className="mb-4">
+      {/* 4. Progressive-disclosure acoustic metrics */}
+      <div className="mb-5">
         <AcousticToggle
           metrics={snippet.metrics}
           panelId={`acoustic-${snippet.id}`}
         />
       </div>
 
-      {/* Footer separator + action */}
-      <div className="border-t border-border pt-4">
+      {/* 5. Hairline + right-aligned CTA */}
+      <hr className="border-border" />
+      <div className="flex justify-end pt-4">
         <button
           type="button"
-          onClick={handleStartCoaching}
-          disabled={starting}
+          onClick={handleClick}
           className={cn(
-            "group inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-60",
+            "group inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-all hover:shadow-lg",
             isCharisma
-              ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg"
-              : "border border-destructive/30 bg-card text-destructive hover:bg-destructive/10 hover:shadow-lg"
+              ? "bg-primary text-primary-foreground"
+              : "border border-foreground/20 bg-card text-foreground hover:bg-foreground hover:text-primary-foreground"
           )}
         >
-          {starting ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : null}
-          {starting ? "Opening coach…" : snippet.ctaLabel}
-          {!starting && (
-            <ChevronRight
-              aria-hidden
-              className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-            />
-          )}
+          {snippet.ctaLabel}
+          <ChevronRight
+            aria-hidden
+            className="h-4 w-4 transition-transform group-hover:translate-x-[2px]"
+          />
         </button>
       </div>
     </article>

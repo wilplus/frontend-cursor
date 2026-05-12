@@ -1,142 +1,192 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import ProcessingState from "@/components/results/ProcessingState";
+import JourneySnippetCard from "@/components/results/journey/JourneySnippetCard";
+import type {
+  JourneySession,
+  Snippet,
+  VoiceJourneyPayload,
+} from "@/lib/results/types";
 
 /**
- * "Your Voice Journey" — user-facing Results overview.
+ * /results — the Willab Voice Journey Timeline.
  *
- * This page is now a pure router/processing-shell. There is NO mock data.
- * On mount it asks /api/results/state for the user's session situation
- * and either redirects (no_session → /chat, completed → /results/[id])
- * or shows the "we're analyzing your baseline" waiting UI for users
- * whose session exists but hasn't been published by the admin yet.
+ * Renders ALL of the user's published sessions as a chronological stack
+ * of "session group → snippet cards". Sessions come from the backend
+ * (`GET /api/results/me`), which proxies to `/v2/user/results/me`.
  *
- * While in the processing state we gently poll every POLL_INTERVAL_MS so
- * the page auto-flips to /results/[id] the moment the admin publishes,
- * without the user having to refresh.
+ * Filter rule (per product): a snippet only renders if BOTH
+ *   • `insight` is non-empty (the coach actually wrote a comment), AND
+ *   • `audioUrl` is set (the clip is playable).
+ * Anything else is dropped silently — the user never sees an empty
+ * "feedback pending" placeholder. Sessions that have zero playable +
+ * commented snippets after filtering are skipped entirely.
+ *
+ * If the user has zero published sessions (or every session is filtered
+ * to empty), we fall back to <ProcessingState/> — same waiting screen
+ * the user sees while the admin is still working.
  */
-
-type StateResponse =
-  | { kind: "no_session" }
-  | { kind: "processing"; session_id: string }
-  | { kind: "completed"; session_id: string };
 
 type PageState =
   | { kind: "loading" }
-  | { kind: "processing"; session_id: string }
+  | { kind: "processing" }
+  | { kind: "ready"; sessions: JourneySession[] }
   | { kind: "error"; message: string };
-
-const POLL_INTERVAL_MS = 10_000;
 
 export default function VoiceJourneyPage() {
   const router = useRouter();
   const [state, setState] = useState<PageState>({ kind: "loading" });
-  const cancelledRef = useRef(false);
 
   useEffect(() => {
-    cancelledRef.current = false;
+    let cancelled = false;
 
-    const fetchState = async (): Promise<StateResponse | null> => {
+    const fetchTimeline = async () => {
       try {
-        const res = await fetch("/api/results/state", { cache: "no-store" });
+        const res = await fetch("/api/results/me", { cache: "no-store" });
+
         if (res.status === 401) {
-          if (!cancelledRef.current) {
-            router.replace("/login?redirectTo=/results");
-          }
-          return null;
+          if (!cancelled) router.replace("/login?redirectTo=/results");
+          return;
         }
+
         if (!res.ok) {
-          if (!cancelledRef.current) {
+          if (!cancelled) {
             setState({
               kind: "error",
               message:
                 "We couldn't load your Voice Journey. Please refresh in a moment.",
             });
           }
-          return null;
+          return;
         }
-        return (await res.json()) as StateResponse;
-      } catch {
-        if (!cancelledRef.current) {
+
+        const data = (await res.json()) as VoiceJourneyPayload;
+        if (cancelled) return;
+
+        const sessions = filterTimeline(data.sessions ?? []);
+        if (sessions.length === 0) {
+          // Nothing publishable yet (either backend status === processing,
+          // or every snippet was filtered out for being empty / silent).
+          setState({ kind: "processing" });
+          return;
+        }
+        setState({ kind: "ready", sessions });
+      } catch (err) {
+        console.error("Failed to load /api/results/me:", err);
+        if (!cancelled) {
           setState({
             kind: "error",
             message:
               "We couldn't reach the server. Check your connection and try again.",
           });
         }
-        return null;
       }
     };
 
-    const handleResponse = (data: StateResponse) => {
-      if (cancelledRef.current) return;
-      switch (data.kind) {
-        case "no_session":
-          // No recordings yet — send them to the chat to record their baseline.
-          router.replace("/chat");
-          return;
-        case "completed":
-          // Latest session is published — jump straight to the snippets view.
-          router.replace(`/results/${encodeURIComponent(data.session_id)}`);
-          return;
-        case "processing":
-          setState({ kind: "processing", session_id: data.session_id });
-          return;
-      }
-    };
-
-    // First fetch on mount.
-    void (async () => {
-      const data = await fetchState();
-      if (data) handleResponse(data);
-    })();
-
-    // While we're in the processing state, poll quietly so the page auto-
-    // flips to /results/[id] the moment the admin publishes. The interval
-    // is set up once and tears itself down when the state changes (the
-    // outer useEffect re-runs only on cancellation).
-    const pollId = window.setInterval(() => {
-      void (async () => {
-        // Cheap guard: only poll while we believe we're processing.
-        // Any other state (loading / error) means the first fetch hasn't
-        // resolved or has surfaced an error; either way, don't pile on.
-        const data = await fetchState();
-        if (data) handleResponse(data);
-      })();
-    }, POLL_INTERVAL_MS);
+    void fetchTimeline();
 
     return () => {
-      cancelledRef.current = true;
-      window.clearInterval(pollId);
+      cancelled = true;
     };
   }, [router]);
 
-  // Layout note: outer wrapper grows naturally with content (min-h-full,
-  // no overflow-hidden + h-full lock). The global layout's
-  // <div className="flex-1 overflow-y-auto"> handles scroll once for the
-  // whole page — no inner scroll context here, so we don't render a
-  // second scrollbar gutter on the right when content overflows.
   return (
     <div className="willab-chat flex min-h-full flex-col bg-background">
       <DashboardHeader />
       {state.kind === "loading" && <LoadingShell />}
       {state.kind === "error" && <ErrorShell message={state.message} />}
       {state.kind === "processing" && <ProcessingState />}
+      {state.kind === "ready" && <Timeline sessions={state.sessions} />}
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Timeline                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function Timeline({ sessions }: { sessions: JourneySession[] }) {
+  return (
+    <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:py-14">
+      {/* Page header */}
+      <header className="mb-8 space-y-2">
+        <h1 className="font-heading text-3xl text-foreground sm:text-4xl">
+          Your Voice Journey
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Moments your coach pulled out of your sessions, with a path back into
+          the conversation.
+        </p>
+      </header>
+
+      {/* Sessions stack */}
+      <div className="space-y-10">
+        {sessions.map((session) => (
+          <SessionGroup key={session.id} session={session} />
+        ))}
+      </div>
+    </main>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Session group                                                             */
+/* -------------------------------------------------------------------------- */
+
+function SessionGroup({ session }: { session: JourneySession }) {
+  return (
+    <section className="mb-10 last:mb-0">
+      {/* Session header — title + hairline that fills the rest of the row */}
+      <div className="mb-5 flex items-center gap-4">
+        <h2 className="shrink-0 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {session.title}
+        </h2>
+        <div className="h-px flex-1 border-t border-border" />
+      </div>
+
+      <div className="space-y-5">
+        {session.snippets.map((snippet, i) => (
+          <JourneySnippetCard key={snippet.id} snippet={snippet} index={i} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Filter — drop snippets without a coach comment OR without playable audio  */
+/* -------------------------------------------------------------------------- */
+
+function filterTimeline(sessions: JourneySession[]): JourneySession[] {
+  return sessions
+    .map((session) => ({
+      ...session,
+      snippets: session.snippets.filter(isPublishable),
+    }))
+    .filter((session) => session.snippets.length > 0);
+}
+
+/** Snippets only render when both criteria are met — no half-baked cards. */
+function isPublishable(s: Snippet): boolean {
+  return Boolean(s.audioUrl && s.insight && s.insight.trim().length > 0);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Loading / error shells                                                    */
+/* -------------------------------------------------------------------------- */
 
 function LoadingShell() {
   return (
     <div className="flex flex-1 items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+      <Loader2
+        className="h-6 w-6 animate-spin text-muted-foreground"
+        aria-hidden
+      />
     </div>
   );
 }
@@ -156,6 +206,3 @@ function ErrorShell({ message }: { message: string }) {
     </main>
   );
 }
-
-/* ProcessingState now lives in @/components/results/ProcessingState
-   — shared with /results/[sessionId] so both surfaces look identical. */

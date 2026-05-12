@@ -46,7 +46,7 @@ const config: Config = {
         "fade-in-short": "fade-in-short 0.2s ease-out forwards",
         "pulse-ring":
           "pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite",
-        "fade-in-up": "fade-in-up 0.4s ease-out",
+        "fade-in-up": "fade-in-up 0.5s ease-out both",
       },
       colors: {
         background: "hsl(var(--background))",
