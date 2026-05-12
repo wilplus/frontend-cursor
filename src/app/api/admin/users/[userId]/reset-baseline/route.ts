@@ -13,7 +13,10 @@ import type { UserAdminContext } from "@/lib/api/types";
  * longer valid for normalisation.
  *
  * Same auth/proxy pattern as /admin/user/[userId]/context: legacy
- * proxyJson helper, cookie-based admin session, no /v2/ prefix.
+ * proxyJson helper, cookie-based admin session. Backend convention
+ * for this cluster is /v2/admin/users/<id>/... — plural noun, /v2/
+ * prefix — even though the Next.js route here keeps the existing
+ * /api/admin/users path (no breaking change for the menu wiring).
  *
  * Body: none.
  *
@@ -30,8 +33,8 @@ export async function POST(
   { params }: { params: { userId: string } }
 ) {
   const userId = params.userId;
-  const path = `/admin/users/${userId}/reset-baseline`;
-  console.log(`[API /admin/users/${userId}/reset-baseline] POST`);
+  const path = `/v2/admin/users/${userId}/reset-baseline`;
+  console.log(`[API /admin/users/${userId}/reset-baseline] POST → ${path}`);
   return proxyJson<undefined, UserAdminContext>(
     path,
     { method: "POST" },
