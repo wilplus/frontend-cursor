@@ -956,6 +956,20 @@ export default function AdminUserDetailPage() {
   // Timeline / AI summary (fetched when session is known).
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiScore, setAiScore] = useState<number | null>(null);
+
+  // Spec'd "General KPI & Stickiness-topic metric" panel state. Sourced
+  // from global_metrics on the admin session detail endpoint and
+  // refreshed by the Compute Metrics button below.
+  const [kpiScore, setKpiScore] = useState<number | null>(null);
+  const [stickinessTopTopic, setStickinessTopTopic] = useState<string | null>(
+    null
+  );
+  const [stickinessScore, setStickinessScore] = useState<number | null>(null);
+  const [stickinessDistribution, setStickinessDistribution] = useState<Record<
+    string,
+    number
+  > | null>(null);
+  const [computingMetrics, setComputingMetrics] = useState(false);
   const [interviewTurns, setInterviewTurns] = useState<Array<{
     /** Stable PK from the backend timeline payload — used to PATCH the
      *  question text via /api/v2/admin/turns/[turnId]/question. */
@@ -1118,6 +1132,11 @@ export default function AdminUserDetailPage() {
           global_metrics?: {
             ai_summary?: string | null;
             ai_score?: number | null;
+            kpi_score?: number | null;
+            stickiness_top_topic?: string | null;
+            stickiness_score?: number | null;
+            stickiness_topic_distribution?: Record<string, number> | null;
+            stickiness_computed_at?: string | null;
           };
           turns?: Array<{
             role?: "ai" | "user";
@@ -1143,6 +1162,12 @@ export default function AdminUserDetailPage() {
 
         setAiSummary(data.global_metrics?.ai_summary ?? null);
         setAiScore(data.global_metrics?.ai_score ?? null);
+        setKpiScore(data.global_metrics?.kpi_score ?? null);
+        setStickinessTopTopic(data.global_metrics?.stickiness_top_topic ?? null);
+        setStickinessScore(data.global_metrics?.stickiness_score ?? null);
+        setStickinessDistribution(
+          data.global_metrics?.stickiness_topic_distribution ?? null
+        );
 
         // ── Reshape flat turns → legacy nested shape ─────────────────
         // The new endpoint returns a flat list alternating
@@ -1316,34 +1341,78 @@ export default function AdminUserDetailPage() {
     ];
   }, [latestSession]);
 
-  /**
-   * Canonical session KPI score (0.0–1.0) computed by the backend after each
-   * session — same value rendered as a percentage in CompletedCard /
-   * KPILineChart. Lives inside performance_metrics_v2 on the session row;
-   * we walk the common shapes defensively because the admin endpoint may
-   * return either nested-under-performance_score or flattened.
-   */
-  const finalKpi = useMemo<number | null>(() => {
-    const candidates: Array<Record<string, unknown> | null | undefined> = [
-      latestSession?.performance_metrics_v2,
-      latestSession?.recording_preview?.performance_metrics_v2,
-    ];
-    for (const blob of candidates) {
-      if (!blob) continue;
-      const ps = (blob as { performance_score?: unknown }).performance_score;
-      if (ps && typeof ps === "object") {
-        const k = (ps as { final_kpi?: unknown }).final_kpi;
-        if (typeof k === "number" && Number.isFinite(k)) return k;
-      }
-      const flat = (blob as { final_kpi?: unknown }).final_kpi;
-      if (typeof flat === "number" && Number.isFinite(flat)) return flat;
-    }
-    return null;
-  }, [latestSession]);
-
   /* -------------------------------------------------------------------- */
   /* Save handlers                                                          */
   /* -------------------------------------------------------------------- */
+
+  /**
+   * Compute / refresh KPI + stickiness metrics for the active session.
+   *
+   * Hits POST /v2/admin/sessions/<id>/compute-metrics (BFF-proxied).
+   * Backend triggers aggregation server-side and returns the freshly
+   * computed values — we apply them to local state directly instead of
+   * waiting for a follow-up GET so the panel updates in one round-trip.
+   *
+   * Response shape (per backend contract):
+   *   {
+   *     kpi_score?: number | null,           // 0..100
+   *     ai_summary?: string | null,
+   *     ai_score?: number | null,
+   *     stickiness: {
+   *       top_topic?: string | null,
+   *       score?: number | null,             // 0..1
+   *       distribution?: Record<string, number> | null,
+   *     } | null
+   *   }
+   */
+  const computeMetrics = useCallback(async () => {
+    if (!latestSession?.id || computingMetrics) return;
+    setComputingMetrics(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated.");
+        return;
+      }
+      const res = await fetch(
+        `/api/v2/admin/sessions/${latestSession.id}/compute-metrics`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        kpi_score?: number | null;
+        ai_summary?: string | null;
+        ai_score?: number | null;
+        stickiness?: {
+          top_topic?: string | null;
+          score?: number | null;
+          distribution?: Record<string, number> | null;
+        } | null;
+        code?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        toast.error(data.error ?? `Compute failed (HTTP ${res.status})`);
+        return;
+      }
+      if (data.kpi_score !== undefined) setKpiScore(data.kpi_score ?? null);
+      if (data.ai_summary !== undefined) setAiSummary(data.ai_summary ?? null);
+      if (data.ai_score !== undefined) setAiScore(data.ai_score ?? null);
+      if (data.stickiness !== undefined) {
+        setStickinessTopTopic(data.stickiness?.top_topic ?? null);
+        setStickinessScore(data.stickiness?.score ?? null);
+        setStickinessDistribution(data.stickiness?.distribution ?? null);
+      }
+      toast.success("Metrics refreshed");
+    } catch (err) {
+      console.error("computeMetrics failed:", err);
+      toast.error("Couldn't compute metrics.");
+    } finally {
+      setComputingMetrics(false);
+    }
+  }, [latestSession?.id, computingMetrics]);
 
   const saveNotes = useCallback(async () => {
     setSavingNotes(true);
@@ -1750,34 +1819,105 @@ export default function AdminUserDetailPage() {
               ))}
             </div>
 
-            {/* AI Session Summary Card */}
+            {/* General KPI & Stickiness-topic metric.
+                Two side-by-side cards driven by global_metrics.* from the
+                admin session detail endpoint. The "Compute Metrics"
+                button below also refreshes both via /compute-metrics. */}
             <Card className="rounded-2xl border-border p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-base font-semibold">AI Session Summary</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {aiSummary
-                      ? aiSummary
-                      : "Run “Compute Metrics” to generate the AI summary."}
-                  </p>
-                  {aiScore != null && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      AI Alignment Score: <span className="font-semibold text-foreground">{Math.round(aiScore)}/100</span>
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">
-                    {finalKpi == null ? "—" : Math.round(finalKpi * 100)}
-                    <span className="text-base font-normal text-muted-foreground">
-                      {finalKpi == null ? "" : "%"}
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-base font-semibold">
+                  General KPI &amp; Stickiness-topic metric
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void computeMetrics()}
+                  disabled={computingMetrics || !latestSession?.id}
+                  className="rounded-full"
+                >
+                  {computingMetrics ? "Computing…" : "Compute Metrics"}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* KPI card */}
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     KPI
+                  </p>
+                  <p className="mt-2 text-3xl font-bold text-foreground">
+                    {kpiScore == null ? "—" : (
+                      <>
+                        {Math.round(kpiScore)}
+                        <span className="text-base font-normal text-muted-foreground">
+                          {" "}/ 100
+                        </span>
+                      </>
+                    )}
+                  </p>
+                  <p
+                    className="mt-3 text-xs text-muted-foreground"
+                    title="Vocal energy + filler count + pacing"
+                  >
+                    Vocal energy + filler count + pacing
+                  </p>
+                </div>
+
+                {/* Stickiness-topic card */}
+                <div
+                  className="rounded-xl border border-border bg-muted/20 p-4"
+                  title={
+                    stickinessDistribution
+                      ? Object.entries(stickinessDistribution)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(
+                            ([topic, frac]) =>
+                              `${topic}: ${Math.round(frac * 100)}%`
+                          )
+                          .join("\n")
+                      : undefined
+                  }
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Stickiness-topic
+                  </p>
+                  <p className="mt-2 truncate text-lg font-semibold text-foreground">
+                    {stickinessTopTopic ?? "—"}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+                    {stickinessScore == null
+                      ? "—"
+                      : `${Math.round(stickinessScore * 100)}% of answers`}
+                  </p>
+                  <p
+                    className="mt-3 text-xs text-muted-foreground"
+                    title="How much the user fixated on one topic across this session's answers. 0% = each turn on a different topic; 100% = every turn on the same topic."
+                  >
+                    How much the user fixated on one topic across this
+                    session&apos;s answers.
                   </p>
                 </div>
               </div>
+
+              {/* Existing AI summary text — kept as a subtle secondary
+                  readout below the two cards so the upgrade is purely
+                  additive. Hidden until backend has populated it. */}
+              {(aiSummary || aiScore != null) && (
+                <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                  {aiSummary && (
+                    <p className="leading-relaxed">{aiSummary}</p>
+                  )}
+                  {aiScore != null && (
+                    <p className="mt-1">
+                      AI alignment:{" "}
+                      <span className="font-semibold text-foreground">
+                        {Math.round(aiScore)}/100
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
             </Card>
 
             {/* Full Recording — the contiguous session audio. Sits ABOVE
