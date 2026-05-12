@@ -16,7 +16,6 @@ import {
 } from "@/lib/willabWindowEvents";
 import { pollCreditsAfterCheckout } from "@/lib/homework/pollCreditsAfterCheckout";
 
-const CAL_LESSON_URL = "https://cal.com/artur-willonski-zywzu7/lesson";
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
 const ADMIN_EMAIL = "artur@willonski.com";
@@ -258,15 +257,6 @@ export default function DashboardHeader() {
                   >
                     <a
                       ref={firstLinkRef}
-                      href={CAL_LESSON_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Book a lesson
-                    </a>
-                    <a
                       href={`mailto:${SUPPORT_EMAIL}`}
                       className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
                       onClick={() => setMenuOpen(false)}
