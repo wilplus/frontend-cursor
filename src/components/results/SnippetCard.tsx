@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Droplet, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -43,6 +43,10 @@ export default function SnippetCard({
   animationDelayMs = 0,
 }: SnippetCardProps) {
   const isCharisma = snippet.type === "charisma";
+  // Same glyph in the badge and the CTA so the two reinforce each other
+  // visually (the user pattern-matches "flame = charisma" / "droplet =
+  // stress" within a single card).
+  const TypeIcon = isCharisma ? Flame : Droplet;
 
   return (
     <article
@@ -53,7 +57,7 @@ export default function SnippetCard({
       <div className="flex items-center justify-between gap-3">
         <span
           className={cn(
-            "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium",
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
             isCharisma
               ? // Spec exception: emerald is the only raw-Tailwind colour
                 // allowed (no green token in the design system).
@@ -61,6 +65,7 @@ export default function SnippetCard({
               : "border border-destructive/30 bg-destructive/5 text-destructive"
           )}
         >
+          <TypeIcon className="h-3.5 w-3.5 fill-current" aria-hidden />
           {snippet.badgeLabel}
         </span>
         <span className="text-xs text-muted-foreground">{snippet.duration}</span>
@@ -96,13 +101,14 @@ export default function SnippetCard({
         {isCharisma ? (
           <Button
             asChild
-            className="group rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary hover:shadow-lg"
+            className="group gap-1.5 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary hover:shadow-lg"
           >
             <a
               href={`/chat?sourceSnippet=${encodeURIComponent(
                 snippet.id
               )}&intent=charisma`}
             >
+              <TypeIcon className="h-3.5 w-3.5 fill-current" aria-hidden />
               {snippet.ctaLabel}
               <ChevronRight
                 aria-hidden
@@ -114,13 +120,14 @@ export default function SnippetCard({
           <Button
             asChild
             variant="outline"
-            className="group rounded-full border-foreground/20 px-5 text-foreground hover:bg-foreground hover:text-primary-foreground"
+            className="group gap-1.5 rounded-full border-foreground/20 px-5 text-foreground hover:bg-foreground hover:text-primary-foreground"
           >
             <a
               href={`/chat?sourceSnippet=${encodeURIComponent(
                 snippet.id
               )}&intent=stress`}
             >
+              <TypeIcon className="h-3.5 w-3.5 fill-current" aria-hidden />
               {snippet.ctaLabel}
               <ChevronRight
                 aria-hidden
