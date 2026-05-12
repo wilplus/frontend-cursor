@@ -7,8 +7,12 @@ export async function GET(
   { params }: { params: { userId: string } }
 ) {
   const userId = params.userId;
-  const path = `/admin/user/${userId}/context`;
-  console.log(`[API /admin/user/${userId}/context] Fetching admin context`);
+  // Backend convention is /v2/admin/users/<id>/context — note the
+  // /v2/ prefix and the plural "users". Our Next.js route here keeps
+  // the legacy singular path (/api/admin/user/<id>/context) so frontend
+  // callers don't have to change; only the proxy target moves.
+  const path = `/v2/admin/users/${userId}/context`;
+  console.log(`[API /admin/user/${userId}/context] GET → ${path}`);
   return proxyJson<UserAdminContext>(path, undefined, req);
 }
 
@@ -27,8 +31,9 @@ export async function PATCH(
   { params }: { params: { userId: string } }
 ) {
   const userId = params.userId;
-  const path = `/admin/user/${userId}/context`;
+  // /v2/ prefix + plural "users" per backend convention.
+  const path = `/v2/admin/users/${userId}/context`;
   const body = (await req.json()) as PatchBody;
-  console.log(`[API /admin/user/${userId}/context] PATCH`, Object.keys(body));
+  console.log(`[API /admin/user/${userId}/context] PATCH → ${path}`, Object.keys(body));
   return proxyJson<PatchBody, UserAdminContext>(path, { method: "PATCH", body }, req);
 }
