@@ -702,25 +702,51 @@ function SnippetCard({
           ))}
         </div>
 
-        {/* Labeling buttons (Charisma / Stress) */}
+        {/* Labeling buttons (Charisma / Stress) — visual state mirrors
+            snippet.snippet_type so the admin can listen to the audio
+            first and then label, with the currently-selected label
+            visibly "filled". The previous version hardcoded Charisma
+            to solid green and Stress to outline-red regardless of
+            actual state, so it always looked like Charisma was the
+            saved label even when nothing had been chosen. */}
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => onLabel(snippet.id, "charisma")}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <Flame className="h-3.5 w-3.5" /> Charisma
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => onLabel(snippet.id, "stress")}
-            className="border-destructive/30 text-destructive hover:bg-destructive/10"
-          >
-            <Droplet className="h-3.5 w-3.5" /> Stress
-          </Button>
+          {(() => {
+            const current = (snippet.snippet_type || "").toLowerCase();
+            const isCharisma = current === "charisma";
+            const isStress = current === "stress";
+            return (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isCharisma ? "default" : "outline"}
+                  onClick={() => onLabel(snippet.id, "charisma")}
+                  aria-pressed={isCharisma}
+                  className={
+                    isCharisma
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700"
+                      : "border-emerald-600/40 text-emerald-700 hover:bg-emerald-50"
+                  }
+                >
+                  <Flame className="h-3.5 w-3.5" /> Charisma
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isStress ? "default" : "outline"}
+                  onClick={() => onLabel(snippet.id, "stress")}
+                  aria-pressed={isStress}
+                  className={
+                    isStress
+                      ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground border-destructive"
+                      : "border-destructive/30 text-destructive hover:bg-destructive/10"
+                  }
+                >
+                  <Droplet className="h-3.5 w-3.5" /> Stress
+                </Button>
+              </>
+            );
+          })()}
         </div>
 
         {/* Admin comment — published verbatim to the user's /results page */}
