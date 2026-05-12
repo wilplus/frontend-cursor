@@ -9,6 +9,7 @@ import SnippetCard, {
 } from "@/components/results/SnippetCard";
 import type { AcousticMetric } from "@/components/results/AcousticToggle";
 import ProcessingState from "@/components/results/ProcessingState";
+import MirrorPanel from "@/components/results/MirrorPanel";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 
 /* -------------------------------------------------------------------------- */
@@ -229,6 +230,11 @@ function CompletedResultsView({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
+      {/* User-scoped coaching mirror — sits at the top of /results
+          surfaces; renders nothing when the feature flag is off or
+          the user has no published mirror yet. */}
+      <MirrorPanel />
+
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
