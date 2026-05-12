@@ -1670,6 +1670,57 @@ export default function AdminUserDetailPage() {
     }
   }, [activeSession?.id, computingMetrics]);
 
+  /**
+   * Danger-zone action — flips the user's `baseline_established`
+   * flag back to false on the backend so their next session re-runs
+   * the EBCP acoustic calibration script (turns 1–4). The backend's
+   * Smart EBCP Routing reads this flag to decide whether to enforce
+   * the hardcoded baseline or jump straight into LLM-driven coaching.
+   *
+   * Wrapped in window.confirm so it can't fire from a stray click —
+   * this is a destructive override that meaningfully changes the
+   * user's next-session experience.
+   */
+  const [resettingBaseline, setResettingBaseline] = useState(false);
+  const resetBaseline = useCallback(async () => {
+    if (resettingBaseline || !userId) return;
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Reset acoustic baseline?\n\nThis user will be forced to re-take the standardized acoustic calibration script (EBCP turns 1–4) on their next session. Cannot be undone from the UI."
+      );
+      if (!ok) return;
+    }
+    setResettingBaseline(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated.");
+        return;
+      }
+      const res = await fetch(
+        `/api/v2/admin/users/${encodeURIComponent(userId)}/reset-baseline`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        toast.error(data.error ?? `Reset failed (HTTP ${res.status})`);
+        return;
+      }
+      toast.success("Baseline reset. User will be recalibrated on next session.");
+    } catch (err) {
+      console.error("resetBaseline failed:", err);
+      toast.error("Couldn't reset baseline.");
+    } finally {
+      setResettingBaseline(false);
+    }
+  }, [userId, resettingBaseline]);
+
   const saveNotes = useCallback(async () => {
     setSavingNotes(true);
     try {
@@ -2758,6 +2809,46 @@ export default function AdminUserDetailPage() {
                 </p>
               </Card>
             </div>
+
+            {/* Danger Zone — destructive overrides that meaningfully
+                change the user's experience. Sits BELOW the 3-column
+                profile grid as a full-width Card so it visually
+                separates from "edit some text" actions above. */}
+            <Card className="mt-4 rounded-2xl border-destructive/30 bg-destructive/5 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-destructive">
+                    Danger Zone
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    System overrides that change how the user&apos;s next
+                    session boots. These can&apos;t be undone from the UI.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 sm:max-w-xl">
+                  <p className="text-sm font-medium text-foreground">
+                    Reset Acoustic Baseline
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Forces the user to re-take the standardized acoustic
+                    calibration script on their next session. Use this if
+                    their hardware changes or after a long break.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 border-destructive/50 text-destructive hover:bg-destructive/10"
+                  disabled={resettingBaseline}
+                  onClick={() => void resetBaseline()}
+                >
+                  {resettingBaseline ? "Resetting…" : "Reset Acoustic Baseline"}
+                </Button>
+              </div>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
