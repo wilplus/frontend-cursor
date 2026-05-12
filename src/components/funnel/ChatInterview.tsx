@@ -95,6 +95,22 @@ interface ChatInterviewProps {
    * the user has formally signed up. Logged-in users hide it.
    */
   isGuest?: boolean;
+  /**
+   * Snippet that seeded this chat via /chat?sourceSnippet=<id>. When
+   * set, the first turn's upload-answer call includes it so the backend
+   * can score the user's answer against the source snippet's admin
+   * coach insight and persist the outcome onto the source snippet's
+   * follow_up_outcome JSONB column (first piece of the coaching-
+   * effectiveness learning loop).
+   */
+  sourceSnippetId?: string | null;
+  /**
+   * Authorization Bearer token for the contextual-chat case. Forwarded
+   * to the upload-answer endpoint so the backend can derive a verified
+   * user_id to owner-scope the source-snippet lookup during outcome
+   * eval. Omit for the guest funnel — guest uploads work without it.
+   */
+  authToken?: string | null;
 }
 
 const AGGREGATE_THRESHOLD_SECONDS = 30;
@@ -222,6 +238,8 @@ export default function ChatInterview({
   initialQuestion,
   farewellMessage,
   isGuest = false,
+  sourceSnippetId = null,
+  authToken = null,
 }: ChatInterviewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<{
@@ -509,6 +527,12 @@ export default function ChatInterview({
           questionTone: currentQuestion?.tone || "charisma",
           questionText: currentQuestion?.text || null,
           durationSeconds,
+          // Contextual-chat only — these are ignored on guest funnel
+          // uploads. The backend uses them to score this turn's answer
+          // against the source snippet's admin coach insight and
+          // persist a follow_up_outcome (coaching-effectiveness loop).
+          sourceSnippetId: turnNumber === 1 ? sourceSnippetId : null,
+          authToken,
         });
 
         guestSessionIdRef.current = result.guest_session_id;

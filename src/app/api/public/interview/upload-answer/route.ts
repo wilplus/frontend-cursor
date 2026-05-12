@@ -24,12 +24,22 @@ export async function POST(req: NextRequest) {
 
   const url = `${backend}/v2/public/interview/upload-answer`;
 
+  // Forward the caller's Authorization header when present. The
+  // backend uses it for the contextual-chat outcome-eval branch
+  // (services/coaching_outcomes.py); guest uploads work without it.
+  const proxyHeaders: Record<string, string> = {};
+  const incomingAuth = req.headers.get("authorization");
+  if (incomingAuth) {
+    proxyHeaders.Authorization = incomingAuth;
+  }
+
   let upstream: Response;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60_000);
     upstream = await fetch(url, {
       method: "POST",
+      headers: proxyHeaders,
       body: formData,
       signal: controller.signal,
     });
