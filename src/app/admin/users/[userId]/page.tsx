@@ -91,6 +91,34 @@ interface AdminSnippet {
     dynamic_db?: number | null;
     energy_ratio?: number | null;
   } | null;
+  /**
+   * Post-turn-1 coaching outcome blob, written by
+   * services.coaching_outcomes after the user answered the first
+   * question of a contextual chat seeded by this snippet's CTA.
+   * NULL until that happens. Shape mirrors the backend dict:
+   *   { score, evaluator: { score, components, rationale, model },
+   *     user_answer: { text, duration_ms, word_count },
+   *     question_text, user_id, captured_at, source, version }
+   */
+  follow_up_outcome?: {
+    score?: number | null;
+    captured_at?: string | null;
+    question_text?: string | null;
+    user_answer?: {
+      text?: string | null;
+      duration_ms?: number | null;
+      word_count?: number | null;
+    } | null;
+    evaluator?: {
+      score?: number | null;
+      rationale?: string | null;
+      components?: {
+        specificity?: number | null;
+        emotional_movement?: number | null;
+        engagement?: number | null;
+      } | null;
+    } | null;
+  } | null;
 }
 
 function formatRange(startMs: number, durationMs: number): string {
@@ -593,6 +621,97 @@ interface SnippetCardProps {
   skipDisabled?: boolean;
 }
 
+/**
+ * Compact readout of a coaching outcome — what the user actually said
+ * in response to THIS snippet's contextual chat, and how the evaluator
+ * scored their answer. Rendered only when follow_up_outcome is non-null
+ * (i.e. the user has answered turn 1 of a chat seeded by this snippet's
+ * CTA). The composite score colour-codes the strip; tooltip exposes the
+ * rationale + per-component scores so the admin can see WHY the model
+ * scored what it did.
+ */
+function CoachingOutcomeStrip({
+  outcome,
+}: {
+  outcome: NonNullable<AdminSnippet["follow_up_outcome"]>;
+}) {
+  const score = Number(outcome.score ?? outcome.evaluator?.score ?? 0);
+  const answer = (outcome.user_answer?.text || "").trim();
+  const wordCount = outcome.user_answer?.word_count ?? null;
+  const durationSec =
+    outcome.user_answer?.duration_ms != null
+      ? (outcome.user_answer.duration_ms / 1000).toFixed(1)
+      : null;
+  const rationale = (outcome.evaluator?.rationale || "").trim();
+  const components = outcome.evaluator?.components ?? null;
+  const capturedAt = outcome.captured_at
+    ? new Date(outcome.captured_at).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  // Tier colour bands match the rule from the previous design pass.
+  let bandClass = "border-amber-200 bg-amber-50";
+  let pillClass = "bg-amber-100 text-amber-900";
+  if (score >= 0.7) {
+    bandClass = "border-emerald-200 bg-emerald-50";
+    pillClass = "bg-emerald-600 text-white";
+  } else if (score < 0.4) {
+    bandClass = "border-destructive/20 bg-destructive/5";
+    pillClass = "bg-destructive/10 text-destructive";
+  }
+
+  const componentSummary = components
+    ? [
+        ["Specificity", components.specificity],
+        ["Emotional movement", components.emotional_movement],
+        ["Engagement", components.engagement],
+      ]
+        .filter(([, v]) => typeof v === "number")
+        .map(([k, v]) => `${k}: ${(Number(v) * 100).toFixed(0)}%`)
+        .join(" · ")
+    : "";
+
+  const tooltipText = [rationale, componentSummary].filter(Boolean).join("\n\n");
+
+  return (
+    <div
+      className={`rounded-xl border ${bandClass} p-3 space-y-2`}
+      title={tooltipText || undefined}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            User responded
+          </span>
+          <span
+            className={`inline-flex items-center rounded-full ${pillClass} px-2 py-0.5 text-xs font-semibold tabular-nums`}
+            aria-label="Coaching effectiveness score"
+          >
+            {(score * 100).toFixed(0)}/100
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground tabular-nums">
+          {wordCount != null && <span>{wordCount} words</span>}
+          {durationSec != null && <span>· {durationSec}s</span>}
+          {capturedAt && <span>· {capturedAt}</span>}
+        </div>
+      </div>
+      {answer && (
+        <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+          &ldquo;{answer}&rdquo;
+        </p>
+      )}
+      {rationale && (
+        <p className="text-xs italic text-muted-foreground">{rationale}</p>
+      )}
+    </div>
+  );
+}
+
 function SnippetCard({
   snippet,
   onAdjustBounds,
@@ -756,6 +875,18 @@ function SnippetCard({
           placeholder="Coach's insight..."
           className="bg-background min-h-[80px]"
         />
+
+        {/* Coaching-outcome readout. Present iff the user has clicked
+            this snippet's CTA and answered turn 1 of the contextual
+            chat. Closes the feedback loop for the admin: they see
+            the consequence of THIS snippet's comment — the score the
+            evaluator gave, the words the user actually said back, and
+            (on hover) the rationale for the score. Composite score
+            colour-codes the strip; the user's reply is the most
+            useful artefact, so it gets the largest treatment. */}
+        {snippet.follow_up_outcome && (
+          <CoachingOutcomeStrip outcome={snippet.follow_up_outcome} />
+        )}
 
         {/* Action footer (Save / Skip) */}
         <div className="flex items-center justify-between pt-1">
