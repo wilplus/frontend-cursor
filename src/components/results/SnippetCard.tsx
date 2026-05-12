@@ -7,6 +7,7 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 import AcousticToggle, {
   type AcousticMetric,
 } from "@/components/results/AcousticToggle";
+import ProgressStrip from "@/components/results/ProgressStrip";
 
 /**
  * Voice-Journey snippet shape consumed by the user-facing cards.
@@ -94,6 +95,11 @@ export default function SnippetCard({
         metrics={snippet.metrics}
         panelId={`acoustic-${snippet.id}`}
       />
+
+      {/* "Your progress on this" — fetches /api/v2/user/coaching/progress
+          and renders nothing if the user hasn't attempted this snippet
+          yet, so cards that have never been clicked stay clean. */}
+      <ProgressStrip snippetId={snippet.id} />
 
       {/* Hairline + right-aligned CTA */}
       <hr className="mt-5 border-border" />
