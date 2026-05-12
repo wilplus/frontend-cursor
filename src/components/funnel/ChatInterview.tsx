@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
+import RatingComposer from "@/components/funnel/RatingComposer";
 import {
   fetchNextQuestion,
   uploadInterviewAnswer,
@@ -96,12 +97,21 @@ interface ChatInterviewProps {
    */
   isGuest?: boolean;
   /**
-   * Snippet that seeded this chat via /chat?sourceSnippet=<id>. When
-   * set, the first turn's upload-answer call includes it so the backend
-   * can score the user's answer against the source snippet's admin
-   * coach insight and persist the outcome onto the source snippet's
-   * follow_up_outcome JSONB column (first piece of the coaching-
-   * effectiveness learning loop).
+   * Snippet that seeded this chat via /chat?sourceSnippet=<id>. Drives
+   * two distinct features on the first turn:
+   *
+   *   1. Upload-answer forwards it to the backend so the contextual
+   *      outcome-eval branch can score the user's answer against the
+   *      source snippet's coach insight and persist onto the snippet's
+   *      `follow_up_outcome` JSONB column (the first piece of the
+   *      coaching-effectiveness learning loop).
+   *
+   *   2. After turn 1's upload, ChatInterview splices a 1..10
+   *      self-rating prompt between the upload and the LLM's Q2 —
+   *      see the rating-phase block in `handleSend` + submitSelfRating.
+   *
+   * Null/undefined → cold-start guest funnel, neither feature fires
+   * (there's no snippet to score or rate yet).
    */
   sourceSnippetId?: string | null;
   /**
@@ -251,6 +261,20 @@ export default function ChatInterview({
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [totalDuration, setTotalDuration] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Rating phase — sits between turn 1's upload and Q2 fetch when a
+  // sourceSnippetId is present. See submitSelfRating + handleSend.
+  //   none       — not a contextual chat or rating already collected
+  //   asking     — bot has prompted, mic hidden, RatingComposer shown
+  //   submitting — POST in flight (incl. 425 retries)
+  //   done       — rating saved (or soft-failed) — continue to Q2
+  const [ratingPhase, setRatingPhase] = useState<
+    "none" | "asking" | "submitting" | "done"
+  >("none");
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  /** Whisper transcript from turn 1 — stashed during the rating phase
+   *  so we can attach it to previousTurns when we eventually fetch Q2. */
+  const ratingDeferredTranscriptRef = useRef<string | null>(null);
 
   const guestSessionIdRef = useRef<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -502,6 +526,187 @@ export default function ChatInterview({
   );
 
   /**
+   * Fetch the LLM's next question and stagger-render it through the
+   * chunked bot-message pipeline. Extracted from handleSend so the
+   * contextual rating phase can call it AFTER the user submits their
+   * 1..10 self-rating (instead of immediately on upload success).
+   *
+   * `lastAnswerTranscript` is the Whisper transcript of the user's
+   * MOST-RECENT answer — attached to the last entry of previousTurns
+   * so the EBCP LLM can branch on the actual response.
+   */
+  const proceedToNextQuestion = useCallback(
+    async (lastAnswerTranscript: string | null) => {
+      if (thresholdReachedRef.current) return;
+      setLoadingQuestion(true);
+      const nextTurn = turnNumber + 1;
+      setTurnNumber(nextTurn);
+
+      const previousTurns = buildPreviousTurns();
+      if (lastAnswerTranscript && previousTurns.length > 0) {
+        previousTurns[previousTurns.length - 1] = {
+          ...previousTurns[previousTurns.length - 1],
+          transcript: lastAnswerTranscript,
+        };
+      }
+
+      try {
+        const q = await fetchNextQuestion(nextTurn, previousTurns);
+        renderChunkedBotMessage(
+          q.question,
+          `q-${nextTurn}`,
+          q.tone,
+          (joined) => {
+            setCurrentQuestion({ text: joined, tone: q.tone });
+          }
+        );
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Couldn't load the next question."
+        );
+        setLoadingQuestion(false);
+      }
+    },
+    [turnNumber, buildPreviousTurns, renderChunkedBotMessage]
+  );
+
+  /**
+   * Submit the user's 1..10 self-rating for the snippet that booted
+   * this contextual chat. Handles the backend's two-shape body
+   * (`rating` for clean numerics vs `rating_text` for sentences) and
+   * the 425 ATTEMPT_NOT_READY retry ladder (2s → 5s → soft fail).
+   *
+   * On RATING_UNPARSEABLE we re-arm the composer with an inline
+   * error so the user can try again without rebuilding the bubble
+   * chain. Any other failure soft-fails: we log it, append a brief
+   * acknowledgement so the chat doesn't dead-end, and continue to
+   * Q2 — rating is a nice-to-have, not a hard gate.
+   */
+  const submitSelfRating = useCallback(
+    async (input: string) => {
+      if (!sourceSnippetId) return;
+      const trimmed = input.trim();
+      if (!trimmed) return;
+
+      // Numeric-only input → send as a parsed `rating`. Otherwise send
+      // raw text so the backend's tolerant parser can pull a number
+      // out of "I'd say 8" / "around an 8" / etc.
+      const numericMatch = /^\s*(\d+(?:\.\d+)?)\s*$/.exec(trimmed);
+      const body: Record<string, unknown> = { snippet_id: sourceSnippetId };
+      if (numericMatch) {
+        body.rating = Number(numericMatch[1]);
+      } else {
+        body.rating_text = trimmed;
+      }
+
+      // Append the user's input as a right-aligned bubble immediately
+      // so they get visual ack while the request is in flight.
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `rating-input-${Date.now()}`,
+          type: "user",
+          content: trimmed,
+        },
+      ]);
+      setRatingPhase("submitting");
+      setRatingError(null);
+
+      // Retry ladder for 425 (ATTEMPT_NOT_READY): immediate, +2s, +5s.
+      // Any other error short-circuits — they're not transient.
+      const delays = [0, 2000, 5000];
+      let lastCode: string | null = null;
+      let lastError: string | null = null;
+
+      for (let i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) {
+          await new Promise((r) => setTimeout(r, delays[i]));
+        }
+        if (unmountedRef.current) return;
+
+        let res: Response;
+        try {
+          res = await fetch("/api/v2/user/coaching/self-rating", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        } catch (err) {
+          // Network blip — treat like a 503 and bail to the soft-fail path.
+          console.warn("self-rating fetch threw:", err);
+          break;
+        }
+
+        // 425: backend is still evaluating — keep trying.
+        if (res.status === 425) {
+          lastCode = "ATTEMPT_NOT_READY";
+          continue;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          code?: string;
+          error?: string;
+        };
+
+        if (res.ok) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "rating-ack",
+              type: "bot",
+              content: "Got it — thanks 🙏",
+            },
+          ]);
+          setRatingPhase("done");
+          // Give the ack bubble a beat before the typing dots return.
+          await new Promise((r) => setTimeout(r, 500));
+          if (unmountedRef.current) return;
+          await proceedToNextQuestion(
+            ratingDeferredTranscriptRef.current ?? null
+          );
+          return;
+        }
+
+        if (data.code === "RATING_UNPARSEABLE") {
+          // Re-arm the composer with the spec's inline error copy and
+          // remove the user's invalid bubble so the prompt is clean.
+          setMessages((prev) =>
+            prev.filter((m) => !m.id.startsWith("rating-input-"))
+          );
+          setRatingError(
+            "I didn't catch a number — could you try again with just 1–10?"
+          );
+          setRatingPhase("asking");
+          return;
+        }
+
+        lastCode = data.code ?? `HTTP_${res.status}`;
+        lastError = data.error ?? `Request failed (${res.status}).`;
+        break;
+      }
+
+      // All retries exhausted or non-retryable error — soft-fail and
+      // move on. Don't block the chat over a rating bookkeeping miss.
+      console.warn("Self-rating failed:", lastCode, lastError);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "rating-soft-fail",
+          type: "bot",
+          content: "Got it — let's keep going.",
+        },
+      ]);
+      setRatingPhase("done");
+      await new Promise((r) => setTimeout(r, 400));
+      if (unmountedRef.current) return;
+      await proceedToNextQuestion(
+        ratingDeferredTranscriptRef.current ?? null
+      );
+    },
+    [sourceSnippetId, proceedToNextQuestion]
+  );
+
+  /**
    * Auto-submit. Fires the moment the user stops recording — uploads the
    * chunk in the background while the UI already shows the "thinking" dots
    * to mask network latency. The user audio bubble is rendered separately
@@ -598,36 +803,35 @@ export default function ChatInterview({
           }
         }
 
-        // Fetch next question — pass conversation history so LLM doesn't repeat.
-        // loadingQuestion is already true (set at the top of handleSend, or
-        // restored just above after the math reaction), so the typing dots
-        // have been visible since the user clicked Stop.
-        const nextTurn = turnNumber + 1;
-        setTurnNumber(nextTurn);
-
-        const previousTurns = buildPreviousTurns();
-
-        // Attach Whisper transcript from this upload to the last previous turn
-        // so the EBCP LLM can branch on the user's actual response (e.g. YES/NO to math)
-        if (result.transcript && previousTurns.length > 0) {
-          previousTurns[previousTurns.length - 1] = {
-            ...previousTurns[previousTurns.length - 1],
-            transcript: result.transcript,
-          };
+        // Contextual chat self-rating splice — applies ONLY to the
+        // first user answer of a snippet-driven chat. We stash the
+        // transcript on a ref and pause the linear flow here; the
+        // RatingComposer (rendered when ratingPhase === "asking") owns
+        // resumption via submitSelfRating, which calls
+        // proceedToNextQuestion once the rating round-trip lands.
+        if (
+          sourceSnippetId &&
+          turnNumber === 1 &&
+          ratingPhase === "none" &&
+          !thresholdReachedRef.current
+        ) {
+          // Hide the typing indicator — there's no LLM reply landing,
+          // the bot just asks ONE static question for the rating.
+          setLoadingQuestion(false);
+          ratingDeferredTranscriptRef.current = result.transcript ?? null;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "rating-prompt",
+              type: "bot",
+              content: "On a scale of 1 to 10, how did that feel to you?",
+            },
+          ]);
+          setRatingPhase("asking");
+          return;
         }
 
-        const q = await fetchNextQuestion(nextTurn, previousTurns);
-        // Chunked renderer handles `|||` splitting + staggered delivery and
-        // sets currentQuestion via the callback once the FINAL chunk lands,
-        // so the mic stays gated through the whole reveal.
-        renderChunkedBotMessage(
-          q.question,
-          `q-${nextTurn}`,
-          q.tone,
-          (joined) => {
-            setCurrentQuestion({ text: joined, tone: q.tone });
-          }
-        );
+        await proceedToNextQuestion(result.transcript ?? null);
       } catch (err) {
         if (err instanceof GuestUploadFailure) {
           if (err.status === 429 || err.code === "RATE_LIMITED") {
@@ -713,14 +917,25 @@ export default function ChatInterview({
 
       {/* Bottom: record control — pinned, never compressed.
           Tight gap-1 so the helper text + GDPR disclaimer feel
-          attached to the mic instead of floating beneath it. */}
+          attached to the mic instead of floating beneath it.
+          When the contextual rating prompt is live, the mic is
+          replaced by the RatingComposer for the duration of the
+          rating phase (asking + submitting). */}
       <div className="flex shrink-0 flex-col items-center gap-1 pb-4">
-        {!loadingQuestion && currentQuestion && !thresholdReachedRef.current && (
-          <VoiceRecordButton
-            onSend={handleSend}
-            onRecorded={handleRecorded}
-            disabled={uploading}
+        {ratingPhase === "asking" || ratingPhase === "submitting" ? (
+          <RatingComposer
+            onSubmit={submitSelfRating}
+            submitting={ratingPhase === "submitting"}
+            error={ratingError}
           />
+        ) : (
+          !loadingQuestion && currentQuestion && !thresholdReachedRef.current && (
+            <VoiceRecordButton
+              onSend={handleSend}
+              onRecorded={handleRecorded}
+              disabled={uploading}
+            />
+          )
         )}
 
         {/* Helper text for first turn */}
