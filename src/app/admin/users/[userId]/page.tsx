@@ -1221,37 +1221,49 @@ export default function AdminUserDetailPage() {
   );
 
   /**
-   * Per-session detail cache, keyed by session id. Populated by a
-   * mount-time bulk fetch that fires GET /api/v2/admin/sessions/<id>
-   * in parallel for every session in the list. Two consumers:
+   * Per-session detail cache, keyed by session id. Two paths populate it:
    *
-   *   1. Tab 1 accordion header — reads
-   *      `sessionDetails[s.id]?.global_metrics?.kpi_score` for the
-   *      "Score: 85%" badge (with `s.score` as legacy fallback).
+   *   1. The single-session fetch effect below (the one keyed on
+   *      activeSession.id) — every time the user opens an accordion
+   *      its detail lands here too, "for free", so Tab 1's score
+   *      badge for that row upgrades from the legacy s.score to the
+   *      proper kpi_score % without any extra request.
    *
-   *   2. Tab 2 multi-session chat — reads
-   *      `sessionDetails[s.id]?.turns` so every session's transcript
-   *      renders inline in chronological order, no "open in Tab 1"
-   *      placeholder.
+   *   2. A lazy bulk fetch that ONLY fires once the user actually
+   *      navigates to Tab 2 ("transcript") — see `activeTab` state
+   *      and the effect below. This is the perf fix: the previous
+   *      version blasted N parallel /sessions/<id> requests on every
+   *      page load, even for users who never opened Tab 2. Now Tab 1
+   *      renders immediately with `s.score` fallbacks; full kpi% +
+   *      transcripts arrive only when the user is on the surface
+   *      that actually consumes them.
    *
-   * The single-session fetch (which feeds Tab 1's body state slots
-   * like interviewTurns, kpiScore, etc.) still runs separately and
-   * keys on activeSession.id — it's the source of truth for the
-   * editable surfaces inside the open accordion. The bulk fetch is
-   * read-only signal for headers + Tab 2.
+   * Bulk fetch also skips sessions already cached (e.g. the active
+   * one from path #1) so a Tab 2 visit only pays for what's missing.
    */
   const [sessionDetails, setSessionDetails] = useState<
     Record<string, AdminSessionDetail>
   >({});
 
+  /** Active tab — gates the lazy Tab-2 bulk fetch. Controlled so we
+   *  can react to the user switching tabs. */
+  const [activeTab, setActiveTab] = useState<string>("sessions");
+
   useEffect(() => {
+    // Only pay for the bulk fetch once the user is actually on Tab 2.
+    if (activeTab !== "transcript") return;
     if (sessions.length === 0) return;
+    // Skip sessions whose detail is already cached (active session
+    // typically populates the cache via the single-session effect).
+    const pending = sessions.filter((s) => !sessionDetails[s.id]);
+    if (pending.length === 0) return;
+
     let cancelled = false;
     (async () => {
       const token = await getAuthToken();
       if (!token || cancelled) return;
       const results = await Promise.allSettled(
-        sessions.map(async (s) => {
+        pending.map(async (s) => {
           const res = await fetch(`/api/v2/admin/sessions/${s.id}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -1261,22 +1273,24 @@ export default function AdminUserDetailPage() {
         })
       );
       if (cancelled) return;
-      const next: Record<string, AdminSessionDetail> = {};
-      for (const r of results) {
-        if (r.status === "fulfilled") {
-          next[r.value.id] = r.value.detail;
+      setSessionDetails((prev) => {
+        const next = { ...prev };
+        for (const r of results) {
+          if (r.status === "fulfilled") {
+            next[r.value.id] = r.value.detail;
+          }
         }
-      }
-      setSessionDetails(next);
+        return next;
+      });
     })();
     return () => {
       cancelled = true;
     };
-    // Re-fetch when the sessions list itself changes (new session
-    // arrives, compute-metrics flips a score, etc.). Stringify the ids
-    // so a stable list doesn't retrigger the effect on every render.
+    // Re-evaluate when the user lands on Tab 2 or the sessions list
+    // changes. Stringify the ids so a stable list doesn't retrigger
+    // the effect on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions.map((s) => s.id).join(",")]);
+  }, [activeTab, sessions.map((s) => s.id).join(",")]);
 
   /**
    * Sort + filter mode for the snippet panel. "default" = chronological
@@ -1508,6 +1522,18 @@ export default function AdminUserDetailPage() {
         if (rawSnippets.length > 0) {
           setSnippets(rawSnippets as AdminSnippet[]);
         }
+
+        // Cache this session's detail so the Tab-2 lazy bulk fetch
+        // doesn't have to re-request it later, AND so Tab 1's score
+        // badge upgrades to the kpi_score % the moment this fetch
+        // lands — no need to wait for the bulk pass.
+        setSessionDetails((prev) => ({
+          ...prev,
+          [activeSession.id]: {
+            turns: nested,
+            global_metrics: data.global_metrics ?? null,
+          },
+        }));
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[admin/sessions] fetch failed:", err);
@@ -2012,7 +2038,7 @@ export default function AdminUserDetailPage() {
         )}
 
         {/* Tabs */}
-        <Tabs defaultValue="sessions">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="sessions">Sessions &amp; Analysis</TabsTrigger>
             <TabsTrigger value="transcript">
