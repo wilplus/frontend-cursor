@@ -146,6 +146,151 @@ function formatSessionDate(iso: string | null | undefined): string {
   }
 }
 
+/* ----------------------------------------------------------------------------
+ * Session detail — shared shape used by the single-session fetch (Tab 1
+ * body) AND the bulk fetch that populates Tab 2's chronological chat.
+ * Keeping one canonical reshape helper here so both call sites produce
+ * the same nested {question, answer} turn structure the render code
+ * was originally written against.
+ * ------------------------------------------------------------------------- */
+
+interface AdminTurn {
+  id?: string | null;
+  turn_number: number | null;
+  question: { text: string | null; tone: string | null };
+  answer: {
+    audio_url: string | null;
+    duration_ms: number | null;
+    start_offset_ms?: number | null;
+    transcript?: string | null;
+  };
+}
+
+interface AdminGlobalMetrics {
+  ai_summary?: string | null;
+  ai_score?: number | null;
+  kpi_score?: number | null;
+  stickiness_top_topic?: string | null;
+  stickiness_score?: number | null;
+  stickiness_topic_distribution?: Record<string, number> | null;
+  stickiness_computed_at?: string | null;
+}
+
+interface AdminSessionDetail {
+  turns: AdminTurn[];
+  global_metrics: AdminGlobalMetrics | null;
+}
+
+interface AdminSessionDetailResponse {
+  global_metrics?: AdminGlobalMetrics;
+  turns?: Array<{
+    role?: "ai" | "user";
+    content?: string | null;
+    tone?: string | null;
+    audio_url?: string | null;
+    duration_ms?: number | null;
+    start_offset_ms?: number | null;
+    snippet_id?: string | null;
+    turn_number?: number | null;
+  }>;
+  snippets?: Array<unknown>;
+}
+
+/**
+ * Convert the backend's flat alternating ai/user message list into the
+ * nested {question, answer} shape the render code expects. Pairs
+ * adjacent ai/user entries by turn_number; falls back to "user only"
+ * or "ai only" pseudo-turns when a pair isn't available.
+ */
+function reshapeAdminSessionDetail(
+  data: AdminSessionDetailResponse
+): AdminSessionDetail {
+  const flat = Array.isArray(data.turns) ? data.turns : [];
+  const nested: AdminTurn[] = [];
+  let i = 0;
+  while (i < flat.length) {
+    const cur = flat[i];
+    const next = flat[i + 1];
+    if (
+      cur.role === "ai" &&
+      next?.role === "user" &&
+      cur.turn_number != null &&
+      cur.turn_number === next.turn_number
+    ) {
+      nested.push({
+        id: next.snippet_id ?? null,
+        turn_number: next.turn_number ?? null,
+        question: { text: cur.content ?? null, tone: cur.tone ?? null },
+        answer: {
+          audio_url: next.audio_url ?? null,
+          duration_ms: next.duration_ms ?? null,
+          start_offset_ms: next.start_offset_ms ?? 0,
+          transcript: next.content ?? null,
+        },
+      });
+      i += 2;
+    } else if (cur.role === "user") {
+      nested.push({
+        id: cur.snippet_id ?? null,
+        turn_number: cur.turn_number ?? null,
+        question: { text: null, tone: null },
+        answer: {
+          audio_url: cur.audio_url ?? null,
+          duration_ms: cur.duration_ms ?? null,
+          start_offset_ms: cur.start_offset_ms ?? 0,
+          transcript: cur.content ?? null,
+        },
+      });
+      i += 1;
+    } else {
+      nested.push({
+        id: null,
+        turn_number: cur.turn_number ?? null,
+        question: { text: cur.content ?? null, tone: cur.tone ?? null },
+        answer: {
+          audio_url: null,
+          duration_ms: null,
+          transcript: null,
+        },
+      });
+      i += 1;
+    }
+  }
+
+  // Snippet fallback for extraction-only sessions (no Q&A loop) —
+  // promote any snippet with playable audio to a pseudo-turn.
+  const rawSnippets = Array.isArray(data.snippets) ? data.snippets : [];
+  if (nested.length === 0) {
+    for (const raw of rawSnippets) {
+      const s = raw as {
+        id?: string | null;
+        audio_url?: string | null;
+        duration_ms?: number | null;
+        transcript?: string | null;
+        turn_number?: number | null;
+        is_skipped?: boolean;
+      };
+      if (s.is_skipped) continue;
+      if (!s.audio_url) continue;
+      nested.push({
+        id: s.id ?? null,
+        turn_number: s.turn_number ?? null,
+        question: { text: null, tone: null },
+        answer: {
+          audio_url: s.audio_url ?? null,
+          duration_ms: s.duration_ms ?? null,
+          transcript: s.transcript ?? null,
+        },
+      });
+    }
+  }
+
+  return {
+    turns: nested,
+    global_metrics: data.global_metrics ?? null,
+  };
+}
+
 function displayName(p: StudentProfile | null): string {
   if (!p) return "User";
   return (
@@ -1076,6 +1221,64 @@ export default function AdminUserDetailPage() {
   );
 
   /**
+   * Per-session detail cache, keyed by session id. Populated by a
+   * mount-time bulk fetch that fires GET /api/v2/admin/sessions/<id>
+   * in parallel for every session in the list. Two consumers:
+   *
+   *   1. Tab 1 accordion header — reads
+   *      `sessionDetails[s.id]?.global_metrics?.kpi_score` for the
+   *      "Score: 85%" badge (with `s.score` as legacy fallback).
+   *
+   *   2. Tab 2 multi-session chat — reads
+   *      `sessionDetails[s.id]?.turns` so every session's transcript
+   *      renders inline in chronological order, no "open in Tab 1"
+   *      placeholder.
+   *
+   * The single-session fetch (which feeds Tab 1's body state slots
+   * like interviewTurns, kpiScore, etc.) still runs separately and
+   * keys on activeSession.id — it's the source of truth for the
+   * editable surfaces inside the open accordion. The bulk fetch is
+   * read-only signal for headers + Tab 2.
+   */
+  const [sessionDetails, setSessionDetails] = useState<
+    Record<string, AdminSessionDetail>
+  >({});
+
+  useEffect(() => {
+    if (sessions.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAuthToken();
+      if (!token || cancelled) return;
+      const results = await Promise.allSettled(
+        sessions.map(async (s) => {
+          const res = await fetch(`/api/v2/admin/sessions/${s.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = (await res.json()) as AdminSessionDetailResponse;
+          return { id: s.id, detail: reshapeAdminSessionDetail(data) };
+        })
+      );
+      if (cancelled) return;
+      const next: Record<string, AdminSessionDetail> = {};
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          next[r.value.id] = r.value.detail;
+        }
+      }
+      setSessionDetails(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-fetch when the sessions list itself changes (new session
+    // arrives, compute-metrics flips a score, etc.). Stringify the ids
+    // so a stable list doesn't retrigger the effect on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions.map((s) => s.id).join(",")]);
+
+  /**
    * Sort + filter mode for the snippet panel. "default" = chronological
    * (by start_offset_ms, matching how the timeline reads); "score_desc"
    * surfaces what worked best; "score_asc" surfaces what didn't — useful
@@ -1854,8 +2057,19 @@ export default function AdminUserDetailPage() {
                     .source_type;
                   return src === "auto_extracted" || src === "student";
                 }).length;
+                // Prefer the new global_metrics.kpi_score (0..100 from
+                // the backend's aggregate metrics path); fall back to
+                // the legacy SessionRow.score for sessions whose detail
+                // hasn't finished bulk-fetching yet or backends that
+                // don't expose global_metrics on this surface.
+                const kpiFromDetail =
+                  sessionDetails[s.id]?.global_metrics?.kpi_score;
                 const headerScore =
-                  s.score != null ? String(s.score) : "—";
+                  kpiFromDetail != null
+                    ? `${Math.round(kpiFromDetail)}%`
+                    : s.score != null
+                    ? String(s.score)
+                    : "—";
 
                 return (
                   <Card
@@ -2251,9 +2465,20 @@ export default function AdminUserDetailPage() {
                   ) : (
                     [...sessions].reverse().map((cs) => {
                       const isActiveSession = cs.id === activeSession?.id;
-                      const sessionTurns = isActiveSession ? interviewTurns : [];
+                      // Tab 2 reads from the bulk-fetched sessionDetails
+                      // map so EVERY session shows its transcript inline.
+                      // For the active session we prefer the live
+                      // interviewTurns state (it stays in sync with
+                      // saveTurnEdit and other mutations); other sessions
+                      // fall through to the cached detail.
+                      const cachedTurns =
+                        sessionDetails[cs.id]?.turns ?? [];
+                      const sessionTurns: AdminTurn[] = isActiveSession
+                        ? (interviewTurns as AdminTurn[])
+                        : cachedTurns;
+                      const bulkPending =
+                        !isActiveSession && !sessionDetails[cs.id];
                       const fallbackPreview =
-                        isActiveSession &&
                         sessionTurns.length === 0 &&
                         cs.recording_preview?.transcription_preview
                           ? cs.recording_preview.transcription_preview
@@ -2272,10 +2497,9 @@ export default function AdminUserDetailPage() {
                             <div className="h-px flex-1 bg-border" />
                           </div>
 
-                          {!isActiveSession ? (
+                          {bulkPending ? (
                             <p className="px-2 text-center text-xs text-muted-foreground">
-                              Open this session in the Sessions tab to load
-                              its transcript.
+                              Loading transcript…
                             </p>
                           ) : sessionTurns.length === 0 && !fallbackPreview ? (
                             <p className="px-2 text-center text-xs text-muted-foreground">
@@ -2289,7 +2513,12 @@ export default function AdminUserDetailPage() {
                             sessionTurns.map((turn, idx) => {
                     const isEditing = editingTurnIdx === idx;
                     const isSavingThis = savingTurnIdx === idx;
-                    const canEdit = !!turn.id;
+                    // Edit state (editingTurnIdx / savingTurnIdx) is
+                    // single-session — it only makes sense for the
+                    // active session whose `interviewTurns` it indexes
+                    // into. For non-active sessions the button is
+                    // disabled and tooltips explain why.
+                    const canEdit = isActiveSession && !!turn.id;
                     return (
                       <div key={turn.id ?? idx} className="space-y-2">
                         {/* Bot question bubble — admin can edit the text */}
@@ -2349,6 +2578,8 @@ export default function AdminUserDetailPage() {
                                   title={
                                     canEdit
                                       ? "Edit AI message"
+                                      : !isActiveSession
+                                      ? "Open this session in the Sessions tab to edit"
                                       : "Edit unavailable — turn id missing"
                                   }
                                   onClick={() => {
