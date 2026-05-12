@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import Lottie from "lottie-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -11,26 +12,67 @@ import { getAuthToken } from "@/lib/api/auth-client";
 
 type ChatState = "loading" | "interviewing" | "complete" | "error";
 
+const VOICE_LOADING_PHRASES = [
+  "Analyzing your charisma markers…",
+  "Mapping stress patterns…",
+  "Detecting filler-word density…",
+  "Tuning into your vocal energy…",
+  "Finalizing your insights…",
+] as const;
+
+function shufflePhrases(phrases: readonly string[]): string[] {
+  const shuffled = [...phrases];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 function TrainingCompleteScreen() {
+  const router = useRouter();
+  const [lottieData, setLottieData] = useState<object | null>(null);
+  const [phrases] = useState<string[]>(() => shufflePhrases(VOICE_LOADING_PHRASES));
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/animations/loading.json")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setLottieData(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPhraseIndex((i) => (i + 1) % phrases.length);
+    }, 1800);
+    return () => clearInterval(id);
+  }, [phrases.length]);
+
+  // /results handles its own state: real results vs ProcessingState waiting screen.
+  useEffect(() => {
+    const t = setTimeout(() => router.push("/results"), 4500);
+    return () => clearTimeout(t);
+  }, [router]);
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-fade-in-up">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-        <CheckCircle2 className="h-8 w-8 text-primary" />
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center animate-fade-in-up">
+      <div className="h-24 w-24 opacity-80">
+        {lottieData ? (
+          <Lottie animationData={lottieData} loop />
+        ) : (
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        )}
       </div>
-
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">Training complete for today</h1>
-        <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-          Great work! Your session has been recorded. Check back for updated insights from your
-          coach.
-        </p>
-      </div>
-
-      <Link href="/results">
-        <Button variant="default" className="rounded-full mt-4">
-          Back to My Results
-        </Button>
-      </Link>
+      <p className="mx-auto max-w-sm text-sm text-muted-foreground min-h-[1.25rem] transition-opacity duration-300">
+        {phrases[phraseIndex]}
+      </p>
     </div>
   );
 }
