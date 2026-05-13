@@ -174,26 +174,22 @@ export default function PostSessionResultsEmail({
             margin: "0 auto",
           }}
         >
-          {/* Top: centred Willab logo image. Replaces the previous
-              Pacifico text wordmark — most email clients strip Google
-              Fonts, so the text fallback (Brush Script MT, cursive)
-              was inconsistent across clients. An <Img> renders the
-              same in every client.
-
-              src points at the Next.js /icon route — same asset
-              served as the site favicon. Swap to a wider, dedicated
-              header logo URL (e.g. CDN-hosted /willab-logo.png) once
-              one exists; the rest of the template doesn't depend on
-              the URL shape. */}
+          {/* Top: centred Willab wordmark logo, dynamically rendered
+              by /willab-logo (src/app/willab-logo/route.tsx — Vercel
+              edge ImageResponse with Pacifico baked into the PNG).
+              4:1 aspect (480×120 source) sits properly in an email
+              header at ~160 px wide. Renders identically in every
+              email client because the font is rasterised — no
+              Google Fonts strip risk. */}
           <Section style={{ paddingBottom: 24, textAlign: "center" }}>
             <Img
-              src="https://www.willonski.com/icon"
+              src="https://www.willonski.com/willab-logo"
               alt="Willab"
-              width="120"
-              height="120"
+              width="160"
+              height="40"
               style={{
                 display: "inline-block",
-                width: "120px",
+                width: "160px",
                 height: "auto",
                 border: 0,
               }}
