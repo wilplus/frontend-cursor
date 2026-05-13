@@ -60,7 +60,10 @@ export async function POST(req: NextRequest) {
     };
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const upstream = await fetch(`${backend}/v2/session/finalize`, {
+    // Backend path per SSoT §3:
+    // /v2/public/interview/finalize (NOT /v2/session/finalize —
+    // that was the pre-Phase-18 path that no longer exists).
+    const upstream = await fetch(`${backend}/v2/public/interview/finalize`, {
       method: "POST",
       headers,
       body: JSON.stringify(body ?? {}),
