@@ -124,7 +124,20 @@ interface AdminSnippet {
     } | null;
     evaluator?: {
       score?: number | null;
+      /** AI's original rationale draft. Immutable once written. */
       rationale?: string | null;
+      /**
+       * Admin's corrected rationale, if they edited the AI draft.
+       * Null means either (a) admin hasn't reviewed yet, or
+       * (b) admin reviewed and approved the AI draft as-is — use
+       * `admin_reviewed_at` to disambiguate.
+       */
+      admin_corrected_rationale?: string | null;
+      /**
+       * Timestamp of the last admin review (set on save regardless
+       * of whether the text was edited). Null = never reviewed.
+       */
+      admin_reviewed_at?: string | null;
       components?: {
         specificity?: number | null;
         emotional_movement?: number | null;
@@ -796,6 +809,16 @@ interface SnippetCardProps {
     followUpQuestion: string
   ) => Promise<void>;
   onSkip: (snippetId: string) => void;
+  /** Wired through to <CoachingOutcomeStrip>. Fires after a successful
+   *  PATCH /coaching-rationale so the parent can patch the snippet's
+   *  follow_up_outcome.evaluator block locally without re-fetching. */
+  onRationaleSaved: (
+    snippetId: string,
+    next: {
+      admin_corrected_rationale: string | null;
+      admin_reviewed_at: string;
+    }
+  ) => void;
   saving?: boolean;
   /** Disable boundary +/- controls (e.g. while saving). */
   boundaryDisabled?: boolean;
@@ -807,14 +830,34 @@ interface SnippetCardProps {
  * in response to THIS snippet's contextual chat, and how the evaluator
  * scored their answer. Rendered only when follow_up_outcome is non-null
  * (i.e. the user has answered turn 1 of a chat seeded by this snippet's
- * CTA). The composite score colour-codes the strip; tooltip exposes the
- * rationale + per-component scores so the admin can see WHY the model
- * scored what it did.
+ * CTA). The composite score colour-codes the strip.
+ *
+ * Rationale is EDITABLE so the admin can correct the AI's evaluation
+ * verdict and feed both the correction (or the "approved as-is"
+ * signal) into the training corpus. Save fires PATCH
+ * /api/v2/admin/snippets/<id>/coaching-rationale with `edited_by_admin`
+ * derived locally (true if the saved text differs from the AI's
+ * original `rationale`, false otherwise). The "approved as-is" signal
+ * is just as valuable as a correction — the model never learns it's
+ * right unless reviewers say so.
  */
 function CoachingOutcomeStrip({
+  snippetId,
   outcome,
+  onRationaleSaved,
 }: {
+  snippetId: string;
   outcome: NonNullable<AdminSnippet["follow_up_outcome"]>;
+  /** Parent re-syncs the snippet's outcome blob after a successful
+   *  save so future renders reflect the new admin_corrected_rationale
+   *  + admin_reviewed_at without a follow-up GET. */
+  onRationaleSaved: (
+    snippetId: string,
+    next: {
+      admin_corrected_rationale: string | null;
+      admin_reviewed_at: string;
+    }
+  ) => void;
 }) {
   const score = Number(outcome.score ?? outcome.evaluator?.score ?? 0);
   const answer = (outcome.user_answer?.text || "").trim();
@@ -823,7 +866,11 @@ function CoachingOutcomeStrip({
     outcome.user_answer?.duration_ms != null
       ? (outcome.user_answer.duration_ms / 1000).toFixed(1)
       : null;
-  const rationale = (outcome.evaluator?.rationale || "").trim();
+  const aiRationale = (outcome.evaluator?.rationale || "").trim();
+  const adminCorrected = (
+    outcome.evaluator?.admin_corrected_rationale || ""
+  ).trim();
+  const reviewedAt = outcome.evaluator?.admin_reviewed_at ?? null;
   const components = outcome.evaluator?.components ?? null;
   const capturedAt = outcome.captured_at
     ? new Date(outcome.captured_at).toLocaleString(undefined, {
@@ -856,12 +903,93 @@ function CoachingOutcomeStrip({
         .join(" · ")
     : "";
 
-  const tooltipText = [rationale, componentSummary].filter(Boolean).join("\n\n");
+  // Editable rationale: pre-fill with the admin's corrected version
+  // if one exists, otherwise the AI's original draft. The "edited"
+  // flag at save time is computed by comparing trimmed text to the
+  // AI's original — that way "Approved as-is" lands cleanly even
+  // after a refresh.
+  const initialDraft = adminCorrected || aiRationale;
+  const [draft, setDraft] = useState(initialDraft);
+  const [savingRationale, setSavingRationale] = useState(false);
+  // Reset draft if a new outcome blob arrives (e.g. user did another
+  // attempt and the backend re-evaluated).
+  useEffect(() => {
+    setDraft(adminCorrected || aiRationale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiRationale, adminCorrected]);
+
+  const trimmedDraft = draft.trim();
+  const dirtyVsSaved = trimmedDraft !== (adminCorrected || aiRationale);
+  const dirtyVsAI = trimmedDraft !== aiRationale;
+  const reviewBadge = reviewedAt
+    ? adminCorrected
+      ? { label: "Edited by admin", className: "bg-primary/10 text-primary" }
+      : { label: "Approved as-is", className: "bg-emerald-100 text-emerald-800" }
+    : { label: "Awaiting review", className: "bg-amber-100 text-amber-900" };
+
+  const handleSaveRationale = async () => {
+    if (savingRationale || !trimmedDraft) return;
+    setSavingRationale(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated.");
+        return;
+      }
+      const res = await fetch(
+        `/api/v2/admin/snippets/${encodeURIComponent(snippetId)}/coaching-rationale`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rationale: trimmedDraft,
+            edited_by_admin: dirtyVsAI,
+          }),
+        }
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        toast.error(data.error ?? `Save failed (HTTP ${res.status})`);
+        return;
+      }
+      onRationaleSaved(snippetId, {
+        admin_corrected_rationale: dirtyVsAI ? trimmedDraft : null,
+        admin_reviewed_at: new Date().toISOString(),
+      });
+      toast.success(
+        dirtyVsAI ? "Saved your correction." : "Approved AI rationale as-is."
+      );
+    } catch (err) {
+      console.error("save rationale failed:", err);
+      toast.error("Couldn't save rationale.");
+    } finally {
+      setSavingRationale(false);
+    }
+  };
+
+  // Save button label tracks the current draft state so the admin
+  // sees what the click will actually do (paired example vs positive
+  // signal vs no-op).
+  const saveLabel = savingRationale
+    ? "Saving…"
+    : dirtyVsSaved
+    ? dirtyVsAI
+      ? "Save correction"
+      : "Approve as-is"
+    : reviewedAt
+    ? "Saved"
+    : "Save (approve as-is)";
 
   return (
     <div
       className={`rounded-xl border ${bandClass} p-3 space-y-2`}
-      title={tooltipText || undefined}
+      title={componentSummary || undefined}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -886,8 +1014,48 @@ function CoachingOutcomeStrip({
           &ldquo;{answer}&rdquo;
         </p>
       )}
-      {rationale && (
-        <p className="text-xs italic text-muted-foreground">{rationale}</p>
+
+      {/* Editable AI rationale + review status */}
+      {(aiRationale || adminCorrected) && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              AI rationale (editable — feeds training)
+            </span>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${reviewBadge.className}`}
+            >
+              {reviewBadge.label}
+            </span>
+          </div>
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            placeholder="The model wrote this — edit to correct, leave as-is to approve."
+            className="bg-background text-xs"
+            disabled={savingRationale}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground">
+              {dirtyVsAI
+                ? "Will save as a paired correction (AI vs admin)."
+                : reviewedAt
+                ? "Matches AI verbatim — re-saves the positive signal."
+                : "Matches AI verbatim — saving will mark as approved."}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void handleSaveRationale()}
+              disabled={savingRationale || !trimmedDraft}
+              className="h-7 rounded-full px-3 text-xs"
+            >
+              {saveLabel}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -899,6 +1067,7 @@ function SnippetCard({
   onLabel,
   onSaveComment,
   onSkip,
+  onRationaleSaved,
   saving,
   boundaryDisabled,
   skipDisabled,
@@ -1081,7 +1250,11 @@ function SnippetCard({
             colour-codes the strip; the user's reply is the most
             useful artefact, so it gets the largest treatment. */}
         {snippet.follow_up_outcome && (
-          <CoachingOutcomeStrip outcome={snippet.follow_up_outcome} />
+          <CoachingOutcomeStrip
+            snippetId={snippet.id}
+            outcome={snippet.follow_up_outcome}
+            onRationaleSaved={onRationaleSaved}
+          />
         )}
 
         {/* Action footer (Save / Skip) */}
@@ -1994,6 +2167,43 @@ export default function AdminUserDetailPage() {
     [snippets]
   );
 
+  /**
+   * Patch a snippet's follow_up_outcome.evaluator block locally
+   * after the rationale Save round-trip lands. Avoids a full
+   * re-fetch — Outcome strip re-renders from the new state slice
+   * and shows the updated review badge ("Edited by admin" /
+   * "Approved as-is") without a network hop.
+   */
+  const handleRationaleSaved = useCallback(
+    (
+      snippetId: string,
+      next: {
+        admin_corrected_rationale: string | null;
+        admin_reviewed_at: string;
+      }
+    ) => {
+      setSnippets((prev) =>
+        prev.map((s) => {
+          if (s.id !== snippetId) return s;
+          const outcome = s.follow_up_outcome;
+          if (!outcome) return s;
+          return {
+            ...s,
+            follow_up_outcome: {
+              ...outcome,
+              evaluator: {
+                ...(outcome.evaluator ?? {}),
+                admin_corrected_rationale: next.admin_corrected_rationale,
+                admin_reviewed_at: next.admin_reviewed_at,
+              },
+            },
+          };
+        })
+      );
+    },
+    []
+  );
+
   const handleSkipSnippet = useCallback(async (snippetId: string) => {
     const target = snippets.find((s) => s.id === snippetId);
     const newSkipped = !target?.is_skipped;
@@ -2561,6 +2771,7 @@ export default function AdminUserDetailPage() {
                     onLabel={handleSnippetLabel}
                     onSaveComment={handleSaveSnippetComment}
                     onSkip={handleSkipSnippet}
+                    onRationaleSaved={handleRationaleSaved}
                     boundaryDisabled={false}
                     skipDisabled={false}
                   />
