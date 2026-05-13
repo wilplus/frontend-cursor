@@ -135,39 +135,41 @@ interface ChatInterviewProps {
 const AGGREGATE_THRESHOLD_SECONDS = 30;
 
 /**
- * Cold-start onboarding sequence — four bite-sized bot bubbles. The first
- * three frame the science of charisma; the fourth IS the first interview
- * question (the EBCP frustration / math probe). The frontend hardcodes
- * Q1 here instead of asking the backend so the conversational rhythm
- * stays consistent — backend takes over from Q2 onwards using the
- * conversation history sent on the first upload.
+ * Cold-start onboarding sequence — IMMUTABLE per
+ * docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §1. Frontend owns
+ * Turns 1-4 entirely; do NOT change these strings without
+ * coordinating an architecture update. Backend's _EBCP_FALLBACKS
+ * table is being deleted as part of the same alignment.
+ *
+ *   M1 = framing only (auto-advances; no user recording)
+ *   M2 = Turn 1 question (user records)
+ *   M3 = Turn 2 question (user records)
+ *   M4 = Turn 3 question (user records — math probe, EBCP stress prime)
+ *   Backend takes over after M4's answer.
  *
  * Only appended when no `initialQuestion` is provided (warm-start
  * retention-loop chats skip this entirely).
- *
- * `**...**` runs in `content` are rendered as <strong> by ChatBubble —
- * keep markup minimal (single phrase per bubble at most).
  */
 const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
   {
     id: "ob-1",
     content:
-      "Your stress and your charisma are made of the same stuff. We're here to show you the switch.",
+      "Quick baseline first. I'm going to ask you some off-the-wall questions. Just go with it — there's a method.",
   },
   {
     id: "ob-2",
     content:
-      "Charisma is social and you can't drill it alone. So we'll do something different.",
+      "All right. I want you to imagine you have a younger sibling who's struggling with a math problem. They're stuck, they're frustrated. What do you say to them?",
   },
   {
     id: "ob-3",
     content:
-      "We'll map your personal **Charismatic Flow State**, the moments your voice sounds most magnetic.",
+      "Got it. One more. Picture this: you're in a meeting and someone presents an idea you strongly disagree with. Do you speak up immediately, or wait and think it through?",
   },
   {
     id: "ob-4",
     content:
-      "First we need your baseline. Forgive the odd opener, but do you generally like math?",
+      "Last weird one, I promise. Do you generally like math? Quick yes or no — trust me, this matters.",
   },
 ];
 
@@ -302,6 +304,20 @@ export default function ChatInterview({
   /** Set true on unmount so async chunk callbacks can short-circuit
    *  cleanly without trying to update state on a torn-down component. */
   const unmountedRef = useRef(false);
+  /**
+   * Cold-start step pointer.
+   *   null = warm start (contextual chat) — no onboarding chain runs.
+   *   0    = M1 (framing) just landed; about to auto-advance to M2.
+   *   1    = M2 question is currently being recorded.
+   *   2    = M3 question is currently being recorded.
+   *   3    = M4 question (math probe) is currently being recorded.
+   *
+   * After M4's answer, the backend takes over at "Turn 5" per
+   * docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §1. handleSend
+   * branches on this ref to decide whether to advance to the next
+   * onboarding M or hand off to fetchNextQuestion.
+   */
+  const coldStartStepRef = useRef<number | null>(null);
 
   // Clean up the farewell timeout + flag unmount for chunk callbacks
   useEffect(() => {
@@ -316,15 +332,63 @@ export default function ChatInterview({
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loadingQuestion]);
 
-  // Mount: warm start (initialQuestion provided) → load Q1 immediately.
-  // Cold start (no initialQuestion) → live-text the onboarding sequence:
-  //   typing 1.5s → M1, typing 2s → M2, typing 2.5s → M3, then fetch Q1.
-  // The TypingIndicator bubble is gated on `loadingQuestion`; the mic on
-  // `currentQuestion` (only set after Q1 lands), so the user can't record
-  // until the whole sequence has played out.
-  useEffect(() => {
-    let cancelled = false;
+  /**
+   * Land one onboarding message and decide what happens next.
+   *
+   *   M1 (idx 0): framing — auto-advances to M2 after a 250ms beat
+   *               with no recording prompt in between.
+   *   M2/M3/M4 (idx 1/2/3): each becomes the active question — mic
+   *               appears, user records, handleSend's cold-start
+   *               branch fires playColdStartStep(idx + 1) after the
+   *               upload (or hands off to backend after M4).
+   *
+   * Defined as a regular function (not useCallback) so its self-
+   * recursive call resolves to the same first-render binding the
+   * mount useEffect captured. The body only touches stable refs +
+   * setState dispatchers — no closure-captured state — so the
+   * "first render" capture isn't a staleness risk.
+   */
+  const playColdStartStep = (idx: number) => {
+    if (idx >= ONBOARDING_MESSAGES.length) return;
+    setLoadingQuestion(true);
+    const typingMs = ONBOARDING_TYPING_MS[idx];
+    const timer = setTimeout(() => {
+      if (unmountedRef.current) return;
+      const msg = ONBOARDING_MESSAGES[idx];
+      setMessages((prev) => [
+        ...prev,
+        { id: msg.id, type: "bot", content: msg.content },
+      ]);
+      setLoadingQuestion(false);
+      coldStartStepRef.current = idx;
 
+      if (idx === 0) {
+        // M1 framing — auto-advance to M2 after a beat. No mic in
+        // between; the message has no question, so prompting a
+        // recording would just confuse the user.
+        const gap = setTimeout(() => {
+          if (unmountedRef.current) return;
+          playColdStartStep(1);
+        }, 250);
+        onboardingTimersRef.current.push(gap);
+      } else {
+        // M2/M3/M4 — promote to the active question so the mic
+        // appears. handleSend's cold-start branch will trigger the
+        // next playColdStartStep after this turn's upload.
+        setCurrentQuestion({
+          text: msg.content,
+          tone: FIRST_QUESTION_TONE,
+        });
+      }
+    }, typingMs);
+    onboardingTimersRef.current.push(timer);
+  };
+
+  // Mount: warm start (initialQuestion provided) → load Q1 immediately.
+  // Cold start (no initialQuestion) → run the M1..M4 onboarding chain,
+  // each of M2/M3/M4 being a separate recording turn per
+  // docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §1.
+  useEffect(() => {
     if (initialQuestion) {
       // Warm start: pre-fetched contextual question from the retention-loop.
       // Routed through the chunked renderer so any `|||` from the LLM is
@@ -340,61 +404,11 @@ export default function ChatInterview({
       return;
     }
 
-    // Cold start — typing → message chain through M1..M4, then promote
-    // M4 to "the current question" so the mic appears. Backend Q1 is
-    // intentionally NOT fetched: M4 is the EBCP frustration probe and
-    // serves as turn 1's question. The backend takes over on turn 2
-    // (handleSend → fetchNextQuestion(2, previousTurns)) using the math
-    // answer's transcript to branch.
-
-    /**
-     * Schedule a single onboarding step: hold the typing indicator for the
-     * configured duration, then drop the indicator + append the message.
-     * The next step is queued from the timer callback so the user always
-     * sees typing → message → typing → message rhythm. After the LAST
-     * message we promote it to the current question and re-enable the mic.
-     */
-    const scheduleStep = (idx: number) => {
-      const typingMs = ONBOARDING_TYPING_MS[idx];
-      const timer = setTimeout(() => {
-        if (cancelled) return;
-        const msg = ONBOARDING_MESSAGES[idx];
-        setMessages((prev) => [
-          ...prev,
-          { id: msg.id, type: "bot", content: msg.content },
-        ]);
-
-        if (idx < ONBOARDING_MESSAGES.length - 1) {
-          // More messages — drop typing for one frame so the bubble has a
-          // beat to land before the indicator returns. Keeping it always on
-          // would visually merge the message and the next typing bubble.
-          setLoadingQuestion(false);
-          const gap = setTimeout(() => {
-            if (cancelled) return;
-            setLoadingQuestion(true);
-            scheduleStep(idx + 1);
-          }, 250);
-          onboardingTimersRef.current.push(gap);
-        } else {
-          // Last onboarding bubble = Q1 (the math probe). Drop typing,
-          // set currentQuestion so the mic appears in the same frame.
-          setLoadingQuestion(false);
-          setCurrentQuestion({
-            text: msg.content,
-            tone: FIRST_QUESTION_TONE,
-          });
-        }
-      }, typingMs);
-      onboardingTimersRef.current.push(timer);
-    };
-
-    // Kick off the chain — typing indicator on, no messages yet.
+    // Cold start — kick off M1.
     setMessages([]);
-    setLoadingQuestion(true);
-    scheduleStep(0);
+    playColdStartStep(0);
 
     return () => {
-      cancelled = true;
       onboardingTimersRef.current.forEach(clearTimeout);
       onboardingTimersRef.current = [];
     };
@@ -903,22 +917,46 @@ export default function ChatInterview({
             },
           ]);
 
-          // Give the user ~3 seconds to read the goodbye, then transition
+          // Notify backend the session is done. Per
+          // docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §3, frontend
+          // is the source of truth for "session ended" — backend
+          // doesn't track aggregate duration independently. Fire the
+          // finalize POST in the background so the goodbye animation
+          // doesn't wait on the network. Any failure is non-fatal:
+          // the user still routes to /results 3s later via
+          // onThresholdReached, and the backend can reconcile state
+          // from the existing turn rows if the finalize call dropped.
           const sid = result.guest_session_id;
+          void fetch("/api/session/finalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              guest_session_id: sid,
+              total_duration_seconds: effectiveTotal,
+              reason: "threshold",
+            }),
+          }).catch((err) => {
+            // Non-fatal — the user still gets to /results, backend
+            // can reconcile from the turn rows.
+            console.warn("/api/session/finalize threshold call failed:", err);
+          });
+
+          // Give the user ~3 seconds to read the goodbye, then transition
           farewellTimerRef.current = setTimeout(() => {
             onThresholdReached(sid);
           }, 3000);
           return;
         }
 
-        // EBCP frustration-probe reaction — when the user just answered the
-        // hardcoded math question (turnNumber === 1), peek at the Whisper
-        // transcript and drop in an empathetic acknowledgement before the
-        // LLM's Q2 lands. Keeps the chat feeling responsive even if the LLM
-        // doesn't naturally branch on the math answer.
-        // Positive answers fall through silently — the Q2 prompt carries
-        // the reaction itself in that path.
-        if (turnNumber === 1 && result.transcript) {
+        // EBCP frustration-probe reaction — when the user just answered
+        // the hardcoded math question (M4 — coldStartStepRef.current
+        // === 3), peek at the Whisper transcript and drop in an
+        // empathetic acknowledgement before the LLM's first dynamic
+        // question lands. Keeps the chat feeling responsive even if the
+        // LLM doesn't naturally branch on the math answer.
+        // Positive answers fall through silently — the LLM's prompt
+        // carries the reaction itself in that path.
+        if (coldStartStepRef.current === 3 && result.transcript) {
           const negative =
             /\b(no|don'?t|hate|dislike|sucks|not really|not a fan|terrible|awful|bad at)\b/i.test(
               result.transcript
@@ -934,11 +972,27 @@ export default function ChatInterview({
               },
             ]);
             // Brief beat so the reaction lands distinctly, then the typing
-            // indicator returns for the LLM's Q2.
+            // indicator returns for the LLM's first dynamic question.
             await new Promise((r) => setTimeout(r, 600));
             if (thresholdReachedRef.current) return;
             setLoadingQuestion(true);
           }
+        }
+
+        // Cold-start onboarding chain advance. While we're still in
+        // M2 or M3 (steps 1 or 2), the next message is hardcoded
+        // frontend copy — not a backend round-trip. Bump turnNumber
+        // for the next upload's turn_number, render the next M, and
+        // bail out before proceedToNextQuestion would fire.
+        if (
+          coldStartStepRef.current !== null &&
+          coldStartStepRef.current >= 1 &&
+          coldStartStepRef.current < 3
+        ) {
+          setCurrentQuestion(null);
+          setTurnNumber((n) => n + 1);
+          playColdStartStep(coldStartStepRef.current + 1);
+          return;
         }
 
         // Contextual chat self-rating splice — applies ONLY to the
