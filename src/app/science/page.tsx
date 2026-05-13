@@ -5,7 +5,7 @@ import { ArrowLeft, FileText } from "lucide-react";
 export const metadata: Metadata = {
   title: "Science | Willab",
   description:
-    "The research foundation behind Willab — Charismatic Flow State, EBCP, and biologically-grounded charisma training.",
+    "The research foundation behind Willab — EBCP, NECP, and biologically-grounded charisma training.",
 };
 
 const PAPERS: ReadonlyArray<{
@@ -13,12 +13,6 @@ const PAPERS: ReadonlyArray<{
   description: string;
   href: string;
 }> = [
-  {
-    title: "Charismatic Flow State",
-    description:
-      "How charisma and stress share an identical biological substrate, and how that high-energy state can be redirected into magnetic presence.",
-    href: "#",
-  },
   {
     title: "EBCP — Emotion-Based Collaborative Prompting",
     description:
@@ -30,12 +24,6 @@ const PAPERS: ReadonlyArray<{
     description:
       "How naming emotions in the corporate workplace reduces emotional bias in competence assessments and provides a scalable method for measuring learnability.",
     href: "/papers/naming-emotions-paper.pdf",
-  },
-  {
-    title: "Acoustic markers of stress and charisma",
-    description:
-      "WPM, pitch variance, dynamic dB, pause-rate and emphasis-per-minute — what we measure, why we measure it, and how the thresholds were calibrated.",
-    href: "#",
   },
 ];
 
@@ -55,8 +43,8 @@ export default function SciencePage() {
           The Science
         </h1>
         <p className="text-muted-foreground">
-          Three papers + research notes that frame how Willab thinks about
-          charisma, stress, and trainable speaker presence.
+          The research that frames how Willab thinks about charisma, stress,
+          and trainable speaker presence.
         </p>
       </header>
 
