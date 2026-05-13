@@ -135,57 +135,24 @@ interface ChatInterviewProps {
 const AGGREGATE_THRESHOLD_SECONDS = 30;
 
 /**
- * Cold-start onboarding sequence — IMMUTABLE per
- * docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §1. Frontend owns
- * Turns 1-4 entirely; do NOT change these strings without
- * coordinating an architecture update. Backend's _EBCP_FALLBACKS
- * table is being deleted as part of the same alignment.
+ * Cold-start onboarding is now AI-driven end-to-end. The previous
+ * hardcoded ONBOARDING_MESSAGES (M1-M4) + scheduleStep / playColdStartStep
+ * machinery was deleted in favour of fetching turn 1 from the backend
+ * the same way every other turn is fetched. The backend now generates
+ * the entire conversation including the calibration prompts; A/B
+ * testing showed it produces a meaningfully better UX than the static
+ * script.
  *
- *   M1 = framing only (auto-advances; no user recording)
- *   M2 = Turn 1 question (user records)
- *   M3 = Turn 2 question (user records)
- *   M4 = Turn 3 question (user records — math probe, EBCP stress prime)
- *   Backend takes over after M4's answer.
- *
- * Only appended when no `initialQuestion` is provided (warm-start
- * retention-loop chats skip this entirely).
+ * What this means for the rest of the file:
+ *   - No FIRST_QUESTION_TONE constant — `tone` always comes from the
+ *     backend's next-question response.
+ *   - No ONBOARDING_TYPING_MS — the chunked bot-message renderer
+ *     handles typing rhythm uniformly via CHUNK_TYPING_MS.
+ *   - No coldStartStepRef — there are no "steps" the frontend owns.
+ *   - The mount useEffect's cold-start branch just calls
+ *     fetchNextQuestion(1, []) and pipes the result through the
+ *     same renderChunkedBotMessage path warm-start uses.
  */
-const ONBOARDING_MESSAGES: ReadonlyArray<{ id: string; content: string }> = [
-  {
-    id: "ob-1",
-    content:
-      "Quick baseline first. I'm going to ask you some off-the-wall questions. Just go with it — there's a method.",
-  },
-  {
-    id: "ob-2",
-    content:
-      "All right. I want you to imagine you have a younger sibling who's struggling with a math problem. They're stuck, they're frustrated. What do you say to them?",
-  },
-  {
-    id: "ob-3",
-    content:
-      "Got it. One more. Picture this: you're in a meeting and someone presents an idea you strongly disagree with. Do you speak up immediately, or wait and think it through?",
-  },
-  {
-    id: "ob-4",
-    content:
-      "Last weird one, I promise. Do you generally like math? Quick yes or no — trust me, this matters.",
-  },
-];
-
-/** Tone tagged on the user's first answer + sent as questionTone on the
- *  upload. The math probe is a stress-response prime per EBCP. */
-const FIRST_QUESTION_TONE: "charisma" | "stress" = "stress";
-
-/**
- * Per-message "typing" durations for the cold-start onboarding chain.
- * The bot shows the TypingIndicator for `[i]` ms, *then* renders message i.
- * Tuned so each message gets a slightly longer think-time than the last,
- * matching how a real person would compose progressively richer answers.
- * Last entry is the math-probe question — a touch longer to feel like
- * the bot is "deciding" how to phrase it.
- */
-const ONBOARDING_TYPING_MS = [1500, 1800, 2000, 2500] as const;
 
 /** Delimiter the LLM uses to split a single response into multiple bubbles. */
 const CHUNK_DELIMITER = "|||";
@@ -304,20 +271,6 @@ export default function ChatInterview({
   /** Set true on unmount so async chunk callbacks can short-circuit
    *  cleanly without trying to update state on a torn-down component. */
   const unmountedRef = useRef(false);
-  /**
-   * Cold-start step pointer.
-   *   null = warm start (contextual chat) — no onboarding chain runs.
-   *   0    = M1 (framing) just landed; about to auto-advance to M2.
-   *   1    = M2 question is currently being recorded.
-   *   2    = M3 question is currently being recorded.
-   *   3    = M4 question (math probe) is currently being recorded.
-   *
-   * After M4's answer, the backend takes over at "Turn 5" per
-   * docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §1. handleSend
-   * branches on this ref to decide whether to advance to the next
-   * onboarding M or hand off to fetchNextQuestion.
-   */
-  const coldStartStepRef = useRef<number | null>(null);
 
   // Clean up the farewell timeout + flag unmount for chunk callbacks
   useEffect(() => {
@@ -332,62 +285,12 @@ export default function ChatInterview({
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loadingQuestion]);
 
-  /**
-   * Land one onboarding message and decide what happens next.
-   *
-   *   M1 (idx 0): framing — auto-advances to M2 after a 250ms beat
-   *               with no recording prompt in between.
-   *   M2/M3/M4 (idx 1/2/3): each becomes the active question — mic
-   *               appears, user records, handleSend's cold-start
-   *               branch fires playColdStartStep(idx + 1) after the
-   *               upload (or hands off to backend after M4).
-   *
-   * Defined as a regular function (not useCallback) so its self-
-   * recursive call resolves to the same first-render binding the
-   * mount useEffect captured. The body only touches stable refs +
-   * setState dispatchers — no closure-captured state — so the
-   * "first render" capture isn't a staleness risk.
-   */
-  const playColdStartStep = (idx: number) => {
-    if (idx >= ONBOARDING_MESSAGES.length) return;
-    setLoadingQuestion(true);
-    const typingMs = ONBOARDING_TYPING_MS[idx];
-    const timer = setTimeout(() => {
-      if (unmountedRef.current) return;
-      const msg = ONBOARDING_MESSAGES[idx];
-      setMessages((prev) => [
-        ...prev,
-        { id: msg.id, type: "bot", content: msg.content },
-      ]);
-      setLoadingQuestion(false);
-      coldStartStepRef.current = idx;
-
-      if (idx === 0) {
-        // M1 framing — auto-advance to M2 after a beat. No mic in
-        // between; the message has no question, so prompting a
-        // recording would just confuse the user.
-        const gap = setTimeout(() => {
-          if (unmountedRef.current) return;
-          playColdStartStep(1);
-        }, 250);
-        onboardingTimersRef.current.push(gap);
-      } else {
-        // M2/M3/M4 — promote to the active question so the mic
-        // appears. handleSend's cold-start branch will trigger the
-        // next playColdStartStep after this turn's upload.
-        setCurrentQuestion({
-          text: msg.content,
-          tone: FIRST_QUESTION_TONE,
-        });
-      }
-    }, typingMs);
-    onboardingTimersRef.current.push(timer);
-  };
-
-  // Mount: warm start (initialQuestion provided) → load Q1 immediately.
-  // Cold start (no initialQuestion) → run the M1..M4 onboarding chain,
-  // each of M2/M3/M4 being a separate recording turn per
-  // docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §1.
+  // Mount: fetch turn 1 from backend either way. Warm start
+  // (initialQuestion provided) skips the network and renders the
+  // pre-fetched contextual question; cold start (no initialQuestion)
+  // calls fetchNextQuestion(1, []) and pipes the response through the
+  // same chunked renderer. There is no longer a hardcoded
+  // ONBOARDING_MESSAGES path — backend owns turn 1 generation.
   useEffect(() => {
     if (initialQuestion) {
       // Warm start: pre-fetched contextual question from the retention-loop.
@@ -404,19 +307,38 @@ export default function ChatInterview({
       return;
     }
 
-    // Cold start — kick off M1.
-    //
-    // turn_number on uploads is offset by 1 vs. the user-answer
-    // counter because M1 is "Turn 1" framing without a user
-    // recording (per SSoT §1). Backend expects:
-    //   M2 answer → turn_number=2
-    //   M3 answer → turn_number=3
-    //   M4 answer → turn_number=4   ← backend flips baseline_established here (§2)
-    //   Backend Q5+ next-question call → turn_number=5..
-    // So we initialise the upload counter at 2 here, not 1.
+    // Cold start — fetch turn 1 from backend. Same surface as every
+    // subsequent turn: backend dictates question text + tone, frontend
+    // just renders.
     setMessages([]);
-    setTurnNumber(2);
-    playColdStartStep(0);
+    setLoadingQuestion(true);
+    void (async () => {
+      try {
+        const q = await fetchNextQuestion(1, []);
+        if (unmountedRef.current) return;
+        renderChunkedBotMessage(q.question, "q-1", q.tone, (joined) => {
+          setCurrentQuestion({ text: joined, tone: q.tone });
+        });
+      } catch (err) {
+        if (unmountedRef.current) return;
+        if (err instanceof GuestUploadFailure) {
+          if (err.status === 429 || err.code === "RATE_LIMITED") {
+            onError?.("RATE_LIMITED", err.message, 429);
+            return;
+          }
+          if (err.status === 503 || err.code === "GUEST_FUNNEL_DISABLED") {
+            onError?.("GUEST_FUNNEL_DISABLED", err.message, 503);
+            return;
+          }
+        }
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "Couldn't load the first question."
+        );
+        setLoadingQuestion(false);
+      }
+    })();
 
     return () => {
       onboardingTimersRef.current.forEach(clearTimeout);
@@ -958,52 +880,11 @@ export default function ChatInterview({
           return;
         }
 
-        // EBCP frustration-probe reaction — when the user just answered
-        // the hardcoded math question (M4 — coldStartStepRef.current
-        // === 3), peek at the Whisper transcript and drop in an
-        // empathetic acknowledgement before the LLM's first dynamic
-        // question lands. Keeps the chat feeling responsive even if the
-        // LLM doesn't naturally branch on the math answer.
-        // Positive answers fall through silently — the LLM's prompt
-        // carries the reaction itself in that path.
-        if (coldStartStepRef.current === 3 && result.transcript) {
-          const negative =
-            /\b(no|don'?t|hate|dislike|sucks|not really|not a fan|terrible|awful|bad at)\b/i.test(
-              result.transcript
-            );
-          if (negative) {
-            setLoadingQuestion(false);
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: "ob-4-reaction",
-                type: "bot",
-                content: "Oh ok, then we'll make it quick!",
-              },
-            ]);
-            // Brief beat so the reaction lands distinctly, then the typing
-            // indicator returns for the LLM's first dynamic question.
-            await new Promise((r) => setTimeout(r, 600));
-            if (thresholdReachedRef.current) return;
-            setLoadingQuestion(true);
-          }
-        }
-
-        // Cold-start onboarding chain advance. While we're still in
-        // M2 or M3 (steps 1 or 2), the next message is hardcoded
-        // frontend copy — not a backend round-trip. Bump turnNumber
-        // for the next upload's turn_number, render the next M, and
-        // bail out before proceedToNextQuestion would fire.
-        if (
-          coldStartStepRef.current !== null &&
-          coldStartStepRef.current >= 1 &&
-          coldStartStepRef.current < 3
-        ) {
-          setCurrentQuestion(null);
-          setTurnNumber((n) => n + 1);
-          playColdStartStep(coldStartStepRef.current + 1);
-          return;
-        }
+        // (Math-probe reaction + cold-start advance branches deleted —
+        // no more hardcoded onboarding turns. Backend owns the entire
+        // conversation including any "soft empathy on a no" beat the
+        // model wants to deliver, since the math question is no longer
+        // a fixed turn the frontend can pre-emptively branch on.)
 
         // Contextual chat self-rating splice — applies ONLY to the
         // first user answer of a snippet-driven chat. We stash the
