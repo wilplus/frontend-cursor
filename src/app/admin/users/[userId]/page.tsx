@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Send,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -1110,20 +1111,38 @@ function SnippetCard({
   boundaryDisabled,
   skipDisabled,
 }: SnippetCardProps) {
-  const [comment, setComment] = useState(snippet.admin_comment ?? "");
-  /**
-   * Follow-up question draft. Pre-fills with whatever admin has
-   * saved previously (`snippet.follow_up_question`) — empty when
-   * none yet, in which case `ai_draft_follow_up_question` shows
-   * as Textarea placeholder. Whatever string ends up in this
-   * state is what publishes on Save (the round-trip to backend
-   * keeps the ai_draft for fine-tuning corpus, see SSoT §5).
-   */
-  const [followUpQuestion, setFollowUpQuestion] = useState(
-    snippet.follow_up_question ?? ""
-  );
   const aiDraftComment = (snippet.ai_draft_admin_comment || "").trim();
   const aiDraftFollowUp = (snippet.ai_draft_follow_up_question || "").trim();
+  const adminSavedComment = (snippet.admin_comment || "").trim();
+  const adminSavedFollowUp = (snippet.follow_up_question || "").trim();
+
+  /**
+   * Both textareas PRE-FILL with the AI draft when the admin hasn't
+   * saved anything yet — so the suggestion is visible inside the
+   * field instead of hiding behind a placeholder. Admin can edit,
+   * delete, or accept as-is. The "AI Suggested" badge next to each
+   * label clears the moment the value diverges from the draft, so
+   * once the admin types it visually becomes "their" text.
+   *
+   * Precedence per field: admin's saved value → AI draft → "".
+   * Save handler (below) still treats empty + draft as "accept
+   * draft" so manually clearing the field doesn't accidentally
+   * publish an empty CTA.
+   */
+  const [comment, setComment] = useState(
+    snippet.admin_comment ?? aiDraftComment ?? ""
+  );
+  const [followUpQuestion, setFollowUpQuestion] = useState(
+    snippet.follow_up_question ?? aiDraftFollowUp ?? ""
+  );
+
+  /** Field still holds the AI draft verbatim AND admin has never
+   *  saved a value here — i.e. this is a pristine prefill state.
+   *  Drives the "AI Suggested" badge in the label row. */
+  const commentIsAiDraft =
+    !adminSavedComment && aiDraftComment.length > 0 && comment === aiDraftComment;
+  const followUpIsAiDraft =
+    !adminSavedFollowUp && aiDraftFollowUp.length > 0 && followUpQuestion === aiDraftFollowUp;
 
   const isSkipped = !!snippet.is_skipped;
   const [deleting, setDeleting] = useState(false);
@@ -1306,69 +1325,85 @@ function SnippetCard({
         </div>
 
         {/* Admin comment — published verbatim to the user's /results page.
-            ai_draft_admin_comment shows as placeholder when the field
-            is empty so the admin can review it without losing focus
-            (typing copies the placeholder to value, browser default).
-            Save handler treats empty-field-with-AI-draft as "accept
-            the draft" so leaving it alone publishes the AI text. */}
+            Pre-filled with the AI draft when no admin save exists yet so
+            the suggestion is visible inside the textarea (not hidden in
+            placeholder). "AI Suggested" badge in the label row clears
+            the moment the admin edits; "Reset to AI draft" returns the
+            edited field to the original draft. */}
         <div className="space-y-1">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Coach&apos;s insight
-            {aiDraftComment && !comment.trim() && (
-              <span className="ml-1.5 font-normal normal-case text-muted-foreground/70">
-                · AI draft below
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor={`admin-comment-${snippet.id}`}
+              className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              Coach&apos;s insight
+            </label>
+            {commentIsAiDraft && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                title="Prefilled from the AI draft. Edit to make it your own — the badge will clear."
+              >
+                <Sparkles className="h-3 w-3" aria-hidden />
+                AI Suggested
               </span>
             )}
-          </label>
+          </div>
           <Textarea
+            id={`admin-comment-${snippet.id}`}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder={aiDraftComment || "Coach's insight..."}
+            placeholder="Coach's insight..."
             className="bg-background min-h-[80px]"
           />
-          {aiDraftComment && !comment.trim() && (
+          {aiDraftComment && comment !== aiDraftComment && (
             <button
               type="button"
               onClick={() => setComment(aiDraftComment)}
               className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              Use AI draft as-is
+              Reset to AI draft
             </button>
           )}
         </div>
 
         {/* Follow-up question — what the contextual chat asks first.
-            ai_draft_follow_up_question shows as placeholder when the
-            admin hasn't typed anything yet; admin can keep it as-is
-            (typing it copies it to value), edit, or replace entirely.
-            Saved value is what publishes; backend automatically emits
-            an admin_annotation_events row comparing draft vs final
-            at publish time for the fine-tuning corpus (SSoT §5). */}
+            Same prefill pattern as the comment above: AI draft lives in
+            the textarea on first render so admin sees it inside the
+            field, not behind a placeholder. The save handler still
+            tolerates "empty + AI draft" as accept-draft (SSoT §5) in
+            case the admin manually clears the box. */}
         <div className="space-y-1">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Follow-up question
-            {aiDraftFollowUp && !followUpQuestion.trim() && (
-              <span className="ml-1.5 font-normal normal-case text-muted-foreground/70">
-                · AI draft below
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor={`follow-up-${snippet.id}`}
+              className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              Follow-up question
+            </label>
+            {followUpIsAiDraft && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                title="Prefilled from the AI draft. Edit to make it your own — the badge will clear."
+              >
+                <Sparkles className="h-3 w-3" aria-hidden />
+                AI Suggested
               </span>
             )}
-          </label>
+          </div>
           <Textarea
+            id={`follow-up-${snippet.id}`}
             value={followUpQuestion}
             onChange={(e) => setFollowUpQuestion(e.target.value)}
-            placeholder={
-              aiDraftFollowUp ||
-              "What the contextual chat should ask first when the user clicks this snippet's CTA…"
-            }
+            placeholder="What the contextual chat should ask first when the user clicks this snippet's CTA…"
             className="bg-background min-h-[64px] text-sm"
           />
-          {aiDraftFollowUp && !followUpQuestion.trim() && (
+          {aiDraftFollowUp && followUpQuestion !== aiDraftFollowUp && (
             <button
               type="button"
               onClick={() => setFollowUpQuestion(aiDraftFollowUp)}
               className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              Use AI draft as-is
+              Reset to AI draft
             </button>
           )}
         </div>
