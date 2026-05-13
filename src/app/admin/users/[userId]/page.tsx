@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Send,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -838,6 +839,13 @@ interface SnippetCardProps {
     followUpQuestion: string
   ) => Promise<void>;
   onSkip: (snippetId: string) => void;
+  /**
+   * Hard-deletes the snippet via DELETE /api/v2/admin/snippets/<id>.
+   * Confirm dialog gating + button disabled state owned by the
+   * card; the parent's optimistic-removal happens after the
+   * DELETE resolves (or 404s, which we treat as already-gone).
+   */
+  onDelete: (snippetId: string) => Promise<void>;
   /** Wired through to <CoachingOutcomeStrip>. Fires after a successful
    *  PATCH /coaching-rationale so the parent can patch the snippet's
    *  follow_up_outcome.evaluator block locally without re-fetching. */
@@ -1096,6 +1104,7 @@ function SnippetCard({
   onLabel,
   onSaveComment,
   onSkip,
+  onDelete,
   onRationaleSaved,
   saving,
   boundaryDisabled,
@@ -1117,6 +1126,27 @@ function SnippetCard({
   const aiDraftFollowUp = (snippet.ai_draft_follow_up_question || "").trim();
 
   const isSkipped = !!snippet.is_skipped;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteClick = async () => {
+    if (deleting) return;
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Are you sure you want to delete this snippet? This cannot be undone."
+      );
+      if (!ok) return;
+    }
+    setDeleting(true);
+    try {
+      await onDelete(snippet.id);
+      // Parent removes the row from snippets[] on success — no need
+      // to flip local state here, the card will unmount.
+    } catch {
+      // Parent surfaces the error toast; just re-enable the button so
+      // the admin can retry.
+      setDeleting(false);
+    }
+  };
 
   // Effective trim boundaries in seconds (relative to the audio file start).
   // start_time / end_time are populated by the /boundaries API after the first
@@ -1384,17 +1414,31 @@ function SnippetCard({
           >
             {saving ? "Saving…" : "Save Snippet"}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={skipDisabled}
-            onClick={() => onSkip(snippet.id)}
-            className="text-muted-foreground"
-          >
-            <EyeOff className="h-3.5 w-3.5" />
-            {isSkipped ? "Skipped" : "Skip Snippet"}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={skipDisabled}
+              onClick={() => onSkip(snippet.id)}
+              className="text-muted-foreground"
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              {isSkipped ? "Skipped" : "Skip Snippet"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => void handleDeleteClick()}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              title="Hard-delete this snippet — cannot be undone."
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -2321,6 +2365,57 @@ export default function AdminUserDetailPage() {
     []
   );
 
+  /**
+   * Hard-delete a snippet via DELETE /api/v2/admin/snippets/<id>.
+   * Optimistic-removes the row from snippets[] on 200/204. 404 is
+   * treated as a successful no-op (snippet was already gone). Any
+   * other failure surfaces a destructive toast and KEEPS the row
+   * in state so the admin can see what they tried to delete.
+   *
+   * Throws on failure so the SnippetCard's button can re-enable;
+   * resolves silently on success (the card unmounts as snippets[]
+   * shrinks).
+   */
+  const handleDeleteSnippet = useCallback(async (snippetId: string) => {
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        toast.error("Not authenticated.");
+        throw new Error("Not authenticated");
+      }
+      const res = await fetch(
+        `/api/v2/admin/snippets/${encodeURIComponent(snippetId)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!res.ok && res.status !== 404) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        const msg = data.error ?? `Delete failed (HTTP ${res.status})`;
+        toast.error(msg);
+        throw new Error(msg);
+      }
+      // 200, 204, or 404 → snippet is gone. Optimistic local removal.
+      setSnippets((prev) => prev.filter((s) => s.id !== snippetId));
+      toast.success("Snippet deleted.");
+    } catch (err) {
+      // Re-throw so the card's local `deleting` state re-enables.
+      // Toast already shown above for HTTP failures; only log for
+      // network blips that didn't go through the !res.ok path.
+      if (
+        !(err instanceof Error) ||
+        !/HTTP \d+/.test(err.message)
+      ) {
+        console.error("delete snippet failed:", err);
+        toast.error("Couldn't delete snippet — check your connection.");
+      }
+      throw err;
+    }
+  }, []);
+
   const handleSkipSnippet = useCallback(async (snippetId: string) => {
     const target = snippets.find((s) => s.id === snippetId);
     const newSkipped = !target?.is_skipped;
@@ -2983,6 +3078,7 @@ export default function AdminUserDetailPage() {
                     onLabel={handleSnippetLabel}
                     onSaveComment={handleSaveSnippetComment}
                     onSkip={handleSkipSnippet}
+                    onDelete={handleDeleteSnippet}
                     onRationaleSaved={handleRationaleSaved}
                     boundaryDisabled={false}
                     skipDisabled={false}
