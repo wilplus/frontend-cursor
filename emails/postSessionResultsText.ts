@@ -23,7 +23,9 @@ export function buildPostSessionResultsText(
   const {
     userFirstName,
     snippetCount,
-    topTheme,
+    // topTheme stays on the props interface for backend BFF compat,
+    // but is no longer rendered in either the HTML or text MIME parts
+    // per the email-template refinement spec.
     journeyUrl,
     unsubscribeUrl,
   } = props;
@@ -46,7 +48,6 @@ export function buildPostSessionResultsText(
     `to listen back, read the coach's notes, and pick what to push on next.`,
     ``,
     `  • Published snippets: ${snippetCount} new`,
-    `  • Top theme:          ${topTheme}`,
     ``,
     `Open your Voice Journey:`,
     `  ${journeyUrl}`,
