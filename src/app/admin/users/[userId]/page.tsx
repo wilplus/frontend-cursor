@@ -71,6 +71,16 @@ interface AdminSnippet {
   source_type?: string | null;
   admin_comment?: string | null;
   /**
+   * Backend-generated AI suggestion for the coach insight.
+   * Surfaced as the Textarea placeholder in the admin UI when
+   * admin_comment is empty — the admin can keep it as-is, edit,
+   * or replace entirely. Saved as `admin_comment` on PATCH; the
+   * backend emits an admin_annotation_events row at publish time
+   * comparing (ai_draft_admin_comment, admin_comment) for the
+   * fine-tuning corpus.
+   */
+  ai_draft_admin_comment?: string | null;
+  /**
    * Whisper transcript of the snippet's audio slice. Often missing
    * for very short clips (5s, etc.) where Whisper produces no
    * confident output. The publish gate only requires admin_comment,
@@ -208,6 +218,15 @@ interface AdminGlobalMetrics {
   stickiness_score?: number | null;
   stickiness_topic_distribution?: Record<string, number> | null;
   stickiness_computed_at?: string | null;
+  /**
+   * AI-written 2-3 sentence performance summary. Generated server-
+   * side at session-finalize time; weaves the numeric scores
+   * (Pace, Flow, KPI) and the stickiness/focus signal into a
+   * single narrative paragraph the admin reads instead of decoding
+   * raw chips. When present, replaces the bare numeric layout in
+   * the KPI / Stickiness card.
+   */
+  session_kpi_narrative?: string | null;
 }
 
 interface AdminSessionDetail {
@@ -1094,6 +1113,7 @@ function SnippetCard({
   const [followUpQuestion, setFollowUpQuestion] = useState(
     snippet.follow_up_question ?? ""
   );
+  const aiDraftComment = (snippet.ai_draft_admin_comment || "").trim();
   const aiDraftFollowUp = (snippet.ai_draft_follow_up_question || "").trim();
 
   const isSkipped = !!snippet.is_skipped;
@@ -1255,13 +1275,37 @@ function SnippetCard({
           })()}
         </div>
 
-        {/* Admin comment — published verbatim to the user's /results page */}
-        <Textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Coach's insight..."
-          className="bg-background min-h-[80px]"
-        />
+        {/* Admin comment — published verbatim to the user's /results page.
+            ai_draft_admin_comment shows as placeholder when the field
+            is empty so the admin can review it without losing focus
+            (typing copies the placeholder to value, browser default).
+            Save handler treats empty-field-with-AI-draft as "accept
+            the draft" so leaving it alone publishes the AI text. */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Coach&apos;s insight
+            {aiDraftComment && !comment.trim() && (
+              <span className="ml-1.5 font-normal normal-case text-muted-foreground/70">
+                · AI draft below
+              </span>
+            )}
+          </label>
+          <Textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder={aiDraftComment || "Coach's insight..."}
+            className="bg-background min-h-[80px]"
+          />
+          {aiDraftComment && !comment.trim() && (
+            <button
+              type="button"
+              onClick={() => setComment(aiDraftComment)}
+              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Use AI draft as-is
+            </button>
+          )}
+        </div>
 
         {/* Follow-up question — what the contextual chat asks first.
             ai_draft_follow_up_question shows as placeholder when the
@@ -1322,15 +1366,19 @@ function SnippetCard({
             size="sm"
             disabled={saving}
             onClick={() => {
-              // SSoT §5: follow-up question textarea is now visible and
-              // editable. If the admin left it empty AND there's an AI
-              // draft, save the draft text verbatim (so "keep as-is"
-              // works without forcing the admin to click the
-              // "Use AI draft as-is" pill first). Otherwise save whatever
-              // they typed.
-              const trimmed = followUpQuestion.trim();
-              const toSave = trimmed || aiDraftFollowUp || "";
-              void onSaveComment(snippet.id, comment, toSave);
+              // Per SSoT §5 — both the coach insight AND the follow-up
+              // question textareas accept "leave empty = accept AI draft":
+              // if the field is empty and an AI draft exists, save the
+              // draft verbatim. Otherwise save what the admin typed.
+              const trimmedComment = comment.trim();
+              const commentToSave = trimmedComment || aiDraftComment || "";
+              const trimmedFollowUp = followUpQuestion.trim();
+              const followUpToSave = trimmedFollowUp || aiDraftFollowUp || "";
+              void onSaveComment(
+                snippet.id,
+                commentToSave,
+                followUpToSave
+              );
             }}
             className="rounded-full px-4"
           >
@@ -1389,6 +1437,9 @@ export default function AdminUserDetailPage() {
   // from global_metrics on the admin session detail endpoint and
   // refreshed by the Compute Metrics button below.
   const [kpiScore, setKpiScore] = useState<number | null>(null);
+  const [sessionKpiNarrative, setSessionKpiNarrative] = useState<string | null>(
+    null
+  );
   const [stickinessTopTopic, setStickinessTopTopic] = useState<string | null>(
     null
   );
@@ -1671,6 +1722,7 @@ export default function AdminUserDetailPage() {
             stickiness_score?: number | null;
             stickiness_topic_distribution?: Record<string, number> | null;
             stickiness_computed_at?: string | null;
+            session_kpi_narrative?: string | null;
           };
           turns?: Array<{
             role?: "ai" | "user";
@@ -1696,6 +1748,9 @@ export default function AdminUserDetailPage() {
 
         setAiSummary(data.global_metrics?.ai_summary ?? null);
         setAiScore(data.global_metrics?.ai_score ?? null);
+        setSessionKpiNarrative(
+          data.global_metrics?.session_kpi_narrative ?? null
+        );
         setKpiScore(data.global_metrics?.kpi_score ?? null);
         setStickinessTopTopic(data.global_metrics?.stickiness_top_topic ?? null);
         setStickinessScore(data.global_metrics?.stickiness_score ?? null);
@@ -1931,6 +1986,7 @@ export default function AdminUserDetailPage() {
         kpi_score?: number | null;
         ai_summary?: string | null;
         ai_score?: number | null;
+        session_kpi_narrative?: string | null;
         stickiness?: {
           top_topic?: string | null;
           score?: number | null;
@@ -1946,6 +2002,8 @@ export default function AdminUserDetailPage() {
       if (data.kpi_score !== undefined) setKpiScore(data.kpi_score ?? null);
       if (data.ai_summary !== undefined) setAiSummary(data.ai_summary ?? null);
       if (data.ai_score !== undefined) setAiScore(data.ai_score ?? null);
+      if (data.session_kpi_narrative !== undefined)
+        setSessionKpiNarrative(data.session_kpi_narrative ?? null);
       if (data.stickiness !== undefined) {
         setStickinessTopTopic(data.stickiness?.top_topic ?? null);
         setStickinessScore(data.stickiness?.score ?? null);
@@ -2302,53 +2360,84 @@ export default function AdminUserDetailPage() {
     }
   }, [snippets]);
 
-  const handlePublish = useCallback(async () => {
-    if (!activeSession) {
-      toast.error("No session available");
-      return;
-    }
+  /**
+   * Per-session publish state — tracks which sessions have been
+   * successfully published in this admin session. Layered on top of
+   * the backend's own publish indicator (`student_completion_email_sent_at`)
+   * so the "✓ Sent" UI updates immediately on save without waiting
+   * for a refetch.
+   */
+  const [publishedSessionIds, setPublishedSessionIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [publishingSessionId, setPublishingSessionId] = useState<string | null>(
+    null
+  );
 
-    // The /results page only renders snippets where admin_comment is
-    // non-empty (db.py::get_snippets_with_comments_by_session). If no
-    // snippet has a comment yet, publishing emails the user a link to
-    // a page that will appear empty — almost never what the admin
-    // wants. Confirm before continuing.
-    const commentedCount = sessionSnippets.reduce(
-      (n, s) => (s.admin_comment && s.admin_comment.trim() ? n + 1 : n),
-      0
-    );
-    if (commentedCount === 0) {
-      const ok = window.confirm(
-        "No snippets have a coach comment yet — the user's /results page " +
-          "will appear empty. Publish and send the email anyway?"
-      );
-      if (!ok) return;
-    }
-
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        toast.error("Not authenticated");
+  /**
+   * Publish a specific session's snippets and email the user. Per
+   * the per-session UX refinement: the button now lives inside each
+   * session's accordion body, so the handler takes the session id
+   * explicitly instead of reading from `activeSession` (which used
+   * to be implicit on the global publish button).
+   */
+  const handlePublish = useCallback(
+    async (sessionId: string) => {
+      if (!sessionId) {
+        toast.error("No session id");
         return;
       }
-      const res = await fetch("/api/v2/internal/publish-session-results", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ session_id: activeSession.id }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Publish failed (HTTP ${res.status})`);
+      // Same publish-gate awareness as before — refuse to email a
+      // /results URL that will render empty. Count comments only on
+      // snippets belonging to THIS session.
+      const commentedCount = snippets.reduce((n, s) => {
+        if (s.session_id !== sessionId) return n;
+        return s.admin_comment && s.admin_comment.trim() ? n + 1 : n;
+      }, 0);
+      if (commentedCount === 0) {
+        const ok = window.confirm(
+          "No snippets have a coach comment yet — the user's /results page " +
+            "will appear empty. Publish and send the email anyway?"
+        );
+        if (!ok) return;
       }
-      const data = await res.json();
-      toast.success(`Published${data.email_sent_to ? ` to ${data.email_sent_to}` : ""}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Publish failed");
-    }
-  }, [activeSession, sessionSnippets]);
+
+      setPublishingSessionId(sessionId);
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          toast.error("Not authenticated");
+          return;
+        }
+        const res = await fetch("/api/v2/internal/publish-session-results", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Publish failed (HTTP ${res.status})`);
+        }
+        const data = await res.json();
+        setPublishedSessionIds((prev) => {
+          const next = new Set(prev);
+          next.add(sessionId);
+          return next;
+        });
+        toast.success(
+          `Published${data.email_sent_to ? ` to ${data.email_sent_to}` : ""}`
+        );
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Publish failed");
+      } finally {
+        setPublishingSessionId(null);
+      }
+    },
+    [snippets]
+  );
 
 
   /* -------------------------------------------------------------------- */
@@ -2386,14 +2475,10 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              onClick={handlePublish}
-              disabled={!activeSession}
-              className="rounded-full px-5"
-            >
-              Publish Results
-            </Button>
+            {/* Publish moved INSIDE each session's accordion body —
+                see the SessionBody region below. The user header keeps
+                only the destructive admin overrides (Reset Baseline /
+                Archive / Delete) in the kebab menu. */}
             <HeaderMenu
               onArchive={() =>
                 toast.info("Archive flow not wired in this PR")
@@ -2527,24 +2612,74 @@ export default function AdminUserDetailPage() {
                             activeSession?.id, so opening a different
                             accordion re-fetches detail into the same
                             state slots before this body re-renders. */}
-            {/* Session header row */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-base font-medium">
-                Session Date:{" "}
-                <span className="text-muted-foreground">
-                  {formatSessionDate(
-                    activeSession?.completed_at ?? activeSession?.created_at
-                  )}
-                </span>
-              </p>
-              <Badge
-                variant={
-                  activeSession?.status === "completed" ? "success" : "default"
-                }
-              >
-                {activeSession?.status ?? (loading ? "loading…" : "no session")}
-              </Badge>
-            </div>
+
+                        {/* Session header row — date + status + per-session
+                            Publish control. Publish state has three
+                            visual variants: not-yet-published shows a
+                            primary "Publish Results" pill; already-
+                            published (either via this admin session's
+                            local set OR backend's
+                            student_completion_email_sent_at) shows a
+                            "✓ Sent" badge plus a secondary "Publish
+                            Again" outline button. */}
+                        {(() => {
+                          const isPublishing = publishingSessionId === s.id;
+                          const isPublished =
+                            publishedSessionIds.has(s.id) ||
+                            !!s.student_completion_email_sent_at;
+                          return (
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <p className="text-base font-medium">
+                                  Session Date:{" "}
+                                  <span className="text-muted-foreground">
+                                    {formatSessionDate(
+                                      s.completed_at ?? s.created_at
+                                    )}
+                                  </span>
+                                </p>
+                                <Badge
+                                  variant={
+                                    s.status === "completed"
+                                      ? "success"
+                                      : "default"
+                                  }
+                                >
+                                  {s.status ?? "—"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isPublished && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-emerald-300 bg-emerald-50 text-emerald-800"
+                                    title={
+                                      s.student_completion_email_sent_at
+                                        ? `Email sent ${formatSessionDate(s.student_completion_email_sent_at)}`
+                                        : "Email sent in this admin session"
+                                    }
+                                  >
+                                    ✓ Sent
+                                  </Badge>
+                                )}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={isPublished ? "outline" : "default"}
+                                  disabled={isPublishing}
+                                  onClick={() => void handlePublish(s.id)}
+                                  className="rounded-full px-4"
+                                >
+                                  {isPublishing
+                                    ? "Publishing…"
+                                    : isPublished
+                                    ? "Publish Again"
+                                    : "Publish Results"}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
             {/* Metrics grid */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -2573,6 +2708,24 @@ export default function AdminUserDetailPage() {
                   {computingMetrics ? "Computing…" : "Compute Metrics"}
                 </Button>
               </div>
+
+              {/* Narrative summary — AI-written 2-3 sentence paragraph
+                  weaving the numeric scores + stickiness signal into a
+                  single readable line. Generated server-side at
+                  session-finalize time as `session_kpi_narrative`.
+                  Renders ABOVE the chip grid (which stays as the
+                  "raw numbers" backing the narrative); falls back
+                  cleanly when backend hasn't generated it yet. */}
+              {sessionKpiNarrative && (
+                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                    Performance summary
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground">
+                    {sessionKpiNarrative}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* KPI card */}
