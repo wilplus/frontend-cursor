@@ -82,6 +82,13 @@ export interface PostSessionResultsEmailProps {
   topTheme: string;
   journeyUrl: string;
   unsubscribeUrl: string;
+  /**
+   * Kept on the contract per the original spec, even though the
+   * footer no longer renders a "delivered to <email>" line. Keep
+   * this around so a future variant (e.g. a "Delivered to" stamp
+   * or a list-unsubscribe header) can re-introduce it without a
+   * prop-shape break.
+   */
   subscribedEmail: string;
 }
 
@@ -95,7 +102,6 @@ export default function PostSessionResultsEmail({
   topTheme,
   journeyUrl,
   unsubscribeUrl,
-  subscribedEmail,
 }: PostSessionResultsEmailProps) {
   const greeting = userFirstName?.trim()
     ? `Hi ${userFirstName.trim()},`
@@ -165,70 +171,23 @@ export default function PostSessionResultsEmail({
             margin: "0 auto",
           }}
         >
-          {/* ── Top navigation row ────────────────────────────────────
-              Logo + a couple of public links separated by middle dots.
-              Spec §3 mentions a nav row but doesn't enumerate items;
-              picked the same anchor links the marketing footer uses
-              elsewhere in the app (Science · Privacy · Terms) so this
-              email's chrome matches the public surface. */}
-          <Section style={{ paddingBottom: 24 }}>
-            <table
-              role="presentation"
-              cellPadding={0}
-              cellSpacing={0}
-              border={0}
-              style={{ width: "100%" }}
+          {/* Top: centred willab. wordmark only. Public-page links
+              live in the footer below. */}
+          <Section style={{ paddingBottom: 24, textAlign: "center" }}>
+            <span
+              style={{
+                fontFamily: FONT_STACK_PACIFICO,
+                fontSize: 28,
+                lineHeight: "28px",
+                color: COLOR.text,
+              }}
             >
-              <tbody>
-                <tr>
-                  <td style={{ verticalAlign: "middle" }}>
-                    <span
-                      style={{
-                        fontFamily: FONT_STACK_PACIFICO,
-                        fontSize: 24,
-                        lineHeight: "24px",
-                        color: COLOR.text,
-                      }}
-                    >
-                      willab
-                      <span style={{ color: COLOR.primary }}>.</span>
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      verticalAlign: "middle",
-                      textAlign: "right",
-                      fontSize: 13,
-                      color: COLOR.textMuted,
-                    }}
-                  >
-                    <Link
-                      href="https://www.willonski.com/science"
-                      style={{ color: COLOR.textMuted, textDecoration: "none" }}
-                    >
-                      Science
-                    </Link>
-                    <span>{" · "}</span>
-                    <Link
-                      href="https://www.willonski.com/privacy"
-                      style={{ color: COLOR.textMuted, textDecoration: "none" }}
-                    >
-                      Privacy
-                    </Link>
-                    <span>{" · "}</span>
-                    <Link
-                      href="https://www.willonski.com/terms"
-                      style={{ color: COLOR.textMuted, textDecoration: "none" }}
-                    >
-                      Terms
-                    </Link>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              willab
+              <span style={{ color: COLOR.primary }}>.</span>
+            </span>
           </Section>
 
-          {/* ── Card ─────────────────────────────────────────────────── */}
+          {/* Card */}
           <Section
             style={{
               backgroundColor: COLOR.card,
@@ -286,7 +245,7 @@ export default function PostSessionResultsEmail({
               what to push on next.
             </Text>
 
-            {/* ── Info chips (spec §3.5 — table layout for Outlook) ────
+            {/* Info chips (spec §3.5 — table layout for Outlook).
                 Two equal columns, each with an inline SVG icon + label.
                 Built as a table so Outlook 2016+ honours the side-by-side
                 layout — flex/grid would collapse there. */}
@@ -426,10 +385,9 @@ export default function PostSessionResultsEmail({
               </tbody>
             </table>
 
-            {/* ── CTA pill ─────────────────────────────────────────────
-                Inline anchor so Outlook stops reflowing it. The pill is
-                centred via a single-cell table — Outlook ignores
-                text-align on the parent for inline-blocks. */}
+            {/* CTA pill — Inline anchor so Outlook stops reflowing it.
+                The pill is centred via a single-cell table — Outlook
+                ignores text-align on the parent for inline-blocks. */}
             <table
               role="presentation"
               cellPadding={0}
@@ -486,27 +444,14 @@ export default function PostSessionResultsEmail({
             </Text>
           </Section>
 
-          {/* ── Footer ───────────────────────────────────────────────── */}
-          <Section style={{ padding: "24px 8px 0 8px" }}>
+          {/* Footer — three legal/admin links only. */}
+          <Section style={{ padding: "24px 8px 0 8px", textAlign: "center" }}>
             <Text
               style={{
                 margin: 0,
                 fontSize: 12,
                 lineHeight: "18px",
                 color: COLOR.textMuted,
-                textAlign: "center",
-              }}
-            >
-              You&apos;re receiving this at {subscribedEmail} because your
-              coach published new snippets for you.
-            </Text>
-            <Text
-              style={{
-                margin: "8px 0 0 0",
-                fontSize: 12,
-                lineHeight: "18px",
-                color: COLOR.textMuted,
-                textAlign: "center",
               }}
             >
               <Link
@@ -515,24 +460,20 @@ export default function PostSessionResultsEmail({
               >
                 Unsubscribe
               </Link>
-              {" · "}
+              <span>{"  ·  "}</span>
               <Link
                 href="https://www.willonski.com/privacy"
                 style={{ color: COLOR.textMuted, textDecoration: "underline" }}
               >
                 Privacy
               </Link>
-            </Text>
-            <Text
-              style={{
-                margin: "12px 0 0 0",
-                fontSize: 11,
-                lineHeight: "16px",
-                color: COLOR.textMuted,
-                textAlign: "center",
-              }}
-            >
-              © {new Date().getFullYear()} Willab. All rights reserved.
+              <span>{"  ·  "}</span>
+              <Link
+                href="https://www.willonski.com/terms"
+                style={{ color: COLOR.textMuted, textDecoration: "underline" }}
+              >
+                Terms
+              </Link>
             </Text>
           </Section>
         </Container>
