@@ -87,6 +87,16 @@ interface AdminSnippet {
    * publishing. Persisted via the same /comment endpoint.
    */
   follow_up_question?: string | null;
+  /**
+   * Backend-generated AI suggestion for the follow-up question.
+   * Surfaced as a placeholder in the admin UI per SSoT §5 — admin
+   * can keep, edit, or replace it. The final saved
+   * `follow_up_question` string is what gets published, and the
+   * backend automatically emits an admin_annotation_events row
+   * comparing (ai_draft_follow_up_question, follow_up_question)
+   * at publish time for fine-tuning.
+   */
+  ai_draft_follow_up_question?: string | null;
   // Spec fields the backend may not yet supply — surfaced where present.
   is_skipped?: boolean | null;
   /**
@@ -1073,6 +1083,18 @@ function SnippetCard({
   skipDisabled,
 }: SnippetCardProps) {
   const [comment, setComment] = useState(snippet.admin_comment ?? "");
+  /**
+   * Follow-up question draft. Pre-fills with whatever admin has
+   * saved previously (`snippet.follow_up_question`) — empty when
+   * none yet, in which case `ai_draft_follow_up_question` shows
+   * as Textarea placeholder. Whatever string ends up in this
+   * state is what publishes on Save (the round-trip to backend
+   * keeps the ai_draft for fine-tuning corpus, see SSoT §5).
+   */
+  const [followUpQuestion, setFollowUpQuestion] = useState(
+    snippet.follow_up_question ?? ""
+  );
+  const aiDraftFollowUp = (snippet.ai_draft_follow_up_question || "").trim();
 
   const isSkipped = !!snippet.is_skipped;
 
@@ -1241,6 +1263,42 @@ function SnippetCard({
           className="bg-background min-h-[80px]"
         />
 
+        {/* Follow-up question — what the contextual chat asks first.
+            ai_draft_follow_up_question shows as placeholder when the
+            admin hasn't typed anything yet; admin can keep it as-is
+            (typing it copies it to value), edit, or replace entirely.
+            Saved value is what publishes; backend automatically emits
+            an admin_annotation_events row comparing draft vs final
+            at publish time for the fine-tuning corpus (SSoT §5). */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Follow-up question
+            {aiDraftFollowUp && !followUpQuestion.trim() && (
+              <span className="ml-1.5 font-normal normal-case text-muted-foreground/70">
+                · AI draft below
+              </span>
+            )}
+          </label>
+          <Textarea
+            value={followUpQuestion}
+            onChange={(e) => setFollowUpQuestion(e.target.value)}
+            placeholder={
+              aiDraftFollowUp ||
+              "What the contextual chat should ask first when the user clicks this snippet's CTA…"
+            }
+            className="bg-background min-h-[64px] text-sm"
+          />
+          {aiDraftFollowUp && !followUpQuestion.trim() && (
+            <button
+              type="button"
+              onClick={() => setFollowUpQuestion(aiDraftFollowUp)}
+              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Use AI draft as-is
+            </button>
+          )}
+        </div>
+
         {/* Coaching-outcome readout. Present iff the user has clicked
             this snippet's CTA and answered turn 1 of the contextual
             chat. Closes the feedback loop for the admin: they see
@@ -1263,16 +1321,17 @@ function SnippetCard({
             type="button"
             size="sm"
             disabled={saving}
-            onClick={() =>
-              // Preserve any backend-supplied follow_up_question — the
-              // current spec drops the dedicated textarea, so we round-trip
-              // the existing value untouched rather than clobbering it.
-              void onSaveComment(
-                snippet.id,
-                comment,
-                snippet.follow_up_question ?? ""
-              )
-            }
+            onClick={() => {
+              // SSoT §5: follow-up question textarea is now visible and
+              // editable. If the admin left it empty AND there's an AI
+              // draft, save the draft text verbatim (so "keep as-is"
+              // works without forcing the admin to click the
+              // "Use AI draft as-is" pill first). Otherwise save whatever
+              // they typed.
+              const trimmed = followUpQuestion.trim();
+              const toSave = trimmed || aiDraftFollowUp || "";
+              void onSaveComment(snippet.id, comment, toSave);
+            }}
             className="rounded-full px-4"
           >
             {saving ? "Saving…" : "Save Snippet"}

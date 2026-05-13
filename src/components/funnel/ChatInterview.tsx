@@ -405,7 +405,17 @@ export default function ChatInterview({
     }
 
     // Cold start — kick off M1.
+    //
+    // turn_number on uploads is offset by 1 vs. the user-answer
+    // counter because M1 is "Turn 1" framing without a user
+    // recording (per SSoT §1). Backend expects:
+    //   M2 answer → turn_number=2
+    //   M3 answer → turn_number=3
+    //   M4 answer → turn_number=4   ← backend flips baseline_established here (§2)
+    //   Backend Q5+ next-question call → turn_number=5..
+    // So we initialise the upload counter at 2 here, not 1.
     setMessages([]);
+    setTurnNumber(2);
     playColdStartStep(0);
 
     return () => {
