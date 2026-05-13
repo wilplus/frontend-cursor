@@ -136,7 +136,21 @@ export default function ChatPageClient({
               return;
             }
             if (res.status === 422 || data?.code === "SNIPPET_CONTEXT_UNAVAILABLE") {
-              setChatState("interviewing");
+              // Snippet doesn't have what backend needs to seed a
+              // contextual chat (missing transcript / admin_comment /
+              // audio_url). Previously this fell through to
+              // setChatState("interviewing") with no initialQuestion,
+              // which boots the cold-start onboarding chain — the user
+              // saw "First we need your baseline. Forgive the odd
+              // opener, but do you generally like math?" on a
+              // contextual click, which is the wrong flow entirely.
+              // Now we surface an explicit error + "Back to Results"
+              // so the user can pick a different snippet instead of
+              // getting silently dropped into a baseline interview.
+              setErrorMsg(
+                "We couldn't open this snippet's chat — its transcript or coach note isn't ready yet."
+              );
+              setChatState("error");
               return;
             }
             throw new Error(data?.error || `Failed (HTTP ${res.status})`);
