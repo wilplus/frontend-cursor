@@ -99,7 +99,8 @@ export interface PostSessionResultsEmailProps {
 export default function PostSessionResultsEmail({
   userFirstName,
   snippetCount,
-  topTheme,
+  // topTheme intentionally NOT destructured — kept on the props
+  // interface for backend BFF compat but no longer rendered.
   journeyUrl,
   unsubscribeUrl,
 }: PostSessionResultsEmailProps) {
@@ -107,9 +108,11 @@ export default function PostSessionResultsEmail({
     ? `Hi ${userFirstName.trim()},`
     : `Hi there,`;
 
+  // Inbox preview text. topTheme used to be tacked on the end here
+  // ("… — High Charisma."), removed per spec along with the chip.
   const previewText = `${snippetCount} new voice ${
     snippetCount === 1 ? "moment" : "moments"
-  } from your last session — ${topTheme}.`;
+  } from your last session.`;
 
   return (
     <Html>
@@ -171,20 +174,30 @@ export default function PostSessionResultsEmail({
             margin: "0 auto",
           }}
         >
-          {/* Top: centred willab. wordmark only. Public-page links
-              live in the footer below. */}
+          {/* Top: centred Willab logo image. Replaces the previous
+              Pacifico text wordmark — most email clients strip Google
+              Fonts, so the text fallback (Brush Script MT, cursive)
+              was inconsistent across clients. An <Img> renders the
+              same in every client.
+
+              src points at the Next.js /icon route — same asset
+              served as the site favicon. Swap to a wider, dedicated
+              header logo URL (e.g. CDN-hosted /willab-logo.png) once
+              one exists; the rest of the template doesn't depend on
+              the URL shape. */}
           <Section style={{ paddingBottom: 24, textAlign: "center" }}>
-            <span
+            <Img
+              src="https://www.willonski.com/icon"
+              alt="Willab"
+              width="120"
+              height="120"
               style={{
-                fontFamily: FONT_STACK_PACIFICO,
-                fontSize: 28,
-                lineHeight: "28px",
-                color: COLOR.text,
+                display: "inline-block",
+                width: "120px",
+                height: "auto",
+                border: 0,
               }}
-            >
-              willab
-              <span style={{ color: COLOR.primary }}>.</span>
-            </span>
+            />
           </Section>
 
           {/* Card */}
@@ -259,11 +272,16 @@ export default function PostSessionResultsEmail({
             >
               <tbody>
                 <tr>
+                  {/* Single full-width Published-snippets chip. The
+                      Top-theme cell that used to live alongside this
+                      was removed per spec — the topic/theme readout
+                      no longer ships in the email body. `topTheme`
+                      stays on the props interface for backend BFF
+                      compat but is not rendered. */}
                   <td
                     style={{
-                      width: "50%",
+                      width: "100%",
                       verticalAlign: "middle",
-                      paddingRight: 8,
                     }}
                   >
                     <table
@@ -314,67 +332,6 @@ export default function PostSessionResultsEmail({
                               }}
                             >
                               {snippetCount} new
-                            </span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                  <td
-                    style={{
-                      width: "50%",
-                      verticalAlign: "middle",
-                      paddingLeft: 8,
-                    }}
-                  >
-                    <table
-                      role="presentation"
-                      cellPadding={0}
-                      cellSpacing={0}
-                      border={0}
-                      style={{
-                        width: "100%",
-                        backgroundColor: COLOR.primarySoft,
-                        borderRadius: 12,
-                        padding: "12px 14px",
-                      }}
-                    >
-                      <tbody>
-                        <tr>
-                          <td
-                            style={{
-                              width: ICON_SIZE,
-                              verticalAlign: "middle",
-                              paddingRight: 8,
-                              lineHeight: 0,
-                            }}
-                            dangerouslySetInnerHTML={{ __html: TROPHY_SVG }}
-                          />
-                          <td style={{ verticalAlign: "middle" }}>
-                            <span
-                              style={{
-                                display: "block",
-                                fontSize: 11,
-                                letterSpacing: "0.06em",
-                                textTransform: "uppercase",
-                                color: COLOR.textMuted,
-                                fontWeight: 600,
-                                lineHeight: "13px",
-                              }}
-                            >
-                              Top theme
-                            </span>
-                            <span
-                              style={{
-                                display: "block",
-                                marginTop: 2,
-                                fontSize: 16,
-                                fontWeight: 600,
-                                color: COLOR.text,
-                                lineHeight: "20px",
-                              }}
-                            >
-                              {topTheme}
                             </span>
                           </td>
                         </tr>
