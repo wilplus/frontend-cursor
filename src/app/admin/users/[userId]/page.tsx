@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   ArrowLeft,
   ChevronDown,
   Droplet,
@@ -69,6 +70,16 @@ interface AdminSnippet {
    */
   source_type?: string | null;
   admin_comment?: string | null;
+  /**
+   * Whisper transcript of the snippet's audio slice. Often missing
+   * for very short clips (5s, etc.) where Whisper produces no
+   * confident output. The publish gate only requires admin_comment,
+   * so a snippet can reach /results with admin_comment but no
+   * transcript — the chat first-question endpoint now generates
+   * from the admin_comment alone in that case, but we surface a
+   * soft warning to the admin so they know context will be weaker.
+   */
+  transcript?: string | null;
   /**
    * Predictive next-question text triggered when the user clicks this
    * snippet's CTA on the /results page. Pre-populated by the backend
@@ -958,6 +969,21 @@ function SnippetCard({
             {snippet.metrics?.pitch && (
               <Badge variant="outline" className="bg-muted">
                 Pitch: {snippet.metrics.pitch}
+              </Badge>
+            )}
+            {/* Soft warning when Whisper produced no transcript. The
+                snippet is still publishable (admin_comment is the
+                publish gate) and the contextual chat now generates
+                from admin_comment alone, but anchoring is weaker
+                without a transcript — flag it so the admin knows. */}
+            {!snippet.transcript?.trim() && (
+              <Badge
+                variant="outline"
+                className="gap-1 border-amber-300 bg-amber-50 text-amber-800"
+                title="This snippet has no transcript — Whisper missed the audio (often happens on very short slices). The contextual chat will still work but anchors only on your coach insight. Recording the user's contextual chat answer is how we learn from this."
+              >
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                No transcript
               </Badge>
             )}
           </div>
