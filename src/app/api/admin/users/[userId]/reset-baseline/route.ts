@@ -35,9 +35,12 @@ export async function POST(
   const userId = params.userId;
   const path = `/v2/admin/users/${userId}/reset-baseline`;
   console.log(`[API /admin/users/${userId}/reset-baseline] POST → ${path}`);
+  // x-bff-revision lets backend logs correlate to a specific BFF
+  // version when a regression rolls out — Phase-13 is the EBCP
+  // reset/Smart-Routing cluster.
   return proxyJson<undefined, UserAdminContext>(
     path,
-    { method: "POST" },
+    { method: "POST", headers: { "x-bff-revision": "phase-13" } },
     req
   );
 }
