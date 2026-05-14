@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
+import RatingComposer from "@/components/funnel/RatingComposer";
 import {
   fetchNextQuestion,
   uploadInterviewAnswer,
@@ -241,10 +242,11 @@ export default function ChatInterview({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Rating phase — sits between turn 1's upload and Q2 fetch when a
-  // sourceSnippetId is present. See submitSelfRating + handleSend.
-  //   none       — not a contextual chat or rating already collected
-  //   asking     — bot has prompted; mic stays visible, onSend is
-  //                handleRatingSend (Whisper → submitSelfRating)
+  // backend's upload-answer response sets requires_self_score=true.
+  // See submitSelfRating + handleSend.
+  //   none       — not asked (default), or rating already collected
+  //   asking     — bot has prompted; <RatingComposer> 1-10 buttons
+  //                replace the mic until the user taps one
   //   submitting — POST in flight (incl. 425 retries)
   //   done       — rating saved (or soft-failed) — continue to Q2
   const [ratingPhase, setRatingPhase] = useState<
@@ -704,71 +706,11 @@ export default function ChatInterview({
     [sourceSnippetId, proceedToNextQuestion]
   );
 
-  /**
-   * Voice-only rating intake. Fires from the mic during the rating
-   * phase (instead of handleSend, which would treat the recording as
-   * a chat turn). Uploads the audio through the existing public
-   * upload-answer pipeline to get Whisper's transcript, then forwards
-   * that transcript to submitSelfRating which calls the backend.
-   *
-   * KNOWN GOTCHA: this upload reuses the interview-upload-answer
-   * endpoint with turn_number = 0 as a sentinel so the backend can
-   * choose to skip its normal turn-row persistence for rating audio.
-   * If/when the backend ships a dedicated /v2/user/coaching/self-rating
-   * variant that accepts multipart audio + does Whisper internally,
-   * collapse this onto that endpoint and the sentinel becomes dead.
-   */
-  const handleRatingSend = useCallback(
-    async (blob: Blob, durationSeconds: number) => {
-      if (!sourceSnippetId) return;
-      if (thresholdReachedRef.current) return;
-
-      setUploading(true);
-      setRatingError(null);
-      // Accumulate client-side duration so the progress bar reflects
-      // the rating recording too — it's still part of the session.
-      clientDurationRef.current += durationSeconds;
-
-      try {
-        const result = await uploadInterviewAnswer(blob, {
-          guestSessionId: guestSessionIdRef.current,
-          // Sentinel — see comment above. NOT a real turn number.
-          turnNumber: 0,
-          questionTone: currentQuestion?.tone ?? "charisma",
-          questionText: "On a scale of 1 to 10, how did that feel to you?",
-          durationSeconds,
-          sourceSnippetId: null,
-          authToken,
-        });
-
-        const transcript = result.transcript?.trim() ?? "";
-        await submitSelfRating(transcript);
-      } catch (err) {
-        if (err instanceof GuestUploadFailure) {
-          if (err.status === 429 || err.code === "RATE_LIMITED") {
-            onError?.("RATE_LIMITED", err.message, 429);
-            return;
-          }
-          if (err.status === 503 || err.code === "GUEST_FUNNEL_DISABLED") {
-            onError?.("GUEST_FUNNEL_DISABLED", err.message, 503);
-            return;
-          }
-        }
-        console.warn("Rating upload failed:", err);
-        setRatingError("Couldn't upload your rating. Try again.");
-        setRatingPhase("asking");
-      } finally {
-        setUploading(false);
-      }
-    },
-    [
-      sourceSnippetId,
-      currentQuestion,
-      authToken,
-      submitSelfRating,
-      onError,
-    ]
-  );
+  // (handleRatingSend deleted — voice-only rating intake removed.
+  //  Rating phase now uses <RatingComposer> 1-10 button row that
+  //  feeds digit strings straight into submitSelfRating without
+  //  Whisper. Voice extraction was too brittle for plain digits;
+  //  the manual tap is faster AND more reliable.)
 
   /**
    * Auto-submit. Fires the moment the user stops recording — uploads the
@@ -886,15 +828,17 @@ export default function ChatInterview({
         // model wants to deliver, since the math question is no longer
         // a fixed turn the frontend can pre-emptively branch on.)
 
-        // Contextual chat self-rating splice — applies ONLY to the
-        // first user answer of a snippet-driven chat. We stash the
-        // transcript on a ref and pause the linear flow here; the mic
-        // (rerouted to handleRatingSend while ratingPhase === "asking")
-        // owns resumption via submitSelfRating, which calls
-        // proceedToNextQuestion once the rating round-trip lands.
+        // Contextual chat self-rating splice — gated on the backend's
+        // requires_self_score flag. Backend decides when to ask
+        // (Phase 19 frequency rules: max once per snippet, or only at
+        // session-end, or wherever the product says). Frontend
+        // silently skips when the flag is undefined or false.
+        // Still requires sourceSnippetId — submitSelfRating posts
+        // the rating against a snippet_id, so cold-start sessions
+        // (no source snippet) can't be rated.
         if (
           sourceSnippetId &&
-          turnNumber === 1 &&
+          result.requires_self_score === true &&
           ratingPhase === "none" &&
           !thresholdReachedRef.current
         ) {
@@ -1001,42 +945,29 @@ export default function ChatInterview({
       {/* Bottom: record control — pinned, never compressed.
           Tight gap-1 so the helper text + GDPR disclaimer feel
           attached to the mic instead of floating beneath it.
-          During the rating phase the same mic stays visible — only
-          the onSend handler swaps so the rating audio is uploaded
-          via handleRatingSend (Whisper transcript → self-rating)
-          instead of being treated as a regular chat turn. */}
+          During the rating phase the mic is REPLACED by the
+          <RatingComposer> 1-10 button row — voice extraction
+          was too brittle for plain digits ("8" failed where
+          "8/10" worked), so the manual tap is now the primary
+          input. */}
       <div className="flex shrink-0 flex-col items-center gap-1 pb-4">
-        {!loadingQuestion &&
+        {ratingPhase === "asking" || ratingPhase === "submitting" ? (
+          <RatingComposer
+            onSubmit={(input) => void submitSelfRating(input)}
+            submitting={ratingPhase === "submitting"}
+            evaluating={ratingEvaluating}
+            error={ratingError}
+          />
+        ) : (
+          !loadingQuestion &&
           currentQuestion &&
           !thresholdReachedRef.current && (
             <VoiceRecordButton
-              onSend={
-                ratingPhase === "asking" || ratingPhase === "submitting"
-                  ? handleRatingSend
-                  : handleSend
-              }
+              onSend={handleSend}
               onRecorded={handleRecorded}
-              disabled={uploading || ratingPhase === "submitting"}
+              disabled={uploading}
             />
-          )}
-
-        {/* Rating-phase inline error (RATING_UNPARSEABLE / upload
-            failure). Sits between the mic and the helper copy so the
-            user sees the prompt to retry without losing their place. */}
-        {ratingError && (
-          <p
-            className="w-full max-w-sm rounded-md border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-800"
-            role="alert"
-          >
-            {ratingError}
-          </p>
-        )}
-
-        {/* Subtle "evaluating…" hint during the 425 retry ladder. */}
-        {ratingEvaluating && (
-          <p className="text-center text-xs text-muted-foreground">
-            Evaluating your answer…
-          </p>
+          )
         )}
 
         {/* Helper text for first turn */}

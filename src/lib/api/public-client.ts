@@ -187,6 +187,15 @@ export interface InterviewUploadResponse {
   metrics: Record<string, unknown> | null;
   /** Whisper transcript of the user's answer — used for EBCP branching logic. */
   transcript?: string | null;
+  /**
+   * Backend-controlled gate for the contextual self-rating ("vibe
+   * check") splice. The frontend used to fire the rating prompt on
+   * every contextual chat's first turn — too noisy. Now only spliced
+   * when this flag is `true`. Backend decides when to ask
+   * (e.g., once-per-snippet, only at session-end, etc.) per
+   * Phase-19 frequency rules. Undefined / false → silently skip.
+   */
+  requires_self_score?: boolean;
 }
 
 export async function uploadInterviewAnswer(
