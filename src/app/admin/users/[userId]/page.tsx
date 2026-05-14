@@ -160,13 +160,64 @@ interface AdminSnippet {
        * of whether the text was edited). Null = never reviewed.
        */
       admin_reviewed_at?: string | null;
-      components?: {
-        specificity?: number | null;
-        emotional_movement?: number | null;
-        engagement?: number | null;
-      } | null;
+      /**
+       * Free-form bag of per-metric scores from the evaluator
+       * (each value is a 0..1 fraction). Backend is allowed to add
+       * new keys (Pace, Flow, Stickiness, etc.) without coordinating
+       * a frontend type bump — render code iterates Object.entries
+       * and surfaces every numeric value as a pill. Known keys get
+       * friendly labels + tooltips via COMPONENT_LABELS; unknown
+       * keys auto-humanise (snake_case → Title Case).
+       */
+      components?: Record<string, number | null | undefined> | null;
     } | null;
   } | null;
+}
+
+/**
+ * Per-metric label + short admin-facing tooltip for the components
+ * row in CoachingOutcomeStrip. Add new keys here when the backend
+ * starts emitting new B6 metrics — anything missing falls through
+ * to a humanised version of the raw key.
+ */
+const COMPONENT_LABELS: Record<string, { label: string; tooltip: string }> = {
+  specificity: {
+    label: "Specificity",
+    tooltip:
+      "How concrete and detailed the user's answer was. Vague generalities score low.",
+  },
+  emotional_movement: {
+    label: "Emotional movement",
+    tooltip:
+      "How much the user shifted their emotional state through the answer.",
+  },
+  engagement: {
+    label: "Engagement",
+    tooltip: "How invested the user sounded in the topic.",
+  },
+  pace: {
+    label: "Pace",
+    tooltip:
+      "Speaking rate. Both too-fast and too-slow penalise here; the sweet spot is conversational.",
+  },
+  flow: {
+    label: "Flow",
+    tooltip:
+      "Smoothness of delivery. Pauses, fillers, restarts hurt the score.",
+  },
+  stickiness: {
+    label: "Stickiness",
+    tooltip:
+      "How much the user stayed on the original topic vs drifting onto something else.",
+  },
+};
+
+function humaniseComponentKey(key: string): string {
+  return key
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function formatRange(startMs: number, durationMs: number): string {
@@ -930,16 +981,53 @@ function CoachingOutcomeStrip({
     pillClass = "bg-destructive/10 text-destructive";
   }
 
-  const componentSummary = components
-    ? [
-        ["Specificity", components.specificity],
-        ["Emotional movement", components.emotional_movement],
-        ["Engagement", components.engagement],
-      ]
-        .filter(([, v]) => typeof v === "number")
-        .map(([k, v]) => `${k}: ${(Number(v) * 100).toFixed(0)}%`)
-        .join(" · ")
-    : "";
+  /**
+   * Iterate the entire components blob and surface every numeric
+   * value as a pill — so the admin sees Pace / Flow / Stickiness
+   * (and any future B6 metric the backend adds) without needing a
+   * frontend type bump. Known keys get friendly labels + tooltips
+   * via COMPONENT_LABELS; unknown keys fall through to a humanised
+   * snake_case → Title Case label and a generic tooltip.
+   *
+   * Order: known keys first (in COMPONENT_LABELS insertion order)
+   * to keep the canonical metrics anchored on the left, then any
+   * new/unknown keys appended in the backend's emit order. Skips
+   * non-finite values so a `null`/`undefined`/`NaN` in the payload
+   * just means "nothing to render" instead of "0%".
+   */
+  const componentEntries: Array<{
+    key: string;
+    label: string;
+    tooltip: string;
+    value: number;
+  }> = [];
+  if (components) {
+    const seen = new Set<string>();
+    const known = Object.keys(COMPONENT_LABELS);
+    for (const k of known) {
+      const raw = components[k];
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        componentEntries.push({
+          key: k,
+          label: COMPONENT_LABELS[k].label,
+          tooltip: COMPONENT_LABELS[k].tooltip,
+          value: raw,
+        });
+        seen.add(k);
+      }
+    }
+    for (const [k, raw] of Object.entries(components)) {
+      if (seen.has(k)) continue;
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        componentEntries.push({
+          key: k,
+          label: humaniseComponentKey(k),
+          tooltip: "",
+          value: raw,
+        });
+      }
+    }
+  }
 
   // Editable rationale: pre-fill with the admin's corrected version
   // if one exists, otherwise the AI's original draft. The "edited"
@@ -1025,10 +1113,7 @@ function CoachingOutcomeStrip({
     : "Save (approve as-is)";
 
   return (
-    <div
-      className={`rounded-xl border ${bandClass} p-3 space-y-2`}
-      title={componentSummary || undefined}
-    >
+    <div className={`rounded-xl border ${bandClass} p-3 space-y-2`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1051,6 +1136,36 @@ function CoachingOutcomeStrip({
         <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
           &ldquo;{answer}&rdquo;
         </p>
+      )}
+
+      {/*
+       * Per-metric breakdown — every numeric key from the evaluator's
+       * `components` blob renders as its own pill. Hover for a short
+       * admin-facing tooltip explaining what the metric measures.
+       * Hidden entirely when the backend hasn't shipped any numeric
+       * components (older snippets, or evaluator runs that crashed).
+       */}
+      {componentEntries.length > 0 && (
+        <div
+          className="flex flex-wrap gap-1.5"
+          aria-label="Per-metric evaluator scores"
+        >
+          {componentEntries.map((entry) => {
+            const pct = Math.round(entry.value * 100);
+            return (
+              <span
+                key={entry.key}
+                title={entry.tooltip || undefined}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-[11px]"
+              >
+                <span className="text-muted-foreground">{entry.label}</span>
+                <span className="font-semibold tabular-nums text-foreground">
+                  {pct}%
+                </span>
+              </span>
+            );
+          })}
+        </div>
       )}
 
       {/* Editable AI rationale + review status */}
@@ -2818,14 +2933,18 @@ export default function AdminUserDetailPage() {
               ))}
             </div>
 
-            {/* General KPI & Stickiness-topic metric.
-                Two side-by-side cards driven by global_metrics.* from the
-                admin session detail endpoint. The "Compute Metrics"
-                button below also refreshes both via /compute-metrics. */}
+            {/* Performance summary.
+                Hero element is the AI-written `session_kpi_narrative`
+                — a single italic blockquote that weaves KPI + stickiness
+                + per-turn signal into one readable line. Replaces the
+                old two-card "Scores vs Summary" split, which forced the
+                admin to mentally stitch the numbers back together. Raw
+                numbers still surface as a slim grey footer for cross-
+                checking, but they're explicitly secondary now. */}
             <Card className="rounded-2xl border-border p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="text-base font-semibold">
-                  General KPI &amp; Stickiness-topic metric
+                  Performance summary
                 </h3>
                 <Button
                   type="button"
@@ -2839,51 +2958,31 @@ export default function AdminUserDetailPage() {
                 </Button>
               </div>
 
-              {/* Narrative summary — AI-written 2-3 sentence paragraph
-                  weaving the numeric scores + stickiness signal into a
-                  single readable line. Generated server-side at
-                  session-finalize time as `session_kpi_narrative`.
-                  Renders ABOVE the chip grid (which stays as the
-                  "raw numbers" backing the narrative); falls back
-                  cleanly when backend hasn't generated it yet. */}
-              {sessionKpiNarrative && (
-                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                    Performance summary
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
+              {sessionKpiNarrative ? (
+                <blockquote className="rounded-xl border-l-4 border-primary/50 bg-primary/5 px-5 py-4">
+                  <p className="text-[15px] italic leading-relaxed text-foreground">
                     {sessionKpiNarrative}
+                  </p>
+                </blockquote>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {computingMetrics
+                      ? "Generating performance summary…"
+                      : "Click “Compute Metrics” to generate the AI performance summary."}
                   </p>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* KPI card */}
-                <div className="rounded-xl border border-border bg-muted/20 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    KPI
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-foreground">
-                    {kpiScore == null ? "—" : (
-                      <>
-                        {Math.round(kpiScore)}
-                        <span className="text-base font-normal text-muted-foreground">
-                          {" "}/ 100
-                        </span>
-                      </>
-                    )}
-                  </p>
-                  <p
-                    className="mt-3 text-xs text-muted-foreground"
-                    title="Vocal energy + filler count + pacing"
-                  >
-                    Vocal energy + filler count + pacing
-                  </p>
-                </div>
-
-                {/* Stickiness-topic card */}
-                <div
-                  className="rounded-xl border border-border bg-muted/20 p-4"
+              {/* Slim raw-numbers footer — admin cross-reference only.
+                  Renders below the narrative so the story stays the
+                  hero. Hidden when nothing is computed yet. */}
+              {(kpiScore != null ||
+                stickinessTopTopic ||
+                stickinessScore != null ||
+                aiScore != null) && (
+                <dl
+                  className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-3 text-[11px] text-muted-foreground"
                   title={
                     stickinessDistribution
                       ? Object.entries(stickinessDistribution)
@@ -2896,44 +2995,47 @@ export default function AdminUserDetailPage() {
                       : undefined
                   }
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Stickiness-topic
-                  </p>
-                  <p className="mt-2 truncate text-lg font-semibold text-foreground">
-                    {stickinessTopTopic ?? "—"}
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
-                    {stickinessScore == null
-                      ? "—"
-                      : `${Math.round(stickinessScore * 100)}% of answers`}
-                  </p>
-                  <p
-                    className="mt-3 text-xs text-muted-foreground"
-                    title="How much the user fixated on one topic across this session's answers. 0% = each turn on a different topic; 100% = every turn on the same topic."
-                  >
-                    How much the user fixated on one topic across this
-                    session&apos;s answers.
-                  </p>
-                </div>
-              </div>
-
-              {/* Existing AI summary text — kept as a subtle secondary
-                  readout below the two cards so the upgrade is purely
-                  additive. Hidden until backend has populated it. */}
-              {(aiSummary || aiScore != null) && (
-                <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-                  {aiSummary && (
-                    <p className="leading-relaxed">{aiSummary}</p>
+                  {kpiScore != null && (
+                    <div className="flex items-baseline gap-1">
+                      <dt className="uppercase tracking-wide">KPI</dt>
+                      <dd className="font-semibold tabular-nums text-foreground">
+                        {Math.round(kpiScore)}/100
+                      </dd>
+                    </div>
+                  )}
+                  {(stickinessTopTopic || stickinessScore != null) && (
+                    <div className="flex items-baseline gap-1">
+                      <dt className="uppercase tracking-wide">Sticky topic</dt>
+                      <dd className="font-semibold text-foreground">
+                        {stickinessTopTopic ?? "—"}
+                        {stickinessScore != null && (
+                          <span className="ml-1 font-normal tabular-nums text-muted-foreground">
+                            ({Math.round(stickinessScore * 100)}%)
+                          </span>
+                        )}
+                      </dd>
+                    </div>
                   )}
                   {aiScore != null && (
-                    <p className="mt-1">
-                      AI alignment:{" "}
-                      <span className="font-semibold text-foreground">
+                    <div className="flex items-baseline gap-1">
+                      <dt className="uppercase tracking-wide">AI alignment</dt>
+                      <dd className="font-semibold tabular-nums text-foreground">
                         {Math.round(aiScore)}/100
-                      </span>
-                    </p>
+                      </dd>
+                    </div>
                   )}
-                </div>
+                </dl>
+              )}
+
+              {/* Legacy fallback summary — only renders if backend has
+                  the older `aiSummary` field but NOT the new
+                  `session_kpi_narrative`. Keeps old session records
+                  readable post-migration without competing with the
+                  hero blockquote when both exist. */}
+              {!sessionKpiNarrative && aiSummary && (
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                  {aiSummary}
+                </p>
               )}
             </Card>
 
