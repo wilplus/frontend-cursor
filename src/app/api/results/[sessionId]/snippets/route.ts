@@ -81,11 +81,23 @@ export async function GET(
   const status = (data.status as string) || "processing";
   const snippets = Array.isArray(data.snippets) ? data.snippets : [];
 
+  // Forward the optional session-wide `charisma_profile` aggregate
+  // through to the client when the backend ships it. The dashboard
+  // (<CharismaDashboard>) handles `null` by hiding itself entirely,
+  // so older sessions / pre-feature backend versions that omit the
+  // field stay rendered exactly as before. Coerce undefined → null
+  // so the client gets a definitive answer either way.
+  const charismaProfile =
+    data.charisma_profile != null && typeof data.charisma_profile === "object"
+      ? (data.charisma_profile as Record<string, unknown>)
+      : null;
+
   return NextResponse.json(
     {
       status: "ok",
       published: status === "completed",
       snippets,
+      charisma_profile: charismaProfile,
     },
     { status: 200 }
   );
