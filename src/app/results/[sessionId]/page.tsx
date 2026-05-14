@@ -11,6 +11,9 @@ import type { AcousticMetric } from "@/components/results/AcousticToggle";
 import ProcessingState from "@/components/results/ProcessingState";
 import MirrorPanel from "@/components/results/MirrorPanel";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import CharismaDashboard, {
+  type CharismaProfile,
+} from "@/components/results/CharismaDashboard";
 
 /* -------------------------------------------------------------------------- */
 /*  Backend response shape                                                    */
@@ -43,6 +46,16 @@ interface SnippetsPayload {
   status: "ok" | string;
   published: boolean;
   snippets: BackendSnippet[];
+  /**
+   * Optional aggregate "Charisma Profile" for the WHOLE session —
+   * archetype, narrative, acoustic timeline, trinity balance, and
+   * stress-trigger signature. Rendered ABOVE the per-snippet list
+   * via <CharismaDashboard>. The dashboard handles null/undefined
+   * gracefully (skeleton state), so older sessions or backend
+   * versions that don't ship this field render the page exactly
+   * as before — minus the dashboard.
+   */
+  charisma_profile?: CharismaProfile | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -171,6 +184,13 @@ export default function ResultsPage() {
 function CompletedResultsView({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [raw, setRaw] = useState<BackendSnippet[]>([]);
+  // The dashboard's CharismaProfile shipped on the same payload as
+  // the snippet list. `undefined` while loading, `null` when the
+  // backend explicitly omitted it (older sessions), or the object
+  // proper when present. The dashboard component handles all three.
+  const [charismaProfile, setCharismaProfile] = useState<
+    CharismaProfile | null | undefined
+  >(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -203,6 +223,12 @@ function CompletedResultsView({ sessionId }: { sessionId: string }) {
         // Backend already filters to admin_comment-non-empty rows + resolves
         // audio_url. We pass them through verbatim.
         setRaw(Array.isArray(data.snippets) ? data.snippets : []);
+        // charisma_profile is optional on the payload — older sessions
+        // and pre-feature backend versions just won't ship it. Coerce
+        // to `null` (not undefined) so downstream React knows we've
+        // received a definitive answer and the dashboard can decide
+        // between "skeleton" (undefined) and "hidden" (null).
+        setCharismaProfile(data.charisma_profile ?? null);
       } catch (err) {
         console.error("Error fetching snippets:", err);
         setError("An error occurred while loading your snippets.");
@@ -228,12 +254,27 @@ function CompletedResultsView({ sessionId }: { sessionId: string }) {
     ];
   }, [raw, sessionId]);
 
+  // Dashboard visibility: render the skeleton while the request is
+  // in flight (`undefined`) or when we have a real profile object;
+  // hide the section entirely when the backend explicitly returned
+  // `null` so older sessions don't carry an empty white block.
+  const showDashboard = charismaProfile !== null;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
       {/* User-scoped coaching mirror — sits at the top of /results
           surfaces; renders nothing when the feature flag is off or
           the user has no published mirror yet. */}
       <MirrorPanel />
+
+      {/* Charisma Awareness Dashboard — sits ABOVE the per-snippet
+          list. While `charismaProfile` is `undefined` (loading) we
+          render the dashboard's own skeleton, which keeps the page
+          height stable and avoids the snippet list jumping when the
+          payload lands. The dashboard's max-w-6xl shell intentionally
+          breaks out of the page's max-w-3xl column for a wider data-
+          viz canvas. */}
+      {showDashboard && <CharismaDashboard profile={charismaProfile} />}
 
       {loading && (
         <div className="flex items-center justify-center py-12">

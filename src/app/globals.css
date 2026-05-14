@@ -57,6 +57,42 @@
     --chat-bubble-user: 25 95% 55%;
     --chat-bubble-user-foreground: 0 0% 100%;
     --recording-pulse: 0 84% 60%;
+
+    /*
+     * Charisma Awareness Dashboard tokens — light, minimalist palette
+     * scoped under `dash-*` so the dashboard can sit on a pure-white
+     * canvas without disturbing the rest of the app's warm off-white
+     * background. Apply via Tailwind arbitrary-value selectors:
+     *   bg-[hsl(var(--dash-bg))]   text-[hsl(var(--dash-foreground))]
+     *   border-[hsl(var(--dash-border))]   etc.
+     */
+    --dash-bg: 0 0% 100%;
+    --dash-surface: 240 5% 98%;
+    --dash-surface-2: 240 5% 96%;
+    --dash-border: 240 6% 90%;
+    --dash-foreground: 240 10% 10%;
+    --dash-muted: 240 5% 45%;
+    --dash-brand: 25 95% 55%;
+    --dash-brand-glow: 25 100% 65%;
+    --dash-success: 152 76% 40%;
+    --dash-danger: 0 84% 55%;
+
+    /* Compound assets (gradients + shadow). These can't live as raw HSL
+       triplets because Tailwind's arbitrary-value engine wraps them in
+       hsl(); instead they're full CSS values, ready to drop into
+       bg-[image:var(--gradient-brand)] / shadow-[var(--shadow-glow)]. */
+    --gradient-brand: linear-gradient(
+      135deg,
+      hsl(25 95% 55%),
+      hsl(12 95% 55%)
+    );
+    --gradient-glow: radial-gradient(
+      60% 60% at 50% 0%,
+      hsl(25 95% 55% / 0.08) 0%,
+      transparent 70%
+    );
+    --shadow-glow: 0 0 0 1px hsl(25 95% 55% / 0.15),
+      0 10px 30px -10px hsl(25 95% 55% / 0.25);
   }
 
   /*
@@ -301,6 +337,73 @@ body {
     font-size: 16px !important;
     scroll-margin-top: 1.5rem;
   }
+}
+
+/*
+ * Charisma Dashboard utilities.
+ *
+ * .dash-glass — Card surface for dashboard sections. Light off-white
+ *   gradient between --dash-surface and --dash-surface-2, blurred backdrop
+ *   so any ambient brand-glow showing through has a soft frosted feel,
+ *   1px hairline border and a barely-there shadow. Designed to read as
+ *   "card on white paper", not the dark-glass material from the original
+ *   Lovable spec.
+ * .dash-glow-ring — Brand-orange ring + soft drop shadow for accent
+ *   elements (archetype pill, primary CTA). Pairs with --shadow-glow.
+ */
+.dash-glass {
+  background-image: linear-gradient(
+    180deg,
+    hsl(var(--dash-surface) / 0.95),
+    hsl(var(--dash-surface-2) / 0.95)
+  );
+  border: 1px solid hsl(var(--dash-border));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 hsl(0 0% 100% / 0.6) inset,
+    0 1px 2px hsl(240 6% 10% / 0.04),
+    0 4px 12px hsl(240 6% 10% / 0.04);
+}
+
+.dash-glow-ring {
+  border: 1px solid hsl(var(--dash-brand) / 0.5);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Slow ambient pulse for the live-status dot inside the archetype pill.
+   Distinct from the dartboard pulse — quieter (1.5s cycle, 50%–100%
+   opacity) so it whispers "this is current data" rather than yelling. */
+@keyframes dash-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.dash-pulse-dot {
+  animation: dash-pulse-dot 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Slow grow-in for the Trinity bar fills + heatmap points. Uses a long
+   0.7s ease so the dashboard feels "data settling" rather than snappy. */
+@keyframes dash-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.dash-bar-grow {
+  transform-origin: left center;
+  animation: dash-bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Recording mode: lock body scroll; allow main content to scroll if needed (safe mobile pattern) */
