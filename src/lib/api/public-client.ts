@@ -196,6 +196,19 @@ export interface InterviewUploadResponse {
    * Phase-19 frequency rules. Undefined / false → silently skip.
    */
   requires_self_score?: boolean;
+  /**
+   * Whisper's detected language for this turn — surfaced to the user
+   * as a pill near the mic so they can confirm the system heard them
+   * in the right language. Critical UX after the "AI replies in
+   * English when user speaks Polish" feedback: the pill makes the
+   * mismatch immediately visible. Backend SHOULD include this on
+   * every upload-answer response; frontend renders nothing when the
+   * field is absent/null (graceful fallback during backend rollout).
+   *
+   * Expected values: ISO 639-1 codes ("pl", "en", "es", …) OR English
+   * names ("Polish", "English"). The pill humanises both forms.
+   */
+  detected_language?: string | null;
 }
 
 export async function uploadInterviewAnswer(

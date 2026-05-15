@@ -268,6 +268,15 @@ export default function ChatInterview({
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [totalDuration, setTotalDuration] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /**
+   * Whisper-detected language for the user's most recent answer.
+   * Surfaced as a pill near the progress bar so the user can confirm
+   * the system heard them in the right language — the "AI replies in
+   * English when I spoke Polish" complaint is impossible to debug if
+   * the user can't see what language was detected. Backend ships this
+   * on upload-answer; null/undefined hides the pill entirely.
+   */
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
 
   // Rating phase — sits between turn 1's upload and Q2 fetch when a
   // backend's upload-answer response sets requires_self_score=true.
@@ -863,6 +872,17 @@ export default function ChatInterview({
         const effectiveTotal = Math.max(backendTotal, clientDurationRef.current);
         setTotalDuration(effectiveTotal);
 
+        // Surface the Whisper-detected language so the pill near the
+        // progress bar can render it. Only updates when backend ships
+        // a non-empty value — leaving stale state intact if a turn
+        // returns nothing (better than flickering "—" between turns).
+        if (
+          typeof result.detected_language === "string" &&
+          result.detected_language.trim().length > 0
+        ) {
+          setDetectedLanguage(result.detected_language.trim());
+        }
+
         // Persist Whisper's transcript onto the most-recent user
         // message so buildPreviousTurns on the NEXT call sees the
         // full Q→A chain (not just the current turn's). The
@@ -1003,6 +1023,23 @@ export default function ChatInterview({
               {Math.round(totalDuration)}s / {AGGREGATE_THRESHOLD_SECONDS}s
             </span>
           </div>
+          {/* Language transparency pill — surfaces what Whisper
+              detected so the user can spot a mismatch (e.g. spoke
+              Polish, AI replied in English). Hidden until the first
+              upload reports a language; backend hasn't shipped the
+              field everywhere yet, and an absent value is better
+              than a confusing "Unknown" label. */}
+          {detectedLanguage && (
+            <p
+              className="mt-1.5 text-center text-[10px] text-muted-foreground"
+              aria-live="polite"
+            >
+              Language detected:{" "}
+              <span className="font-semibold text-foreground">
+                {formatDetectedLanguage(detectedLanguage)}
+              </span>
+            </p>
+          )}
         </div>
       )}
 
@@ -1124,4 +1161,46 @@ export default function ChatInterview({
       </div>
     </div>
   );
+}
+
+/**
+ * Humanise Whisper's detected_language value for the UI pill.
+ * Accepts either ISO 639-1 codes ("pl", "en") or English names
+ * ("Polish", "english") and normalises to Title-Case English.
+ * Unknown codes pass through with first-letter capitalisation so the
+ * pill never disappears even when backend ships an unmapped value.
+ */
+function formatDetectedLanguage(raw: string): string {
+  const code = raw.trim().toLowerCase();
+  if (code.length === 0) return raw;
+  const MAP: Record<string, string> = {
+    pl: "Polish",
+    en: "English",
+    es: "Spanish",
+    fr: "French",
+    de: "German",
+    it: "Italian",
+    pt: "Portuguese",
+    nl: "Dutch",
+    ru: "Russian",
+    uk: "Ukrainian",
+    cs: "Czech",
+    sk: "Slovak",
+    sv: "Swedish",
+    da: "Danish",
+    no: "Norwegian",
+    fi: "Finnish",
+    tr: "Turkish",
+    ja: "Japanese",
+    ko: "Korean",
+    zh: "Chinese",
+    ar: "Arabic",
+    hi: "Hindi",
+  };
+  if (MAP[code]) return MAP[code];
+  // Fall back: capitalize words for human display.
+  return raw
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
 }
