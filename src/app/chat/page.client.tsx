@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import Lottie from "lottie-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import ChatReview from "@/components/chat/ChatReview";
+import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
@@ -65,45 +66,26 @@ function shufflePhrases(phrases: readonly string[]): string[] {
 /* -------------------------------------------------------------------------- */
 
 function WaitingScreen() {
-  const [lottieData, setLottieData] = useState<object | null>(null);
-  const [phrases] = useState<string[]>(() => shufflePhrases(VOICE_LOADING_PHRASES));
-  const [phraseIndex, setPhraseIndex] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/animations/loading.json")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setLottieData(data);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPhraseIndex((i) => (i + 1) % phrases.length);
-    }, 1800);
-    return () => clearInterval(id);
-  }, [phrases.length]);
-
+  // Post-login waiting screen plays the founder/onboarding video
+  // (same one previously gated behind HeroRecorder's "done" status)
+  // so the user has something engaging to watch while the admin
+  // reviews their session. The Lottie + rotating-phrase loading
+  // animation was tested with users (Marcin et al.) and read as
+  // "empty waiting" — too clinical, no reward for finishing the
+  // recording. The video carries the brand voice forward and keeps
+  // them on the page until the polling loop flips status to
+  // "completed".
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center animate-fade-in-up">
-      <div className="h-24 w-24 opacity-80">
-        {lottieData ? (
-          <Lottie animationData={lottieData} loop />
-        ) : (
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        )}
-      </div>
-      <p className="mx-auto max-w-sm text-sm text-muted-foreground min-h-[1.25rem] transition-opacity duration-300">
-        {phrases[phraseIndex]}
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-4 px-4 text-center animate-fade-in-up">
+      <p className="text-sm font-medium text-foreground">
+        Your coach is preparing your insights.
       </p>
+      <div className="w-full">
+        <AfterwardsVideo />
+      </div>
       <p className="mx-auto max-w-sm text-[11px] leading-relaxed text-muted-foreground/80">
-        Your coach is preparing your insights — usually a few minutes. You can
-        leave this open, or we&apos;ll email you when it&apos;s ready.
+        Usually a few minutes. You can leave this open, or we&apos;ll email you
+        when it&apos;s ready.
       </p>
     </div>
   );
