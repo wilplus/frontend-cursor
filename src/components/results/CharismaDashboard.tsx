@@ -12,7 +12,11 @@
  *   2. Acoustic Activation Zone      (pace timeline + ideal band)
  *   3. Charisma Trinity Balance      (Power / Warmth / Presence)
  *   4. Stress Trigger Signature      (heatmap of stress moments)
- *   5. Recommendation                (next-step CTA into the chat)
+ *
+ * (The "Your next move" recommendation CTA was removed — the snippet
+ * cards' single CTAs are the canonical loop forward edge, so a second
+ * CTA on the dashboard duplicated that decision and reintroduced
+ * exactly the decision fatigue the SnippetCard cleanup eliminated.)
  *
  * Design notes:
  *   - Lives inside a pure-white, light-mode bubble (CSS tokens
@@ -82,7 +86,14 @@ export interface CharismaProfile {
      *  session timeline, `intensity` is 0..1. */
     points: { t: number; intensity: number }[];
   };
-  recommendation: {
+  /**
+   * @deprecated Reserved field — the dashboard no longer renders the
+   * "Your next move" CTA (the snippet cards own the loop's forward
+   * edge). Backend may still ship this; we just ignore it. Removing
+   * the field outright would invalidate the existing backend brief,
+   * so it stays in the type as a no-op.
+   */
+  recommendation?: {
     title: string;
     body: string;
   };
@@ -148,8 +159,6 @@ export default function CharismaDashboard({ profile }: CharismaDashboardProps) {
         >
           <StressTriggerHeatmap triggers={profile.triggers} />
         </SectionCard>
-
-        <RecommendationCTA recommendation={profile.recommendation} />
       </div>
     </section>
   );
@@ -607,61 +616,6 @@ function HeatmapStat({ label, value }: { label: string; value: string }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Section 4 — Recommendation CTA                                            */
-/*  Full-width card with brand gradient button. Anchors the user into the     */
-/*  next coaching loop — most natural fit is the chat with no source snippet  */
-/*  (general practice). Backend can swap this for a deep link later.          */
-/* -------------------------------------------------------------------------- */
-
-function RecommendationCTA({
-  recommendation,
-}: {
-  recommendation: CharismaProfile["recommendation"];
-}) {
-  return (
-    <div
-      className="dash-glass animate-fade-in-up flex flex-col items-start justify-between gap-4 rounded-2xl p-5 md:flex-row md:items-center md:p-6"
-      style={{ animationDelay: "460ms" }}
-    >
-      <div className="space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[hsl(var(--dash-brand))]">
-          Your next move
-        </p>
-        <h3 className="text-base font-semibold text-[hsl(var(--dash-foreground))] md:text-lg">
-          {recommendation.title}
-        </h3>
-        <p className="max-w-2xl text-sm leading-relaxed text-[hsl(var(--dash-muted))]">
-          {recommendation.body}
-        </p>
-      </div>
-      <a
-        href="/chat"
-        className="inline-flex shrink-0 items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold text-white transition-transform hover:-translate-y-[1px]"
-        style={{
-          background: "var(--gradient-brand)",
-          boxShadow: "var(--shadow-glow)",
-        }}
-      >
-        Start practice session
-        <svg
-          aria-hidden
-          width={14}
-          height={14}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M5 12h14M13 5l7 7-7 7" />
-        </svg>
-      </a>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /*  Skeleton — placeholder shapes shown while `profile` is null/loading       */
 /* -------------------------------------------------------------------------- */
 
@@ -692,8 +646,6 @@ function CharismaDashboardSkeleton() {
         {/* Heatmap skeleton */}
         <div className="dash-glass h-44 animate-pulse rounded-2xl" />
 
-        {/* CTA skeleton */}
-        <div className="dash-glass h-24 animate-pulse rounded-2xl" />
       </div>
     </section>
   );
