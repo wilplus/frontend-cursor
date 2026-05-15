@@ -243,19 +243,21 @@ export default function ChatReview({
               <div key={s.id} className="flex flex-col gap-2">
                 <SnippetPlayerBubble snippet={s} />
                 <ActionBubble
-                  prompt={
-                    s.type === "charisma"
-                      ? "Was this a charisma moment for you?"
-                      : "Was this a stress moment for you?"
-                  }
+                  prompt="Do you agree with this insight?"
                   options={[
                     {
                       value: s.type,
-                      label: s.type === "charisma" ? "Yes, charisma" : "Yes, stress",
+                      label:
+                        s.type === "charisma"
+                          ? "YES, this is Charisma"
+                          : "YES, this is Stress",
                     },
                     {
                       value: s.type === "charisma" ? "stress" : "charisma",
-                      label: "Felt different",
+                      label:
+                        s.type === "charisma"
+                          ? "NO, this is Stress"
+                          : "NO, this is Charisma",
                       variant: "outline",
                     },
                   ]}

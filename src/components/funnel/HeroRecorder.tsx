@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import CuriosityGate from "@/components/funnel/CuriosityGate";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import SectionCard from "@/components/admin/SectionCard";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { setPendingSessionId } from "@/lib/funnel/pendingSession";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
@@ -26,6 +27,7 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
  */
 type Status =
   | "idle"
+  | "disclaimer"
   | "interviewing"
   | "processing"
   | "curiosity_gate"
@@ -34,6 +36,14 @@ type Status =
   | "disabled";
 
 const MIN_PROCESSING_MS = 2500;
+
+/**
+ * LocalStorage key for the one-time "you'll be asked to sign up at the
+ * end" disclaimer. Stash a truthy value when the user dismisses it so
+ * we don't nag them on every return visit. Anonymous-only — signed-in
+ * users already know the deal.
+ */
+const DISCLAIMER_SEEN_KEY = "willab.signup_disclaimer_seen";
 
 const PROCESSING_LABELS = [
   "Analyzing stress patterns…",
@@ -187,12 +197,37 @@ export default function HeroRecorder() {
     []
   );
 
-  // Auto-start the interview as soon as auth state is known
+  // Decide what to render the moment auth state resolves. Three cases:
+  //   - signed_in: skip the disclaimer (they've already signed up) and
+  //     go straight to the interview.
+  //   - anonymous + disclaimer already dismissed (localStorage flag):
+  //     skip it on return visits.
+  //   - anonymous + first visit: pause on the "you'll be asked to sign
+  //     up at the end" card so the registration isn't sprung on them
+  //     when results land. This is the "Fair Play" disclaimer per
+  //     Marcin's feedback ("cheap trick" complaint).
   useEffect(() => {
-    if (authState !== "unknown" && status === "idle") {
+    if (status !== "idle") return;
+    if (authState === "unknown") return;
+    if (authState === "signed_in") {
       setStatus("interviewing");
+      return;
     }
+    const alreadySeen =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(DISCLAIMER_SEEN_KEY) === "1";
+    setStatus(alreadySeen ? "interviewing" : "disclaimer");
   }, [authState, status]);
+
+  const handleDisclaimerAccept = useCallback(() => {
+    try {
+      window.localStorage.setItem(DISCLAIMER_SEEN_KEY, "1");
+    } catch {
+      // Private mode / quota — swallow; user just sees the card again
+      // next visit. Non-fatal.
+    }
+    setStatus("interviewing");
+  }, []);
 
   // Viewport-locked: page fits the device exactly. Inner regions own their
   // own scrolling (chat thread). The body never scrolls. The unified
@@ -227,6 +262,40 @@ export default function HeroRecorder() {
               for everyone.
             </p>
           </SectionCard>
+        ) : status === "disclaimer" ? (
+          /* Fair-Play registration disclaimer — anonymous users only,
+             once per browser. Shown BEFORE the interview begins so the
+             "create an account at the end" ask doesn't feel like a
+             bait-and-switch when results are about to land. localStorage
+             flag in handleDisclaimerAccept stops it nagging on returns. */
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4">
+            <SectionCard title="Quick heads-up">
+              <div className="space-y-3">
+                <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <Info
+                    className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  <p className="text-sm leading-relaxed text-foreground">
+                    To receive your detailed acoustic analysis and your
+                    coach&apos;s feedback,{" "}
+                    <strong className="font-semibold">
+                      you&apos;ll be asked to create a free account at the end
+                    </strong>{" "}
+                    of this session. No card required, no spam.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="lg"
+                  onClick={handleDisclaimerAccept}
+                  className="w-full rounded-full"
+                >
+                  Got it, let&apos;s start
+                </Button>
+              </div>
+            </SectionCard>
+          </div>
         ) : status === "disabled" ? (
           <SectionCard title="Trial temporarily unavailable">
             <p className="text-sm text-muted-foreground">
