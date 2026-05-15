@@ -9,6 +9,7 @@ import SectionCard from "@/components/admin/SectionCard";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { createClient } from "@/lib/supabase/client";
 import { setPendingSessionId } from "@/lib/funnel/pendingSession";
+import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 
 /**
  * Curiosity Gate state machine (multi-turn interview version).
@@ -107,6 +108,14 @@ function ProcessingScreen() {
 /* -------------------------------------------------------------------------- */
 
 export default function HeroRecorder() {
+  // Infinite Coaching Loop guard. For signed-in users with an active
+  // (processing) or completed session, redirect to /results/[sessionId]
+  // so they can't accidentally start a fresh cold-start while a
+  // previous session is still in flight (or while they have results
+  // they haven't seen yet). Anonymous users and signed-in users with
+  // no_session are passed through to the guest funnel below.
+  const guard = useSessionRouteGuard();
+
   const [status, setStatus] = useState<Status>("idle");
   const [authState, setAuthState] = useState<
     "unknown" | "anonymous" | "signed_in"
@@ -189,6 +198,22 @@ export default function HeroRecorder() {
   // own scrolling (chat thread). The body never scrolls. The unified
   // DashboardHeader is mounted up top regardless of auth state — it adapts
   // its right-side content (Log in / Sign up vs credits + menu) on its own.
+  // While the guard is deciding (or has decided to redirect), render
+  // a brief loader instead of the recorder. Without this, the user
+  // briefly sees the chat surface mount before the redirect lands.
+  if (guard.checking || guard.redirecting) {
+    return (
+      <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
+        <div className="shrink-0">
+          <DashboardHeader />
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">

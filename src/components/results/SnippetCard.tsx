@@ -4,10 +4,7 @@ import { ChevronRight, Droplet, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
-import AcousticToggle, {
-  type AcousticMetric,
-} from "@/components/results/AcousticToggle";
-import ProgressStrip from "@/components/results/ProgressStrip";
+import type { AcousticMetric } from "@/components/results/AcousticToggle";
 
 /**
  * Voice-Journey snippet shape consumed by the user-facing cards.
@@ -16,6 +13,11 @@ import ProgressStrip from "@/components/results/ProgressStrip";
  * src/app/results/[sessionId]/page.tsx) into this presentation shape
  * so the card component never has to know about snake_case API
  * fields.
+ *
+ * Note: `metrics` is still part of the shape for backwards-compat with
+ * the page-level mapper, but the public card no longer renders them —
+ * decision-fatigue cleanup per the Infinite Coaching Loop spec.
+ * Acoustic data still flows to the admin surface, just hidden here.
  */
 export interface JourneySnippet {
   id: string;
@@ -39,6 +41,22 @@ interface SnippetCardProps {
   animationDelayMs?: number;
 }
 
+/**
+ * Public-facing snippet card — the user-side rendering of one
+ * coach-pulled moment from a session.
+ *
+ * This card is deliberately minimal per the Infinite Coaching Loop
+ * spec: type badge, the coach's insight, the audio, and ONE CTA.
+ * No collapsible acoustic-metrics row, no progress strip, no
+ * secondary actions — the user has exactly one decision to make
+ * (start the next contextual chat or not), so there's exactly one
+ * button.
+ *
+ * The CTA always reads "Start next conversation based on this" and
+ * navigates to /chat?sourceSnippet=<id>&intent=<charisma|stress>.
+ * The intent is forwarded so the backend can seed the right tone
+ * (warm vs cool) for the contextual chat's first question.
+ */
 export default function SnippetCard({
   snippet,
   animationDelayMs = 0,
@@ -90,58 +108,37 @@ export default function SnippetCard({
         />
       </div>
 
-      {/* Progressive-disclosure metrics */}
-      <AcousticToggle
-        metrics={snippet.metrics}
-        panelId={`acoustic-${snippet.id}`}
-      />
-
-      {/* "Your progress on this" — fetches /api/v2/user/coaching/progress
-          and renders nothing if the user hasn't attempted this snippet
-          yet, so cards that have never been clicked stay clean. */}
-      <ProgressStrip snippetId={snippet.id} />
-
-      {/* Hairline + right-aligned CTA */}
-      <hr className="mt-5 border-border" />
-      <div className="mt-4 flex justify-end">
-        {isCharisma ? (
-          <Button
-            asChild
-            className="group gap-1.5 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary hover:shadow-lg"
+      {/* Single CTA — primary brand button, full-width on mobile so
+          the user's one decision sits dead-centre. Charisma stays
+          orange-filled; stress flips to a destructive-tinted outline
+          so the visual valence still tracks the snippet type, but
+          there's no longer a "secondary action" anywhere on the card.
+          The CTA copy is uniform across both types per spec ("Start
+          next conversation based on this") — keeping the loop semantic
+          rather than the per-type copy from the previous design. */}
+      <div className="mt-6">
+        <Button
+          asChild
+          size="lg"
+          variant={isCharisma ? "default" : "outline"}
+          className={cn(
+            "group w-full justify-center gap-2 rounded-full text-sm font-semibold sm:w-auto sm:px-7",
+            isCharisma
+              ? "bg-primary text-primary-foreground hover:bg-primary hover:shadow-lg"
+              : "border-foreground/20 text-foreground hover:bg-foreground hover:text-primary-foreground"
+          )}
+        >
+          <a
+            href={`/chat?sourceSnippet=${encodeURIComponent(snippet.id)}&intent=${encodeURIComponent(snippet.type)}`}
           >
-            <a
-              href={`/chat?sourceSnippet=${encodeURIComponent(
-                snippet.id
-              )}&intent=charisma`}
-            >
-              <TypeIcon className="h-3.5 w-3.5 fill-current" aria-hidden />
-              {snippet.ctaLabel}
-              <ChevronRight
-                aria-hidden
-                className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-[2px]"
-              />
-            </a>
-          </Button>
-        ) : (
-          <Button
-            asChild
-            variant="outline"
-            className="group gap-1.5 rounded-full border-foreground/20 px-5 text-foreground hover:bg-foreground hover:text-primary-foreground"
-          >
-            <a
-              href={`/chat?sourceSnippet=${encodeURIComponent(
-                snippet.id
-              )}&intent=stress`}
-            >
-              <TypeIcon className="h-3.5 w-3.5 fill-current" aria-hidden />
-              {snippet.ctaLabel}
-              <ChevronRight
-                aria-hidden
-                className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-[2px]"
-              />
-            </a>
-          </Button>
-        )}
+            <TypeIcon className="h-4 w-4 fill-current" aria-hidden />
+            Start next conversation based on this
+            <ChevronRight
+              aria-hidden
+              className="ml-0.5 h-4 w-4 transition-transform group-hover:translate-x-[2px]"
+            />
+          </a>
+        </Button>
       </div>
     </article>
   );
