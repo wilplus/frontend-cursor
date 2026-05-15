@@ -69,6 +69,7 @@ export default function MirrorPanel() {
   const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
   const [mirror, setMirror] = useState<Mirror | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [obsOpen, setObsOpen] = useState(false);
 
@@ -137,6 +138,59 @@ export default function MirrorPanel() {
       setError("Couldn't reach the server. Check your connection.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  /**
+   * Delete the current mirror server-side. Distinct intent from
+   * Regenerate — we do NOT auto-regenerate after delete. The user
+   * may just want the existing narrative gone (e.g. before the next
+   * coaching session re-runs the new prompt style on their newer
+   * attempts).
+   *
+   * Single-step `window.confirm` per spec (no modal stack). On 200,
+   * blow away local mirror state so the panel falls back to the
+   * first-run "Show me what you're noticing about me" CTA. On
+   * error, leave the existing mirror visible and surface the
+   * backend's error envelope inline.
+   */
+  const handleDelete = async () => {
+    if (deleting || generating || !mirror) return;
+    if (typeof window !== "undefined") {
+      const ok = window.confirm(
+        "Delete the current reflection? You can regenerate a fresh one anytime."
+      );
+      if (!ok) return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/v2/user/mirror", { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        code?: string;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        setError(
+          ERROR_COPY[data.code ?? ""] ??
+            data.error ??
+            `Couldn't delete (HTTP ${res.status}).`
+        );
+        return;
+      }
+
+      // Mirror is now gone server-side — match locally so the panel
+      // immediately falls back to the first-run state.
+      setMirror(null);
+      setObsOpen(false);
+    } catch (err) {
+      console.warn("mirror DELETE threw:", err);
+      setError("Couldn't reach the server. Check your connection.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -256,16 +310,31 @@ export default function MirrorPanel() {
             </div>
           )}
 
-          <footer className="mt-5 flex items-center justify-between border-t border-border pt-3 text-[11px] text-muted-foreground">
+          <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
             <span>Generated {formatRelative(mirror.generated_at)}</span>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={generating}
-              className="font-medium text-foreground underline-offset-2 hover:underline disabled:cursor-wait disabled:opacity-60"
-            >
-              Regenerate
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating || deleting}
+                className="font-medium text-foreground underline-offset-2 hover:underline disabled:cursor-wait disabled:opacity-60"
+              >
+                Regenerate
+              </button>
+              {/* Discreet destructive action — single confirm, no modal
+                  stack. NOT a primary CTA (Regenerate stays primary);
+                  rendered as a muted destructive-tinted text link so
+                  the user can clear the reflection without committing
+                  to a fresh generation. */}
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={generating || deleting}
+                className="text-destructive/80 underline-offset-2 hover:text-destructive hover:underline disabled:cursor-wait disabled:opacity-60"
+              >
+                {deleting ? "Deleting…" : "Delete reflection"}
+              </button>
+            </div>
           </footer>
         </article>
       )}
