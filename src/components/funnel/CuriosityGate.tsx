@@ -91,16 +91,15 @@ export default function CuriosityGate({
         console.error("Claim error:", err);
       }
 
-      // Always go to the user-facing results surface. The /results
-      // overview self-routes via /api/results/state — it'll redirect to
-      // /chat if there's still no session, /results/[id] if completed,
-      // or stay on /results to show the waiting UI if processing. So
-      // pointing at /results unconditionally is safe even when the
-      // claim didn't return a deep-link id.
+      // All post-claim flows land on /chat — the chat page owns the
+      // entire post-onboarding user journey now (waiting screen,
+      // snippet review, roleplay). /chat's phase state machine
+      // decides what to render based on the session's current status
+      // (polling while processing → review when completed → roleplay).
       if (claimedSessionId) {
-        router.push(`/results/${claimedSessionId}`);
+        router.push(`/chat?session=${encodeURIComponent(claimedSessionId)}`);
       } else {
-        router.push("/results");
+        router.push("/chat");
       }
     };
 

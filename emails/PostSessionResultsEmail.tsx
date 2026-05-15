@@ -454,7 +454,11 @@ PostSessionResultsEmail.PreviewProps = {
   userFirstName: "Artur",
   snippetCount: 5,
   topTheme: "High Charisma",
-  journeyUrl: "https://www.willonski.com/results",
+  // Canonical post-publish deep-link is now /chat?session=<id> — the
+  // standalone /results page was retired in favour of the in-chat
+  // review flow. Backend must construct the URL with this shape;
+  // we only validate it's a fully-qualified http(s) URL.
+  journeyUrl: "https://www.willonski.com/chat?session=preview-session-id",
   unsubscribeUrl: "https://www.willonski.com/unsubscribe?token=preview",
   subscribedEmail: "artur@willonski.com",
 } satisfies PostSessionResultsEmailProps;

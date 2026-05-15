@@ -3,15 +3,41 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import Lottie from "lottie-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
+import ChatReview from "@/components/chat/ChatReview";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
-import { getAuthToken } from "@/lib/api/auth-client";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 
-type ChatState = "loading" | "interviewing" | "complete" | "error";
+/* -------------------------------------------------------------------------- */
+/*  Phase state machine                                                       */
+/*                                                                            */
+/*  The /chat surface is now the user's ENTIRE post-onboarding home —        */
+/*  there's no /results page anymore. The phase controls which sub-surface   */
+/*  renders inside the shared chrome:                                        */
+/*                                                                            */
+/*    loading      — initial auth + state probe in flight                    */
+/*    onboarding   — cold-start chat (30s aggregate cap). No session yet.    */
+/*    waiting      — session is processing; ProcessingState + polling        */
+/*                   /api/results/[id]/status for the flip to "completed".   */
+/*    reviewing    — published snippets streamed as rich chat bubbles        */
+/*                   (DashboardBubble, MirrorBubble, SnippetPlayerBubble +   */
+/*                   ActionBubble). User confirms/corrects each label.       */
+/*    roleplaying  — new session cut after review handoff (120s cap).        */
+/*    complete     — post-finalize Lottie "preparing your insights" hold     */
+/*                   before routing back to /chat?session=<new id>.          */
+/*    error        — rate-limit / funnel-disabled / load failure.            */
+/* -------------------------------------------------------------------------- */
+
+type Phase =
+  | "loading"
+  | "onboarding"
+  | "waiting"
+  | "reviewing"
+  | "roleplaying"
+  | "complete"
+  | "error";
 
 const VOICE_LOADING_PHRASES = [
   "Analyzing your charisma markers…",
@@ -20,6 +46,10 @@ const VOICE_LOADING_PHRASES = [
   "Tuning into your vocal energy…",
   "Finalizing your insights…",
 ] as const;
+
+const POLL_INTERVAL_MS = 5_000;
+const ROLEPLAY_CAP_SECONDS = 120;
+const ONBOARDING_CAP_SECONDS = 30;
 
 function shufflePhrases(phrases: readonly string[]): string[] {
   const shuffled = [...phrases];
@@ -30,21 +60,11 @@ function shufflePhrases(phrases: readonly string[]): string[] {
   return shuffled;
 }
 
-function TrainingCompleteScreen({
-  sessionId,
-}: {
-  /**
-   * Session ID captured from ChatInterview's onThresholdReached
-   * callback. When present we deep-link straight to
-   * /results/[sessionId] which renders ProcessingState until the
-   * backend finishes analysis, then the snippets. Falls back to
-   * the generic /results index when missing (defensive — should
-   * always be present in practice since the upload flow captures
-   * it on turn 1).
-   */
-  sessionId: string | null;
-}) {
-  const router = useRouter();
+/* -------------------------------------------------------------------------- */
+/*  Sub-screens                                                               */
+/* -------------------------------------------------------------------------- */
+
+function WaitingScreen() {
   const [lottieData, setLottieData] = useState<object | null>(null);
   const [phrases] = useState<string[]>(() => shufflePhrases(VOICE_LOADING_PHRASES));
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -69,20 +89,8 @@ function TrainingCompleteScreen({
     return () => clearInterval(id);
   }, [phrases.length]);
 
-  // /results/[sessionId] handles its own state: ProcessingState
-  // waiting screen until backend finalize completes, then the real
-  // results (Charisma dashboard + snippet cards). Generic /results
-  // is the safety net when sessionId is somehow missing.
-  useEffect(() => {
-    const target = sessionId
-      ? `/results/${encodeURIComponent(sessionId)}`
-      : "/results";
-    const t = setTimeout(() => router.push(target), 4500);
-    return () => clearTimeout(t);
-  }, [router, sessionId]);
-
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center animate-fade-in-up">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center animate-fade-in-up">
       <div className="h-24 w-24 opacity-80">
         {lottieData ? (
           <Lottie animationData={lottieData} loop />
@@ -93,150 +101,181 @@ function TrainingCompleteScreen({
       <p className="mx-auto max-w-sm text-sm text-muted-foreground min-h-[1.25rem] transition-opacity duration-300">
         {phrases[phraseIndex]}
       </p>
+      <p className="mx-auto max-w-sm text-[11px] leading-relaxed text-muted-foreground/80">
+        Your coach is preparing your insights — usually a few minutes. You can
+        leave this open, or we&apos;ll email you when it&apos;s ready.
+      </p>
     </div>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Main                                                                      */
+/* -------------------------------------------------------------------------- */
+
 export default function ChatPageClient({
-  sourceSnippet,
-  intent,
+  sessionId,
 }: {
-  sourceSnippet: string | null;
-  intent: "charisma" | "stress" | null;
+  /** `?session=<id>` from the URL. Present after finalize redirects
+   *  and admin email deep-links; null on the cold-start home /chat. */
+  sessionId: string | null;
 }) {
   const router = useRouter();
 
-  // Infinite Coaching Loop guard — only kicks in for cold-start chats
-  // (no `sourceSnippet`). Contextual chats opt out so a user with an
-  // active/completed session can still seed a new contextual chat from
-  // a snippet's CTA without being bounced back to /results.
-  const guard = useSessionRouteGuard({ enabled: !sourceSnippet });
-
-  const [chatState, setChatState] = useState<ChatState>("loading");
-  const [initialQuestion, setInitialQuestion] = useState<{
-    text: string;
-    tone: "charisma" | "stress";
-  } | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   /**
-   * Session ID captured from ChatInterview when the chat ends
-   * (via duration threshold, contextual turn cap, or user-tapped
-   * Finish button). Forwarded to <TrainingCompleteScreen> so we
-   * can deep-link to /results/[sessionId] instead of the generic
-   * /results index — important for contextual chats where the
-   * "latest session" heuristic could surface the wrong session
-   * in races.
+   * Initial phase is decided by the URL:
+   *   - `?session=<id>` present → "loading" (then waiting or reviewing
+   *     based on the status probe).
+   *   - No param → "loading" then "onboarding" once guard passes.
+   *
+   * The infinite-loop guard handles the "user has another session
+   * in flight" case for the param-less route: it redirects to
+   * `/chat?session=<theirSessionId>` and the rest of the flow takes
+   * over on the redirected mount.
    */
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  /** Snapshot of `sessionId` we're actively reviewing/roleplaying — held
+   *  in state so the roleplay handoff can keep referencing the original
+   *  session id without the URL changing. */
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(
+    sessionId
+  );
+  /** Captured when a chat finalizes — drives the post-finalize redirect
+   *  back to /chat?session=<new-id> so the loop repeats. */
   const [completedSessionId, setCompletedSessionId] = useState<string | null>(
     null
   );
-  /**
-   * Captured at first-question fetch time so ChatInterview can forward
-   * it to upload-answer for the backend's contextual-chat outcome eval
-   * (services/coaching_outcomes.py). Held in state because the chat
-   * mounts asynchronously after the token round-trip.
-   */
-  const [authToken, setAuthToken] = useState<string | null>(null);
 
-  const fetchedRef = useRef(false);
+  // Loop guard. ONLY runs when there's no `?session=` in the URL:
+  // with a session id, we're either waiting or reviewing on purpose and
+  // the guard shouldn't bounce us elsewhere. Without a session id, the
+  // guard checks whether the user has an in-flight or published session
+  // and redirects them to `/chat?session=<id>` to enter the loop.
+  const guard = useSessionRouteGuard({ enabled: !sessionId });
 
+  /* ---------------------------------------------------------------------- */
+  /*  Loading → onboarding when no session, → waiting when session exists.  */
+  /* ---------------------------------------------------------------------- */
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
+    if (guard.checking || guard.redirecting) return;
+    if (sessionId) {
+      setPhase("waiting");
+    } else {
+      setPhase("onboarding");
+    }
+  }, [sessionId, guard.checking, guard.redirecting]);
 
-    const fetchFirstQuestion = async () => {
+  /* ---------------------------------------------------------------------- */
+  /*  Polling: while phase === "waiting", probe status until "completed".   */
+  /* ---------------------------------------------------------------------- */
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (phase !== "waiting" || !activeSessionId) return;
+
+    let cancelled = false;
+    const probe = async () => {
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          router.push(
-            `/login?redirectTo=${encodeURIComponent(window.location.pathname + window.location.search)}`
-          );
-          return;
-        }
-        // Cache for ChatInterview → upload-answer to forward; the
-        // contextual outcome-eval branch on the backend needs a
-        // verified bearer token to derive the user_id.
-        setAuthToken(token);
-
-        if (sourceSnippet && intent) {
-          const url = `/api/results/chat/first-question?sourceSnippetId=${encodeURIComponent(sourceSnippet)}&intent=${encodeURIComponent(intent)}`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            if (res.status === 401) {
-              router.push(
-                `/login?redirectTo=${encodeURIComponent(window.location.pathname + window.location.search)}`
-              );
-              return;
-            }
-            if (res.status === 422 || data?.code === "SNIPPET_CONTEXT_UNAVAILABLE") {
-              // Snippet doesn't have what backend needs to seed a
-              // contextual chat (missing transcript / admin_comment /
-              // audio_url). Previously this fell through to
-              // setChatState("interviewing") with no initialQuestion,
-              // which boots the cold-start onboarding chain — the user
-              // saw "First we need your baseline. Forgive the odd
-              // opener, but do you generally like math?" on a
-              // contextual click, which is the wrong flow entirely.
-              // Now we surface an explicit error + "Back to Results"
-              // so the user can pick a different snippet instead of
-              // getting silently dropped into a baseline interview.
-              setErrorMsg(
-                "We couldn't open this snippet's chat — its transcript or coach note isn't ready yet."
-              );
-              setChatState("error");
-              return;
-            }
-            throw new Error(data?.error || `Failed (HTTP ${res.status})`);
+        const res = await fetch(
+          `/api/results/${encodeURIComponent(activeSessionId)}/status`,
+          { cache: "no-store" }
+        );
+        if (cancelled) return;
+        if (!res.ok) return;
+        const data = (await res.json()) as { status?: string };
+        if (cancelled) return;
+        if (data.status === "completed") {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
           }
-
-          const data = await res.json();
-          if (data.question) {
-            setInitialQuestion({
-              text: data.question,
-              tone: intent || "charisma",
-            });
-          }
+          setPhase("reviewing");
         }
-
-        setChatState("interviewing");
-      } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Failed to start chat");
-        setChatState("error");
+      } catch {
+        // Silent — the interval will retry.
       }
     };
 
-    void fetchFirstQuestion();
-  }, [sourceSnippet, intent, router]);
+    // Fire immediately so the user doesn't wait POLL_INTERVAL_MS on
+    // an already-completed session.
+    void probe();
+    pollRef.current = setInterval(probe, POLL_INTERVAL_MS);
 
-  const handleThresholdReached = useCallback((guestSessionId: string) => {
-    setCompletedSessionId(guestSessionId);
-    setChatState("complete");
+    return () => {
+      cancelled = true;
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [phase, activeSessionId]);
+
+  /* ---------------------------------------------------------------------- */
+  /*  Phase transitions                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  const handlePracticeStart = useCallback(() => {
+    // Review → roleplay handoff. The next ChatInterview mount cuts a
+    // brand new backend session via the existing upload-answer flow
+    // (no guestSessionId on first POST = backend mints a new one).
+    setPhase("roleplaying");
   }, []);
 
-  const handleError = useCallback((code: string) => {
+  const handleChatComplete = useCallback((guestSessionId: string) => {
+    // Roleplay (or onboarding) wrapped up. Capture the session id so
+    // the "complete" Lottie screen can deep-link back into the loop:
+    //   /chat?session=<new-id> → waiting → reviewing → roleplay → …
+    setCompletedSessionId(guestSessionId);
+    setPhase("complete");
+  }, []);
+
+  const handleChatError = useCallback((code: string) => {
     if (code === "RATE_LIMITED") {
       setErrorMsg("Too many recordings. Please wait a few minutes and try again.");
-      setChatState("error");
+      setPhase("error");
     } else if (code === "GUEST_FUNNEL_DISABLED") {
       setErrorMsg("Chat is temporarily unavailable. Please try again later.");
-      setChatState("error");
+      setPhase("error");
     }
   }, []);
 
-  const farewell =
-    intent === "stress"
-      ? "That's all for today's session. Great work opening up — we'll analyze this for you! 🙌"
-      : "Training complete for today! We've captured everything we need. 🚀";
+  /* ---------------------------------------------------------------------- */
+  /*  Post-complete redirect: route back into the loop with the new id.    */
+  /* ---------------------------------------------------------------------- */
+  const [completePhraseIdx, setCompletePhraseIdx] = useState(0);
+  const [completePhrases] = useState<string[]>(() =>
+    shufflePhrases(VOICE_LOADING_PHRASES)
+  );
+  const [completeLottie, setCompleteLottie] = useState<object | null>(null);
+  useEffect(() => {
+    if (phase !== "complete") return;
+    let cancelled = false;
+    fetch("/animations/loading.json")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCompleteLottie(data);
+      })
+      .catch(() => {});
+    const phraseId = setInterval(() => {
+      setCompletePhraseIdx((i) => (i + 1) % completePhrases.length);
+    }, 1800);
+    const redirectId = setTimeout(() => {
+      const target = completedSessionId
+        ? `/chat?session=${encodeURIComponent(completedSessionId)}`
+        : "/chat";
+      router.push(target);
+    }, 4500);
+    return () => {
+      cancelled = true;
+      clearInterval(phraseId);
+      clearTimeout(redirectId);
+    };
+  }, [phase, completedSessionId, completePhrases, router]);
 
-  // While the loop guard is deciding (or has decided to redirect),
-  // render a brief loader instead of the chat. Without this, the
-  // first-question fetch fires and the chat surface flashes before
-  // the redirect lands.
+  /* ---------------------------------------------------------------------- */
+  /*  Render                                                                */
+  /* ---------------------------------------------------------------------- */
+
   if (guard.checking || guard.redirecting) {
     return (
       <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
@@ -250,49 +289,74 @@ export default function ChatPageClient({
     );
   }
 
-  // Viewport-locked: outer fills the device exactly; only the inner thread
-  // scrolls if its messages overflow. The body never scrolls.
   return (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">
         <DashboardHeader />
       </div>
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-8">
-        {chatState === "loading" && (
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-6">
+        {phase === "loading" && (
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         )}
 
-        {chatState === "error" && (
+        {phase === "error" && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <p className="max-w-sm text-sm text-muted-foreground">
               {errorMsg || "Something went wrong."}
             </p>
-            <Link href="/results">
-              <Button variant="outline" size="sm">
-                Back to Results
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/chat")}
+            >
+              Back to chat
+            </Button>
           </div>
         )}
 
-        {chatState === "interviewing" && (
+        {phase === "onboarding" && (
           <ChatInterview
-            onThresholdReached={handleThresholdReached}
-            onError={handleError}
-            initialQuestion={initialQuestion ?? undefined}
-            farewellMessage={farewell}
-            sourceSnippetId={sourceSnippet}
-            authToken={authToken}
+            onThresholdReached={handleChatComplete}
+            onError={handleChatError}
+            aggregateThresholdSeconds={ONBOARDING_CAP_SECONDS}
           />
         )}
 
-        {chatState === "complete" && (
-          <TrainingCompleteScreen sessionId={completedSessionId} />
+        {phase === "waiting" && <WaitingScreen />}
+
+        {phase === "reviewing" && activeSessionId && (
+          <ChatReview
+            sessionId={activeSessionId}
+            onPracticeStart={handlePracticeStart}
+          />
+        )}
+
+        {phase === "roleplaying" && (
+          <ChatInterview
+            onThresholdReached={handleChatComplete}
+            onError={handleChatError}
+            aggregateThresholdSeconds={ROLEPLAY_CAP_SECONDS}
+            farewellMessage="Nice work — let's see what the coach picks up from this round."
+          />
+        )}
+
+        {phase === "complete" && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center animate-fade-in-up">
+            <div className="h-24 w-24 opacity-80">
+              {completeLottie ? (
+                <Lottie animationData={completeLottie} loop />
+              ) : (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            <p className="mx-auto max-w-sm text-sm text-muted-foreground min-h-[1.25rem] transition-opacity duration-300">
+              {completePhrases[completePhraseIdx]}
+            </p>
+          </div>
         )}
       </div>
     </main>
   );
 }
-

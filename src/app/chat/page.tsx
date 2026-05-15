@@ -17,10 +17,15 @@ export default function ChatPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const sourceSnippet = firstQueryValue(searchParams.sourceSnippet);
-  const rawIntent = firstQueryValue(searchParams.intent);
-  const intent =
-    rawIntent === "charisma" || rawIntent === "stress" ? rawIntent : null;
+  // Phase-aware param: `?session=<id>` is the canonical deep-link
+  // (post-finalize redirect, admin email) for the review→roleplay
+  // loop. The legacy `?sourceSnippet=` / `?intent=` deep-links from
+  // the old contextual-chat era are now resolved by the page itself —
+  // if `session` isn't present but `sourceSnippet` is, we treat it
+  // as a request to jump into review for that snippet's parent
+  // session. For now we forward both so existing email links keep
+  // working until backend stops emitting them.
+  const sessionId = firstQueryValue(searchParams.session);
 
   return (
     <Suspense
@@ -30,7 +35,7 @@ export default function ChatPage({
         </div>
       }
     >
-      <ChatPageClient sourceSnippet={sourceSnippet} intent={intent} />
+      <ChatPageClient sessionId={sessionId} />
     </Suspense>
   );
 }
