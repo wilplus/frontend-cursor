@@ -16,11 +16,11 @@ import { createClient } from "@/lib/supabase/client";
  *   /api/results/state result   →  redirect target
  *   ─────────────────────────────────────────────────────────────
  *   { kind: "no_session" }       →  no-op (let parent render its UI)
- *   { kind: "processing", id }   →  /results/[id]  (ProcessingState
- *                                    locks them in until backend
- *                                    finishes analysis)
- *   { kind: "completed",  id }   →  /results/[id]  (snippet list +
- *                                    Charisma dashboard)
+ *   { kind: "processing", id }   →  /chat?session=<id>  (waiting
+ *                                    phase polls until completed,
+ *                                    then transitions to reviewing)
+ *   { kind: "completed",  id }   →  /chat?session=<id>  (reviewing
+ *                                    phase renders rich-bubble UI)
  *
  * Anonymous users are always a no-op — they can record on the guest
  * funnel even if some other account has an active session in this
@@ -101,21 +101,21 @@ export function useSessionRouteGuard(opts?: {
           return;
         }
 
-        // Both processing and completed land on /results/[id] —
-        // /results/[id] itself decides between ProcessingState and
-        // the snippet list based on its own status check.
+        // Both processing and completed land on /chat?session=<id>
+        // — the chat page's phase state machine decides between the
+        // waiting screen (polling) and the rich-bubble review.
         const sid = json.session_id?.trim();
         if (!sid) {
           // Backend said processing/completed but didn't give us an id
-          // — fall back to the generic /results timeline so we don't
-          // navigate to a broken `/results/` URL.
+          // — fall back to plain /chat so we don't navigate to a broken
+          // `/chat?session=` URL. The page will treat it as onboarding.
           setState({ checking: true, redirecting: true });
-          router.replace("/results");
+          router.replace("/chat");
           return;
         }
 
         setState({ checking: true, redirecting: true });
-        router.replace(`/results/${encodeURIComponent(sid)}`);
+        router.replace(`/chat?session=${encodeURIComponent(sid)}`);
       } catch {
         if (!cancelled) {
           setState({ checking: false, redirecting: false });

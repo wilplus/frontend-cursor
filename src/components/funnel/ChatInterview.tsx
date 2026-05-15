@@ -131,9 +131,18 @@ interface ChatInterviewProps {
    * eval. Omit for the guest funnel — guest uploads work without it.
    */
   authToken?: string | null;
+  /**
+   * Aggregate recording-duration cap (seconds). Default 30s for the
+   * cold-start onboarding flow. The roleplay phase that runs AFTER
+   * the in-chat snippet review uses 120s to give the user enough
+   * room to practise without resetting the loop. Frontend-only —
+   * backend doesn't track aggregate duration independently (SSoT
+   * §3), so this can vary per phase without coordination.
+   */
+  aggregateThresholdSeconds?: number;
 }
 
-const AGGREGATE_THRESHOLD_SECONDS = 30;
+const DEFAULT_AGGREGATE_THRESHOLD_SECONDS = 30;
 
 /**
  * Hard cap on contextual chats (warm start, triggered via a snippet
@@ -244,7 +253,11 @@ export default function ChatInterview({
   isGuest = false,
   sourceSnippetId = null,
   authToken = null,
+  aggregateThresholdSeconds = DEFAULT_AGGREGATE_THRESHOLD_SECONDS,
 }: ChatInterviewProps) {
+  // Local alias makes the rest of the file diff-friendly with the
+  // pre-parameterised version that used the bare constant.
+  const AGGREGATE_THRESHOLD_SECONDS = aggregateThresholdSeconds;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<{
     text: string;
