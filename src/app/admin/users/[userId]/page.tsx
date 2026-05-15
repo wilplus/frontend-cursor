@@ -118,14 +118,25 @@ interface AdminSnippet {
    */
   start_time?: number | null;
   end_time?: number | null;
-  metrics?: {
-    wpm?: number | null;
-    pitch?: string | null;
-    fillers?: number | null;
-    pause_ms?: number | null;
-    dynamic_db?: number | null;
-    energy_ratio?: number | null;
-  } | null;
+  /**
+   * Per-snippet acoustic metrics. Free-form bag of key→value pairs so
+   * the backend can ship new signals (e.g. `pitch_mean_hz`,
+   * `dynamic_range_db`, `speech_rate_wpm`) without a coordinated
+   * frontend type bump. Render code iterates Object.entries and
+   * surfaces every numeric/string value as a pill — known keys get
+   * curated labels via METRIC_LABELS, unknown keys auto-humanise
+   * (snake_case → Title Case) with a unit hint inferred from the
+   * suffix (`_ms`, `_db`, `_hz`, `_st`, `_percent`).
+   *
+   * Common keys today (subject to backend changes):
+   *   - `wpm` / `speech_rate_wpm`         — words per minute
+   *   - `pitch` / `pitch_mean_hz`         — pitch centre
+   *   - `pause_ms` / `pause_total_ms`     — total pause time
+   *   - `dynamic_db` / `dynamic_range_db` — dynamic range
+   *   - `fillers`                         — filler count
+   *   - `energy_ratio`                    — vocal energy
+   */
+  metrics?: Record<string, number | string | null | undefined> | null;
   /**
    * Post-turn-1 coaching outcome blob, written by
    * services.coaching_outcomes after the user answered the first
@@ -218,6 +229,80 @@ function humaniseComponentKey(key: string): string {
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Acoustic metric labels (per snippet slice)                                */
+/*                                                                            */
+/*  Curated friendly labels for the per-snippet `metrics` blob. Covers BOTH   */
+/*  the legacy short keys (wpm, pitch, pause_ms, …) and the newer verbose    */
+/*  keys the backend is migrating to (speech_rate_wpm, pause_total_ms, …) so  */
+/*  both shapes render cleanly side-by-side during the transition. Unknown    */
+/*  keys fall through to humaniseMetricKey + unitFromSuffix.                  */
+/* -------------------------------------------------------------------------- */
+
+const METRIC_LABELS: Record<string, { label: string; unit?: string }> = {
+  // Legacy short keys (currently shipped)
+  wpm: { label: "WPM" },
+  pitch: { label: "Pitch" },
+  fillers: { label: "Fillers" },
+  pause_ms: { label: "Pauses", unit: "ms" },
+  dynamic_db: { label: "Dyn. range", unit: "dB" },
+  energy_ratio: { label: "Energy" },
+  // Verbose backend keys (per latest spec)
+  speech_rate_wpm: { label: "WPM" },
+  pause_total_ms: { label: "Pauses", unit: "ms" },
+  pitch_mean_hz: { label: "Pitch", unit: "Hz" },
+  pitch_center_st: { label: "Pitch", unit: "st" },
+  dynamic_range_db: { label: "Dyn. range", unit: "dB" },
+  emphasis_per_min: { label: "Emphasis", unit: "/min" },
+  voiced_duration_sec: { label: "Voiced", unit: "s" },
+};
+
+/**
+ * Strip a trailing unit suffix (`_ms`, `_db`, `_hz`, `_st`, `_percent`,
+ * `_sec`, `_s`) before humanising — the unit is rendered separately, so
+ * `pitch_mean_hz` becomes "Pitch mean" + "Hz" instead of "Pitch mean hz".
+ */
+function humaniseMetricKey(key: string): string {
+  const cleaned = key.replace(/_(ms|db|hz|st|percent|sec|s)$/i, "");
+  if (!cleaned) return humaniseComponentKey(key);
+  return cleaned
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((w, i) =>
+      i === 0
+        ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+        : w.toLowerCase()
+    )
+    .join(" ");
+}
+
+function unitFromSuffix(key: string): string | undefined {
+  const m = key.match(/_(ms|db|hz|st|percent|sec|s)$/i);
+  if (!m) return undefined;
+  const u = m[1].toLowerCase();
+  if (u === "percent") return "%";
+  if (u === "sec" || u === "s") return "s";
+  return u; // ms, db, hz, st
+}
+
+function formatMetricValue(
+  value: number | string,
+  unit: string | undefined
+): string {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return "—";
+    // Tighter integers, one decimal otherwise. Most acoustic metrics
+    // are physical quantities where 0.1 unit precision is enough.
+    const rounded = Number.isInteger(value)
+      ? value
+      : Math.round(value * 10) / 10;
+    return unit ? `${rounded} ${unit}` : String(rounded);
+  }
+  // Strings are surfaced verbatim — `pitch` today ships as "C4" / "G3"
+  // text, which doesn't take an inferred unit.
+  return unit ? `${value} ${unit}` : value;
 }
 
 function formatRange(startMs: number, durationMs: number): string {
@@ -1214,6 +1299,64 @@ function CoachingOutcomeStrip({
   );
 }
 
+/**
+ * Per-snippet acoustic-metrics pill row.
+ *
+ * Renders one rounded pill per non-null entry on `snippet.metrics`,
+ * with a curated label + unit when the key is in METRIC_LABELS, or a
+ * humanised + suffix-inferred fallback otherwise. Empty/null metrics
+ * surface a muted "not computed yet" hint so the admin can distinguish
+ * "row missing" from "row computed and empty".
+ */
+function SnippetMetricsRow({
+  metrics,
+}: {
+  metrics: AdminSnippet["metrics"];
+}) {
+  const entries = metrics
+    ? Object.entries(metrics).filter(([, v]) => {
+        if (v == null) return false;
+        if (typeof v === "number") return Number.isFinite(v);
+        if (typeof v === "string") return v.trim().length > 0;
+        return false;
+      })
+    : [];
+
+  if (entries.length === 0) {
+    return (
+      <p className="text-[11px] italic text-muted-foreground">
+        No acoustic metrics computed for this slice yet.
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-wrap gap-2"
+      aria-label="Acoustic metrics for this slice"
+    >
+      {entries.map(([key, raw]) => {
+        const known = METRIC_LABELS[key];
+        const label = known?.label ?? humaniseMetricKey(key);
+        const unit = known?.unit ?? unitFromSuffix(key);
+        const value = formatMetricValue(raw as number | string, unit);
+        return (
+          <span
+            key={key}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5 text-[11px]"
+            title={key}
+          >
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {value}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function SnippetCard({
   snippet,
   onAdjustBounds,
@@ -1336,21 +1479,10 @@ function SnippetCard({
             </span>
           </CardTitle>
           <div className="flex flex-wrap gap-1.5">
-            {snippet.metrics?.wpm != null && (
-              <Badge variant="outline" className="bg-muted">
-                WPM: {snippet.metrics.wpm}
-              </Badge>
-            )}
-            {snippet.metrics?.pitch && (
-              <Badge variant="outline" className="bg-muted">
-                Pitch: {snippet.metrics.pitch}
-              </Badge>
-            )}
-            {/* Soft warning when Whisper produced no transcript. The
-                snippet is still publishable (admin_comment is the
-                publish gate) and the contextual chat now generates
-                from admin_comment alone, but anchoring is weaker
-                without a transcript — flag it so the admin knows. */}
+            {/* Header is now just the warning channel — full acoustic
+                metrics live in the dedicated <SnippetMetricsRow> below
+                the labeling buttons (single source of truth, no more
+                duplicated WPM/Pitch badges up here). */}
             {!snippet.transcript?.trim() && (
               <Badge
                 variant="outline"
@@ -1438,6 +1570,16 @@ function SnippetCard({
             );
           })()}
         </div>
+
+        {/* Acoustic metrics row — surfaces every key on snippet.metrics
+            as a pill so the admin can sanity-check the localized
+            measurements (WPM, pauses, pitch, dynamic range, …) for THIS
+            slice without leaving the card. Iterates Object.entries so
+            the backend can ship new keys without a frontend bump.
+            Empty/null state shows a muted hint instead of nothing — the
+            admin needs to know whether "no metrics" means the row hasn't
+            been computed yet (vs. computed and empty). */}
+        <SnippetMetricsRow metrics={snippet.metrics} />
 
         {/* Admin comment — published verbatim to the user's /results page.
             Pre-filled with the AI draft when no admin save exists yet so
