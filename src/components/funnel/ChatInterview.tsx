@@ -136,6 +136,21 @@ interface ChatInterviewProps {
 const AGGREGATE_THRESHOLD_SECONDS = 30;
 
 /**
+ * Hard cap on contextual chats (warm start, triggered via a snippet
+ * CTA). Without this cap, contextual chats often never reach the 30s
+ * aggregate-duration threshold — typical contextual answers are 5-10s
+ * each, so a 1-3 turn chat ends without finalize ever firing, which
+ * means the session never appears in the admin panel and the admin
+ * email never goes out. Capping at 3 turns guarantees finalize runs
+ * for every contextual chat, regardless of how short the user is.
+ *
+ * Cold-start sessions are NOT affected — they're driven by the
+ * duration threshold (which they always hit) and by definition have
+ * no source snippet, so this cap is gated on `sourceSnippetId`.
+ */
+const CONTEXTUAL_CHAT_MAX_TURNS = 3;
+
+/**
  * Cold-start onboarding is now AI-driven end-to-end. The previous
  * hardcoded ONBOARDING_MESSAGES (M1-M4) + scheduleStep / playColdStartStep
  * machinery was deleted in favour of fetching turn 1 from the backend
@@ -713,6 +728,89 @@ export default function ChatInterview({
   //  the manual tap is faster AND more reliable.)
 
   /**
+   * End-of-session helper — single source of truth for the goodbye
+   * sequence. Called from THREE triggers:
+   *
+   *   1. Cold-start aggregate duration threshold hit (30s of audio).
+   *   2. Contextual-chat turn cap hit (3 turns) — fixes the bug
+   *      where short contextual chats never finalized because they
+   *      never reached the duration threshold.
+   *   3. User clicks the "Finish & see results" button (contextual
+   *      chats only, see <button> below the chat thread).
+   *
+   * Does the same four things in all three cases, so the admin panel
+   * + email pipeline fires identically regardless of how the chat
+   * ended:
+   *   - Sets thresholdReachedRef so further uploads are blocked.
+   *   - Pushes the farewell bot bubble.
+   *   - Fires POST /api/session/finalize fire-and-forget (per SSoT
+   *     §3, frontend is the source of truth for "session ended").
+   *     `reason` lets backend telemetry differentiate the trigger.
+   *   - Schedules onThresholdReached(sid) after a 3s read-the-goodbye
+   *     pause; the parent then transitions to /results/[sessionId].
+   */
+  const endSession = useCallback(
+    (
+      sid: string,
+      totalDurationSeconds: number,
+      reason: "threshold" | "max_turns" | "user_done"
+    ) => {
+      if (thresholdReachedRef.current) return;
+      thresholdReachedRef.current = true;
+      setCurrentQuestion(null);
+      setLoadingQuestion(false);
+      setUploading(false);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "farewell",
+          type: "bot",
+          content:
+            farewellMessage ||
+            "For today we have got it, thanks! Now we will analyse it! 🚀",
+        },
+      ]);
+
+      void fetch("/api/session/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guest_session_id: sid,
+          total_duration_seconds: totalDurationSeconds,
+          reason,
+        }),
+      }).catch((err) => {
+        // Non-fatal — the user still gets to /results, backend can
+        // reconcile from the existing turn rows if the call dropped.
+        console.warn(
+          `/api/session/finalize ${reason} call failed:`,
+          err
+        );
+      });
+
+      farewellTimerRef.current = setTimeout(() => {
+        onThresholdReached(sid);
+      }, 3000);
+    },
+    [farewellMessage, onThresholdReached]
+  );
+
+  /**
+   * User-initiated session end — fired by the "Finish & see results"
+   * button at the bottom of the chat thread. Only available in
+   * contextual chats (sourceSnippetId is set) AND only after at
+   * least one upload has captured a session_id; otherwise we'd be
+   * finalizing nothing.
+   */
+  const handleFinishContextual = useCallback(() => {
+    const sid = guestSessionIdRef.current;
+    if (!sid) return;
+    if (uploading) return;
+    endSession(sid, totalDuration, "user_done");
+  }, [endSession, totalDuration, uploading]);
+
+  /**
    * Auto-submit. Fires the moment the user stops recording — uploads the
    * chunk in the background while the UI already shows the "thinking" dots
    * to mask network latency. The user audio bubble is rendered separately
@@ -772,53 +870,27 @@ export default function ChatInterview({
           });
         }
 
-        // Check threshold — graceful exit with farewell message
-        if (effectiveTotal >= AGGREGATE_THRESHOLD_SECONDS) {
-          thresholdReachedRef.current = true;
-          setCurrentQuestion(null);
-          // Stop the typing illusion — no more questions are coming.
-          setLoadingQuestion(false);
+        // Check end-of-session triggers. Two conditions fire here:
+        //   1. Cold-start aggregate duration threshold (30s) — applies
+        //      to every chat, but contextual chats rarely hit it
+        //      because their answers are short.
+        //   2. Contextual-chat turn cap (3 turns) — applies only when
+        //      sourceSnippetId is set, guarantees finalize runs even
+        //      when the user only does 1-2 short answers. This is the
+        //      fix for "contextual sessions don't appear in admin"
+        //      reported when the duration threshold was the only path
+        //      to finalize.
+        const reachedDurationThreshold =
+          effectiveTotal >= AGGREGATE_THRESHOLD_SECONDS;
+        const reachedContextualTurnCap =
+          !!sourceSnippetId && turnNumber >= CONTEXTUAL_CHAT_MAX_TURNS;
 
-          // Push the farewell bot bubble into the chat thread
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: "farewell",
-              type: "bot",
-              content:
-                farewellMessage ||
-                "For today we have got it, thanks! Now we will analyse it! 🚀",
-            },
-          ]);
-
-          // Notify backend the session is done. Per
-          // docs/ARCHITECTURE_SINGLE_SOURCE_OF_TRUTH.md §3, frontend
-          // is the source of truth for "session ended" — backend
-          // doesn't track aggregate duration independently. Fire the
-          // finalize POST in the background so the goodbye animation
-          // doesn't wait on the network. Any failure is non-fatal:
-          // the user still routes to /results 3s later via
-          // onThresholdReached, and the backend can reconcile state
-          // from the existing turn rows if the finalize call dropped.
-          const sid = result.guest_session_id;
-          void fetch("/api/session/finalize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              guest_session_id: sid,
-              total_duration_seconds: effectiveTotal,
-              reason: "threshold",
-            }),
-          }).catch((err) => {
-            // Non-fatal — the user still gets to /results, backend
-            // can reconcile from the turn rows.
-            console.warn("/api/session/finalize threshold call failed:", err);
-          });
-
-          // Give the user ~3 seconds to read the goodbye, then transition
-          farewellTimerRef.current = setTimeout(() => {
-            onThresholdReached(sid);
-          }, 3000);
+        if (reachedDurationThreshold || reachedContextualTurnCap) {
+          endSession(
+            result.guest_session_id,
+            effectiveTotal,
+            reachedDurationThreshold ? "threshold" : "max_turns"
+          );
           return;
         }
 
@@ -880,7 +952,17 @@ export default function ChatInterview({
         setLoadingQuestion(false);
       }
     },
-    [turnNumber, currentQuestion, onThresholdReached, onError, buildPreviousTurns, farewellMessage]
+    [
+      turnNumber,
+      currentQuestion,
+      onError,
+      buildPreviousTurns,
+      sourceSnippetId,
+      authToken,
+      proceedToNextQuestion,
+      ratingPhase,
+      endSession,
+    ]
   );
 
   // (handleRedo removed — Redo flow is gone. Stop = auto-submit, no preview.)
@@ -976,6 +1058,28 @@ export default function ChatInterview({
             Tap the mic to answer.
           </p>
         )}
+
+        {/* "Finish & see results" — contextual chats only.
+            Renders once at least one upload has captured a session_id
+            so the user can wrap up after a single short answer instead
+            of being forced to keep talking until the duration threshold
+            (which short contextual chats almost never reach). Hidden
+            during upload, the rating phase, and after threshold so it
+            never competes with the active flow. */}
+        {sourceSnippetId &&
+          guestSessionIdRef.current &&
+          !thresholdReachedRef.current &&
+          !uploading &&
+          !loadingQuestion &&
+          ratingPhase === "none" && (
+            <button
+              type="button"
+              onClick={handleFinishContextual}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+            >
+              Finish &amp; see results
+            </button>
+          )}
 
         {/* GDPR micro-disclaimer — guests only, first turn only.
             Vanishes the moment the user records (turnNumber flips to 2). */}

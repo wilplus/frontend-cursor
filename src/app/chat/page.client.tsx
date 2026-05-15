@@ -29,7 +29,20 @@ function shufflePhrases(phrases: readonly string[]): string[] {
   return shuffled;
 }
 
-function TrainingCompleteScreen() {
+function TrainingCompleteScreen({
+  sessionId,
+}: {
+  /**
+   * Session ID captured from ChatInterview's onThresholdReached
+   * callback. When present we deep-link straight to
+   * /results/[sessionId] which renders ProcessingState until the
+   * backend finishes analysis, then the snippets. Falls back to
+   * the generic /results index when missing (defensive — should
+   * always be present in practice since the upload flow captures
+   * it on turn 1).
+   */
+  sessionId: string | null;
+}) {
   const router = useRouter();
   const [lottieData, setLottieData] = useState<object | null>(null);
   const [phrases] = useState<string[]>(() => shufflePhrases(VOICE_LOADING_PHRASES));
@@ -55,11 +68,17 @@ function TrainingCompleteScreen() {
     return () => clearInterval(id);
   }, [phrases.length]);
 
-  // /results handles its own state: real results vs ProcessingState waiting screen.
+  // /results/[sessionId] handles its own state: ProcessingState
+  // waiting screen until backend finalize completes, then the real
+  // results (Charisma dashboard + snippet cards). Generic /results
+  // is the safety net when sessionId is somehow missing.
   useEffect(() => {
-    const t = setTimeout(() => router.push("/results"), 4500);
+    const target = sessionId
+      ? `/results/${encodeURIComponent(sessionId)}`
+      : "/results";
+    const t = setTimeout(() => router.push(target), 4500);
     return () => clearTimeout(t);
-  }, [router]);
+  }, [router, sessionId]);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center animate-fade-in-up">
@@ -92,6 +111,18 @@ export default function ChatPageClient({
     tone: "charisma" | "stress";
   } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  /**
+   * Session ID captured from ChatInterview when the chat ends
+   * (via duration threshold, contextual turn cap, or user-tapped
+   * Finish button). Forwarded to <TrainingCompleteScreen> so we
+   * can deep-link to /results/[sessionId] instead of the generic
+   * /results index — important for contextual chats where the
+   * "latest session" heuristic could surface the wrong session
+   * in races.
+   */
+  const [completedSessionId, setCompletedSessionId] = useState<string | null>(
+    null
+  );
   /**
    * Captured at first-question fetch time so ChatInterview can forward
    * it to upload-answer for the backend's contextual-chat outcome eval
@@ -175,7 +206,8 @@ export default function ChatPageClient({
     void fetchFirstQuestion();
   }, [sourceSnippet, intent, router]);
 
-  const handleThresholdReached = useCallback(() => {
+  const handleThresholdReached = useCallback((guestSessionId: string) => {
+    setCompletedSessionId(guestSessionId);
     setChatState("complete");
   }, []);
 
@@ -232,7 +264,9 @@ export default function ChatPageClient({
           />
         )}
 
-        {chatState === "complete" && <TrainingCompleteScreen />}
+        {chatState === "complete" && (
+          <TrainingCompleteScreen sessionId={completedSessionId} />
+        )}
       </div>
     </main>
   );
