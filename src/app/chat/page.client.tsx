@@ -9,6 +9,7 @@ import ChatInterview from "@/components/funnel/ChatInterview";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
+import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 
 type ChatState = "loading" | "interviewing" | "complete" | "error";
 
@@ -104,6 +105,12 @@ export default function ChatPageClient({
   intent: "charisma" | "stress" | null;
 }) {
   const router = useRouter();
+
+  // Infinite Coaching Loop guard — only kicks in for cold-start chats
+  // (no `sourceSnippet`). Contextual chats opt out so a user with an
+  // active/completed session can still seed a new contextual chat from
+  // a snippet's CTA without being bounced back to /results.
+  const guard = useSessionRouteGuard({ enabled: !sourceSnippet });
 
   const [chatState, setChatState] = useState<ChatState>("loading");
   const [initialQuestion, setInitialQuestion] = useState<{
@@ -225,6 +232,23 @@ export default function ChatPageClient({
     intent === "stress"
       ? "That's all for today's session. Great work opening up — we'll analyze this for you! 🙌"
       : "Training complete for today! We've captured everything we need. 🚀";
+
+  // While the loop guard is deciding (or has decided to redirect),
+  // render a brief loader instead of the chat. Without this, the
+  // first-question fetch fires and the chat surface flashes before
+  // the redirect lands.
+  if (guard.checking || guard.redirecting) {
+    return (
+      <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
+        <div className="shrink-0">
+          <DashboardHeader />
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </main>
+    );
+  }
 
   // Viewport-locked: outer fills the device exactly; only the inner thread
   // scrolls if its messages overflow. The body never scrolls.
