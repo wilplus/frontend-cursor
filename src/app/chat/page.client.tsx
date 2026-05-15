@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import Lottie from "lottie-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import ChatReview from "@/components/chat/ChatReview";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
@@ -37,56 +36,44 @@ type Phase =
   | "waiting"
   | "reviewing"
   | "roleplaying"
-  | "complete"
   | "error";
-
-const VOICE_LOADING_PHRASES = [
-  "Analyzing your charisma markers…",
-  "Mapping stress patterns…",
-  "Detecting filler-word density…",
-  "Tuning into your vocal energy…",
-  "Finalizing your insights…",
-] as const;
 
 const POLL_INTERVAL_MS = 5_000;
 const ROLEPLAY_CAP_SECONDS = 120;
 const ONBOARDING_CAP_SECONDS = 30;
-
-function shufflePhrases(phrases: readonly string[]): string[] {
-  const shuffled = [...phrases];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Sub-screens                                                               */
 /* -------------------------------------------------------------------------- */
 
 function WaitingScreen() {
-  // Post-login waiting screen plays the founder/onboarding video
-  // (same one previously gated behind HeroRecorder's "done" status)
-  // so the user has something engaging to watch while the admin
-  // reviews their session. The Lottie + rotating-phrase loading
-  // animation was tested with users (Marcin et al.) and read as
-  // "empty waiting" — too clinical, no reward for finishing the
-  // recording. The video carries the brand voice forward and keeps
-  // them on the page until the polling loop flips status to
-  // "completed".
+  // Single source of truth for the post-record / post-publish wait.
+  // Centres the founder/onboarding video and pairs it with explicit
+  // "you can close this page" copy so the user knows they're not
+  // chained to the tab while a human coach reviews their session.
+  // Polling for the processing→completed flip continues in the
+  // background (see useEffect in ChatPageClient); the moment it
+  // flips, phase advances to "reviewing" and this surface unmounts.
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-4 px-4 text-center animate-fade-in-up">
-      <p className="text-sm font-medium text-foreground">
-        Your coach is preparing your insights.
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-5 px-4 py-6 text-center animate-fade-in-up">
+      <p className="font-heading text-xl leading-tight text-foreground sm:text-2xl">
+        Our human coach is analyzing your acoustic profile.
       </p>
       <div className="w-full">
         <AfterwardsVideo />
       </div>
-      <p className="mx-auto max-w-sm text-[11px] leading-relaxed text-muted-foreground/80">
-        Usually a few minutes. You can leave this open, or we&apos;ll email you
-        when it&apos;s ready.
-      </p>
+      <div className="mx-auto max-w-md space-y-2">
+        <p className="text-sm font-semibold leading-relaxed text-foreground">
+          You can close this page —{" "}
+          <span className="text-primary">
+            we&apos;ll email you the moment your charisma snippets and feedback
+            are ready.
+          </span>
+        </p>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Typical turnaround is a few minutes. No need to keep the tab open.
+        </p>
+      </div>
     </div>
   );
 }
@@ -122,11 +109,6 @@ export default function ChatPageClient({
    *  session id without the URL changing. */
   const [activeSessionId, setActiveSessionId] = useState<string | null>(
     sessionId
-  );
-  /** Captured when a chat finalizes — drives the post-finalize redirect
-   *  back to /chat?session=<new-id> so the loop repeats. */
-  const [completedSessionId, setCompletedSessionId] = useState<string | null>(
-    null
   );
 
   // Loop guard. ONLY runs when there's no `?session=` in the URL:
@@ -203,13 +185,24 @@ export default function ChatPageClient({
     setPhase("roleplaying");
   }, []);
 
-  const handleChatComplete = useCallback((guestSessionId: string) => {
-    // Roleplay (or onboarding) wrapped up. Capture the session id so
-    // the "complete" Lottie screen can deep-link back into the loop:
-    //   /chat?session=<new-id> → waiting → reviewing → roleplay → …
-    setCompletedSessionId(guestSessionId);
-    setPhase("complete");
-  }, []);
+  const handleChatComplete = useCallback(
+    (guestSessionId: string) => {
+      // Onboarding / roleplay finalize wrapped. Redirect IMMEDIATELY
+      // into the loop's waiting surface — no intermediate Lottie hold.
+      // The video-driven WaitingScreen on /chat?session=<id> is now
+      // the single source of truth for the post-record wait state;
+      // sticking a 4.5s plain Lottie hold between the farewell and the
+      // video just re-introduced the "empty loading" feel we just
+      // removed. The user already saw the bot's farewell bubble during
+      // the 3-second pause inside ChatInterview's endSession(), so the
+      // visual context is already set.
+      const target = guestSessionId
+        ? `/chat?session=${encodeURIComponent(guestSessionId)}`
+        : "/chat";
+      router.push(target);
+    },
+    [router]
+  );
 
   const handleChatError = useCallback((code: string) => {
     if (code === "RATE_LIMITED") {
@@ -220,39 +213,6 @@ export default function ChatPageClient({
       setPhase("error");
     }
   }, []);
-
-  /* ---------------------------------------------------------------------- */
-  /*  Post-complete redirect: route back into the loop with the new id.    */
-  /* ---------------------------------------------------------------------- */
-  const [completePhraseIdx, setCompletePhraseIdx] = useState(0);
-  const [completePhrases] = useState<string[]>(() =>
-    shufflePhrases(VOICE_LOADING_PHRASES)
-  );
-  const [completeLottie, setCompleteLottie] = useState<object | null>(null);
-  useEffect(() => {
-    if (phase !== "complete") return;
-    let cancelled = false;
-    fetch("/animations/loading.json")
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setCompleteLottie(data);
-      })
-      .catch(() => {});
-    const phraseId = setInterval(() => {
-      setCompletePhraseIdx((i) => (i + 1) % completePhrases.length);
-    }, 1800);
-    const redirectId = setTimeout(() => {
-      const target = completedSessionId
-        ? `/chat?session=${encodeURIComponent(completedSessionId)}`
-        : "/chat";
-      router.push(target);
-    }, 4500);
-    return () => {
-      cancelled = true;
-      clearInterval(phraseId);
-      clearTimeout(redirectId);
-    };
-  }, [phase, completedSessionId, completePhrases, router]);
 
   /* ---------------------------------------------------------------------- */
   /*  Render                                                                */
@@ -322,21 +282,6 @@ export default function ChatPageClient({
             aggregateThresholdSeconds={ROLEPLAY_CAP_SECONDS}
             farewellMessage="Nice work — let's see what the coach picks up from this round."
           />
-        )}
-
-        {phase === "complete" && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center animate-fade-in-up">
-            <div className="h-24 w-24 opacity-80">
-              {completeLottie ? (
-                <Lottie animationData={completeLottie} loop />
-              ) : (
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              )}
-            </div>
-            <p className="mx-auto max-w-sm text-sm text-muted-foreground min-h-[1.25rem] transition-opacity duration-300">
-              {completePhrases[completePhraseIdx]}
-            </p>
-          </div>
         )}
       </div>
     </main>
