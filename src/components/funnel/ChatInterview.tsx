@@ -14,6 +14,7 @@ import {
   USER_UPLOAD_MAX_BYTES,
   GuestUploadFailure,
 } from "@/lib/api/public-client";
+import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
 
 /**
  * TypingIndicator — three bouncing dots, messenger-style. Sits inside the
@@ -232,18 +233,27 @@ function splitChunks(text: string): string[] {
       })();
 
   // Pass 2: trailing-question heuristic on each chunk.
-  const result: string[] = [];
+  const stage2: string[] = [];
   for (const chunk of baseChunks) {
     const match = chunk.match(/^([\s\S]+[.!?])\s+([^.!?]*\?\s*)$/);
     if (match) {
       const setup = match[1].trim();
       const question = match[2].trim();
       if (setup.length >= 20 && question.length > 0) {
-        result.push(setup, question);
+        stage2.push(setup, question);
         continue;
       }
     }
-    result.push(chunk);
+    stage2.push(chunk);
+  }
+
+  // Pass 3: enforce the 75-char AI bubble cap. Each chunk from Pass 2
+  // gets fanned out into one or more sub-chunks at sentence/word
+  // boundaries via splitAiBubbleText. Single chunks already under the
+  // cap return as-is, so this is a no-op for short questions.
+  const result: string[] = [];
+  for (const chunk of stage2) {
+    result.push(...splitAiBubbleText(chunk));
   }
   return result;
 }
@@ -811,15 +821,20 @@ export default function ChatInterview({
       setLoadingQuestion(false);
       setUploading(false);
 
+      // Split the farewell into ≤75-char bubbles per the snappy-chat
+      // rule. Today's farewell strings already fit, but parametrised
+      // callers (sourceSnippet roleplay) might pass a longer string.
+      const farewellChunks = splitAiBubbleText(
+        farewellMessage ||
+          "For today we have got it, thanks! Now we will analyse it! 🚀"
+      );
       setMessages((prev) => [
         ...prev,
-        {
-          id: "farewell",
-          type: "bot",
-          content:
-            farewellMessage ||
-            "For today we have got it, thanks! Now we will analyse it! 🚀",
-        },
+        ...farewellChunks.map((content, i) => ({
+          id: i === 0 ? "farewell" : `farewell-${i}`,
+          type: "bot" as const,
+          content,
+        })),
       ]);
 
       void fetch("/api/session/finalize", {
@@ -884,9 +899,12 @@ export default function ChatInterview({
         return;
       }
 
-      // Bubble id for the transient progress message — we'll mutate
+      // Bubble id for the transient progress message — we'll replace
       // this same row from "Uploading…" to the final status so the
-      // thread doesn't accumulate dead bubbles.
+      // thread doesn't accumulate dead bubbles. Final status may
+      // expand to multiple bubbles if it exceeds the 75-char AI cap
+      // (long filenames trigger this), so the replacement logic does
+      // an in-place 1-to-N swap by original bubble id.
       const bubbleId = `upload-${Date.now()}`;
       setFileUploading(true);
       setErrorMessage(null);
@@ -895,24 +913,37 @@ export default function ChatInterview({
         {
           id: bubbleId,
           type: "bot",
-          content: `Uploading ${file.name}…`,
+          content: splitAiBubbleText(`Uploading ${file.name}…`)[0] ?? "",
+          // Stash the full text so the status replacement can match
+          // and rebuild — see replaceUploadBubble below.
         },
       ]);
+
+      const replaceUploadBubble = (finalText: string) => {
+        const finalChunks = splitAiBubbleText(finalText);
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === bubbleId);
+          if (idx < 0) return prev;
+          const replacement = finalChunks.map((content, i) => ({
+            id: i === 0 ? bubbleId : `${bubbleId}-${i}`,
+            type: "bot" as const,
+            content,
+          }));
+          return [
+            ...prev.slice(0, idx),
+            ...replacement,
+            ...prev.slice(idx + 1),
+          ];
+        });
+      };
 
       try {
         const result = await uploadUserFile(file, {
           sessionId: guestSessionIdRef.current,
           authToken,
         });
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === bubbleId
-              ? {
-                  ...m,
-                  content: `File “${result.filename}” uploaded successfully — your coach will review it.`,
-                }
-              : m
-          )
+        replaceUploadBubble(
+          `File “${result.filename}” uploaded — your coach will review it.`
         );
       } catch (err) {
         const message =
@@ -925,16 +956,7 @@ export default function ChatInterview({
             : err instanceof Error
             ? err.message
             : "Couldn't upload the file.";
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === bubbleId
-              ? {
-                  ...m,
-                  content: `Couldn't upload “${file.name}” — ${message}`,
-                }
-              : m
-          )
-        );
+        replaceUploadBubble(`Couldn't upload “${file.name}” — ${message}`);
       } finally {
         setFileUploading(false);
         // Reset the input so the same file can be re-selected after

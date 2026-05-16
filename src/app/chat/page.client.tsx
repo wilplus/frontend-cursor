@@ -15,6 +15,7 @@ import {
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
+import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
 import { setPendingSessionId } from "@/lib/funnel/pendingSession";
 import {
   consumePostOnboardingWelcome,
@@ -85,6 +86,22 @@ const PENDING_GREETING =
   "Your charisma snippets haven't arrived yet, but we can talk! " +
   "Do you have any questions or would you like to know more about " +
   "the voice analysis?";
+
+/**
+ * Helper — fan out one logical AI text into N QAMessages, each ≤75
+ * chars. Used for every AI-authored bubble the chat page emits
+ * EXCEPT KB-sourced Q&A answers from /v2/chat/query, which we render
+ * verbatim because the master document's responses are structured
+ * and breaking them mid-sentence would mangle citations.
+ */
+function botBubblesFromText(text: string, idPrefix: string): QAMessage[] {
+  const chunks = splitAiBubbleText(text);
+  return chunks.map((t, i) => ({
+    id: chunks.length === 1 ? idPrefix : `${idPrefix}-${i}`,
+    type: "bot" as const,
+    text: t,
+  }));
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Main                                                                      */
@@ -160,10 +177,10 @@ export default function ChatPageClient({
       // review surface the moment the admin publishes. If the session
       // is already completed when we land here, the initial status
       // probe inside the polling effect flips us to "reviewing"
-      // before the greeting ever paints.
-      setQaMessages([
-        { id: "pending-1", type: "bot", text: PENDING_GREETING },
-      ]);
+      // before the greeting ever paints. Greeting is run through the
+      // 75-char bubble splitter so a long string fans out into
+      // multiple snappy bubbles.
+      setQaMessages(botBubblesFromText(PENDING_GREETING, "pending"));
       setPhase("q_and_a");
       return;
     }
@@ -177,17 +194,19 @@ export default function ChatPageClient({
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (phase !== "welcome_back") return;
+    // Both welcome strings go through the 75-char splitter for
+    // consistency — "Thanks, check…" fits in one bubble, the longer
+    // "Do you have any questions…" question splits into two snappy
+    // beats.
     setQaMessages([
-      {
-        id: "welcome-1",
-        type: "bot",
-        text: "Thanks, check your email in a few hours.",
-      },
-      {
-        id: "welcome-2",
-        type: "bot",
-        text: "Do you have any questions or would you like to know more about the voice analysis?",
-      },
+      ...botBubblesFromText(
+        "Thanks, check your email in a few hours.",
+        "welcome-1"
+      ),
+      ...botBubblesFromText(
+        "Do you have any questions or would you like to know more about the voice analysis?",
+        "welcome-2"
+      ),
     ]);
     // Tiny breath so the user reads "Thanks…" before the input row
     // mounts; otherwise it feels abrupt.
@@ -339,23 +358,33 @@ export default function ChatPageClient({
           answer?: string;
           error?: string;
         };
-        const reply =
-          res.ok && data.answer
-            ? data.answer
-            : data.error ??
-              "Couldn't reach the coach. Try again in a moment.";
-        setQaMessages((prev) => [
-          ...prev,
-          { id: `b-${Date.now()}`, type: "bot", text: reply },
-        ]);
+        if (res.ok && data.answer) {
+          // KB-sourced answer — DO NOT split. This is the explicit
+          // exception in the 75-char rule per spec: master-document
+          // responses are structured and might carry citations or
+          // multi-paragraph flow that splitting would mangle. Pass
+          // through verbatim as a single bubble.
+          setQaMessages((prev) => [
+            ...prev,
+            { id: `b-${Date.now()}`, type: "bot", text: data.answer! },
+          ]);
+        } else {
+          // Backend error envelope — this IS first-party AI copy, so
+          // it follows the 75-char rule like every other bot bubble.
+          const fallback =
+            data.error ?? "Couldn't reach the coach. Try again in a moment.";
+          setQaMessages((prev) => [
+            ...prev,
+            ...botBubblesFromText(fallback, `b-${Date.now()}`),
+          ]);
+        }
       } catch {
         setQaMessages((prev) => [
           ...prev,
-          {
-            id: `b-${Date.now()}`,
-            type: "bot",
-            text: "Couldn't reach the coach. Try again in a moment.",
-          },
+          ...botBubblesFromText(
+            "Couldn't reach the coach. Try again in a moment.",
+            `b-${Date.now()}`
+          ),
         ]);
       } finally {
         setQaSubmitting(false);
@@ -431,16 +460,20 @@ export default function ChatPageClient({
         )}
 
         {/* Metrics + auth ask — raw numbers in-chat, signup CTA
-            replaces the mic. */}
+            replaces the mic. The auth-ask copy is run through the
+            75-char splitter at render time so a copy change can't
+            accidentally produce a wall-of-text bubble. */}
         {phase === "metrics_ask" && metricsSnapshot && (
           <div className="flex flex-1 flex-col gap-3 overflow-hidden">
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
               <AcousticMetricsBubble metrics={metricsSnapshot} />
-              <TextBubble>
-                We need a human to give meaning to that raw data, and
-                then we&apos;ll get back to you. For that we need you
-                to sign up — so we know who to send the analysis to.
-              </TextBubble>
+              {splitAiBubbleText(
+                "We need a human to give meaning to that raw data, " +
+                  "and then we'll get back to you. For that we need " +
+                  "you to sign up — so we know who to send the analysis to."
+              ).map((line, i) => (
+                <TextBubble key={`auth-ask-${i}`}>{line}</TextBubble>
+              ))}
             </div>
             <div className="flex shrink-0 flex-col items-center gap-2 pb-4">
               <Button
