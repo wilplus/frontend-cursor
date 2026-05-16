@@ -122,15 +122,12 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
       }
 
       // ── 4. Smart redirect ─────────────────────────────────────────────
-      // Hit /api/results/state to learn whether this user has any session
-      // at all. Three branches per spec:
-      //   - completed  → /results/[id] (snippets ready)
-      //   - processing → /results       (overview shows the waiting UI)
-      //   - no_session → /chat          (record their baseline first)
-      //
-      // /results itself does the same routing on mount, so even if this
-      // best-effort call fails we fall through to /results and the page
-      // does the right thing — no mock data ever rendered.
+      // Hit /api/results/state to learn whether this user has any session.
+      // Every branch lands on /chat now — the standalone /results
+      // surface was retired and /chat's phase machine handles the rest:
+      //   - completed   → /chat?session=<id>  (review loop)
+      //   - processing  → /chat?session=<id>  (Q&A fallback for pending)
+      //   - no_session  → /chat               (cold-start onboarding)
       try {
         const stateRes = await fetch("/api/results/state", {
           cache: "no-store",
@@ -140,23 +137,19 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             | { kind: "no_session" }
             | { kind: "processing"; session_id: string }
             | { kind: "completed"; session_id: string };
-          if (data.kind === "completed") {
-            window.location.href = `/results/${encodeURIComponent(
+          if (data.kind === "completed" || data.kind === "processing") {
+            window.location.href = `/chat?session=${encodeURIComponent(
               data.session_id
             )}`;
             return;
           }
-          if (data.kind === "no_session") {
-            window.location.href = "/chat";
-            return;
-          }
         }
       } catch {
-        /* non-fatal — fall through to /results */
+        /* non-fatal — fall through to /chat */
       }
 
       setTimeout(() => {
-        window.location.href = "/results";
+        window.location.href = "/chat";
       }, 100);
 
     } catch (err) {

@@ -12,7 +12,6 @@ import {
   TypingBubble,
   type AcousticMetricsBubbleData,
 } from "@/components/chat/RichBubbles";
-import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
@@ -26,23 +25,28 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 /* -------------------------------------------------------------------------- */
 /*  Phase state machine                                                       */
 /*                                                                            */
-/*  /chat hosts every flavour of the user's chat journey behind one phase    */
-/*  machine. Two distinct journeys share this surface:                       */
+/*  /chat is the user's ONLY surface — the standalone /results page was     */
+/*  retired. There are no static waiting screens here either; signed-in     */
+/*  users whose admin review is still pending land directly in the active   */
+/*  Q&A chat with a greeting bubble explaining the snippets aren't ready    */
+/*  yet. Polling continues in the background and the moment status flips    */
+/*  to "completed" we transition seamlessly into the review surface.        */
 /*                                                                            */
-/*  Onboarding (anonymous) — record → metrics → signup → welcome → Q&A:     */
+/*  Phases:                                                                   */
 /*    loading        — initial auth probe                                    */
-/*    onboarding     — 30s cold-start ChatInterview                          */
+/*    onboarding     — 30s cold-start ChatInterview (anonymous + first-     */
+/*                     time signed-in with no session)                       */
 /*    compiling      — TypingBubble in-thread while metrics process          */
 /*    metrics_ask    — AcousticMetricsBubble + "we need a human" + signup   */
 /*    welcome_back   — post-signup, push welcome bubbles, → q_and_a         */
-/*    q_and_a        — persistent KB-backed Q&A composer + text bubbles     */
-/*                                                                            */
-/*  Returning (signed-in with a session) — existing review/roleplay loop:   */
-/*    waiting        — ProcessingState video while admin reviews             */
-/*    reviewing      — snippet bubbles + label actions                       */
+/*    q_and_a        — persistent KB-backed Q&A composer. Handles BOTH:    */
+/*                     (a) just-signed-up users in the welcome flow         */
+/*                     (b) signed-in returning users whose session is still */
+/*                         processing — greets them with a pending notice   */
+/*                         and keeps the keyboard open while we poll        */
+/*    reviewing      — snippet bubbles + label actions (status=completed)   */
 /*    roleplaying    — 120s practice ChatInterview, new session              */
-/*                                                                            */
-/*  Shared: error.                                                           */
+/*    error          — rate-limit / funnel-disabled / fatal load failure    */
 /* -------------------------------------------------------------------------- */
 
 type Phase =
@@ -52,7 +56,6 @@ type Phase =
   | "metrics_ask"
   | "welcome_back"
   | "q_and_a"
-  | "waiting"
   | "reviewing"
   | "roleplaying"
   | "error";
@@ -75,34 +78,13 @@ interface QAMessage {
   text: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Sub-screens                                                               */
-/* -------------------------------------------------------------------------- */
-
-function WaitingScreen() {
-  return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-5 px-4 py-6 text-center animate-fade-in-up">
-      <p className="font-heading text-xl leading-tight text-foreground sm:text-2xl">
-        Our human coach is analyzing your acoustic profile.
-      </p>
-      <div className="w-full">
-        <AfterwardsVideo />
-      </div>
-      <div className="mx-auto max-w-md space-y-2">
-        <p className="text-sm font-semibold leading-relaxed text-foreground">
-          You can close this page —{" "}
-          <span className="text-primary">
-            we&apos;ll email you the moment your charisma snippets and feedback
-            are ready.
-          </span>
-        </p>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Typical turnaround is a few minutes. No need to keep the tab open.
-        </p>
-      </div>
-    </div>
-  );
-}
+/** Greeting copy shown to a returning user whose session is still
+ *  processing — keeps them in the active Q&A surface instead of a
+ *  static waiting page. Per the "pending users in active chat" spec. */
+const PENDING_GREETING =
+  "Your charisma snippets haven't arrived yet, but we can talk! " +
+  "Do you have any questions or would you like to know more about " +
+  "the voice analysis?";
 
 /* -------------------------------------------------------------------------- */
 /*  Main                                                                      */
@@ -171,8 +153,18 @@ export default function ChatPageClient({
     }
 
     if (sessionId) {
-      // Returning user with a session in flight or published.
-      setPhase("waiting");
+      // Returning user with an in-flight session. Per the "pending
+      // users in active chat" spec, we DON'T show a static waiting
+      // screen — drop them straight into Q&A with a pending-snippets
+      // greeting. The polling effect below promotes them to the
+      // review surface the moment the admin publishes. If the session
+      // is already completed when we land here, the initial status
+      // probe inside the polling effect flips us to "reviewing"
+      // before the greeting ever paints.
+      setQaMessages([
+        { id: "pending-1", type: "bot", text: PENDING_GREETING },
+      ]);
+      setPhase("q_and_a");
       return;
     }
 
@@ -204,11 +196,14 @@ export default function ChatPageClient({
   }, [phase]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Polling: while phase === "waiting", probe status until "completed".   */
+  /*  Polling: while the user is in Q&A and waiting on their session to    */
+  /*  publish, probe status until "completed" and then flip into review.   */
+  /*  Fires for both the post-signup welcome path AND the returning-user   */
+  /*  pending path (both end up in phase=q_and_a with an activeSessionId). */
   /* ---------------------------------------------------------------------- */
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
-    if (phase !== "waiting" || !activeSessionId) return;
+    if (phase !== "q_and_a" || !activeSessionId) return;
 
     let cancelled = false;
     const probe = async () => {
@@ -463,8 +458,6 @@ export default function ChatPageClient({
             </div>
           </div>
         )}
-
-        {phase === "waiting" && <WaitingScreen />}
 
         {phase === "reviewing" && activeSessionId && (
           <ChatReview

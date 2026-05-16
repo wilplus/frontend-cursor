@@ -111,7 +111,7 @@ export default function CoachingPage({ params }: PageProps) {
             return;
           }
           toast.error("Coaching session not found.");
-          router.replace("/results");
+          router.replace("/chat");
           return;
         }
         const data = (await res.json()) as CoachingHydrated;
@@ -133,7 +133,7 @@ export default function CoachingPage({ params }: PageProps) {
         console.error("coach/[id] hydrate failed:", err);
         if (!cancelled) {
           toast.error("Couldn't load this coaching session.");
-          router.replace("/results");
+          router.replace("/chat");
         }
       } finally {
         if (!cancelled) setHydrating(false);
@@ -289,9 +289,9 @@ export default function CoachingPage({ params }: PageProps) {
       <DashboardHeader />
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-6">
-        {/* Back to /results — explicit so the user knows they can leave */}
+        {/* Back to /chat — explicit so the user knows they can leave */}
         <Link
-          href="/results"
+          href="/chat"
           className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -487,7 +487,7 @@ function CompleteCard() {
         snippets will appear on your Voice Journey in a moment.
       </p>
       <Button asChild className="rounded-full">
-        <Link href="/results">See your new snippets →</Link>
+        <Link href="/chat">See your new snippets →</Link>
       </Button>
     </div>
   );

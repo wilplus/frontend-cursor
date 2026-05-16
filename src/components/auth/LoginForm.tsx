@@ -100,13 +100,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
         return;
       }
 
-      // Smart redirect via /api/results/state — three branches per spec:
-      //   - completed  → /results/[id] (snippets ready)
-      //   - processing → /results       (overview shows the waiting UI)
-      //   - no_session → /chat          (record their baseline first)
-      //
-      // /results does the same routing on its own mount, so a failed
-      // call here just falls through to the overview and self-corrects.
+      // Smart redirect via /api/results/state — every branch lands
+      // on /chat now (the standalone /results surface was retired):
+      //   - completed   → /chat?session=<id>  (review loop)
+      //   - processing  → /chat?session=<id>  (Q&A while waiting)
+      //   - no_session  → /chat               (cold-start onboarding)
+      // /chat's phase machine resolves the right sub-surface either
+      // way, so a failed state call just falls through to /chat.
       try {
         const stateRes = await fetch("/api/results/state", {
           cache: "no-store",
@@ -116,19 +116,17 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
             | { kind: "no_session" }
             | { kind: "processing"; session_id: string }
             | { kind: "completed"; session_id: string };
-          if (data.kind === "completed") {
-            router.push(`/results/${encodeURIComponent(data.session_id)}`);
-            return;
-          }
-          if (data.kind === "no_session") {
-            router.push("/chat");
+          if (data.kind === "completed" || data.kind === "processing") {
+            router.push(
+              `/chat?session=${encodeURIComponent(data.session_id)}`
+            );
             return;
           }
         }
       } catch {
-        /* non-fatal — fall through to /results */
+        /* non-fatal — fall through to /chat */
       }
-      router.push("/results");
+      router.push("/chat");
     } catch (err) {
       console.error(err);
       toast.error("An unexpected error occurred");

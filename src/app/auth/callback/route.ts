@@ -132,8 +132,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(target);
   }
 
-  // No code in the URL — could be a stale callback hit. Just bounce
-  // to /results; if no session, /results' own auth check will
-  // redirect to /login.
-  return NextResponse.redirect(new URL(next || "/results", req.url));
+  // No code in the URL — could be a stale callback hit. Bounce to
+  // /chat; the chat page's session-route guard handles the rest
+  // (no_session → onboarding, processing/completed → review loop).
+  return NextResponse.redirect(new URL(next || "/chat", req.url));
 }
