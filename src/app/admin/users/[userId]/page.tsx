@@ -970,11 +970,22 @@ interface SnippetCardProps {
     deltaMs: number
   ) => void;
   onLabel: (snippetId: string, type: "charisma" | "stress") => void;
-  /** Saves admin_comment + follow_up_question + (current) snippet_type. */
+  /**
+   * Saves admin_comment + follow_up_question + (current) snippet_type.
+   *
+   * `acceptanceMode` is the RLHF training signal: when the admin taps
+   * "Accept Suggestion" with both fields still matching the AI draft,
+   * we record `"accepted_as_is"`; when they edit either field and tap
+   * "Save Corrections", we record `"admin_corrected"`. The flag is
+   * forwarded to the backend on the /comment POST so the
+   * accepted/corrected ratio per session can drive model retraining
+   * decisions.
+   */
   onSaveComment: (
     snippetId: string,
     comment: string,
-    followUpQuestion: string
+    followUpQuestion: string,
+    acceptanceMode: "accepted_as_is" | "admin_corrected"
   ) => Promise<void>;
   onSkip: (snippetId: string) => void;
   /**
@@ -1582,12 +1593,15 @@ function SnippetCard({
             been computed yet (vs. computed and empty). */}
         <SnippetMetricsRow metrics={snippet.metrics} />
 
-        {/* Admin comment — published verbatim to the user's /results page.
-            Pre-filled with the AI draft when no admin save exists yet so
-            the suggestion is visible inside the textarea (not hidden in
-            placeholder). "AI Suggested" badge in the label row clears
-            the moment the admin edits; "Reset to AI draft" returns the
-            edited field to the original draft. */}
+        {/* AI Co-Pilot Suggestion block.
+            Both fields are pre-filled with the AI draft. While the
+            text matches the draft verbatim we paint a soft violet
+            border + tinted background so the admin sees at-a-glance
+            which content is the model's vs their own correction. The
+            moment they type one character the tint clears and a
+            "Modified by Admin" amber badge flips on — paired with
+            the action button below which renames itself to "Save
+            Corrections" to make the RLHF intent explicit. */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <label
@@ -1596,14 +1610,23 @@ function SnippetCard({
             >
               Coach&apos;s insight
             </label>
-            {commentIsAiDraft && (
+            {commentIsAiDraft ? (
               <span
-                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                className="inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700"
                 title="Prefilled from the AI draft. Edit to make it your own — the badge will clear."
               >
                 <Sparkles className="h-3 w-3" aria-hidden />
                 AI Suggested
               </span>
+            ) : (
+              aiDraftComment.length > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
+                  title="You've diverged from the AI draft — saving will record this as a human correction."
+                >
+                  Modified by Admin
+                </span>
+              )
             )}
           </div>
           <Textarea
@@ -1611,7 +1634,12 @@ function SnippetCard({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Coach's insight..."
-            className="bg-background min-h-[80px]"
+            className={cn(
+              "min-h-[80px] transition-colors",
+              commentIsAiDraft
+                ? "border-violet-300 bg-violet-50/40 focus-visible:ring-violet-400"
+                : "bg-background"
+            )}
           />
           {aiDraftComment && comment !== aiDraftComment && (
             <button
@@ -1624,12 +1652,10 @@ function SnippetCard({
           )}
         </div>
 
-        {/* Follow-up question — what the contextual chat asks first.
-            Same prefill pattern as the comment above: AI draft lives in
-            the textarea on first render so admin sees it inside the
-            field, not behind a placeholder. The save handler still
-            tolerates "empty + AI draft" as accept-draft (SSoT §5) in
-            case the admin manually clears the box. */}
+        {/* Follow-up question — same Co-Pilot treatment as above.
+            The save handler tolerates "empty + AI draft" as accept-
+            draft (SSoT §5) in case the admin manually clears the
+            box, so blanking the field still saves the draft. */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <label
@@ -1638,14 +1664,23 @@ function SnippetCard({
             >
               Follow-up question
             </label>
-            {followUpIsAiDraft && (
+            {followUpIsAiDraft ? (
               <span
-                className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                className="inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700"
                 title="Prefilled from the AI draft. Edit to make it your own — the badge will clear."
               >
                 <Sparkles className="h-3 w-3" aria-hidden />
                 AI Suggested
               </span>
+            ) : (
+              aiDraftFollowUp.length > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
+                  title="You've diverged from the AI draft — saving will record this as a human correction."
+                >
+                  Modified by Admin
+                </span>
+              )
             )}
           </div>
           <Textarea
@@ -1653,7 +1688,12 @@ function SnippetCard({
             value={followUpQuestion}
             onChange={(e) => setFollowUpQuestion(e.target.value)}
             placeholder="What the contextual chat should ask first when the user clicks this snippet's CTA…"
-            className="bg-background min-h-[64px] text-sm"
+            className={cn(
+              "min-h-[64px] text-sm transition-colors",
+              followUpIsAiDraft
+                ? "border-violet-300 bg-violet-50/40 focus-visible:ring-violet-400"
+                : "bg-background"
+            )}
           />
           {aiDraftFollowUp && followUpQuestion !== aiDraftFollowUp && (
             <button
@@ -1682,31 +1722,74 @@ function SnippetCard({
           />
         )}
 
-        {/* Action footer (Save / Skip) */}
-        <div className="flex items-center justify-between pt-1">
-          <Button
-            type="button"
-            size="sm"
-            disabled={saving}
-            onClick={() => {
-              // Per SSoT §5 — both the coach insight AND the follow-up
-              // question textareas accept "leave empty = accept AI draft":
-              // if the field is empty and an AI draft exists, save the
-              // draft verbatim. Otherwise save what the admin typed.
-              const trimmedComment = comment.trim();
-              const commentToSave = trimmedComment || aiDraftComment || "";
-              const trimmedFollowUp = followUpQuestion.trim();
-              const followUpToSave = trimmedFollowUp || aiDraftFollowUp || "";
-              void onSaveComment(
-                snippet.id,
-                commentToSave,
-                followUpToSave
-              );
-            }}
-            className="rounded-full px-4"
-          >
-            {saving ? "Saving…" : "Save Snippet"}
-          </Button>
+        {/* Action footer — Accept Suggestion / Save Corrections / Skip.
+            Button label + acceptanceMode are driven by whether both
+            fields STILL match their respective AI drafts:
+              • both untouched → "Accept Suggestion" + acceptanceMode
+                "accepted_as_is" (RLHF positive signal)
+              • at least one diverged → "Save Corrections" +
+                "admin_corrected" (RLHF correction signal — the
+                training-data flywheel)
+            The fallback save-empty-as-draft tolerance is preserved
+            so clearing a field doesn't accidentally publish an empty
+            CTA. */}
+        {(() => {
+          const trimmedComment = comment.trim();
+          const trimmedFollowUp = followUpQuestion.trim();
+          // The submission text — empty boxes fall back to the AI
+          // draft so an accidental clear doesn't publish blanks.
+          const commentToSave = trimmedComment || aiDraftComment || "";
+          const followUpToSave = trimmedFollowUp || aiDraftFollowUp || "";
+          // The acceptance signal compares the FINAL text we're
+          // about to save against the AI draft, not the live field.
+          // That way "user typed something, then deleted it back to
+          // empty" still counts as accept-the-draft.
+          const commentMatchesDraft =
+            aiDraftComment.length > 0 && commentToSave === aiDraftComment;
+          const followUpMatchesDraft =
+            aiDraftFollowUp.length > 0 && followUpToSave === aiDraftFollowUp;
+          const hasAnyAiDraft =
+            aiDraftComment.length > 0 || aiDraftFollowUp.length > 0;
+          // Accept mode requires BOTH fields to either still match a
+          // draft OR be a field with no draft to compare against.
+          // (Edge case: no drafts at all → fall through to regular
+          // "Save Snippet" labelling.)
+          const allAccepted =
+            hasAnyAiDraft &&
+            (aiDraftComment.length === 0 || commentMatchesDraft) &&
+            (aiDraftFollowUp.length === 0 || followUpMatchesDraft);
+          const acceptanceMode: "accepted_as_is" | "admin_corrected" =
+            allAccepted ? "accepted_as_is" : "admin_corrected";
+          const label = saving
+            ? "Saving…"
+            : !hasAnyAiDraft
+            ? "Save Snippet"
+            : allAccepted
+            ? "Accept Suggestion"
+            : "Save Corrections";
+          return (
+            <div className="flex items-center justify-between pt-1">
+              <Button
+                type="button"
+                size="sm"
+                disabled={saving}
+                onClick={() => {
+                  void onSaveComment(
+                    snippet.id,
+                    commentToSave,
+                    followUpToSave,
+                    acceptanceMode
+                  );
+                }}
+                className={cn(
+                  "rounded-full px-4",
+                  allAccepted &&
+                    !saving &&
+                    "bg-violet-600 hover:bg-violet-700 text-white"
+                )}
+              >
+                {label}
+              </Button>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -1731,8 +1814,10 @@ function SnippetCard({
               <Trash2 className="h-3.5 w-3.5" />
               {deleting ? "Deleting…" : "Delete"}
             </Button>
-          </div>
-        </div>
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
@@ -2498,7 +2583,12 @@ export default function AdminUserDetailPage() {
   }, [userId, llmInstructions]);
 
   const handleSaveSnippetComment = useCallback(
-    async (snippetId: string, comment: string, followUpQuestion: string) => {
+    async (
+      snippetId: string,
+      comment: string,
+      followUpQuestion: string,
+      acceptanceMode: "accepted_as_is" | "admin_corrected"
+    ) => {
       setSavingSnippetId(snippetId);
       try {
         const token = await getAuthToken();
@@ -2524,6 +2614,13 @@ export default function AdminUserDetailPage() {
               snippet_type:
                 snippets.find((s) => s.id === snippetId)?.snippet_type ??
                 "unlabeled",
+              // RLHF training signal: did the admin take the AI's
+              // suggestion verbatim, or did they correct it? Backend
+              // persists this alongside the saved text so future
+              // model training can prefer the trajectories where
+              // admins accepted vs the ones where they had to
+              // intervene.
+              acceptance_mode: acceptanceMode,
             }),
           }
         );
