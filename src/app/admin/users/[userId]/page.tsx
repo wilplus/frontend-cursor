@@ -35,6 +35,7 @@ import {
 } from "@/lib/api/client";
 import type { UserAdminContext } from "@/lib/api/types";
 import { getAuthToken } from "@/lib/api/auth-client";
+import UserFilesTab from "@/components/admin/UserFilesTab";
 
 /* ----------------------------------------------------------------------------
  * Types & helpers
@@ -2893,6 +2894,7 @@ export default function AdminUserDetailPage() {
               Chat Transcript &amp; Override
             </TabsTrigger>
             <TabsTrigger value="profile">Long-Term Profile</TabsTrigger>
+            <TabsTrigger value="files">Files</TabsTrigger>
           </TabsList>
 
           {/* ---------------- TAB 1 — Sessions accordion -----------------
@@ -3663,6 +3665,16 @@ export default function AdminUserDetailPage() {
                 </p>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* ---------------- TAB 4 — Files (admin) -----------------
+              Lists every audio/video file this user uploaded via the
+              chat surface's "upload" input mode. Each row renders an
+              inline native player so the admin can audit the file
+              without leaving the tab. Data comes from
+              /api/v2/admin/users/[id]/uploads. */}
+          <TabsContent value="files">
+            <UserFilesTab userId={userId} />
           </TabsContent>
         </Tabs>
       </main>

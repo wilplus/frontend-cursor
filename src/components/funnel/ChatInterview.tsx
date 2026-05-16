@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Loader2, Mic, Paperclip, Upload } from "lucide-react";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
 import RatingComposer from "@/components/funnel/RatingComposer";
 import {
   fetchNextQuestion,
   uploadInterviewAnswer,
+  uploadUserFile,
+  USER_UPLOAD_ACCEPT,
+  USER_UPLOAD_MAX_BYTES,
   GuestUploadFailure,
 } from "@/lib/api/public-client";
 
@@ -277,6 +281,20 @@ export default function ChatInterview({
    * on upload-answer; null/undefined hides the pill entirely.
    */
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
+
+  /**
+   * Input mode toggle. "mic" renders the live VoiceRecordButton (the
+   * default); "upload" swaps it out for a file picker / dropzone that
+   * accepts pre-recorded audio + video. Users switch via the small
+   * paperclip toggle below the input area. Per-mount state — the
+   * toggle resets to "mic" on every chat phase change so the user
+   * always lands on the primary input first.
+   */
+  const [inputMode, setInputMode] = useState<"mic" | "upload">("mic");
+  /** True while a user-uploaded file is being POSTed. Drives the
+   *  "Uploading {filename}…" bubble + disables the dropzone. */
+  const [fileUploading, setFileUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Rating phase — sits between turn 1's upload and Q2 fetch when a
   // backend's upload-answer response sets requires_self_score=true.
@@ -833,6 +851,91 @@ export default function ChatInterview({
   }, [endSession, totalDuration, uploading]);
 
   /**
+   * File upload handler — fires when the user picks an audio/video
+   * file from disk while in "upload" input mode. Pushes a transient
+   * "Uploading {filename}…" bot bubble into the chat thread, POSTs
+   * the file to /api/v2/user/uploads, then replaces the bubble with
+   * either a success or error confirmation. The file is linked to
+   * the current session_id (when available) so the admin Files tab
+   * can group uploads by session.
+   *
+   * Requires an auth token — guest funnel uploads are unsupported
+   * for files (we don't have a corresponding claim flow yet). If
+   * authToken is absent, the picker is disabled in the JSX above.
+   */
+  const handleFileUpload = useCallback(
+    async (file: File | null | undefined) => {
+      if (!file) return;
+      if (fileUploading) return;
+      if (!authToken) {
+        setErrorMessage(
+          "Sign in to upload files — pre-recorded uploads need an account."
+        );
+        return;
+      }
+
+      // Bubble id for the transient progress message — we'll mutate
+      // this same row from "Uploading…" to the final status so the
+      // thread doesn't accumulate dead bubbles.
+      const bubbleId = `upload-${Date.now()}`;
+      setFileUploading(true);
+      setErrorMessage(null);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: bubbleId,
+          type: "bot",
+          content: `Uploading ${file.name}…`,
+        },
+      ]);
+
+      try {
+        const result = await uploadUserFile(file, {
+          sessionId: guestSessionIdRef.current,
+          authToken,
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === bubbleId
+              ? {
+                  ...m,
+                  content: `File “${result.filename}” uploaded successfully — your coach will review it.`,
+                }
+              : m
+          )
+        );
+      } catch (err) {
+        const message =
+          err instanceof GuestUploadFailure
+            ? err.code === "FILE_TOO_LARGE"
+              ? `“${file.name}” is over the ${Math.round(
+                  USER_UPLOAD_MAX_BYTES / 1024 / 1024
+                )} MB limit.`
+              : err.message
+            : err instanceof Error
+            ? err.message
+            : "Couldn't upload the file.";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === bubbleId
+              ? {
+                  ...m,
+                  content: `Couldn't upload “${file.name}” — ${message}`,
+                }
+              : m
+          )
+        );
+      } finally {
+        setFileUploading(false);
+        // Reset the input so the same file can be re-selected after
+        // an error (browsers suppress change events for repeat picks).
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [authToken, fileUploading]
+  );
+
+  /**
    * Auto-submit. Fires the moment the user stops recording — uploads the
    * chunk in the background while the UI already shows the "thinking" dots
    * to mask network latency. The user audio bubble is rendered separately
@@ -1094,20 +1197,67 @@ export default function ChatInterview({
           !loadingQuestion &&
           currentQuestion &&
           !thresholdReachedRef.current && (
-            <VoiceRecordButton
-              onSend={handleSend}
-              onRecorded={handleRecorded}
-              disabled={uploading}
-            />
+            <>
+              {inputMode === "mic" ? (
+                <VoiceRecordButton
+                  onSend={handleSend}
+                  onRecorded={handleRecorded}
+                  disabled={uploading || fileUploading}
+                />
+              ) : (
+                <FileUploadDropzone
+                  inputRef={fileInputRef}
+                  busy={fileUploading}
+                  disabled={!authToken}
+                  onFile={(f) => void handleFileUpload(f)}
+                />
+              )}
+
+              {/* Mic / Upload mode toggle — small, secondary, sits
+                  directly below the primary input control. Auth gate:
+                  uploads require a bearer token, so the toggle is
+                  disabled for the guest funnel until they sign up. */}
+              <button
+                type="button"
+                onClick={() =>
+                  setInputMode((m) => (m === "mic" ? "upload" : "mic"))
+                }
+                disabled={uploading || fileUploading || !authToken}
+                title={
+                  authToken
+                    ? inputMode === "mic"
+                      ? "Upload a pre-recorded file instead"
+                      : "Use the live microphone instead"
+                    : "Sign in to upload pre-recorded files"
+                }
+                className="mt-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {inputMode === "mic" ? (
+                  <>
+                    <Paperclip className="h-3 w-3" aria-hidden /> Upload a
+                    file instead
+                  </>
+                ) : (
+                  <>
+                    <Mic className="h-3 w-3" aria-hidden /> Use the
+                    microphone instead
+                  </>
+                )}
+              </button>
+            </>
           )
         )}
 
         {/* Helper text for first turn */}
-        {turnNumber === 1 && messages.length <= 1 && !uploading && (
-          <p className="text-center text-xs text-muted-foreground">
-            Tap the mic to answer.
-          </p>
-        )}
+        {turnNumber === 1 &&
+          messages.length <= 1 &&
+          !uploading &&
+          !fileUploading &&
+          inputMode === "mic" && (
+            <p className="text-center text-xs text-muted-foreground">
+              Tap the mic to answer.
+            </p>
+          )}
 
         {/* "Finish & see results" — contextual chats only.
             Renders once at least one upload has captured a session_id
@@ -1159,6 +1309,82 @@ export default function ChatInterview({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * FileUploadDropzone — stylised file picker that replaces the
+ * VoiceRecordButton when inputMode === "upload". Click-to-open via a
+ * hidden <input type="file"> ref, plus a dashed-border surface that
+ * also accepts drag-and-drop. Disabled state is used for the guest
+ * funnel (no auth token → uploads can't be persisted).
+ */
+function FileUploadDropzone({
+  inputRef,
+  busy,
+  disabled,
+  onFile,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  busy: boolean;
+  disabled: boolean;
+  onFile: (file: File | null) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  return (
+    <div className="w-full max-w-md">
+      <input
+        ref={inputRef}
+        type="file"
+        accept={USER_UPLOAD_ACCEPT}
+        disabled={busy || disabled}
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null;
+          if (f) onFile(f);
+        }}
+        className="sr-only"
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          if (busy || disabled) return;
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          if (busy || disabled) return;
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0] ?? null;
+          if (f) onFile(f);
+        }}
+        disabled={busy || disabled}
+        className={`flex w-full items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed px-5 py-6 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+          dragOver
+            ? "border-primary bg-primary/10 text-primary"
+            : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5"
+        }`}
+        aria-label="Upload an audio or video file"
+      >
+        {busy ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Uploading…
+          </>
+        ) : (
+          <>
+            <Upload className="h-4 w-4" aria-hidden />
+            Tap to choose, or drop a file here
+          </>
+        )}
+      </button>
+      <p className="mt-1.5 text-center text-[10px] leading-tight text-muted-foreground">
+        Audio (.mp3, .wav, .m4a) or video (.mp4, .mov) up to{" "}
+        {Math.round(USER_UPLOAD_MAX_BYTES / 1024 / 1024)} MB.
+      </p>
     </div>
   );
 }
