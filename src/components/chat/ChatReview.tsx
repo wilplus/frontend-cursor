@@ -6,16 +6,13 @@ import { Button } from "@/components/ui/button";
 import {
   ActionBubble,
   DashboardBubble,
-  MirrorBubble,
   SnippetPlayerBubble,
-  TextBubble,
   type DashboardBubbleData,
-  type MirrorBubbleData,
   type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
 
 /* -------------------------------------------------------------------------- */
-/*  Backend response shapes the review flow consumes                          */
+/*  Backend response shape                                                    */
 /* -------------------------------------------------------------------------- */
 
 interface BackendSnippet {
@@ -31,40 +28,38 @@ interface SnippetsPayload {
   status: string;
   snippets: BackendSnippet[];
   charisma_profile?: {
-    archetype?: string;
-    narrative?: string;
     trinity?: { power?: number; warmth?: number; presence?: number };
-    acoustics?: { pace?: number };
-    triggers?: { topTheme?: string };
-  } | null;
-}
-
-interface MirrorPayload {
-  feature_enabled: boolean;
-  mirror: {
-    headline: string;
-    narrative: string;
-    observations: string[];
-    generated_at: string;
   } | null;
 }
 
 /* -------------------------------------------------------------------------- */
-/*  ChatReview surface                                                        */
+/*  ChatReview — Calm-Anchor-only review surface                              */
 /*                                                                            */
-/*  Bubble-driven review of a freshly-published session. Fetches snippets +  */
-/*  mirror in parallel, then renders them as a single scrolling thread that  */
-/*  ends with a "Ready to practice?" CTA. The CTA hands off to the parent's  */
-/*  onPracticeStart callback, which cuts a NEW backend session for the      */
-/*  roleplay phase (per the spec — review writes back to the old session,    */
-/*  roleplay gets a new one).                                                */
+/*  Per the "Single Surface" spec we strip the review down to the bare       */
+/*  essentials:                                                               */
+/*    • One DashboardBubble (Calm Anchor + 3 trinity bars), if we have data. */
+/*    • Per snippet: SnippetPlayerBubble + ActionBubble (YES / NO).          */
+/*    • The moment the user taps a YES/NO inside an ActionBubble it          */
+/*      vanishes from the feed — instead a right-anchored user bubble        */
+/*      with their choice is appended, keeping the thread chronological.    */
+/*    • Bottom toolbar is a single-slot affair. It's empty while any         */
+/*      ActionBubble remains unresolved; when all are resolved the           */
+/*      [Start Practice (2 min)] button mounts there for the roleplay        */
+/*      handoff.                                                              */
+/*                                                                            */
+/*  Mirror / Delete-reflection / intro narrative all removed in this pass.   */
 /* -------------------------------------------------------------------------- */
 
 interface ChatReviewProps {
   sessionId: string;
-  /** Called when the user taps the final "Ready to practice" CTA.
-   *  Parent transitions to the roleplay phase (new session). */
+  /** Called when the user taps the bottom-toolbar "Start practice" CTA. */
   onPracticeStart: () => void;
+}
+
+interface UserChoice {
+  snippetId: string;
+  value: string;
+  label: string;
 }
 
 export default function ChatReview({
@@ -74,16 +69,23 @@ export default function ChatReview({
   const [snippets, setSnippets] = useState<SnippetPlayerData[]>([]);
   const [dashboardData, setDashboardData] =
     useState<DashboardBubbleData | null>(null);
-  const [mirror, setMirror] = useState<MirrorBubbleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /** Per-snippet local state: which option the user picked (null until
-   *  they tap) and whether the POST is in flight. Indexed by snippet id. */
+  /** Per-snippet local state: `submitting` while the label POST is in
+   *  flight, `choice` is the resolved value once the click completes.
+   *  When choice is set the inline ActionBubble unmounts. */
   const [labels, setLabels] = useState<
-    Record<string, { value: string | null; submitting: boolean }>
+    Record<
+      string,
+      { choice: string | null; submitting: boolean; labelDisplay: string }
+    >
   >({});
-  const [mirrorDeleting, setMirrorDeleting] = useState(false);
+  /** User choice bubbles to inject into the chronological feed once
+   *  the ActionBubble disappears — surfaces the user's answer as a
+   *  right-anchored chat bubble so the thread reads like a real
+   *  conversation rather than a form. */
+  const [userChoices, setUserChoices] = useState<UserChoice[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,38 +93,26 @@ export default function ChatReview({
       try {
         setLoading(true);
         setError(null);
-        const [snipRes, mirrorRes] = await Promise.all([
-          fetch(`/api/results/${sessionId}/snippets`, { cache: "no-store" }),
-          fetch("/api/v2/user/mirror", { cache: "no-store" }),
-        ]);
+        const res = await fetch(`/api/results/${sessionId}/snippets`, {
+          cache: "no-store",
+        });
         if (cancelled) return;
-
-        if (!snipRes.ok) {
+        if (!res.ok) {
           setError("Couldn't load this session's snippets.");
           return;
         }
-        const snipData = (await snipRes.json()) as SnippetsPayload;
+        const data = (await res.json()) as SnippetsPayload;
         if (cancelled) return;
-
-        const rawSnippets = Array.isArray(snipData.snippets)
-          ? snipData.snippets
-          : [];
+        const rawSnippets = Array.isArray(data.snippets) ? data.snippets : [];
         setSnippets(rawSnippets.map(mapSnippet));
-
-        if (snipData.charisma_profile) {
-          setDashboardData(mapDashboard(snipData.charisma_profile));
-        }
-
-        if (mirrorRes.ok) {
-          const mData = (await mirrorRes.json()) as MirrorPayload;
-          if (mData.feature_enabled && mData.mirror) {
-            setMirror({
-              headline: mData.mirror.headline,
-              narrative: mData.mirror.narrative,
-              observations: mData.mirror.observations,
-              generatedAt: mData.mirror.generated_at,
-            });
-          }
+        if (data.charisma_profile?.trinity) {
+          setDashboardData({
+            trinity: {
+              power: data.charisma_profile.trinity.power ?? 0,
+              warmth: data.charisma_profile.trinity.warmth ?? 0,
+              presence: data.charisma_profile.trinity.presence ?? 0,
+            },
+          });
         }
       } catch (err) {
         if (!cancelled) {
@@ -139,10 +129,14 @@ export default function ChatReview({
     };
   }, [sessionId]);
 
-  const handleLabel = async (snippetId: string, value: string) => {
+  const handleLabel = async (
+    snippetId: string,
+    value: string,
+    label: string
+  ) => {
     setLabels((prev) => ({
       ...prev,
-      [snippetId]: { value, submitting: true },
+      [snippetId]: { choice: null, submitting: true, labelDisplay: label },
     }));
     try {
       const res = await fetch(
@@ -154,41 +148,27 @@ export default function ChatReview({
         }
       );
       if (!res.ok) {
+        // Roll back so the user can retry without losing the bubble.
         setLabels((prev) => ({
           ...prev,
-          [snippetId]: { value: null, submitting: false },
+          [snippetId]: { choice: null, submitting: false, labelDisplay: label },
         }));
         return;
       }
+      // Success — collapse the ActionBubble out of the stream and
+      // record the choice as a user-text bubble so the chat thread
+      // stays chronological.
       setLabels((prev) => ({
         ...prev,
-        [snippetId]: { value, submitting: false },
+        [snippetId]: { choice: value, submitting: false, labelDisplay: label },
       }));
+      setUserChoices((prev) => [...prev, { snippetId, value, label }]);
     } catch (err) {
       console.warn("label POST failed:", err);
       setLabels((prev) => ({
         ...prev,
-        [snippetId]: { value: null, submitting: false },
+        [snippetId]: { choice: null, submitting: false, labelDisplay: label },
       }));
-    }
-  };
-
-  const handleDeleteMirror = async () => {
-    if (mirrorDeleting || !mirror) return;
-    if (typeof window !== "undefined") {
-      const ok = window.confirm(
-        "Delete the current reflection? You can regenerate a fresh one anytime."
-      );
-      if (!ok) return;
-    }
-    setMirrorDeleting(true);
-    try {
-      const res = await fetch("/api/v2/user/mirror", { method: "DELETE" });
-      if (res.ok) setMirror(null);
-    } catch (err) {
-      console.warn("mirror DELETE failed:", err);
-    } finally {
-      setMirrorDeleting(false);
     }
   };
 
@@ -210,38 +190,42 @@ export default function ChatReview({
     );
   }
 
-  return (
-    <div className="flex flex-1 flex-col overflow-y-auto py-4">
-      <div className="flex flex-col gap-3">
-        <TextBubble>
-          Here&apos;s what I noticed in your last session. Listen back, tell me
-          if I read each moment right, then we&apos;ll practise.
-        </TextBubble>
+  // All snippets resolved? The bottom toolbar swaps in [Start
+  // Practice]; otherwise the slot stays empty (per the single-slot
+  // dynamic toolbar rule — buttons hide the mic, but here there's
+  // no mic on the review surface, just the contextual CTA when
+  // it's time to transition).
+  const allLabelled =
+    snippets.length > 0 &&
+    snippets.every((s) => labels[s.id]?.choice != null);
 
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-4">
         {dashboardData && <DashboardBubble data={dashboardData} />}
 
-        {mirror && (
-          <MirrorBubble
-            mirror={mirror}
-            onDelete={() => void handleDeleteMirror()}
-            deleting={mirrorDeleting}
-          />
-        )}
-
-        {snippets.length === 0 ? (
-          <TextBubble>
+        {snippets.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground">
             No snippets came through for this session — your coach is still
             preparing your insights.
-          </TextBubble>
-        ) : (
-          snippets.map((s) => {
-            const labelState = labels[s.id] ?? {
-              value: null,
-              submitting: false,
-            };
-            return (
-              <div key={s.id} className="flex flex-col gap-2">
-                <SnippetPlayerBubble snippet={s} />
+          </p>
+        )}
+
+        {snippets.map((s) => {
+          const labelState = labels[s.id] ?? {
+            choice: null,
+            submitting: false,
+            labelDisplay: "",
+          };
+          const choiceBubble = userChoices.find((c) => c.snippetId === s.id);
+          return (
+            <div key={s.id} className="flex flex-col gap-2">
+              <SnippetPlayerBubble snippet={s} />
+              {/* ActionBubble lives in the feed only while
+                  unresolved. Once a label sticks, it disappears and
+                  the user's choice surfaces as a right-anchored
+                  user bubble in its place. */}
+              {labelState.choice == null && (
                 <ActionBubble
                   prompt="Do you agree with this insight?"
                   options={[
@@ -261,33 +245,56 @@ export default function ChatReview({
                       variant: "outline",
                     },
                   ]}
-                  selected={labelState.value}
+                  selected={null}
                   submitting={labelState.submitting}
-                  onSelect={(v) => void handleLabel(s.id, v)}
+                  onSelect={(value) => {
+                    const labelText =
+                      value === s.type
+                        ? s.type === "charisma"
+                          ? "YES, this is Charisma"
+                          : "YES, this is Stress"
+                        : s.type === "charisma"
+                        ? "NO, this is Stress"
+                        : "NO, this is Charisma";
+                    void handleLabel(s.id, value, labelText);
+                  }}
                 />
-              </div>
-            );
-          })
-        )}
-
-        {snippets.length > 0 && (
-          <>
-            <TextBubble>
-              Ready to put one of these into practice? I&apos;ll run a short
-              roleplay — two minutes max.
-            </TextBubble>
-            <div className="flex justify-center px-4 py-2">
-              <Button
-                type="button"
-                size="lg"
-                onClick={onPracticeStart}
-                className="rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground hover:shadow-lg"
-              >
-                Start practice (2 min)
-              </Button>
+              )}
+              {choiceBubble && <UserChoiceBubble text={choiceBubble.label} />}
             </div>
-          </>
-        )}
+          );
+        })}
+      </div>
+
+      {/* Bottom toolbar — single slot, contextual button only.
+          Hidden while ActionBubbles are pending so it doesn't compete
+          for attention; the [Start Practice] CTA mounts here as soon
+          as the user labels every snippet. */}
+      {allLabelled && (
+        <div className="shrink-0 px-4 pb-4 pt-2">
+          <Button
+            type="button"
+            size="lg"
+            onClick={onPracticeStart}
+            className="w-full rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground hover:shadow-lg sm:w-auto sm:mx-auto sm:flex"
+          >
+            Start practice (2 min)
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  User-choice bubble — right-anchored echo of what the user picked          */
+/* -------------------------------------------------------------------------- */
+
+function UserChoiceBubble({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end animate-fade-in-up">
+      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-chat-bubble-user px-4 py-2.5 text-sm leading-relaxed text-chat-bubble-user-foreground shadow-sm">
+        {text}
       </div>
     </div>
   );
@@ -308,21 +315,5 @@ function mapSnippet(s: BackendSnippet): SnippetPlayerData {
     audioUrl: s.audio_url,
     startOffsetMs: s.start_offset_ms ?? 0,
     durationMs: s.duration_ms ?? 0,
-  };
-}
-
-function mapDashboard(
-  profile: NonNullable<SnippetsPayload["charisma_profile"]>
-): DashboardBubbleData {
-  return {
-    archetype: profile.archetype ?? "Your charisma profile",
-    narrative: profile.narrative ?? "",
-    trinity: {
-      power: profile.trinity?.power ?? 0,
-      warmth: profile.trinity?.warmth ?? 0,
-      presence: profile.trinity?.presence ?? 0,
-    },
-    acousticsPace: profile.acoustics?.pace ?? null,
-    stickyTopic: profile.triggers?.topTheme ?? null,
   };
 }
