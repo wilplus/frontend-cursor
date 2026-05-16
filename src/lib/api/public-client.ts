@@ -329,3 +329,121 @@ function blobFilename(blob: Blob): string {
   if (type.includes("flac")) return "recording.flac";
   return "recording.webm";
 }
+
+/* -------------------------------------------------------------------------- */
+/* User file upload (pre-recorded audio / video)                              */
+/* -------------------------------------------------------------------------- */
+
+export const USER_UPLOAD_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
+
+/**
+ * Whitelist of MIME types the chat-side file picker advertises. Backend
+ * is the final authority — anything that slips through gets a 415
+ * UNSUPPORTED_TYPE on POST. Includes audio (mp3/wav/m4a) and video
+ * (mp4/mov) per the spec.
+ */
+export const USER_UPLOAD_ACCEPT = [
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/m4a",
+  "video/mp4",
+  "video/quicktime",
+].join(",");
+
+export interface UserUploadResponse {
+  status: "ok";
+  upload_id: string;
+  file_url: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  session_id: string | null;
+}
+
+/**
+ * Upload a pre-recorded media file (audio or video) on behalf of the
+ * signed-in user. The chat surface calls this when the user toggles to
+ * "upload" mode and picks a file from disk. Backend persists to R2 and
+ * links the row to the supplied session_id when present (so the admin
+ * Files tab can group uploads by session).
+ *
+ * `authToken` is required — uploads are user-owned, not guest. Pass
+ * the bearer the same way the interview upload-answer flow does.
+ */
+export async function uploadUserFile(
+  file: File,
+  opts: {
+    sessionId?: string | null;
+    authToken: string;
+  }
+): Promise<UserUploadResponse> {
+  if (file.size > USER_UPLOAD_MAX_BYTES) {
+    throw new GuestUploadFailure(
+      "FILE_TOO_LARGE",
+      "File is over the 100 MB limit.",
+      413
+    );
+  }
+
+  const form = new FormData();
+  form.append("file", file, file.name);
+  if (opts.sessionId) {
+    form.append("session_id", opts.sessionId);
+  }
+  form.append("filename", file.name);
+
+  const headers: Record<string, string> = {};
+  const trimmed = opts.authToken.trim();
+  headers.Authorization = trimmed.startsWith("Bearer ")
+    ? trimmed
+    : `Bearer ${trimmed}`;
+
+  let resp: Response;
+  try {
+    resp = await fetch("/api/v2/user/uploads", {
+      method: "POST",
+      headers,
+      body: form,
+    });
+  } catch (err) {
+    throw new GuestUploadFailure(
+      "NETWORK_ERROR",
+      err instanceof Error ? err.message : "Network error",
+      0
+    );
+  }
+
+  let json: unknown = null;
+  try {
+    json = await resp.json();
+  } catch {
+    json = null;
+  }
+
+  if (!resp.ok) {
+    const code =
+      (json as ApiError | null)?.code ??
+      (resp.status === 413 ? "FILE_TOO_LARGE" : `HTTP_${resp.status}`);
+    const message =
+      (json as ApiError | null)?.error ??
+      (resp.status === 415
+        ? "Unsupported file type"
+        : resp.statusText || "Upload failed");
+    throw new GuestUploadFailure(code, message, resp.status);
+  }
+
+  const body = json as UserUploadResponse | null;
+  if (!body || body.status !== "ok" || !body.upload_id) {
+    throw new GuestUploadFailure(
+      "INVALID_RESPONSE",
+      "Backend returned an unexpected upload response.",
+      resp.status
+    );
+  }
+  return body;
+}
