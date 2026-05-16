@@ -43,6 +43,28 @@ import UserFilesTab from "@/components/admin/UserFilesTab";
 
 type SessionRow = NonNullable<StudentProfile["sessions"]>[number];
 
+/**
+ * One step in the snippet's 5-step next-questions arc.
+ *
+ * Backend ships the AI prediction on the snippet payload as
+ * `ai_predicted_next_questions[i]`; the admin reviews + edits each
+ * row and the final array is saved as `final_human_next_questions[]`
+ * on publish. Per the build plan, the future fine-tune export
+ * partitions on `position` so each step trains independently OR all
+ * five together as a sequence.
+ *
+ * `intent_tag` is a short label (warmth / challenge / depth / etc.)
+ * — also editable so the admin can adjust the conversational
+ * direction the row is meant to push toward.
+ */
+const NEXT_QUESTION_ROW_COUNT = 5;
+
+interface AdminNextQuestion {
+  position: number;
+  intent_tag: string;
+  text: string;
+}
+
 interface AdminSnippet {
   id: string;
   session_id?: string;
@@ -108,8 +130,34 @@ interface AdminSnippet {
    * backend automatically emits an admin_annotation_events row
    * comparing (ai_draft_follow_up_question, follow_up_question)
    * at publish time for fine-tuning.
+   *
+   * Legacy single-question surface — kept in the schema for back-
+   * compat while the new 5-row next-questions arc rolls out (see
+   * ai_predicted_next_questions / final_human_next_questions below).
+   * Both surfaces are written on every save until backend confirms
+   * the 5-row path is solid; then the legacy field can be deleted.
    */
   ai_draft_follow_up_question?: string | null;
+  /**
+   * 5-step next-questions arc predicted by the backend at snippet-
+   * generate time. Each position carries an intent tag (e.g.
+   * "warmth", "challenge", "depth") so future fine-tuning can train
+   * one position at a time, or all five together as a sequence. The
+   * admin reviews + edits each row before publishing.
+   *
+   * Length 0–5. Empty array / null when the backend hasn't shipped
+   * the prediction yet — frontend renders 5 blank rows so the admin
+   * can still author them by hand.
+   */
+  ai_predicted_next_questions?: AdminNextQuestion[] | null;
+  /**
+   * The admin's final 5-step arc. Persisted on publish and the
+   * canonical source of truth going forward; the backend writes
+   * one admin_annotations_log row PER POSITION so a future fine-
+   * tune corpus can partition by question_position. Empty rows
+   * (admin chose to ship fewer than 5) are dropped before send.
+   */
+  final_human_next_questions?: AdminNextQuestion[] | null;
   // Spec fields the backend may not yet supply — surfaced where present.
   is_skipped?: boolean | null;
   /**
@@ -971,20 +1019,26 @@ interface SnippetCardProps {
   ) => void;
   onLabel: (snippetId: string, type: "charisma" | "stress") => void;
   /**
-   * Saves admin_comment + follow_up_question + (current) snippet_type.
+   * Saves admin_comment + the 5-row next-questions arc + (current)
+   * snippet_type.
    *
-   * `acceptanceMode` is the RLHF training signal: when the admin taps
-   * "Accept Suggestion" with both fields still matching the AI draft,
-   * we record `"accepted_as_is"`; when they edit either field and tap
-   * "Save Corrections", we record `"admin_corrected"`. The flag is
-   * forwarded to the backend on the /comment POST so the
-   * accepted/corrected ratio per session can drive model retraining
-   * decisions.
+   * `nextQuestions` is the admin's final arc, with empty rows already
+   * dropped — backend gets `final_human_next_questions[]` of length
+   * 0–5. The parent also derives the legacy single `follow_up_question`
+   * field from `nextQuestions[0]?.text ?? ""` so legacy backend
+   * consumers keep working through the parallel-paths rollout.
+   *
+   * `acceptanceMode` is the RLHF training signal: when every editable
+   * field still matches the AI draft (insight + each row's text +
+   * intent_tag), we record `"accepted_as_is"`; the moment any one
+   * diverges, `"admin_corrected"`. The flag is forwarded to the
+   * backend on the /comment POST so the accepted/corrected ratio
+   * per session can drive model retraining decisions.
    */
   onSaveComment: (
     snippetId: string,
     comment: string,
-    followUpQuestion: string,
+    nextQuestions: AdminNextQuestion[],
     acceptanceMode: "accepted_as_is" | "admin_corrected"
   ) => Promise<void>;
   onSkip: (snippetId: string) => void;
@@ -1387,32 +1441,92 @@ function SnippetCard({
   const adminSavedFollowUp = (snippet.follow_up_question || "").trim();
 
   /**
-   * Both textareas PRE-FILL with the AI draft when the admin hasn't
-   * saved anything yet — so the suggestion is visible inside the
-   * field instead of hiding behind a placeholder. Admin can edit,
-   * delete, or accept as-is. The "AI Suggested" badge next to each
-   * label clears the moment the value diverges from the draft, so
-   * once the admin types it visually becomes "their" text.
-   *
-   * Precedence per field: admin's saved value → AI draft → "".
-   * Save handler (below) still treats empty + draft as "accept
-   * draft" so manually clearing the field doesn't accidentally
-   * publish an empty CTA.
+   * Coach insight pre-fills with the AI draft when no admin save exists.
+   * The "AI Suggested" badge in the label row clears the moment the
+   * value diverges from the draft. Precedence: admin's saved value →
+   * AI draft → "". Save handler tolerates "empty + draft" as accept-
+   * draft so accidental clears don't publish a blank CTA.
    */
   const [comment, setComment] = useState(
     snippet.admin_comment ?? aiDraftComment ?? ""
   );
-  const [followUpQuestion, setFollowUpQuestion] = useState(
-    snippet.follow_up_question ?? aiDraftFollowUp ?? ""
-  );
+
+  /**
+   * Next-questions arc — always exactly NEXT_QUESTION_ROW_COUNT rows
+   * for stable layout. Initial values prioritise the admin's previous
+   * save (final_human_next_questions) over the AI prediction
+   * (ai_predicted_next_questions); falls back to the legacy single
+   * field as row-1 seed, then empty rows. Each row keeps its own
+   * AI-draft snapshot so the per-row Co-Pilot badge can compare
+   * cleanly even after subsequent re-renders.
+   */
+  const aiPredictedRows: AdminNextQuestion[] = (
+    snippet.ai_predicted_next_questions ?? []
+  ).map((q, i) => ({
+    position: q.position ?? i + 1,
+    intent_tag: (q.intent_tag ?? "").trim(),
+    text: (q.text ?? "").trim(),
+  }));
+
+  const initialRows: AdminNextQuestion[] = (() => {
+    const out: AdminNextQuestion[] = [];
+    const saved = snippet.final_human_next_questions ?? [];
+    for (let i = 0; i < NEXT_QUESTION_ROW_COUNT; i++) {
+      const position = i + 1;
+      const savedRow = saved[i];
+      if (savedRow) {
+        out.push({
+          position,
+          intent_tag: (savedRow.intent_tag ?? "").trim(),
+          text: (savedRow.text ?? "").trim(),
+        });
+        continue;
+      }
+      const aiRow = aiPredictedRows[i];
+      if (aiRow) {
+        out.push({ ...aiRow, position });
+        continue;
+      }
+      // Legacy seed: only row 1, only when nothing else has filled it.
+      if (i === 0) {
+        const legacy = adminSavedFollowUp || aiDraftFollowUp;
+        if (legacy) {
+          out.push({ position, intent_tag: "", text: legacy });
+          continue;
+        }
+      }
+      out.push({ position, intent_tag: "", text: "" });
+    }
+    return out;
+  })();
+
+  const [nextQuestions, setNextQuestions] =
+    useState<AdminNextQuestion[]>(initialRows);
+
+  const updateRow = (idx: number, patch: Partial<AdminNextQuestion>) => {
+    setNextQuestions((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, ...patch } : r))
+    );
+  };
+
+  /**
+   * Per-row "is this still the AI draft verbatim" check. Used to drive
+   * the violet "AI Suggested" badge on each row. A row counts as
+   * pristine when the AI has a prediction at that position AND both
+   * fields (intent_tag + text) match it.
+   */
+  const rowIsAiDraft = (idx: number): boolean => {
+    const ai = aiPredictedRows[idx];
+    if (!ai || (!ai.text && !ai.intent_tag)) return false;
+    const cur = nextQuestions[idx];
+    if (!cur) return false;
+    return cur.text === ai.text && cur.intent_tag === ai.intent_tag;
+  };
 
   /** Field still holds the AI draft verbatim AND admin has never
-   *  saved a value here — i.e. this is a pristine prefill state.
-   *  Drives the "AI Suggested" badge in the label row. */
+   *  saved a value here — i.e. this is a pristine prefill state. */
   const commentIsAiDraft =
     !adminSavedComment && aiDraftComment.length > 0 && comment === aiDraftComment;
-  const followUpIsAiDraft =
-    !adminSavedFollowUp && aiDraftFollowUp.length > 0 && followUpQuestion === aiDraftFollowUp;
 
   const isSkipped = !!snippet.is_skipped;
   const [deleting, setDeleting] = useState(false);
@@ -1652,58 +1766,118 @@ function SnippetCard({
           )}
         </div>
 
-        {/* Follow-up question — same Co-Pilot treatment as above.
-            The save handler tolerates "empty + AI draft" as accept-
-            draft (SSoT §5) in case the admin manually clears the
-            box, so blanking the field still saves the draft. */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label
-              htmlFor={`follow-up-${snippet.id}`}
-              className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
-            >
-              Follow-up question
+        {/* Next-questions arc — vertical stack of 5 editable rows.
+            Replaces the legacy single follow-up textarea. Each row =
+            position #, editable intent_tag chip, textarea pre-filled
+            with the AI prediction. Empty rows are dropped at save
+            time so the admin can ship 1–5 questions per snippet.
+            Per-row violet/amber Co-Pilot badges identify which rows
+            still match the AI draft vs which the admin has edited. */}
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Next questions — 5-step arc
             </label>
-            {followUpIsAiDraft ? (
-              <span
-                className="inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700"
-                title="Prefilled from the AI draft. Edit to make it your own — the badge will clear."
-              >
-                <Sparkles className="h-3 w-3" aria-hidden />
-                AI Suggested
-              </span>
-            ) : (
-              aiDraftFollowUp.length > 0 && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
-                  title="You've diverged from the AI draft — saving will record this as a human correction."
-                >
-                  Modified by Admin
-                </span>
-              )
-            )}
+            <span className="text-[10px] text-muted-foreground">
+              Empty rows are dropped on publish.
+            </span>
           </div>
-          <Textarea
-            id={`follow-up-${snippet.id}`}
-            value={followUpQuestion}
-            onChange={(e) => setFollowUpQuestion(e.target.value)}
-            placeholder="What the contextual chat should ask first when the user clicks this snippet's CTA…"
-            className={cn(
-              "min-h-[64px] text-sm transition-colors",
-              followUpIsAiDraft
-                ? "border-violet-300 bg-violet-50/40 focus-visible:ring-violet-400"
-                : "bg-background"
-            )}
-          />
-          {aiDraftFollowUp && followUpQuestion !== aiDraftFollowUp && (
-            <button
-              type="button"
-              onClick={() => setFollowUpQuestion(aiDraftFollowUp)}
-              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              Reset to AI draft
-            </button>
-          )}
+          <div className="space-y-2">
+            {nextQuestions.map((row, idx) => {
+              const aiRow = aiPredictedRows[idx];
+              const isAiDraft = rowIsAiDraft(idx);
+              const hasAiSuggestion =
+                !!aiRow && (aiRow.text.length > 0 || aiRow.intent_tag.length > 0);
+              return (
+                <div
+                  key={`nq-${snippet.id}-${idx}`}
+                  className={cn(
+                    "rounded-xl border p-2.5 transition-colors",
+                    isAiDraft
+                      ? "border-violet-300 bg-violet-50/40"
+                      : "border-border bg-background"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold tabular-nums text-foreground"
+                      aria-label={`Position ${row.position}`}
+                    >
+                      {row.position}
+                    </span>
+                    {/* Intent tag chip — editable. Renders as a small
+                        rounded input so it reads as a chip but accepts
+                        free-text. Diverging from the AI tag also
+                        flips the row's "Modified by Admin" badge. */}
+                    <input
+                      type="text"
+                      value={row.intent_tag}
+                      onChange={(e) =>
+                        updateRow(idx, { intent_tag: e.target.value })
+                      }
+                      placeholder="intent tag"
+                      aria-label={`Intent tag for question ${row.position}`}
+                      className="h-7 min-w-[5.5rem] flex-shrink rounded-full border border-border bg-background px-3 text-[11px] font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                    {isAiDraft ? (
+                      <span
+                        className="ml-auto inline-flex items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700"
+                        title="Row still matches the AI prediction verbatim."
+                      >
+                        <Sparkles className="h-3 w-3" aria-hidden />
+                        AI Suggested
+                      </span>
+                    ) : (
+                      hasAiSuggestion && (
+                        <span
+                          className="ml-auto inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
+                          title="You've diverged from the AI prediction for this row — saving will record this position as a human correction."
+                        >
+                          Modified by Admin
+                        </span>
+                      )
+                    )}
+                  </div>
+                  <Textarea
+                    id={`next-q-${snippet.id}-${idx}`}
+                    value={row.text}
+                    onChange={(e) =>
+                      updateRow(idx, { text: e.target.value })
+                    }
+                    placeholder={
+                      idx === 0
+                        ? "Opening question for the contextual chat…"
+                        : `Step ${row.position} question — builds on step ${
+                            row.position - 1
+                          }`
+                    }
+                    className={cn(
+                      "mt-2 min-h-[56px] text-sm transition-colors",
+                      isAiDraft
+                        ? "border-violet-200 bg-white/60 focus-visible:ring-violet-400"
+                        : "bg-background"
+                    )}
+                  />
+                  {hasAiSuggestion &&
+                    (row.text !== aiRow!.text ||
+                      row.intent_tag !== aiRow!.intent_tag) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateRow(idx, {
+                            text: aiRow!.text,
+                            intent_tag: aiRow!.intent_tag,
+                          })
+                        }
+                        className="mt-1 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      >
+                        Reset row to AI draft
+                      </button>
+                    )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Coaching-outcome readout. Present iff the user has clicked
@@ -1723,41 +1897,58 @@ function SnippetCard({
         )}
 
         {/* Action footer — Accept Suggestion / Save Corrections / Skip.
-            Button label + acceptanceMode are driven by whether both
-            fields STILL match their respective AI drafts:
-              • both untouched → "Accept Suggestion" + acceptanceMode
-                "accepted_as_is" (RLHF positive signal)
-              • at least one diverged → "Save Corrections" +
-                "admin_corrected" (RLHF correction signal — the
-                training-data flywheel)
-            The fallback save-empty-as-draft tolerance is preserved
-            so clearing a field doesn't accidentally publish an empty
-            CTA. */}
+            The acceptance signal now scans the coach insight AND every
+            row of the 5-step arc. Any divergence flips to
+            "admin_corrected"; pristine across the board → "accepted_as_is".
+            Empty rows are dropped at save time so the admin can ship
+            1–5 questions per snippet, and the legacy single
+            follow_up_question field is back-filled from row 1 inside
+            the parent's handleSaveSnippetComment. */}
         {(() => {
           const trimmedComment = comment.trim();
-          const trimmedFollowUp = followUpQuestion.trim();
-          // The submission text — empty boxes fall back to the AI
-          // draft so an accidental clear doesn't publish blanks.
+          // The coach insight falls back to its AI draft on accidental
+          // clear so a blank insight never goes out.
           const commentToSave = trimmedComment || aiDraftComment || "";
-          const followUpToSave = trimmedFollowUp || aiDraftFollowUp || "";
-          // The acceptance signal compares the FINAL text we're
-          // about to save against the AI draft, not the live field.
-          // That way "user typed something, then deleted it back to
-          // empty" still counts as accept-the-draft.
+
+          // Build the non-empty arc to publish. Empties are dropped
+          // BEFORE the acceptance signal is computed so a 3-of-5
+          // ship still counts as accepted when the 3 kept rows
+          // match their AI predictions verbatim.
+          const arcToSave: AdminNextQuestion[] = nextQuestions
+            .map((r) => ({
+              position: r.position,
+              intent_tag: r.intent_tag.trim(),
+              text: r.text.trim(),
+            }))
+            .filter((r) => r.text.length > 0);
+
+          // Per-position acceptance check. Two cases:
+          //  - row has an AI prediction → text + intent_tag must
+          //    match the AI's verbatim for the row to count accepted.
+          //  - row has no AI prediction → admin authored it from
+          //    scratch; we exclude it from the acceptance signal so a
+          //    handwritten row doesn't poison the "accepted_as_is"
+          //    label when the rest were untouched.
+          const arcAcceptanceVotes: Array<"accepted" | "corrected" | "skip"> =
+            arcToSave.map((row) => {
+              const ai = aiPredictedRows[row.position - 1];
+              if (!ai || (!ai.text && !ai.intent_tag)) return "skip";
+              return row.text === ai.text && row.intent_tag === ai.intent_tag
+                ? "accepted"
+                : "corrected";
+            });
+          const arcHasAnyAi = arcAcceptanceVotes.some((v) => v !== "skip");
+          const arcAllAccepted =
+            arcHasAnyAi &&
+            arcAcceptanceVotes.every((v) => v !== "corrected");
+
           const commentMatchesDraft =
             aiDraftComment.length > 0 && commentToSave === aiDraftComment;
-          const followUpMatchesDraft =
-            aiDraftFollowUp.length > 0 && followUpToSave === aiDraftFollowUp;
-          const hasAnyAiDraft =
-            aiDraftComment.length > 0 || aiDraftFollowUp.length > 0;
-          // Accept mode requires BOTH fields to either still match a
-          // draft OR be a field with no draft to compare against.
-          // (Edge case: no drafts at all → fall through to regular
-          // "Save Snippet" labelling.)
-          const allAccepted =
-            hasAnyAiDraft &&
-            (aiDraftComment.length === 0 || commentMatchesDraft) &&
-            (aiDraftFollowUp.length === 0 || followUpMatchesDraft);
+          const hasAnyAiDraft = aiDraftComment.length > 0 || arcHasAnyAi;
+          const commentOk =
+            aiDraftComment.length === 0 || commentMatchesDraft;
+          const arcOk = !arcHasAnyAi || arcAllAccepted;
+          const allAccepted = hasAnyAiDraft && commentOk && arcOk;
           const acceptanceMode: "accepted_as_is" | "admin_corrected" =
             allAccepted ? "accepted_as_is" : "admin_corrected";
           const label = saving
@@ -1777,7 +1968,7 @@ function SnippetCard({
                   void onSaveComment(
                     snippet.id,
                     commentToSave,
-                    followUpToSave,
+                    arcToSave,
                     acceptanceMode
                   );
                 }}
@@ -2586,7 +2777,7 @@ export default function AdminUserDetailPage() {
     async (
       snippetId: string,
       comment: string,
-      followUpQuestion: string,
+      nextQuestions: AdminNextQuestion[],
       acceptanceMode: "accepted_as_is" | "admin_corrected"
     ) => {
       setSavingSnippetId(snippetId);
@@ -2597,9 +2788,25 @@ export default function AdminUserDetailPage() {
           return;
         }
         const trimmedComment = comment.trim() ? comment : null;
-        const trimmedFollowUp = followUpQuestion.trim()
-          ? followUpQuestion
-          : null;
+        // The 5-row arc is already trimmed + filtered to non-empty
+        // rows inside SnippetCard. Renumber positions defensively so
+        // backend always gets a tight 1..N sequence even if a row
+        // dropped out from the middle.
+        const arcToSave: AdminNextQuestion[] = nextQuestions.map(
+          (row, i) => ({
+            position: i + 1,
+            intent_tag: row.intent_tag,
+            text: row.text,
+          })
+        );
+        // Legacy single-field back-compat: row 1's text feeds the old
+        // `follow_up_question` column so any backend consumer that
+        // hasn't migrated to `final_human_next_questions[]` yet still
+        // works. Parallel-paths rollout per the build plan — the
+        // legacy field can be dropped once a publish cycle confirms
+        // the new surface end-to-end.
+        const legacyFollowUp = arcToSave[0]?.text ?? null;
+
         const res = await fetch(
           `/api/v2/admin/snippets/${snippetId}/comment`,
           {
@@ -2610,7 +2817,10 @@ export default function AdminUserDetailPage() {
             },
             body: JSON.stringify({
               admin_comment: trimmedComment,
-              follow_up_question: trimmedFollowUp,
+              // Canonical surface — 5-step arc, empties dropped.
+              final_human_next_questions: arcToSave,
+              // Legacy single field — back-compat only, mirrors row 1.
+              follow_up_question: legacyFollowUp,
               snippet_type:
                 snippets.find((s) => s.id === snippetId)?.snippet_type ??
                 "unlabeled",
@@ -2639,7 +2849,8 @@ export default function AdminUserDetailPage() {
                 ? {
                     ...s,
                     admin_comment: trimmedComment,
-                    follow_up_question: trimmedFollowUp,
+                    follow_up_question: legacyFollowUp,
+                    final_human_next_questions: arcToSave,
                   }
                 : s
             )
