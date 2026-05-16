@@ -5,34 +5,53 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import ChatReview from "@/components/chat/ChatReview";
+import {
+  AcousticMetricsBubble,
+  QAInput,
+  TextBubble,
+  TypingBubble,
+  type AcousticMetricsBubbleData,
+} from "@/components/chat/RichBubbles";
 import AfterwardsVideo from "@/components/funnel/AfterwardsVideo";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
+import { getAuthToken } from "@/lib/api/auth-client";
+import { setPendingSessionId } from "@/lib/funnel/pendingSession";
+import {
+  consumePostOnboardingWelcome,
+  setPostOnboardingWelcome,
+} from "@/lib/funnel/postOnboardingWelcome";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 
 /* -------------------------------------------------------------------------- */
 /*  Phase state machine                                                       */
 /*                                                                            */
-/*  The /chat surface is now the user's ENTIRE post-onboarding home —        */
-/*  there's no /results page anymore. The phase controls which sub-surface   */
-/*  renders inside the shared chrome:                                        */
+/*  /chat hosts every flavour of the user's chat journey behind one phase    */
+/*  machine. Two distinct journeys share this surface:                       */
 /*                                                                            */
-/*    loading      — initial auth + state probe in flight                    */
-/*    onboarding   — cold-start chat (30s aggregate cap). No session yet.    */
-/*    waiting      — session is processing; ProcessingState + polling        */
-/*                   /api/results/[id]/status for the flip to "completed".   */
-/*    reviewing    — published snippets streamed as rich chat bubbles        */
-/*                   (DashboardBubble, MirrorBubble, SnippetPlayerBubble +   */
-/*                   ActionBubble). User confirms/corrects each label.       */
-/*    roleplaying  — new session cut after review handoff (120s cap).        */
-/*    complete     — post-finalize Lottie "preparing your insights" hold     */
-/*                   before routing back to /chat?session=<new id>.          */
-/*    error        — rate-limit / funnel-disabled / load failure.            */
+/*  Onboarding (anonymous) — record → metrics → signup → welcome → Q&A:     */
+/*    loading        — initial auth probe                                    */
+/*    onboarding     — 30s cold-start ChatInterview                          */
+/*    compiling      — TypingBubble in-thread while metrics process          */
+/*    metrics_ask    — AcousticMetricsBubble + "we need a human" + signup   */
+/*    welcome_back   — post-signup, push welcome bubbles, → q_and_a         */
+/*    q_and_a        — persistent KB-backed Q&A composer + text bubbles     */
+/*                                                                            */
+/*  Returning (signed-in with a session) — existing review/roleplay loop:   */
+/*    waiting        — ProcessingState video while admin reviews             */
+/*    reviewing      — snippet bubbles + label actions                       */
+/*    roleplaying    — 120s practice ChatInterview, new session              */
+/*                                                                            */
+/*  Shared: error.                                                           */
 /* -------------------------------------------------------------------------- */
 
 type Phase =
   | "loading"
   | "onboarding"
+  | "compiling"
+  | "metrics_ask"
+  | "welcome_back"
+  | "q_and_a"
   | "waiting"
   | "reviewing"
   | "roleplaying"
@@ -41,19 +60,26 @@ type Phase =
 const POLL_INTERVAL_MS = 5_000;
 const ROLEPLAY_CAP_SECONDS = 120;
 const ONBOARDING_CAP_SECONDS = 30;
+/**
+ * Mocked compile delay between the 30s cap and the metrics reveal.
+ * Real backend will eventually return synchronously from finalize with
+ * the aggregate; until it does, this hold simulates the moment for
+ * UX testing.
+ */
+const COMPILE_DELAY_MS = 1500;
+
+/** Q&A thread message shape — kept simple since this is single-turn. */
+interface QAMessage {
+  id: string;
+  type: "bot" | "user";
+  text: string;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Sub-screens                                                               */
 /* -------------------------------------------------------------------------- */
 
 function WaitingScreen() {
-  // Single source of truth for the post-record / post-publish wait.
-  // Centres the founder/onboarding video and pairs it with explicit
-  // "you can close this page" copy so the user knows they're not
-  // chained to the tab while a human coach reviews their session.
-  // Polling for the processing→completed flip continues in the
-  // background (see useEffect in ChatPageClient); the moment it
-  // flips, phase advances to "reviewing" and this surface unmounts.
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-5 px-4 py-6 text-center animate-fade-in-up">
       <p className="font-heading text-xl leading-tight text-foreground sm:text-2xl">
@@ -91,44 +117,91 @@ export default function ChatPageClient({
 }) {
   const router = useRouter();
 
-  /**
-   * Initial phase is decided by the URL:
-   *   - `?session=<id>` present → "loading" (then waiting or reviewing
-   *     based on the status probe).
-   *   - No param → "loading" then "onboarding" once guard passes.
-   *
-   * The infinite-loop guard handles the "user has another session
-   * in flight" case for the param-less route: it redirects to
-   * `/chat?session=<theirSessionId>` and the rest of the flow takes
-   * over on the redirected mount.
-   */
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  /** Snapshot of `sessionId` we're actively reviewing/roleplaying — held
-   *  in state so the roleplay handoff can keep referencing the original
-   *  session id without the URL changing. */
   const [activeSessionId, setActiveSessionId] = useState<string | null>(
     sessionId
   );
+  /** Anonymous session id captured during the cold-start onboarding —
+   *  needed for the post-signup claim. */
+  const anonSessionIdRef = useRef<string | null>(null);
+  /**
+   * Live accumulator for per-turn `metrics` blobs that
+   * ChatInterview.onMetricsCapture forwards up. Merged shallow-last-
+   * wins (latest turn's keys overwrite earlier ones) so the metrics
+   * bubble shows the freshest read. Backend may eventually return one
+   * aggregate from finalize, at which point this ref becomes
+   * redundant — but it works today against the existing per-turn
+   * pipeline.
+   */
+  const metricsAccumRef = useRef<Record<string, unknown>>({});
+  /** Frozen snapshot of metricsAccumRef taken when entering the
+   *  metrics_ask phase so re-renders don't reshuffle the bubble. */
+  const [metricsSnapshot, setMetricsSnapshot] =
+    useState<AcousticMetricsBubbleData | null>(null);
 
-  // Loop guard. ONLY runs when there's no `?session=` in the URL:
-  // with a session id, we're either waiting or reviewing on purpose and
-  // the guard shouldn't bounce us elsewhere. Without a session id, the
-  // guard checks whether the user has an in-flight or published session
-  // and redirects them to `/chat?session=<id>` to enter the loop.
-  const guard = useSessionRouteGuard({ enabled: !sessionId });
+  /* Q&A composer state ---------------------------------------------------- */
+  const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
+  const [qaSubmitting, setQaSubmitting] = useState(false);
+
+  // Loop guard runs ONLY for the param-less /chat. With `?session=` in
+  // the URL we're deliberately deep-linked; the guard would yank us
+  // away. And on the welcome-back hop we also disable the guard via
+  // the localStorage flag (handled below) so the post-signup user
+  // doesn't get bounced to /chat?session=<id>.
+  const welcomeFlagRef = useRef<boolean | null>(null);
+  if (welcomeFlagRef.current === null) {
+    // Run once on first render so the guard can react synchronously.
+    welcomeFlagRef.current = consumePostOnboardingWelcome();
+  }
+  const guard = useSessionRouteGuard({
+    enabled: !sessionId && !welcomeFlagRef.current,
+  });
 
   /* ---------------------------------------------------------------------- */
-  /*  Loading → onboarding when no session, → waiting when session exists.  */
+  /*  Initial phase routing                                                 */
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (guard.checking || guard.redirecting) return;
-    if (sessionId) {
-      setPhase("waiting");
-    } else {
-      setPhase("onboarding");
+
+    // Welcome flag wins: user just signed up after onboarding.
+    if (welcomeFlagRef.current) {
+      setPhase("welcome_back");
+      return;
     }
+
+    if (sessionId) {
+      // Returning user with a session in flight or published.
+      setPhase("waiting");
+      return;
+    }
+
+    // No session, no welcome flag → record a fresh cold-start.
+    setPhase("onboarding");
   }, [sessionId, guard.checking, guard.redirecting]);
+
+  /* ---------------------------------------------------------------------- */
+  /*  Welcome-back → push two bubbles → flip to Q&A                        */
+  /* ---------------------------------------------------------------------- */
+  useEffect(() => {
+    if (phase !== "welcome_back") return;
+    setQaMessages([
+      {
+        id: "welcome-1",
+        type: "bot",
+        text: "Thanks, check your email in a few hours.",
+      },
+      {
+        id: "welcome-2",
+        type: "bot",
+        text: "Do you have any questions or would you like to know more about the voice analysis?",
+      },
+    ]);
+    // Tiny breath so the user reads "Thanks…" before the input row
+    // mounts; otherwise it feels abrupt.
+    const t = setTimeout(() => setPhase("q_and_a"), 400);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   /* ---------------------------------------------------------------------- */
   /*  Polling: while phase === "waiting", probe status until "completed".   */
@@ -156,15 +229,11 @@ export default function ChatPageClient({
           setPhase("reviewing");
         }
       } catch {
-        // Silent — the interval will retry.
+        /* silent — interval will retry */
       }
     };
-
-    // Fire immediately so the user doesn't wait POLL_INTERVAL_MS on
-    // an already-completed session.
     void probe();
     pollRef.current = setInterval(probe, POLL_INTERVAL_MS);
-
     return () => {
       cancelled = true;
       if (pollRef.current) {
@@ -175,34 +244,72 @@ export default function ChatPageClient({
   }, [phase, activeSessionId]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Phase transitions                                                     */
+  /*  Compile delay → metrics_ask                                           */
+  /* ---------------------------------------------------------------------- */
+  useEffect(() => {
+    if (phase !== "compiling") return;
+    const t = setTimeout(() => {
+      setMetricsSnapshot(summariseMetrics(metricsAccumRef.current));
+      setPhase("metrics_ask");
+    }, COMPILE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  /* ---------------------------------------------------------------------- */
+  /*  Phase transition handlers                                             */
   /* ---------------------------------------------------------------------- */
 
   const handlePracticeStart = useCallback(() => {
-    // Review → roleplay handoff. The next ChatInterview mount cuts a
-    // brand new backend session via the existing upload-answer flow
-    // (no guestSessionId on first POST = backend mints a new one).
     setPhase("roleplaying");
   }, []);
 
   const handleChatComplete = useCallback(
-    (guestSessionId: string) => {
-      // Onboarding / roleplay finalize wrapped. Redirect IMMEDIATELY
-      // into the loop's waiting surface — no intermediate Lottie hold.
-      // The video-driven WaitingScreen on /chat?session=<id> is now
-      // the single source of truth for the post-record wait state;
-      // sticking a 4.5s plain Lottie hold between the farewell and the
-      // video just re-introduced the "empty loading" feel we just
-      // removed. The user already saw the bot's farewell bubble during
-      // the 3-second pause inside ChatInterview's endSession(), so the
-      // visual context is already set.
-      const target = guestSessionId
-        ? `/chat?session=${encodeURIComponent(guestSessionId)}`
-        : "/chat";
-      router.push(target);
+    async (guestSessionId: string) => {
+      // Branch by auth: anonymous onboarding stays in-chat to show
+      // metrics + signup CTA; signed-in users (roleplay phase) hop to
+      // the deep-linked waiting surface as before.
+      const token = await getAuthToken();
+      if (token) {
+        const target = guestSessionId
+          ? `/chat?session=${encodeURIComponent(guestSessionId)}`
+          : "/chat";
+        router.push(target);
+        return;
+      }
+      // Anonymous: hold the session id for the eventual claim and
+      // transition into the in-chat metrics flow.
+      anonSessionIdRef.current = guestSessionId;
+      setPhase("compiling");
     },
     [router]
   );
+
+  const handleMetricsCapture = useCallback(
+    (metrics: Record<string, unknown>) => {
+      metricsAccumRef.current = {
+        ...metricsAccumRef.current,
+        ...metrics,
+      };
+    },
+    []
+  );
+
+  const handleSignUpClick = useCallback(() => {
+    // Stash both flags BEFORE the redirect — the OAuth round-trip
+    // will destroy React state but localStorage survives. The global
+    // PendingSessionClaim hook reads the pending session id post-auth
+    // and merges; consumePostOnboardingWelcome on the /chat re-mount
+    // routes the user into the welcome-back phase instead of the
+    // generic WaitingScreen.
+    if (anonSessionIdRef.current) {
+      setPendingSessionId(anonSessionIdRef.current);
+    }
+    setPostOnboardingWelcome();
+    // Send the user through the existing /login flow. mode=signup
+    // hints the form to default to the sign-up tab; redirectTo brings
+    // them back here.
+    router.push("/login?mode=signup&redirectTo=/chat");
+  }, [router]);
 
   const handleChatError = useCallback((code: string) => {
     if (code === "RATE_LIMITED") {
@@ -213,6 +320,54 @@ export default function ChatPageClient({
       setPhase("error");
     }
   }, []);
+
+  const handleQASend = useCallback(
+    async (question: string) => {
+      if (qaSubmitting) return;
+      const userMsg: QAMessage = {
+        id: `u-${Date.now()}`,
+        type: "user",
+        text: question,
+      };
+      setQaMessages((prev) => [...prev, userMsg]);
+      setQaSubmitting(true);
+      try {
+        const res = await fetch("/api/v2/chat/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question,
+            session_id: activeSessionId,
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          answer?: string;
+          error?: string;
+        };
+        const reply =
+          res.ok && data.answer
+            ? data.answer
+            : data.error ??
+              "Couldn't reach the coach. Try again in a moment.";
+        setQaMessages((prev) => [
+          ...prev,
+          { id: `b-${Date.now()}`, type: "bot", text: reply },
+        ]);
+      } catch {
+        setQaMessages((prev) => [
+          ...prev,
+          {
+            id: `b-${Date.now()}`,
+            type: "bot",
+            text: "Couldn't reach the coach. Try again in a moment.",
+          },
+        ]);
+      } finally {
+        setQaSubmitting(false);
+      }
+    },
+    [qaSubmitting, activeSessionId]
+  );
 
   /* ---------------------------------------------------------------------- */
   /*  Render                                                                */
@@ -263,7 +418,50 @@ export default function ChatPageClient({
             onThresholdReached={handleChatComplete}
             onError={handleChatError}
             aggregateThresholdSeconds={ONBOARDING_CAP_SECONDS}
+            onMetricsCapture={handleMetricsCapture}
+            isGuest
           />
+        )}
+
+        {/* Compiling — typing bubble in-thread while metrics are
+            being assembled. No separate loading page per spec. */}
+        {phase === "compiling" && (
+          <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
+            <TextBubble>
+              Got it — your 30 seconds are in. Compiling your acoustic
+              profile…
+            </TextBubble>
+            <TypingBubble />
+          </div>
+        )}
+
+        {/* Metrics + auth ask — raw numbers in-chat, signup CTA
+            replaces the mic. */}
+        {phase === "metrics_ask" && metricsSnapshot && (
+          <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
+              <AcousticMetricsBubble metrics={metricsSnapshot} />
+              <TextBubble>
+                We need a human to give meaning to that raw data, and
+                then we&apos;ll get back to you. For that we need you
+                to sign up — so we know who to send the analysis to.
+              </TextBubble>
+            </div>
+            <div className="flex shrink-0 flex-col items-center gap-2 pb-4">
+              <Button
+                type="button"
+                size="lg"
+                onClick={handleSignUpClick}
+                className="w-full max-w-sm rounded-full bg-primary text-primary-foreground hover:shadow-lg"
+              >
+                Sign up to receive your analysis
+              </Button>
+              <p className="text-[10px] leading-tight text-muted-foreground">
+                Free account, no card. We&apos;ll email your snippets when
+                ready.
+              </p>
+            </div>
+          </div>
         )}
 
         {phase === "waiting" && <WaitingScreen />}
@@ -283,7 +481,107 @@ export default function ChatPageClient({
             farewellMessage="Nice work — let's see what the coach picks up from this round."
           />
         )}
+
+        {/* Welcome-back is identical to q_and_a but the input isn't
+            mounted yet (we want the user to read the two bubbles
+            first). The 400 ms transition timer in the welcome-back
+            effect above flips us to q_and_a. */}
+        {(phase === "welcome_back" || phase === "q_and_a") && (
+          <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
+              {qaMessages.map((m) =>
+                m.type === "bot" ? (
+                  <TextBubble key={m.id}>{m.text}</TextBubble>
+                ) : (
+                  <UserChatBubble key={m.id} text={m.text} />
+                )
+              )}
+              {qaSubmitting && <TypingBubble />}
+            </div>
+            {phase === "q_and_a" && (
+              <div className="flex shrink-0 justify-center pb-4">
+                <QAInput onSubmit={handleQASend} submitting={qaSubmitting} />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Helpers                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Lightweight right-aligned user bubble. Kept inline rather than in
+ * RichBubbles.tsx because it's specific to the Q&A composer's
+ * single-line text shape — no audio, no animation delays.
+ */
+function UserChatBubble({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end animate-fade-in-up">
+      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-chat-bubble-user px-4 py-2.5 text-sm leading-relaxed text-chat-bubble-user-foreground shadow-sm">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Map the raw per-turn metrics blob backend returns into the shape the
+ * AcousticMetricsBubble renders. Tolerates both legacy short keys
+ * (wpm, pitch, dynamic_db, …) and verbose backend keys
+ * (speech_rate_wpm, pitch_mean_hz, dynamic_range_db, …) — same
+ * permissive surface the admin snippet card uses.
+ */
+function summariseMetrics(
+  raw: Record<string, unknown>
+): AcousticMetricsBubbleData {
+  const num = (k: string): number | null => {
+    const v = raw[k];
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  };
+  const str = (k: string): string | null => {
+    const v = raw[k];
+    return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+  };
+
+  const wpm = num("wpm") ?? num("speech_rate_wpm");
+  // Pitch can come as a label ("C4") or as Hz / semitones. Prefer the
+  // pre-formatted string when present; fall back to a Hz/st reading.
+  let pitch: string | null = str("pitch");
+  if (!pitch) {
+    const hz = num("pitch_mean_hz");
+    if (hz != null) pitch = `${Math.round(hz)} Hz`;
+    else {
+      const st = num("pitch_center_st");
+      if (st != null) pitch = `${st.toFixed(1)} st`;
+    }
+  }
+
+  // Flow isn't yet a first-class per-turn metric — approximate from
+  // filler density when we can. 1 - normalised filler count, clamped.
+  const fillers = num("fillers");
+  const wpmForFlow = wpm ?? 130;
+  let flow: number | null = null;
+  if (fillers != null) {
+    // Rough heuristic: <2 fillers/min = 100% flow, >8/min = 0% flow.
+    const minutes = Math.max(0.1, wpmForFlow / 130);
+    const fillerPerMin = fillers / minutes;
+    flow = Math.max(0, Math.min(1, 1 - (fillerPerMin - 2) / 6));
+  }
+
+  const dynamicDb = num("dynamic_db") ?? num("dynamic_range_db");
+  const energy = num("energy_ratio") ?? num("energy");
+
+  return {
+    wpm,
+    pitch,
+    flow,
+    fillers,
+    dynamicDb,
+    energy,
+  };
 }

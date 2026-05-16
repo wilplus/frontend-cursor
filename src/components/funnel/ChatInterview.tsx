@@ -144,6 +144,15 @@ interface ChatInterviewProps {
    * §3), so this can vary per phase without coordination.
    */
   aggregateThresholdSeconds?: number;
+  /**
+   * Optional callback fired after every successful upload-answer with
+   * the per-turn `metrics` blob backend returns. The cold-start
+   * onboarding flow uses this to accumulate raw acoustic stats so it
+   * can show an AcousticMetricsBubble the moment the recording cap
+   * fires — instead of routing the user to a separate waiting page.
+   * Other phases ignore this and the prop stays undefined.
+   */
+  onMetricsCapture?: (metrics: Record<string, unknown>) => void;
 }
 
 const DEFAULT_AGGREGATE_THRESHOLD_SECONDS = 30;
@@ -258,6 +267,7 @@ export default function ChatInterview({
   sourceSnippetId = null,
   authToken = null,
   aggregateThresholdSeconds = DEFAULT_AGGREGATE_THRESHOLD_SECONDS,
+  onMetricsCapture,
 }: ChatInterviewProps) {
   // Local alias makes the rest of the file diff-friendly with the
   // pre-parameterised version that used the bare constant.
@@ -986,6 +996,17 @@ export default function ChatInterview({
           setDetectedLanguage(result.detected_language.trim());
         }
 
+        // Hand raw per-turn metrics off to the parent for the cold-
+        // start onboarding flow's AcousticMetricsBubble. Parent
+        // accumulates across turns; we don't keep them locally.
+        if (
+          onMetricsCapture &&
+          result.metrics &&
+          typeof result.metrics === "object"
+        ) {
+          onMetricsCapture(result.metrics);
+        }
+
         // Persist Whisper's transcript onto the most-recent user
         // message so buildPreviousTurns on the NEXT call sees the
         // full Q→A chain (not just the current turn's). The
@@ -1098,6 +1119,7 @@ export default function ChatInterview({
       proceedToNextQuestion,
       ratingPhase,
       endSession,
+      onMetricsCapture,
     ]
   );
 
