@@ -15,6 +15,11 @@ import {
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
+import {
+  GuestUploadFailure,
+  USER_UPLOAD_MAX_BYTES,
+  uploadUserFile,
+} from "@/lib/api/public-client";
 import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
 import { setPendingSessionId } from "@/lib/funnel/pendingSession";
 import {
@@ -142,6 +147,19 @@ export default function ChatPageClient({
   /* Q&A composer state ---------------------------------------------------- */
   const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
   const [qaSubmitting, setQaSubmitting] = useState(false);
+  /**
+   * Per-turn upload-intent signal from /v2/chat/query (Rule G).
+   * Backend flips this true when it detects "I want to upload / can
+   * I upload / here is my file" intent in the user's question; flips
+   * back to false on the next non-intent turn. Frontend uses it to
+   * reveal the paperclip on the QAInput — default hidden so the
+   * Q&A composer doesn't dangle an affordance the user can't act on
+   * meaningfully unless the AI just suggested an upload.
+   */
+  const [showUploadUi, setShowUploadUi] = useState(false);
+  /** True while a user-initiated file upload is in flight. Disables
+   *  the QAInput composer + paperclip so the user can't double-fire. */
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Loop guard runs ONLY for the param-less /chat. With `?session=` in
   // the URL we're deliberately deep-linked; the guard would yank us
@@ -357,16 +375,24 @@ export default function ChatPageClient({
         const data = (await res.json().catch(() => ({}))) as {
           answer?: string;
           error?: string;
+          show_upload_ui?: boolean;
         };
+        // Rule G — per-turn signal. Always read this off every
+        // /chat/query response, even on errors, so the flag never
+        // gets stuck on after a transient failure.
+        setShowUploadUi(data.show_upload_ui === true);
         if (res.ok && data.answer) {
-          // KB-sourced answer — DO NOT split. This is the explicit
-          // exception in the 75-char rule per spec: master-document
-          // responses are structured and might carry citations or
-          // multi-paragraph flow that splitting would mangle. Pass
-          // through verbatim as a single bubble.
+          // KB-sourced answer. Rule F clarifies: the Master-Doc
+          // exemption is on COMPRESSION (backend must not shorten
+          // grounded content to hit 75 chars), not on visual
+          // segmentation. Long answers still get bubble-split at
+          // natural boundaries for readability. The full text is
+          // preserved end-to-end — splitAiBubbleText only inserts
+          // chunk boundaries at sentence/clause breaks, never drops
+          // a word.
           setQaMessages((prev) => [
             ...prev,
-            { id: `b-${Date.now()}`, type: "bot", text: data.answer! },
+            ...botBubblesFromText(data.answer!, `b-${Date.now()}`),
           ]);
         } else {
           // Backend error envelope — this IS first-party AI copy, so
@@ -386,11 +412,78 @@ export default function ChatPageClient({
             `b-${Date.now()}`
           ),
         ]);
+        // Network failure → the upload-intent signal is stale data
+        // from the previous turn. Reset to false so the paperclip
+        // doesn't keep dangling after a fetch error.
+        setShowUploadUi(false);
       } finally {
         setQaSubmitting(false);
       }
     },
     [qaSubmitting, activeSessionId]
+  );
+
+  /**
+   * Q&A file-upload handler — fires when the user picks a file via
+   * the paperclip on QAInput (revealed only when the backend's last
+   * /chat/query response carried `show_upload_ui: true`, Rule G).
+   * On success/error, lands a one-line bot bubble in the thread so
+   * the user has visible confirmation, and flips showUploadUi back
+   * off so the paperclip hides until the next intent-signalled turn.
+   */
+  const handleQAFileUpload = useCallback(
+    async (file: File) => {
+      if (uploadingFile || qaSubmitting) return;
+      const token = await getAuthToken();
+      if (!token) {
+        setQaMessages((prev) => [
+          ...prev,
+          ...botBubblesFromText(
+            "Sign in to upload files — pre-recorded uploads need an account.",
+            `b-${Date.now()}`
+          ),
+        ]);
+        return;
+      }
+      setUploadingFile(true);
+      try {
+        const result = await uploadUserFile(file, {
+          sessionId: activeSessionId,
+          authToken: token,
+        });
+        setQaMessages((prev) => [
+          ...prev,
+          ...botBubblesFromText(
+            `File “${result.filename}” uploaded — your coach will review it.`,
+            `b-${Date.now()}`
+          ),
+        ]);
+      } catch (err) {
+        const message =
+          err instanceof GuestUploadFailure
+            ? err.code === "FILE_TOO_LARGE"
+              ? `“${file.name}” is over the ${Math.round(
+                  USER_UPLOAD_MAX_BYTES / 1024 / 1024
+                )} MB limit.`
+              : err.message
+            : err instanceof Error
+            ? err.message
+            : "Couldn't upload the file.";
+        setQaMessages((prev) => [
+          ...prev,
+          ...botBubblesFromText(
+            `Couldn't upload “${file.name}” — ${message}`,
+            `b-${Date.now()}`
+          ),
+        ]);
+      } finally {
+        setUploadingFile(false);
+        // Per Rule G, the upload-intent signal is per-turn — hide
+        // the paperclip again until the next intent-signalled turn.
+        setShowUploadUi(false);
+      }
+    },
+    [activeSessionId, qaSubmitting, uploadingFile]
   );
 
   /* ---------------------------------------------------------------------- */
@@ -525,7 +618,17 @@ export default function ChatPageClient({
             </div>
             {phase === "q_and_a" && (
               <div className="flex shrink-0 justify-center pb-4">
-                <QAInput onSubmit={handleQASend} submitting={qaSubmitting} />
+                <QAInput
+                  onSubmit={handleQASend}
+                  submitting={qaSubmitting}
+                  // Rule G: paperclip is hidden by default — the
+                  // parent only passes `onUploadFile` when the last
+                  // /chat/query response signalled upload intent.
+                  onUploadFile={
+                    showUploadUi ? handleQAFileUpload : undefined
+                  }
+                  uploading={uploadingFile}
+                />
               </div>
             )}
           </div>
