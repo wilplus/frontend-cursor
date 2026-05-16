@@ -4,10 +4,11 @@ import {
   Activity,
   Gauge,
   Loader2,
+  Paperclip,
   Send,
   Waves,
 } from "lucide-react";
-import { useState, type KeyboardEvent } from "react";
+import { useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -401,22 +402,41 @@ export function TypingBubble() {
 /*  calculated?") and the parent POSTs them to /v2/chat/query, threading    */
 /*  the answer back as a TextBubble. Disabled while a question is in       */
 /*  flight so the user can't double-send.                                   */
+/*                                                                            */
+/*  Paperclip affordance (Rule G — default hidden / reveal-on-`true`):      */
+/*    The paperclip icon for "drop an audio or video file here" is hidden  */
+/*    by default. The parent passes `onUploadFile` ONLY when the backend's */
+/*    most recent /chat/query response carried `show_upload_ui: true` —    */
+/*    i.e. when the model detected upload intent in the user's prior turn. */
+/*    Click opens a native file picker; the picked file is forwarded back  */
+/*    to the parent for upload via uploadUserFile. When `onUploadFile` is  */
+/*    undefined the icon is absent — no dangling affordance the user       */
+/*    can't act on meaningfully.                                            */
 /* -------------------------------------------------------------------------- */
 
 export function QAInput({
   onSubmit,
   submitting,
   placeholder = "Ask anything about your voice analysis…",
+  onUploadFile,
+  uploading = false,
 }: {
   onSubmit: (question: string) => void;
   submitting: boolean;
   placeholder?: string;
+  /** When set, renders the paperclip + opens a file picker on click.
+   *  Absence = paperclip hidden (Rule G default-hidden). */
+  onUploadFile?: (file: File) => void;
+  /** True while a user-initiated file upload is in flight — disables
+   *  the paperclip + composer so the user can't double-fire. */
+  uploading?: boolean;
 }) {
   const [value, setValue] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const send = () => {
     const trimmed = value.trim();
-    if (!trimmed || submitting) return;
+    if (!trimmed || submitting || uploading) return;
     onSubmit(trimmed);
     setValue("");
   };
@@ -428,22 +448,54 @@ export function QAInput({
     }
   };
 
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadFile) onUploadFile(file);
+    // Reset so the same file can be re-selected after an error.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <div className="flex w-full max-w-2xl items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm focus-within:border-primary/50">
+      {onUploadFile && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.mov"
+            onChange={onFileChange}
+            className="hidden"
+            aria-hidden
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={submitting || uploading}
+            aria-label="Upload an audio or video file"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Paperclip className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+        </>
+      )}
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         rows={1}
-        disabled={submitting}
+        disabled={submitting || uploading}
         className="flex-1 resize-none border-0 bg-transparent py-1.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 disabled:opacity-60"
       />
       <Button
         type="button"
         size="sm"
         onClick={send}
-        disabled={submitting || value.trim().length === 0}
+        disabled={submitting || uploading || value.trim().length === 0}
         className="h-9 w-9 shrink-0 rounded-full p-0"
         aria-label="Send question"
       >
