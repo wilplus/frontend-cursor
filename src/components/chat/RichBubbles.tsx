@@ -1,7 +1,17 @@
 "use client";
 
-import { ChevronDown, Eye, Loader2, Sparkles, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  Activity,
+  ChevronDown,
+  Eye,
+  Gauge,
+  Loader2,
+  Send,
+  Sparkles,
+  Trash2,
+  Waves,
+} from "lucide-react";
+import { useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -348,5 +358,224 @@ export function TextBubble({ children }: { children: React.ReactNode }) {
     <BubbleShell>
       <div className="text-[13px] leading-relaxed text-foreground">{children}</div>
     </BubbleShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  AcousticMetricsBubble                                                     */
+/*                                                                            */
+/*  Shown the moment the cold-start recording hits its 30-second cap. Renders*/
+/*  raw aggregate acoustic numbers (WPM, pitch, flow, etc.) inside a chat    */
+/*  bubble — NO human-coach interpretation yet, that's what the email is    */
+/*  for. Drives the "we need a human to give meaning to that raw data" ask  */
+/*  immediately below it in the chat thread.                                 */
+/* -------------------------------------------------------------------------- */
+
+export interface AcousticMetricsBubbleData {
+  /** Words per minute across the full 30s recording. */
+  wpm: number | null;
+  /** Pitch centre — either a label ("B3") or a number ("195 Hz"). */
+  pitch: string | null;
+  /** 0..1 — smoothness of delivery (low pauses / fillers = high flow). */
+  flow: number | null;
+  /** Filler word count for the whole recording. */
+  fillers: number | null;
+  /** Dynamic range in dB. */
+  dynamicDb: number | null;
+  /** 0..1 — relative vocal energy. */
+  energy: number | null;
+}
+
+export function AcousticMetricsBubble({
+  metrics,
+}: {
+  metrics: AcousticMetricsBubbleData;
+}) {
+  const items: Array<{
+    label: string;
+    value: string;
+    Icon: typeof Activity;
+    pctBar?: number;
+  }> = [];
+  if (metrics.wpm != null) {
+    items.push({
+      label: "Words / minute",
+      value: `${Math.round(metrics.wpm)}`,
+      Icon: Gauge,
+    });
+  }
+  if (metrics.pitch) {
+    items.push({
+      label: "Pitch centre",
+      value: metrics.pitch,
+      Icon: Waves,
+    });
+  }
+  if (metrics.flow != null) {
+    const pct = Math.max(0, Math.min(1, metrics.flow));
+    items.push({
+      label: "Flow",
+      value: `${Math.round(pct * 100)}%`,
+      Icon: Activity,
+      pctBar: pct,
+    });
+  }
+  if (metrics.fillers != null) {
+    items.push({
+      label: "Fillers",
+      value: String(metrics.fillers),
+      Icon: Activity,
+    });
+  }
+  if (metrics.dynamicDb != null) {
+    items.push({
+      label: "Dynamic range",
+      value: `${metrics.dynamicDb.toFixed(1)} dB`,
+      Icon: Waves,
+    });
+  }
+  if (metrics.energy != null) {
+    const pct = Math.max(0, Math.min(1, metrics.energy));
+    items.push({
+      label: "Energy",
+      value: `${Math.round(pct * 100)}%`,
+      Icon: Activity,
+      pctBar: pct,
+    });
+  }
+
+  return (
+    <BubbleShell>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Acoustic profile · raw
+      </p>
+      <h3 className="mt-1 text-base font-semibold text-foreground">
+        Here&apos;s what your voice did for the last 30 seconds.
+      </h3>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            className="rounded-xl border border-border bg-background/60 px-3 py-2.5"
+          >
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <item.Icon className="h-3 w-3" aria-hidden />
+              {item.label}
+            </div>
+            <div className="mt-0.5 text-base font-semibold tabular-nums text-foreground">
+              {item.value}
+            </div>
+            {item.pctBar != null && (
+              <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${item.pctBar * 100}%` }}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {items.length === 0 && (
+        <p className="mt-3 text-xs italic text-muted-foreground">
+          Acoustic metrics are still being computed.
+        </p>
+      )}
+    </BubbleShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  TypingBubble                                                              */
+/*                                                                            */
+/*  Three bouncing dots inside a bot bubble — used when the chat is waiting */
+/*  on a backend response (e.g. compiling acoustic metrics or fetching the  */
+/*  KB-backed Q&A answer). Mirrors the bot-bubble look so it reads as the   */
+/*  coach "thinking", not a generic spinner.                                 */
+/* -------------------------------------------------------------------------- */
+
+export function TypingBubble() {
+  return (
+    <BubbleShell>
+      <div
+        className="flex items-center gap-1 px-1 py-1"
+        aria-label="Composing reply"
+      >
+        {[0, 120, 240].map((delay) => (
+          <span
+            key={delay}
+            className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground/60"
+            style={{
+              animation: "fade-in 0.9s ease-in-out infinite alternate",
+              animationDelay: `${delay}ms`,
+            }}
+          />
+        ))}
+      </div>
+    </BubbleShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  QAInput                                                                   */
+/*                                                                            */
+/*  Persistent text composer for the post-signup Q&A phase. The user types  */
+/*  free-form questions ("What does WPM mean?", "How is filler count        */
+/*  calculated?") and the parent POSTs them to /v2/chat/query, threading    */
+/*  the answer back as a TextBubble. Disabled while a question is in       */
+/*  flight so the user can't double-send.                                   */
+/* -------------------------------------------------------------------------- */
+
+export function QAInput({
+  onSubmit,
+  submitting,
+  placeholder = "Ask anything about your voice analysis…",
+}: {
+  onSubmit: (question: string) => void;
+  submitting: boolean;
+  placeholder?: string;
+}) {
+  const [value, setValue] = useState("");
+
+  const send = () => {
+    const trimmed = value.trim();
+    if (!trimmed || submitting) return;
+    onSubmit(trimmed);
+    setValue("");
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
+
+  return (
+    <div className="flex w-full max-w-2xl items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm focus-within:border-primary/50">
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        rows={1}
+        disabled={submitting}
+        className="flex-1 resize-none border-0 bg-transparent py-1.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 disabled:opacity-60"
+      />
+      <Button
+        type="button"
+        size="sm"
+        onClick={send}
+        disabled={submitting || value.trim().length === 0}
+        className="h-9 w-9 shrink-0 rounded-full p-0"
+        aria-label="Send question"
+      >
+        {submitting ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        ) : (
+          <Send className="h-4 w-4" aria-hidden />
+        )}
+      </Button>
+    </div>
   );
 }

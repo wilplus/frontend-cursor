@@ -57,22 +57,24 @@ export default function PendingSessionClaim() {
 
         if (res.ok) {
           // Backend may return the linked session_id — prefer the deep
-          // link to /results/[id] when we have it; fall back to the
-          // overview otherwise.
+          // link to /chat?session=<id> when we have it so the chat
+          // page's phase machine can route into waiting/reviewing/
+          // welcome_back based on the user's current state. Generic
+          // /chat is the safe fallback.
           const data = (await res.json().catch(() => ({}))) as {
             session_id?: string;
           };
           clearPendingSessionId();
 
-          // Don't bounce the user if they're already on results / admin /
-          // dashboard — they're in the right place. Only redirect from
-          // pages where staying put doesn't make sense after auth.
+          // Don't bounce the user if they're already on /chat — the
+          // welcome-back flag handles the post-onboarding case in-
+          // place. Admin/dashboard surfaces also stay put.
           const target = data.session_id
-            ? `/results/${encodeURIComponent(data.session_id)}`
-            : "/results";
+            ? `/chat?session=${encodeURIComponent(data.session_id)}`
+            : "/chat";
           if (
             pathname &&
-            !pathname.startsWith("/results") &&
+            !pathname.startsWith("/chat") &&
             !pathname.startsWith("/admin") &&
             !pathname.startsWith("/dashboard")
           ) {
