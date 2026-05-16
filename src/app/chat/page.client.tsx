@@ -437,59 +437,58 @@ export default function ChatPageClient({
           </div>
         )}
 
-        {phase === "onboarding" && (
+        {/* Onboarding → compiling → metrics_ask are now a SINGLE
+            continuous ChatInterview mount per the "Single Surface"
+            spec. ChatInterview is never unmounted between these
+            phases — instead the parent appends trailing bubbles
+            into the thread and swaps the bottom toolbar slot.
+            That keeps the chat history visible the whole way
+            through and avoids any "screen change" perception when
+            the 30s cap fires. */}
+        {(phase === "onboarding" ||
+          phase === "compiling" ||
+          phase === "metrics_ask") && (
           <ChatInterview
             onThresholdReached={handleChatComplete}
             onError={handleChatError}
             aggregateThresholdSeconds={ONBOARDING_CAP_SECONDS}
             onMetricsCapture={handleMetricsCapture}
             isGuest
+            trailingBubbles={
+              phase === "compiling" ? (
+                <TypingBubble />
+              ) : phase === "metrics_ask" && metricsSnapshot ? (
+                <>
+                  <AcousticMetricsBubble metrics={metricsSnapshot} />
+                  {splitAiBubbleText(
+                    "We need a human to give meaning to that raw data, " +
+                      "and then we'll get back to you. For that we need " +
+                      "you to sign up — so we know who to send the analysis to."
+                  ).map((line, i) => (
+                    <TextBubble key={`auth-ask-${i}`}>{line}</TextBubble>
+                  ))}
+                </>
+              ) : null
+            }
+            bottomOverride={
+              phase === "metrics_ask" ? (
+                <div className="flex w-full flex-col items-center gap-2">
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={handleSignUpClick}
+                    className="w-full max-w-sm rounded-full bg-primary text-primary-foreground hover:shadow-lg"
+                  >
+                    Sign up to receive your analysis
+                  </Button>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    Free account, no card. We&apos;ll email your snippets when
+                    ready.
+                  </p>
+                </div>
+              ) : null
+            }
           />
-        )}
-
-        {/* Compiling — typing bubble in-thread while metrics are
-            being assembled. No separate loading page per spec. */}
-        {phase === "compiling" && (
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
-            <TextBubble>
-              Got it — your 30 seconds are in. Compiling your acoustic
-              profile…
-            </TextBubble>
-            <TypingBubble />
-          </div>
-        )}
-
-        {/* Metrics + auth ask — raw numbers in-chat, signup CTA
-            replaces the mic. The auth-ask copy is run through the
-            75-char splitter at render time so a copy change can't
-            accidentally produce a wall-of-text bubble. */}
-        {phase === "metrics_ask" && metricsSnapshot && (
-          <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
-              <AcousticMetricsBubble metrics={metricsSnapshot} />
-              {splitAiBubbleText(
-                "We need a human to give meaning to that raw data, " +
-                  "and then we'll get back to you. For that we need " +
-                  "you to sign up — so we know who to send the analysis to."
-              ).map((line, i) => (
-                <TextBubble key={`auth-ask-${i}`}>{line}</TextBubble>
-              ))}
-            </div>
-            <div className="flex shrink-0 flex-col items-center gap-2 pb-4">
-              <Button
-                type="button"
-                size="lg"
-                onClick={handleSignUpClick}
-                className="w-full max-w-sm rounded-full bg-primary text-primary-foreground hover:shadow-lg"
-              >
-                Sign up to receive your analysis
-              </Button>
-              <p className="text-[10px] leading-tight text-muted-foreground">
-                Free account, no card. We&apos;ll email your snippets when
-                ready.
-              </p>
-            </div>
-          </div>
         )}
 
         {phase === "reviewing" && activeSessionId && (

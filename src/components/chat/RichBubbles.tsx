@@ -2,13 +2,9 @@
 
 import {
   Activity,
-  ChevronDown,
-  Eye,
   Gauge,
   Loader2,
   Send,
-  Sparkles,
-  Trash2,
   Waves,
 } from "lucide-react";
 import { useState, type KeyboardEvent } from "react";
@@ -19,12 +15,12 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 /* -------------------------------------------------------------------------- */
 /*  Rich chat bubbles — the in-chat replacement for the old /results page    */
 /*                                                                            */
-/*  All four variants share a left-anchored bot-bubble look (orange "W"      */
+/*  All variants share a left-anchored bot-bubble look (orange "W"           */
 /*  avatar + rounded-2xl card) so they read as the coach talking, not as     */
 /*  modals stapled into the thread. Each variant owns its own internal       */
-/*  state where useful (e.g. observation accordion in MirrorBubble), but     */
-/*  data-fetching + write-back side effects are caller-driven so a parent    */
-/*  state machine can sequence things deterministically.                     */
+/*  state where useful, but data-fetching + write-back side effects are     */
+/*  caller-driven so a parent state machine can sequence things             */
+/*  deterministically.                                                       */
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
@@ -178,115 +174,20 @@ export function ActionBubble({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  MirrorBubble                                                              */
+/*  DashboardBubble — the Calm Anchor                                         */
 /*                                                                            */
-/*  Coach's running synthesis of the user's last few attempts. Migrated      */
-/*  from the standalone MirrorPanel — same data model, same Delete-          */
-/*  reflection affordance, just embedded in the chat thread now.             */
-/* -------------------------------------------------------------------------- */
-
-export interface MirrorBubbleData {
-  headline: string;
-  narrative: string;
-  observations: string[];
-  generatedAt: string;
-}
-
-export function MirrorBubble({
-  mirror,
-  onDelete,
-  deleting,
-}: {
-  mirror: MirrorBubbleData;
-  onDelete: () => void;
-  deleting: boolean;
-}) {
-  const [obsOpen, setObsOpen] = useState(false);
-  return (
-    <BubbleShell>
-      <header className="flex items-start gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <Sparkles className="h-3.5 w-3.5" aria-hidden />
-        </span>
-        <h3 className="font-heading text-lg leading-tight text-foreground">
-          {mirror.headline}
-        </h3>
-      </header>
-      <div className="mt-3 space-y-2 text-[13px] leading-relaxed text-foreground">
-        {mirror.narrative.split(/\n{2,}/).map((para, i) => (
-          <p key={i}>{para}</p>
-        ))}
-      </div>
-      {mirror.observations.length > 0 && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setObsOpen((v) => !v)}
-            aria-expanded={obsOpen}
-            className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Eye className="h-3 w-3" aria-hidden />
-            {obsOpen ? "Hide" : "What I'm reading"}
-            <ChevronDown
-              aria-hidden
-              className={cn(
-                "h-3 w-3 transition-transform",
-                obsOpen && "rotate-180"
-              )}
-            />
-          </button>
-          <div
-            className="grid transition-[grid-template-rows,opacity] duration-300 ease-in-out"
-            style={{
-              gridTemplateRows: obsOpen ? "1fr" : "0fr",
-              opacity: obsOpen ? 1 : 0,
-            }}
-          >
-            <div className="overflow-hidden">
-              <ul className="mt-2 space-y-1 pl-4 text-[12px] text-muted-foreground">
-                {mirror.observations.map((o, i) => (
-                  <li key={i} className="list-disc">
-                    {o}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-      <footer className="mt-3 flex items-center justify-end border-t border-border pt-2">
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting}
-          className="inline-flex items-center gap-1 text-[10px] font-medium text-destructive/80 underline-offset-2 hover:text-destructive hover:underline disabled:cursor-wait disabled:opacity-60"
-        >
-          <Trash2 className="h-3 w-3" aria-hidden />
-          {deleting ? "Deleting…" : "Delete reflection"}
-        </button>
-      </footer>
-    </BubbleShell>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  DashboardBubble                                                           */
-/*                                                                            */
-/*  Compact text-first version of the old CharismaDashboard. SVG triangle    */
-/*  and Recharts bar chart don't sit well inside a chat bubble (cramped,     */
-/*  awkward responsive behaviour), so we surface the archetype + narrative   */
-/*  + a tiny trinity row + a one-line sticky-topic stat. Anyone who wants    */
-/*  the full viz can re-introduce it as a modal later — for now this is      */
-/*  enough to anchor the review.                                             */
+/*  Drastically pared back per the "Single Surface" spec: archetype label    */
+/*  is hard-locked to "The Calm Anchor" (no per-session AI archetyping at    */
+/*  this surface), followed by the three trinity bars (POWER, WARMTH,        */
+/*  PRESENCE). No narrative, no pace, no sticky topic. The dashboard is     */
+/*  meant to be a quiet anchor, not a wall of text.                          */
 /* -------------------------------------------------------------------------- */
 
 export interface DashboardBubbleData {
-  archetype: string;
-  narrative: string;
   trinity: { power: number; warmth: number; presence: number };
-  acousticsPace: number | null;
-  stickyTopic: string | null;
 }
+
+const ARCHETYPE_LABEL = "The Calm Anchor";
 
 export function DashboardBubble({ data }: { data: DashboardBubbleData }) {
   const trinityBars: Array<[string, number]> = [
@@ -298,11 +199,8 @@ export function DashboardBubble({ data }: { data: DashboardBubbleData }) {
     <BubbleShell>
       <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-semibold text-foreground">
         <span className="dash-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-        {data.archetype}
+        {ARCHETYPE_LABEL}
       </span>
-      <blockquote className="mt-3 border-l-2 border-primary pl-3 font-heading text-[15px] italic leading-relaxed text-foreground">
-        {data.narrative}
-      </blockquote>
       <div className="mt-3 space-y-1.5">
         {trinityBars.map(([label, val]) => {
           const pct = Math.max(0, Math.min(1, val));
@@ -324,27 +222,6 @@ export function DashboardBubble({ data }: { data: DashboardBubbleData }) {
           );
         })}
       </div>
-      {(data.acousticsPace != null || data.stickyTopic) && (
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          {data.acousticsPace != null && (
-            <>
-              Avg pace{" "}
-              <span className="font-semibold tabular-nums text-foreground">
-                {Math.round(data.acousticsPace)} wpm
-              </span>
-            </>
-          )}
-          {data.acousticsPace != null && data.stickyTopic && " · "}
-          {data.stickyTopic && (
-            <>
-              Sticky topic{" "}
-              <span className="font-semibold text-foreground">
-                {data.stickyTopic}
-              </span>
-            </>
-          )}
-        </p>
-      )}
     </BubbleShell>
   );
 }

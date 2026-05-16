@@ -154,6 +154,25 @@ interface ChatInterviewProps {
    * Other phases ignore this and the prop stays undefined.
    */
   onMetricsCapture?: (metrics: Record<string, unknown>) => void;
+  /**
+   * Extra bubbles to append to the chat thread AFTER ChatInterview's
+   * own message list. Used by the parent to continuously extend the
+   * thread post-threshold (typing bubble, acoustic metrics, auth-ask
+   * copy) without unmounting ChatInterview — so the user sees one
+   * continuous conversation rather than a phase change.
+   *
+   * Renders as React children inside the same scroll container, so
+   * the existing auto-scroll-to-bottom keeps working.
+   */
+  trailingBubbles?: React.ReactNode;
+  /**
+   * When set, REPLACES the entire bottom interaction area (mic,
+   * paperclip toggle, helper text, disclaimer). Drives the "Mode C
+   * contextual button" rule from the single-surface spec — e.g. the
+   * parent renders a [Sign Up] button here in the metrics_ask phase.
+   * Null/undefined → render the normal mic + paperclip toolbar.
+   */
+  bottomOverride?: React.ReactNode;
 }
 
 const DEFAULT_AGGREGATE_THRESHOLD_SECONDS = 30;
@@ -278,6 +297,8 @@ export default function ChatInterview({
   authToken = null,
   aggregateThresholdSeconds = DEFAULT_AGGREGATE_THRESHOLD_SECONDS,
   onMetricsCapture,
+  trailingBubbles,
+  bottomOverride,
 }: ChatInterviewProps) {
   // Local alias makes the rest of the file diff-friendly with the
   // pre-parameterised version that used the bare constant.
@@ -1218,19 +1239,31 @@ export default function ChatInterview({
           </div>
         )}
 
+        {/* Parent-injected trailing bubbles. Used post-threshold to
+            extend the same thread with the typing-while-compiling
+            bubble, the AcousticMetricsBubble, and the auth-ask text
+            — keeps the conversation continuous instead of remounting
+            into a separate phase screen. */}
+        {trailingBubbles}
+
         <div ref={threadEndRef} />
       </div>
 
-      {/* Bottom: record control — pinned, never compressed.
-          Tight gap-1 so the helper text + GDPR disclaimer feel
-          attached to the mic instead of floating beneath it.
-          During the rating phase the mic is REPLACED by the
-          <RatingComposer> 1-10 button row — voice extraction
-          was too brittle for plain digits ("8" failed where
-          "8/10" worked), so the manual tap is now the primary
-          input. */}
+      {/* Bottom toolbar — single-slot per the unified-toolbar rule.
+          Order of precedence:
+            1. `bottomOverride` — parent-driven contextual button
+               (e.g. [Sign Up]). When set, NOTHING else renders here.
+            2. RatingComposer 1–10 row — when ratingPhase is asking
+               or submitting (voice rating intake was too brittle).
+            3. Default: mic OR file dropzone + paperclip toggle,
+               gated on currentQuestion + not loading + not past
+               threshold. The "Tap the mic to answer" helper was
+               removed to keep the slot pure; only the GDPR
+               disclaimer remains (anonymous guests, turn 1 only). */}
       <div className="flex shrink-0 flex-col items-center gap-1 pb-4">
-        {ratingPhase === "asking" || ratingPhase === "submitting" ? (
+        {bottomOverride ? (
+          bottomOverride
+        ) : ratingPhase === "asking" || ratingPhase === "submitting" ? (
           <RatingComposer
             onSubmit={(input) => void submitSelfRating(input)}
             submitting={ratingPhase === "submitting"}
@@ -1291,17 +1324,6 @@ export default function ChatInterview({
             </>
           )
         )}
-
-        {/* Helper text for first turn */}
-        {turnNumber === 1 &&
-          messages.length <= 1 &&
-          !uploading &&
-          !fileUploading &&
-          inputMode === "mic" && (
-            <p className="text-center text-xs text-muted-foreground">
-              Tap the mic to answer.
-            </p>
-          )}
 
         {/* "Finish & see results" — contextual chats only.
             Renders once at least one upload has captured a session_id
