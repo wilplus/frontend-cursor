@@ -53,7 +53,7 @@ function OAuthCompleteInner() {
 
     const run = async () => {
       const code = searchParams?.get("code");
-      const next = searchParams?.get("next") || "/results";
+      const next = searchParams?.get("next") || "/chat";
 
       if (!code) {
         setErrorMessage("Missing OAuth authorization code.");
