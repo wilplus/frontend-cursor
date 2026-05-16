@@ -209,6 +209,15 @@ export interface InterviewUploadResponse {
    * names ("Polish", "English"). The pill humanises both forms.
    */
   detected_language?: string | null;
+  /**
+   * NLP-detected: the user asked the AI to keep this particular
+   * recording private (e.g. "don't share this one"). Backend extracts
+   * the intent from the answer transcript and locks the snippet
+   * server-side. Frontend just pushes a confirmation bubble inline
+   * and keeps the conversation moving.
+   * Undefined / false → normal flow, no bubble inserted.
+   */
+  snippet_opted_out?: boolean | null;
 }
 
 export async function uploadInterviewAnswer(

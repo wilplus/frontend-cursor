@@ -6,6 +6,7 @@ import { Loader2, Mic, Paperclip, Upload } from "lucide-react";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
 import RatingComposer from "@/components/funnel/RatingComposer";
+import { Button } from "@/components/ui/button";
 import {
   fetchNextQuestion,
   uploadInterviewAnswer,
@@ -14,6 +15,7 @@ import {
   USER_UPLOAD_MAX_BYTES,
   GuestUploadFailure,
 } from "@/lib/api/public-client";
+import { getSharingConsent, setSharingConsent } from "@/lib/api/client";
 import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
 
 /**
@@ -358,6 +360,28 @@ export default function ChatInterview({
    *  so we can attach it to previousTurns when we eventually fetch Q2. */
   const ratingDeferredTranscriptRef = useRef<string | null>(null);
 
+  // Sharing-consent phase — one-time global question spliced AFTER the
+  // user's first rating (or first rating soft-fail), BEFORE Q2. Fires
+  // exactly once per user lifetime: gated on hasAnsweredSharingConsent,
+  // which the backend flips true when we PUT the answer. Subsequent
+  // chats skip the splice and continue straight from rating to Q2.
+  //   none       — already answered (or fetch hasn't returned yet —
+  //                we default to suppressing)
+  //   asking     — two bot bubbles posted, Yes/No action buttons live
+  //   submitting — PUT in flight (UI is optimistic; chat is moving on)
+  //   done       — consent saved (or soft-failed) — back to normal flow
+  const [consentPhase, setConsentPhase] = useState<
+    "none" | "asking" | "submitting" | "done"
+  >("none");
+  /**
+   * Default true so the prompt stays suppressed until the GET resolves.
+   * Missing one session is less bad than showing a prompt the user has
+   * already answered. Flips to false only on an explicit
+   * has_answered: false from the backend.
+   */
+  const [hasAnsweredSharingConsent, setHasAnsweredSharingConsent] =
+    useState<boolean>(true);
+
   const guestSessionIdRef = useRef<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const thresholdReachedRef = useRef(false);
@@ -382,6 +406,31 @@ export default function ChatInterview({
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loadingQuestion]);
+
+  // Sharing consent: fetch the user's current state on mount so we know
+  // whether to splice the one-time prompt after their first rating. Soft
+  // failure (404 = backend hasn't shipped the endpoint yet, network
+  // blip, etc.) keeps the default hasAnsweredSharingConsent = true and
+  // the prompt stays suppressed. The contextual chat is the only place
+  // the rating (and therefore the consent splice) can fire, so we skip
+  // the fetch entirely for guest funnels and cold-start chats.
+  useEffect(() => {
+    if (!sourceSnippetId) return;
+    let cancelled = false;
+    getSharingConsent()
+      .then((res) => {
+        if (cancelled) return;
+        if (res && res.has_answered === false) {
+          setHasAnsweredSharingConsent(false);
+        }
+      })
+      .catch(() => {
+        // Backend may not have shipped the endpoint — keep default true.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceSnippetId]);
 
   // Mount: fetch turn 1 from backend either way. Warm start
   // (initialQuestion provided) skips the network and renders the
@@ -665,6 +714,100 @@ export default function ChatInterview({
   );
 
   /**
+   * Continuation point after the rating phase ends — both the success
+   * and soft-fail paths funnel through here so the one-time sharing
+   * consent prompt gets a single, consistent splice point. If consent
+   * hasn't been answered yet, drop two bot bubbles + leave consentPhase
+   * = "asking" (the Yes/No buttons take it from here and call
+   * proceedToNextQuestion themselves). Otherwise advance to Q2 like
+   * before.
+   */
+  const continueAfterRating = useCallback(async () => {
+    if (unmountedRef.current) return;
+    if (!hasAnsweredSharingConsent) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "consent-prompt-1",
+          type: "bot",
+          content:
+            "Do you agree to share your charisma snippets globally and with your company for peer review? This helps everyone learn together.",
+        },
+      ]);
+      // Brief beat so the second bubble feels conversational instead
+      // of a wall of text dropping all at once.
+      await new Promise((r) => setTimeout(r, 700));
+      if (unmountedRef.current) return;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "consent-prompt-2",
+          type: "bot",
+          content:
+            "If you ever change your mind about a specific recording, just tell me 'don't share this one' and I'll keep it private!",
+        },
+      ]);
+      setConsentPhase("asking");
+      return;
+    }
+    await proceedToNextQuestion(ratingDeferredTranscriptRef.current ?? null);
+  }, [hasAnsweredSharingConsent, proceedToNextQuestion]);
+
+  /**
+   * Yes/No tap on the one-time consent prompt. Echoes the user's
+   * choice as a user bubble, optimistically flips the local flag so
+   * future chats skip the splice, and fires the PUT in the background.
+   * Soft-fails on PUT failure — the user has already committed in the
+   * UI; making them re-answer on a network blip is worse than missing
+   * one persistence write.
+   */
+  const handleConsentAnswer = useCallback(
+    async (optIn: boolean) => {
+      if (consentPhase !== "asking") return;
+      setConsentPhase("submitting");
+      setHasAnsweredSharingConsent(true);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `consent-answer-${Date.now()}`,
+          type: "user",
+          content: optIn
+            ? "Yes, share my snippets"
+            : "No, keep them private",
+        },
+      ]);
+
+      try {
+        await setSharingConsent(optIn);
+      } catch (err) {
+        // Soft-fail — log and move on. The user has already committed
+        // in the UI; re-prompting on a network blip is worse than
+        // missing one persistence write.
+        console.warn("setSharingConsent failed:", err);
+      }
+
+      if (unmountedRef.current) return;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "consent-ack",
+          type: "bot",
+          content: optIn
+            ? "Thanks — your snippets will help everyone learn together."
+            : "Got it, your snippets stay private.",
+        },
+      ]);
+      setConsentPhase("done");
+      await new Promise((r) => setTimeout(r, 500));
+      if (unmountedRef.current) return;
+      await proceedToNextQuestion(
+        ratingDeferredTranscriptRef.current ?? null
+      );
+    },
+    [consentPhase, proceedToNextQuestion]
+  );
+
+  /**
    * Submit the user's 1..10 self-rating ("vibe check") for the
    * snippet that booted this contextual chat. Input is the Whisper
    * transcript of the user's voice-recorded rating (e.g. "8", "I'd
@@ -757,9 +900,7 @@ export default function ChatInterview({
           setRatingPhase("done");
           await new Promise((r) => setTimeout(r, 500));
           if (unmountedRef.current) return;
-          await proceedToNextQuestion(
-            ratingDeferredTranscriptRef.current ?? null
-          );
+          await continueAfterRating();
           return;
         }
 
@@ -795,11 +936,9 @@ export default function ChatInterview({
       setRatingPhase("done");
       await new Promise((r) => setTimeout(r, 400));
       if (unmountedRef.current) return;
-      await proceedToNextQuestion(
-        ratingDeferredTranscriptRef.current ?? null
-      );
+      await continueAfterRating();
     },
-    [sourceSnippetId, proceedToNextQuestion]
+    [sourceSnippetId, continueAfterRating]
   );
 
   // (handleRatingSend deleted — voice-only rating intake removed.
@@ -1100,6 +1239,30 @@ export default function ChatInterview({
         // model wants to deliver, since the math question is no longer
         // a fixed turn the frontend can pre-emptively branch on.)
 
+        // NLP opt-out confirmation — when the backend's intent
+        // detector flagged the user's answer as "don't share this one"
+        // (or a paraphrase), surface a brief ack bubble inline and
+        // keep the linear flow going. Backend has already locked the
+        // snippet server-side; the frontend doesn't need to mutate
+        // any other state here. Skips during finalize (the goodbye
+        // bubble is more important than this confirmation).
+        if (result.snippet_opted_out && !thresholdReachedRef.current) {
+          setLoadingQuestion(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `opt-out-${Date.now()}`,
+              type: "bot",
+              content: "Done, I've locked that snippet. It won't be shared.",
+            },
+          ]);
+          // Brief beat so the ack lands distinctly, then the typing
+          // indicator returns for whatever the LLM has to say next.
+          await new Promise((r) => setTimeout(r, 600));
+          if (thresholdReachedRef.current) return;
+          setLoadingQuestion(true);
+        }
+
         // Contextual chat self-rating splice — gated on the backend's
         // requires_self_score flag. Backend decides when to ask
         // (Phase 19 frequency rules: max once per snippet, or only at
@@ -1253,9 +1416,11 @@ export default function ChatInterview({
           Order of precedence:
             1. `bottomOverride` — parent-driven contextual button
                (e.g. [Sign Up]). When set, NOTHING else renders here.
-            2. RatingComposer 1–10 row — when ratingPhase is asking
+            2. Sharing-consent Yes/No buttons — one-time, post-rating.
+               Tap-to-pick, not voice (binary choice, no transcript).
+            3. RatingComposer 1–10 row — when ratingPhase is asking
                or submitting (voice rating intake was too brittle).
-            3. Default: mic OR file dropzone + paperclip toggle,
+            4. Default: mic OR file dropzone + paperclip toggle,
                gated on currentQuestion + not loading + not past
                threshold. The "Tap the mic to answer" helper was
                removed to keep the slot pure; only the GDPR
@@ -1263,6 +1428,26 @@ export default function ChatInterview({
       <div className="flex shrink-0 flex-col items-center gap-1 pb-4">
         {bottomOverride ? (
           bottomOverride
+        ) : consentPhase === "asking" || consentPhase === "submitting" ? (
+          <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button
+              type="button"
+              onClick={() => void handleConsentAnswer(true)}
+              disabled={consentPhase === "submitting"}
+              className="rounded-full"
+            >
+              Yes, share my snippets
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleConsentAnswer(false)}
+              disabled={consentPhase === "submitting"}
+              className="rounded-full"
+            >
+              No, keep them private
+            </Button>
+          </div>
         ) : ratingPhase === "asking" || ratingPhase === "submitting" ? (
           <RatingComposer
             onSubmit={(input) => void submitSelfRating(input)}
