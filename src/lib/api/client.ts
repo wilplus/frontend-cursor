@@ -16,6 +16,7 @@ import type {
   AdminFeedbackResponse,
   UserAdminContext,
   AdminRecordingsListResponse,
+  SharingConsentResponse,
   ApiError,
 } from "./types";
 
@@ -185,6 +186,29 @@ export async function fetchUserProfile(): Promise<UserProfileResponse> {
   const { headers, credentials } = await getAuthFetchOptions();
   const res = await fetch("/api/user/profile", { headers, credentials });
   return handleResponse<UserProfileResponse>(res);
+}
+
+/**
+ * Snippet-sharing consent — one-time global question asked after the
+ * user rates their first snippet. See ChatInterview's consent splice.
+ */
+export async function getSharingConsent(): Promise<SharingConsentResponse> {
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch("/api/user/sharing-consent", { headers, credentials });
+  return handleResponse<SharingConsentResponse>(res);
+}
+
+export async function setSharingConsent(
+  opt_in: boolean
+): Promise<SharingConsentResponse> {
+  const { headers, credentials } = await getAuthFetchOptions();
+  const res = await fetch("/api/user/sharing-consent", {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    credentials,
+    body: JSON.stringify({ opt_in }),
+  });
+  return handleResponse<SharingConsentResponse>(res);
 }
 
 // Admin Feedback API Functions
