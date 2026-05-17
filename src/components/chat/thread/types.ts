@@ -94,6 +94,24 @@ export type Bubble =
 export type BubbleKind = Bubble["kind"];
 
 /**
+ * Phase state machine for the `/chat` surface. Lives here (rather
+ * than inline in `page.client.tsx`) so the pure derivation helpers
+ * in `toolbar.ts` can type their inputs without circular imports.
+ * See the matrix in `docs/PANEL-STATE-MATRIX.md` for the meaning
+ * of each phase.
+ */
+export type Phase =
+  | "loading"
+  | "onboarding"
+  | "compiling"
+  | "metrics_ask"
+  | "welcome_back"
+  | "q_and_a"
+  | "reviewing"
+  | "roleplaying"
+  | "error";
+
+/**
  * Distributed `Omit` over the discriminated union. Plain
  * `Omit<Bubble, "id">` collapses to `Pick<Bubble, keyof Bubble ∩
  * "id">` and drops every non-shared field (i.e. it returns
