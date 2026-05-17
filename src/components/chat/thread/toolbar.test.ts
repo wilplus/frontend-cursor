@@ -57,6 +57,7 @@ function baseInputs(overrides: Partial<ToolbarInputs> = {}): ToolbarInputs {
     bubbles: [],
     reviewLoadedForActiveSession: false,
     showUploadUi: false,
+    pendingFollowUp: false,
     ...overrides,
   };
 }
@@ -149,6 +150,47 @@ describe("deriveToolbar — non-recording surface", () => {
       baseInputs({ phase: "q_and_a" })
     );
     expect(result).toEqual({ kind: "qa_text", showUpload: false });
+  });
+
+  it("LI-4c: followup_text landed, pendingFollowUp → qa_text (NOT practice_cta yet)", () => {
+    // No action_pending in the thread (the last one was just replaced
+    // with the user-text echo). All other practice_cta gates pass.
+    // pendingFollowUp blocks the CTA so the composer stays mounted
+    // for the user's reply to the followup question.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        pendingFollowUp: true,
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.user_text("YES, this is Charisma"),
+          bubble.bot_text("Nice — what made you confident on that?"),
+        ],
+      })
+    );
+    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+  });
+
+  it("LI-4d: user replied to followup, queue drained → practice_cta", () => {
+    // After the reply, pendingFollowUp resets; no more snippets in
+    // the queue means no new action_pending appears, and the CTA
+    // can finally fire.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        pendingFollowUp: false,
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.user_text("YES, this is Charisma"),
+          bubble.bot_text("Nice — what made you confident on that?"),
+          bubble.user_text("Felt natural to me."),
+          bubble.bot_text("Let's look at the next moment."),
+        ],
+      })
+    );
+    expect(result).toEqual({ kind: "practice_cta" });
   });
 
   it("EF-1: reviewing, zero snippets fetched → qa_text (NOT practice_cta)", () => {

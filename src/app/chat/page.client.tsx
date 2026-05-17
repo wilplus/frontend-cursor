@@ -96,6 +96,28 @@ const PENDING_GREETING =
   "the voice analysis?";
 
 /**
+ * Bridge copy rotated between snippet reveals. Indexed round-robin
+ * by `bridgeIndexRef` so a session with more snippets than entries
+ * loops cleanly (cleaner than "Snippet 1 / 2 / 3" enumeration which
+ * leaks implementation into the chat copy). Fires after the user
+ * replies to a followup (or, in the EF-4 fallback path, right after
+ * the static "Noted —" stand-in).
+ */
+const BRIDGES = [
+  "Let's look at the next moment.",
+  "Here's another one.",
+  "And one more from your session.",
+];
+
+/**
+ * EF-4 fallback shown in place of `followup_text` when
+ * `/v2/chat/snippet-followup` returns 5xx or empty. Caller skips
+ * directly to the bridge + next-snippet reveal — never blocks the
+ * user on a per-snippet network error.
+ */
+const FOLLOWUP_FALLBACK = "Noted — let's keep going.";
+
+/**
  * Helper — fan one logical AI text out into N bot bubbles, each ≤75
  * chars (Rule F). KB-sourced /v2/chat/query answers still pass
  * through this — the Master-Doc exemption is on COMPRESSION (the
@@ -212,6 +234,31 @@ export default function ChatPageClient({
   /** True while a user-initiated file upload is in flight. Disables
    *  the QAInput composer + paperclip so the user can't double-fire. */
   const [uploadingFile, setUploadingFile] = useState(false);
+  /**
+   * Serial-reveal state machine for snippet review (FE Prompt 3).
+   *
+   * `snippetQueueRef` — snippets fetched by the reviewing effect but
+   * NOT yet revealed in the thread. Drains one at a time. We use a
+   * ref (not state) because the mutations are paired with bubble
+   * appends that already drive the UI re-render; tracking the queue
+   * in React state would just double the work.
+   *
+   * `pendingFollowUp` — set true the moment the `/v2/chat/snippet-
+   * followup` response lands and its bubble is in the thread. The
+   * composer routes the next user submit to `handleFollowUpReply`
+   * (which appends the reply + a bridge bubble + reveals the next
+   * snippet) instead of the default `/chat/query`. Reset by
+   * `handleFollowUpReply` after it processes the reply. Also passed
+   * to `deriveToolbar` so `practice_cta` waits for the followup
+   * chain to drain (matrix rows LI-4c / LI-4d).
+   *
+   * `bridgeIndexRef` — round-robin index into BRIDGES. Incremented
+   * each time a bridge string is appended (both the happy
+   * "user-replied" path and the EF-4 followup-error fallback path).
+   */
+  const snippetQueueRef = useRef<SnippetPlayerData[]>([]);
+  const [pendingFollowUp, setPendingFollowUp] = useState(false);
+  const bridgeIndexRef = useRef(0);
 
   // Loop guard runs ONLY for the param-less /chat. With `?session=` in
   // the URL we're deliberately deep-linked; the guard would yank us
@@ -341,6 +388,37 @@ export default function ChatPageClient({
     return () => clearTimeout(t);
   }, [phase]);
 
+  /**
+   * Reveal the next snippet in `snippetQueueRef` into the thread.
+   * Appends a `snippet` bubble + a fresh `action_pending` bubble and
+   * registers the action-bubble id in `actionBubbleInfoRef` so the
+   * inline YES/NO handler can look it up on click. No-op when the
+   * queue is empty — that's how the chain drains. Called from the
+   * reviewing-fetch landing AND from `handleFollowUpReply` /
+   * `handleSnippetLabel`'s EF-4 fallback path.
+   */
+  const revealNextSnippet = useCallback(() => {
+    const next = snippetQueueRef.current.shift();
+    if (!next) return;
+    appendBubble({ kind: "snippet", data: next });
+    const bid = appendBubble({
+      kind: "action_pending",
+      snippetId: next.id,
+      snippetType: next.type,
+      submitting: false,
+    });
+    actionBubbleInfoRef.current.set(next.id, {
+      bubbleId: bid,
+      snippetType: next.type,
+    });
+  }, [appendBubble]);
+
+  const appendBridge = useCallback(() => {
+    const idx = bridgeIndexRef.current % BRIDGES.length;
+    bridgeIndexRef.current += 1;
+    for (const b of botBubblesFromText(BRIDGES[idx])) appendBubble(b);
+  }, [appendBubble]);
+
   /* ---------------------------------------------------------------------- */
   /*  Reviewing transition — inlined ChatReview fetch + emit                */
   /*                                                                          */
@@ -403,20 +481,11 @@ export default function ChatPageClient({
             appendBubble(b);
           }
         } else {
-          for (const raw of snippets) {
-            const snippet = mapBackendSnippet(raw);
-            appendBubble({ kind: "snippet", data: snippet });
-            const bubbleId = appendBubble({
-              kind: "action_pending",
-              snippetId: snippet.id,
-              snippetType: snippet.type,
-              submitting: false,
-            });
-            actionBubbleInfoRef.current.set(snippet.id, {
-              bubbleId,
-              snippetType: snippet.type,
-            });
-          }
+          // Serial reveal: queue ALL snippets, reveal only #1. The
+          // followup chain (label → /chat/snippet-followup → user
+          // reply → bridge → revealNextSnippet) drains the queue.
+          snippetQueueRef.current = snippets.map(mapBackendSnippet);
+          revealNextSnippet();
         }
       } catch (err) {
         if (cancelled) return;
@@ -438,14 +507,28 @@ export default function ChatPageClient({
   /* ---------------------------------------------------------------------- */
   /*  Snippet-label resolution                                               */
   /*                                                                          */
-  /*  On YES/NO click inside an action_pending bubble: POST the user label  */
-  /*  to /api/v2/user/snippets/<id>/label, REPLACE the action bubble with   */
-  /*  a right-anchored user-text echo of the chosen option, and leave the   */
-  /*  snippet bubble above it intact so the thread reads chronologically.   */
-  /*  Looks up the bubble id + snippetType from `actionBubbleInfoRef` —    */
-  /*  the ref is populated when the reviewing fetch effect appends the      */
-  /*  action bubble; deleted on successful replace so a duplicate click     */
-  /*  (event-bus race) no-ops.                                              */
+  /*  On YES/NO click inside an action_pending bubble, run the full per-     */
+  /*  snippet chain:                                                          */
+  /*                                                                          */
+  /*    1. POST /api/v2/user/snippets/<id>/label                            */
+  /*       (existing label store — keeps RLHF / training data intact).      */
+  /*    2. REPLACE the action bubble with a right-anchored user-text echo   */
+  /*       of the chosen option (labelText).                                */
+  /*    3. APPEND a typing bubble.                                            */
+  /*    4. POST /api/v2/chat/snippet-followup with the AGREEMENT bool       */
+  /*       (see matrix "Pinned semantics" — `agreement = clickedLabel ===   */
+  /*       snippetType`).                                                    */
+  /*    5a. On 200 with non-empty followup_text:                            */
+  /*        REPLACE the typing bubble with bubble-split followup_text and  */
+  /*        setPendingFollowUp(true). The next QAInput submit routes to    */
+  /*        handleFollowUpReply (matrix row LI-4c).                         */
+  /*    5b. On 5xx or empty (matrix row EF-4): REPLACE the typing with    */
+  /*        the static FOLLOWUP_FALLBACK, then bridge + revealNextSnippet —*/
+  /*        the user must never get stuck on a per-snippet network error.  */
+  /*                                                                          */
+  /*  Bubble-id lookup comes from `actionBubbleInfoRef` — populated by     */
+  /*  revealNextSnippet, deleted here after the user-text replace so a     */
+  /*  stale duplicate click no-ops.                                         */
   /* ---------------------------------------------------------------------- */
   const handleSnippetLabel = useCallback(
     async (snippetId: string, value: "charisma" | "stress") => {
@@ -462,8 +545,21 @@ export default function ChatPageClient({
           : isCharismaAgreement
           ? "NO, this is Stress"
           : "NO, this is Charisma";
+      // Translation rule pinned in PANEL-STATE-MATRIX.md: the bool
+      // we send to /v2/chat/snippet-followup means "did the user
+      // AGREE with the AI's classification?".
+      const agreement = value === snippetType;
 
+      // qaSubmitting locks the QAInput composer across the entire
+      // chain (matrix row LI-4a/LI-4b "composer disabled while POST
+      // in flight"). Reset in every terminal branch below.
       updateBubble(bubbleId, { submitting: true });
+      setQaSubmitting(true);
+
+      // Step 1 — existing label POST. If this fails we roll back the
+      // submitting flag and bail; followup endpoint only fires on a
+      // successful label commit.
+      let labelOk = false;
       try {
         const res = await fetch(
           `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/label`,
@@ -473,22 +569,82 @@ export default function ChatPageClient({
             body: JSON.stringify({ user_label: value }),
           }
         );
-        if (!res.ok) {
-          // Roll back submitting so user can retry.
-          updateBubble(bubbleId, { submitting: false });
-          return;
-        }
-        // Success — swap the action bubble for a user-text echo of the
-        // chosen label. Clear the ref so any stray subsequent click is
-        // a no-op (the bubble is gone anyway).
-        replaceBubble(bubbleId, { kind: "user_text", text: labelText });
-        actionBubbleInfoRef.current.delete(snippetId);
+        labelOk = res.ok;
       } catch (err) {
         console.warn("label POST failed:", err);
-        updateBubble(bubbleId, { submitting: false });
       }
+      if (!labelOk) {
+        updateBubble(bubbleId, { submitting: false });
+        setQaSubmitting(false);
+        return;
+      }
+
+      // Step 2 — user-text echo of the clicked label.
+      replaceBubble(bubbleId, { kind: "user_text", text: labelText });
+      actionBubbleInfoRef.current.delete(snippetId);
+
+      // Step 3 — typing bubble while the followup roundtrip is in flight.
+      const typingId = appendBubble({ kind: "typing" });
+
+      // Step 4 — POST /v2/chat/snippet-followup.
+      let followup = "";
+      try {
+        const res = await fetch("/api/v2/chat/snippet-followup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            snippet_id: snippetId,
+            user_label: agreement,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json().catch(() => ({}))) as {
+            followup_text?: string;
+          };
+          if (typeof data.followup_text === "string") {
+            followup = data.followup_text.trim();
+          }
+        }
+      } catch (err) {
+        console.warn("snippet-followup POST failed:", err);
+      }
+
+      if (followup) {
+        // 5a — happy path. Replace typing with the followup text and
+        // hand control to the user; their next composer submit will
+        // route through handleFollowUpReply.
+        replaceBubble(typingId, botBubblesFromText(followup));
+        setPendingFollowUp(true);
+        setQaSubmitting(false);
+        return;
+      }
+
+      // 5b — EF-4 fallback. Skip directly to bridge + next reveal so
+      // the user never blocks on a transient backend issue.
+      replaceBubble(typingId, botBubblesFromText(FOLLOWUP_FALLBACK));
+      appendBridge();
+      revealNextSnippet();
+      setQaSubmitting(false);
     },
-    [updateBubble, replaceBubble]
+    [updateBubble, replaceBubble, appendBubble, appendBridge, revealNextSnippet]
+  );
+
+  /**
+   * Composer submit during the followup-shown window (matrix row
+   * LI-4d). Routes the user's reply into the thread instead of
+   * `/chat/query`: append the user_text + a bridge bubble + reveal
+   * the next snippet (or, if the queue is empty, allow deriveToolbar
+   * to flip to `practice_cta` automatically). Resets pendingFollowUp
+   * so subsequent composer submits go back to /chat/query.
+   */
+  const handleFollowUpReply = useCallback(
+    (reply: string) => {
+      appendBubble({ kind: "user_text", text: reply });
+      appendBridge();
+      setPendingFollowUp(false);
+      revealNextSnippet();
+    },
+    [appendBubble, appendBridge, revealNextSnippet]
   );
 
   /* ---------------------------------------------------------------------- */
@@ -615,6 +771,25 @@ export default function ChatPageClient({
       }
     },
     [qaSubmitting, activeSessionId, appendBubble, replaceBubble]
+  );
+
+  /**
+   * Single composer submit handler — routes the user's text to
+   * either the followup-reply handler (during the LI-4c/LI-4d
+   * window) or the default /chat/query. This is the only function
+   * `QAInput`'s onSubmit prop binds to, so the surface-level
+   * routing decision is centralised here and the matrix-tested
+   * `pendingFollowUp` flag is the sole switch.
+   */
+  const handleComposerSubmit = useCallback(
+    (text: string) => {
+      if (pendingFollowUp) {
+        handleFollowUpReply(text);
+        return;
+      }
+      void handleQASend(text);
+    },
+    [pendingFollowUp, handleFollowUpReply, handleQASend]
   );
 
   /**
@@ -816,6 +991,7 @@ export default function ChatPageClient({
                 reviewLoadedForActiveSession:
                   reviewLoadedRef.current === activeSessionId,
                 showUploadUi,
+                pendingFollowUp,
               });
               switch (mode.kind) {
                 case "none":
@@ -837,7 +1013,7 @@ export default function ChatPageClient({
                   return (
                     <div className="flex shrink-0 justify-center pb-4">
                       <QAInput
-                        onSubmit={handleQASend}
+                        onSubmit={handleComposerSubmit}
                         submitting={qaSubmitting}
                         onUploadFile={
                           mode.showUpload ? handleQAFileUpload : undefined
