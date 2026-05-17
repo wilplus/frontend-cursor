@@ -13,8 +13,9 @@ import {
   type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
 import ThreadView from "@/components/chat/thread/ThreadView";
+import { deriveToolbar } from "@/components/chat/thread/toolbar";
 import { useThread } from "@/components/chat/thread/useThread";
-import type { BubbleInput } from "@/components/chat/thread/types";
+import type { BubbleInput, Phase } from "@/components/chat/thread/types";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
@@ -68,17 +69,6 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 /*    roleplaying    — 120s practice ChatInterview, new session              */
 /*    error          — rate-limit / funnel-disabled / fatal load failure    */
 /* -------------------------------------------------------------------------- */
-
-type Phase =
-  | "loading"
-  | "onboarding"
-  | "compiling"
-  | "metrics_ask"
-  | "welcome_back"
-  | "q_and_a"
-  | "reviewing"
-  | "roleplaying"
-  | "error";
 
 const POLL_INTERVAL_MS = 5_000;
 const ROLEPLAY_CAP_SECONDS = 120;
@@ -811,66 +801,52 @@ export default function ChatPageClient({
           phase === "reviewing") && (
           <div className="flex flex-1 flex-col gap-3 overflow-hidden">
             <ThreadView bubbles={bubbles} onActionSelect={handleSnippetLabel} />
-            {/* Strict bottom toolbar state machine — single slot,
-                mutually exclusive. Order of precedence:
-                  Override A1 — Practice CTA (all snippets resolved,
-                    reviewing phase ready for handoff)
-                  Override B  — Upload icon (show_upload_ui)
-                  Default     — Q&A text composer (default for the
-                    non-recording surface). Note: spec calls for
-                    the mic to be the global default, but until
-                    voice-Q&A backend support exists we keep the
-                    QAInput as the de-facto default for this
-                    surface so the user can ask questions today.
-                The welcome_back phase shows no bottom — those two
-                bubbles are read-only for ~400ms before the
-                q_and_a transition mounts the composer. */}
+            {/* Bottom-toolbar slot is derived from a pure function —
+                see `deriveToolbar` (and its unit tests against the
+                PANEL-STATE-MATRIX rows). Single source of truth for
+                the toolbar mode; this JSX just renders the chosen
+                variant. Per Rule G the paperclip is gated on the
+                per-turn `showUploadUi` flag; while ActionBubbles
+                are pending the qa_text composer stays mounted but
+                the user's attention is on the inline YES/NO. */}
             {(() => {
-              if (phase === "welcome_back") return null;
-
-              const pendingActions = bubbles.filter(
-                (b) => b.kind === "action_pending"
-              );
-              const reviewReadyForPractice =
-                phase === "reviewing" &&
-                reviewLoadedRef.current === activeSessionId &&
-                pendingActions.length === 0 &&
-                bubbles.some((b) => b.kind === "snippet");
-
-              if (reviewReadyForPractice) {
-                return (
-                  <div className="shrink-0 px-4 pb-4 pt-2">
-                    <Button
-                      type="button"
-                      size="lg"
-                      onClick={handlePracticeStart}
-                      className="w-full rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground hover:shadow-lg sm:mx-auto sm:flex sm:w-auto"
-                    >
-                      Start practice (2 min)
-                    </Button>
-                  </div>
-                );
+              const mode = deriveToolbar({
+                phase,
+                bubbles,
+                reviewLoadedForActiveSession:
+                  reviewLoadedRef.current === activeSessionId,
+                showUploadUi,
+              });
+              switch (mode.kind) {
+                case "none":
+                  return null;
+                case "practice_cta":
+                  return (
+                    <div className="shrink-0 px-4 pb-4 pt-2">
+                      <Button
+                        type="button"
+                        size="lg"
+                        onClick={handlePracticeStart}
+                        className="w-full rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground hover:shadow-lg sm:mx-auto sm:flex sm:w-auto"
+                      >
+                        Start practice (2 min)
+                      </Button>
+                    </div>
+                  );
+                case "qa_text":
+                  return (
+                    <div className="flex shrink-0 justify-center pb-4">
+                      <QAInput
+                        onSubmit={handleQASend}
+                        submitting={qaSubmitting}
+                        onUploadFile={
+                          mode.showUpload ? handleQAFileUpload : undefined
+                        }
+                        uploading={uploadingFile}
+                      />
+                    </div>
+                  );
               }
-
-              // Default (Q&A composer). Native <input type="file">
-              // paperclip lives inside QAInput, gated on
-              // showUploadUi per Rule G. While ActionBubbles are
-              // pending the composer stays mounted but the user's
-              // attention is on the inline YES/NO; that's fine —
-              // the composer is the only "neutral" bottom mode the
-              // user has on this surface.
-              return (
-                <div className="flex shrink-0 justify-center pb-4">
-                  <QAInput
-                    onSubmit={handleQASend}
-                    submitting={qaSubmitting}
-                    onUploadFile={
-                      showUploadUi ? handleQAFileUpload : undefined
-                    }
-                    uploading={uploadingFile}
-                  />
-                </div>
-              );
             })()}
           </div>
         )}
