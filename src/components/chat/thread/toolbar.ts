@@ -55,6 +55,15 @@ export interface ToolbarInputs {
    * to the qa_text mode.
    */
   showUploadUi: boolean;
+  /**
+   * True between snippet-followup landing and the user replying.
+   * Blocks `practice_cta` — even when no action_pending remains,
+   * the user owes a reply to the followup question and the
+   * composer must stay mounted. Caller resets this once the
+   * reply is handled (and the next snippet, if any, has been
+   * revealed). Matrix rows LI-4c / LI-4d.
+   */
+  pendingFollowUp: boolean;
 }
 
 const RECORDING_PHASES: ReadonlySet<Phase> = new Set<Phase>([
@@ -71,7 +80,13 @@ const TOOLBAR_LESS_PHASES: ReadonlySet<Phase> = new Set<Phase>([
 ]);
 
 export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
-  const { phase, bubbles, reviewLoadedForActiveSession, showUploadUi } = inputs;
+  const {
+    phase,
+    bubbles,
+    reviewLoadedForActiveSession,
+    showUploadUi,
+    pendingFollowUp,
+  } = inputs;
 
   // Recording phases — ChatInterview owns the bottom row. Caller
   // should not render a toolbar in this case.
@@ -97,7 +112,8 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
     phase === "reviewing" &&
     reviewLoadedForActiveSession &&
     !hasPendingAction &&
-    hasAnySnippet;
+    hasAnySnippet &&
+    !pendingFollowUp;
 
   if (reviewReadyForPractice) return { kind: "practice_cta" };
 
