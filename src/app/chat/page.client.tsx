@@ -6,16 +6,15 @@ import { Loader2 } from "lucide-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import {
   AcousticMetricsBubble,
-  ActionBubble,
-  DashboardBubble,
   QAInput,
-  SnippetPlayerBubble,
   TextBubble,
   TypingBubble,
   type AcousticMetricsBubbleData,
-  type DashboardBubbleData,
   type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
+import ThreadView from "@/components/chat/thread/ThreadView";
+import { useThread } from "@/components/chat/thread/useThread";
+import type { BubbleInput } from "@/components/chat/thread/types";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/api/auth-client";
@@ -41,9 +40,10 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 /*  phases (onboarding, compiling, metrics_ask, roleplaying) since it owns  */
 /*  the mic engine + threshold logic. Every OTHER phase (welcome_back,      */
 /*  q_and_a, reviewing) renders bubbles inline from a SINGLE shared         */
-/*  `threadMessages: ThreadMessage[]` array — same array, same renderer,    */
-/*  whether the user is reading welcome bubbles, asking Q&A questions, or  */
-/*  reviewing snippets. ChatReview has been deleted.                        */
+/*  `bubbles: Bubble[]` array owned by `useThread` — same array, same       */
+/*  ThreadView renderer, whether the user is reading welcome bubbles,       */
+/*  asking Q&A questions, or reviewing snippets. ChatReview has been        */
+/*  deleted.                                                                */
 /*                                                                            */
 /*  The bottom toolbar is a strict state machine — see `bottomMode` below.  */
 /*                                                                            */
@@ -61,7 +61,7 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 /*                         live Q&A composer + background polling           */
 /*                     (c) post-publish snippet review — snippet/action/    */
 /*                         dashboard bubbles are pushed into the same       */
-/*                         threadMessages array as Q&A text                 */
+/*                         bubbles array as Q&A text                        */
 /*    reviewing      — pure state marker; uses the same render path as     */
 /*                     q_and_a. Transition target for the polling effect   */
 /*                     so the parent knows to fetch + emit snippet bubbles. */
@@ -92,34 +92,10 @@ const ONBOARDING_CAP_SECONDS = 30;
 const COMPILE_DELAY_MS = 1500;
 
 /**
- * Unified thread-message shape — ONE array carries every non-
- * recording bubble (welcome bubbles, Q&A text from either side, KB
- * answers, dashboard, snippet players, pending YES/NO actions, the
- * user-text echo of a resolved action, and upload-status updates).
- * Reviewing-phase bubbles append to the SAME array the user was
- * already reading their welcome / Q&A bubbles from, so the chat
- * stays chronologically continuous without any component swap.
- *
- * Recording-flow bubbles (AI questions, user-audio) still live
- * inside <ChatInterview> for the recording phases — see the
- * architecture header above.
+ * Bubble shape lives in @/components/chat/thread/types now —
+ * shared across this surface AND (in FE Prompt 1b) ChatInterview.
+ * See `Bubble` for the full discriminated union.
  */
-type ThreadMessage =
-  | { kind: "bot_text"; id: string; text: string }
-  | { kind: "user_text"; id: string; text: string }
-  | { kind: "dashboard"; id: string; data: DashboardBubbleData }
-  | { kind: "snippet"; id: string; data: SnippetPlayerData }
-  | {
-      kind: "action_pending";
-      id: string;
-      /** Snippet whose label this action resolves — passed back to
-       *  the parent's POST so the right row updates. */
-      snippetId: string;
-      /** Snippet type drives YES/NO copy + which value is the
-       *  "agreement" branch. */
-      snippetType: "charisma" | "stress";
-      submitting: boolean;
-    };
 
 /** Greeting copy shown to a returning user whose session is still
  *  processing — keeps them in the active Q&A surface instead of a
@@ -135,12 +111,14 @@ const PENDING_GREETING =
  * through this — the Master-Doc exemption is on COMPRESSION (the
  * model must not shorten grounded content to hit 75 chars), not on
  * visual segmentation, so long answers still get bubble-split here.
+ *
+ * Returns bubbles WITHOUT ids — `useThread`'s appendBubble generates
+ * client-UUID ids at append time. Callers iterate and append each.
  */
-function botBubblesFromText(text: string, idPrefix: string): ThreadMessage[] {
+function botBubblesFromText(text: string): BubbleInput[] {
   const chunks = splitAiBubbleText(text);
-  return chunks.map((t, i) => ({
+  return chunks.map((t) => ({
     kind: "bot_text" as const,
-    id: chunks.length === 1 ? idPrefix : `${idPrefix}-${i}`,
     text: t,
   }));
 }
@@ -208,8 +186,28 @@ export default function ChatPageClient({
   const [metricsSnapshot, setMetricsSnapshot] =
     useState<AcousticMetricsBubbleData | null>(null);
 
-  /* Q&A composer state ---------------------------------------------------- */
-  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  /* Unified bubble thread — one array, one source of truth, mounted
+     once via useThread. Every non-recording bubble (welcome,
+     pending greeting, Q&A text, KB answers, dashboard, snippets,
+     action prompts, upload status) lives here. ChatInterview's
+     recording bubbles still live in its internal state for now;
+     FE Prompt 1b lifts those too. */
+  const {
+    bubbles,
+    appendBubble,
+    updateBubble,
+    replaceBubble,
+    clearBubbles,
+  } = useThread();
+  /** Map of snippetId → action-bubble info ({id, snippetType}), so the
+   *  inline ThreadView onActionSelect handler can route a click into
+   *  the existing `submitting` / replace-with-user-text-echo lifecycle
+   *  without scanning the bubbles array. snippetType is mirrored here
+   *  because the action_pending bubble itself is removed on replace,
+   *  but the label-text echo computation needs it. */
+  const actionBubbleInfoRef = useRef<
+    Map<string, { bubbleId: string; snippetType: "charisma" | "stress" }>
+  >(new Map());
   const [qaSubmitting, setQaSubmitting] = useState(false);
   /**
    * Per-turn upload-intent signal from /v2/chat/query (Rule G).
@@ -262,7 +260,8 @@ export default function ChatPageClient({
       // before the greeting ever paints. Greeting is run through the
       // 75-char bubble splitter so a long string fans out into
       // multiple snappy bubbles.
-      setThreadMessages(botBubblesFromText(PENDING_GREETING, "pending"));
+      clearBubbles();
+      for (const b of botBubblesFromText(PENDING_GREETING)) appendBubble(b);
       setPhase("q_and_a");
       return;
     }
@@ -280,16 +279,17 @@ export default function ChatPageClient({
     // consistency — "Thanks, check…" fits in one bubble, the longer
     // "Do you have any questions…" question splits into two snappy
     // beats.
-    setThreadMessages([
-      ...botBubblesFromText(
-        "Thanks, check your email in a few hours.",
-        "welcome-1"
-      ),
-      ...botBubblesFromText(
-        "Do you have any questions or would you like to know more about the voice analysis?",
-        "welcome-2"
-      ),
-    ]);
+    clearBubbles();
+    for (const b of botBubblesFromText(
+      "Thanks, check your email in a few hours."
+    )) {
+      appendBubble(b);
+    }
+    for (const b of botBubblesFromText(
+      "Do you have any questions or would you like to know more about the voice analysis?"
+    )) {
+      appendBubble(b);
+    }
     // Tiny breath so the user reads "Thanks…" before the input row
     // mounts; otherwise it feels abrupt.
     const t = setTimeout(() => setPhase("q_and_a"), 400);
@@ -357,7 +357,7 @@ export default function ChatPageClient({
   /*  When the polling effect promotes phase to "reviewing", THIS effect    */
   /*  fetches the published snippets + Calm-Anchor trinity once, then       */
   /*  appends each snippet (as a snippet bubble + pending action bubble)    */
-  /*  to the SAME threadMessages array the user was already reading their  */
+  /*  to the SAME bubbles array the user was already reading their         */
   /*  pending-greeting / welcome bubbles from. No component swap; the      */
   /*  thread stays continuous. Idempotent guard via a ref so an effect     */
   /*  re-fire doesn't double-append.                                       */
@@ -377,13 +377,11 @@ export default function ChatPageClient({
         );
         if (cancelled) return;
         if (!res.ok) {
-          setThreadMessages((prev) => [
-            ...prev,
-            ...botBubblesFromText(
-              "Couldn't load this session's snippets.",
-              `review-error-${Date.now()}`
-            ),
-          ]);
+          for (const b of botBubblesFromText(
+            "Couldn't load this session's snippets."
+          )) {
+            appendBubble(b);
+          }
           return;
         }
         const data = (await res.json()) as {
@@ -394,12 +392,9 @@ export default function ChatPageClient({
         };
         if (cancelled) return;
 
-        const additions: ThreadMessage[] = [];
-
         if (data.charisma_profile?.trinity) {
-          additions.push({
+          appendBubble({
             kind: "dashboard",
-            id: `dashboard-${activeSessionId}`,
             data: {
               trinity: {
                 power: data.charisma_profile.trinity.power ?? 0,
@@ -412,41 +407,35 @@ export default function ChatPageClient({
 
         const snippets = Array.isArray(data.snippets) ? data.snippets : [];
         if (snippets.length === 0) {
-          additions.push(
-            ...botBubblesFromText(
-              "No snippets came through for this session — your coach is still preparing your insights.",
-              `review-empty-${activeSessionId}`
-            )
-          );
+          for (const b of botBubblesFromText(
+            "No snippets came through for this session — your coach is still preparing your insights."
+          )) {
+            appendBubble(b);
+          }
         } else {
           for (const raw of snippets) {
             const snippet = mapBackendSnippet(raw);
-            additions.push({
-              kind: "snippet",
-              id: `snippet-${snippet.id}`,
-              data: snippet,
-            });
-            additions.push({
+            appendBubble({ kind: "snippet", data: snippet });
+            const bubbleId = appendBubble({
               kind: "action_pending",
-              id: `action-${snippet.id}`,
               snippetId: snippet.id,
               snippetType: snippet.type,
               submitting: false,
             });
+            actionBubbleInfoRef.current.set(snippet.id, {
+              bubbleId,
+              snippetType: snippet.type,
+            });
           }
         }
-
-        setThreadMessages((prev) => [...prev, ...additions]);
       } catch (err) {
         if (cancelled) return;
         console.warn("reviewing fetch failed:", err);
-        setThreadMessages((prev) => [
-          ...prev,
-          ...botBubblesFromText(
-            "Couldn't load this session's snippets.",
-            `review-error-${Date.now()}`
-          ),
-        ]);
+        for (const b of botBubblesFromText(
+          "Couldn't load this session's snippets."
+        )) {
+          appendBubble(b);
+        }
       }
     };
 
@@ -463,16 +452,28 @@ export default function ChatPageClient({
   /*  to /api/v2/user/snippets/<id>/label, REPLACE the action bubble with   */
   /*  a right-anchored user-text echo of the chosen option, and leave the   */
   /*  snippet bubble above it intact so the thread reads chronologically.   */
+  /*  Looks up the bubble id + snippetType from `actionBubbleInfoRef` —    */
+  /*  the ref is populated when the reviewing fetch effect appends the      */
+  /*  action bubble; deleted on successful replace so a duplicate click     */
+  /*  (event-bus race) no-ops.                                              */
   /* ---------------------------------------------------------------------- */
   const handleSnippetLabel = useCallback(
-    async (snippetId: string, value: string, labelText: string) => {
-      setThreadMessages((prev) =>
-        prev.map((m) =>
-          m.kind === "action_pending" && m.snippetId === snippetId
-            ? { ...m, submitting: true }
-            : m
-        )
-      );
+    async (snippetId: string, value: "charisma" | "stress") => {
+      const info = actionBubbleInfoRef.current.get(snippetId);
+      if (!info) return;
+      const { bubbleId, snippetType } = info;
+
+      const isCharismaAgreement = snippetType === "charisma";
+      const labelText =
+        value === snippetType
+          ? isCharismaAgreement
+            ? "YES, this is Charisma"
+            : "YES, this is Stress"
+          : isCharismaAgreement
+          ? "NO, this is Stress"
+          : "NO, this is Charisma";
+
+      updateBubble(bubbleId, { submitting: true });
       try {
         const res = await fetch(
           `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/label`,
@@ -484,41 +485,20 @@ export default function ChatPageClient({
         );
         if (!res.ok) {
           // Roll back submitting so user can retry.
-          setThreadMessages((prev) =>
-            prev.map((m) =>
-              m.kind === "action_pending" && m.snippetId === snippetId
-                ? { ...m, submitting: false }
-                : m
-            )
-          );
+          updateBubble(bubbleId, { submitting: false });
           return;
         }
-        // Success — swap the action bubble for a user-text echo.
-        setThreadMessages((prev) =>
-          prev.flatMap((m) =>
-            m.kind === "action_pending" && m.snippetId === snippetId
-              ? [
-                  {
-                    kind: "user_text" as const,
-                    id: `user-label-${snippetId}`,
-                    text: labelText,
-                  },
-                ]
-              : [m]
-          )
-        );
+        // Success — swap the action bubble for a user-text echo of the
+        // chosen label. Clear the ref so any stray subsequent click is
+        // a no-op (the bubble is gone anyway).
+        replaceBubble(bubbleId, { kind: "user_text", text: labelText });
+        actionBubbleInfoRef.current.delete(snippetId);
       } catch (err) {
         console.warn("label POST failed:", err);
-        setThreadMessages((prev) =>
-          prev.map((m) =>
-            m.kind === "action_pending" && m.snippetId === snippetId
-              ? { ...m, submitting: false }
-              : m
-          )
-        );
+        updateBubble(bubbleId, { submitting: false });
       }
     },
-    []
+    [updateBubble, replaceBubble]
   );
 
   /* ---------------------------------------------------------------------- */
@@ -590,12 +570,11 @@ export default function ChatPageClient({
   const handleQASend = useCallback(
     async (question: string) => {
       if (qaSubmitting) return;
-      const userMsg: ThreadMessage = {
-        kind: "user_text",
-        id: `u-${Date.now()}`,
-        text: question,
-      };
-      setThreadMessages((prev) => [...prev, userMsg]);
+      // 1) optimistic user bubble, 2) typing placeholder that gets
+      // 1:N replaced with the answer chunks on completion. Keeps the
+      // thread auto-scrolled and avoids a separate floating indicator.
+      appendBubble({ kind: "user_text", text: question });
+      const typingId = appendBubble({ kind: "typing" });
       setQaSubmitting(true);
       try {
         const res = await fetch("/api/v2/chat/query", {
@@ -624,28 +603,19 @@ export default function ChatPageClient({
           // preserved end-to-end — splitAiBubbleText only inserts
           // chunk boundaries at sentence/clause breaks, never drops
           // a word.
-          setThreadMessages((prev) => [
-            ...prev,
-            ...botBubblesFromText(data.answer!, `b-${Date.now()}`),
-          ]);
+          replaceBubble(typingId, botBubblesFromText(data.answer));
         } else {
           // Backend error envelope — this IS first-party AI copy, so
           // it follows the 75-char rule like every other bot bubble.
           const fallback =
             data.error ?? "Couldn't reach the coach. Try again in a moment.";
-          setThreadMessages((prev) => [
-            ...prev,
-            ...botBubblesFromText(fallback, `b-${Date.now()}`),
-          ]);
+          replaceBubble(typingId, botBubblesFromText(fallback));
         }
       } catch {
-        setThreadMessages((prev) => [
-          ...prev,
-          ...botBubblesFromText(
-            "Couldn't reach the coach. Try again in a moment.",
-            `b-${Date.now()}`
-          ),
-        ]);
+        replaceBubble(
+          typingId,
+          botBubblesFromText("Couldn't reach the coach. Try again in a moment.")
+        );
         // Network failure → the upload-intent signal is stale data
         // from the previous turn. Reset to false so the paperclip
         // doesn't keep dangling after a fetch error.
@@ -654,7 +624,7 @@ export default function ChatPageClient({
         setQaSubmitting(false);
       }
     },
-    [qaSubmitting, activeSessionId]
+    [qaSubmitting, activeSessionId, appendBubble, replaceBubble]
   );
 
   /**
@@ -670,13 +640,11 @@ export default function ChatPageClient({
       if (uploadingFile || qaSubmitting) return;
       const token = await getAuthToken();
       if (!token) {
-        setThreadMessages((prev) => [
-          ...prev,
-          ...botBubblesFromText(
-            "Sign in to upload files — pre-recorded uploads need an account.",
-            `b-${Date.now()}`
-          ),
-        ]);
+        for (const b of botBubblesFromText(
+          "Sign in to upload files — pre-recorded uploads need an account."
+        )) {
+          appendBubble(b);
+        }
         return;
       }
       setUploadingFile(true);
@@ -685,13 +653,11 @@ export default function ChatPageClient({
           sessionId: activeSessionId,
           authToken: token,
         });
-        setThreadMessages((prev) => [
-          ...prev,
-          ...botBubblesFromText(
-            `File “${result.filename}” uploaded — your coach will review it.`,
-            `b-${Date.now()}`
-          ),
-        ]);
+        for (const b of botBubblesFromText(
+          `File “${result.filename}” uploaded — your coach will review it.`
+        )) {
+          appendBubble(b);
+        }
       } catch (err) {
         const message =
           err instanceof GuestUploadFailure
@@ -703,13 +669,11 @@ export default function ChatPageClient({
             : err instanceof Error
             ? err.message
             : "Couldn't upload the file.";
-        setThreadMessages((prev) => [
-          ...prev,
-          ...botBubblesFromText(
-            `Couldn't upload “${file.name}” — ${message}`,
-            `b-${Date.now()}`
-          ),
-        ]);
+        for (const b of botBubblesFromText(
+          `Couldn't upload “${file.name}” — ${message}`
+        )) {
+          appendBubble(b);
+        }
       } finally {
         setUploadingFile(false);
         // Per Rule G, the upload-intent signal is per-turn — hide
@@ -717,7 +681,7 @@ export default function ChatPageClient({
         setShowUploadUi(false);
       }
     },
-    [activeSessionId, qaSubmitting, uploadingFile]
+    [activeSessionId, qaSubmitting, uploadingFile, appendBubble]
   );
 
   /* ---------------------------------------------------------------------- */
@@ -828,75 +792,25 @@ export default function ChatPageClient({
         )}
 
         {/* SINGLE thread renderer for every non-recording phase —
-            welcome_back / q_and_a / reviewing all share this one
-            render path against the same threadMessages array. The
-            reviewing fetch effect above appends snippet + action
-            bubbles to the SAME array the user has been reading
-            their pending-greeting / welcome / Q&A bubbles from.
+            welcome_back / q_and_a / reviewing all share ThreadView
+            against the same `bubbles` array. The reviewing fetch
+            effect above appends snippet + action bubbles to the
+            SAME array the user has been reading their pending-
+            greeting / welcome / Q&A bubbles from.
+
+            handleSnippetLabel is the inline action_pending click
+            handler — it pulls the bubble id + snippetType from
+            `actionBubbleInfoRef` and runs the existing label POST
+            lifecycle (submitting toggle → user-text echo on
+            success / rollback on error).
+
             Strict bottom toolbar state machine drives the bottom
-            slot (see derivedBottomMode below). */}
+            slot below. */}
         {(phase === "welcome_back" ||
           phase === "q_and_a" ||
           phase === "reviewing") && (
           <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
-              {threadMessages.map((m) => {
-                switch (m.kind) {
-                  case "bot_text":
-                    return <TextBubble key={m.id}>{m.text}</TextBubble>;
-                  case "user_text":
-                    return <UserChatBubble key={m.id} text={m.text} />;
-                  case "dashboard":
-                    return <DashboardBubble key={m.id} data={m.data} />;
-                  case "snippet":
-                    return (
-                      <SnippetPlayerBubble key={m.id} snippet={m.data} />
-                    );
-                  case "action_pending": {
-                    const isCharismaAgreement = m.snippetType === "charisma";
-                    return (
-                      <ActionBubble
-                        key={m.id}
-                        prompt="Do you agree with this insight?"
-                        options={[
-                          {
-                            value: m.snippetType,
-                            label: isCharismaAgreement
-                              ? "YES, this is Charisma"
-                              : "YES, this is Stress",
-                          },
-                          {
-                            value: isCharismaAgreement ? "stress" : "charisma",
-                            label: isCharismaAgreement
-                              ? "NO, this is Stress"
-                              : "NO, this is Charisma",
-                            variant: "outline",
-                          },
-                        ]}
-                        selected={null}
-                        submitting={m.submitting}
-                        onSelect={(value) => {
-                          const labelText =
-                            value === m.snippetType
-                              ? isCharismaAgreement
-                                ? "YES, this is Charisma"
-                                : "YES, this is Stress"
-                              : isCharismaAgreement
-                              ? "NO, this is Stress"
-                              : "NO, this is Charisma";
-                          void handleSnippetLabel(
-                            m.snippetId,
-                            value,
-                            labelText
-                          );
-                        }}
-                      />
-                    );
-                  }
-                }
-              })}
-              {qaSubmitting && <TypingBubble />}
-            </div>
+            <ThreadView bubbles={bubbles} onActionSelect={handleSnippetLabel} />
             {/* Strict bottom toolbar state machine — single slot,
                 mutually exclusive. Order of precedence:
                   Override A1 — Practice CTA (all snippets resolved,
@@ -914,14 +828,14 @@ export default function ChatPageClient({
             {(() => {
               if (phase === "welcome_back") return null;
 
-              const pendingActions = threadMessages.filter(
-                (m) => m.kind === "action_pending"
+              const pendingActions = bubbles.filter(
+                (b) => b.kind === "action_pending"
               );
               const reviewReadyForPractice =
                 phase === "reviewing" &&
                 reviewLoadedRef.current === activeSessionId &&
                 pendingActions.length === 0 &&
-                threadMessages.some((m) => m.kind === "snippet");
+                bubbles.some((b) => b.kind === "snippet");
 
               if (reviewReadyForPractice) {
                 return (
@@ -968,21 +882,6 @@ export default function ChatPageClient({
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Lightweight right-aligned user bubble. Kept inline rather than in
- * RichBubbles.tsx because it's specific to the Q&A composer's
- * single-line text shape — no audio, no animation delays.
- */
-function UserChatBubble({ text }: { text: string }) {
-  return (
-    <div className="flex justify-end animate-fade-in-up">
-      <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-chat-bubble-user px-4 py-2.5 text-sm leading-relaxed text-chat-bubble-user-foreground shadow-sm">
-        {text}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Map the raw per-turn metrics blob backend returns into the shape the
