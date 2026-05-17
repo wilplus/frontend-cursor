@@ -4,13 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
-import ChatReview from "@/components/chat/ChatReview";
 import {
   AcousticMetricsBubble,
+  ActionBubble,
+  DashboardBubble,
   QAInput,
+  SnippetPlayerBubble,
   TextBubble,
   TypingBubble,
   type AcousticMetricsBubbleData,
+  type DashboardBubbleData,
+  type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -29,14 +33,19 @@ import {
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 
 /* -------------------------------------------------------------------------- */
-/*  Phase state machine                                                       */
+/*  Single-Surface architecture                                                */
 /*                                                                            */
-/*  /chat is the user's ONLY surface — the standalone /results page was     */
-/*  retired. There are no static waiting screens here either; signed-in     */
-/*  users whose admin review is still pending land directly in the active   */
-/*  Q&A chat with a greeting bubble explaining the snippets aren't ready    */
-/*  yet. Polling continues in the background and the moment status flips    */
-/*  to "completed" we transition seamlessly into the review surface.        */
+/*  Per the "TRUE Single-Surface" spec, /chat hosts ONE chat thread; we     */
+/*  no longer swap between ChatInterview / ChatReview / ChatQA mounts. The   */
+/*  recording surface (ChatInterview) is mounted only during the recording  */
+/*  phases (onboarding, compiling, metrics_ask, roleplaying) since it owns  */
+/*  the mic engine + threshold logic. Every OTHER phase (welcome_back,      */
+/*  q_and_a, reviewing) renders bubbles inline from a SINGLE shared         */
+/*  `threadMessages: ThreadMessage[]` array — same array, same renderer,    */
+/*  whether the user is reading welcome bubbles, asking Q&A questions, or  */
+/*  reviewing snippets. ChatReview has been deleted.                        */
+/*                                                                            */
+/*  The bottom toolbar is a strict state machine — see `bottomMode` below.  */
 /*                                                                            */
 /*  Phases:                                                                   */
 /*    loading        — initial auth probe                                    */
@@ -45,12 +54,17 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 /*    compiling      — TypingBubble in-thread while metrics process          */
 /*    metrics_ask    — AcousticMetricsBubble + "we need a human" + signup   */
 /*    welcome_back   — post-signup, push welcome bubbles, → q_and_a         */
-/*    q_and_a        — persistent KB-backed Q&A composer. Handles BOTH:    */
+/*    q_and_a        — persistent KB-backed Q&A. Handles all three of:     */
 /*                     (a) just-signed-up users in the welcome flow         */
 /*                     (b) signed-in returning users whose session is still */
-/*                         processing — greets them with a pending notice   */
-/*                         and keeps the keyboard open while we poll        */
-/*    reviewing      — snippet bubbles + label actions (status=completed)   */
+/*                         processing — greeted with a pending notice +     */
+/*                         live Q&A composer + background polling           */
+/*                     (c) post-publish snippet review — snippet/action/    */
+/*                         dashboard bubbles are pushed into the same       */
+/*                         threadMessages array as Q&A text                 */
+/*    reviewing      — pure state marker; uses the same render path as     */
+/*                     q_and_a. Transition target for the polling effect   */
+/*                     so the parent knows to fetch + emit snippet bubbles. */
 /*    roleplaying    — 120s practice ChatInterview, new session              */
 /*    error          — rate-limit / funnel-disabled / fatal load failure    */
 /* -------------------------------------------------------------------------- */
@@ -77,12 +91,35 @@ const ONBOARDING_CAP_SECONDS = 30;
  */
 const COMPILE_DELAY_MS = 1500;
 
-/** Q&A thread message shape — kept simple since this is single-turn. */
-interface QAMessage {
-  id: string;
-  type: "bot" | "user";
-  text: string;
-}
+/**
+ * Unified thread-message shape — ONE array carries every non-
+ * recording bubble (welcome bubbles, Q&A text from either side, KB
+ * answers, dashboard, snippet players, pending YES/NO actions, the
+ * user-text echo of a resolved action, and upload-status updates).
+ * Reviewing-phase bubbles append to the SAME array the user was
+ * already reading their welcome / Q&A bubbles from, so the chat
+ * stays chronologically continuous without any component swap.
+ *
+ * Recording-flow bubbles (AI questions, user-audio) still live
+ * inside <ChatInterview> for the recording phases — see the
+ * architecture header above.
+ */
+type ThreadMessage =
+  | { kind: "bot_text"; id: string; text: string }
+  | { kind: "user_text"; id: string; text: string }
+  | { kind: "dashboard"; id: string; data: DashboardBubbleData }
+  | { kind: "snippet"; id: string; data: SnippetPlayerData }
+  | {
+      kind: "action_pending";
+      id: string;
+      /** Snippet whose label this action resolves — passed back to
+       *  the parent's POST so the right row updates. */
+      snippetId: string;
+      /** Snippet type drives YES/NO copy + which value is the
+       *  "agreement" branch. */
+      snippetType: "charisma" | "stress";
+      submitting: boolean;
+    };
 
 /** Greeting copy shown to a returning user whose session is still
  *  processing — keeps them in the active Q&A surface instead of a
@@ -93,19 +130,46 @@ const PENDING_GREETING =
   "the voice analysis?";
 
 /**
- * Helper — fan out one logical AI text into N QAMessages, each ≤75
- * chars. Used for every AI-authored bubble the chat page emits
- * EXCEPT KB-sourced Q&A answers from /v2/chat/query, which we render
- * verbatim because the master document's responses are structured
- * and breaking them mid-sentence would mangle citations.
+ * Helper — fan one logical AI text out into N bot bubbles, each ≤75
+ * chars (Rule F). KB-sourced /v2/chat/query answers still pass
+ * through this — the Master-Doc exemption is on COMPRESSION (the
+ * model must not shorten grounded content to hit 75 chars), not on
+ * visual segmentation, so long answers still get bubble-split here.
  */
-function botBubblesFromText(text: string, idPrefix: string): QAMessage[] {
+function botBubblesFromText(text: string, idPrefix: string): ThreadMessage[] {
   const chunks = splitAiBubbleText(text);
   return chunks.map((t, i) => ({
+    kind: "bot_text" as const,
     id: chunks.length === 1 ? idPrefix : `${idPrefix}-${i}`,
-    type: "bot" as const,
     text: t,
   }));
+}
+
+/**
+ * Map a backend snippet row into the SnippetPlayerData the rich
+ * bubble component renders. Inlined from the retired ChatReview;
+ * the reviewing-phase fetch effect calls this on every row.
+ */
+function mapBackendSnippet(s: {
+  id: string;
+  snippet_type: "charisma" | "stress" | "unlabeled" | null;
+  admin_comment: string;
+  audio_url: string | null;
+  start_offset_ms: number;
+  duration_ms: number;
+}): SnippetPlayerData {
+  const type: "charisma" | "stress" =
+    s.snippet_type === "stress" ? "stress" : "charisma";
+  return {
+    id: s.id,
+    type,
+    badgeLabel:
+      type === "charisma" ? "Charisma Highlight" : "Stress Indicator",
+    insight: (s.admin_comment ?? "").trim(),
+    audioUrl: s.audio_url,
+    startOffsetMs: s.start_offset_ms ?? 0,
+    durationMs: s.duration_ms ?? 0,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -145,7 +209,7 @@ export default function ChatPageClient({
     useState<AcousticMetricsBubbleData | null>(null);
 
   /* Q&A composer state ---------------------------------------------------- */
-  const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [qaSubmitting, setQaSubmitting] = useState(false);
   /**
    * Per-turn upload-intent signal from /v2/chat/query (Rule G).
@@ -198,7 +262,7 @@ export default function ChatPageClient({
       // before the greeting ever paints. Greeting is run through the
       // 75-char bubble splitter so a long string fans out into
       // multiple snappy bubbles.
-      setQaMessages(botBubblesFromText(PENDING_GREETING, "pending"));
+      setThreadMessages(botBubblesFromText(PENDING_GREETING, "pending"));
       setPhase("q_and_a");
       return;
     }
@@ -216,7 +280,7 @@ export default function ChatPageClient({
     // consistency — "Thanks, check…" fits in one bubble, the longer
     // "Do you have any questions…" question splits into two snappy
     // beats.
-    setQaMessages([
+    setThreadMessages([
       ...botBubblesFromText(
         "Thanks, check your email in a few hours.",
         "welcome-1"
@@ -288,6 +352,176 @@ export default function ChatPageClient({
   }, [phase]);
 
   /* ---------------------------------------------------------------------- */
+  /*  Reviewing transition — inlined ChatReview fetch + emit                */
+  /*                                                                          */
+  /*  When the polling effect promotes phase to "reviewing", THIS effect    */
+  /*  fetches the published snippets + Calm-Anchor trinity once, then       */
+  /*  appends each snippet (as a snippet bubble + pending action bubble)    */
+  /*  to the SAME threadMessages array the user was already reading their  */
+  /*  pending-greeting / welcome bubbles from. No component swap; the      */
+  /*  thread stays continuous. Idempotent guard via a ref so an effect     */
+  /*  re-fire doesn't double-append.                                       */
+  /* ---------------------------------------------------------------------- */
+  const reviewLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (phase !== "reviewing" || !activeSessionId) return;
+    if (reviewLoadedRef.current === activeSessionId) return;
+    reviewLoadedRef.current = activeSessionId;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/results/${encodeURIComponent(activeSessionId)}/snippets`,
+          { cache: "no-store" }
+        );
+        if (cancelled) return;
+        if (!res.ok) {
+          setThreadMessages((prev) => [
+            ...prev,
+            ...botBubblesFromText(
+              "Couldn't load this session's snippets.",
+              `review-error-${Date.now()}`
+            ),
+          ]);
+          return;
+        }
+        const data = (await res.json()) as {
+          snippets?: Array<Parameters<typeof mapBackendSnippet>[0]>;
+          charisma_profile?: {
+            trinity?: { power?: number; warmth?: number; presence?: number };
+          } | null;
+        };
+        if (cancelled) return;
+
+        const additions: ThreadMessage[] = [];
+
+        if (data.charisma_profile?.trinity) {
+          additions.push({
+            kind: "dashboard",
+            id: `dashboard-${activeSessionId}`,
+            data: {
+              trinity: {
+                power: data.charisma_profile.trinity.power ?? 0,
+                warmth: data.charisma_profile.trinity.warmth ?? 0,
+                presence: data.charisma_profile.trinity.presence ?? 0,
+              },
+            },
+          });
+        }
+
+        const snippets = Array.isArray(data.snippets) ? data.snippets : [];
+        if (snippets.length === 0) {
+          additions.push(
+            ...botBubblesFromText(
+              "No snippets came through for this session — your coach is still preparing your insights.",
+              `review-empty-${activeSessionId}`
+            )
+          );
+        } else {
+          for (const raw of snippets) {
+            const snippet = mapBackendSnippet(raw);
+            additions.push({
+              kind: "snippet",
+              id: `snippet-${snippet.id}`,
+              data: snippet,
+            });
+            additions.push({
+              kind: "action_pending",
+              id: `action-${snippet.id}`,
+              snippetId: snippet.id,
+              snippetType: snippet.type,
+              submitting: false,
+            });
+          }
+        }
+
+        setThreadMessages((prev) => [...prev, ...additions]);
+      } catch (err) {
+        if (cancelled) return;
+        console.warn("reviewing fetch failed:", err);
+        setThreadMessages((prev) => [
+          ...prev,
+          ...botBubblesFromText(
+            "Couldn't load this session's snippets.",
+            `review-error-${Date.now()}`
+          ),
+        ]);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, activeSessionId]);
+
+  /* ---------------------------------------------------------------------- */
+  /*  Snippet-label resolution                                               */
+  /*                                                                          */
+  /*  On YES/NO click inside an action_pending bubble: POST the user label  */
+  /*  to /api/v2/user/snippets/<id>/label, REPLACE the action bubble with   */
+  /*  a right-anchored user-text echo of the chosen option, and leave the   */
+  /*  snippet bubble above it intact so the thread reads chronologically.   */
+  /* ---------------------------------------------------------------------- */
+  const handleSnippetLabel = useCallback(
+    async (snippetId: string, value: string, labelText: string) => {
+      setThreadMessages((prev) =>
+        prev.map((m) =>
+          m.kind === "action_pending" && m.snippetId === snippetId
+            ? { ...m, submitting: true }
+            : m
+        )
+      );
+      try {
+        const res = await fetch(
+          `/api/v2/user/snippets/${encodeURIComponent(snippetId)}/label`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_label: value }),
+          }
+        );
+        if (!res.ok) {
+          // Roll back submitting so user can retry.
+          setThreadMessages((prev) =>
+            prev.map((m) =>
+              m.kind === "action_pending" && m.snippetId === snippetId
+                ? { ...m, submitting: false }
+                : m
+            )
+          );
+          return;
+        }
+        // Success — swap the action bubble for a user-text echo.
+        setThreadMessages((prev) =>
+          prev.flatMap((m) =>
+            m.kind === "action_pending" && m.snippetId === snippetId
+              ? [
+                  {
+                    kind: "user_text" as const,
+                    id: `user-label-${snippetId}`,
+                    text: labelText,
+                  },
+                ]
+              : [m]
+          )
+        );
+      } catch (err) {
+        console.warn("label POST failed:", err);
+        setThreadMessages((prev) =>
+          prev.map((m) =>
+            m.kind === "action_pending" && m.snippetId === snippetId
+              ? { ...m, submitting: false }
+              : m
+          )
+        );
+      }
+    },
+    []
+  );
+
+  /* ---------------------------------------------------------------------- */
   /*  Phase transition handlers                                             */
   /* ---------------------------------------------------------------------- */
 
@@ -356,12 +590,12 @@ export default function ChatPageClient({
   const handleQASend = useCallback(
     async (question: string) => {
       if (qaSubmitting) return;
-      const userMsg: QAMessage = {
+      const userMsg: ThreadMessage = {
+        kind: "user_text",
         id: `u-${Date.now()}`,
-        type: "user",
         text: question,
       };
-      setQaMessages((prev) => [...prev, userMsg]);
+      setThreadMessages((prev) => [...prev, userMsg]);
       setQaSubmitting(true);
       try {
         const res = await fetch("/api/v2/chat/query", {
@@ -390,7 +624,7 @@ export default function ChatPageClient({
           // preserved end-to-end — splitAiBubbleText only inserts
           // chunk boundaries at sentence/clause breaks, never drops
           // a word.
-          setQaMessages((prev) => [
+          setThreadMessages((prev) => [
             ...prev,
             ...botBubblesFromText(data.answer!, `b-${Date.now()}`),
           ]);
@@ -399,13 +633,13 @@ export default function ChatPageClient({
           // it follows the 75-char rule like every other bot bubble.
           const fallback =
             data.error ?? "Couldn't reach the coach. Try again in a moment.";
-          setQaMessages((prev) => [
+          setThreadMessages((prev) => [
             ...prev,
             ...botBubblesFromText(fallback, `b-${Date.now()}`),
           ]);
         }
       } catch {
-        setQaMessages((prev) => [
+        setThreadMessages((prev) => [
           ...prev,
           ...botBubblesFromText(
             "Couldn't reach the coach. Try again in a moment.",
@@ -436,7 +670,7 @@ export default function ChatPageClient({
       if (uploadingFile || qaSubmitting) return;
       const token = await getAuthToken();
       if (!token) {
-        setQaMessages((prev) => [
+        setThreadMessages((prev) => [
           ...prev,
           ...botBubblesFromText(
             "Sign in to upload files — pre-recorded uploads need an account.",
@@ -451,7 +685,7 @@ export default function ChatPageClient({
           sessionId: activeSessionId,
           authToken: token,
         });
-        setQaMessages((prev) => [
+        setThreadMessages((prev) => [
           ...prev,
           ...botBubblesFromText(
             `File “${result.filename}” uploaded — your coach will review it.`,
@@ -469,7 +703,7 @@ export default function ChatPageClient({
             : err instanceof Error
             ? err.message
             : "Couldn't upload the file.";
-        setQaMessages((prev) => [
+        setThreadMessages((prev) => [
           ...prev,
           ...botBubblesFromText(
             `Couldn't upload “${file.name}” — ${message}`,
@@ -584,13 +818,6 @@ export default function ChatPageClient({
           />
         )}
 
-        {phase === "reviewing" && activeSessionId && (
-          <ChatReview
-            sessionId={activeSessionId}
-            onPracticeStart={handlePracticeStart}
-          />
-        )}
-
         {phase === "roleplaying" && (
           <ChatInterview
             onThresholdReached={handleChatComplete}
@@ -600,37 +827,137 @@ export default function ChatPageClient({
           />
         )}
 
-        {/* Welcome-back is identical to q_and_a but the input isn't
-            mounted yet (we want the user to read the two bubbles
-            first). The 400 ms transition timer in the welcome-back
-            effect above flips us to q_and_a. */}
-        {(phase === "welcome_back" || phase === "q_and_a") && (
+        {/* SINGLE thread renderer for every non-recording phase —
+            welcome_back / q_and_a / reviewing all share this one
+            render path against the same threadMessages array. The
+            reviewing fetch effect above appends snippet + action
+            bubbles to the SAME array the user has been reading
+            their pending-greeting / welcome / Q&A bubbles from.
+            Strict bottom toolbar state machine drives the bottom
+            slot (see derivedBottomMode below). */}
+        {(phase === "welcome_back" ||
+          phase === "q_and_a" ||
+          phase === "reviewing") && (
           <div className="flex flex-1 flex-col gap-3 overflow-hidden">
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-6">
-              {qaMessages.map((m) =>
-                m.type === "bot" ? (
-                  <TextBubble key={m.id}>{m.text}</TextBubble>
-                ) : (
-                  <UserChatBubble key={m.id} text={m.text} />
-                )
-              )}
+              {threadMessages.map((m) => {
+                switch (m.kind) {
+                  case "bot_text":
+                    return <TextBubble key={m.id}>{m.text}</TextBubble>;
+                  case "user_text":
+                    return <UserChatBubble key={m.id} text={m.text} />;
+                  case "dashboard":
+                    return <DashboardBubble key={m.id} data={m.data} />;
+                  case "snippet":
+                    return (
+                      <SnippetPlayerBubble key={m.id} snippet={m.data} />
+                    );
+                  case "action_pending": {
+                    const isCharismaAgreement = m.snippetType === "charisma";
+                    return (
+                      <ActionBubble
+                        key={m.id}
+                        prompt="Do you agree with this insight?"
+                        options={[
+                          {
+                            value: m.snippetType,
+                            label: isCharismaAgreement
+                              ? "YES, this is Charisma"
+                              : "YES, this is Stress",
+                          },
+                          {
+                            value: isCharismaAgreement ? "stress" : "charisma",
+                            label: isCharismaAgreement
+                              ? "NO, this is Stress"
+                              : "NO, this is Charisma",
+                            variant: "outline",
+                          },
+                        ]}
+                        selected={null}
+                        submitting={m.submitting}
+                        onSelect={(value) => {
+                          const labelText =
+                            value === m.snippetType
+                              ? isCharismaAgreement
+                                ? "YES, this is Charisma"
+                                : "YES, this is Stress"
+                              : isCharismaAgreement
+                              ? "NO, this is Stress"
+                              : "NO, this is Charisma";
+                          void handleSnippetLabel(
+                            m.snippetId,
+                            value,
+                            labelText
+                          );
+                        }}
+                      />
+                    );
+                  }
+                }
+              })}
               {qaSubmitting && <TypingBubble />}
             </div>
-            {phase === "q_and_a" && (
-              <div className="flex shrink-0 justify-center pb-4">
-                <QAInput
-                  onSubmit={handleQASend}
-                  submitting={qaSubmitting}
-                  // Rule G: paperclip is hidden by default — the
-                  // parent only passes `onUploadFile` when the last
-                  // /chat/query response signalled upload intent.
-                  onUploadFile={
-                    showUploadUi ? handleQAFileUpload : undefined
-                  }
-                  uploading={uploadingFile}
-                />
-              </div>
-            )}
+            {/* Strict bottom toolbar state machine — single slot,
+                mutually exclusive. Order of precedence:
+                  Override A1 — Practice CTA (all snippets resolved,
+                    reviewing phase ready for handoff)
+                  Override B  — Upload icon (show_upload_ui)
+                  Default     — Q&A text composer (default for the
+                    non-recording surface). Note: spec calls for
+                    the mic to be the global default, but until
+                    voice-Q&A backend support exists we keep the
+                    QAInput as the de-facto default for this
+                    surface so the user can ask questions today.
+                The welcome_back phase shows no bottom — those two
+                bubbles are read-only for ~400ms before the
+                q_and_a transition mounts the composer. */}
+            {(() => {
+              if (phase === "welcome_back") return null;
+
+              const pendingActions = threadMessages.filter(
+                (m) => m.kind === "action_pending"
+              );
+              const reviewReadyForPractice =
+                phase === "reviewing" &&
+                reviewLoadedRef.current === activeSessionId &&
+                pendingActions.length === 0 &&
+                threadMessages.some((m) => m.kind === "snippet");
+
+              if (reviewReadyForPractice) {
+                return (
+                  <div className="shrink-0 px-4 pb-4 pt-2">
+                    <Button
+                      type="button"
+                      size="lg"
+                      onClick={handlePracticeStart}
+                      className="w-full rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground hover:shadow-lg sm:mx-auto sm:flex sm:w-auto"
+                    >
+                      Start practice (2 min)
+                    </Button>
+                  </div>
+                );
+              }
+
+              // Default (Q&A composer). Native <input type="file">
+              // paperclip lives inside QAInput, gated on
+              // showUploadUi per Rule G. While ActionBubbles are
+              // pending the composer stays mounted but the user's
+              // attention is on the inline YES/NO; that's fine —
+              // the composer is the only "neutral" bottom mode the
+              // user has on this surface.
+              return (
+                <div className="flex shrink-0 justify-center pb-4">
+                  <QAInput
+                    onSubmit={handleQASend}
+                    submitting={qaSubmitting}
+                    onUploadFile={
+                      showUploadUi ? handleQAFileUpload : undefined
+                    }
+                    uploading={uploadingFile}
+                  />
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
