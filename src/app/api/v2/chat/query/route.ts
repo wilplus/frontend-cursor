@@ -10,16 +10,30 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * question they type goes here, gets answered against the master
  * document, and renders as a text bubble in the thread.
  *
- * Proxies to backend POST /v2/chat/query.
+ * Two wire shapes are accepted on this route (per FE Prompt 3 in the
+ * stress-contrast series, compatibility contract C1):
  *
- * Body: { question: string, session_id?: string | null }
- * Success 200: { answer: string, citations?: Array<{...}> }
- * 401 UNAUTHENTICATED
- * 5xx — backend unavailable
+ *   1. application/json — the existing shape. Body is
+ *      `{ question, history?, session_id? }`. Forwarded to backend
+ *      verbatim with the same Content-Type.
  *
- * Until backend ships the route this BFF just forwards the 502/404 it
- * gets back; the chat surface surfaces "Couldn't reach the coach"
- * inline so anonymous testing isn't blocked.
+ *   2. multipart/form-data — new in BE-3. Body carries `question`,
+ *      optional `history`, plus an `audio_file` blob with the raw
+ *      mic capture for silent acoustic metrics. The backend extracts
+ *      metrics from the audio and may return a `contrast: {...}`
+ *      block on the response. Forwarded to backend as multipart
+ *      (NOT re-encoded as JSON — the audio bytes need to land in
+ *      the upstream's multipart parser intact).
+ *
+ * Content-Type is sniffed at the top of the handler and the body is
+ * forwarded preserving its original encoding. The Authorization
+ * header is rewritten from the user's session JWT (same as the JSON
+ * path always did); credentials never leak through the multipart
+ * body.
+ *
+ * Until backend BE-3 ships the multipart branch may 4xx — that's
+ * expected and acceptable per the user's deployment plan. The JSON
+ * path (today's traffic) is unaffected.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -39,9 +53,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json().catch(() => ({}));
+    const url = `${backend}/v2/chat/query`;
+    const contentType = req.headers.get("content-type") ?? "";
 
-    const upstream = await fetch(`${backend}/v2/chat/query`, {
+    if (contentType.includes("multipart/form-data")) {
+      // Re-emit the FormData against the upstream URL. We re-build
+      // the form instead of streaming the raw body because Node's
+      // fetch needs to set its own multipart boundary; reusing the
+      // inbound Content-Type header would carry the wrong boundary
+      // marker and the upstream parser would 400.
+      const inbound = await req.formData();
+      const out = new FormData();
+      for (const [key, value] of inbound.entries()) {
+        out.append(key, value);
+      }
+      const upstream = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        body: out,
+        cache: "no-store",
+      });
+      const data = await upstream.json().catch(() => ({}));
+      return NextResponse.json(data, { status: upstream.status });
+    }
+
+    // Default — JSON path. Unchanged from today (C1).
+    const body = await req.json().catch(() => ({}));
+    const upstream = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -62,7 +103,7 @@ export async function POST(req: NextRequest) {
       {
         code: "BFF_THROWN",
         error: `BFF threw: ${name}: ${message}`,
-        bff_revision: "chat-query-v1",
+        bff_revision: "chat-query-v2",
       },
       { status: 500 }
     );

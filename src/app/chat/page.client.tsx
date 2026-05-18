@@ -6,13 +6,13 @@ import { Loader2 } from "lucide-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import {
   AcousticMetricsBubble,
-  MicButton,
   TextBubble,
   TypingBubble,
-  UploadButton,
   type AcousticMetricsBubbleData,
   type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
+import { ChatInputBar } from "@/components/chat/ChatInputBar";
+import { postChatQuery } from "@/services/api/chatQuery";
 import ThreadView from "@/components/chat/thread/ThreadView";
 import { deriveToolbar } from "@/components/chat/thread/toolbar";
 import { useThread } from "@/components/chat/thread/useThread";
@@ -715,7 +715,11 @@ export default function ChatPageClient({
   }, []);
 
   const handleQASend = useCallback(
-    async (question: string) => {
+    async (
+      question: string,
+      audioBlob: Blob | null,
+      durationSec: number | null
+    ) => {
       if (qaSubmitting) return;
       // 1) optimistic user bubble, 2) typing placeholder that gets
       // 1:N replaced with the answer chunks on completion. Keeps the
@@ -724,36 +728,30 @@ export default function ChatPageClient({
       const typingId = appendBubble({ kind: "typing" });
       setQaSubmitting(true);
       try {
-        const res = await fetch("/api/v2/chat/query", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question,
-            session_id: activeSessionId,
-          }),
+        // chatQuery service branches the wire format: multipart when
+        // an audio blob is present (dual-capture turn, BE-3 will pull
+        // out `audio_file` for silent acoustic metrics), JSON when
+        // not — preserving the C1 contract for typed-only sends.
+        const data = await postChatQuery({
+          question,
+          audioBlob,
+          durationSec,
+          sessionId: activeSessionId,
         });
-        const data = (await res.json().catch(() => ({}))) as {
-          answer?: string;
-          error?: string;
-          show_upload_ui?: boolean;
-        };
         // Rule G — per-turn signal. Always read this off every
         // /chat/query response, even on errors, so the flag never
         // gets stuck on after a transient failure.
         setShowUploadUi(data.show_upload_ui === true);
-        if (res.ok && data.answer) {
+        if (data.answer) {
           // KB-sourced answer. Rule F clarifies: the Master-Doc
           // exemption is on COMPRESSION (backend must not shorten
           // grounded content to hit 75 chars), not on visual
           // segmentation. Long answers still get bubble-split at
-          // natural boundaries for readability. The full text is
-          // preserved end-to-end — splitAiBubbleText only inserts
-          // chunk boundaries at sentence/clause breaks, never drops
-          // a word.
+          // natural boundaries for readability.
           replaceBubble(typingId, botBubblesFromText(data.answer));
         } else {
-          // Backend error envelope — this IS first-party AI copy, so
-          // it follows the 75-char rule like every other bot bubble.
+          // Backend error envelope — first-party AI copy, follows
+          // the 75-char rule like every other bot bubble.
           const fallback =
             data.error ?? "Couldn't reach the coach. Try again in a moment.";
           replaceBubble(typingId, botBubblesFromText(fallback));
@@ -777,18 +775,22 @@ export default function ChatPageClient({
   /**
    * Single composer submit handler — routes the user's text to
    * either the followup-reply handler (during the LI-4c/LI-4d
-   * window) or the default /chat/query. This is the only function
-   * `QAInput`'s onSubmit prop binds to, so the surface-level
-   * routing decision is centralised here and the matrix-tested
-   * `pendingFollowUp` flag is the sole switch.
+   * window) or the default /chat/query. The audio blob is
+   * forwarded only on the /chat/query branch; followup replies
+   * are short conversational acks and the backend doesn't analyse
+   * acoustics for them today.
    */
   const handleComposerSubmit = useCallback(
-    (text: string) => {
+    (args: {
+      text: string;
+      audioBlob: Blob | null;
+      durationSec: number | null;
+    }) => {
       if (pendingFollowUp) {
-        handleFollowUpReply(text);
+        handleFollowUpReply(args.text);
         return;
       }
-      void handleQASend(text);
+      void handleQASend(args.text, args.audioBlob, args.durationSec);
     },
     [pendingFollowUp, handleFollowUpReply, handleQASend]
   );
@@ -1010,22 +1012,16 @@ export default function ChatPageClient({
                       </Button>
                     </div>
                   );
-                case "mic":
+                case "composer":
                   return (
-                    <div className="flex shrink-0 justify-center pb-6">
-                      <MicButton
-                        onTranscript={handleComposerSubmit}
-                        disabled={qaSubmitting || uploadingFile}
-                      />
-                    </div>
-                  );
-                case "upload":
-                  return (
-                    <div className="flex shrink-0 justify-center pb-6">
-                      <UploadButton
-                        onUploadFile={handleQAFileUpload}
+                    <div className="flex shrink-0 justify-center pb-4">
+                      <ChatInputBar
+                        onSend={handleComposerSubmit}
+                        submitting={qaSubmitting}
+                        onUploadFile={
+                          mode.showUpload ? handleQAFileUpload : undefined
+                        }
                         uploading={uploadingFile}
-                        disabled={qaSubmitting}
                       />
                     </div>
                   );
