@@ -50,6 +50,19 @@ export interface ChatQueryResponse {
   answer?: string;
   error?: string;
   show_upload_ui?: boolean;
+  /**
+   * Per-turn record-intent signal — true when the backend detects the
+   * user wants to record audio *in the app* (vs uploading a file). The
+   * mic already POSTs multipart audio to /v2/chat/query for the casual
+   * voice analytics path; this flag just tells the frontend to make
+   * the mic visually invited (pulse / accent) on this turn.
+   *
+   * Mutually exclusive with show_upload_ui in practice. Both falsy is
+   * the neutral default (text composer only).
+   *
+   * Per-turn signal — caller should NOT cache across turns.
+   */
+  show_record_ui?: boolean;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;
