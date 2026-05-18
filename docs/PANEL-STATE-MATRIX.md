@@ -6,6 +6,20 @@ every row here.
 
 ## Pinned semantics
 
+- **Dual-capture mic (FE Prompt 3, BE/FE stress-contrast series).** The
+  small mic inside `composer` opens BOTH `SpeechRecognition` and
+  `MediaRecorder` against a single `getUserMedia` stream. The Web Speech
+  transcript drives the visible input field, and the raw `audio/webm;
+  codecs=opus` blob ships in the multipart body of `/v2/chat/query` as
+  `audio_file`. The visible string IS the message sent — backend's
+  silent acoustic analysis runs on the blob but never substitutes the
+  user's text. C2: the mic affordance is hidden when Web Speech +
+  MediaRecorder aren't both supported (Firefox today). C6: first mic
+  press shows a one-time consent modal gated by
+  `localStorage["casualVoiceConsent"]`. C7: backend's optional
+  `contrast` block is rendered only when non-null — absent →
+  rendered nothing at all (no "not enough data" placeholder).
+
 - **`user_label: bool` on `POST /v2/chat/snippet-followup` means AGREEMENT.**
   `true` = "I agree with the AI's classification of this snippet's
   admin_comment". `false` = "I disagree." This default holds until backend
@@ -26,19 +40,21 @@ every row here.
 ## Column legend
 
 - **`primaryControl`** — what occupies the bottom toolbar slot.
-  Enum: `none | mic | upload | action_buttons | practice_cta | signup_cta |
+  Enum: `none | composer | action_buttons | practice_cta | signup_cta |
   rating_composer`
-  - `mic` is the default control on the non-recording surface
-    (welcome_back / q_and_a / reviewing). Implementation uses the
-    Web Speech API (`webkitSpeechRecognition`), transcript routes
-    through the parent's composer-submit handler (which branches to
-    /chat/query or the followup-reply path based on
-    `pendingFollowUp`). Unsupported browsers (Firefox today) fall
-    back IN-PLACE to a small text input inside MicButton — this is
-    not a separate toolbar mode.
-  - `upload` is Override B per Rule G — replaces the mic in the
-    slot for the single turn following a /chat/query response with
-    `show_upload_ui: true`. Native `<input type="file">`.
+  - `composer` is the default control on the non-recording surface
+    (welcome_back / q_and_a / reviewing). Single widget — see
+    `ChatInputBar` — laying out: inline paperclip (Rule G gated),
+    text field, inline small mic (gated on Web Speech +
+    MediaRecorder support, per FE Prompt 3 / contract C2), send
+    button. The mic opens a dual-capture session: Web Speech
+    transcript drives the visible input value, MediaRecorder
+    captures the raw audio in parallel; on send, presence of the
+    audio blob switches the wire format to multipart so backend
+    BE-3 can extract silent acoustic metrics.
+  - Inline paperclip — Rule G gated. NOT a separate toolbar mode;
+    just a sub-field of `composer` (`showUpload: boolean`). The
+    composer never disappears in favour of an "upload slot."
 - **`textInputEnabled`** — is the QAInput textarea live for typing?
 - **`micEnabled`** — is the microphone usable (recording will start on tap)?
 - **`paperclipVisible`** — is the file-upload affordance shown?
@@ -65,7 +81,7 @@ neither        = loading | error
 
 | ID | Scenario | primaryControl | textInputEnabled | micEnabled | paperclipVisible | notes |
 |---|---|---|---|---|---|---|
-| LO-1 | Anonymous on `/chat`, first paint, auth probe resolves to anonymous | `mic` | false | true (after `currentQuestion` lands) | false (backend gate, recording surface) | GDPR disclaimer shown turn 1 only |
+| LO-1 | Anonymous on `/chat`, first paint, auth probe resolves to anonymous | `composer` | false | true (after `currentQuestion` lands) | false (backend gate, recording surface) | GDPR disclaimer shown turn 1 only |
 | LO-2 | Anonymous still recording, between turns, upload in flight | `none` (recording branch falls through) | false | false (`isLoadingQuestion`) | false | TypingBubble in thread |
 | LO-3 | Anonymous, 30s threshold fires → phase=compiling | `none` | false | false (`thresholdReached`) | false | TypingBubble in trailingBubbles |
 | LO-4 | Anonymous, phase=metrics_ask, metricsSnapshotReady | `signup_cta` | false | false | false | [Sign up to receive your analysis] button |
@@ -75,21 +91,21 @@ neither        = loading | error
 
 | ID | Scenario | primaryControl | textInputEnabled | micEnabled | paperclipVisible | notes |
 |---|---|---|---|---|---|---|
-| LI-1 | Signed-in user lands on `/chat` (no_session) | `mic` | false | true (after `currentQuestion` lands) | false | Same as LO-1 minus GDPR disclaimer |
-| LI-2 | Signed-in, `/chat?session=<id>`, status=processing | `mic` (swapped to `upload` per-turn on show_upload_ui) | n/a (voice-first; text input is unsupported-browser fallback inside MicButton) | true (mic ready) | per-turn override | Pending-greeting bubble; polling every 5s |
-| LI-3a | Polling sees `completed` → phase=reviewing, fetch in flight | `mic` | n/a | true | per-turn override | Transition is silent (no bot announcement) — see `BS-1` blind spot |
-| LI-3b | Reviewing fetch lands, snippet 1 + action_pending appear | `mic` (with inline YES/NO inside ActionBubble) | n/a | true | per-turn override | Inline action_pending bubble carries the YES/NO buttons; mic stays so the user can voice-Q&A in parallel |
-| LI-4a | User clicks YES/NO → label POST in flight | `mic` (qaSubmitting=true → mic disabled) | n/a | false (locked during chain) | per-turn override | Optimistic echo bubble with `pending: true` |
-| LI-4b | Label POST 200 → echo bubble commits, snippet-followup POST in flight | `mic` (still disabled via qaSubmitting) | n/a | false | per-turn override | TypingBubble appended; awaiting `/v2/chat/snippet-followup` response |
-| LI-4c | Snippet-followup 200 → followup_text bubble appended | `mic` | n/a | true | per-turn override | `pendingFollowUp` routes the next mic transcript to the thread-local handler, NOT `/chat/query` |
-| LI-4d | User voice-replies to followup → user_text + bridge bubbles appear → next snippet reveals | `mic` (next snippet's action_buttons live inline in ActionBubble) | n/a | true | per-turn override | Bridge string rotates by snippet index |
+| LI-1 | Signed-in user lands on `/chat` (no_session) | `composer` | false | true (after `currentQuestion` lands) | false | Same as LO-1 minus GDPR disclaimer |
+| LI-2 | Signed-in, `/chat?session=<id>`, status=processing | `composer` (inline paperclip on show_upload_ui) | n/a (voice-first; text input is unsupported-browser fallback inside MicButton) | true (mic ready) | per-turn override | Pending-greeting bubble; polling every 5s |
+| LI-3a | Polling sees `completed` → phase=reviewing, fetch in flight | `composer` | n/a | true | per-turn override | Transition is silent (no bot announcement) — see `BS-1` blind spot |
+| LI-3b | Reviewing fetch lands, snippet 1 + action_pending appear | `composer` (with inline YES/NO inside ActionBubble) | n/a | true | per-turn override | Inline action_pending bubble carries the YES/NO buttons; mic stays so the user can voice-Q&A in parallel |
+| LI-4a | User clicks YES/NO → label POST in flight | `composer` (qaSubmitting=true → mic + send disabled) | n/a | false (locked during chain) | per-turn override | Optimistic echo bubble with `pending: true` |
+| LI-4b | Label POST 200 → echo bubble commits, snippet-followup POST in flight | `composer` (still disabled via qaSubmitting) | n/a | false | per-turn override | TypingBubble appended; awaiting `/v2/chat/snippet-followup` response |
+| LI-4c | Snippet-followup 200 → followup_text bubble appended | `composer` | n/a | true | per-turn override | `pendingFollowUp` routes the next mic transcript to the thread-local handler, NOT `/chat/query` |
+| LI-4d | User voice-replies to followup → user_text + bridge bubbles appear → next snippet reveals | `composer` (next snippet's action_buttons live inline in ActionBubble) | n/a | true | per-turn override | Bridge string rotates by snippet index |
 | LI-5 | All snippets resolved (state === "answered" for every snippet) | `practice_cta` | false | false | false | [Start practice (2 min)] button |
-| LI-6 | User taps practice CTA → phase=roleplaying | `mic` | false | true | false (backend gate) | Same-mount transition. Thread persists per FE Prompt 1. |
-| LI-7 | Roleplay, recording in progress | `mic` | false | true | false | Same as LO-1 mechanics, 120s cap |
+| LI-6 | User taps practice CTA → phase=roleplaying | `composer` | false | true | false (backend gate) | Same-mount transition. Thread persists per FE Prompt 1. |
+| LI-7 | Roleplay, recording in progress | `composer` | false | true | false | Same as LO-1 mechanics, 120s cap |
 | LI-8 | Roleplay finalize → router.push to `/chat?session=<new-id>` | n/a (page remount) | n/a | n/a | n/a | `STATUS: known limitation` — thread RESETS across the navigation. Cross-mount continuity is out of scope for this PR. |
 | LI-9 | Welcome_back (post-signup return) | `none` | false | false | false | 400ms read-only window; two welcome bubbles seeded; auto-transitions to LI-10 |
-| LI-10 | Q&A phase, post-welcome OR pending-processing | `mic` | n/a | true | per-turn override | Same as LI-2 mechanically |
-| LI-11 | Signed-in user with completed session lands on `/chat?session=<id>` | `mic` then inline `action_buttons` (race-fast) | n/a | true | per-turn override | Pending-greeting fires for ~5s before polling catches up. See `BS-2`. |
+| LI-10 | Q&A phase, post-welcome OR pending-processing | `composer` | n/a | true | per-turn override | Same as LI-2 mechanically |
+| LI-11 | Signed-in user with completed session lands on `/chat?session=<id>` | `composer` then inline `action_buttons` (race-fast) | n/a | true | per-turn override | Pending-greeting fires for ~5s before polling catches up. See `BS-2`. |
 
 ## Rating-phase scenarios (post-upload self-rating)
 
@@ -97,7 +113,7 @@ neither        = loading | error
 |---|---|---|---|---|---|---|
 | RA-1 | Backend's upload-answer returns `requires_self_score: true` | `rating_composer` | false | false | false | 1-10 button row replaces mic |
 | RA-2 | User taps a rating → POST in flight | `rating_composer` (submitting) | false | false | false | Loader on the selected button |
-| RA-3 | Rating POST resolves → return to mic | `mic` | false | true | false | Next question lands |
+| RA-3 | Rating POST resolves → return to mic | `composer` | false | true | false | Next question lands |
 
 ## Cross-mount / boundary transitions
 
@@ -111,10 +127,10 @@ neither        = loading | error
 
 | ID | Scenario | primaryControl | textInputEnabled | micEnabled | paperclipVisible | notes |
 |---|---|---|---|---|---|---|
-| EF-1 | Reviewing fetch returns zero snippets | `mic` | n/a | true | per-turn override | "No snippets came through" bubble. `[Start practice]` never appears. User stuck unless they voice-Q&A. `STATUS: blind_spot` — needs explicit decision: should there be a "record another session" recovery affordance here? **Decision pending.** |
+| EF-1 | Reviewing fetch returns zero snippets | `composer` | n/a | true | per-turn override | "No snippets came through" bubble. `[Start practice]` never appears. User stuck unless they voice-Q&A. `STATUS: blind_spot` — needs explicit decision: should there be a "record another session" recovery affordance here? **Decision pending.** |
 | EF-2 | Label POST returns 5xx | `mic` (inline `action_buttons` stay clickable for retry) | n/a | true | per-turn override | Bubble keeps `submitting: false`, no `pending` flag, `errored: true`. Buttons stay clickable for retry. Toast/inline error required. `STATUS: blind_spot` — currently silent failure. **Decision needed:** inline error bubble vs toast. |
-| EF-3 | `/v2/chat/query` returns 5xx | `mic` | n/a | true | reset to false | Inline "Couldn't reach the coach" bubble (split per Rule F). No retry affordance — user re-speaks. |
-| EF-4 | `/v2/chat/snippet-followup` returns 5xx | `mic` | n/a | true | per-turn override | Static fallback bubble ("Noted — let's keep going.") replaces the typing bubble. Skip directly to `answered`, reveal next snippet. User never gets stuck. |
+| EF-3 | `/v2/chat/query` returns 5xx | `composer` | n/a | true | reset to false | Inline "Couldn't reach the coach" bubble (split per Rule F). No retry affordance — user re-speaks. |
+| EF-4 | `/v2/chat/snippet-followup` returns 5xx | `composer` | n/a | true | per-turn override | Static fallback bubble ("Noted — let's keep going.") replaces the typing bubble. Skip directly to `answered`, reveal next snippet. User never gets stuck. |
 | EF-5 | Refresh mid-reviewing, some snippets already labelled | `action_buttons` (snippet 1, again) | true | false | gated | `STATUS: known limitation`. Backend doesn't return per-snippet user-labelled state; user must re-label. Captured for future phase. |
 | EF-6 | Mobile Safari background tab, polling throttled | n/a | n/a | n/a | n/a | `STATUS: blind_spot` — no resume-on-visibility-change handler. User comes back to stale chat. **Decision needed:** add `visibilitychange` listener to re-probe immediately? |
 | EF-7 | Network drops mid-recording, upload-answer fails | error state in ChatInterview | false | false | n/a | Existing `GuestUploadFailure` handling. Setting error message bubble. |
@@ -145,10 +161,10 @@ whatever the agent guessed.
 - Recording surface (`/next-question`, `/upload-answer`): backend does NOT
   currently ship the flag. Effectively false until they do.
   `TODO(backend): add show_upload_ui to next-question + upload-answer responses`.
-- Visual model on the non-recording surface (post-mic-default): the
-  upload control is now Override B — a standalone `UploadButton` that
-  REPLACES the mic in the slot for the single turn `show_upload_ui` is
-  true. No more text-composer-with-paperclip; the slot is single-control.
+- Visual model on the non-recording surface (post FE Prompt 3): the
+  paperclip is INLINE inside `composer` (`ChatInputBar`), positioned to
+  the left of the text field. Not a separate toolbar slot — the
+  composer (and its dual-capture mic) stays mounted continuously.
 - ChatInterview's paperclip toggle remains a SWAP (mic → dropzone). The
   recording-surface paperclip-unification work is queued for Phase 1b
   alongside the rest of the ChatInterview lift.
@@ -165,3 +181,13 @@ whatever the agent guessed.
   ```
   Smoke script: `scripts/smoke-snippet-followup.sh` (TODO: add when backend
   smoke env is available).
+
+- **`POST /v2/chat/query` — multipart branch (BE-3, stress-contrast series).**
+  Frontend ships the multipart wire format the moment the dual-capture
+  mic is used; backend BE-3 must accept the `audio_file` part and
+  optionally return a `contrast: { samples, deltas }` block. As of FE
+  Prompt 3 commit, backend HEAD on `backend-cursor` is
+  `9ddd2f2 feat(panel/BE-0):` — BE-3 is NOT shipped. Until it lands the
+  multipart branch will 4xx; the JSON branch (typed-only sends) is
+  unaffected per contract C1. Verify post-deploy by issuing a
+  multipart POST against the staging URL.
