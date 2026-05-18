@@ -65,6 +65,16 @@ interface ChatInputBarProps {
   /** True while a user-initiated file upload is in flight. */
   uploading?: boolean;
   placeholder?: string;
+  /**
+   * Per-turn record-intent emphasis. When the backend's last
+   * /v2/chat/query response carried `show_record_ui: true`, the parent
+   * passes true here and the idle mic button wraps in a pulsing
+   * primary-tint ring so the user notices voice is an inviting answer
+   * mode. The mic still works the same — only its visual emphasis
+   * changes. Has no effect while the mic is mid-recording (the
+   * recording state already animates).
+   */
+  emphasizeMic?: boolean;
 }
 
 export function ChatInputBar({
@@ -73,6 +83,7 @@ export function ChatInputBar({
   onUploadFile,
   uploading = false,
   placeholder = "Ask anything about your voice analysis…",
+  emphasizeMic = false,
 }: ChatInputBarProps) {
   // Feature-detection runs on mount, not at module scope, so SSR
   // markup doesn't depend on `window` and we avoid hydration drift.
@@ -227,6 +238,8 @@ export function ChatInputBar({
                 "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                 recording
                   ? "animate-pulse bg-destructive text-destructive-foreground"
+                  : emphasizeMic
+                  ? "animate-pulse bg-primary/10 text-primary ring-2 ring-primary/40 hover:bg-primary/20"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >

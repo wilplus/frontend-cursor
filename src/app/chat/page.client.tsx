@@ -232,6 +232,19 @@ export default function ChatPageClient({
    * meaningfully unless the AI just suggested an upload.
    */
   const [showUploadUi, setShowUploadUi] = useState(false);
+  /**
+   * Per-turn record-intent signal from /v2/chat/query — peer of
+   * showUploadUi. Backend flips true when it detects "can I just
+   * record it here?" / "let me try it out loud" intent. Frontend
+   * uses it to visually emphasise the always-present mic (a pulsing
+   * primary-tint ring) so the user notices voice is an inviting
+   * answer mode on this turn. The mic itself is unchanged — it
+   * still POSTs multipart audio to /v2/chat/query for the casual
+   * voice analytics path. Mutually exclusive with showUploadUi in
+   * practice (backend won't return both true on the same turn);
+   * both false is the neutral default.
+   */
+  const [showRecordUi, setShowRecordUi] = useState(false);
   /** True while a user-initiated file upload is in flight. Disables
    *  the QAInput composer + paperclip so the user can't double-fire. */
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -738,10 +751,11 @@ export default function ChatPageClient({
           durationSec,
           sessionId: activeSessionId,
         });
-        // Rule G — per-turn signal. Always read this off every
-        // /chat/query response, even on errors, so the flag never
-        // gets stuck on after a transient failure.
+        // Rule G — per-turn signal. Always read these off every
+        // /chat/query response, even on errors, so the flags never
+        // get stuck on after a transient failure.
         setShowUploadUi(data.show_upload_ui === true);
+        setShowRecordUi(data.show_record_ui === true);
         if (data.answer) {
           // KB-sourced answer. Rule F clarifies: the Master-Doc
           // exemption is on COMPRESSION (backend must not shorten
@@ -761,10 +775,12 @@ export default function ChatPageClient({
           typingId,
           botBubblesFromText("Couldn't reach the coach. Try again in a moment.")
         );
-        // Network failure → the upload-intent signal is stale data
-        // from the previous turn. Reset to false so the paperclip
-        // doesn't keep dangling after a fetch error.
+        // Network failure → both intent signals are stale data from
+        // the previous turn. Reset to false so neither the paperclip
+        // nor the record-emphasis pulse keep dangling after a fetch
+        // error.
         setShowUploadUi(false);
+        setShowRecordUi(false);
       } finally {
         setQaSubmitting(false);
       }
@@ -1022,6 +1038,7 @@ export default function ChatPageClient({
                           mode.showUpload ? handleQAFileUpload : undefined
                         }
                         uploading={uploadingFile}
+                        emphasizeMic={showRecordUi}
                       />
                     </div>
                   );
