@@ -4,11 +4,18 @@ import {
   Activity,
   Gauge,
   Loader2,
+  Mic,
   Paperclip,
   Send,
+  Square,
   Waves,
 } from "lucide-react";
-import { useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -395,116 +402,223 @@ export function TypingBubble() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  QAInput                                                                   */
+/*  MicButton                                                                  */
 /*                                                                            */
-/*  Persistent text composer for the post-signup Q&A phase. The user types  */
-/*  free-form questions ("What does WPM mean?", "How is filler count        */
-/*  calculated?") and the parent POSTs them to /v2/chat/query, threading    */
-/*  the answer back as a TextBubble. Disabled while a question is in       */
-/*  flight so the user can't double-send.                                   */
+/*  Default bottom-slot control for the non-recording surface (welcome_back, */
+/*  q_and_a, reviewing) per the matrix's "mic default" rule. A single tap   */
+/*  starts a browser-native SpeechRecognition session. The Web Speech API   */
+/*  auto-stops on silence (or when the user taps again) and fires `onresult`*/
+/*  with the transcript, which the parent treats as if the user had typed   */
+/*  the same string into the legacy QAInput — i.e. it routes through the    */
+/*  same handleComposerSubmit pipeline (which branches to handleQASend or   */
+/*  handleFollowUpReply based on `pendingFollowUp`).                         */
 /*                                                                            */
-/*  Paperclip affordance (Rule G — default hidden / reveal-on-`true`):      */
-/*    The paperclip icon for "drop an audio or video file here" is hidden  */
-/*    by default. The parent passes `onUploadFile` ONLY when the backend's */
-/*    most recent /chat/query response carried `show_upload_ui: true` —    */
-/*    i.e. when the model detected upload intent in the user's prior turn. */
-/*    Click opens a native file picker; the picked file is forwarded back  */
-/*    to the parent for upload via uploadUserFile. When `onUploadFile` is  */
-/*    undefined the icon is absent — no dangling affordance the user       */
-/*    can't act on meaningfully.                                            */
+/*  Browser support — `webkitSpeechRecognition` works in Chromium-based     */
+/*  browsers and Safari. Firefox/older browsers fall back to a short        */
+/*  "voice input isn't supported, type instead" notice with a manual text  */
+/*  field so the user is never blocked. Falling back to text in-place keeps */
+/*  the bottom-slot contract clean — caller doesn't have to detect support */
+/*  and pick a different mode.                                              */
 /* -------------------------------------------------------------------------- */
 
-export function QAInput({
-  onSubmit,
-  submitting,
-  placeholder = "Ask anything about your voice analysis…",
-  onUploadFile,
-  uploading = false,
+// `webkitSpeechRecognition` is a webkit prefix that TypeScript doesn't know
+// about. Minimal local typings cover only the surface we use; full Web Speech
+// API types live in `@types/dom-speech-recognition` if richer typing becomes
+// necessary later.
+type SpeechRecognitionResult = {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+};
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionResult) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+
+function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+export function MicButton({
+  onTranscript,
+  disabled,
 }: {
-  onSubmit: (question: string) => void;
-  submitting: boolean;
-  placeholder?: string;
-  /** When set, renders the paperclip + opens a file picker on click.
-   *  Absence = paperclip hidden (Rule G default-hidden). */
-  onUploadFile?: (file: File) => void;
-  /** True while a user-initiated file upload is in flight — disables
-   *  the paperclip + composer so the user can't double-fire. */
-  uploading?: boolean;
+  onTranscript: (text: string) => void;
+  disabled?: boolean;
 }) {
-  const [value, setValue] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recording, setRecording] = useState(false);
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [fallbackText, setFallbackText] = useState("");
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  const send = () => {
-    const trimmed = value.trim();
-    if (!trimmed || submitting || uploading) return;
-    onSubmit(trimmed);
-    setValue("");
+  // Probe support on mount only — Web Speech API is constructed lazily on
+  // first tap, but we need the support flag for the unsupported-browser
+  // fallback render.
+  useEffect(() => {
+    setSupported(getSpeechRecognitionCtor() !== null);
+  }, []);
+
+  const stopRecording = () => {
+    recognitionRef.current?.stop();
+    setRecording(false);
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      send();
+  const startRecording = () => {
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) {
+      setSupported(false);
+      return;
     }
+    const r = new Ctor();
+    r.lang = "en-US";
+    r.continuous = false;
+    r.interimResults = false;
+    r.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
+      if (transcript) onTranscript(transcript);
+      setRecording(false);
+      recognitionRef.current = null;
+    };
+    r.onerror = () => {
+      setRecording(false);
+      recognitionRef.current = null;
+    };
+    r.onend = () => {
+      setRecording(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = r;
+    setRecording(true);
+    r.start();
   };
 
-  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onUploadFile) onUploadFile(file);
-    // Reset so the same file can be re-selected after an error.
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  // Unsupported-browser fallback: small text input so the user is never
+  // blocked. Same submit semantics as the mic — emits a transcript-shaped
+  // string through onTranscript.
+  if (supported === false) {
+    const sendFallback = () => {
+      const trimmed = fallbackText.trim();
+      if (!trimmed || disabled) return;
+      onTranscript(trimmed);
+      setFallbackText("");
+    };
+    return (
+      <div className="flex w-full max-w-2xl items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm focus-within:border-primary/50">
+        <input
+          type="text"
+          value={fallbackText}
+          onChange={(e) => setFallbackText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              sendFallback();
+            }
+          }}
+          placeholder="Voice input isn't supported — type instead"
+          disabled={disabled}
+          className="flex-1 border-0 bg-transparent py-1.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 disabled:opacity-60"
+        />
+        <Button
+          type="button"
+          size="sm"
+          onClick={sendFallback}
+          disabled={disabled || fallbackText.trim().length === 0}
+          className="h-9 w-9 shrink-0 rounded-full p-0"
+          aria-label="Send"
+        >
+          <Send className="h-4 w-4" aria-hidden />
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex w-full max-w-2xl items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm focus-within:border-primary/50">
-      {onUploadFile && (
-        <>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.mov"
-            onChange={onFileChange}
-            className="hidden"
-            aria-hidden
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={submitting || uploading}
-            aria-label="Upload an audio or video file"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Paperclip className="h-4 w-4" aria-hidden />
-            )}
-          </button>
-        </>
+    <button
+      type="button"
+      onClick={recording ? stopRecording : startRecording}
+      disabled={disabled || supported === null}
+      aria-label={recording ? "Stop recording" : "Start voice input"}
+      className={cn(
+        "flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all",
+        recording
+          ? "bg-destructive text-destructive-foreground animate-pulse"
+          : "bg-primary text-primary-foreground hover:shadow-xl",
+        "disabled:cursor-not-allowed disabled:opacity-50"
       )}
-      <textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        rows={1}
-        disabled={submitting || uploading}
-        className="flex-1 resize-none border-0 bg-transparent py-1.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0 disabled:opacity-60"
+    >
+      {recording ? (
+        <Square className="h-5 w-5" aria-hidden fill="currentColor" />
+      ) : (
+        <Mic className="h-6 w-6" aria-hidden />
+      )}
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  UploadButton                                                               */
+/*                                                                            */
+/*  Override-B slot. When `show_upload_ui: true` lands from /chat/query,    */
+/*  the toolbar swaps the mic for this paperclip-on-a-button + a native     */
+/*  hidden file input. Picked file is forwarded to the parent's upload     */
+/*  handler exactly like the QAInput paperclip did, just without the text  */
+/*  composer alongside it. Per Rule G, this slot is per-turn — the parent  */
+/*  resets `showUploadUi` in `finally` so the mic comes back on the next   */
+/*  unrelated turn.                                                          */
+/* -------------------------------------------------------------------------- */
+
+export function UploadButton({
+  onUploadFile,
+  uploading = false,
+  disabled,
+}: {
+  onUploadFile: (file: File) => void;
+  uploading?: boolean;
+  disabled?: boolean;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onUploadFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,video/*,.mp3,.wav,.m4a,.mp4,.mov"
+        onChange={onFileChange}
+        className="hidden"
+        aria-hidden
       />
-      <Button
+      <button
         type="button"
-        size="sm"
-        onClick={send}
-        disabled={submitting || uploading || value.trim().length === 0}
-        className="h-9 w-9 shrink-0 rounded-full p-0"
-        aria-label="Send question"
-      >
-        {submitting ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        ) : (
-          <Send className="h-4 w-4" aria-hidden />
+        onClick={() => fileInputRef.current?.click()}
+        disabled={disabled || uploading}
+        aria-label="Upload an audio or video file"
+        className={cn(
+          "flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all",
+          "bg-primary text-primary-foreground hover:shadow-xl",
+          "disabled:cursor-not-allowed disabled:opacity-50"
         )}
-      </Button>
-    </div>
+      >
+        {uploading ? (
+          <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+        ) : (
+          <Paperclip className="h-6 w-6" aria-hidden />
+        )}
+      </button>
+    </>
   );
 }
