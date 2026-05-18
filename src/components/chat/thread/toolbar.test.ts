@@ -63,24 +63,24 @@ function baseInputs(overrides: Partial<ToolbarInputs> = {}): ToolbarInputs {
 }
 
 describe("deriveToolbar — non-recording surface", () => {
-  it("LI-2: pending-greeting q_and_a → mic (default voice-first control)", () => {
+  it("LI-2: pending-greeting q_and_a → composer (default voice-first control)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "q_and_a",
         bubbles: [bubble.bot_text("Your charisma snippets haven't arrived…")],
       })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
-  it("LI-2 (paperclip on): showUploadUi swaps mic for upload (Override B)", () => {
+  it("LI-2 (paperclip on): composer carries inline showUpload=true (Rule G)", () => {
     const result = deriveToolbar(
       baseInputs({ phase: "q_and_a", showUploadUi: true })
     );
-    expect(result).toEqual({ kind: "upload" });
+    expect(result).toEqual({ kind: "composer", showUpload: true });
   });
 
-  it("LI-3a: reviewing, fetch not landed → mic (no practice CTA yet)", () => {
+  it("LI-3a: reviewing, fetch not landed → composer (no practice CTA yet)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -88,10 +88,10 @@ describe("deriveToolbar — non-recording surface", () => {
         bubbles: [bubble.bot_text()],
       })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
-  it("LI-3b: reviewing, snippet + action_pending → mic (action lives inline)", () => {
+  it("LI-3b: reviewing, snippet + action_pending → composer (action lives inline)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -99,7 +99,7 @@ describe("deriveToolbar — non-recording surface", () => {
         bubbles: [bubble.snippet("s1"), bubble.actionPending("s1")],
       })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
   it("LI-5: reviewing, all snippets resolved → practice_cta", () => {
@@ -119,7 +119,7 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "practice_cta" });
   });
 
-  it("LI-5 guard: only LAST snippet resolved, others pending → still mic", () => {
+  it("LI-5 guard: only LAST snippet resolved, others pending → still composer", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -132,7 +132,7 @@ describe("deriveToolbar — non-recording surface", () => {
         ],
       })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
   it("LI-9: welcome_back → none (read-only window)", () => {
@@ -145,17 +145,17 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "none" });
   });
 
-  it("LI-10: post-welcome q_and_a → mic", () => {
+  it("LI-10: post-welcome q_and_a → composer", () => {
     const result = deriveToolbar(
       baseInputs({ phase: "q_and_a" })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
-  it("LI-4c: followup_text landed, pendingFollowUp → mic (NOT practice_cta yet)", () => {
+  it("LI-4c: followup_text landed, pendingFollowUp → composer (NOT practice_cta yet)", () => {
     // No action_pending in the thread (the last one was just replaced
     // with the user-text echo). All other practice_cta gates pass.
-    // pendingFollowUp blocks the CTA so the user can voice-reply.
+    // pendingFollowUp blocks the CTA so the user can text-or-voice reply.
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -168,7 +168,7 @@ describe("deriveToolbar — non-recording surface", () => {
         ],
       })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
   it("LI-4d: user replied to followup, queue drained → practice_cta", () => {
@@ -189,12 +189,13 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "practice_cta" });
   });
 
-  it("Override-B precedence: upload beats mic even mid-followup", () => {
-    // If show_upload_ui flips true while pendingFollowUp is still
-    // set, the upload slot wins — but the user's followup-reply
-    // routing is preserved because pendingFollowUp is parent state,
-    // independent of which slot is rendered. Test guards the
-    // precedence order in deriveToolbar.
+  it("paperclip + pendingFollowUp coexist: composer carries both signals", () => {
+    // Inline paperclip pattern (post FE-3): showUpload is just a
+    // sub-field of the composer mode, not a competing slot. When
+    // both signals are true we get an inline paperclip alongside
+    // the still-mounted composer that's awaiting the followup
+    // reply. Test guards against accidentally re-introducing a
+    // slot-replacing upload mode.
     const result = deriveToolbar(
       baseInputs({
         phase: "q_and_a",
@@ -202,10 +203,10 @@ describe("deriveToolbar — non-recording surface", () => {
         pendingFollowUp: true,
       })
     );
-    expect(result).toEqual({ kind: "upload" });
+    expect(result).toEqual({ kind: "composer", showUpload: true });
   });
 
-  it("EF-1: reviewing, zero snippets fetched → mic (NOT practice_cta)", () => {
+  it("EF-1: reviewing, zero snippets fetched → composer (NOT practice_cta)", () => {
     // No snippet bubbles in the thread; only the "no snippets came through"
     // bot bubble. The has-any-snippet guard prevents the CTA from showing.
     const result = deriveToolbar(
@@ -215,7 +216,7 @@ describe("deriveToolbar — non-recording surface", () => {
         bubbles: [bubble.bot_text("No snippets came through…")],
       })
     );
-    expect(result).toEqual({ kind: "mic" });
+    expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 });
 

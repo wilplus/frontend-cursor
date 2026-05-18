@@ -25,21 +25,21 @@ export type ToolbarMode =
    */
   | { kind: "none" }
   /**
-   * Default control on the non-recording surface — a microphone
-   * button that opens a Web Speech API session. The transcript
-   * is routed through the parent's composer-submit handler (same
-   * pipeline as the legacy QAInput). Per matrix "Pinned semantics"
-   * and the TRUE-Single-Surface spec, mic is the default; text is
-   * only the unsupported-browser fallback (handled inside
-   * MicButton itself, not as a separate toolbar mode).
+   * Default control on the non-recording surface — the chat input
+   * bar: text field, optional small mic (only when Web Speech +
+   * MediaRecorder are both supported), and send button. The mic
+   * opens a dual-capture session (Web Speech transcript visible
+   * in the input + raw audio streamed to MediaRecorder for silent
+   * acoustic analysis on the backend); typing only is the C1 JSON
+   * fallback. See `ChatInputBar` for the rendered widget.
+   *
+   * `showUpload` is Rule G's per-turn paperclip flag — when true
+   * the composer renders an inline paperclip affordance next to
+   * the send button. Inline rather than slot-replacing because
+   * the composer stays mounted continuously (typing/voicing a
+   * question and attaching a file aren't mutually exclusive UX).
    */
-  | { kind: "mic" }
-  /**
-   * Override-B — per-turn file upload. Replaces the mic in the
-   * slot when `show_upload_ui: true` lands on the last
-   * /chat/query response (Rule G).
-   */
-  | { kind: "upload" }
+  | { kind: "composer"; showUpload: boolean }
   /**
    * Practice CTA — all snippets in the reviewing thread have
    * been resolved (no action_pending bubbles remain), so the
@@ -126,11 +126,7 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
 
   if (reviewReadyForPractice) return { kind: "practice_cta" };
 
-  // Override B — per-turn upload slot. Replaces the mic when
-  // the backend's last /chat/query response carried
-  // show_upload_ui: true.
-  if (showUploadUi) return { kind: "upload" };
-
-  // Default — mic. Voice-first surface.
-  return { kind: "mic" };
+  // Default — composer (text input + optional small mic). Inline
+  // paperclip is gated on `showUploadUi` per Rule G.
+  return { kind: "composer", showUpload: showUploadUi };
 }
