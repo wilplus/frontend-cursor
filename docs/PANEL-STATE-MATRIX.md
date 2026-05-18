@@ -26,8 +26,19 @@ every row here.
 ## Column legend
 
 - **`primaryControl`** — what occupies the bottom toolbar slot.
-  Enum: `none | mic | qa_text | action_buttons | practice_cta | signup_cta |
+  Enum: `none | mic | upload | action_buttons | practice_cta | signup_cta |
   rating_composer`
+  - `mic` is the default control on the non-recording surface
+    (welcome_back / q_and_a / reviewing). Implementation uses the
+    Web Speech API (`webkitSpeechRecognition`), transcript routes
+    through the parent's composer-submit handler (which branches to
+    /chat/query or the followup-reply path based on
+    `pendingFollowUp`). Unsupported browsers (Firefox today) fall
+    back IN-PLACE to a small text input inside MicButton — this is
+    not a separate toolbar mode.
+  - `upload` is Override B per Rule G — replaces the mic in the
+    slot for the single turn following a /chat/query response with
+    `show_upload_ui: true`. Native `<input type="file">`.
 - **`textInputEnabled`** — is the QAInput textarea live for typing?
 - **`micEnabled`** — is the microphone usable (recording will start on tap)?
 - **`paperclipVisible`** — is the file-upload affordance shown?
@@ -65,20 +76,20 @@ neither        = loading | error
 | ID | Scenario | primaryControl | textInputEnabled | micEnabled | paperclipVisible | notes |
 |---|---|---|---|---|---|---|
 | LI-1 | Signed-in user lands on `/chat` (no_session) | `mic` | false | true (after `currentQuestion` lands) | false | Same as LO-1 minus GDPR disclaimer |
-| LI-2 | Signed-in, `/chat?session=<id>`, status=processing | `qa_text` | true | false | gated on `show_upload_ui` | Pending-greeting bubble; polling every 5s |
-| LI-3a | Polling sees `completed` → phase=reviewing, fetch in flight | `qa_text` | true | false | gated | Transition is silent (no bot announcement) — see `BS-1` blind spot |
-| LI-3b | Reviewing fetch lands, snippet 1 + action_pending appear (after FE Prompt 3) | `action_buttons` | true | false | gated | Bottom slot mirrors latest unresolved `action_pending`. Inline buttons inside ActionBubble ALSO render (intentional duplication) |
-| LI-4a | User clicks YES/NO → label POST in flight | `action_buttons` (submitting) | false (composer disabled while POST in flight) | false | gated | Optimistic echo bubble with `pending: true` |
-| LI-4b | Label POST 200 → echo bubble commits, snippet-followup POST in flight | `qa_text` | true | false | gated | TypingBubble appended; awaiting `/v2/chat/snippet-followup` response |
-| LI-4c | Snippet-followup 200 → followup_text bubble appended | `qa_text` | true | false | gated | `pendingFollowUp` routes next QAInput submit to thread-local handler, NOT `/chat/query` |
-| LI-4d | User replies to followup → user_text + bridge bubbles appear → next snippet reveals | `action_buttons` (next snippet) | true | false | gated | Bridge string rotates by snippet index |
+| LI-2 | Signed-in, `/chat?session=<id>`, status=processing | `mic` (swapped to `upload` per-turn on show_upload_ui) | n/a (voice-first; text input is unsupported-browser fallback inside MicButton) | true (mic ready) | per-turn override | Pending-greeting bubble; polling every 5s |
+| LI-3a | Polling sees `completed` → phase=reviewing, fetch in flight | `mic` | n/a | true | per-turn override | Transition is silent (no bot announcement) — see `BS-1` blind spot |
+| LI-3b | Reviewing fetch lands, snippet 1 + action_pending appear | `mic` (with inline YES/NO inside ActionBubble) | n/a | true | per-turn override | Inline action_pending bubble carries the YES/NO buttons; mic stays so the user can voice-Q&A in parallel |
+| LI-4a | User clicks YES/NO → label POST in flight | `mic` (qaSubmitting=true → mic disabled) | n/a | false (locked during chain) | per-turn override | Optimistic echo bubble with `pending: true` |
+| LI-4b | Label POST 200 → echo bubble commits, snippet-followup POST in flight | `mic` (still disabled via qaSubmitting) | n/a | false | per-turn override | TypingBubble appended; awaiting `/v2/chat/snippet-followup` response |
+| LI-4c | Snippet-followup 200 → followup_text bubble appended | `mic` | n/a | true | per-turn override | `pendingFollowUp` routes the next mic transcript to the thread-local handler, NOT `/chat/query` |
+| LI-4d | User voice-replies to followup → user_text + bridge bubbles appear → next snippet reveals | `mic` (next snippet's action_buttons live inline in ActionBubble) | n/a | true | per-turn override | Bridge string rotates by snippet index |
 | LI-5 | All snippets resolved (state === "answered" for every snippet) | `practice_cta` | false | false | false | [Start practice (2 min)] button |
 | LI-6 | User taps practice CTA → phase=roleplaying | `mic` | false | true | false (backend gate) | Same-mount transition. Thread persists per FE Prompt 1. |
 | LI-7 | Roleplay, recording in progress | `mic` | false | true | false | Same as LO-1 mechanics, 120s cap |
 | LI-8 | Roleplay finalize → router.push to `/chat?session=<new-id>` | n/a (page remount) | n/a | n/a | n/a | `STATUS: known limitation` — thread RESETS across the navigation. Cross-mount continuity is out of scope for this PR. |
 | LI-9 | Welcome_back (post-signup return) | `none` | false | false | false | 400ms read-only window; two welcome bubbles seeded; auto-transitions to LI-10 |
-| LI-10 | Q&A phase, post-welcome OR pending-processing | `qa_text` | true | false | gated | Same as LI-2 mechanically |
-| LI-11 | Signed-in user with completed session lands on `/chat?session=<id>` | `qa_text` then `action_buttons` (race-fast) | true | false | gated | Pending-greeting fires for ~5s before polling catches up. See `BS-2`. |
+| LI-10 | Q&A phase, post-welcome OR pending-processing | `mic` | n/a | true | per-turn override | Same as LI-2 mechanically |
+| LI-11 | Signed-in user with completed session lands on `/chat?session=<id>` | `mic` then inline `action_buttons` (race-fast) | n/a | true | per-turn override | Pending-greeting fires for ~5s before polling catches up. See `BS-2`. |
 
 ## Rating-phase scenarios (post-upload self-rating)
 
@@ -100,10 +111,10 @@ neither        = loading | error
 
 | ID | Scenario | primaryControl | textInputEnabled | micEnabled | paperclipVisible | notes |
 |---|---|---|---|---|---|---|
-| EF-1 | Reviewing fetch returns zero snippets | `qa_text` | true | false | gated | "No snippets came through" bubble. `[Start practice]` never appears. User stuck unless they ask Q&A. `STATUS: blind_spot` — needs explicit decision: should there be a "record another session" recovery affordance here? **Decision pending.** |
-| EF-2 | Label POST returns 5xx | `action_buttons` (errored) | true | false | gated | Bubble keeps `submitting: false`, no `pending` flag, `errored: true`. Buttons stay clickable for retry. Toast/inline error required. `STATUS: blind_spot` — currently silent failure. **Decision needed:** inline error bubble vs toast. |
-| EF-3 | `/v2/chat/query` returns 5xx | `qa_text` | true | false | reset to false | Inline "Couldn't reach the coach" bubble (split per Rule F). No retry affordance — user retypes. |
-| EF-4 | `/v2/chat/snippet-followup` returns 5xx | `qa_text` | true | false | gated | Static fallback bubble ("Noted — let's keep going.") replaces the typing bubble. Skip directly to `answered`, reveal next snippet. User never gets stuck. |
+| EF-1 | Reviewing fetch returns zero snippets | `mic` | n/a | true | per-turn override | "No snippets came through" bubble. `[Start practice]` never appears. User stuck unless they voice-Q&A. `STATUS: blind_spot` — needs explicit decision: should there be a "record another session" recovery affordance here? **Decision pending.** |
+| EF-2 | Label POST returns 5xx | `mic` (inline `action_buttons` stay clickable for retry) | n/a | true | per-turn override | Bubble keeps `submitting: false`, no `pending` flag, `errored: true`. Buttons stay clickable for retry. Toast/inline error required. `STATUS: blind_spot` — currently silent failure. **Decision needed:** inline error bubble vs toast. |
+| EF-3 | `/v2/chat/query` returns 5xx | `mic` | n/a | true | reset to false | Inline "Couldn't reach the coach" bubble (split per Rule F). No retry affordance — user re-speaks. |
+| EF-4 | `/v2/chat/snippet-followup` returns 5xx | `mic` | n/a | true | per-turn override | Static fallback bubble ("Noted — let's keep going.") replaces the typing bubble. Skip directly to `answered`, reveal next snippet. User never gets stuck. |
 | EF-5 | Refresh mid-reviewing, some snippets already labelled | `action_buttons` (snippet 1, again) | true | false | gated | `STATUS: known limitation`. Backend doesn't return per-snippet user-labelled state; user must re-label. Captured for future phase. |
 | EF-6 | Mobile Safari background tab, polling throttled | n/a | n/a | n/a | n/a | `STATUS: blind_spot` — no resume-on-visibility-change handler. User comes back to stale chat. **Decision needed:** add `visibilitychange` listener to re-probe immediately? |
 | EF-7 | Network drops mid-recording, upload-answer fails | error state in ChatInterview | false | false | n/a | Existing `GuestUploadFailure` handling. Setting error message bubble. |
@@ -134,15 +145,13 @@ whatever the agent guessed.
 - Recording surface (`/next-question`, `/upload-answer`): backend does NOT
   currently ship the flag. Effectively false until they do.
   `TODO(backend): add show_upload_ui to next-question + upload-answer responses`.
-- Visual model is intentionally asymmetric: `QAInput`'s paperclip is an
-  AUGMENT icon adjacent to the send button; `ChatInterview`'s paperclip
-  is a SWAP toggle that replaces the mic with the dropzone. Unifying the
-  visual model is out of scope; FE Prompt 2 only unifies the gate.
-- **Human review confirmation pending:** the manual paperclip toggle currently
-  on `ChatInterview` (always available, swaps mic → dropzone) will be REMOVED
-  by FE Prompt 2 in favor of backend-flag-gated visibility. This loses a
-  capability for recording-surface users until backend adds the flag.
-  Confirm this is the intended unification before merging FE Prompt 2.
+- Visual model on the non-recording surface (post-mic-default): the
+  upload control is now Override B — a standalone `UploadButton` that
+  REPLACES the mic in the slot for the single turn `show_upload_ui` is
+  true. No more text-composer-with-paperclip; the slot is single-control.
+- ChatInterview's paperclip toggle remains a SWAP (mic → dropzone). The
+  recording-surface paperclip-unification work is queued for Phase 1b
+  alongside the rest of the ChatInterview lift.
 
 ## Endpoint preconditions (FE Prompt 0 verification)
 

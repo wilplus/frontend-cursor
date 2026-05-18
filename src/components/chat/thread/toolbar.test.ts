@@ -63,24 +63,24 @@ function baseInputs(overrides: Partial<ToolbarInputs> = {}): ToolbarInputs {
 }
 
 describe("deriveToolbar — non-recording surface", () => {
-  it("LI-2: pending-greeting q_and_a → qa_text", () => {
+  it("LI-2: pending-greeting q_and_a → mic (default voice-first control)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "q_and_a",
         bubbles: [bubble.bot_text("Your charisma snippets haven't arrived…")],
       })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 
-  it("LI-2 (paperclip on): qa_text honours showUploadUi", () => {
+  it("LI-2 (paperclip on): showUploadUi swaps mic for upload (Override B)", () => {
     const result = deriveToolbar(
       baseInputs({ phase: "q_and_a", showUploadUi: true })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: true });
+    expect(result).toEqual({ kind: "upload" });
   });
 
-  it("LI-3a: reviewing, fetch not landed → qa_text (no practice CTA yet)", () => {
+  it("LI-3a: reviewing, fetch not landed → mic (no practice CTA yet)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -88,10 +88,10 @@ describe("deriveToolbar — non-recording surface", () => {
         bubbles: [bubble.bot_text()],
       })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 
-  it("LI-3b: reviewing, snippet + action_pending → qa_text (action lives inline)", () => {
+  it("LI-3b: reviewing, snippet + action_pending → mic (action lives inline)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -99,7 +99,7 @@ describe("deriveToolbar — non-recording surface", () => {
         bubbles: [bubble.snippet("s1"), bubble.actionPending("s1")],
       })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 
   it("LI-5: reviewing, all snippets resolved → practice_cta", () => {
@@ -119,7 +119,7 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "practice_cta" });
   });
 
-  it("LI-5 guard: only LAST snippet resolved, others pending → still qa_text", () => {
+  it("LI-5 guard: only LAST snippet resolved, others pending → still mic", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -132,7 +132,7 @@ describe("deriveToolbar — non-recording surface", () => {
         ],
       })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 
   it("LI-9: welcome_back → none (read-only window)", () => {
@@ -145,18 +145,17 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "none" });
   });
 
-  it("LI-10: post-welcome q_and_a → qa_text", () => {
+  it("LI-10: post-welcome q_and_a → mic", () => {
     const result = deriveToolbar(
       baseInputs({ phase: "q_and_a" })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 
-  it("LI-4c: followup_text landed, pendingFollowUp → qa_text (NOT practice_cta yet)", () => {
+  it("LI-4c: followup_text landed, pendingFollowUp → mic (NOT practice_cta yet)", () => {
     // No action_pending in the thread (the last one was just replaced
     // with the user-text echo). All other practice_cta gates pass.
-    // pendingFollowUp blocks the CTA so the composer stays mounted
-    // for the user's reply to the followup question.
+    // pendingFollowUp blocks the CTA so the user can voice-reply.
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -169,13 +168,10 @@ describe("deriveToolbar — non-recording surface", () => {
         ],
       })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 
   it("LI-4d: user replied to followup, queue drained → practice_cta", () => {
-    // After the reply, pendingFollowUp resets; no more snippets in
-    // the queue means no new action_pending appears, and the CTA
-    // can finally fire.
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -193,7 +189,23 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "practice_cta" });
   });
 
-  it("EF-1: reviewing, zero snippets fetched → qa_text (NOT practice_cta)", () => {
+  it("Override-B precedence: upload beats mic even mid-followup", () => {
+    // If show_upload_ui flips true while pendingFollowUp is still
+    // set, the upload slot wins — but the user's followup-reply
+    // routing is preserved because pendingFollowUp is parent state,
+    // independent of which slot is rendered. Test guards the
+    // precedence order in deriveToolbar.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "q_and_a",
+        showUploadUi: true,
+        pendingFollowUp: true,
+      })
+    );
+    expect(result).toEqual({ kind: "upload" });
+  });
+
+  it("EF-1: reviewing, zero snippets fetched → mic (NOT practice_cta)", () => {
     // No snippet bubbles in the thread; only the "no snippets came through"
     // bot bubble. The has-any-snippet guard prevents the CTA from showing.
     const result = deriveToolbar(
@@ -203,7 +215,7 @@ describe("deriveToolbar — non-recording surface", () => {
         bubbles: [bubble.bot_text("No snippets came through…")],
       })
     );
-    expect(result).toEqual({ kind: "qa_text", showUpload: false });
+    expect(result).toEqual({ kind: "mic" });
   });
 });
 
