@@ -84,5 +84,42 @@ export function splitAiBubbleText(
   }
 
   if (cur) chunks.push(cur);
+  return rebalanceTail(chunks, max);
+}
+
+/**
+ * Post-process for word-fallback's stranded-tail problem.
+ *
+ * The greedy packer in `splitAiBubbleText` walks word-by-word and
+ * flushes the current bucket the instant the next word would push
+ * it past `max`. That produces a bad UX when the very last word(s)
+ * form a tiny chunk (e.g. "analysis?" alone after "…about the voice"):
+ * the reader sees a noun phrase split mid-thought and an awkward
+ * one-word bubble at the end.
+ *
+ * Heuristic fix: if the LAST chunk is meaningfully shorter than the
+ * cap (< 40% of `max`) AND merging it back into the previous chunk
+ * stays within the SOFT cap (1.2 × `max`), do the merge. The result
+ * is one slightly-oversized bubble instead of one normal + one
+ * stranded bubble. The 75-char cap is a UX target, not a hard
+ * contract — overshooting by 20% to keep a noun phrase intact reads
+ * better than the alternative.
+ *
+ * Only the tail is rebalanced; middle chunks aren't second-guessed
+ * because the greedy packer already produces reasonable boundaries
+ * there.
+ */
+function rebalanceTail(chunks: string[], max: number): string[] {
+  if (chunks.length < 2) return chunks;
+  const STRANDED_TAIL_MAX = Math.floor(max * 0.4);
+  const SOFT_OVERFLOW_MAX = Math.floor(max * 1.2);
+  const last = chunks[chunks.length - 1];
+  const prev = chunks[chunks.length - 2];
+  if (
+    last.length <= STRANDED_TAIL_MAX &&
+    prev.length + 1 + last.length <= SOFT_OVERFLOW_MAX
+  ) {
+    return [...chunks.slice(0, -2), `${prev} ${last}`];
+  }
   return chunks;
 }
