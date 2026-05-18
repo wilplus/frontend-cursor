@@ -25,12 +25,21 @@ export type ToolbarMode =
    */
   | { kind: "none" }
   /**
-   * Default Q&A composer (text input). `showUpload` is the
-   * per-turn paperclip-visibility flag from Rule G — true only
-   * when the most-recent /v2/chat/query response carried
-   * `show_upload_ui: true`.
+   * Default control on the non-recording surface — a microphone
+   * button that opens a Web Speech API session. The transcript
+   * is routed through the parent's composer-submit handler (same
+   * pipeline as the legacy QAInput). Per matrix "Pinned semantics"
+   * and the TRUE-Single-Surface spec, mic is the default; text is
+   * only the unsupported-browser fallback (handled inside
+   * MicButton itself, not as a separate toolbar mode).
    */
-  | { kind: "qa_text"; showUpload: boolean }
+  | { kind: "mic" }
+  /**
+   * Override-B — per-turn file upload. Replaces the mic in the
+   * slot when `show_upload_ui: true` lands on the last
+   * /chat/query response (Rule G).
+   */
+  | { kind: "upload" }
   /**
    * Practice CTA — all snippets in the reviewing thread have
    * been resolved (no action_pending bubbles remain), so the
@@ -117,6 +126,11 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
 
   if (reviewReadyForPractice) return { kind: "practice_cta" };
 
-  // Default for q_and_a + reviewing-with-pending-actions.
-  return { kind: "qa_text", showUpload: showUploadUi };
+  // Override B — per-turn upload slot. Replaces the mic when
+  // the backend's last /chat/query response carried
+  // show_upload_ui: true.
+  if (showUploadUi) return { kind: "upload" };
+
+  // Default — mic. Voice-first surface.
+  return { kind: "mic" };
 }

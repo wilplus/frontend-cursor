@@ -6,9 +6,10 @@ import { Loader2 } from "lucide-react";
 import ChatInterview from "@/components/funnel/ChatInterview";
 import {
   AcousticMetricsBubble,
-  QAInput,
+  MicButton,
   TextBubble,
   TypingBubble,
+  UploadButton,
   type AcousticMetricsBubbleData,
   type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
@@ -1009,16 +1010,22 @@ export default function ChatPageClient({
                       </Button>
                     </div>
                   );
-                case "qa_text":
+                case "mic":
                   return (
-                    <div className="flex shrink-0 justify-center pb-4">
-                      <QAInput
-                        onSubmit={handleComposerSubmit}
-                        submitting={qaSubmitting}
-                        onUploadFile={
-                          mode.showUpload ? handleQAFileUpload : undefined
-                        }
+                    <div className="flex shrink-0 justify-center pb-6">
+                      <MicButton
+                        onTranscript={handleComposerSubmit}
+                        disabled={qaSubmitting || uploadingFile}
+                      />
+                    </div>
+                  );
+                case "upload":
+                  return (
+                    <div className="flex shrink-0 justify-center pb-6">
+                      <UploadButton
+                        onUploadFile={handleQAFileUpload}
                         uploading={uploadingFile}
+                        disabled={qaSubmitting}
                       />
                     </div>
                   );
