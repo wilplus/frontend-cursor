@@ -770,8 +770,11 @@ export default function ChatPageClient({
       question: string,
       audioBlob: Blob | null,
       durationSec: number | null
-    ) => {
-      if (qaSubmitting) return;
+    ): Promise<boolean> => {
+      // Re-entrant guard. Return false so ChatInputBar retains the
+      // composer text — the user's input shouldn't disappear just
+      // because they tapped Send twice fast.
+      if (qaSubmitting) return false;
       // 1) optimistic user bubble, 2) typing placeholder that gets
       // 1:N replaced with the answer chunks on completion. Keeps the
       // thread auto-scrolled and avoids a separate floating indicator.
@@ -801,13 +804,16 @@ export default function ChatPageClient({
           // segmentation. Long answers still get bubble-split at
           // natural boundaries for readability.
           replaceBubble(typingId, botBubblesFromText(data.answer));
-        } else {
-          // Backend error envelope — first-party AI copy, follows
-          // the 75-char rule like every other bot bubble.
-          const fallback =
-            data.error ?? "Couldn't reach the coach. Try again in a moment.";
-          replaceBubble(typingId, botBubblesFromText(fallback));
+          return true;
         }
+        // Backend error envelope — first-party AI copy, follows
+        // the 75-char rule like every other bot bubble. We return
+        // false so ChatInputBar keeps the input + mic state for
+        // the user to edit and retry (FE-10).
+        const fallback =
+          data.error ?? "Couldn't reach the coach. Try again in a moment.";
+        replaceBubble(typingId, botBubblesFromText(fallback));
+        return false;
       } catch {
         replaceBubble(
           typingId,
@@ -819,6 +825,7 @@ export default function ChatPageClient({
         // error.
         setShowUploadUi(false);
         setShowRecordUi(false);
+        return false;
       } finally {
         setQaSubmitting(false);
       }
@@ -835,16 +842,21 @@ export default function ChatPageClient({
    * acoustics for them today.
    */
   const handleComposerSubmit = useCallback(
-    (args: {
+    async (args: {
       text: string;
       audioBlob: Blob | null;
       durationSec: number | null;
-    }) => {
+    }): Promise<boolean> => {
       if (pendingFollowUp) {
+        // Followup-reply is sync (just appends bubbles + reveals
+        // the next snippet). Always treat as success — there's no
+        // network leg that can fail in this branch.
         handleFollowUpReply(args.text);
-        return;
+        return true;
       }
-      void handleQASend(args.text, args.audioBlob, args.durationSec);
+      // Forward the Q&A handler's boolean so ChatInputBar can decide
+      // whether to clear the composer (FE-10).
+      return handleQASend(args.text, args.audioBlob, args.durationSec);
     },
     [pendingFollowUp, handleFollowUpReply, handleQASend]
   );
