@@ -375,23 +375,20 @@ describe("Structural Response Probe v1", () => {
    *  FE-10  Chat input panel: error response → input retained, mic NOT    *
    *         auto-released.                                                *
    *                                                                       *
-   *  Source-inspection assertion: ChatInputBar's `send()` calls           *
-   *  `setText("")` SYNCHRONOUSLY before awaiting the parent's onSend.    *
-   *  This clears the composer's value regardless of whether the parent's *
-   *  request succeeds — on error the user loses their typed input.       *
-   *  Probe FAILS today: clearing must move INSIDE the parent's success   *
-   *  branch (e.g. parent calls a `clearInput` prop on 2xx only).         *
+   *  Source-inspection: ChatInputBar.send() must AWAIT onSend, branch    *
+   *  on its result, and clear the composer ONLY on success. The parent  *
+   *  (handleQASend) returns Promise<boolean> so the bar can tell        *
+   *  "succeeded" vs "rendered error inline" apart.                      *
    * --------------------------------------------------------------------- */
-  it("FE-10: error response → composer input retained, mic not auto-released", () => {
-    // The current ChatInputBar send() clears unconditionally — find the
-    // exact line and assert against the pattern that should be there.
+  it("FE-10: error response → composer text retained (setText guarded by success)", () => {
     const body = readFileSync(
       join(SRC_ROOT, "components/chat/ChatInputBar.tsx"),
       "utf8"
     );
-    // The bug pattern: `setText("")` immediately followed by `mic.cancel()`
-    // within the synchronous `send()` body, no await between them and the
-    // onSend call.
+
+    // The bug pattern: synchronous `setText("")` right after onSend
+    // with no await / branching. If this regex matches we're back to
+    // the buggy shape.
     const clearsUnconditionally =
       /onSend\(\{[^}]*\}\);\s*setText\(""\);\s*mic\.cancel\(\)/.test(body);
     expect.soft(clearsUnconditionally).toBe(false);
@@ -399,11 +396,22 @@ describe("Structural Response Probe v1", () => {
       expect.fail(
         "ChatInputBar.send() clears the composer's text synchronously " +
           "before the parent's async onSend resolves. On error, the user " +
-          "loses their typed input. Move setText('') into the success " +
-          "branch — either expose a `clearInput` callback the parent calls " +
-          "on 2xx, or have ChatInputBar own the request lifecycle and " +
-          "clear only after a resolved promise."
+          "loses their typed input."
       );
     }
+
+    // Positive pattern: send() is async, awaits onSend, and clears
+    // inside a success branch.
+    expect(body).toMatch(/const\s+send\s*=\s*async/);
+    expect(body).toMatch(/await\s+onSend\(/);
+    expect(body).toMatch(/if\s*\(\s*ok\s*\)\s*\{[\s\S]*?setText\(""\)/);
+
+    // Parent contract: handleQASend returns Promise<boolean> so the
+    // composer can distinguish success from inline-rendered errors.
+    const pageBody = readFileSync(
+      join(SRC_ROOT, "app/chat/page.client.tsx"),
+      "utf8"
+    );
+    expect(pageBody).toMatch(/handleQASend[\s\S]{0,400}Promise<boolean>/);
   });
 });
