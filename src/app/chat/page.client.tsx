@@ -12,6 +12,7 @@ import {
   type SnippetPlayerData,
 } from "@/components/chat/RichBubbles";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
+import { BottomSlot } from "@/components/chat/BottomSlot";
 import { postChatQuery } from "@/services/api/chatQuery";
 import ThreadView from "@/components/chat/thread/ThreadView";
 import { deriveToolbar } from "@/components/chat/thread/toolbar";
@@ -1067,7 +1068,7 @@ export default function ChatPageClient({
                   return null;
                 case "practice_cta":
                   return (
-                    <div className="shrink-0 px-4 pb-4 pt-2">
+                    <BottomSlot widthClass="max-w-3xl">
                       <Button
                         type="button"
                         size="lg"
@@ -1076,21 +1077,23 @@ export default function ChatPageClient({
                       >
                         Start practice (2 min)
                       </Button>
-                    </div>
+                    </BottomSlot>
                   );
                 case "composer":
                   return (
-                    <div className="flex shrink-0 justify-center pb-4">
-                      <ChatInputBar
-                        onSend={handleComposerSubmit}
-                        submitting={qaSubmitting}
-                        onUploadFile={
-                          mode.showUpload ? handleQAFileUpload : undefined
-                        }
-                        uploading={uploadingFile}
-                        emphasizeMic={showRecordUi}
-                      />
-                    </div>
+                    <BottomSlot widthClass="max-w-3xl">
+                      <div className="flex justify-center">
+                        <ChatInputBar
+                          onSend={handleComposerSubmit}
+                          submitting={qaSubmitting}
+                          onUploadFile={
+                            mode.showUpload ? handleQAFileUpload : undefined
+                          }
+                          uploading={uploadingFile}
+                          emphasizeMic={showRecordUi}
+                        />
+                      </div>
+                    </BottomSlot>
                   );
               }
             })()}

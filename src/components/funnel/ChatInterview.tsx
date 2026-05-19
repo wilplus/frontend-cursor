@@ -6,6 +6,7 @@ import { Loader2, Mic, Paperclip, Upload } from "lucide-react";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
 import { RatePills, YesNoPills, type YesNoValue } from "@/components/chat/slots";
+import { BottomSlot } from "@/components/chat/BottomSlot";
 import { Button } from "@/components/ui/button";
 import {
   fetchNextQuestion,
@@ -1457,7 +1458,8 @@ export default function ChatInterview({
                threshold. The "Tap the mic to answer" helper was
                removed to keep the slot pure; only the GDPR
                disclaimer remains (anonymous guests, turn 1 only). */}
-      <div className="flex shrink-0 flex-col items-center gap-1 pb-4">
+      <BottomSlot widthClass="max-w-md">
+        <div className="flex flex-col items-center gap-1">
         {bottomOverride ? (
           bottomOverride
         ) : consentPhase === "asking" || consentPhase === "submitting" ? (
@@ -1601,7 +1603,8 @@ export default function ChatInterview({
             {errorMessage}
           </p>
         )}
-      </div>
+        </div>
+      </BottomSlot>
     </div>
   );
 }
