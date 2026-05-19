@@ -137,6 +137,26 @@ export interface InterviewQuestion {
   question: string;
   tone: "charisma" | "stress";
   turn_number: number;
+  /**
+   * Provenance of the question text. BE-3 attaches this on every
+   * next-question response:
+   *   - "directives_queue" — popped from the user's coaching arc
+   *     (admin's 5-step DirectivesQueuePanel input)
+   *   - "admin_override"   — legacy single-question override path
+   *   - "llm_generated"    — dynamic LLM next-question (the default)
+   *
+   * User-facing chat does NOT render this — admin steering stays
+   * invisible to the end user. ChatInterview calls
+   * `logQuestionAttribution` on every fetch so dev / production
+   * console searches can find admin-influenced turns.
+   */
+  source?: "directives_queue" | "admin_override" | "llm_generated";
+  /**
+   * Only present when source === "directives_queue". Carries the
+   * row's position (1..5) and intent_tag (free-text label the LLM
+   * suggester emitted, e.g. "warm-up", "probe").
+   */
+  directive?: { position: number; intent_tag: string };
 }
 
 export async function fetchNextQuestion(
