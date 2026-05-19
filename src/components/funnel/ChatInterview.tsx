@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, Mic, Paperclip, Upload } from "lucide-react";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
-import { RatePills } from "@/components/chat/slots";
+import { RatePills, YesNoPills, type YesNoValue } from "@/components/chat/slots";
 import { Button } from "@/components/ui/button";
 import {
   fetchNextQuestion,
@@ -386,6 +386,12 @@ export default function ChatInterview({
    */
   const [hasAnsweredSharingConsent, setHasAnsweredSharingConsent] =
     useState<boolean>(true);
+  /** Which Yes/No pill the user just tapped on the consent prompt —
+   *  null until they pick. Drives the YesNoPills visual lock so the
+   *  chosen pill stays filled + spins while the PUT is in flight. */
+  const [consentLastPick, setConsentLastPick] = useState<YesNoValue | null>(
+    null
+  );
 
   const guestSessionIdRef = useRef<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -1434,24 +1440,17 @@ export default function ChatInterview({
         {bottomOverride ? (
           bottomOverride
         ) : consentPhase === "asking" || consentPhase === "submitting" ? (
-          <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:justify-center">
-            <Button
-              type="button"
-              onClick={() => void handleConsentAnswer(true)}
-              disabled={consentPhase === "submitting"}
-              className="rounded-full"
-            >
-              Yes, share my snippets
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleConsentAnswer(false)}
-              disabled={consentPhase === "submitting"}
-              className="rounded-full"
-            >
-              No, keep them private
-            </Button>
+          <div className="w-full max-w-md">
+            <YesNoPills
+              onPick={(v) => {
+                setConsentLastPick(v);
+                void handleConsentAnswer(v === "yes");
+              }}
+              selected={consentLastPick}
+              submitting={consentPhase === "submitting"}
+              yesLabel="Yes, share my snippets"
+              noLabel="No, keep them private"
+            />
           </div>
         ) : ratingPhase === "asking" || ratingPhase === "submitting" ? (
           <div className="flex w-full max-w-md flex-col items-stretch gap-2">
