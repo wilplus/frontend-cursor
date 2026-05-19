@@ -56,7 +56,17 @@ export interface ChatInputBarSendArgs {
 }
 
 interface ChatInputBarProps {
-  onSend: (args: ChatInputBarSendArgs) => void;
+  /**
+   * Send handler. May return `Promise<boolean>` to signal
+   * success/failure: `true` (or undefined / void) → composer
+   * clears + mic resets; `false` (or thrown error) → input and
+   * mic-state are retained so the user can edit and retry without
+   * re-typing or re-recording. Parent is responsible for the
+   * error message; this bar doesn't double-report.
+   */
+  onSend: (
+    args: ChatInputBarSendArgs
+  ) => Promise<boolean | void> | boolean | void;
   /** True while a parent-side send is in flight — locks composer +
    *  mic so the user can't double-fire. */
   submitting?: boolean;
@@ -155,17 +165,44 @@ export function ChatInputBar({
     setConsentOpen(false);
   };
 
-  const send = () => {
+  const send = async () => {
     const trimmed = text.trim();
     if (!trimmed || submitting || uploading) return;
     const audioBlob =
       mic.state.status === "stopped" ? mic.state.audioBlob : null;
     const durationSec =
       mic.state.status === "stopped" ? mic.state.durationSec : null;
-    onSend({ text: trimmed, audioBlob, durationSec });
-    setText("");
-    mic.cancel();
+
+    // FE-10 — clear composer + reset mic ONLY on success. If the
+    // parent's handler resolves with `false` (handled error rendered
+    // inline) or throws, retain the text + mic state so the user can
+    // edit and resubmit without re-typing or re-recording. The parent
+    // already surfaced the error message (thread bubble / toast); we
+    // don't double-report.
+    let ok = true;
+    try {
+      const result = await onSend({ text: trimmed, audioBlob, durationSec });
+      if (result === false) ok = false;
+    } catch {
+      ok = false;
+    }
+    if (!mountedRef.current) return;
+    if (ok) {
+      setText("");
+      mic.cancel();
+    }
   };
+
+  // Same unmount guard as useDualCaptureMic — prevents setState after
+  // the bar unmounts mid-send (e.g. parent flips phase while a slow
+  // /chat/query is in flight).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
