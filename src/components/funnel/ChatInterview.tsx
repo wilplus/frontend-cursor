@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/public-client";
 import { getSharingConsent, setSharingConsent } from "@/lib/api/client";
 import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
+import { logQuestionAttribution } from "@/lib/chat/questionAttribution";
 
 /**
  * TypingIndicator — three bouncing dots, messenger-style. Sits inside the
@@ -474,6 +475,16 @@ export default function ChatInterview({
       try {
         const q = await fetchNextQuestion(1, []);
         if (unmountedRef.current) return;
+        // FE-07 — log every admin-influenced turn (source ===
+        // "directives_queue" | "admin_override") to the dev console
+        // so production session diagnostics can grep which questions
+        // came from admin steering. No user-visible effect.
+        if (q.source) {
+          logQuestionAttribution(
+            { source: q.source, directive: q.directive },
+            q.turn_number ?? 1
+          );
+        }
         renderChunkedBotMessage(q.question, "q-1", q.tone, (joined) => {
           setCurrentQuestion({ text: joined, tone: q.tone });
         });
@@ -706,6 +717,16 @@ export default function ChatInterview({
 
       try {
         const q = await fetchNextQuestion(nextTurn, previousTurns);
+        if (q.source) {
+          // FE-07 attribution log — see the cold-start branch above.
+          // Same shape; ignoring the directive object on admin_override
+          // (BE doesn't ship one for that source) is harmless because
+          // logQuestionAttribution tolerates an undefined directive.
+          logQuestionAttribution(
+            { source: q.source, directive: q.directive },
+            q.turn_number ?? nextTurn
+          );
+        }
         renderChunkedBotMessage(
           q.question,
           `q-${nextTurn}`,
