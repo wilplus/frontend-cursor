@@ -25,10 +25,22 @@ export interface BottomSlotProps {
    *  another bubble (e.g. TrialRecordingBubble) is the active prompt and
    *  the bottom slot should defer. */
   inert?: boolean;
+  /**
+   * Inner column width. Default matches the spec's mobile-first
+   *  `max-w-md` (448px). Surfaces that live inside a wider parent
+   *  column (e.g. /chat at `max-w-3xl`) should override so the
+   *  bottom doesn't visibly narrow vs the thread above it.
+   */
+  widthClass?: string;
   className?: string;
 }
 
-export function BottomSlot({ children, inert = false, className }: BottomSlotProps) {
+export function BottomSlot({
+  children,
+  inert = false,
+  widthClass = "max-w-md",
+  className,
+}: BottomSlotProps) {
   return (
     <div
       className={cn(
@@ -39,7 +51,7 @@ export function BottomSlot({ children, inert = false, className }: BottomSlotPro
         className
       )}
     >
-      <div className="mx-auto max-w-md px-4 py-4">{children}</div>
+      <div className={cn("mx-auto px-4 py-4", widthClass)}>{children}</div>
     </div>
   );
 }
