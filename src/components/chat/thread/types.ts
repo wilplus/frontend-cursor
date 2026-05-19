@@ -33,6 +33,7 @@ import type {
   AcousticMetricsBubbleData,
   DashboardBubbleData,
   SnippetPlayerData,
+  StressContrastBubbleData,
 } from "@/components/chat/RichBubbles";
 
 export type Bubble =
@@ -81,6 +82,7 @@ export type Bubble =
   | { id: string; kind: "typing" }
   | { id: string; kind: "metrics"; data: AcousticMetricsBubbleData }
   | { id: string; kind: "dashboard"; data: DashboardBubbleData }
+  | { id: string; kind: "contrast"; data: StressContrastBubbleData }
   | { id: string; kind: "snippet"; data: SnippetPlayerData }
   | {
       id: string;

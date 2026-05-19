@@ -41,10 +41,8 @@ import {
 } from "vitest";
 import { deriveToolbar } from "../../src/components/chat/thread/toolbar";
 import { splitAiBubbleText } from "../../src/lib/chat/bubbleSplit";
-import type {
-  ChatQueryContrast,
-  ChatQueryResponse,
-} from "../../src/services/api/chatQuery";
+import { parseStressContrast } from "../../src/lib/chat/stressContrast";
+import type { ChatQueryResponse } from "../../src/services/api/chatQuery";
 
 // ---------------------------------------------------------------------------
 // C3 — zero network. Fail loud if any code path attempts a real fetch.
@@ -197,78 +195,89 @@ describe("Structural Response Probe v1", () => {
    *  FE-05  Results / dashboard: contrast: null → no Stress Contrast      *
    *         card in render path.                                          *
    *                                                                       *
-   *  Two layers: (a) the ChatQueryResponse type accepts contrast: null    *
-   *  (TypeScript verifies at compile-time); (b) no contrast renderer is   *
-   *  ever invoked when the field is null. Today contrast UI is DEFERRED   *
-   *  per FE Prompt 3's optional deliverable 5 — no renderer exists, so    *
-   *  the card is trivially absent. The test passes BUT for an absence-    *
-   *  by-default reason; once the contrast UI lands, this case should     *
-   *  re-verify the conditional render.                                    *
+   *  Two layers: (a) `parseStressContrast(null)` returns null, so the     *
+   *  reviewing-fetch's `if (contrastData) appendBubble(...)` gate keeps   *
+   *  the card out of the bubbles array entirely — never rendered, not    *
+   *  just CSS-hidden (matrix C7). (b) The chat consumer wraps the gate    *
+   *  in exactly that shape, so we can grep for it.                       *
    * --------------------------------------------------------------------- */
-  it("FE-05: contrast: null → no Stress Contrast renderer triggered (absent by default today)", () => {
-    const response: ChatQueryResponse = { answer: "ok", contrast: null };
-    expect(response.contrast).toBeNull();
+  it("FE-05: contrast: null → parseStressContrast gates the bubble append", () => {
+    // Pure-function half of the assertion — null in, null out.
+    const parsed = parseStressContrast(null);
+    expect(parsed).toBeNull();
 
-    // Confirm no production component currently renders "Stress Contrast"
-    // copy when contrast is null. Since the renderer doesn't exist at all,
-    // we assert its absence from the source — the "absent in DOM" guarantee
-    // today is trivial.
-    const hasStressContrastCopy =
-      fileContains("app/chat/page.client.tsx", /Stress Contrast/i) ||
-      fileContains("services/api/chatQuery.ts", /Stress Contrast/i);
-    expect(hasStressContrastCopy).toBe(false);
+    // Consumer half — page.client.tsx must wrap the append in a
+    // truthiness gate so contrast: null skips the bubble entirely.
+    expect(
+      fileContains(
+        "app/chat/page.client.tsx",
+        /parseStressContrast\([\s\S]*?\)/
+      )
+    ).toBe(true);
+    expect(
+      fileContains(
+        "app/chat/page.client.tsx",
+        /if\s*\(\s*contrastData\s*\)/
+      )
+    ).toBe(true);
   });
 
   /* --------------------------------------------------------------------- *
    *  FE-06  Results / dashboard: contrast: {samples, deltas, sign} →      *
    *         card renders, all 3 deltas visible, sign convention respected.*
    *                                                                       *
-   *  Source-inspection assertion: a contrast renderer exists and is       *
-   *  wired into the chat surface. Today the contrast UI is deferred per   *
-   *  FE Prompt 3 — no renderer exists → probe FAILS, surfacing the gap.   *
+   *  Data-layer assertion: `parseStressContrast` accepts the exact BE-3   *
+   *  shape, returns three rows in the order BE emits, and the renderer   *
+   *  component exists with the "Stress Contrast" header copy. Sign       *
+   *  convention is hard-coded in `formatStressContrastRow` — positive    *
+   *  delta produces "under pressure" interpretation strings, verified    *
+   *  by stressContrast.test.ts.                                          *
    * --------------------------------------------------------------------- */
-  it("FE-06: contrast: {deltas} → all 3 deltas rendered in a Stress Contrast card", () => {
-    // Fixture matches the BE-3 contract.
-    const contrast: ChatQueryContrast = {
-      samples: {
-        official: { wpm: 100, pitch_hz: 150 },
-        casual: { wpm: 80, pitch_hz: 145 },
+  it("FE-06: contrast: {deltas} → parses 3 rows + renderer present + reviewing-fetch appends", () => {
+    // (1) BE-3 shape parses cleanly to three rows.
+    const parsed = parseStressContrast({
+      samples: { official: 5, casual: 5 },
+      deltas: {
+        wpm_delta: 20,
+        pause_ms_delta: 50,
+        dynamic_db_delta: 2,
       },
-      deltas: [
-        { metric: "wpm", delta: 20, direction: "up" },
-        { metric: "pause_ms", delta: 50, direction: "up" },
-        { metric: "dynamic_db", delta: 2, direction: "up" },
-      ],
-    };
-    expect(contrast.deltas).toHaveLength(3);
+      sign_convention: "positive_delta_means_official_greater_than_casual",
+    });
+    expect(parsed).not.toBeNull();
+    expect(parsed!.rows).toHaveLength(3);
+    expect(parsed!.rows.map((r) => r.metric)).toEqual([
+      "wpm",
+      "pause_ms",
+      "dynamic_db",
+    ]);
 
-    // Renderer expected to exist in one of these paths. Update the list
-    // when the contrast UI lands.
-    const candidatePaths = [
-      "components/chat/StressContrastCard.tsx",
-      "components/results/StressContrastCard.tsx",
-      "components/chat/RichBubbles.tsx",
-    ];
-    let rendererPresent = false;
-    for (const p of candidatePaths) {
-      try {
-        if (fileContains(p, /Stress Contrast/i)) {
-          rendererPresent = true;
-          break;
-        }
-      } catch {
-        // file doesn't exist — keep looking
-      }
-    }
-    expect.soft(rendererPresent).toBe(true);
-    if (!rendererPresent) {
-      expect.fail(
-        "No Stress Contrast renderer present. Expected a component that " +
-          "renders `deltas[].metric + delta + direction` rows when " +
-          "ChatQueryResponse.contrast is non-null. FE Prompt 3 deferred " +
-          "this; ship when BE-3 starts returning the contrast block."
-      );
-    }
+    // (2) Renderer component is present in the source. Single-source
+    // path now that the bubble model is unified — StressContrastBubble
+    // lives in RichBubbles.tsx and is mounted by ThreadView.
+    expect(
+      fileContains("components/chat/RichBubbles.tsx", /Stress Contrast/i)
+    ).toBe(true);
+    expect(
+      fileContains(
+        "components/chat/RichBubbles.tsx",
+        /export function StressContrastBubble/
+      )
+    ).toBe(true);
+    expect(
+      fileContains(
+        "components/chat/thread/ThreadView.tsx",
+        /StressContrastBubble/
+      )
+    ).toBe(true);
+
+    // (3) BFF must request the optional contrast block from upstream.
+    expect(
+      fileContains(
+        "app/api/results/[sessionId]/snippets/route.ts",
+        /include_contrast=true/
+      )
+    ).toBe(true);
   });
 
   /* --------------------------------------------------------------------- *
