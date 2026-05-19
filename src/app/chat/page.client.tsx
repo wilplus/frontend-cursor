@@ -26,6 +26,7 @@ import {
   uploadUserFile,
 } from "@/lib/api/public-client";
 import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
+import { parseStressContrast } from "@/lib/chat/stressContrast";
 import { setPendingSessionId } from "@/lib/funnel/pendingSession";
 import {
   consumePostOnboardingWelcome,
@@ -471,6 +472,7 @@ export default function ChatPageClient({
           charisma_profile?: {
             trinity?: { power?: number; warmth?: number; presence?: number };
           } | null;
+          contrast?: unknown;
         };
         if (cancelled) return;
 
@@ -485,6 +487,19 @@ export default function ChatPageClient({
               },
             },
           });
+        }
+
+        // Stress-Contrast (BE-3). parseStressContrast returns null
+        // when either side has <3 samples or no shared metric had a
+        // numeric reading — per matrix C7 we render NOTHING in that
+        // case (no placeholder card). Card sits between the dashboard
+        // and the first snippet so the reader gets the "contrast" lens
+        // BEFORE they see individual snippet insights.
+        {
+          const contrastData = parseStressContrast(data.contrast);
+          if (contrastData) {
+            appendBubble({ kind: "contrast", data: contrastData });
+          }
         }
 
         const snippets = Array.isArray(data.snippets) ? data.snippets : [];

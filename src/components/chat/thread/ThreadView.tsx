@@ -7,6 +7,7 @@ import {
   DashboardBubble,
   SnippetLabelBubble,
   SnippetPlayerBubble,
+  StressContrastBubble,
   TextBubble,
   TypingBubble,
 } from "@/components/chat/RichBubbles";
@@ -105,6 +106,9 @@ function BubbleRow({
 
     case "dashboard":
       return <DashboardBubble data={bubble.data} />;
+
+    case "contrast":
+      return <StressContrastBubble data={bubble.data} />;
 
     case "snippet":
       return <SnippetPlayerBubble snippet={bubble.data} />;

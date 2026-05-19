@@ -40,14 +40,22 @@ export async function GET(
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl}/v2/user/results/${id}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
+    // BE-3 stress-contrast is opt-in via ?include_contrast=true so the
+    // backend skips the two extra metric reads for callers that don't
+    // render the dashboard section. The reviewing UI is the only
+    // consumer of /api/results/.../snippets, and it always wants the
+    // contrast block when available — request it unconditionally.
+    upstream = await fetch(
+      `${backendUrl}/v2/user/results/${id}?include_contrast=true`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      }
+    );
   } catch (err) {
     console.error("GET /api/results/[id]/snippets — fetch failed:", err);
     return NextResponse.json(
