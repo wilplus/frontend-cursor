@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, Mic, Paperclip, Upload } from "lucide-react";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import VoiceRecordButton from "@/components/funnel/VoiceRecordButton";
-import RatingComposer from "@/components/funnel/RatingComposer";
+import { RatePills } from "@/components/chat/slots";
 import { Button } from "@/components/ui/button";
 import {
   fetchNextQuestion,
@@ -343,8 +343,8 @@ export default function ChatInterview({
   // backend's upload-answer response sets requires_self_score=true.
   // See submitSelfRating + handleSend.
   //   none       — not asked (default), or rating already collected
-  //   asking     — bot has prompted; <RatingComposer> 1-10 buttons
-  //                replace the mic until the user taps one
+  //   asking     — bot has prompted; <RatePills> 1–10 slot replaces
+  //                the mic until the user taps one
   //   submitting — POST in flight (incl. 425 retries)
   //   done       — rating saved (or soft-failed) — continue to Q2
   const [ratingPhase, setRatingPhase] = useState<
@@ -353,9 +353,14 @@ export default function ChatInterview({
   const [ratingError, setRatingError] = useState<string | null>(null);
   /** True while the backend has returned 425 ATTEMPT_NOT_READY at
    *  least once and we're sitting in the +2s/+5s retry ladder.
-   *  Drives a subtle "evaluating…" hint on the composer so the user
+   *  Drives a subtle "evaluating…" hint below the slot so the user
    *  knows we heard them but the system is catching up. */
   const [ratingEvaluating, setRatingEvaluating] = useState(false);
+  /** Which pill (1..10) the user just tapped — null until they pick.
+   *  Drives the RatePills visual lock so the chosen pill stays filled
+   *  + spins while submitSelfRating's POST is in flight; cleared on
+   *  RATING_UNPARSEABLE so the user can re-pick. */
+  const [lastRating, setLastRating] = useState<number | null>(null);
   /** Whisper transcript from turn 1 — stashed during the rating phase
    *  so we can attach it to previousTurns when we eventually fetch Q2. */
   const ratingDeferredTranscriptRef = useRef<string | null>(null);
@@ -905,10 +910,10 @@ export default function ChatInterview({
         }
 
         if (data.code === "RATING_UNPARSEABLE") {
-          // Whisper transcribed something but no 1..10 was in it.
-          // Keep the audio bubble (the user DID speak) and re-arm the
-          // mic with inline copy so they can try a clearer take.
+          // Backend's parser couldn't pull a 1..10 from the value.
+          // Re-arm the pills with inline copy so the user can re-pick.
           setRatingEvaluating(false);
+          setLastRating(null);
           setRatingError(
             "I didn't catch a number — try again with just 1–10."
           );
@@ -942,10 +947,10 @@ export default function ChatInterview({
   );
 
   // (handleRatingSend deleted — voice-only rating intake removed.
-  //  Rating phase now uses <RatingComposer> 1-10 button row that
-  //  feeds digit strings straight into submitSelfRating without
-  //  Whisper. Voice extraction was too brittle for plain digits;
-  //  the manual tap is faster AND more reliable.)
+  //  Rating phase now uses the <RatePills> 1–10 slot that feeds
+  //  digit strings straight into submitSelfRating without Whisper.
+  //  Voice extraction was too brittle for plain digits; the manual
+  //  tap is faster AND more reliable.)
 
   /**
    * End-of-session helper — single source of truth for the goodbye
@@ -1418,8 +1423,8 @@ export default function ChatInterview({
                (e.g. [Sign Up]). When set, NOTHING else renders here.
             2. Sharing-consent Yes/No buttons — one-time, post-rating.
                Tap-to-pick, not voice (binary choice, no transcript).
-            3. RatingComposer 1–10 row — when ratingPhase is asking
-               or submitting (voice rating intake was too brittle).
+            3. RatePills slot — when ratingPhase is asking or
+               submitting (single canonical 1–10 surface).
             4. Default: mic OR file dropzone + paperclip toggle,
                gated on currentQuestion + not loading + not past
                threshold. The "Tap the mic to answer" helper was
@@ -1449,12 +1454,29 @@ export default function ChatInterview({
             </Button>
           </div>
         ) : ratingPhase === "asking" || ratingPhase === "submitting" ? (
-          <RatingComposer
-            onSubmit={(input) => void submitSelfRating(input)}
-            submitting={ratingPhase === "submitting"}
-            evaluating={ratingEvaluating}
-            error={ratingError}
-          />
+          <div className="flex w-full max-w-md flex-col items-stretch gap-2">
+            <RatePills
+              onPick={(value) => {
+                setLastRating(value);
+                void submitSelfRating(String(value));
+              }}
+              selected={lastRating}
+              submitting={ratingPhase === "submitting"}
+            />
+            {ratingEvaluating && !ratingError && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                evaluating…
+              </p>
+            )}
+            {ratingError && (
+              <p
+                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive"
+                role="alert"
+              >
+                {ratingError}
+              </p>
+            )}
+          </div>
         ) : (
           !loadingQuestion &&
           currentQuestion &&
