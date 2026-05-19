@@ -44,6 +44,17 @@ export function DirectivesQueuePanel({ userId }: { userId: string }) {
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [clearing, setClearing] = useState(false);
+  /**
+   * Last hydrate error, if any. Cleared on a successful re-fetch (the
+   * Retry button) or when the admin starts editing rows manually. We
+   * surface this in-panel rather than silently rendering an empty form
+   * — the silent-fallback path was load-bearing during the BE→DB
+   * sync window (BE shipped, migration not yet applied) where the
+   * endpoint 200'd with empty rows AND the panel masked the underlying
+   * "table missing" failure. Now the admin always knows whether
+   * "empty" means "no arc queued yet" vs "backend choked on hydrate".
+   */
+  const [hydrateError, setHydrateError] = useState<string | null>(null);
   // Abort flag for the on-mount fetch — keeps us from stomping local
   // edits if the user starts typing before the GET resolves.
   const mountedRef = useRef(true);
@@ -58,8 +69,9 @@ export function DirectivesQueuePanel({ userId }: { userId: string }) {
   const submittable = canSave(rows) && !saving && !suggesting && !clearing;
   const baselineHasArc = hasBackendArc(baseline);
 
-  useEffect(() => {
+  const hydrate = useCallback(() => {
     setLoading(true);
+    setHydrateError(null);
     getDirectivesQueue(userId)
       .then((payload) => {
         if (!mountedRef.current) return;
@@ -67,19 +79,28 @@ export function DirectivesQueuePanel({ userId }: { userId: string }) {
         setRows(hydrated);
         setBaseline(hydrated);
       })
-      .catch(() => {
-        // Backend BE-3 not deployed yet → endpoint 4xx. Render the
-        // empty form rather than blocking the admin. The toast below
-        // is silent on initial hydrate to avoid scaring admins on a
-        // fresh page load before the backend ships.
+      .catch((e: unknown) => {
         if (!mountedRef.current) return;
+        // Visible banner — see the `hydrateError` rationale above.
+        // We still seed empty rows so the admin can draft locally
+        // (handy when the BE has a transient hiccup) but the banner
+        // makes the failure mode explicit.
         setRows(emptyRows());
         setBaseline(emptyRows());
+        setHydrateError(
+          e instanceof Error
+            ? e.message
+            : "Failed to load the current arc."
+        );
       })
       .finally(() => {
         if (mountedRef.current) setLoading(false);
       });
   }, [userId]);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   const onRowText = useCallback((idx: number, question: string) => {
     setRows((prev) => patchRow(prev, idx, { question }));
@@ -207,7 +228,36 @@ export function DirectivesQueuePanel({ userId }: { userId: string }) {
         </p>
       ) : (
         <>
-          {!baselineHasArc && !dirty && (
+          {hydrateError && (
+            <div
+              role="alert"
+              className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs"
+            >
+              <div className="text-destructive">
+                <p className="font-semibold">Couldn&apos;t load the current arc.</p>
+                <p className="mt-0.5 text-destructive/80">
+                  {hydrateError}
+                </p>
+                <p className="mt-1 text-destructive/70">
+                  Drafting below works locally, but Save will fail until the
+                  backend recovers. Common causes: missing DB migration, admin
+                  token expired, network blip.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={hydrate}
+                disabled={loading}
+                className="shrink-0 rounded-full"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {!baselineHasArc && !dirty && !hydrateError && (
             <p className="mb-3 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               No arc queued — next AI turn will be LLM-generated. Fill row 1
               (at minimum) and click Queue to override.
