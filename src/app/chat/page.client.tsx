@@ -614,7 +614,30 @@ export default function ChatPageClient({
         if (res.ok) {
           const data = (await res.json().catch(() => ({}))) as {
             followup_text?: string;
+            debug?: { user_label_interpretation?: string };
           };
+          // Contract guard (probe v1 FE-04): the BE's
+          // user_label_interpretation MUST be "agreement" — the matrix
+          // pin in docs/PANEL-STATE-MATRIX.md fixes this semantic. If
+          // the backend ever flips it to "type" without coordinating,
+          // our `agreement = (value === snippetType)` translation
+          // becomes silently wrong (positive labels start meaning
+          // "user classified as charisma" instead of "user agreed").
+          // Warn loud rather than silently mis-attribute the signal.
+          const interpretation = data.debug?.user_label_interpretation;
+          if (
+            typeof interpretation === "string" &&
+            interpretation !== "agreement"
+          ) {
+            console.warn(
+              `snippet-followup contract violation: ` +
+                `debug.user_label_interpretation="${interpretation}" ` +
+                `(expected "agreement"). The FE's user_label translation ` +
+                `assumes AGREEMENT semantic — if backend flipped to TYPE ` +
+                `semantic, update the matrix's "Pinned semantics" section ` +
+                `and revise the agreement-derivation in handleSnippetLabel.`
+            );
+          }
           if (typeof data.followup_text === "string") {
             followup = data.followup_text.trim();
           }
