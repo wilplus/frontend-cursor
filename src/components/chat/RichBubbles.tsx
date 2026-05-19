@@ -273,6 +273,87 @@ export function DashboardBubble({ data }: { data: DashboardBubbleData }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  StressContrastBubble — Stress Contrast card                                */
+/*                                                                            */
+/*  Phase Stress-Contrast (BE-3). Shows the median acoustic delta between    */
+/*  the user's last 5 high-stakes ("official") snippets and their last 5     */
+/*  casual voice samples captured during /v2/chat/query. Sign convention is  */
+/*  pinned: positive delta = "the metric increases under pressure" (e.g.    */
+/*  +12 WPM = speaks faster). One row per delta the backend ships (today    */
+/*  wpm / pause_ms / dynamic_db).                                            */
+/*                                                                            */
+/*  When backend returns `contrast: null` the parent omits this bubble       */
+/*  entirely — never render with a "not enough samples" placeholder per      */
+/*  matrix C7. Caller is responsible for that gate via                       */
+/*  `parseStressContrast` (returns null → skip the append).                  */
+/* -------------------------------------------------------------------------- */
+
+export interface StressContrastBubbleData {
+  samples: { official: number; casual: number };
+  rows: ReadonlyArray<{
+    metric: "wpm" | "pause_ms" | "dynamic_db";
+    delta: number;
+    valueLabel: string;
+    interpretation: string;
+  }>;
+}
+
+const STRESS_CONTRAST_METRIC_LABEL: Record<
+  StressContrastBubbleData["rows"][number]["metric"],
+  string
+> = {
+  wpm: "Pace",
+  pause_ms: "Pausing",
+  dynamic_db: "Volume",
+};
+
+export function StressContrastBubble({
+  data,
+}: {
+  data: StressContrastBubbleData;
+}) {
+  return (
+    <BubbleShell>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-semibold text-foreground">
+          <span className="dash-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+          Stress Contrast
+        </span>
+        <span className="text-[10px] text-muted-foreground tabular-nums">
+          {data.samples.official} official · {data.samples.casual} casual
+        </span>
+      </div>
+      <div className="mt-3 space-y-2">
+        {data.rows.map((row) => (
+          <div key={row.metric} className="flex items-start gap-3">
+            <span className="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {STRESS_CONTRAST_METRIC_LABEL[row.metric]}
+            </span>
+            <div className="flex-1">
+              <span
+                className={cn(
+                  "text-sm font-semibold tabular-nums",
+                  row.delta > 0
+                    ? "text-foreground"
+                    : row.delta < 0
+                    ? "text-foreground/70"
+                    : "text-muted-foreground"
+                )}
+              >
+                {row.valueLabel}
+              </span>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                {row.interpretation}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </BubbleShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  TextBubble — plain bot text in a chat bubble                              */
 /* -------------------------------------------------------------------------- */
 
