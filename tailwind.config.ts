@@ -84,6 +84,17 @@ const config: Config = {
         "chat-user": "hsl(var(--chat-bubble-user))",
         "chat-user-foreground": "hsl(var(--chat-bubble-user-foreground))",
         "recording-pulse": "hsl(var(--recording-pulse))",
+        // Chat-slot semantic colours (Single-Slot UI spec). Charisma /
+        // Stress in the CharismaStress slot use these instead of the
+        // generic destructive so the valence is meaningful at a glance.
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          foreground: "hsl(var(--danger-foreground))",
+        },
       },
     },
   },
