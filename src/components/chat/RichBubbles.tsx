@@ -4,6 +4,10 @@ import { Activity, Gauge, Loader2, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import {
+  CharismaStress,
+  type CharismaStressValue,
+} from "@/components/chat/slots";
 
 /* -------------------------------------------------------------------------- */
 /*  Rich chat bubbles — the in-chat replacement for the old /results page    */
@@ -161,6 +165,55 @@ export function ActionBubble({
             </Button>
           );
         })}
+      </div>
+    </BubbleShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  SnippetLabelBubble — charisma-vs-stress label, single binary pick         */
+/*                                                                            */
+/*  Specialised wrapper around the CharismaStress slot for the snippet-       */
+/*  review thread. Renders the BubbleShell chrome (W avatar + bot bubble)    */
+/*  with a prompt above the binary, then delegates the actual button row    */
+/*  to the canonical slot so the visual matches every other place charisma  */
+/*  vs stress appears in the app.                                            */
+/*                                                                            */
+/*  The earlier ActionBubble + ad-hoc option array stays around as a more   */
+/*  generic primitive (other binary picks may need it), but the charisma/  */
+/*  stress moment now goes through this specialised path.                   */
+/* -------------------------------------------------------------------------- */
+
+export function SnippetLabelBubble({
+  prompt = "Do you agree with this insight?",
+  selected,
+  submitting,
+  onPick,
+  charismaLabel,
+  stressLabel,
+}: {
+  prompt?: string;
+  /** Locked value once the user has chosen. Null = nothing picked. */
+  selected: CharismaStressValue | null;
+  /** True while the parent's label POST is in flight. */
+  submitting: boolean;
+  onPick: (value: CharismaStressValue) => void;
+  /** Optional label overrides per snippet — defaults to "Charisma" /
+   *  "Stress" inside the slot. */
+  charismaLabel?: string;
+  stressLabel?: string;
+}) {
+  return (
+    <BubbleShell>
+      <p className="text-[13px] leading-relaxed text-foreground">{prompt}</p>
+      <div className="mt-3">
+        <CharismaStress
+          onPick={onPick}
+          selected={selected}
+          submitting={submitting}
+          charismaLabel={charismaLabel}
+          stressLabel={stressLabel}
+        />
       </div>
     </BubbleShell>
   );
