@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import {
   AcousticMetricsBubble,
   DashboardBubble,
+  SnippetLabelBubble,
   SnippetPlayerBubble,
   TextBubble,
   TypingBubble,
-  ActionBubble,
 } from "@/components/chat/RichBubbles";
 import ChatBubble from "@/components/funnel/ChatBubble";
 import type { Bubble } from "@/components/chat/thread/types";
@@ -110,33 +110,17 @@ function BubbleRow({
       return <SnippetPlayerBubble snippet={bubble.data} />;
 
     case "action_pending": {
-      const isCharismaAgreement = bubble.snippetType === "charisma";
+      // Snippet review's charisma-vs-stress binary. The slot picks
+      // the value directly ("charisma" | "stress") — no agreement-
+      // framing wrapper, no value flipping. The backend just needs
+      // the user_label, so the simpler direct pick is preferred.
       return (
-        <ActionBubble
-          prompt="Do you agree with this insight?"
-          options={[
-            {
-              value: bubble.snippetType,
-              label: isCharismaAgreement
-                ? "YES, this is Charisma"
-                : "YES, this is Stress",
-            },
-            {
-              value: isCharismaAgreement ? "stress" : "charisma",
-              label: isCharismaAgreement
-                ? "NO, this is Stress"
-                : "NO, this is Charisma",
-              variant: "outline",
-            },
-          ]}
+        <SnippetLabelBubble
           selected={null}
           submitting={bubble.submitting}
-          onSelect={(value) => {
+          onPick={(value) => {
             if (!onActionSelect) return;
-            onActionSelect(
-              bubble.snippetId,
-              value as "charisma" | "stress"
-            );
+            onActionSelect(bubble.snippetId, value);
           }}
         />
       );
