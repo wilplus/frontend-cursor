@@ -414,4 +414,70 @@ describe("Structural Response Probe v1", () => {
     );
     expect(pageBody).toMatch(/handleQASend[\s\S]{0,400}Promise<boolean>/);
   });
+
+  /* --------------------------------------------------------------------- *
+   *  FE-11  Chat input panel: show_record_ui=true → mic emphasized        *
+   *         (record-ready state); paperclip absent (Rule G ⊕ Rule I       *
+   *         mutex on the FE side too).                                    *
+   *                                                                       *
+   *  Two layers:                                                          *
+   *  (a) Data-layer mutex: deriveToolbar with showUploadUi=false yields   *
+   *      `{composer, showUpload: false}` regardless of show_record_ui.    *
+   *      show_record_ui rides on a sibling state slot (`emphasizeMic`),   *
+   *      not the composer's paperclip slot, so the two flags are          *
+   *      genuinely orthogonal at the FE wire — the mutex is a backend     *
+   *      convention. FE just must honor each flag independently.          *
+   *  (b) Source-layer wiring: page.client.tsx reads                       *
+   *      `data.show_record_ui === true` off the /chat/query response,     *
+   *      threads it into `showRecordUi` state, and passes that as the     *
+   *      `emphasizeMic` prop on ChatInputBar; ChatInputBar gates the      *
+   *      pulse/ring styling on the idle mic button by that prop.          *
+   * --------------------------------------------------------------------- */
+  it("FE-11: show_record_ui=true → emphasizeMic plumbed; paperclip stays absent (mutex)", () => {
+    // Pin the fixture shape against the typed response so any backend
+    // contract drift trips the compiler before this test runs.
+    const fixture: ChatQueryResponse = {
+      answer: "Sure — tap the mic to record.",
+      show_upload_ui: false,
+      show_record_ui: true,
+    };
+    expect(fixture.show_record_ui).toBe(true);
+    expect(fixture.show_upload_ui).toBe(false);
+
+    // (a) Data-layer: with show_upload_ui=false the composer doesn't
+    // request a paperclip, regardless of show_record_ui's value.
+    const mode = deriveToolbar({
+      phase: "q_and_a",
+      bubbles: [],
+      reviewLoadedForActiveSession: false,
+      showUploadUi: fixture.show_upload_ui === true,
+      pendingFollowUp: false,
+    });
+    expect(mode).toEqual({ kind: "composer", showUpload: false });
+
+    // (b) Source-layer wiring: parent reads show_record_ui and forwards
+    // the value to ChatInputBar's emphasizeMic prop.
+    expect(
+      fileContains(
+        "app/chat/page.client.tsx",
+        /setShowRecordUi\(\s*data\.show_record_ui\s*===\s*true\s*\)/
+      )
+    ).toBe(true);
+    expect(
+      fileContains("app/chat/page.client.tsx", /emphasizeMic=\{showRecordUi\}/)
+    ).toBe(true);
+
+    // ChatInputBar accepts the prop and gates the idle-mic ring/pulse
+    // styling on it. Two cheap source checks: the prop exists, and the
+    // primary-tint ring styling is wired behind it.
+    expect(
+      fileContains(
+        "components/chat/ChatInputBar.tsx",
+        /emphasizeMic\?:\s*boolean/
+      )
+    ).toBe(true);
+    expect(
+      fileContains("components/chat/ChatInputBar.tsx", /ring-primary/)
+    ).toBe(true);
+  });
 });
