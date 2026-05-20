@@ -8,6 +8,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * POST /api/v2/admin/users/[userId]/settings
  * Update custom LLM instructions for a user.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }

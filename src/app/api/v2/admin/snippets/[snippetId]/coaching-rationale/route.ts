@@ -39,6 +39,9 @@ const BFF_REVISION = "admin-snippet-coaching-rationale-v1";
  * 404 NOT_FOUND         — snippet missing or has no follow_up_outcome
  * 5xx                   — backend unavailable
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { snippetId: string } }

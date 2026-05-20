@@ -5,6 +5,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * POST multipart/form-data to import an external recording into the admin ML dataset flow.
  * Backend target: POST /v2/admin/recordings/import
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   const token = await getV2AccessToken(request);
   if (!token) {

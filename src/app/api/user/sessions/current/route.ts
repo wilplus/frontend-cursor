@@ -28,6 +28,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  *
  * Auth: bearer token (Supabase session). Returns 401 if missing.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(req: NextRequest) {
   const accessToken = await getV2AccessToken(req);
   if (!accessToken) {

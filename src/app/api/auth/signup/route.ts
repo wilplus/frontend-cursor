@@ -29,6 +29,9 @@ import { getBackendUrl } from "@/app/api/getAuth";
  *   500 SIGNUP_ERROR       — unexpected server error
  *   502 PROXY_ERROR        — couldn't reach backend at all
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {

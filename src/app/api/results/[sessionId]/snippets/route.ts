@@ -16,6 +16,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * freshly-claimed sessions because RLS hid the rows from the anon
  * client.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } }

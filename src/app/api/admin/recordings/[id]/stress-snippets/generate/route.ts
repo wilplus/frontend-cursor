@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

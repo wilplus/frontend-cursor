@@ -48,6 +48,9 @@ async function proxy(req: NextRequest, ctx: Ctx) {
   });
 }
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(req: NextRequest, ctx: Ctx) {
   return proxy(req, ctx);
 }

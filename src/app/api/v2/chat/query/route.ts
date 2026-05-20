@@ -9,6 +9,8 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * Inner AbortController is 25s so we still emit a proper
  * UPSTREAM_TIMEOUT JSON before Vercel slams the door.
  */
+export const runtime = "nodejs";
+
 export const maxDuration = 30;
 
 /**
