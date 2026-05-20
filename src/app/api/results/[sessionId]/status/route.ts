@@ -19,6 +19,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * always 404'd on freshly-claimed sessions ("Session not found." screen
  * after signup) because RLS hid the row from the anon client.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } }

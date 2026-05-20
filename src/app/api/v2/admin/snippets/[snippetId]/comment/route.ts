@@ -17,6 +17,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * getBackendUrl() and getV2AccessToken() so the URL resolution + auth
  * extraction match the rest of the admin surface.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { snippetId: string } }

@@ -24,6 +24,9 @@ const BFF_REVISION = "public-unsubscribe-v1";
  * 404 USER_NOT_FOUND     — token decoded but user no longer exists
  * 502/503                — backend unavailable
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const backend = getBackendUrl();

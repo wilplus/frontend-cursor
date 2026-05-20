@@ -5,6 +5,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * GET signed playback URL for a recording (admin). Use for report modal when report API doesn't return audio_url.
  * Backend: GET /v2/admin/recordings/:id/playback-url (or same as student with admin auth).
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

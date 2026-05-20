@@ -15,6 +15,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * This was causing the snippet panel to render empty even when rows
  * existed in the DB.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }

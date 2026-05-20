@@ -25,6 +25,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * 415 UNSUPPORTED_TYPE — content type not in the allow-list
  * 5xx                  — backend unavailable
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const backend = getBackendUrl();

@@ -28,6 +28,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  *       snippet (see matrix row EF-4); the user must never get
  *       stuck on a per-snippet network error.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const backend = getBackendUrl();

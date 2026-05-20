@@ -14,6 +14,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * 200: { bubbles: [string, string], advance: boolean,
  *        next_stage: "awareness" | "trial" | "complete" }
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   const accessToken = await getV2AccessToken(req);
   if (!accessToken) {

@@ -16,6 +16,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * 404: snippet missing or not yours
  * 422: snippet has no admin_comment, or charisma intent (v1 stress-only)
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   const accessToken = await getV2AccessToken(req);
   if (!accessToken) {
