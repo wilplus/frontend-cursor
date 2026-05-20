@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export const dynamic = "force-dynamic";
 
 /** Proxies POST /v2/admin/students/:id/tasks/create-pool-and-assign */

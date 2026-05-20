@@ -26,6 +26,9 @@ import { getBackendUrl } from "@/app/api/getAuth";
  *   410 GUEST_SESSION_EXPIRED  — older than GUEST_FUNNEL_TTL_HOURS
  *   503 GUEST_FUNNEL_DISABLED
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const auth = req.headers.get("authorization");

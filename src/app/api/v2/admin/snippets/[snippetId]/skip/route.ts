@@ -5,6 +5,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * PATCH /api/v2/admin/snippets/[snippetId]/skip
  * Toggle is_skipped boolean on a snippet (hides from user results).
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { snippetId: string } }

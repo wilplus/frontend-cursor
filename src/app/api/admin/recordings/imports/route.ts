@@ -5,6 +5,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * GET paginated admin-imported recordings for the ML review flow.
  * Backend target: GET /v2/admin/recordings/imports
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(request: NextRequest) {
   const token = await getV2AccessToken(request);
   if (!token) {

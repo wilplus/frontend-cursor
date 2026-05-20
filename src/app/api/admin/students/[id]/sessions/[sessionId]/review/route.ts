@@ -6,6 +6,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * Avoids Supabase service role on the Next.js host; invalid/missing SUPABASE_SERVICE_ROLE_KEY
  * on Vercel previously surfaced as { error: "Invalid API key" } from direct PostgREST calls.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; sessionId: string }> }

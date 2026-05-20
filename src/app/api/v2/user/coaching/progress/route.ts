@@ -25,6 +25,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * 404 NOT_FOUND — snippet doesn't belong to the caller.
  * 503 — backend unavailable.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(req: NextRequest) {
   try {
     const backend = getBackendUrl();

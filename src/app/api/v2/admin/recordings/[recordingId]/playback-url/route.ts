@@ -14,6 +14,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  *   - Wrong client: anon-key with RLS denying authenticated reads
  * Both compounded to a 404 even when the recording row existed.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { recordingId: string } }

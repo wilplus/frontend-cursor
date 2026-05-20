@@ -15,6 +15,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * generic `{code: "ERROR", error: "Internal server error"}`. Same fix
  * pattern we applied to the comment BFF in 3cfa79f.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const backend = getBackendUrl();

@@ -9,6 +9,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * PATCH /api/v2/admin/users/[userId]/learning-profile
  * Update the user's learning profile type (e.g., 'Stressor', 'Racer', 'Charismatic', 'Neutral').
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }

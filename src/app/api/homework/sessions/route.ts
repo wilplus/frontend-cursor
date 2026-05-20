@@ -2,6 +2,9 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl, getCurrentUserId } from "@/app/api/getAuth";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export const dynamic = "force-dynamic";
 
 /**

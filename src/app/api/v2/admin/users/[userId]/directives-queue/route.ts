@@ -52,6 +52,9 @@ async function withAuth(
   return go(token, url);
 }
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }

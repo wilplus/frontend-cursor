@@ -19,6 +19,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * localhost and 500'd. Same regression pattern as the comment + publish
  * BFFs; routed through the shared helpers to match.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { turnId: string } }

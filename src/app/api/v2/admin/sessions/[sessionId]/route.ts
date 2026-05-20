@@ -23,6 +23,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * Auth: admin-required on the backend (@require_admin). The bearer
  * token's role is checked there; this BFF only forwards it.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } }

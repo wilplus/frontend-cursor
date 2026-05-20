@@ -72,6 +72,9 @@ function normalizeStudent(raw: RawStudent) {
   };
 }
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ cohortId: string }> }

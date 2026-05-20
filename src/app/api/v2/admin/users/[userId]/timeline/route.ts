@@ -6,6 +6,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * Fetch structured interview timeline: chronological [BotQ] → [UserAudio] → [Metrics].
  * Includes session-level ai_summary, global metrics, and KPI.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { userId: string } }

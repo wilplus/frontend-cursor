@@ -37,6 +37,9 @@ const BFF_REVISION = "session-finalize-v1";
  *       non-fatal and still routes the user to /results so they're
  *       not stranded on the chat surface.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const backend = getBackendUrl();
