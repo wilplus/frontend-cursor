@@ -6,6 +6,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * Update snippet start_time/end_time boundaries (+/- 2s adjust).
  * Backend re-computes acoustic metrics for the new timeframe.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { snippetId: string } }

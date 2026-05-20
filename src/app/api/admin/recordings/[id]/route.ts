@@ -5,6 +5,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * GET one imported recording with its latest review and playback URL.
  * Backend target: GET /v2/admin/recordings/:id
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

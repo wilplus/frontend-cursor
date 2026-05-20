@@ -5,6 +5,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * PATCH the latest review for an imported recording, creating one when needed.
  * Backend target: PATCH /v2/admin/recordings/:id/review
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

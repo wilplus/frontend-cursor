@@ -14,6 +14,9 @@ type Ctx = { params: Promise<{ id: string; messageIndex: string }> };
  * Body: { content: string }
  * Returns: { status, message_index, updated_message, total_messages }
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const token = await getV2AccessToken(req);
   if (!token) {

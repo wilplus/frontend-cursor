@@ -16,6 +16,9 @@ const GOOD_RATING_THRESHOLD = 8;
  * Body: { report_grade: number } (1–10).
  * When grade >= 8, also runs Sniper baseline update from session_sniper_metrics for this session.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; sessionId: string }> }

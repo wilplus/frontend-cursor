@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export const dynamic = "force-dynamic";
 
 export async function GET(

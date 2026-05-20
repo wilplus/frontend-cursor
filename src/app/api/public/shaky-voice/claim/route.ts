@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl } from "@/app/api/getAuth";
 
+export const maxDuration = 30;
+
 export const runtime = "nodejs";
 
 /**

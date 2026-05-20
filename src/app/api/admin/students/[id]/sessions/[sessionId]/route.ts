@@ -7,6 +7,9 @@ import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
  * Body: { report_grade: number | null, coach_message?: string | null }.
  * Backend returns 200 with { status: "ok", report_grade?: number, coach_message?: string }.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; sessionId: string }> }

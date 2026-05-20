@@ -25,6 +25,9 @@ const BFF_REVISION = "admin-snippet-delete-v1";
  * 5xx      — backend unavailable; frontend keeps the snippet in
  *             local state and surfaces the error toast
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { snippetId: string } }

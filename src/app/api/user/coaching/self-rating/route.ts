@@ -29,6 +29,9 @@ const BFF_REVISION = "user-self-rating-v2";
  *     client retries at +2s, +5s, then soft-fails.
  * 503 — backend unavailable
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const backend = getBackendUrl();

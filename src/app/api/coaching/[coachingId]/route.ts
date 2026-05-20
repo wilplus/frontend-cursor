@@ -7,6 +7,9 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
  * Re-hydrate a coaching session so /coach/[id] survives reloads.
  * Proxies to `GET /v2/coaching/<id>`.
  */
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { coachingId: string } }

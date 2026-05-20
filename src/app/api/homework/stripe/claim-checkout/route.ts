@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 import { proxyResponse } from "@/app/api/proxyResponse";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export const dynamic = "force-dynamic";
 
 /**
