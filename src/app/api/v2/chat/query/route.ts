@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 
 /**
+ * Same risk class as /v2/public/interview/next-question — single
+ * upstream LLM call that can run 8-15s on heavy turns (master-doc
+ * RAG + capabilities block + history). Bump Vercel timeout from
+ * default 10s to 30s so the lambda doesn't get killed mid-LLM-call.
+ * Inner AbortController is 25s so we still emit a proper
+ * UPSTREAM_TIMEOUT JSON before Vercel slams the door.
+ */
+export const maxDuration = 30;
+
+/**
  * POST /api/v2/chat/query
  *
  * Knowledge-base-backed Q&A endpoint for the post-onboarding chat
@@ -56,46 +66,69 @@ export async function POST(req: NextRequest) {
     const url = `${backend}/v2/chat/query`;
     const contentType = req.headers.get("content-type") ?? "";
 
-    if (contentType.includes("multipart/form-data")) {
-      // Re-emit the FormData against the upstream URL. We re-build
-      // the form instead of streaming the raw body because Node's
-      // fetch needs to set its own multipart boundary; reusing the
-      // inbound Content-Type header would carry the wrong boundary
-      // marker and the upstream parser would 400.
-      const inbound = await req.formData();
-      const out = new FormData();
-      for (const [key, value] of inbound.entries()) {
-        out.append(key, value);
+    // Hard 25s upstream-fetch budget — see route docstring re:
+    // maxDuration. Shared controller covers both the multipart and
+    // JSON branches.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25_000);
+
+    try {
+      let upstream: Response;
+      if (contentType.includes("multipart/form-data")) {
+        // Re-emit the FormData against the upstream URL. We re-build
+        // the form instead of streaming the raw body because Node's
+        // fetch needs to set its own multipart boundary; reusing the
+        // inbound Content-Type header would carry the wrong boundary
+        // marker and the upstream parser would 400.
+        const inbound = await req.formData();
+        const out = new FormData();
+        for (const [key, value] of inbound.entries()) {
+          out.append(key, value);
+        }
+        upstream = await fetch(url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+          body: out,
+          cache: "no-store",
+          signal: controller.signal,
+        });
+      } else {
+        // Default — JSON path. Unchanged from today (C1).
+        const body = await req.json().catch(() => ({}));
+        upstream = await fetch(url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body ?? {}),
+          cache: "no-store",
+          signal: controller.signal,
+        });
       }
-      const upstream = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-        body: out,
-        cache: "no-store",
-      });
+
       const data = await upstream.json().catch(() => ({}));
       return NextResponse.json(data, { status: upstream.status });
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    // Default — JSON path. Unchanged from today (C1).
-    const body = await req.json().catch(() => ({}));
-    const upstream = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body ?? {}),
-      cache: "no-store",
-    });
-
-    const data = await upstream.json().catch(() => ({}));
-    return NextResponse.json(data, { status: upstream.status });
   } catch (err) {
+    // AbortError = our 25s budget tripped. Emit a proper JSON
+    // envelope so the FE knows this was a TIMEOUT (vs. a real
+    // backend 5xx) and can show retry copy.
+    if (err instanceof Error && err.name === "AbortError") {
+      return NextResponse.json(
+        {
+          code: "UPSTREAM_TIMEOUT",
+          error: "The coach took too long to think. Try again in a moment.",
+        },
+        { status: 504 }
+      );
+    }
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
     console.error("POST /api/v2/chat/query error:", name, message, err);
