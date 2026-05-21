@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import {
-  CharismaStress,
-  type CharismaStressValue,
+  YesNoPills,
+  type YesNoValue,
 } from "@/components/chat/slots";
+import { snippetLabelPrompt } from "@/lib/chat/snippetLabel";
 
 /* -------------------------------------------------------------------------- */
 /*  Rich chat bubbles — the in-chat replacement for the old /results page    */
@@ -171,58 +172,57 @@ export function ActionBubble({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  SnippetLabelBubble — charisma-vs-stress label, single binary pick         */
+/*  SnippetLabelBubble — Yes/No agreement prompt for a labeled snippet       */
 /*                                                                            */
-/*  Specialised wrapper around the CharismaStress slot for the snippet-       */
-/*  review thread. Renders the BubbleShell chrome (W avatar + bot bubble)    */
-/*  with a prompt above the binary, then delegates the actual button row    */
-/*  to the canonical slot so the visual matches every other place charisma  */
-/*  vs stress appears in the app.                                            */
+/*  The user sees a Yes/No question whose wording depends on the admin's   */
+/*  `coach_label`:                                                            */
+/*    coach_label="charisma" → "Do you agree this leans into charisma?"     */
+/*    coach_label="stress"   → "Do you agree this leans into stress?"      */
 /*                                                                            */
-/*  The earlier ActionBubble + ad-hoc option array stays around as a more   */
-/*  generic primitive (other binary picks may need it), but the charisma/  */
-/*  stress moment now goes through this specialised path.                   */
+/*  The user's Yes/No collapses to a single canonical                       */
+/*  `user_charisma_label: boolean` server-side via `computeLabelBool`       */
+/*  (see snippetLabel.ts) — keeps RLHF training data shape-stable           */
+/*  regardless of how the question is phrased.                              */
+/*                                                                            */
+/*  Inline buttons are OPTIONAL — when `onPick` is undefined the bubble     */
+/*  renders the prompt only and the caller (toolbar panel) renders the     */
+/*  Yes/No row, per matrix C-LI-4 (mic + text input absent while           */
+/*  labeling is pending).                                                    */
 /* -------------------------------------------------------------------------- */
 
 export function SnippetLabelBubble({
-  prompt = "Charisma or Stress?",
+  coachLabel,
   selected,
   submitting,
   onPick,
-  charismaLabel,
-  stressLabel,
 }: {
-  prompt?: string;
+  /** Admin's coach_label for the snippet — drives the prompt wording. */
+  coachLabel: "charisma" | "stress";
   /** Locked value once the user has chosen. Null = nothing picked. */
-  selected: CharismaStressValue | null;
+  selected: YesNoValue | null;
   /** True while the parent's label POST is in flight. */
   submitting: boolean;
   /**
    * Inline binary buttons. **Optional** — when undefined the bubble
-   * renders the prompt text ONLY and the caller (toolbar slot) is
-   * expected to render the actual Charisma/Stress button row. Per
-   * matrix C-LI-4 the panel-level buttons are the canonical click
-   * surface; the inline buttons remain available for callers that
-   * want them (admin transcript view, etc.) but the user-facing
-   * chat surface skips them to avoid double-click confusion.
+   * renders the prompt text ONLY; the caller (toolbar slot) is
+   * expected to render the actual Yes/No button row. Matrix C-LI-4
+   * makes the panel-level buttons the canonical click surface; the
+   * inline form remains available for callers (admin transcript
+   * view, future contexts) that want it.
    */
-  onPick?: (value: CharismaStressValue) => void;
-  /** Optional label overrides per snippet — defaults to "Charisma" /
-   *  "Stress" inside the slot. */
-  charismaLabel?: string;
-  stressLabel?: string;
+  onPick?: (value: YesNoValue) => void;
 }) {
   return (
     <BubbleShell>
-      <p className="text-[13px] leading-relaxed text-foreground">{prompt}</p>
+      <p className="text-[13px] leading-relaxed text-foreground">
+        {snippetLabelPrompt(coachLabel)}
+      </p>
       {onPick && (
         <div className="mt-3">
-          <CharismaStress
+          <YesNoPills
             onPick={onPick}
             selected={selected}
             submitting={submitting}
-            charismaLabel={charismaLabel}
-            stressLabel={stressLabel}
           />
         </div>
       )}
