@@ -185,7 +185,7 @@ export function ActionBubble({
 /* -------------------------------------------------------------------------- */
 
 export function SnippetLabelBubble({
-  prompt = "Do you agree with this insight?",
+  prompt = "Charisma or Stress?",
   selected,
   submitting,
   onPick,
@@ -197,7 +197,16 @@ export function SnippetLabelBubble({
   selected: CharismaStressValue | null;
   /** True while the parent's label POST is in flight. */
   submitting: boolean;
-  onPick: (value: CharismaStressValue) => void;
+  /**
+   * Inline binary buttons. **Optional** — when undefined the bubble
+   * renders the prompt text ONLY and the caller (toolbar slot) is
+   * expected to render the actual Charisma/Stress button row. Per
+   * matrix C-LI-4 the panel-level buttons are the canonical click
+   * surface; the inline buttons remain available for callers that
+   * want them (admin transcript view, etc.) but the user-facing
+   * chat surface skips them to avoid double-click confusion.
+   */
+  onPick?: (value: CharismaStressValue) => void;
   /** Optional label overrides per snippet — defaults to "Charisma" /
    *  "Stress" inside the slot. */
   charismaLabel?: string;
@@ -206,15 +215,17 @@ export function SnippetLabelBubble({
   return (
     <BubbleShell>
       <p className="text-[13px] leading-relaxed text-foreground">{prompt}</p>
-      <div className="mt-3">
-        <CharismaStress
-          onPick={onPick}
-          selected={selected}
-          submitting={submitting}
-          charismaLabel={charismaLabel}
-          stressLabel={stressLabel}
-        />
-      </div>
+      {onPick && (
+        <div className="mt-3">
+          <CharismaStress
+            onPick={onPick}
+            selected={selected}
+            submitting={submitting}
+            charismaLabel={charismaLabel}
+            stressLabel={stressLabel}
+          />
+        </div>
+      )}
     </BubbleShell>
   );
 }
