@@ -13,7 +13,8 @@ import {
 } from "@/components/chat/RichBubbles";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
-import { CharismaStress } from "@/components/chat/slots";
+import { YesNoPills } from "@/components/chat/slots";
+import { computeLabelBool, snippetLabelPrompt } from "@/lib/chat/snippetLabel";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { createClient as createSupabaseBrowser } from "@/lib/supabase/client";
 import { postChatQuery } from "@/services/api/chatQuery";
@@ -655,60 +656,52 @@ export default function ChatPageClient({
   }, [phase, activeSessionId, pendingFollowUp, refetchToken]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Snippet-label resolution                                               */
+  /*  Snippet-label resolution (Yes/No flow)                                */
   /*                                                                          */
-  /*  On YES/NO click inside an action_pending bubble, run the full per-     */
-  /*  snippet chain:                                                          */
-  /*                                                                          */
-  /*    1. POST /api/v2/user/snippets/<id>/label                            */
-  /*       (existing label store — keeps RLHF / training data intact).      */
-  /*    2. REPLACE the action bubble with a right-anchored user-text echo   */
-  /*       of the chosen option (labelText).                                */
+  /*  Per the BE contract:                                                  */
+  /*    1. POST /api/v2/user/snippets/<id>/label with body                  */
+  /*       `{ label: boolean }`. The bool is the canonical                  */
+  /*       `user_charisma_label` ("does the user think this is             */
+  /*       charisma?") derived from (coach_label, Yes/No) via              */
+  /*       `computeLabelBool`. Backend stores this in RLHF training data. */
+  /*    2. REPLACE the action_pending bubble with a "Yes" / "No"          */
+  /*       user-text echo so the thread reads chronologically.             */
   /*    3. APPEND a typing bubble.                                            */
-  /*    4. POST /api/v2/chat/snippet-followup with the AGREEMENT bool       */
-  /*       (see matrix "Pinned semantics" — `agreement = clickedLabel ===   */
-  /*       snippetType`).                                                    */
-  /*    5a. On 200 with non-empty followup_text:                            */
-  /*        REPLACE the typing bubble with bubble-split followup_text and  */
-  /*        setPendingFollowUp(true). The next QAInput submit routes to    */
-  /*        handleFollowUpReply (matrix row LI-4c).                         */
-  /*    5b. On 5xx or empty (matrix row EF-4): REPLACE the typing with    */
-  /*        the static FOLLOWUP_FALLBACK, then bridge + revealNextSnippet —*/
-  /*        the user must never get stuck on a per-snippet network error.  */
+  /*    4. POST /api/v2/chat/snippet-followup with                         */
+  /*       `{ snippet_id, user_label: <same labelBool> }`. The BE          */
+  /*       reads this to generate a follow-up question.                    */
+  /*    5a. On 200 with non-empty followup_text: REPLACE the typing       */
+  /*        with bubble-split followup_text and setPendingFollowUp(true). */
+  /*    5b. On error / empty (matrix EF-4): REPLACE the typing with the  */
+  /*        static FOLLOWUP_FALLBACK, then bridge + revealNextSnippet —   */
+  /*        the user must never get stuck on a transient backend hiccup. */
   /*                                                                          */
-  /*  Bubble-id lookup comes from `actionBubbleInfoRef` — populated by     */
-  /*  revealNextSnippet, deleted here after the user-text replace so a     */
-  /*  stale duplicate click no-ops.                                         */
+  /*  Error handling per the spec C4:                                       */
+  /*    - Label POST fail → rollback submitting; user can re-click.        */
+  /*      Label is NOT recorded; no followup attempted.                    */
+  /*    - Followup POST fail → label IS already recorded; surface a       */
+  /*      softer fallback bubble; reveal next snippet so the chain        */
+  /*      keeps moving.                                                    */
   /* ---------------------------------------------------------------------- */
   const handleSnippetLabel = useCallback(
-    async (snippetId: string, value: "charisma" | "stress") => {
+    async (snippetId: string, answer: "yes" | "no") => {
       const info = actionBubbleInfoRef.current.get(snippetId);
       if (!info) return;
       const { bubbleId, snippetType } = info;
 
-      const isCharismaAgreement = snippetType === "charisma";
-      const labelText =
-        value === snippetType
-          ? isCharismaAgreement
-            ? "YES, this is Charisma"
-            : "YES, this is Stress"
-          : isCharismaAgreement
-          ? "NO, this is Stress"
-          : "NO, this is Charisma";
-      // Translation rule pinned in PANEL-STATE-MATRIX.md: the bool
-      // we send to /v2/chat/snippet-followup means "did the user
-      // AGREE with the AI's classification?".
-      const agreement = value === snippetType;
+      // Canonical bool — see `computeLabelBool` for the truth table.
+      const labelBool = computeLabelBool(snippetType, answer);
+      // User-text echo is just their literal Yes/No — keeps the
+      // thread readable without leaking the charisma/stress framing
+      // into the user's voice.
+      const echoText = answer === "yes" ? "Yes" : "No";
 
-      // qaSubmitting locks the QAInput composer across the entire
-      // chain (matrix row LI-4a/LI-4b "composer disabled while POST
-      // in flight"). Reset in every terminal branch below.
+      // qaSubmitting locks the composer across the entire chain
+      // (matrix LI-4a/LI-4b). Reset in every terminal branch below.
       updateBubble(bubbleId, { submitting: true });
       setQaSubmitting(true);
 
-      // Step 1 — existing label POST. If this fails we roll back the
-      // submitting flag and bail; followup endpoint only fires on a
-      // successful label commit.
+      // Step 1 — record the user_charisma_label boolean.
       let labelOk = false;
       try {
         const res = await fetch(
@@ -716,7 +709,7 @@ export default function ChatPageClient({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_label: value }),
+            body: JSON.stringify({ label: labelBool }),
           }
         );
         labelOk = res.ok;
@@ -724,19 +717,21 @@ export default function ChatPageClient({
         console.warn("label POST failed:", err);
       }
       if (!labelOk) {
+        // Rollback per spec C4: nothing committed to the thread,
+        // bubble returns to clickable state, user can retry.
         updateBubble(bubbleId, { submitting: false });
         setQaSubmitting(false);
         return;
       }
 
-      // Step 2 — user-text echo of the clicked label.
-      replaceBubble(bubbleId, { kind: "user_text", text: labelText });
+      // Step 2 — user-text echo of the Yes/No pick.
+      replaceBubble(bubbleId, { kind: "user_text", text: echoText });
       actionBubbleInfoRef.current.delete(snippetId);
 
       // Step 3 — typing bubble while the followup roundtrip is in flight.
       const typingId = appendBubble({ kind: "typing" });
 
-      // Step 4 — POST /v2/chat/snippet-followup.
+      // Step 4 — POST /v2/chat/snippet-followup with the same bool.
       let followup = "";
       try {
         const res = await fetch("/api/v2/chat/snippet-followup", {
@@ -744,7 +739,7 @@ export default function ChatPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             snippet_id: snippetId,
-            user_label: agreement,
+            user_label: labelBool,
           }),
         });
         if (res.ok) {
@@ -752,27 +747,24 @@ export default function ChatPageClient({
             followup_text?: string;
             debug?: { user_label_interpretation?: string };
           };
-          // Contract guard (probe v1 FE-04): the BE's
-          // user_label_interpretation MUST be "agreement" — the matrix
-          // pin in docs/PANEL-STATE-MATRIX.md fixes this semantic. If
-          // the backend ever flips it to "type" without coordinating,
-          // our `agreement = (value === snippetType)` translation
-          // becomes silently wrong (positive labels start meaning
-          // "user classified as charisma" instead of "user agreed").
-          // Warn loud rather than silently mis-attribute the signal.
-          const interpretation = data.debug?.user_label_interpretation;
-          if (
-            typeof interpretation === "string" &&
-            interpretation !== "agreement"
-          ) {
-            console.warn(
-              `snippet-followup contract violation: ` +
-                `debug.user_label_interpretation="${interpretation}" ` +
-                `(expected "agreement"). The FE's user_label translation ` +
-                `assumes AGREEMENT semantic — if backend flipped to TYPE ` +
-                `semantic, update the matrix's "Pinned semantics" section ` +
-                `and revise the agreement-derivation in handleSnippetLabel.`
-            );
+          // Dev-only contract guard (probe v1 FE-04). The matrix
+          // pin in docs/PANEL-STATE-MATRIX.md fixes the semantic
+          // backend uses for `user_label_interpretation`. If
+          // backend ever flips it without coordinating, log loud
+          // so engineering can update both sides.
+          if (process.env.NODE_ENV !== "production") {
+            const interpretation = data.debug?.user_label_interpretation;
+            if (
+              typeof interpretation === "string" &&
+              interpretation !== "agreement"
+            ) {
+              console.warn(
+                `snippet-followup contract: ` +
+                  `debug.user_label_interpretation="${interpretation}" ` +
+                  `(expected "agreement"). Update matrix pin if backend ` +
+                  `intentionally flipped the semantic.`
+              );
+            }
           }
           if (typeof data.followup_text === "string") {
             followup = data.followup_text.trim();
@@ -792,8 +784,9 @@ export default function ChatPageClient({
         return;
       }
 
-      // 5b — EF-4 fallback. Skip directly to bridge + next reveal so
-      // the user never blocks on a transient backend issue.
+      // 5b — EF-4 fallback. The label is already recorded (Step 1
+      // returned 200); only the followup leg failed. Surface a
+      // softer fallback and keep the chain moving.
       replaceBubble(typingId, botBubblesFromText(FOLLOWUP_FALLBACK));
       appendBridge();
       revealNextSnippet();
@@ -1216,13 +1209,15 @@ export default function ChatPageClient({
                     </BottomSlot>
                   );
                 case "label_buttons": {
-                  // Per matrix C-LI-4 — the mic + text input are
-                  // HIDDEN (absent from the DOM) while labeling is
-                  // active. Only this two-button row renders in the
-                  // toolbar slot. `submitting` mirrors the
-                  // action_pending bubble's flag so the spinner
-                  // travels through the panel button when the parent
-                  // POST is in flight.
+                  // Matrix C-LI-4: mic + text input ABSENT from the
+                  // DOM while labeling is active — only the Yes/No
+                  // pills render in the toolbar slot. Prompt is
+                  // mirrored above the pills for clarity (same copy
+                  // as the bubble in the thread above, but the user
+                  // shouldn't have to scroll back). `submitting`
+                  // mirrors the action_pending bubble's flag so the
+                  // spinner travels through the picked pill when the
+                  // parent POST is in flight.
                   const actionBubble = bubbles.find(
                     (b) =>
                       b.kind === "action_pending" &&
@@ -1235,7 +1230,10 @@ export default function ChatPageClient({
                   return (
                     <BottomSlot widthClass="max-w-3xl">
                       <div className="mx-auto w-full max-w-md px-4 pb-4 pt-2">
-                        <CharismaStress
+                        <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
+                          {snippetLabelPrompt(mode.snippetType)}
+                        </p>
+                        <YesNoPills
                           onPick={(value) =>
                             void handleSnippetLabel(mode.snippetId, value)
                           }
