@@ -14,6 +14,8 @@ import {
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
 import { CharismaStress } from "@/components/chat/slots";
+import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
+import { createClient as createSupabaseBrowser } from "@/lib/supabase/client";
 import { postChatQuery } from "@/services/api/chatQuery";
 import ThreadView from "@/components/chat/thread/ThreadView";
 import { deriveToolbar } from "@/components/chat/thread/toolbar";
@@ -191,6 +193,51 @@ export default function ChatPageClient({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(
     sessionId
   );
+  /**
+   * Logged-in user id, hydrated once on mount via the browser
+   * Supabase client. Used as the row-change filter for the
+   * `v2_sessions` realtime subscription — anonymous users have no
+   * row to watch, so `userId === null` is the no-op signal for
+   * `usePublishLiveSubscription`. We don't subscribe to
+   * onAuthStateChange because /chat is a full reload after OAuth,
+   * not a same-tab sign-in.
+   */
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const supabase = createSupabaseBrowser();
+      supabase.auth
+        .getUser()
+        .then(({ data }) => {
+          if (!cancelled) setUserId(data.user?.id ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setUserId(null);
+        });
+    } catch {
+      // Missing Supabase env (e.g. local dev without .env.local).
+      // The realtime hook gracefully no-ops on null userId.
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Refetch coordinator. Bumping `refetchToken` forces both the
+   * status-probe effect AND the reviewing-snippets effect to re-run
+   * immediately (they list it in their deps array). Used by:
+   *   - `usePublishLiveSubscription` on a Realtime publish event
+   *   - the same hook's 20s polling fallback
+   * Both signals collapse onto the same code path so the realtime
+   * fast path doesn't create a parallel render branch (matrix C2).
+   */
+  const [refetchToken, setRefetchToken] = useState(0);
+  const triggerRefetch = useCallback(() => {
+    setRefetchToken((t) => t + 1);
+  }, []);
+  usePublishLiveSubscription(userId, triggerRefetch);
   /** Anonymous session id captured during the cold-start onboarding —
    *  needed for the post-signup claim. */
   const anonSessionIdRef = useRef<string | null>(null);
@@ -410,7 +457,11 @@ export default function ChatPageClient({
         pollRef.current = null;
       }
     };
-  }, [phase, activeSessionId]);
+    // refetchToken bumps when usePublishLiveSubscription fires a
+    // Realtime / fallback-poll event — we re-bind the effect so the
+    // first `probe()` runs immediately, catching the "completed"
+    // status the moment admin publishes (no 5s wait).
+  }, [phase, activeSessionId, refetchToken]);
 
   /* ---------------------------------------------------------------------- */
   /*  Compile delay → metrics_ask                                           */
@@ -597,7 +648,11 @@ export default function ChatPageClient({
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [phase, activeSessionId, pendingFollowUp]);
+    // refetchToken: same trigger as above — Realtime / fallback-poll
+    // bumps it and we run the immediate `load(false)` to diff for
+    // newly-published snippets without waiting up to 30s for the
+    // existing interval tick.
+  }, [phase, activeSessionId, pendingFollowUp, refetchToken]);
 
   /* ---------------------------------------------------------------------- */
   /*  Snippet-label resolution                                               */
