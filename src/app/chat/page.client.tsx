@@ -14,7 +14,12 @@ import {
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
 import { YesNoPills } from "@/components/chat/slots";
+import { Mic } from "lucide-react";
 import { computeLabelBool, snippetLabelPrompt } from "@/lib/chat/snippetLabel";
+import {
+  loadClosedOutSnippets,
+  markClosedOut,
+} from "@/lib/chat/closedOutSnippets";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { createClient as createSupabaseBrowser } from "@/lib/supabase/client";
 import { postChatQuery } from "@/services/api/chatQuery";
@@ -132,6 +137,27 @@ const BRIDGES = [
 const FOLLOWUP_FALLBACK = "Noted — let's keep going.";
 
 /**
+ * Closer-out copy fired by `continueAfterFollowup` once the
+ * follow-up bubble has landed. Hard-coded FE string per spec C2 —
+ * no BE call.
+ */
+const CLOSER_THANKS = "Thanks for that feedback!";
+
+/**
+ * Static fallback rendered when `/api/v2/coaching/intro-bubble`
+ * returns non-200. The backend itself keeps a static fallback per
+ * its contract, so a non-200 means a real outage — give the user
+ * a clean one-liner and still close out into recording_ready.
+ */
+const INTRO_BUBBLE_FALLBACK =
+  "Let's record a fresh take. Tap the mic below when you're ready.";
+
+/** Visual breathing room between the followup bubble and the
+ *  closer "Thanks for that feedback!". Short enough that the
+ *  sequence still feels brisk; long enough to read as a beat. */
+const CLOSER_BEAT_MS = 500;
+
+/**
  * Helper — fan one logical AI text out into N bot bubbles, each ≤75
  * chars (Rule F). KB-sourced /v2/chat/query answers still pass
  * through this — the Master-Doc exemption is on COMPRESSION (the
@@ -239,6 +265,14 @@ export default function ChatPageClient({
     setRefetchToken((t) => t + 1);
   }, []);
   usePublishLiveSubscription(userId, triggerRefetch);
+
+  // Hydrate the closed-out Set from localStorage when userId lands.
+  // Per-user key so two accounts on one browser don't bleed each
+  // other's lists. No-op when anonymous.
+  useEffect(() => {
+    if (!userId) return;
+    setClosedOutSnippetIds(loadClosedOutSnippets(userId));
+  }, [userId]);
   /** Anonymous session id captured during the cold-start onboarding —
    *  needed for the post-signup claim. */
   const anonSessionIdRef = useRef<string | null>(null);
@@ -343,6 +377,33 @@ export default function ChatPageClient({
   const snippetQueueRef = useRef<SnippetPlayerData[]>([]);
   const [pendingFollowUp, setPendingFollowUp] = useState(false);
   const bridgeIndexRef = useRef(0);
+
+  /**
+   * Snippet-label closer-out tracking (spec C5). Each snippet whose
+   * full chain — Y/N → label → followup → thanks → intro — has
+   * fired ends up in this Set, persisted per-user via localStorage.
+   * Re-mounting the page (client nav back from /dashboard, hard
+   * reload) re-hydrates this and skips snippet-queue entries that
+   * already closed out, so the auto-bubbles don't replay.
+   */
+  const [closedOutSnippetIds, setClosedOutSnippetIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  // Ref mirror so async closures inside `handleSnippetLabel` /
+  // reviewing fetch read the latest set without re-creating
+  // callbacks every time the state changes.
+  const closedOutSnippetIdsRef = useRef<Set<string>>(closedOutSnippetIds);
+  useEffect(() => {
+    closedOutSnippetIdsRef.current = closedOutSnippetIds;
+  }, [closedOutSnippetIds]);
+
+  /**
+   * Set true once `continueAfterFollowup` finishes (intro bubble
+   * landed). Drives the `recording_ready` toolbar mode. Reset to
+   * false the moment the user taps the big mic (phase=roleplaying
+   * takes over; ChatInterview's own mic UI mounts).
+   */
+  const [recordingReady, setRecordingReady] = useState(false);
 
   // Loop guard runs ONLY for the param-less /chat. With `?session=` in
   // the URL we're deliberately deep-linked; the guard would yank us
@@ -609,8 +670,18 @@ export default function ChatPageClient({
         // we reveal the next one immediately. Otherwise the new
         // snippets land in the queue for the next followup→reveal
         // cycle to drain.
+        // Idempotency (spec C5): SKIP snippets that already closed
+        // out — their full bubble chain ran on a previous mount and
+        // re-firing the Y/N + thanks + intro sequence would be a
+        // UX regression. They stay in the thread as historical
+        // context (the snippet bubbles were already appended); we
+        // just don't re-queue them for serial reveal.
         const incoming = snippets
-          .filter((s) => !seenSnippetIdsRef.current.has(s.id))
+          .filter(
+            (s) =>
+              !seenSnippetIdsRef.current.has(s.id) &&
+              !closedOutSnippetIdsRef.current.has(s.id)
+          )
           .map(mapBackendSnippet);
         if (incoming.length === 0) return;
         for (const s of incoming) seenSnippetIdsRef.current.add(s.id);
@@ -655,33 +726,87 @@ export default function ChatPageClient({
     // existing interval tick.
   }, [phase, activeSessionId, pendingFollowUp, refetchToken]);
 
+  /**
+   * Steps 7-10 of the snippet-label chain — auto-fires AFTER the
+   * follow-up bubble lands, regardless of whether the BE returned
+   * real `followup_text` (5a) or we rendered the EF-4 static
+   * FOLLOWUP_FALLBACK (5b). Sequence:
+   *
+   *   500ms beat → "Thanks for that feedback!" bubble
+   *              → POST /api/v2/coaching/intro-bubble
+   *              → intro_text bubble (or static FE fallback)
+   *              → mark snippet closed-out (persist)
+   *              → setRecordingReady(true) — panel swaps to big mic
+   *
+   * Idempotency (C5): the closed-out check happens in the reviewing-
+   * fetch effect, not here — if the snippet was already in the set
+   * when the page mounted, no action_pending bubble ever appeared,
+   * so this function is never reached.
+   */
+  const continueAfterFollowup = useCallback(
+    async (snippetId: string) => {
+      // Closer beat — give the followup bubble visual breathing room.
+      await new Promise((resolve) => setTimeout(resolve, CLOSER_BEAT_MS));
+
+      for (const b of botBubblesFromText(CLOSER_THANKS)) appendBubble(b);
+
+      // BE call for the personalized intro line. Per spec C3, the
+      // BE itself keeps a static fallback so a 200 is the normal
+      // case even on its internal LLM failure; a non-200 from this
+      // route is a real outage and the FE has its own one-liner.
+      let introText = INTRO_BUBBLE_FALLBACK;
+      try {
+        const res = await fetch("/api/v2/coaching/intro-bubble", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ snippet_id: snippetId }),
+        });
+        if (res.ok) {
+          const data = (await res.json().catch(() => ({}))) as {
+            intro_text?: string;
+          };
+          if (typeof data.intro_text === "string" && data.intro_text.trim()) {
+            introText = data.intro_text.trim();
+          }
+        }
+      } catch (err) {
+        console.warn("intro-bubble POST failed:", err);
+      }
+      for (const b of botBubblesFromText(introText)) appendBubble(b);
+
+      // Persist closed-out before flipping recordingReady so a
+      // mid-render re-mount (which can happen on React StrictMode
+      // double-effect in dev) doesn't replay the chain.
+      setClosedOutSnippetIds((prev) =>
+        markClosedOut(userId, prev, snippetId)
+      );
+      setRecordingReady(true);
+    },
+    [appendBubble, userId]
+  );
+
   /* ---------------------------------------------------------------------- */
-  /*  Snippet-label resolution (Yes/No flow)                                */
+  /*  Snippet-label resolution (Yes/No flow + closer-out chain)             */
   /*                                                                          */
   /*  Per the BE contract:                                                  */
-  /*    1. POST /api/v2/user/snippets/<id>/label with body                  */
-  /*       `{ label: boolean }`. The bool is the canonical                  */
-  /*       `user_charisma_label` ("does the user think this is             */
-  /*       charisma?") derived from (coach_label, Yes/No) via              */
-  /*       `computeLabelBool`. Backend stores this in RLHF training data. */
-  /*    2. REPLACE the action_pending bubble with a "Yes" / "No"          */
-  /*       user-text echo so the thread reads chronologically.             */
-  /*    3. APPEND a typing bubble.                                            */
-  /*    4. POST /api/v2/chat/snippet-followup with                         */
-  /*       `{ snippet_id, user_label: <same labelBool> }`. The BE          */
-  /*       reads this to generate a follow-up question.                    */
-  /*    5a. On 200 with non-empty followup_text: REPLACE the typing       */
-  /*        with bubble-split followup_text and setPendingFollowUp(true). */
-  /*    5b. On error / empty (matrix EF-4): REPLACE the typing with the  */
-  /*        static FOLLOWUP_FALLBACK, then bridge + revealNextSnippet —   */
-  /*        the user must never get stuck on a transient backend hiccup. */
+  /*    1. POST /api/v2/user/snippets/<id>/label   `{ label: boolean }`    */
+  /*    2. REPLACE action_pending with "Yes" / "No" user-text echo         */
+  /*    3. APPEND a typing bubble                                          */
+  /*    4. POST /api/v2/chat/snippet-followup     `{snippet_id, user_label}`*/
+  /*    5a. 200 + followup_text → REPLACE typing with bubble-split text   */
+  /*    5b. 5xx / empty → REPLACE typing with static FOLLOWUP_FALLBACK    */
+  /*    6+. continueAfterFollowup runs in both branches — thanks bubble,   */
+  /*        intro-bubble POST, recording_ready transition. The closer     */
+  /*        chain is the ONLY post-follow-up exit now; pendingFollowUp /  */
+  /*        the next-snippet bridge cycle are no longer used for the     */
+  /*        labeling flow.                                                 */
   /*                                                                          */
-  /*  Error handling per the spec C4:                                       */
+  /*  Error handling per spec C4:                                           */
   /*    - Label POST fail → rollback submitting; user can re-click.        */
-  /*      Label is NOT recorded; no followup attempted.                    */
-  /*    - Followup POST fail → label IS already recorded; surface a       */
-  /*      softer fallback bubble; reveal next snippet so the chain        */
-  /*      keeps moving.                                                    */
+  /*    - Followup POST fail → label saved; soft FOLLOWUP_FALLBACK;       */
+  /*      closer still fires (continueAfterFollowup always runs after the */
+  /*      followup bubble is rendered, regardless of branch).             */
   /* ---------------------------------------------------------------------- */
   const handleSnippetLabel = useCallback(
     async (snippetId: string, answer: "yes" | "no") => {
@@ -774,25 +899,26 @@ export default function ChatPageClient({
         console.warn("snippet-followup POST failed:", err);
       }
 
-      if (followup) {
-        // 5a — happy path. Replace typing with the followup text and
-        // hand control to the user; their next composer submit will
-        // route through handleFollowUpReply.
-        replaceBubble(typingId, botBubblesFromText(followup));
-        setPendingFollowUp(true);
-        setQaSubmitting(false);
-        return;
-      }
-
-      // 5b — EF-4 fallback. The label is already recorded (Step 1
-      // returned 200); only the followup leg failed. Surface a
-      // softer fallback and keep the chain moving.
-      replaceBubble(typingId, botBubblesFromText(FOLLOWUP_FALLBACK));
-      appendBridge();
-      revealNextSnippet();
+      // 5a (happy) vs 5b (EF-4 fallback) — same shape now: render
+      // the followup bubble (real text or fallback) then advance
+      // through the closer chain. No more pendingFollowUp gate;
+      // the closer auto-fires regardless of branch.
+      const followupBubbles = botBubblesFromText(
+        followup || FOLLOWUP_FALLBACK
+      );
+      replaceBubble(typingId, followupBubbles);
       setQaSubmitting(false);
+      // Closer chain runs after the followup paint. We don't await
+      // here so the user sees the followup bubble immediately;
+      // continueAfterFollowup's own 500ms beat handles the cadence.
+      void continueAfterFollowup(snippetId);
     },
-    [updateBubble, replaceBubble, appendBubble, appendBridge, revealNextSnippet]
+    [
+      updateBubble,
+      replaceBubble,
+      appendBubble,
+      continueAfterFollowup,
+    ]
   );
 
   /**
@@ -1175,6 +1301,7 @@ export default function ChatPageClient({
                   reviewLoadedRef.current === activeSessionId,
                 showUploadUi,
                 pendingFollowUp,
+                recordingReady,
               });
               switch (mode.kind) {
                 case "none":
@@ -1239,6 +1366,33 @@ export default function ChatPageClient({
                           }
                           submitting={labelSubmitting}
                         />
+                      </div>
+                    </BottomSlot>
+                  );
+                }
+                case "recording_ready": {
+                  // Closer-out chain done. Big mic is the single
+                  // canonical click target — tap → phase=roleplaying
+                  // mounts ChatInterview which owns the actual
+                  // recording surface (the /v2/coaching/trial-
+                  // recording flow runs inside that component).
+                  return (
+                    <BottomSlot widthClass="max-w-3xl">
+                      <div className="flex flex-col items-center gap-2 pb-6 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecordingReady(false);
+                            setPhase("roleplaying");
+                          }}
+                          aria-label="Start recording a fresh take"
+                          className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95"
+                        >
+                          <Mic className="h-7 w-7" aria-hidden />
+                        </button>
+                        <p className="text-xs text-muted-foreground">
+                          Tap to record a fresh take
+                        </p>
                       </div>
                     </BottomSlot>
                   );

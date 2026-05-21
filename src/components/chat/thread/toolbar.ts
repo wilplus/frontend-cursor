@@ -58,6 +58,15 @@ export type ToolbarMode =
       snippetType: "charisma" | "stress";
     }
   /**
+   * Big-mic primer — closer-out sequence done (label → followup →
+   * thanks → intro), user is one tap away from recording a fresh
+   * take. Click handler in the page flips `phase` to `roleplaying`
+   * which mounts the existing ChatInterview recording surface (the
+   * `/v2/coaching/trial-recording` flow). Distinct from the small
+   * Lounge mic that lives inside `composer`.
+   */
+  | { kind: "recording_ready" }
+  /**
    * Practice CTA — all snippets in the reviewing thread have
    * been resolved (no action_pending bubbles remain), so the
    * user is ready to hand off into the 120s roleplay.
@@ -90,6 +99,15 @@ export interface ToolbarInputs {
    * revealed). Matrix rows LI-4c / LI-4d.
    */
   pendingFollowUp: boolean;
+  /**
+   * True once the snippet-label closer chain has finished (the
+   * intro bubble landed) and the user is one tap away from
+   * recording a fresh take. Highest-precedence panel mode while
+   * set — wins over composer / label_buttons / practice_cta. The
+   * page resets it to false when the user actually taps the big
+   * mic (transition to phase=roleplaying handles that).
+   */
+  recordingReady: boolean;
 }
 
 const RECORDING_PHASES: ReadonlySet<Phase> = new Set<Phase>([
@@ -112,11 +130,21 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
     reviewLoadedForActiveSession,
     showUploadUi,
     pendingFollowUp,
+    recordingReady,
   } = inputs;
 
   // Recording phases — ChatInterview owns the bottom row. Caller
   // should not render a toolbar in this case.
   if (RECORDING_PHASES.has(phase)) return { kind: "none" };
+
+  // Recording-ready primer wins over every other non-recording
+  // mode. The closer-out chain (thanks → intro) has terminated and
+  // we want a single, deliberate big-mic affordance — not a
+  // composer, not action buttons, not the practice CTA. The page
+  // only sets this flag in reviewing-adjacent phases.
+  if (recordingReady && !RECORDING_PHASES.has(phase)) {
+    return { kind: "recording_ready" };
+  }
 
   // Loading/error/welcome_back render no toolbar:
   //   loading & error: the parent's body is a centered message.
