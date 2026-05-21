@@ -115,24 +115,11 @@ const PENDING_GREETING =
   "the voice analysis?";
 
 /**
- * Bridge copy rotated between snippet reveals. Indexed round-robin
- * by `bridgeIndexRef` so a session with more snippets than entries
- * loops cleanly (cleaner than "Snippet 1 / 2 / 3" enumeration which
- * leaks implementation into the chat copy). Fires after the user
- * replies to a followup (or, in the EF-4 fallback path, right after
- * the static "Noted —" stand-in).
- */
-const BRIDGES = [
-  "Let's look at the next moment.",
-  "Here's another one.",
-  "And one more from your session.",
-];
-
-/**
  * EF-4 fallback shown in place of `followup_text` when
- * `/v2/chat/snippet-followup` returns 5xx or empty. Caller skips
- * directly to the bridge + next-snippet reveal — never blocks the
- * user on a per-snippet network error.
+ * `/v2/chat/snippet-followup` returns 5xx or empty. The closer
+ * chain (continueAfterFollowup) still runs after this — the user
+ * sees the soft fallback line, then thanks + intro + recording-
+ * ready, never gets stuck on a per-snippet network error.
  */
 const FOLLOWUP_FALLBACK = "Noted — let's keep going.";
 
@@ -353,30 +340,19 @@ export default function ChatPageClient({
    *  the QAInput composer + paperclip so the user can't double-fire. */
   const [uploadingFile, setUploadingFile] = useState(false);
   /**
-   * Serial-reveal state machine for snippet review (FE Prompt 3).
-   *
-   * `snippetQueueRef` — snippets fetched by the reviewing effect but
-   * NOT yet revealed in the thread. Drains one at a time. We use a
-   * ref (not state) because the mutations are paired with bubble
-   * appends that already drive the UI re-render; tracking the queue
-   * in React state would just double the work.
-   *
-   * `pendingFollowUp` — set true the moment the `/v2/chat/snippet-
-   * followup` response lands and its bubble is in the thread. The
-   * composer routes the next user submit to `handleFollowUpReply`
-   * (which appends the reply + a bridge bubble + reveals the next
-   * snippet) instead of the default `/chat/query`. Reset by
-   * `handleFollowUpReply` after it processes the reply. Also passed
-   * to `deriveToolbar` so `practice_cta` waits for the followup
-   * chain to drain (matrix rows LI-4c / LI-4d).
-   *
-   * `bridgeIndexRef` — round-robin index into BRIDGES. Incremented
-   * each time a bridge string is appended (both the happy
-   * "user-replied" path and the EF-4 followup-error fallback path).
+   * Serial-reveal queue for snippet review. Snippets fetched by the
+   * reviewing effect land here; `revealNextSnippet` pops one at a
+   * time into the thread. We use a ref (not state) because the
+   * mutations are paired with bubble appends that already drive
+   * the UI re-render; tracking the queue in React state would just
+   * double the work. With the closer-out chain in place (PR #19),
+   * only the FIRST queued snippet of a session is typically
+   * labeled — the user then transitions into recording. Remaining
+   * queue entries are abandoned for this mount; on re-entry the
+   * fetch re-queues them, the closed-out set skips the labeled
+   * one, and the next unlabeled snippet starts the cycle again.
    */
   const snippetQueueRef = useRef<SnippetPlayerData[]>([]);
-  const [pendingFollowUp, setPendingFollowUp] = useState(false);
-  const bridgeIndexRef = useRef(0);
 
   /**
    * Snippet-label closer-out tracking (spec C5). Each snippet whose
@@ -540,11 +516,10 @@ export default function ChatPageClient({
   /**
    * Reveal the next snippet in `snippetQueueRef` into the thread.
    * Appends a `snippet` bubble + a fresh `action_pending` bubble and
-   * registers the action-bubble id in `actionBubbleInfoRef` so the
-   * inline YES/NO handler can look it up on click. No-op when the
-   * queue is empty — that's how the chain drains. Called from the
-   * reviewing-fetch landing AND from `handleFollowUpReply` /
-   * `handleSnippetLabel`'s EF-4 fallback path.
+   * registers the action-bubble info in `actionBubbleInfoRef` so the
+   * panel's Yes/No click handler can look up snippetType on click.
+   * No-op when the queue is empty — that's how the chain drains.
+   * Called from the reviewing-fetch (initial reveal + polling tick).
    */
   const revealNextSnippet = useCallback(() => {
     const next = snippetQueueRef.current.shift();
@@ -560,12 +535,6 @@ export default function ChatPageClient({
       bubbleId: bid,
       snippetType: next.type,
     });
-  }, [appendBubble]);
-
-  const appendBridge = useCallback(() => {
-    const idx = bridgeIndexRef.current % BRIDGES.length;
-    bridgeIndexRef.current += 1;
-    for (const b of botBubblesFromText(BRIDGES[idx])) appendBubble(b);
   }, [appendBubble]);
 
   /* ---------------------------------------------------------------------- */
@@ -686,17 +655,16 @@ export default function ChatPageClient({
         if (incoming.length === 0) return;
         for (const s of incoming) seenSnippetIdsRef.current.add(s.id);
         snippetQueueRef.current.push(...incoming);
-        // Only auto-reveal when there's no in-flight labeling chain.
-        // hasPendingAction = there's an action_pending bubble still
-        // awaiting the user's click; pendingFollowUp = the user just
-        // labeled and the followup bubble is awaiting their reply.
-        // In either case we leave the queue alone — the
-        // handleFollowUpReply / EF-4 fallback path will revealNext
-        // when the active snippet drains.
-        const hasPending = (k: BubbleInput["kind"]) =>
-          bubblesRef.current.some((b) => b.kind === k);
-        const labelingInFlight = hasPending("action_pending") || pendingFollowUp;
-        if (!labelingInFlight) {
+        // Only auto-reveal when no action_pending is in flight.
+        // Once a snippet is labeled and the closer chain runs
+        // (thanks → intro → recording_ready), the user transitions
+        // into recording; remaining queued snippets sit idle until
+        // the next mount, when the closed-out skip-filter above
+        // re-picks the first unlabeled one for the cycle.
+        const hasActionPending = bubblesRef.current.some(
+          (b) => b.kind === "action_pending"
+        );
+        if (!hasActionPending) {
           revealNextSnippet();
         }
       } catch (err) {
@@ -724,7 +692,7 @@ export default function ChatPageClient({
     // bumps it and we run the immediate `load(false)` to diff for
     // newly-published snippets without waiting up to 30s for the
     // existing interval tick.
-  }, [phase, activeSessionId, pendingFollowUp, refetchToken]);
+  }, [phase, activeSessionId, refetchToken]);
 
   /**
    * Steps 7-10 of the snippet-label chain — auto-fires AFTER the
@@ -798,9 +766,8 @@ export default function ChatPageClient({
   /*    5b. 5xx / empty → REPLACE typing with static FOLLOWUP_FALLBACK    */
   /*    6+. continueAfterFollowup runs in both branches — thanks bubble,   */
   /*        intro-bubble POST, recording_ready transition. The closer     */
-  /*        chain is the ONLY post-follow-up exit now; pendingFollowUp /  */
-  /*        the next-snippet bridge cycle are no longer used for the     */
-  /*        labeling flow.                                                 */
+  /*        chain is the ONLY post-follow-up exit; the user does not      */
+  /*        reply to the followup in this surface.                         */
   /*                                                                          */
   /*  Error handling per spec C4:                                           */
   /*    - Label POST fail → rollback submitting; user can re-click.        */
@@ -899,10 +866,9 @@ export default function ChatPageClient({
         console.warn("snippet-followup POST failed:", err);
       }
 
-      // 5a (happy) vs 5b (EF-4 fallback) — same shape now: render
-      // the followup bubble (real text or fallback) then advance
-      // through the closer chain. No more pendingFollowUp gate;
-      // the closer auto-fires regardless of branch.
+      // 5a (happy) vs 5b (EF-4 fallback) — same shape: render the
+      // followup bubble (real text or fallback) then advance through
+      // the closer chain. The closer auto-fires regardless of branch.
       const followupBubbles = botBubblesFromText(
         followup || FOLLOWUP_FALLBACK
       );
@@ -919,24 +885,6 @@ export default function ChatPageClient({
       appendBubble,
       continueAfterFollowup,
     ]
-  );
-
-  /**
-   * Composer submit during the followup-shown window (matrix row
-   * LI-4d). Routes the user's reply into the thread instead of
-   * `/chat/query`: append the user_text + a bridge bubble + reveal
-   * the next snippet (or, if the queue is empty, allow deriveToolbar
-   * to flip to `practice_cta` automatically). Resets pendingFollowUp
-   * so subsequent composer submits go back to /chat/query.
-   */
-  const handleFollowUpReply = useCallback(
-    (reply: string) => {
-      appendBubble({ kind: "user_text", text: reply });
-      appendBridge();
-      setPendingFollowUp(false);
-      revealNextSnippet();
-    },
-    [appendBubble, appendBridge, revealNextSnippet]
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1074,31 +1022,22 @@ export default function ChatPageClient({
   );
 
   /**
-   * Single composer submit handler — routes the user's text to
-   * either the followup-reply handler (during the LI-4c/LI-4d
-   * window) or the default /chat/query. The audio blob is
-   * forwarded only on the /chat/query branch; followup replies
-   * are short conversational acks and the backend doesn't analyse
-   * acoustics for them today.
+   * Single composer submit handler — forwards every submit to
+   * /chat/query. The snippet-label followup chain no longer
+   * intercepts composer submits (the closer-out auto-advance
+   * replaced the "user replies to followup → bridge → next
+   * snippet" pattern in PR #19). Returns handleQASend's boolean
+   * so ChatInputBar can decide whether to clear the composer on
+   * the FE-10 retry-on-error contract.
    */
   const handleComposerSubmit = useCallback(
-    async (args: {
+    (args: {
       text: string;
       audioBlob: Blob | null;
       durationSec: number | null;
-    }): Promise<boolean> => {
-      if (pendingFollowUp) {
-        // Followup-reply is sync (just appends bubbles + reveals
-        // the next snippet). Always treat as success — there's no
-        // network leg that can fail in this branch.
-        handleFollowUpReply(args.text);
-        return true;
-      }
-      // Forward the Q&A handler's boolean so ChatInputBar can decide
-      // whether to clear the composer (FE-10).
-      return handleQASend(args.text, args.audioBlob, args.durationSec);
-    },
-    [pendingFollowUp, handleFollowUpReply, handleQASend]
+    }): Promise<boolean> =>
+      handleQASend(args.text, args.audioBlob, args.durationSec),
+    [handleQASend]
   );
 
   /**
@@ -1300,7 +1239,6 @@ export default function ChatPageClient({
                 reviewLoadedForActiveSession:
                   reviewLoadedRef.current === activeSessionId,
                 showUploadUi,
-                pendingFollowUp,
                 recordingReady,
               });
               switch (mode.kind) {
