@@ -99,12 +99,18 @@ function BubbleRow({ bubble }: { bubble: Bubble }) {
       return <SnippetPlayerBubble snippet={bubble.data} />;
 
     case "action_pending": {
-      // Contextual prompt only — the actual Charisma/Stress buttons
-      // live in the toolbar's `label_buttons` panel mode now (matrix
-      // C-LI-4). Inline buttons are deliberately omitted to avoid
-      // double click targets; the panel below this thread is where
-      // the user picks.
-      return <SnippetLabelBubble selected={null} submitting={bubble.submitting} />;
+      // Contextual Yes/No prompt — the actual button row lives in
+      // the toolbar's `label_buttons` panel mode (matrix C-LI-4).
+      // Bubble shows just the question (wording derived from the
+      // admin's coach_label via `snippetLabelPrompt`); the panel
+      // below is the canonical click surface.
+      return (
+        <SnippetLabelBubble
+          coachLabel={bubble.snippetType}
+          selected={null}
+          submitting={bubble.submitting}
+        />
+      );
     }
   }
 }
