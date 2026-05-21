@@ -60,12 +60,13 @@ export type ToolbarMode =
   /**
    * Big-mic primer — closer-out sequence done (label → followup →
    * thanks → intro), user is one tap away from recording a fresh
-   * take. Click handler in the page flips `phase` to `roleplaying`
-   * which mounts the existing ChatInterview recording surface (the
-   * `/v2/coaching/trial-recording` flow). Distinct from the small
-   * Lounge mic that lives inside `composer`.
+   * take. The panel renders the canonical `VoiceRecordButton`
+   * (same big-mic visual used in onboarding) wired to multipart-
+   * upload to `/api/v2/user/chat/upload-answer` with
+   * `source_snippet_id`. Distinct from the small Lounge mic that
+   * lives inside `composer`.
    */
-  | { kind: "recording_ready" }
+  | { kind: "recording_ready"; snippetId: string }
   /**
    * Practice CTA — all snippets in the reviewing thread have
    * been resolved (no action_pending bubbles remain), so the
@@ -91,14 +92,23 @@ export interface ToolbarInputs {
    */
   showUploadUi: boolean;
   /**
-   * True once the snippet-label closer chain has finished (the
-   * intro bubble landed) and the user is one tap away from
-   * recording a fresh take. Highest-precedence panel mode while
-   * set — wins over composer / label_buttons / practice_cta. The
-   * page resets it to false when the user actually taps the big
-   * mic (transition to phase=roleplaying handles that).
+   * Snippet id whose closer chain just finished — drives the
+   * `recording_ready` panel mode. Null = not in recording-ready
+   * state. Set by `continueAfterFollowup` after the intro bubble
+   * lands; reset to null when the multipart upload completes (and
+   * `awaitingAdminReview` takes over) or when the user navigates
+   * to a recording phase. Carries the snippet id explicitly so the
+   * upload payload knows which snippet it's attaching to.
    */
-  recordingReady: boolean;
+  recordingReadyForSnippetId: string | null;
+  /**
+   * True between a successful post-labeling upload and the next
+   * admin publish landing in the thread. Renders no toolbar — the
+   * user is supposed to wait, not chat. Cleared when a new
+   * action_pending bubble is revealed (a fresh snippet is ready
+   * to label).
+   */
+  awaitingAdminReview: boolean;
 }
 
 const RECORDING_PHASES: ReadonlySet<Phase> = new Set<Phase>([
@@ -120,27 +130,54 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
     bubbles,
     reviewLoadedForActiveSession,
     showUploadUi,
-    recordingReady,
+    recordingReadyForSnippetId,
+    awaitingAdminReview,
   } = inputs;
 
   // Recording phases — ChatInterview owns the bottom row. Caller
   // should not render a toolbar in this case.
   if (RECORDING_PHASES.has(phase)) return { kind: "none" };
 
-  // Recording-ready primer wins over every other non-recording
-  // mode. The closer-out chain (thanks → intro) has terminated and
-  // we want a single, deliberate big-mic affordance — not a
-  // composer, not action buttons, not the practice CTA. The page
-  // only sets this flag in reviewing-adjacent phases.
-  if (recordingReady && !RECORDING_PHASES.has(phase)) {
-    return { kind: "recording_ready" };
-  }
-
   // Loading/error/welcome_back render no toolbar:
   //   loading & error: the parent's body is a centered message.
   //   welcome_back: the two welcome bubbles are read-only for
   //     ~400ms before the q_and_a transition mounts the composer.
   if (TOOLBAR_LESS_PHASES.has(phase)) return { kind: "none" };
+
+  // label_buttons takes precedence over awaitingAdminReview /
+  // recording_ready: a freshly-revealed action_pending bubble means
+  // the admin published a new snippet, ending the wait state. The
+  // tail-scan picks the LATEST action_pending so a stale one (from
+  // a re-fetched session, network-blip resurrection) doesn't shadow
+  // a fresh one.
+  if (phase === "reviewing") {
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      if (b.kind === "action_pending") {
+        return {
+          kind: "label_buttons",
+          snippetId: b.snippetId,
+          snippetType: b.snippetType,
+        };
+      }
+    }
+  }
+
+  // After a successful post-labeling upload the user sits idle
+  // until the admin publishes again. No toolbar — input is
+  // intentionally blocked (matrix C-LI-2 "no further user input
+  // until the admin publishes").
+  if (awaitingAdminReview) return { kind: "none" };
+
+  // Recording-ready primer — closer-out chain done, big mic ready
+  // for the user's fresh take. The snippet id rides through so the
+  // multipart upload knows what to attach to.
+  if (recordingReadyForSnippetId) {
+    return {
+      kind: "recording_ready",
+      snippetId: recordingReadyForSnippetId,
+    };
+  }
 
   // Practice CTA precedence — reviewing phase, fetch landed,
   // every snippet bubble has been paired with a user-text echo
@@ -164,33 +201,10 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
 
   if (reviewReadyForPractice) return { kind: "practice_cta" };
 
-  // Snippet labeling slot — when an action_pending bubble is the
-  // currently active labeling prompt, the panel renders the binary
-  // Charisma/Stress buttons + the composer is hidden. Lookup is
-  // "latest action_pending in the thread"; the one before any
-  // followup that's already been answered. We don't need to
-  // distinguish "labeled but followup not yet replied" because
-  // pendingFollowUp gates that case (no action_pending exists at
-  // that moment — it was replaced by the user_text echo on label).
-  if (phase === "reviewing" && hasPendingAction) {
-    // Scan from the tail so a stale unresolved bubble (e.g. a
-    // network blip mid-label) doesn't shadow a fresh one. There
-    // should normally be exactly one active action_pending at a
-    // time per the serial-reveal contract, but the tail-scan is
-    // defensive.
-    for (let i = bubbles.length - 1; i >= 0; i--) {
-      const b = bubbles[i];
-      if (b.kind === "action_pending") {
-        return {
-          kind: "label_buttons",
-          snippetId: b.snippetId,
-          snippetType: b.snippetType,
-        };
-      }
-    }
-  }
-
   // Default — composer (text input + optional small mic). Inline
-  // paperclip is gated on `showUploadUi` per Rule G.
+  // paperclip is gated on `showUploadUi` per Rule G. The
+  // label_buttons / awaiting / recording_ready precedence above
+  // means we only land here for q_and_a / reviewing where no
+  // labeling chain is active.
   return { kind: "composer", showUpload: showUploadUi };
 }

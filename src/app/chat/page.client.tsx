@@ -14,7 +14,7 @@ import {
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
 import { YesNoPills } from "@/components/chat/slots";
-import { Mic } from "lucide-react";
+import { RecordingReadyPanel } from "@/components/chat/RecordingReadyPanel";
 import { computeLabelBool, snippetLabelPrompt } from "@/lib/chat/snippetLabel";
 import {
   loadClosedOutSnippets,
@@ -379,7 +379,26 @@ export default function ChatPageClient({
    * false the moment the user taps the big mic (phase=roleplaying
    * takes over; ChatInterview's own mic UI mounts).
    */
-  const [recordingReady, setRecordingReady] = useState(false);
+  /**
+   * Drives the `recording_ready` toolbar mode. Holds the id of the
+   * snippet whose closer chain just finished; null = not in the
+   * recording-ready state. Set by `continueAfterFollowup`; cleared
+   * when the multipart upload completes (and `awaitingAdminReview`
+   * takes over) or when the user navigates to a recording phase.
+   * String-typed (not boolean) so the upload knows which snippet
+   * to attach `source_snippet_id` to.
+   */
+  const [recordingReadyForSnippetId, setRecordingReadyForSnippetId] =
+    useState<string | null>(null);
+  /**
+   * True between a successful post-labeling upload and the next
+   * admin publish landing in the thread. Renders no toolbar — the
+   * user waits, no chat. Cleared the moment a fresh action_pending
+   * bubble is revealed (deriveToolbar's label_buttons branch wins
+   * before this even gets read, but we still flip the flag for
+   * code clarity).
+   */
+  const [awaitingAdminReview, setAwaitingAdminReview] = useState(false);
 
   // Loop guard runs ONLY for the param-less /chat. With `?session=` in
   // the URL we're deliberately deep-linked; the guard would yank us
@@ -743,13 +762,21 @@ export default function ChatPageClient({
       }
       for (const b of botBubblesFromText(introText)) appendBubble(b);
 
-      // Persist closed-out before flipping recordingReady so a
+      // Persist closed-out before flipping recording-ready so a
       // mid-render re-mount (which can happen on React StrictMode
-      // double-effect in dev) doesn't replay the chain.
+      // double-effect in dev) doesn't replay the chain. The
+      // snippet id rides through the toolbar via
+      // `recordingReadyForSnippetId` so the multipart upload
+      // attaches to the right context.
       setClosedOutSnippetIds((prev) =>
         markClosedOut(userId, prev, snippetId)
       );
-      setRecordingReady(true);
+      setRecordingReadyForSnippetId(snippetId);
+      // Defensive: a fresh closer chain should not start in the
+      // post-upload idle state. Reset awaitingAdminReview in case
+      // the user re-entered the chat after a successful upload AND
+      // a new snippet got labeled in the same session.
+      setAwaitingAdminReview(false);
     },
     [appendBubble, userId]
   );
@@ -1239,7 +1266,8 @@ export default function ChatPageClient({
                 reviewLoadedForActiveSession:
                   reviewLoadedRef.current === activeSessionId,
                 showUploadUi,
-                recordingReady,
+                recordingReadyForSnippetId,
+                awaitingAdminReview,
               });
               switch (mode.kind) {
                 case "none":
@@ -1309,29 +1337,42 @@ export default function ChatPageClient({
                   );
                 }
                 case "recording_ready": {
-                  // Closer-out chain done. Big mic is the single
-                  // canonical click target — tap → phase=roleplaying
-                  // mounts ChatInterview which owns the actual
-                  // recording surface (the /v2/coaching/trial-
-                  // recording flow runs inside that component).
+                  // Closer-out chain done. Inline mic + recorder
+                  // engine via the canonical `VoiceRecordButton`
+                  // (same big-mic visual the onboarding funnel
+                  // uses). Multipart upload routes to
+                  // /api/v2/user/chat/upload-answer with the
+                  // closed-out snippet's id as `source_snippet_id`.
+                  // On success the closer-out bubble lands + the
+                  // panel transitions to `awaitingAdminReview`
+                  // (none) until the next admin publish.
                   return (
                     <BottomSlot widthClass="max-w-3xl">
-                      <div className="flex flex-col items-center gap-2 pb-6 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRecordingReady(false);
-                            setPhase("roleplaying");
-                          }}
-                          aria-label="Start recording a fresh take"
-                          className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95"
-                        >
-                          <Mic className="h-7 w-7" aria-hidden />
-                        </button>
-                        <p className="text-xs text-muted-foreground">
-                          Tap to record a fresh take
-                        </p>
-                      </div>
+                      <RecordingReadyPanel
+                        snippetId={mode.snippetId}
+                        onRecordingCaptured={(audioUrl, durationSeconds) => {
+                          // Optimistic user-audio bubble so the
+                          // user sees their take in the thread the
+                          // moment they stop recording, without
+                          // waiting for the upload roundtrip.
+                          appendBubble({
+                            kind: "user_audio",
+                            audioUrl,
+                            duration: `${Math.floor(durationSeconds / 60)}:${String(
+                              Math.floor(durationSeconds % 60)
+                            ).padStart(2, "0")}`,
+                          });
+                        }}
+                        onUploadComplete={() => {
+                          for (const b of botBubblesFromText(
+                            "Got it. Your coach is reviewing your new recording — you'll see the results when they're done."
+                          )) {
+                            appendBubble(b);
+                          }
+                          setRecordingReadyForSnippetId(null);
+                          setAwaitingAdminReview(true);
+                        }}
+                      />
                     </BottomSlot>
                   );
                 }
