@@ -91,15 +91,6 @@ export interface ToolbarInputs {
    */
   showUploadUi: boolean;
   /**
-   * True between snippet-followup landing and the user replying.
-   * Blocks `practice_cta` — even when no action_pending remains,
-   * the user owes a reply to the followup question and the
-   * composer must stay mounted. Caller resets this once the
-   * reply is handled (and the next snippet, if any, has been
-   * revealed). Matrix rows LI-4c / LI-4d.
-   */
-  pendingFollowUp: boolean;
-  /**
    * True once the snippet-label closer chain has finished (the
    * intro bubble landed) and the user is one tap away from
    * recording a fresh take. Highest-precedence panel mode while
@@ -129,7 +120,6 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
     bubbles,
     reviewLoadedForActiveSession,
     showUploadUi,
-    pendingFollowUp,
     recordingReady,
   } = inputs;
 
@@ -159,15 +149,18 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
   // snippet" guard prevents the CTA from appearing in the
   // zero-snippet edge case (EF-1) where the user would
   // otherwise see a Start-practice button against an empty
-  // analysis.
+  // analysis. With the closer-out chain (PR #19) the
+  // `recording_ready` mode usually takes over before this
+  // fallback fires — practice_cta survives as a safety net for
+  // sessions where the closer chain didn't run (e.g. all
+  // snippets already labeled on a prior mount).
   const hasPendingAction = bubbles.some((b) => b.kind === "action_pending");
   const hasAnySnippet = bubbles.some((b) => b.kind === "snippet");
   const reviewReadyForPractice =
     phase === "reviewing" &&
     reviewLoadedForActiveSession &&
     !hasPendingAction &&
-    hasAnySnippet &&
-    !pendingFollowUp;
+    hasAnySnippet;
 
   if (reviewReadyForPractice) return { kind: "practice_cta" };
 
