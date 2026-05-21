@@ -57,7 +57,6 @@ function baseInputs(overrides: Partial<ToolbarInputs> = {}): ToolbarInputs {
     bubbles: [],
     reviewLoadedForActiveSession: false,
     showUploadUi: false,
-    pendingFollowUp: false,
     recordingReady: false,
     ...overrides,
   };
@@ -130,25 +129,6 @@ describe("deriveToolbar — non-recording surface", () => {
     });
   });
 
-  it("LI-4a → LI-5: action replaced by user_text echo + pendingFollowUp → composer (mic returns)", () => {
-    // The action_pending has been replaced by the user-text echo;
-    // pendingFollowUp blocks practice_cta. Composer is back so the
-    // user can text-or-voice their reply to the AI's follow-up.
-    const result = deriveToolbar(
-      baseInputs({
-        phase: "reviewing",
-        reviewLoadedForActiveSession: true,
-        pendingFollowUp: true,
-        bubbles: [
-          bubble.snippet("s1"),
-          bubble.user_text("Charisma"),
-          bubble.bot_text("Nice — what made you sure?"),
-        ],
-      })
-    );
-    expect(result).toEqual({ kind: "composer", showUpload: false });
-  });
-
   it("LI-5: reviewing, all snippets resolved → practice_cta", () => {
     const result = deriveToolbar(
       baseInputs({
@@ -201,60 +181,6 @@ describe("deriveToolbar — non-recording surface", () => {
       baseInputs({ phase: "q_and_a" })
     );
     expect(result).toEqual({ kind: "composer", showUpload: false });
-  });
-
-  it("LI-4c: followup_text landed, pendingFollowUp → composer (NOT practice_cta yet)", () => {
-    // No action_pending in the thread (the last one was just replaced
-    // with the user-text echo). All other practice_cta gates pass.
-    // pendingFollowUp blocks the CTA so the user can text-or-voice reply.
-    const result = deriveToolbar(
-      baseInputs({
-        phase: "reviewing",
-        reviewLoadedForActiveSession: true,
-        pendingFollowUp: true,
-        bubbles: [
-          bubble.snippet("s1"),
-          bubble.user_text("YES, this is Charisma"),
-          bubble.bot_text("Nice — what made you confident on that?"),
-        ],
-      })
-    );
-    expect(result).toEqual({ kind: "composer", showUpload: false });
-  });
-
-  it("LI-4d: user replied to followup, queue drained → practice_cta", () => {
-    const result = deriveToolbar(
-      baseInputs({
-        phase: "reviewing",
-        reviewLoadedForActiveSession: true,
-        pendingFollowUp: false,
-        bubbles: [
-          bubble.snippet("s1"),
-          bubble.user_text("YES, this is Charisma"),
-          bubble.bot_text("Nice — what made you confident on that?"),
-          bubble.user_text("Felt natural to me."),
-          bubble.bot_text("Let's look at the next moment."),
-        ],
-      })
-    );
-    expect(result).toEqual({ kind: "practice_cta" });
-  });
-
-  it("paperclip + pendingFollowUp coexist: composer carries both signals", () => {
-    // Inline paperclip pattern (post FE-3): showUpload is just a
-    // sub-field of the composer mode, not a competing slot. When
-    // both signals are true we get an inline paperclip alongside
-    // the still-mounted composer that's awaiting the followup
-    // reply. Test guards against accidentally re-introducing a
-    // slot-replacing upload mode.
-    const result = deriveToolbar(
-      baseInputs({
-        phase: "q_and_a",
-        showUploadUi: true,
-        pendingFollowUp: true,
-      })
-    );
-    expect(result).toEqual({ kind: "composer", showUpload: true });
   });
 
   it("EF-1: reviewing, zero snippets fetched → composer (NOT practice_cta)", () => {
