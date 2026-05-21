@@ -13,6 +13,7 @@ import {
 } from "@/components/chat/RichBubbles";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
+import { CharismaStress } from "@/components/chat/slots";
 import { postChatQuery } from "@/services/api/chatQuery";
 import ThreadView from "@/components/chat/thread/ThreadView";
 import { deriveToolbar } from "@/components/chat/thread/toolbar";
@@ -74,6 +75,13 @@ import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 /* -------------------------------------------------------------------------- */
 
 const POLL_INTERVAL_MS = 5_000;
+/**
+ * Re-fetch the reviewing-phase snippets endpoint every 30s so admin
+ * re-publishes land on an already-open chat without the user logging
+ * out. Idempotent — only NEW snippet ids (vs `seenSnippetIdsRef`)
+ * get appended. See the reviewing effect for the full diff logic.
+ */
+const REVIEW_REFRESH_MS = 30_000;
 const ROLEPLAY_CAP_SECONDS = 120;
 const ONBOARDING_CAP_SECONDS = 30;
 /**
@@ -214,6 +222,18 @@ export default function ChatPageClient({
     replaceBubble,
     clearBubbles,
   } = useThread();
+  /**
+   * Latest-bubbles mirror for closures that fire outside the render
+   * pass (interval ticks, async fetch callbacks). Using `bubbles`
+   * directly inside a `setInterval` captures whatever array reference
+   * existed when the effect last bound — stale by the next tick. The
+   * ref is updated on every render so async readers always see the
+   * current array.
+   */
+  const bubblesRef = useRef(bubbles);
+  useEffect(() => {
+    bubblesRef.current = bubbles;
+  }, [bubbles]);
   /** Map of snippetId → action-bubble info ({id, snippetType}), so the
    *  inline ThreadView onActionSelect handler can route a click into
    *  the existing `submitting` / replace-with-user-text-echo lifecycle
@@ -436,24 +456,38 @@ export default function ChatPageClient({
   }, [appendBubble]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Reviewing transition — inlined ChatReview fetch + emit                */
+  /*  Reviewing transition + ongoing publish polling                        */
   /*                                                                          */
-  /*  When the polling effect promotes phase to "reviewing", THIS effect    */
-  /*  fetches the published snippets + Calm-Anchor trinity once, then       */
-  /*  appends each snippet (as a snippet bubble + pending action bubble)    */
-  /*  to the SAME bubbles array the user was already reading their         */
-  /*  pending-greeting / welcome bubbles from. No component swap; the      */
-  /*  thread stays continuous. Idempotent guard via a ref so an effect     */
-  /*  re-fire doesn't double-append.                                       */
+  /*  When phase=reviewing this effect:                                      */
+  /*    1. Fetches /api/results/<sid>/snippets immediately (initial load)  */
+  /*       — populates dashboard / contrast / queue / first reveal.         */
+  /*    2. Keeps polling every REVIEW_REFRESH_MS while the surface is       */
+  /*       still on the reviewing phase. On each tick: re-fetch, diff       */
+  /*       against `seenSnippetIdsRef`, and ONLY append snippets whose id  */
+  /*       isn't seen yet. Newly admin-re-published snippets land without  */
+  /*       a page reload (acceptance criterion #1).                         */
+  /*                                                                          */
+  /*  The "no snippets yet" empty-state bubble fires only on the INITIAL    */
+  /*  fetch — subsequent ticks suppress it so a re-publish that adds the   */
+  /*  first snippet doesn't render alongside a stale "no snippets" message.*/
+  /*                                                                          */
+  /*  Idempotency: dashboard + contrast bubbles also fire once via         */
+  /*  reviewLoadedRef. The seen-ids set is the source of truth for       */
+  /*  snippet append; reviewLoadedRef gates only the one-time augmentations.*/
   /* ---------------------------------------------------------------------- */
   const reviewLoadedRef = useRef<string | null>(null);
+  const seenSnippetIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (phase !== "reviewing" || !activeSessionId) return;
-    if (reviewLoadedRef.current === activeSessionId) return;
-    reviewLoadedRef.current = activeSessionId;
+    // Reset seen-set when the active session changes — different
+    // sessions have different snippet id namespaces, leaking would
+    // suppress new ones.
+    if (reviewLoadedRef.current !== activeSessionId) {
+      seenSnippetIdsRef.current = new Set();
+    }
 
     let cancelled = false;
-    const load = async () => {
+    const load = async (isInitial: boolean) => {
       try {
         const res = await fetch(
           `/api/results/${encodeURIComponent(activeSessionId)}/snippets`,
@@ -461,10 +495,14 @@ export default function ChatPageClient({
         );
         if (cancelled) return;
         if (!res.ok) {
-          for (const b of botBubblesFromText(
-            "Couldn't load this session's snippets."
-          )) {
-            appendBubble(b);
+          // Only complain on the initial load — a transient poll failure
+          // shouldn't spam an error bubble every 30s.
+          if (isInitial) {
+            for (const b of botBubblesFromText(
+              "Couldn't load this session's snippets."
+            )) {
+              appendBubble(b);
+            }
           }
           return;
         }
@@ -477,62 +515,89 @@ export default function ChatPageClient({
         };
         if (cancelled) return;
 
-        if (data.charisma_profile?.trinity) {
-          appendBubble({
-            kind: "dashboard",
-            data: {
-              trinity: {
-                power: data.charisma_profile.trinity.power ?? 0,
-                warmth: data.charisma_profile.trinity.warmth ?? 0,
-                presence: data.charisma_profile.trinity.presence ?? 0,
+        if (isInitial) {
+          // One-time augmentations: dashboard + contrast card. These
+          // are stable for the session — backend doesn't republish
+          // them per snippet drop, so we don't refetch them on
+          // subsequent ticks.
+          if (data.charisma_profile?.trinity) {
+            appendBubble({
+              kind: "dashboard",
+              data: {
+                trinity: {
+                  power: data.charisma_profile.trinity.power ?? 0,
+                  warmth: data.charisma_profile.trinity.warmth ?? 0,
+                  presence: data.charisma_profile.trinity.presence ?? 0,
+                },
               },
-            },
-          });
-        }
-
-        // Stress-Contrast (BE-3). parseStressContrast returns null
-        // when either side has <3 samples or no shared metric had a
-        // numeric reading — per matrix C7 we render NOTHING in that
-        // case (no placeholder card). Card sits between the dashboard
-        // and the first snippet so the reader gets the "contrast" lens
-        // BEFORE they see individual snippet insights.
-        {
+            });
+          }
+          // Stress-Contrast (BE-3) — null when underpowered, then we
+          // render nothing per matrix C7.
           const contrastData = parseStressContrast(data.contrast);
           if (contrastData) {
             appendBubble({ kind: "contrast", data: contrastData });
           }
+          reviewLoadedRef.current = activeSessionId;
         }
 
         const snippets = Array.isArray(data.snippets) ? data.snippets : [];
-        if (snippets.length === 0) {
+        if (isInitial && snippets.length === 0) {
           for (const b of botBubblesFromText(
             "No snippets came through for this session — your coach is still preparing your insights."
           )) {
             appendBubble(b);
           }
-        } else {
-          // Serial reveal: queue ALL snippets, reveal only #1. The
-          // followup chain (label → /chat/snippet-followup → user
-          // reply → bridge → revealNextSnippet) drains the queue.
-          snippetQueueRef.current = snippets.map(mapBackendSnippet);
+          return;
+        }
+
+        // Diff against seen ids — append only NEW snippet ids. The
+        // mapped snippets go onto the serial-reveal queue; if the
+        // queue is empty AND no labeled snippet is currently active
+        // we reveal the next one immediately. Otherwise the new
+        // snippets land in the queue for the next followup→reveal
+        // cycle to drain.
+        const incoming = snippets
+          .filter((s) => !seenSnippetIdsRef.current.has(s.id))
+          .map(mapBackendSnippet);
+        if (incoming.length === 0) return;
+        for (const s of incoming) seenSnippetIdsRef.current.add(s.id);
+        snippetQueueRef.current.push(...incoming);
+        // Only auto-reveal when there's no in-flight labeling chain.
+        // hasPendingAction = there's an action_pending bubble still
+        // awaiting the user's click; pendingFollowUp = the user just
+        // labeled and the followup bubble is awaiting their reply.
+        // In either case we leave the queue alone — the
+        // handleFollowUpReply / EF-4 fallback path will revealNext
+        // when the active snippet drains.
+        const hasPending = (k: BubbleInput["kind"]) =>
+          bubblesRef.current.some((b) => b.kind === k);
+        const labelingInFlight = hasPending("action_pending") || pendingFollowUp;
+        if (!labelingInFlight) {
           revealNextSnippet();
         }
       } catch (err) {
         if (cancelled) return;
         console.warn("reviewing fetch failed:", err);
-        for (const b of botBubblesFromText(
-          "Couldn't load this session's snippets."
-        )) {
-          appendBubble(b);
+        if (isInitial) {
+          for (const b of botBubblesFromText(
+            "Couldn't load this session's snippets."
+          )) {
+            appendBubble(b);
+          }
         }
       }
     };
 
-    void load();
+    void load(true);
+    const intervalId = setInterval(() => {
+      void load(false);
+    }, REVIEW_REFRESH_MS);
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
     };
-  }, [phase, activeSessionId]);
+  }, [phase, activeSessionId, pendingFollowUp]);
 
   /* ---------------------------------------------------------------------- */
   /*  Snippet-label resolution                                               */
@@ -1045,7 +1110,7 @@ export default function ChatPageClient({
           phase === "q_and_a" ||
           phase === "reviewing") && (
           <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-            <ThreadView bubbles={bubbles} onActionSelect={handleSnippetLabel} />
+            <ThreadView bubbles={bubbles} />
             {/* Bottom-toolbar slot is derived from a pure function —
                 see `deriveToolbar` (and its unit tests against the
                 PANEL-STATE-MATRIX rows). Single source of truth for
@@ -1095,6 +1160,36 @@ export default function ChatPageClient({
                       </div>
                     </BottomSlot>
                   );
+                case "label_buttons": {
+                  // Per matrix C-LI-4 — the mic + text input are
+                  // HIDDEN (absent from the DOM) while labeling is
+                  // active. Only this two-button row renders in the
+                  // toolbar slot. `submitting` mirrors the
+                  // action_pending bubble's flag so the spinner
+                  // travels through the panel button when the parent
+                  // POST is in flight.
+                  const actionBubble = bubbles.find(
+                    (b) =>
+                      b.kind === "action_pending" &&
+                      b.snippetId === mode.snippetId
+                  );
+                  const labelSubmitting =
+                    actionBubble?.kind === "action_pending"
+                      ? actionBubble.submitting
+                      : false;
+                  return (
+                    <BottomSlot widthClass="max-w-3xl">
+                      <div className="mx-auto w-full max-w-md px-4 pb-4 pt-2">
+                        <CharismaStress
+                          onPick={(value) =>
+                            void handleSnippetLabel(mode.snippetId, value)
+                          }
+                          submitting={labelSubmitting}
+                        />
+                      </div>
+                    </BottomSlot>
+                  );
+                }
               }
             })()}
           </div>

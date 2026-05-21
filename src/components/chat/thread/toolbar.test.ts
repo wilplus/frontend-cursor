@@ -91,12 +91,58 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
-  it("LI-3b: reviewing, snippet + action_pending → composer (action lives inline)", () => {
+  it("LI-3b: reviewing, snippet + action_pending → label_buttons (composer hidden)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
         reviewLoadedForActiveSession: true,
         bubbles: [bubble.snippet("s1"), bubble.actionPending("s1")],
+      })
+    );
+    expect(result).toEqual({
+      kind: "label_buttons",
+      snippetId: "s1",
+      snippetType: "charisma",
+    });
+  });
+
+  it("LI-3b: label_buttons carries the LATEST action_pending (defensive tail-scan)", () => {
+    // If the thread somehow holds two action_pendings (network blip
+    // resurrected an old one) deriveToolbar picks the most recent —
+    // the one the user is actually expected to answer right now.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.actionPending("s1"),
+          bubble.snippet("s2"),
+          bubble.actionPending("s2"),
+        ],
+      })
+    );
+    expect(result).toEqual({
+      kind: "label_buttons",
+      snippetId: "s2",
+      snippetType: "charisma",
+    });
+  });
+
+  it("LI-4a → LI-5: action replaced by user_text echo + pendingFollowUp → composer (mic returns)", () => {
+    // The action_pending has been replaced by the user-text echo;
+    // pendingFollowUp blocks practice_cta. Composer is back so the
+    // user can text-or-voice their reply to the AI's follow-up.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        pendingFollowUp: true,
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.user_text("Charisma"),
+          bubble.bot_text("Nice — what made you sure?"),
+        ],
       })
     );
     expect(result).toEqual({ kind: "composer", showUpload: false });
@@ -119,7 +165,7 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "practice_cta" });
   });
 
-  it("LI-5 guard: only LAST snippet resolved, others pending → still composer", () => {
+  it("LI-5 guard: snippet 1 still pending → label_buttons (NOT practice_cta)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
@@ -132,7 +178,11 @@ describe("deriveToolbar — non-recording surface", () => {
         ],
       })
     );
-    expect(result).toEqual({ kind: "composer", showUpload: false });
+    expect(result).toEqual({
+      kind: "label_buttons",
+      snippetId: "s1",
+      snippetType: "charisma",
+    });
   });
 
   it("LI-9: welcome_back → none (read-only window)", () => {

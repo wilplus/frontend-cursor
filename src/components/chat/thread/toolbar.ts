@@ -41,6 +41,23 @@ export type ToolbarMode =
    */
   | { kind: "composer"; showUpload: boolean }
   /**
+   * Snippet-label binary — Charisma vs Stress, rendered as two
+   * panel-level buttons. While in this mode the composer (mic +
+   * text input) is HIDDEN, not just disabled (matrix C-LI-4): the
+   * user shouldn't be able to accidentally type or record while
+   * the label decision is pending. `snippetId` + `snippetType`
+   * route the click through to the parent's `handleSnippetLabel`
+   * via the toolbar render path, same handler the inline-bubble
+   * path used previously. Switches back to `composer` the moment
+   * the snippet-followup landing replaces the action_pending
+   * bubble with the user_text echo.
+   */
+  | {
+      kind: "label_buttons";
+      snippetId: string;
+      snippetType: "charisma" | "stress";
+    }
+  /**
    * Practice CTA — all snippets in the reviewing thread have
    * been resolved (no action_pending bubbles remain), so the
    * user is ready to hand off into the 120s roleplay.
@@ -125,6 +142,32 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
     !pendingFollowUp;
 
   if (reviewReadyForPractice) return { kind: "practice_cta" };
+
+  // Snippet labeling slot — when an action_pending bubble is the
+  // currently active labeling prompt, the panel renders the binary
+  // Charisma/Stress buttons + the composer is hidden. Lookup is
+  // "latest action_pending in the thread"; the one before any
+  // followup that's already been answered. We don't need to
+  // distinguish "labeled but followup not yet replied" because
+  // pendingFollowUp gates that case (no action_pending exists at
+  // that moment — it was replaced by the user_text echo on label).
+  if (phase === "reviewing" && hasPendingAction) {
+    // Scan from the tail so a stale unresolved bubble (e.g. a
+    // network blip mid-label) doesn't shadow a fresh one. There
+    // should normally be exactly one active action_pending at a
+    // time per the serial-reveal contract, but the tail-scan is
+    // defensive.
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      if (b.kind === "action_pending") {
+        return {
+          kind: "label_buttons",
+          snippetId: b.snippetId,
+          snippetType: b.snippetType,
+        };
+      }
+    }
+  }
 
   // Default — composer (text input + optional small mic). Inline
   // paperclip is gated on `showUploadUi` per Rule G.
