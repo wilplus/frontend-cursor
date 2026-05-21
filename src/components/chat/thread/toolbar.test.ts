@@ -57,7 +57,8 @@ function baseInputs(overrides: Partial<ToolbarInputs> = {}): ToolbarInputs {
     bubbles: [],
     reviewLoadedForActiveSession: false,
     showUploadUi: false,
-    recordingReady: false,
+    recordingReadyForSnippetId: null,
+    awaitingAdminReview: false,
     ...overrides,
   };
 }
@@ -198,12 +199,12 @@ describe("deriveToolbar — non-recording surface", () => {
 });
 
 describe("deriveToolbar — recording_ready (snippet closer chain done)", () => {
-  it("recordingReady=true in reviewing → recording_ready (wins over composer)", () => {
+  it("recordingReadyForSnippetId set in reviewing → recording_ready (wins over composer)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
         reviewLoadedForActiveSession: true,
-        recordingReady: true,
+        recordingReadyForSnippetId: "s1",
         bubbles: [
           bubble.snippet("s1"),
           bubble.user_text("Yes"),
@@ -213,30 +214,108 @@ describe("deriveToolbar — recording_ready (snippet closer chain done)", () => 
         ],
       })
     );
-    expect(result).toEqual({ kind: "recording_ready" });
+    expect(result).toEqual({
+      kind: "recording_ready",
+      snippetId: "s1",
+    });
   });
 
-  it("recordingReady=true wins even with showUploadUi (Rule G yields)", () => {
+  it("recordingReadyForSnippetId wins even with showUploadUi (Rule G yields)", () => {
     // Rule G's per-turn paperclip flag does NOT trump the
-    // intentional terminal big-mic affordance. We don't want the
-    // user clicking paperclip mid-closer.
+    // intentional terminal big-mic affordance.
     const result = deriveToolbar(
       baseInputs({
         phase: "q_and_a",
-        recordingReady: true,
+        recordingReadyForSnippetId: "s1",
         showUploadUi: true,
       })
     );
-    expect(result).toEqual({ kind: "recording_ready" });
+    expect(result).toEqual({
+      kind: "recording_ready",
+      snippetId: "s1",
+    });
   });
 
-  it("recordingReady=true in a recording phase → none (ChatInterview owns)", () => {
-    // Defensive: if the page forgets to reset recordingReady on
-    // phase=roleplaying, we still defer to ChatInterview.
+  it("recordingReadyForSnippetId in a recording phase → none (ChatInterview owns)", () => {
     const result = deriveToolbar(
-      baseInputs({ phase: "roleplaying", recordingReady: true })
+      baseInputs({
+        phase: "roleplaying",
+        recordingReadyForSnippetId: "s1",
+      })
     );
     expect(result).toEqual({ kind: "none" });
+  });
+
+  it("label_buttons wins over recording_ready when a NEW action_pending lands", () => {
+    // Admin re-publishes a new snippet WHILE the user is in the
+    // recording-ready state (haven't tapped yet). The new
+    // action_pending bubble appears → label_buttons takes the
+    // slot. The user gets to label the new snippet first; the
+    // big-mic state will return after THAT snippet's closer chain.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        recordingReadyForSnippetId: "s1",
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.user_text("Yes"),
+          bubble.bot_text("Thanks for that feedback!"),
+          bubble.snippet("s2"),
+          bubble.actionPending("s2"),
+        ],
+      })
+    );
+    expect(result).toEqual({
+      kind: "label_buttons",
+      snippetId: "s2",
+      snippetType: "charisma",
+    });
+  });
+
+  it("awaitingAdminReview = true → none (post-upload idle, input blocked)", () => {
+    // After the multipart upload completes, the user waits for
+    // the admin to publish. No composer, no big mic, no label
+    // buttons — until a new snippet lands (label_buttons takes
+    // over) or the user navigates away.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        awaitingAdminReview: true,
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.user_text("Yes"),
+          bubble.bot_text("Got it. Your coach is reviewing your new recording…"),
+        ],
+      })
+    );
+    expect(result).toEqual({ kind: "none" });
+  });
+
+  it("label_buttons wins over awaitingAdminReview when a fresh snippet lands", () => {
+    // Admin publishes a NEW snippet while the user is in the
+    // post-upload wait state → new action_pending breaks the
+    // idle, panel flips back to label_buttons for the new
+    // snippet.
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "reviewing",
+        reviewLoadedForActiveSession: true,
+        awaitingAdminReview: true,
+        bubbles: [
+          bubble.snippet("s1"),
+          bubble.user_text("Yes"),
+          bubble.snippet("s2"),
+          bubble.actionPending("s2"),
+        ],
+      })
+    );
+    expect(result).toEqual({
+      kind: "label_buttons",
+      snippetId: "s2",
+      snippetType: "charisma",
+    });
   });
 });
 
