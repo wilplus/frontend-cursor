@@ -25,18 +25,9 @@ import type { Bubble } from "@/components/chat/thread/types";
 
 interface ThreadViewProps {
   bubbles: Bubble[];
-  /**
-   * Optional handler for inline action_pending button clicks. When the
-   * user taps YES/NO inside the bubble itself, this fires with the
-   * snippetId + clicked value. ChatPageClient owns the routing into
-   * the label POST + per-snippet state machine; this prop is just the
-   * event hand-off. Pass `undefined` to disable inline buttons (e.g.
-   * if the toolbar takes ownership of the same action in FE Prompt 2).
-   */
-  onActionSelect?: (snippetId: string, value: "charisma" | "stress") => void;
 }
 
-export default function ThreadView({ bubbles, onActionSelect }: ThreadViewProps) {
+export default function ThreadView({ bubbles }: ThreadViewProps) {
   const threadEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to the latest bubble. Fires on every bubble-array
@@ -50,20 +41,14 @@ export default function ThreadView({ bubbles, onActionSelect }: ThreadViewProps)
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-y-auto py-4">
       {bubbles.map((b) => (
-        <BubbleRow key={b.id} bubble={b} onActionSelect={onActionSelect} />
+        <BubbleRow key={b.id} bubble={b} />
       ))}
       <div ref={threadEndRef} />
     </div>
   );
 }
 
-function BubbleRow({
-  bubble,
-  onActionSelect,
-}: {
-  bubble: Bubble;
-  onActionSelect?: (snippetId: string, value: "charisma" | "stress") => void;
-}) {
+function BubbleRow({ bubble }: { bubble: Bubble }) {
   switch (bubble.kind) {
     case "bot_text":
       return (
@@ -114,20 +99,12 @@ function BubbleRow({
       return <SnippetPlayerBubble snippet={bubble.data} />;
 
     case "action_pending": {
-      // Snippet review's charisma-vs-stress binary. The slot picks
-      // the value directly ("charisma" | "stress") — no agreement-
-      // framing wrapper, no value flipping. The backend just needs
-      // the user_label, so the simpler direct pick is preferred.
-      return (
-        <SnippetLabelBubble
-          selected={null}
-          submitting={bubble.submitting}
-          onPick={(value) => {
-            if (!onActionSelect) return;
-            onActionSelect(bubble.snippetId, value);
-          }}
-        />
-      );
+      // Contextual prompt only — the actual Charisma/Stress buttons
+      // live in the toolbar's `label_buttons` panel mode now (matrix
+      // C-LI-4). Inline buttons are deliberately omitted to avoid
+      // double click targets; the panel below this thread is where
+      // the user picks.
+      return <SnippetLabelBubble selected={null} submitting={bubble.submitting} />;
     }
   }
 }
