@@ -1,0 +1,7 @@
+<svg viewBox="0 0 720 150" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(15, 25)">
+    <path d="M 32 18 L 32 58 Q 32 72, 50 72 Q 68 72, 68 58 L 68 18" fill="none" stroke="#F97316" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="50" y1="72" x2="50" y2="88" stroke="#F97316" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <text x="135" y="93" font-family="Inter, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="58" font-weight="600" fill="#1A1714" letter-spacing="-1.4">WillpowerLab</text>
+</svg>
