@@ -120,8 +120,17 @@ extend.
   Use **plots, waveforms, wheel screenshots, and report cards** as imagery.
   When humans appear, they appear at their desk, mid-practice, not on
   stage.
-- **Logo usage:** Wordmark "willab" lowercase. The 🎙️ is acceptable in
-  product chrome; do not add it to the logo lockup.
+- **Logo — locked.** Wordmark is **`WillpowerLab`** (CamelCase) set in
+  Inter Semibold, paired with **the Reticle** — a single-color orange
+  crosshair-and-dot mark. Full system, files, sizing rules, and
+  do/don't are in `docs/marketing/logo-concepts/final/`. The Reticle
+  mark and the in-product wheel share the same ring + center-dot
+  geometry — brand and product converge by design.
+- **Domain — locked.** `willpowerlab.com` primary, `willab.io`
+  short-form / redirect, `willonski.com` legacy redirect.
+- **Short-form / verbal nickname:** "Willab." Used in product chrome
+  (the existing 🎙️ stays where it is) and casual founder voice;
+  never on contracts, the homepage hero, or the wordmark itself.
 
 ### 3.6 Naming conventions for outputs
 - **Session report** (not "results", not "feedback report").
@@ -418,18 +427,17 @@ Track quarterly; review monthly.
 These are decisions this document **does not** make. Resolve before
 launching paid acquisition.
 
-1. **Final product name in market.** "Willab" vs "Willpower Lab" vs
-   "Willab — Willpower Lab" as the wordmark in external surfaces.
-2. **Domain.** `willonski.com` is referenced in `APP_DESCRIPTION.md`
-   §7.5. Is there a `willab.com` or `willpowerlab.com` we should
-   acquire/redirect from? Brand consistency matters more than the
-   particular string.
+1. ~~**Final product name in market.**~~ **Resolved.** Legal /
+   long-form: **WillpowerLab** (CamelCase wordmark). Verbal nickname:
+   *Willab*. See §3.5.
+2. ~~**Domain.**~~ **Resolved.** `willpowerlab.com` primary,
+   `willab.io` short-form, `willonski.com` legacy redirect.
 3. **Pricing tiers and trial length** for the coach motion.
 4. **Public commitments on data handling** (retention, deletion,
    training-data use). Required before L&D outreach scales.
-5. **Whether to name the score** ("Willab Score", "Performance Index", or
-   just "performance score"). Naming it creates a brandable noun; not
-   naming it keeps the lab tone.
+5. **Whether to name the score** ("WillpowerLab Score", "Performance
+   Index", or just "performance score"). Naming it creates a
+   brandable noun; not naming it keeps the lab tone.
 
 ---
 
