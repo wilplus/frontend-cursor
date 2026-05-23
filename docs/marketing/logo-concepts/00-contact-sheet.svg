@@ -1,0 +1,88 @@
+<svg viewBox="0 0 900 1100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1100" fill="#FBF8F4"/>
+
+  <!-- Title -->
+  <text x="50" y="60" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="#1A1714">WillpowerLab — logo sign concepts</text>
+  <text x="50" y="90" font-family="Inter, system-ui, sans-serif" font-size="16" fill="#6B6562">Four marks, each paired with the wordmark. Orange #F97316, ink #1A1714.</text>
+
+  <!-- Row 1: Dot -->
+  <text x="50" y="155" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">01 — The Dot</text>
+  <text x="50" y="180" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Pure score-dot. Maximum restraint. Strongest favicon.</text>
+  <g transform="translate(50, 200)">
+    <rect width="120" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <circle cx="60" cy="60" r="29" fill="#F97316"/>
+  </g>
+  <g transform="translate(200, 200)">
+    <rect width="650" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <circle cx="55" cy="60" r="20" fill="#F97316"/>
+    <text x="100" y="76" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <!-- Row 2: Plot Point -->
+  <text x="50" y="375" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">02 — The Plot Point  ★ recommended</text>
+  <text x="50" y="400" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Baseline + ascending tick + score-dot. Says &#x201C;measurement&#x201D; without literal chart.</text>
+  <g transform="translate(50, 420)">
+    <rect width="120" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(10, 10) scale(1.0)">
+      <line x1="18" y1="72" x2="82" y2="72" stroke="#1A1714" stroke-width="3" stroke-linecap="round"/>
+      <line x1="60" y1="72" x2="60" y2="38" stroke="#1A1714" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="60" cy="30" r="13" fill="#F97316"/>
+    </g>
+  </g>
+  <g transform="translate(200, 420)">
+    <rect width="650" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(15, 22)">
+      <line x1="18" y1="60" x2="72" y2="60" stroke="#1A1714" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="55" y1="60" x2="55" y2="32" stroke="#1A1714" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="55" cy="26" r="10" fill="#F97316"/>
+    </g>
+    <text x="115" y="76" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <!-- Row 3: Brackets -->
+  <text x="50" y="595" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">03 — The Specimen</text>
+  <text x="50" y="620" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Brackets around the score-dot. Lab-sample feel. Most distinctive.</text>
+  <g transform="translate(50, 640)">
+    <rect width="120" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(10, 10)">
+      <path d="M 30 22 L 22 22 L 22 78 L 30 78" fill="none" stroke="#1A1714" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 70 22 L 78 22 L 78 78 L 70 78" fill="none" stroke="#1A1714" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="50" cy="50" r="14" fill="#F97316"/>
+    </g>
+  </g>
+  <g transform="translate(200, 640)">
+    <rect width="650" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(15, 22)">
+      <path d="M 24 18 L 18 18 L 18 62 L 24 62" fill="none" stroke="#1A1714" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 56 18 L 62 18 L 62 62 L 56 62" fill="none" stroke="#1A1714" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="40" cy="40" r="10" fill="#F97316"/>
+    </g>
+    <text x="105" y="76" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <!-- Row 4: Aperture -->
+  <text x="50" y="815" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">04 — The Wheel</text>
+  <text x="50" y="840" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Concentric rings + position dot. Direct reference to the in-product strength/pace wheel.</text>
+  <g transform="translate(50, 860)">
+    <rect width="120" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(10, 10)">
+      <circle cx="50" cy="50" r="36" fill="none" stroke="#1A1714" stroke-width="2"/>
+      <circle cx="50" cy="50" r="24" fill="none" stroke="#1A1714" stroke-width="2"/>
+      <circle cx="50" cy="50" r="12" fill="none" stroke="#1A1714" stroke-width="2"/>
+      <circle cx="74" cy="34" r="9" fill="#F97316"/>
+    </g>
+  </g>
+  <g transform="translate(200, 860)">
+    <rect width="650" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(15, 22)">
+      <circle cx="40" cy="40" r="29" fill="none" stroke="#1A1714" stroke-width="1.8"/>
+      <circle cx="40" cy="40" r="19" fill="none" stroke="#1A1714" stroke-width="1.8"/>
+      <circle cx="40" cy="40" r="9" fill="none" stroke="#1A1714" stroke-width="1.8"/>
+      <circle cx="59" cy="26" r="7" fill="#F97316"/>
+    </g>
+    <text x="100" y="76" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <!-- Footer note -->
+  <text x="50" y="1040" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#6B6562">Each mark is in docs/marketing/logo-concepts/ as a standalone SVG and as a wordmark lockup.</text>
+</svg>
