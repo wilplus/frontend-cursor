@@ -1,0 +1,65 @@
+<svg viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="900" fill="#FBF8F4"/>
+
+  <text x="50" y="60" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="#1A1714">The Lift — three stroke weights</text>
+  <text x="50" y="90" font-family="Inter, system-ui, sans-serif" font-size="16" fill="#6B6562">Same curve geometry, refined from sketch. Orange #F97316 above ink #1A1714.</text>
+
+  <!-- THIN -->
+  <text x="50" y="160" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">12 — Thin (stroke 2)</text>
+  <text x="50" y="185" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Precise, analytical. Reads as data viz. Best for premium / editorial surfaces.</text>
+  <g transform="translate(50, 205)">
+    <rect width="180" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(30, 30)">
+      <path d="M 12 56 C 24 56, 32 22, 48 22 C 64 22, 76 52, 110 54" fill="none" stroke="#1A1714" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 12 50 C 24 50, 32 14, 48 14 C 64 14, 76 46, 110 48" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g transform="translate(260, 205)">
+    <rect width="590" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(20, 30)">
+      <path d="M 12 56 C 24 56, 32 22, 48 22 C 64 22, 76 52, 110 54" fill="none" stroke="#1A1714" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 12 50 C 24 50, 32 14, 48 14 C 64 14, 76 46, 110 48" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    </g>
+    <text x="155" y="80" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <!-- MEDIUM -->
+  <text x="50" y="380" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">13 — Medium (stroke 3.5)  ★ default</text>
+  <text x="50" y="405" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Balanced. Reads at all sizes. Most versatile across product, marketing, and print.</text>
+  <g transform="translate(50, 425)">
+    <rect width="180" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(30, 30)">
+      <path d="M 12 56 C 24 56, 32 22, 48 22 C 64 22, 76 52, 110 54" fill="none" stroke="#1A1714" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 12 50 C 24 50, 32 14, 48 14 C 64 14, 76 46, 110 48" fill="none" stroke="#F97316" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g transform="translate(260, 425)">
+    <rect width="590" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(20, 30)">
+      <path d="M 12 56 C 24 56, 32 22, 48 22 C 64 22, 76 52, 110 54" fill="none" stroke="#1A1714" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 12 50 C 24 50, 32 14, 48 14 C 64 14, 76 46, 110 48" fill="none" stroke="#F97316" stroke-width="3.5" stroke-linecap="round"/>
+    </g>
+    <text x="155" y="80" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <!-- THICK -->
+  <text x="50" y="600" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#1A1714">14 — Thick (stroke 6)</text>
+  <text x="50" y="625" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#6B6562">Confident, graphic, high brand-presence. Best at small sizes and on busy surfaces.</text>
+  <g transform="translate(50, 645)">
+    <rect width="180" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(30, 30)">
+      <path d="M 12 58 C 24 58, 32 26, 48 26 C 64 26, 76 54, 110 56" fill="none" stroke="#1A1714" stroke-width="6" stroke-linecap="round"/>
+      <path d="M 12 48 C 24 48, 32 10, 48 10 C 64 10, 76 44, 110 46" fill="none" stroke="#F97316" stroke-width="6" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g transform="translate(260, 645)">
+    <rect width="590" height="120" fill="#FFFFFF" stroke="#E5DFD7" stroke-width="1"/>
+    <g transform="translate(20, 30)">
+      <path d="M 12 58 C 24 58, 32 26, 48 26 C 64 26, 76 54, 110 56" fill="none" stroke="#1A1714" stroke-width="6" stroke-linecap="round"/>
+      <path d="M 12 48 C 24 48, 32 10, 48 10 C 64 10, 76 44, 110 46" fill="none" stroke="#F97316" stroke-width="6" stroke-linecap="round"/>
+    </g>
+    <text x="155" y="80" font-family="Inter, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1A1714" letter-spacing="-1">WillpowerLab</text>
+  </g>
+
+  <text x="50" y="850" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#6B6562">All three use the same Bezier path; only stroke-width changes. The thick version uses slightly wider vertical separation so the two curves don't visually merge.</text>
+</svg>
