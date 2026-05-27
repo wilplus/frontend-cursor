@@ -85,10 +85,12 @@ export default function CuriosityGate({
           // hook doesn't fire a duplicate claim with the same id later.
           clearPendingSessionId();
         } else {
-          console.error("Claim failed:", response.status);
+          console.error(
+            `funnel.session_claim_failed surface=fe source=curiosity_gate status=${response.status}`
+          );
         }
       } catch (err) {
-        console.error("Claim error:", err);
+        console.error("funnel.session_claim_error surface=fe source=curiosity_gate", err);
       }
 
       // All post-claim flows land on /chat — the chat page owns the
