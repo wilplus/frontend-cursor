@@ -816,7 +816,7 @@ export default function ChatInterview({
         // Soft-fail — log and move on. The user has already committed
         // in the UI; re-prompting on a network blip is worse than
         // missing one persistence write.
-        console.warn("setSharingConsent failed:", err);
+        console.warn("consent.set_failed surface=fe", err);
       }
 
       if (unmountedRef.current) return;
@@ -906,7 +906,7 @@ export default function ChatInterview({
             body: JSON.stringify(body),
           });
         } catch (err) {
-          console.warn("self-rating fetch threw:", err);
+          console.warn("funnel.self_rating_fetch_threw surface=fe", err);
           break;
         }
 
@@ -956,7 +956,10 @@ export default function ChatInterview({
 
       // All retries exhausted or non-retryable error — soft-fail and
       // move on. Don't block the chat over a rating bookkeeping miss.
-      console.warn("Self-rating failed:", lastCode, lastError);
+      console.warn(
+        `funnel.self_rating_failed surface=fe code=${lastCode ?? "unknown"}`,
+        lastError
+      );
       setRatingEvaluating(false);
       setMessages((prev) => [
         ...prev,
@@ -1042,7 +1045,7 @@ export default function ChatInterview({
         // Non-fatal — the user still gets to /results, backend can
         // reconcile from the existing turn rows if the call dropped.
         console.warn(
-          `/api/session/finalize ${reason} call failed:`,
+          `funnel.session_finalize_failed surface=fe reason=${reason}`,
           err
         );
       });

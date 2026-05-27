@@ -83,10 +83,12 @@ export default function PendingSessionClaim() {
         } else {
           // Leave the id in storage so a refresh / next sign-in can retry.
           // (Don't surface as a toast — this runs silently in the bg.)
-          console.error("PendingSessionClaim: claim failed", res.status);
+          console.error(
+            `funnel.session_claim_failed surface=fe source=pending_session_claim status=${res.status}`
+          );
         }
       } catch (err) {
-        console.error("PendingSessionClaim: claim error", err);
+        console.error("funnel.session_claim_error surface=fe source=pending_session_claim", err);
       } finally {
         inFlightRef.current = false;
       }
