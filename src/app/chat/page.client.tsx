@@ -690,7 +690,7 @@ export default function ChatPageClient({
         }
       } catch (err) {
         if (cancelled) return;
-        console.warn("reviewing fetch failed:", err);
+        console.warn("chat.reviewing_fetch_failed surface=fe", err);
         if (isInitial) {
           for (const b of botBubblesFromText(
             "Couldn't load this session's snippets."
@@ -760,7 +760,7 @@ export default function ChatPageClient({
           }
         }
       } catch (err) {
-        console.warn("intro-bubble POST failed:", err);
+        console.warn("chat.intro_bubble_post_failed surface=fe", err);
       }
       for (const b of botBubblesFromText(introText)) appendBubble(b);
 
@@ -835,7 +835,7 @@ export default function ChatPageClient({
         );
         labelOk = res.ok;
       } catch (err) {
-        console.warn("label POST failed:", err);
+        console.warn("snippet_label.post_failed surface=fe", err);
       }
       if (!labelOk) {
         // Rollback per spec C4: nothing committed to the thread,
@@ -880,10 +880,9 @@ export default function ChatPageClient({
               interpretation !== "agreement"
             ) {
               console.warn(
-                `snippet-followup contract: ` +
-                  `debug.user_label_interpretation="${interpretation}" ` +
-                  `(expected "agreement"). Update matrix pin if backend ` +
-                  `intentionally flipped the semantic.`
+                `snippet_followup.contract_violation surface=fe ` +
+                  `debug_field=user_label_interpretation ` +
+                  `got="${interpretation}" expected=agreement`
               );
             }
           }
@@ -892,7 +891,7 @@ export default function ChatPageClient({
           }
         }
       } catch (err) {
-        console.warn("snippet-followup POST failed:", err);
+        console.warn("snippet_followup.post_failed surface=fe", err);
       }
 
       // 5a (happy) vs 5b (EF-4 fallback) — same shape: render the

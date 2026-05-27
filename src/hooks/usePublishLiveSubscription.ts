@@ -94,7 +94,7 @@ export function usePublishLiveSubscription(
           // the gap. Log so engineering can spot a misconfigured
           // realtime publication during dev / triage.
           console.warn(
-            `publish-live: Realtime status="${status}" — falling back to ${FALLBACK_POLL_MS}ms polling`
+            `chat.realtime_fallback surface=fe status="${status}" fallback_ms=${FALLBACK_POLL_MS}`
           );
         }
       });

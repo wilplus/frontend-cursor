@@ -71,9 +71,8 @@ export function describeQuestionSource(
       // engineering can grep the logs.
       const unknown = attribution.source as string;
       console.warn(
-        `questionAttribution: unknown source="${unknown}" — ` +
-          `expected one of directives_queue / admin_override / llm_generated. ` +
-          `Update NextQuestionSource enum.`
+        `question_attribution.unknown_source surface=fe ` +
+          `got="${unknown}" expected="directives_queue|admin_override|llm_generated"`
       );
       return `unknown source: ${unknown}`;
     }
@@ -97,7 +96,7 @@ export function logQuestionAttribution(
   // a noisy chat log. The directive object is logged separately so
   // the position + intent_tag are inspectable as keyed fields.
   console.info(
-    `[next-question attribution] turn=${turnNumber} ${label}`,
+    `question_attribution.resolved surface=fe turn=${turnNumber} label="${label}"`,
     attribution.directive ?? null
   );
 }

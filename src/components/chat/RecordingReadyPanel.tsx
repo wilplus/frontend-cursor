@@ -91,7 +91,7 @@ export function RecordingReadyPanel({
         }
         onUploadComplete();
       } catch (err) {
-        console.warn("upload-answer POST failed:", err);
+        console.warn("upload.post_failed surface=fe", err);
         toast.error("Couldn't reach the upload service. Try again.");
       } finally {
         setUploading(false);

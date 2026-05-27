@@ -60,7 +60,7 @@ describe("questionAttribution", () => {
       });
       expect(result).toBe("unknown source: experimental_path_2099");
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/unknown source/i)
+        expect.stringMatching(/question_attribution\.unknown_source/)
       );
     });
   });
@@ -75,7 +75,7 @@ describe("questionAttribution", () => {
         7
       );
       expect(infoSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/\[next-question attribution\] turn=7/),
+        expect.stringMatching(/question_attribution\.resolved.*turn=7/),
         { position: 3, intent_tag: "challenge" }
       );
     });
