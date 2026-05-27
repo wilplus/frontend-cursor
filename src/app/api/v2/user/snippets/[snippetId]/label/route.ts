@@ -64,7 +64,10 @@ export async function POST(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
-    console.error("POST user snippet label error:", name, message, err);
+    console.error(
+      `snippet_label.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`,
+      err
+    );
     return NextResponse.json(
       {
         code: "BFF_THROWN",
