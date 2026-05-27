@@ -126,7 +126,7 @@ export function TrialRecordingBubble({
       setPhase({ kind: "recording", startedAt: Date.now() });
       recordTimeoutRef.current = setTimeout(stopRecording, MAX_RECORD_MS);
     } catch (err) {
-      console.error("trial recording — getUserMedia failed:", err);
+      console.error("trial_recording.get_user_media_failed surface=fe", err);
       toast.error("Microphone permission denied or unavailable.");
     }
   };
@@ -190,7 +190,7 @@ export function TrialRecordingBubble({
       });
     } catch (err) {
       if (unmountedRef.current) return;
-      console.error("trial recording — upload failed:", err);
+      console.error("trial_recording.upload_failed surface=fe", err);
       toast.error("Network error. Please try again.");
       setPhase({ kind: "idle" });
     }
