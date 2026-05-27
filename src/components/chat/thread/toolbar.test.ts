@@ -55,7 +55,6 @@ function baseInputs(overrides: Partial<ToolbarInputs> = {}): ToolbarInputs {
   return {
     phase: "q_and_a",
     bubbles: [],
-    reviewLoadedForActiveSession: false,
     showUploadUi: false,
     recordingReadyForSnippetId: null,
     awaitingAdminReview: false,
@@ -81,11 +80,10 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "composer", showUpload: true });
   });
 
-  it("LI-3a: reviewing, fetch not landed → composer (no practice CTA yet)", () => {
+  it("LI-3a: reviewing, no action_pending yet → composer", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: false,
         bubbles: [bubble.bot_text()],
       })
     );
@@ -96,7 +94,6 @@ describe("deriveToolbar — non-recording surface", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         bubbles: [bubble.snippet("s1"), bubble.actionPending("s1")],
       })
     );
@@ -114,7 +111,6 @@ describe("deriveToolbar — non-recording surface", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         bubbles: [
           bubble.snippet("s1"),
           bubble.actionPending("s1"),
@@ -130,28 +126,10 @@ describe("deriveToolbar — non-recording surface", () => {
     });
   });
 
-  it("LI-5: reviewing, all snippets resolved → practice_cta", () => {
+  it("LI-5 guard: snippet 1 still pending → label_buttons (latest action_pending wins)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
-        bubbles: [
-          bubble.dashboard(),
-          bubble.snippet("s1"),
-          bubble.user_text("YES, this is Charisma"),
-          bubble.snippet("s2"),
-          bubble.user_text("NO, this is Stress"),
-        ],
-      })
-    );
-    expect(result).toEqual({ kind: "practice_cta" });
-  });
-
-  it("LI-5 guard: snippet 1 still pending → label_buttons (NOT practice_cta)", () => {
-    const result = deriveToolbar(
-      baseInputs({
-        phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         bubbles: [
           bubble.snippet("s1"),
           bubble.actionPending("s1"),
@@ -184,13 +162,12 @@ describe("deriveToolbar — non-recording surface", () => {
     expect(result).toEqual({ kind: "composer", showUpload: false });
   });
 
-  it("EF-1: reviewing, zero snippets fetched → composer (NOT practice_cta)", () => {
+  it("EF-1: reviewing, zero snippets fetched → composer (chat stays open)", () => {
     // No snippet bubbles in the thread; only the "no snippets came through"
-    // bot bubble. The has-any-snippet guard prevents the CTA from showing.
+    // bot bubble. User can keep chatting via the composer; no terminal CTA.
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         bubbles: [bubble.bot_text("No snippets came through…")],
       })
     );
@@ -203,7 +180,6 @@ describe("deriveToolbar — recording_ready (snippet closer chain done)", () => 
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         recordingReadyForSnippetId: "s1",
         bubbles: [
           bubble.snippet("s1"),
@@ -255,7 +231,6 @@ describe("deriveToolbar — recording_ready (snippet closer chain done)", () => 
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         recordingReadyForSnippetId: "s1",
         bubbles: [
           bubble.snippet("s1"),
@@ -281,7 +256,6 @@ describe("deriveToolbar — recording_ready (snippet closer chain done)", () => 
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         awaitingAdminReview: true,
         bubbles: [
           bubble.snippet("s1"),
@@ -301,7 +275,6 @@ describe("deriveToolbar — recording_ready (snippet closer chain done)", () => 
     const result = deriveToolbar(
       baseInputs({
         phase: "reviewing",
-        reviewLoadedForActiveSession: true,
         awaitingAdminReview: true,
         bubbles: [
           bubble.snippet("s1"),
@@ -361,7 +334,6 @@ describe("deriveToolbar — TX-1 thread-persists transition", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "roleplaying",
-        reviewLoadedForActiveSession: true,
         bubbles: persistedThread,
       })
     );

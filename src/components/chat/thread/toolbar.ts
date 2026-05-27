@@ -66,26 +66,12 @@ export type ToolbarMode =
    * `source_snippet_id`. Distinct from the small Lounge mic that
    * lives inside `composer`.
    */
-  | { kind: "recording_ready"; snippetId: string }
-  /**
-   * Practice CTA — all snippets in the reviewing thread have
-   * been resolved (no action_pending bubbles remain), so the
-   * user is ready to hand off into the 120s roleplay.
-   */
-  | { kind: "practice_cta" };
+  | { kind: "recording_ready"; snippetId: string };
 
 export interface ToolbarInputs {
   phase: Phase;
   /** Current bubble array from `useThread`. */
   bubbles: Bubble[];
-  /**
-   * True iff the reviewing-phase fetch has landed for the
-   * currently active session. Wires through from the parent's
-   * `reviewLoadedRef.current === activeSessionId` check —
-   * pulled out as a bool so this function stays pure and
-   * doesn't need to know about refs or session ids.
-   */
-  reviewLoadedForActiveSession: boolean;
   /**
    * Per-turn paperclip flag (Rule G). Passed through unchanged
    * to the qa_text mode.
@@ -128,7 +114,6 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
   const {
     phase,
     bubbles,
-    reviewLoadedForActiveSession,
     showUploadUi,
     recordingReadyForSnippetId,
     awaitingAdminReview,
@@ -179,32 +164,13 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
     };
   }
 
-  // Practice CTA precedence — reviewing phase, fetch landed,
-  // every snippet bubble has been paired with a user-text echo
-  // (i.e. no `action_pending` remains in the thread), and at
-  // least one snippet actually showed up. The "at least one
-  // snippet" guard prevents the CTA from appearing in the
-  // zero-snippet edge case (EF-1) where the user would
-  // otherwise see a Start-practice button against an empty
-  // analysis. With the closer-out chain (PR #19) the
-  // `recording_ready` mode usually takes over before this
-  // fallback fires — practice_cta survives as a safety net for
-  // sessions where the closer chain didn't run (e.g. all
-  // snippets already labeled on a prior mount).
-  const hasPendingAction = bubbles.some((b) => b.kind === "action_pending");
-  const hasAnySnippet = bubbles.some((b) => b.kind === "snippet");
-  const reviewReadyForPractice =
-    phase === "reviewing" &&
-    reviewLoadedForActiveSession &&
-    !hasPendingAction &&
-    hasAnySnippet;
-
-  if (reviewReadyForPractice) return { kind: "practice_cta" };
-
   // Default — composer (text input + optional small mic). Inline
   // paperclip is gated on `showUploadUi` per Rule G. The
-  // label_buttons / awaiting / recording_ready precedence above
-  // means we only land here for q_and_a / reviewing where no
-  // labeling chain is active.
+  // label_buttons / awaiting_admin_review / recording_ready
+  // precedence above means we only land here for q_and_a or
+  // reviewing-with-no-active-chain. The previous `practice_cta`
+  // fallback was deleted in the Week 2 cleanup — every snippet-
+  // label flow now terminates at `recording_ready` via the closer
+  // chain, so the CTA was unreachable.
   return { kind: "composer", showUpload: showUploadUi };
 }
