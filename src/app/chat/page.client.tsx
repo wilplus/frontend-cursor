@@ -292,17 +292,22 @@ export default function ChatPageClient({
     clearBubbles,
   } = useThread();
   /**
-   * Latest-bubbles mirror for closures that fire outside the render
-   * pass (interval ticks, async fetch callbacks). Using `bubbles`
-   * directly inside a `setInterval` captures whatever array reference
-   * existed when the effect last bound — stale by the next tick. The
-   * ref is updated on every render so async readers always see the
-   * current array.
+   * Narrow mirror for the async polling closure. We deliberately
+   * mirror only the SINGLE BOOLEAN the closure reads, not the
+   * whole `bubbles` array — including `bubbles` in the polling
+   * effect's deps would tear down + rebind the 30s interval on
+   * every render, which (because bubbles change frequently) means
+   * the interval would never actually fire. The ref-mirror is the
+   * accepted React pattern for "read latest value inside a stable
+   * interval"; we just keep the mirrored surface as small as
+   * possible so the "did we forget to update the mirror" bug
+   * class is one bit instead of an array.
    */
-  const bubblesRef = useRef(bubbles);
+  const hasActionPending = bubbles.some((b) => b.kind === "action_pending");
+  const hasActionPendingRef = useRef(hasActionPending);
   useEffect(() => {
-    bubblesRef.current = bubbles;
-  }, [bubbles]);
+    hasActionPendingRef.current = hasActionPending;
+  }, [hasActionPending]);
   /** Map of snippetId → action-bubble info ({id, snippetType}), so the
    *  inline ThreadView onActionSelect handler can route a click into
    *  the existing `submitting` / replace-with-user-text-echo lifecycle
@@ -680,10 +685,7 @@ export default function ChatPageClient({
         // into recording; remaining queued snippets sit idle until
         // the next mount, when the closed-out skip-filter above
         // re-picks the first unlabeled one for the cycle.
-        const hasActionPending = bubblesRef.current.some(
-          (b) => b.kind === "action_pending"
-        );
-        if (!hasActionPending) {
+        if (!hasActionPendingRef.current) {
           revealNextSnippet();
         }
       } catch (err) {
@@ -723,7 +725,7 @@ export default function ChatPageClient({
    *              → POST /api/v2/coaching/intro-bubble
    *              → intro_text bubble (or static FE fallback)
    *              → mark snippet closed-out (persist)
-   *              → setRecordingReady(true) — panel swaps to big mic
+   *              → setRecordingReadyForSnippetId(id) — panel swaps to big mic
    *
    * Idempotency (C5): the closed-out check happens in the reviewing-
    * fetch effect, not here — if the snippet was already in the set
@@ -917,10 +919,6 @@ export default function ChatPageClient({
   /* ---------------------------------------------------------------------- */
   /*  Phase transition handlers                                             */
   /* ---------------------------------------------------------------------- */
-
-  const handlePracticeStart = useCallback(() => {
-    setPhase("roleplaying");
-  }, []);
 
   const handleChatComplete = useCallback(
     async (guestSessionId: string) => {
@@ -1263,8 +1261,6 @@ export default function ChatPageClient({
               const mode = deriveToolbar({
                 phase,
                 bubbles,
-                reviewLoadedForActiveSession:
-                  reviewLoadedRef.current === activeSessionId,
                 showUploadUi,
                 recordingReadyForSnippetId,
                 awaitingAdminReview,
@@ -1272,19 +1268,6 @@ export default function ChatPageClient({
               switch (mode.kind) {
                 case "none":
                   return null;
-                case "practice_cta":
-                  return (
-                    <BottomSlot widthClass="max-w-3xl">
-                      <Button
-                        type="button"
-                        size="lg"
-                        onClick={handlePracticeStart}
-                        className="w-full rounded-full bg-primary px-7 text-sm font-semibold text-primary-foreground hover:shadow-lg sm:mx-auto sm:flex sm:w-auto"
-                      >
-                        Start practice (2 min)
-                      </Button>
-                    </BottomSlot>
-                  );
                 case "composer":
                   return (
                     <BottomSlot widthClass="max-w-3xl">
