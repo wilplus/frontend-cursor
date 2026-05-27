@@ -364,7 +364,7 @@ export default function AudioRecorder({
             ? "No microphone found. Connect a mic and try again."
             : "Microphone could not be accessed. Use HTTPS, allow the mic, or try again.";
       setMicPreviewError(msg);
-      console.error("Failed to start recording:", err);
+      console.error("recording.start_failed surface=fe", err);
       toast.error(
         name === "NotAllowedError" || name === "PermissionDeniedError"
           ? "Allow microphone in your browser (address bar → site settings)"
