@@ -171,7 +171,10 @@ describe("Structural Response Probe v1", () => {
    * --------------------------------------------------------------------- */
   it("FE-04: debug.user_label_interpretation: 'type' triggers console.warn (contract violation)", () => {
     // Files that consume /v2/chat/snippet-followup responses today.
-    const consumers = ["app/chat/page.client.tsx"];
+    // After the Week 2 hook-extraction pass the consumer lives in
+    // `useSnippetLabelingChain`; the parent page.client.tsx no longer
+    // touches the snippet-followup wire format directly.
+    const consumers = ["components/chat/hooks/useSnippetLabelingChain.ts"];
     const validatorPresent = anyFileContains(
       consumers,
       /user_label_interpretation/
@@ -186,7 +189,7 @@ describe("Structural Response Probe v1", () => {
           "debug.user_label_interpretation. Expected a guard along the lines " +
           "of `if (data.debug?.user_label_interpretation !== 'agreement') " +
           "console.warn('snippet-followup contract violation: ...')` inside " +
-          "app/chat/page.client.tsx's handleSnippetLabel."
+          "components/chat/hooks/useSnippetLabelingChain.ts's handleSnippetLabel."
       );
     }
   });
@@ -206,17 +209,20 @@ describe("Structural Response Probe v1", () => {
     const parsed = parseStressContrast(null);
     expect(parsed).toBeNull();
 
-    // Consumer half — page.client.tsx must wrap the append in a
-    // truthiness gate so contrast: null skips the bubble entirely.
+    // Consumer half — the reviewing-fetch hook must wrap the append
+    // in a truthiness gate so contrast: null skips the bubble entirely.
+    // Lives in `useReviewingFetch` after the Week 2 hook-extraction
+    // pass; the parent page.client.tsx no longer touches snippet
+    // load logic directly.
     expect(
       fileContains(
-        "app/chat/page.client.tsx",
+        "components/chat/hooks/useReviewingFetch.ts",
         /parseStressContrast\([\s\S]*?\)/
       )
     ).toBe(true);
     expect(
       fileContains(
-        "app/chat/page.client.tsx",
+        "components/chat/hooks/useReviewingFetch.ts",
         /if\s*\(\s*contrastData\s*\)/
       )
     ).toBe(true);
@@ -408,11 +414,14 @@ describe("Structural Response Probe v1", () => {
 
     // Parent contract: handleQASend returns Promise<boolean> so the
     // composer can distinguish success from inline-rendered errors.
-    const pageBody = readFileSync(
-      join(SRC_ROOT, "app/chat/page.client.tsx"),
+    // Lives in `useQAComposer` after the Week 2 hook-extraction
+    // pass — `page.client.tsx` only sees the `handleComposerSubmit`
+    // wrapper that forwards to it.
+    const hookBody = readFileSync(
+      join(SRC_ROOT, "components/chat/hooks/useQAComposer.ts"),
       "utf8"
     );
-    expect(pageBody).toMatch(/handleQASend[\s\S]{0,400}Promise<boolean>/);
+    expect(hookBody).toMatch(/handleQASend[\s\S]{0,400}Promise<boolean>/);
   });
 
   /* --------------------------------------------------------------------- *
@@ -455,11 +464,15 @@ describe("Structural Response Probe v1", () => {
     });
     expect(mode).toEqual({ kind: "composer", showUpload: false });
 
-    // (b) Source-layer wiring: parent reads show_record_ui and forwards
-    // the value to ChatInputBar's emphasizeMic prop.
+    // (b) Source-layer wiring: the QA composer hook reads
+    // show_record_ui off the /chat/query response and exposes the
+    // `showRecordUi` boolean; `page.client.tsx` forwards it to
+    // ChatInputBar's `emphasizeMic` prop. Split source check after
+    // the Week 2 hook-extraction pass — read happens in the hook,
+    // prop wiring happens in the parent.
     expect(
       fileContains(
-        "app/chat/page.client.tsx",
+        "components/chat/hooks/useQAComposer.ts",
         /setShowRecordUi\(\s*data\.show_record_ui\s*===\s*true\s*\)/
       )
     ).toBe(true);
