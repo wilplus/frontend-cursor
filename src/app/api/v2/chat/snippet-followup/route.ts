@@ -67,7 +67,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
-    console.error("POST /api/v2/chat/snippet-followup error:", name, message, err);
+    console.error(
+      `snippet_followup.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`,
+      err
+    );
     return NextResponse.json(
       {
         code: "BFF_THROWN",

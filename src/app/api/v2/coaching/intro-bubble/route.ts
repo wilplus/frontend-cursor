@@ -81,9 +81,7 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Unknown";
     console.error(
-      "POST /api/v2/coaching/intro-bubble error:",
-      name,
-      message,
+      `intro_bubble.bff_thrown surface=fe-bff error_name=${name} error_message=${message}`,
       err
     );
     return NextResponse.json(
