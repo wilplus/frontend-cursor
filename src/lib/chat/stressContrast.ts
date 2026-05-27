@@ -70,9 +70,8 @@ export function parseStressContrast(
     // flips the convention without coordinating the matrix doc,
     // every interpretation here would read backward.
     console.warn(
-      `stress-contrast: unexpected sign_convention="${sign}" ` +
-        `(expected "${EXPECTED_SIGN_CONVENTION}"). Card copy may be ` +
-        `inverted; update parseStressContrast + matrix pin.`
+      `stress_contrast.unexpected_sign_convention surface=fe ` +
+        `got="${sign}" expected="${EXPECTED_SIGN_CONVENTION}"`
     );
   }
 
