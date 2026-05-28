@@ -1,6 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -662,6 +672,26 @@ function AudioPlayer({ src, duration, label }: AudioPlayerProps) {
 }
 
 /**
+ * Imperative handle exposed by `SnippetPreviewPlayer` via
+ * `forwardRef` so callers (notably `SnippetTranscript` for
+ * click-to-seek) can drive the audio element without lifting the
+ * `<audio>` ref into the parent and tearing apart the existing
+ * trim-window logic.
+ *
+ * `seek(seconds)` — programmatic playhead jump. Used by the
+ *   word-level transcript: clicking a word calls
+ *   `seek(word.start)` to jump the audio to that token's offset.
+ * `getElement()` — escape hatch for consumers that need to
+ *   subscribe to native events (e.g. `timeupdate` for the
+ *   word-highlight subscription in `SnippetTranscript`). Returns
+ *   null before mount; safe to call inside an effect.
+ */
+interface SnippetPreviewPlayerHandle {
+  seek: (seconds: number) => void;
+  getElement: () => HTMLAudioElement | null;
+}
+
+/**
  * Snippet audio player with optional start/end clamping so admins can
  * instantly hear the effect of a boundary adjustment without re-loading the
  * page.
@@ -674,17 +704,40 @@ function AudioPlayer({ src, duration, label }: AudioPlayerProps) {
  * Both values update reactively: when the admin clicks ±0.5s / ±1s and the
  * API responds, the parent re-renders with new seekTo/clipEnd and the player
  * reflects the new trim on the next press of play.
+ *
+ * Forwarded ref exposes a `SnippetPreviewPlayerHandle` so the
+ * sibling transcript component can drive seek + subscribe to
+ * `timeupdate` without lifting `<audio>` out of this component.
  */
-function SnippetPreviewPlayer({
-  src,
-  seekTo = 0,
-  clipEnd,
-}: {
-  src?: string | null;
-  seekTo?: number;
-  clipEnd?: number;
-}) {
+const SnippetPreviewPlayer = forwardRef<
+  SnippetPreviewPlayerHandle,
+  {
+    src?: string | null;
+    seekTo?: number;
+    clipEnd?: number;
+  }
+>(function SnippetPreviewPlayer({ src, seekTo = 0, clipEnd }, forwardedRef) {
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  useImperativeHandle(
+    forwardedRef,
+    () => ({
+      seek: (sec) => {
+        const el = audioRef.current;
+        if (!el) return;
+        // Clamp to the trim window so an out-of-range word click
+        // (e.g. on a word whose Whisper offset slightly exceeds the
+        // current clipEnd) doesn't jump the playhead past the
+        // pause-and-rewind threshold and immediately bounce back.
+        const lo = seekTo;
+        const hi = clipEnd ?? Number.POSITIVE_INFINITY;
+        el.currentTime = Math.max(lo, Math.min(hi, sec));
+      },
+      getElement: () => audioRef.current,
+    }),
+    [seekTo, clipEnd]
+  );
+
   // True when the <audio> element fires `error` — usually means the
   // resource returned 404 (stale R2 / Supabase reference). We render a
   // visible badge instead of a silent 0:00 player so the admin knows
@@ -761,6 +814,128 @@ function SnippetPreviewPlayer({
       />
     </div>
   );
+});
+
+/* ----------------------------------------------------------------------------
+ * Snippet transcript — word-level highlight + click-to-seek when Whisper
+ * word timestamps are present (BE Task 3); falls back to a plain text
+ * paragraph when `words` is null/empty but `transcript` exists; renders
+ * nothing when neither is present (the existing "No transcript" amber
+ * badge in SnippetCard's header already surfaces that state).
+ *
+ * Owns its own `currentTime` state + `timeupdate` listener via the
+ * forwarded `SnippetPreviewPlayerHandle` so a 4Hz audio tick only
+ * re-renders THIS component, not the whole SnippetCard. Click-to-seek
+ * routes through the handle's `seek(sec)` which clamps to the current
+ * trim window (so a Whisper offset slightly past clipEnd doesn't
+ * immediately bounce back).
+ * ------------------------------------------------------------------------- */
+function SnippetTranscript({
+  playerRef,
+  audioSrc,
+  words,
+  transcript,
+}: {
+  playerRef: RefObject<SnippetPreviewPlayerHandle | null>;
+  /** Forwarded so the timeupdate-listener effect re-attaches when
+   *  the underlying <audio> element re-mounts (e.g. src goes from
+   *  null → URL after a lazy fetch). */
+  audioSrc?: string | null;
+  words?: SnippetWord[] | null;
+  transcript?: string | null;
+}) {
+  const [currentTime, setCurrentTime] = useState(0);
+
+  // Filter out malformed entries up front so render-path comparisons
+  // stay simple. We require a non-empty token and a sane (start <= end)
+  // interval; the rest is rendered as-is.
+  const cleanWords = useMemo(
+    () =>
+      (words ?? []).filter(
+        (w) =>
+          typeof w.word === "string" &&
+          w.word.length > 0 &&
+          typeof w.start === "number" &&
+          typeof w.end === "number" &&
+          w.start <= w.end
+      ),
+    [words]
+  );
+
+  // Subscribe to the audio element's `timeupdate` event via the
+  // imperative handle. Re-attach when audioSrc changes so a remount
+  // (the audio element only exists when src is non-null) gets picked
+  // up. The effect runs AFTER the DOM is committed, so by the time
+  // it executes the <audio> is in the tree and getElement() returns it.
+  useEffect(() => {
+    if (cleanWords.length === 0) return;
+    const el = playerRef.current?.getElement();
+    if (!el) return;
+    const onTime = () => setCurrentTime(el.currentTime);
+    // Prime once so the initial highlight reflects the actual playhead
+    // position (e.g. after a boundary-adjust pre-seek).
+    setCurrentTime(el.currentTime);
+    el.addEventListener("timeupdate", onTime);
+    return () => el.removeEventListener("timeupdate", onTime);
+  }, [playerRef, audioSrc, cleanWords.length]);
+
+  const trimmedTranscript = (transcript ?? "").trim();
+
+  // Word-level path — render clickable spans with active-word
+  // highlight. Buttons stay inline so the paragraph wraps naturally;
+  // spaces between words are literal " " text nodes (not button
+  // padding) so the rhythm matches a plain transcript visually.
+  if (cleanWords.length > 0) {
+    return (
+      <div className="rounded-xl border border-border bg-muted/20 p-3">
+        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Transcript
+        </p>
+        <p className="text-sm leading-relaxed text-foreground">
+          {cleanWords.map((w, i) => {
+            const isActive =
+              currentTime >= w.start && currentTime < w.end;
+            return (
+              <Fragment key={`${i}-${w.start}`}>
+                <button
+                  type="button"
+                  onClick={() => playerRef.current?.seek(w.start)}
+                  className={cn(
+                    "rounded px-0.5 transition-colors hover:bg-muted",
+                    isActive && "bg-primary/15 text-foreground"
+                  )}
+                  title={`Jump to ${w.start.toFixed(2)}s`}
+                >
+                  {w.word}
+                </button>
+                {i < cleanWords.length - 1 ? " " : ""}
+              </Fragment>
+            );
+          })}
+        </p>
+      </div>
+    );
+  }
+
+  // Plain-transcript fallback path — Whisper didn't emit word
+  // timestamps for this snippet (older row, very short clip, etc.)
+  // but a transcript string is available.
+  if (trimmedTranscript) {
+    return (
+      <div className="rounded-xl border border-border bg-muted/20 p-3">
+        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Transcript
+        </p>
+        <p className="text-sm leading-relaxed text-foreground">
+          {trimmedTranscript}
+        </p>
+      </div>
+    );
+  }
+
+  // Neither words nor transcript — render nothing. The SnippetCard
+  // header's "No transcript" amber badge already surfaces this case.
+  return null;
 }
 
 /* ----------------------------------------------------------------------------
@@ -1510,6 +1685,13 @@ function SnippetCard({
   const adminSavedComment = (snippet.admin_comment || "").trim();
   const adminSavedFollowUp = (snippet.follow_up_question || "").trim();
 
+  // Shared imperative handle for the audio player so SnippetTranscript
+  // can drive seek + subscribe to timeupdate without the parent
+  // tracking 4Hz currentTime ticks itself (those stay local to
+  // SnippetTranscript, not SnippetCard).
+  const playerRef = useRef<SnippetPreviewPlayerHandle>(null);
+  const audioSrc = snippet.audio_url ?? snippet.audio_segment_path ?? null;
+
   /**
    * Coach insight pre-fills with the AI draft when no admin save exists.
    * The "AI Suggested" badge in the label row clears the moment the
@@ -1662,9 +1844,22 @@ function SnippetCard({
             via Supabase signed URL); fall back to audio_segment_path for
             older fetchUserSnippets payloads. */}
         <SnippetPreviewPlayer
-          src={snippet.audio_url ?? snippet.audio_segment_path}
+          ref={playerRef}
+          src={audioSrc}
           seekTo={seekTo}
           clipEnd={clipEnd}
+        />
+
+        {/* Whisper transcript — word-level clickable highlight when
+            BE Task 3's word timestamps are present on the snippet,
+            plain paragraph fallback otherwise. Hidden entirely when
+            both `words` and `transcript` are absent (the header's
+            "No transcript" amber badge surfaces that case). */}
+        <SnippetTranscript
+          playerRef={playerRef}
+          audioSrc={audioSrc}
+          words={snippet.words}
+          transcript={snippet.transcript}
         />
 
         {/* Boundary controls (±2s Start, ±2s End) */}
