@@ -85,6 +85,12 @@ export async function GET(
   // Project the backend's full results payload down to the status-only
   // fields the page expects. Snippets are returned via the sibling
   // /snippets endpoint to keep the two concerns separable.
+  //
+  // Task 8: `metrics_ready` + `snippets_published` (BE cc4a50e) drive
+  // the new "metrics computed, snippets pending" branch on the chat
+  // surface. Pass through verbatim when the backend includes them;
+  // legacy callers that only switch on `status` keep working since
+  // the booleans are additive.
   return NextResponse.json(
     {
       status: data.status ?? "processing",
@@ -93,6 +99,12 @@ export async function GET(
       ai_summary: data.ai_summary ?? null,
       ai_score: data.ai_score ?? null,
       kpi_score: data.kpi_score ?? null,
+      metrics_ready:
+        typeof data.metrics_ready === "boolean" ? data.metrics_ready : false,
+      snippets_published:
+        typeof data.snippets_published === "boolean"
+          ? data.snippets_published
+          : (data.status ?? "processing") === "completed",
     },
     { status: 200 }
   );
