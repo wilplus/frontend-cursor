@@ -13,6 +13,8 @@ import {
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
 import { SignupCta, YesNoPills } from "@/components/chat/slots";
+import { SharingConsentModal } from "@/components/funnel/SharingConsentModal";
+import { getSharingConsent, setSharingConsent } from "@/lib/api/client";
 import { RecordingReadyPanel } from "@/components/chat/RecordingReadyPanel";
 import { snippetLabelPrompt } from "@/lib/chat/snippetLabel";
 import ThreadView from "@/components/chat/thread/ThreadView";
@@ -230,6 +232,92 @@ export default function ChatPageClient({
     }, COMPILE_DELAY_MS);
     return () => clearTimeout(t);
   }, [phase, setPhase]);
+
+  /* ---------------------------------------------------------------------- */
+  /*  Sharing-consent modal (task 8)                                         */
+  /*                                                                          */
+  /*  Trigger: user enters the reviewing phase AND backend reports           */
+  /*  has_answered=false (current state share_consent=null). One-shot per    */
+  /*  reviewing entry — we don't poll. Dismiss without answering = no PUT,   */
+  /*  re-prompt on next reviewing visit (BE writes one row to                */
+  /*  user_consent_events per Yes/No click; dismiss deliberately ledgers    */
+  /*  nothing because no decision was made).                                 */
+  /*                                                                          */
+  /*  The legacy in-chat splice in ChatInterview still exists; both gate     */
+  /*  off the same has_answered flag so the first one fires and the second  */
+  /*  silently skips. Different surfaces / different moments — modal here   */
+  /*  for the snippet-review moment, splice there for the post-rating       */
+  /*  moment inside contextual chats.                                        */
+  /* ---------------------------------------------------------------------- */
+  const [sharingConsentModalOpen, setSharingConsentModalOpen] =
+    useState(false);
+  const [sharingConsentSubmitting, setSharingConsentSubmitting] =
+    useState(false);
+  /** Whether we've already attempted to fetch consent state during this
+   *  reviewing-phase visit. Prevents the fetch from firing on every
+   *  re-render while the phase is held. Resets when the phase leaves
+   *  reviewing so a future re-entry can re-check. */
+  const consentProbeAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (phase !== "reviewing") {
+      consentProbeAttemptedRef.current = false;
+      return;
+    }
+    if (consentProbeAttemptedRef.current) return;
+    consentProbeAttemptedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await getSharingConsent();
+        if (cancelled) return;
+        // share_consent === null (BE) maps to has_answered === false
+        // on the wire shape FE consumes. Only un-answered users see
+        // the modal.
+        if (res?.has_answered === false) {
+          setSharingConsentModalOpen(true);
+        }
+      } catch {
+        // BE GET failed — keep the modal suppressed. Worst case the
+        // user gets re-prompted on their next reviewing visit, which
+        // is the same as the dismiss-without-answering stance.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
+
+  const handleSharingConsentDecision = useCallback(
+    async (optIn: boolean) => {
+      if (sharingConsentSubmitting) return;
+      setSharingConsentSubmitting(true);
+      try {
+        await setSharingConsent(optIn);
+      } catch {
+        // Soft-fail per the existing splice's pattern — the user has
+        // already committed in the UI; making them re-answer on a
+        // network blip is worse than missing one persistence write.
+        // Worst case: they get re-prompted next reviewing visit.
+      } finally {
+        setSharingConsentSubmitting(false);
+        setSharingConsentModalOpen(false);
+      }
+    },
+    [sharingConsentSubmitting]
+  );
+
+  const handleSharingConsentDismiss = useCallback(() => {
+    // Dismiss without answering — no PUT, no ledger row. Re-prompt on
+    // next reviewing visit by clearing the attempt ref so the next
+    // re-entry fetches fresh state.
+    if (sharingConsentSubmitting) return;
+    setSharingConsentModalOpen(false);
+    // Don't reset consentProbeAttemptedRef here — we already KNOW
+    // share_consent=null in this session; re-firing the modal on
+    // every render would be hostile. The next reviewing-phase entry
+    // (the phase-change effect cleanup above) is when we ask again.
+  }, [sharingConsentSubmitting]);
 
   /* ---------------------------------------------------------------------- */
   /*  Phase transition handlers                                             */
@@ -511,6 +599,17 @@ export default function ChatPageClient({
           </div>
         )}
       </div>
+      {/* Sharing-consent modal — overlays the chat surface on
+          reviewing-phase entry when the BE reports has_answered=false.
+          Mounted last so it z-orders above the thread + bottom slot
+          without needing explicit z-index. */}
+      <SharingConsentModal
+        open={sharingConsentModalOpen}
+        submitting={sharingConsentSubmitting}
+        onAccept={() => void handleSharingConsentDecision(true)}
+        onDecline={() => void handleSharingConsentDecision(false)}
+        onDismiss={handleSharingConsentDismiss}
+      />
     </main>
   );
 }
