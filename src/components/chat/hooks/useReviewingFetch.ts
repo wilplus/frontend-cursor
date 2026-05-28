@@ -29,9 +29,16 @@ import { useCallback, useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
 import type { ThreadHandle } from "@/components/chat/thread/useThread";
 import type { Bubble, Phase } from "@/components/chat/thread/types";
-import type { SnippetPlayerData } from "@/components/chat/RichBubbles";
+import type {
+  AcousticMetricsBubbleData,
+  SnippetPlayerData,
+} from "@/components/chat/RichBubbles";
 import { botBubblesFromText } from "@/lib/chat/botBubbles";
 import { parseStressContrast } from "@/lib/chat/stressContrast";
+import {
+  fetchUserSessionSummary,
+  type UserSessionSummaryMetrics,
+} from "@/services/api/userSessionSummary";
 
 const POLL_INTERVAL_MS = 5_000;
 /**
@@ -41,6 +48,26 @@ const POLL_INTERVAL_MS = 5_000;
  * get appended. See the reviewing effect for the full diff logic.
  */
 const REVIEW_REFRESH_MS = 30_000;
+
+/**
+ * Map the BE task-8 summary metrics shape into the FE-side
+ * AcousticMetricsBubble data. Field names diverge (snake_case
+ * vs camelCase, pitch as Hz number vs labelled string), so the
+ * mapping isn't 1:1 — `flow` has no direct backend field and
+ * stays null until BE exposes one.
+ */
+function mapSummaryMetricsToBubble(
+  m: UserSessionSummaryMetrics
+): AcousticMetricsBubbleData {
+  return {
+    wpm: m.wpm,
+    pitch: m.pitch_center_hz != null ? `${Math.round(m.pitch_center_hz)} Hz` : null,
+    flow: null,
+    fillers: m.fillers,
+    dynamicDb: m.dynamic_db,
+    energy: m.energy,
+  };
+}
 
 /**
  * Map a backend snippet row into the SnippetPlayerData the rich
@@ -137,6 +164,12 @@ export function useReviewingFetch({
   /*  pending path (both end up in phase=q_and_a with an activeSessionId). */
   /* ---------------------------------------------------------------------- */
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Task 8: once-per-session-mount guard so the metrics_ready
+   *  bubble cascade (metrics + commentary + pending chip) fires
+   *  exactly once when the BE flips metrics_ready→true. Without
+   *  this, every 5s probe tick would re-append the bubbles. Reset
+   *  on phase / sessionId change via the effect's cleanup. */
+  const metricsReadyFiredRef = useRef(false);
   useEffect(() => {
     if (phase !== "q_and_a" || !activeSessionId) return;
 
@@ -149,9 +182,57 @@ export function useReviewingFetch({
         );
         if (cancelled) return;
         if (!res.ok) return;
-        const data = (await res.json()) as { status?: string };
+        const data = (await res.json()) as {
+          status?: string;
+          metrics_ready?: boolean;
+          snippets_published?: boolean;
+        };
         if (cancelled) return;
-        if (data.status === "completed") {
+
+        // Back-compat: BE that hasn't shipped the new booleans yet
+        // returns just `status`. Map "completed" → snippets_published.
+        const snippetsPublished =
+          data.snippets_published === true || data.status === "completed";
+        const metricsReady = data.metrics_ready === true;
+
+        // Task 8: metrics-computed-but-snippets-pending branch. Emit
+        // the user-facing summary bubbles (metrics + commentary +
+        // pending chip) ONCE per session. The user stays in q_and_a
+        // so they can keep asking questions; the bubbles just land
+        // inline in the thread.
+        if (
+          metricsReady &&
+          !snippetsPublished &&
+          !metricsReadyFiredRef.current
+        ) {
+          metricsReadyFiredRef.current = true;
+          const summary = await fetchUserSessionSummary(activeSessionId);
+          if (!cancelled && summary) {
+            appendBubble({
+              kind: "metrics",
+              data: mapSummaryMetricsToBubble(summary.metrics),
+            });
+            if (summary.commentary?.body?.trim()) {
+              for (const b of botBubblesFromText(
+                summary.commentary.body.trim()
+              )) {
+                appendBubble(b);
+              }
+            }
+            const n = summary.snippet_count_pending;
+            const pendingCopy =
+              n > 0
+                ? `Your coach is reviewing ${n} snippet${
+                    n === 1 ? "" : "s"
+                  } — they'll appear here when ready.`
+                : "Your coach is reviewing — snippets will appear here when ready.";
+            for (const b of botBubblesFromText(pendingCopy)) {
+              appendBubble(b);
+            }
+          }
+        }
+
+        if (snippetsPublished) {
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
@@ -170,12 +251,16 @@ export function useReviewingFetch({
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
+      // Reset the once-per-mount guard so a future re-entry (e.g.
+      // navigating away and back to /chat) can re-fire the
+      // metrics_ready bubbles on the new session.
+      metricsReadyFiredRef.current = false;
     };
     // refetchToken bumps when usePublishLiveSubscription fires a
     // Realtime / fallback-poll event — we re-bind the effect so the
     // first `probe()` runs immediately, catching the "completed"
     // status the moment admin publishes (no 5s wait).
-  }, [phase, activeSessionId, refetchToken, setPhase]);
+  }, [phase, activeSessionId, refetchToken, setPhase, appendBubble]);
 
   /**
    * Reveal the next snippet in `snippetQueueRef` into the thread.
