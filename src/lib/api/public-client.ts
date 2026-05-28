@@ -238,6 +238,43 @@ export interface InterviewUploadResponse {
    * Undefined / false → normal flow, no bubble inserted.
    */
   snippet_opted_out?: boolean | null;
+  /**
+   * Session-1 satisfaction gate (BE commits 3968868 + 082ea33).
+   *
+   * Replaces today's pure-duration 30s threshold with the
+   * brainstorm's three-condition check:
+   *   (a) ≥1 answer where question_tone='charisma'
+   *   (b) ≥1 answer where question_tone='stress'
+   *   (c) ≥60s of accepted audio
+   *
+   * `session_1_complete` flips true on the upload that satisfies
+   * all three. FE uses it as the "session 1 done" trigger on the
+   * cold-start path (no sourceSnippetId). Contextual / retention-
+   * loop chats ignore the gate and keep their own caps.
+   *
+   * `completion_state` carries the live progress so FE can render
+   * per-criterion progress ("1/1 charisma ✓, 0/1 stress, 35s/60s")
+   * under the mic without firing a separate /completion-state GET
+   * after every upload.
+   *
+   * Both fields are optional during rollout — when absent, FE
+   * falls back to the legacy 30s duration threshold so older BE
+   * deploys keep working.
+   */
+  session_1_complete?: boolean;
+  completion_state?: {
+    ready: boolean;
+    criteria: {
+      has_charisma: boolean;
+      has_stress: boolean;
+      duration_ok: boolean;
+    };
+    current: {
+      charisma_count: number;
+      stress_count: number;
+      total_duration_ms: number;
+    };
+  };
 }
 
 export async function uploadInterviewAnswer(
