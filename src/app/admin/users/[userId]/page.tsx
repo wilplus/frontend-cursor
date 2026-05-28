@@ -3781,6 +3781,16 @@ export default function AdminUserDetailPage() {
                         placeholder="Performance summary…"
                         className="bg-background text-[15px] italic leading-relaxed"
                       />
+                      {/* Split-sinks badge — the narrative is
+                          pipeline-only (admin_annotations_log RLHF
+                          corpus), it never reaches a user-facing
+                          surface. Always visible while editing so
+                          admins don't read "my edit isn't on /results"
+                          as a bug. See task-5 BE split-sinks handoff. */}
+                      <p className="rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-[11px] leading-relaxed text-primary">
+                        Your edits train the model. They don&apos;t
+                        change what the user sees.
+                      </p>
                       {showGateUi && (
                         <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
                           <p className="text-[11px] leading-relaxed text-amber-900">
