@@ -1802,11 +1802,11 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Tab 3 — saved separately so we can show "Saving…" per textarea.
+  // Tab 3 — Private Admin Notes is the only persisted field now;
+  // Global LLM Instructions + Learning Profile were deleted because
+  // they overlapped with the upcoming behavioral-profile work.
   const [adminNotes, setAdminNotes] = useState("");
-  const [llmInstructions, setLlmInstructions] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
-  const [savingInstructions, setSavingInstructions] = useState(false);
 
   // Per-snippet save state.
   const [savingSnippetId, setSavingSnippetId] = useState<string | null>(null);
@@ -1882,7 +1882,6 @@ export default function AdminUserDetailPage() {
         if (contextRes.status === "fulfilled") {
           setContext(contextRes.value);
           setAdminNotes(contextRes.value.general_notes ?? "");
-          setLlmInstructions(contextRes.value.custom_instructions ?? "");
         }
         if (snippetsRes.status === "fulfilled") {
           setSnippets(snippetsRes.value);
@@ -2524,23 +2523,6 @@ export default function AdminUserDetailPage() {
     },
     [interviewTurns, editingTurnDraft]
   );
-
-  const saveInstructions = useCallback(async () => {
-    setSavingInstructions(true);
-    try {
-      const next = await updateUserAdminContext(userId, {
-        custom_instructions: llmInstructions,
-      });
-      setContext(next);
-      toast.success("LLM instructions saved");
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Failed to save instructions"
-      );
-    } finally {
-      setSavingInstructions(false);
-    }
-  }, [userId, llmInstructions]);
 
   const handleSaveSnippetComment = useCallback(
     async (
@@ -3621,9 +3603,14 @@ export default function AdminUserDetailPage() {
             </Card>
           </TabsContent>
 
-          {/* ---------------- TAB 3 — Long-Term Profile ------------------ */}
+          {/* ---------------- TAB 3 — Long-Term Profile ------------------
+              Pared down to Private Admin Notes only. The previous
+              "Global LLM Instructions" and "Learning Profile" cards
+              were deleted because they overlapped with the upcoming
+              behavioral-profile work; the BE PATCH branches for
+              custom_instructions + learning_profile go away too. */}
           <TabsContent value="profile">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="max-w-xl">
               <Card className="rounded-2xl border-border p-5">
                 <h3 className="text-base font-semibold">Private Admin Notes</h3>
                 <p className="mb-3 text-sm text-muted-foreground">
@@ -3644,80 +3631,6 @@ export default function AdminUserDetailPage() {
                 >
                   {savingNotes ? "Saving…" : "Save Notes"}
                 </Button>
-              </Card>
-
-              <Card className="rounded-2xl border-border p-5">
-                <h3 className="text-base font-semibold">
-                  Global LLM Instructions
-                </h3>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  Persistent rules forwarded to the AI on the next session
-                  (e.g. &quot;Don&apos;t ask about X&quot;).
-                </p>
-                <Textarea
-                  rows={8}
-                  value={llmInstructions}
-                  onChange={(e) => setLlmInstructions(e.target.value)}
-                  placeholder="Rules for the AI…"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="mt-3 rounded-full px-4"
-                  disabled={savingInstructions}
-                  onClick={() => void saveInstructions()}
-                >
-                  {savingInstructions ? "Saving…" : "Save Instructions"}
-                </Button>
-              </Card>
-
-              <Card className="rounded-2xl border-border p-5">
-                <h3 className="text-base font-semibold">Learning Profile</h3>
-                <div className="mt-3 flex items-center gap-2">
-                  <Badge variant="default">Stressor</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    auto-detected
-                  </span>
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Override below if the auto-classification is wrong.
-                </p>
-                <select
-                  defaultValue="stressor"
-                  className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onChange={async (e) => {
-                    const val = e.target.value;
-                    try {
-                      const token = await getAuthToken();
-                      if (!token) {
-                        toast.error("Not authenticated");
-                        return;
-                      }
-                      const res = await fetch(
-                        `/api/v2/admin/users/${userId}/learning-profile`,
-                        {
-                          method: "PATCH",
-                          headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
-                          },
-                          body: JSON.stringify({ learning_profile: val }),
-                        }
-                      );
-                      if (!res.ok) throw new Error(`Save failed (HTTP ${res.status})`);
-                      toast.success(`Learning profile set to "${val}"`);
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Failed to save");
-                    }
-                  }}
-                >
-                  <option value="stressor">Stressor</option>
-                  <option value="racer">Racer</option>
-                  <option value="freezer">Freezer</option>
-                </select>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Affects how the next session is tuned.
-                </p>
               </Card>
             </div>
           </TabsContent>
