@@ -230,16 +230,19 @@ export async function submitAdminFeedback(
 /*  /v2/admin/user/<id>/context endpoint.                                     */
 /*                                                                            */
 /*  Backend changed this endpoint to return the multi-session                  */
-/*  AdminUserContextPayload shape ({user, sessions[]}) and renamed the two   */
-/*  editable text fields:                                                     */
+/*  AdminUserContextPayload shape ({user, sessions[]}) and renamed the         */
+/*  editable text field:                                                       */
 /*    general_notes        →  user.private_admin_notes                        */
-/*    custom_instructions  →  user.custom_llm_instructions                    */
 /*  The PATCH method is gone; PUT is the new mutator. These shims keep        */
 /*  existing callers (admin/user/[id]/page.tsx, AdminRecordingsList,          */
-/*  the Notes/Instructions cards on admin/users/[id]/page.tsx) working        */
-/*  without requiring every site to migrate at once. New callers should       */
+/*  the Notes card on admin/users/[id]/page.tsx) working without               */
+/*  requiring every site to migrate at once. New callers should               */
 /*  prefer adminApi.getUserContext / .updateUserContext directly to access    */
 /*  the full payload (sessions, behavioral profile, queued override, etc).   */
+/*                                                                            */
+/*  `custom_llm_instructions` was removed from the BE PATCH branch in        */
+/*  b004659 and is no longer surfaced through this shim. The legacy           */
+/*  `custom_instructions` field on UserAdminContext is gone too.              */
 /* -------------------------------------------------------------------------- */
 
 interface NewContextResponse {
@@ -247,7 +250,6 @@ interface NewContextResponse {
     id: string;
     email: string | null;
     name: string | null;
-    custom_llm_instructions: string | null;
     private_admin_notes: string | null;
     queued_override_question: string | null;
     coach_override_profile: string | null;
@@ -260,7 +262,6 @@ function toLegacyContext(payload: NewContextResponse): UserAdminContext {
   const u = payload.user ?? ({} as NewContextResponse["user"]);
   return {
     general_notes: u.private_admin_notes ?? null,
-    custom_instructions: u.custom_llm_instructions ?? null,
     // Legacy shape carried these fields; the new endpoint doesn't —
     // sane defaults so consumers' truthy guards (e.g.
     // {context.max_words && (...)}) cleanly hide unsupported sections.
@@ -301,12 +302,16 @@ export async function updateUserAdminEmail(
  * Patch any subset of legacy admin context fields. Translates to the
  * new endpoint's field names and PUT method. Empty strings are sent
  * as null so the backend can clear the value.
+ *
+ * `custom_instructions` was removed from the input type after b004659
+ * dropped the corresponding BE PATCH branch. Callers that previously
+ * wrote here are gone (admin Tab 3's "Global LLM Instructions" card
+ * was deleted in ed9ed70).
  */
 export async function updateUserAdminContext(
   userId: string,
   patch: {
     general_notes?: string | null;
-    custom_instructions?: string | null;
     max_words?: number | null;
   }
 ): Promise<UserAdminContext> {
@@ -317,8 +322,6 @@ export async function updateUserAdminContext(
   // keys so we can safely drop max_words (no longer supported).
   if (patch.general_notes !== undefined)
     body.private_admin_notes = normalize(patch.general_notes);
-  if (patch.custom_instructions !== undefined)
-    body.custom_llm_instructions = normalize(patch.custom_instructions);
   if (patch.max_words !== undefined) {
     console.warn(
       "[updateUserAdminContext] max_words is no longer supported on the Phase 12/13 endpoint — dropping."

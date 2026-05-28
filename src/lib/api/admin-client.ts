@@ -2863,7 +2863,15 @@ export interface AdminUserContextUser {
   name: string | null;
 
   // Free-text admin tools (PUT-able via updateUserContext)
-  custom_llm_instructions: string | null;
+  /**
+   * @deprecated Removed from the BE PATCH branch in b004659 and the
+   * underlying user_settings column was dropped in the same commit.
+   * Kept here as an optional null-able read so the FE shape stays
+   * backwards-compatible during the rollout window; no caller should
+   * write to it. Will be removed entirely once the behavioral-
+   * profile rework lands.
+   */
+  custom_llm_instructions?: string | null;
   private_admin_notes: string | null;
   /** Injected as the next bot turn, then cleared server-side. */
   queued_override_question: string | null;
@@ -2929,9 +2937,13 @@ export interface AdminUserContextPayload {
 }
 
 /** PUT body — every field optional, only included keys are written.
- *  null clears. */
+ *  null clears.
+ *
+ *  `custom_llm_instructions` is intentionally absent — it was removed
+ *  from the BE PATCH branch in b004659. Sending it would be silently
+ *  dropped; keeping it off the type prevents accidental wire pollution.
+ */
 export interface AdminUserContextUpdate {
-  custom_llm_instructions?: string | null;
   private_admin_notes?: string | null;
   queued_override_question?: string | null;
   coach_override_profile?: string | null;
