@@ -1055,6 +1055,16 @@ interface SnippetCardProps {
   /** Disable boundary +/- controls (e.g. while saving). */
   boundaryDisabled?: boolean;
   skipDisabled?: boolean;
+  /**
+   * Set when this snippet is one of the two BE-pinned extremes
+   * (`top_stress` or `top_charisma`) from the
+   * /v2/admin/users/<id>/snippets?sort=extremes_first response.
+   * Drives a small "TOP STRESS" / "TOP CHARISMA" pill in the
+   * card header so the admin sees WHY this row is at the top
+   * instead of treating the sort as opaque.
+   * null / undefined → no pill rendered.
+   */
+  pinnedAs?: "top_stress" | "top_charisma" | null;
 }
 
 /**
@@ -1426,6 +1436,7 @@ function SnippetCard({
   saving,
   boundaryDisabled,
   skipDisabled,
+  pinnedAs,
 }: SnippetCardProps) {
   const aiDraftComment = (snippet.ai_draft_admin_comment || "").trim();
   const aiDraftFollowUp = (snippet.ai_draft_follow_up_question || "").trim();
@@ -1525,6 +1536,28 @@ function SnippetCard({
             >
               {(snippet.duration_ms / 1000).toFixed(1)}s
             </span>
+            {/* BE-pinned "extremes-first" badge — only the two rows the
+                /v2/admin/users/<id>/snippets?sort=extremes_first
+                response pinned via the `pinned` block carry this. Colour
+                follows the snippet polarity (emerald = charisma,
+                destructive = stress) to match the same semantic tokens
+                the labelling buttons + chat surfaces use. */}
+            {pinnedAs === "top_charisma" && (
+              <span
+                className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800"
+                title="Top charisma snippet for this user — surfaced first by the snippet-list re-rank."
+              >
+                Top Charisma
+              </span>
+            )}
+            {pinnedAs === "top_stress" && (
+              <span
+                className="inline-flex items-center rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive"
+                title="Top stress snippet for this user — surfaced first by the snippet-list re-rank."
+              >
+                Top Stress
+              </span>
+            )}
           </CardTitle>
           <div className="flex flex-wrap gap-1.5">
             {/* Header is now just the warning channel — full acoustic
@@ -1799,6 +1832,15 @@ export default function AdminUserDetailPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [context, setContext] = useState<UserAdminContext | null>(null);
   const [snippets, setSnippets] = useState<AdminSnippet[]>([]);
+  /** BE-pinned snippet ids from /v2/admin/users/<id>/snippets?sort=
+   *  extremes_first — either may be null when no snippet of that label
+   *  exists yet. Drives the "TOP STRESS" / "TOP CHARISMA" badge on the
+   *  matching SnippetCard so the admin sees why those two rows are
+   *  at the top of the list. */
+  const [pinnedSnippetIds, setPinnedSnippetIds] = useState<PinnedSnippetIds>({
+    top_stress_id: null,
+    top_charisma_id: null,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -1884,7 +1926,8 @@ export default function AdminUserDetailPage() {
           setAdminNotes(contextRes.value.general_notes ?? "");
         }
         if (snippetsRes.status === "fulfilled") {
-          setSnippets(snippetsRes.value);
+          setSnippets(snippetsRes.value.snippets);
+          setPinnedSnippetIds(snippetsRes.value.pinned);
         }
       })
       .finally(() => {
@@ -3387,21 +3430,37 @@ export default function AdminUserDetailPage() {
                       : "No snippets extracted for this session yet."}
                 </p>
               ) : (
-                sessionSnippets.map((s) => (
-                  <SnippetCard
-                    key={s.id}
-                    snippet={s}
-                    saving={savingSnippetId === s.id}
-                    onAdjustBounds={handleAdjustBounds}
-                    onLabel={handleSnippetLabel}
-                    onSaveComment={handleSaveSnippetComment}
-                    onSkip={handleSkipSnippet}
-                    onDelete={handleDeleteSnippet}
-                    onRationaleSaved={handleRationaleSaved}
-                    boundaryDisabled={false}
-                    skipDisabled={false}
-                  />
-                ))
+                sessionSnippets.map((s) => {
+                  // Derive the BE-pinned badge for this row. The
+                  // /v2/admin/users/<id>/snippets?sort=extremes_first
+                  // response returns at most one id per polarity; if
+                  // a snippet happens to be the most recent of BOTH
+                  // labels (rare; same row would have to flip type
+                  // mid-session) we prefer "top_charisma" arbitrarily
+                  // — the badge is informative, not load-bearing.
+                  const pinnedAs: "top_stress" | "top_charisma" | null =
+                    pinnedSnippetIds.top_charisma_id === s.id
+                      ? "top_charisma"
+                      : pinnedSnippetIds.top_stress_id === s.id
+                        ? "top_stress"
+                        : null;
+                  return (
+                    <SnippetCard
+                      key={s.id}
+                      snippet={s}
+                      saving={savingSnippetId === s.id}
+                      onAdjustBounds={handleAdjustBounds}
+                      onLabel={handleSnippetLabel}
+                      onSaveComment={handleSaveSnippetComment}
+                      onSkip={handleSkipSnippet}
+                      onDelete={handleDeleteSnippet}
+                      onRationaleSaved={handleRationaleSaved}
+                      boundaryDisabled={false}
+                      skipDisabled={false}
+                      pinnedAs={pinnedAs}
+                    />
+                  );
+                })
               )}
             </div>
                         {/* === /SessionBody === */}
@@ -3661,16 +3720,42 @@ export default function AdminUserDetailPage() {
  * Snippet loader — uses the existing v2 admin endpoint.
  * Backend response is normalized to the AdminSnippet shape used above; any
  * extra fields (metrics, is_skipped) are passed through when present.
+ *
+ * `?sort=extremes_first` (BE commit 3f841fd) re-ranks the response so the
+ * most recent snippet_type='stress' AND most recent snippet_type='charisma'
+ * land first, then the rest in created_at desc order. The response also
+ * carries a top-level `pinned` block with the two pinned snippet ids
+ * (either may be null when no snippet of that label exists yet) — used
+ * by the caller to badge those rows so the admin sees WHY they're at
+ * the top.
  * ------------------------------------------------------------------------- */
 
-async function fetchUserSnippets(userId: string): Promise<AdminSnippet[]> {
+export interface PinnedSnippetIds {
+  top_stress_id: string | null;
+  top_charisma_id: string | null;
+}
+
+async function fetchUserSnippets(
+  userId: string
+): Promise<{ snippets: AdminSnippet[]; pinned: PinnedSnippetIds }> {
+  const empty: PinnedSnippetIds = { top_stress_id: null, top_charisma_id: null };
   const token = await getAuthToken();
-  if (!token) return [];
-  const res = await fetch(`/api/v2/admin/users/${userId}/snippets?limit=200`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return [];
+  if (!token) return { snippets: [], pinned: empty };
+  const res = await fetch(
+    `/api/v2/admin/users/${userId}/snippets?limit=200&sort=extremes_first`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  if (!res.ok) return { snippets: [], pinned: empty };
   const data = await res.json();
   const arr: unknown[] = Array.isArray(data?.snippets) ? data.snippets : [];
-  return arr.map((raw) => raw as AdminSnippet);
+  const rawPinned = (data?.pinned ?? {}) as Partial<PinnedSnippetIds>;
+  return {
+    snippets: arr.map((raw) => raw as AdminSnippet),
+    pinned: {
+      top_stress_id: rawPinned.top_stress_id ?? null,
+      top_charisma_id: rawPinned.top_charisma_id ?? null,
+    },
+  };
 }
