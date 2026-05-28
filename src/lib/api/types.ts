@@ -126,7 +126,6 @@ export interface AdminFeedbackResponse {
 
 export interface UserAdminContext {
   general_notes: string | null;
-  custom_instructions: string | null;
   max_words: number;
   specific_questions: Array<{
     id: UUID;

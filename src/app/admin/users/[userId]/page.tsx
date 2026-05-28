@@ -3607,8 +3607,14 @@ export default function AdminUserDetailPage() {
               Pared down to Private Admin Notes only. The previous
               "Global LLM Instructions" and "Learning Profile" cards
               were deleted because they overlapped with the upcoming
-              behavioral-profile work; the BE PATCH branches for
-              custom_instructions + learning_profile go away too. */}
+              behavioral-profile work.
+
+              BE reality check (post-b004659): the `custom_llm_instructions`
+              column was dropped from user_settings AND its PATCH branch
+              was removed, so there's nothing to write to. The
+              `learning_profile` column was kept — it's reserved for the
+              upcoming behavioral-profile rework — but no public PATCH
+              route exists for it today. */}
           <TabsContent value="profile">
             <div className="max-w-xl">
               <Card className="rounded-2xl border-border p-5">

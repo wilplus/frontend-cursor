@@ -22,11 +22,15 @@ import type { AdminUserContextPayload } from "@/lib/api/admin-client";
  * PUT body — every field optional, only included keys are written
  * (null clears):
  *   {
- *     custom_llm_instructions?:   string | null,
  *     private_admin_notes?:        string | null,
  *     queued_override_question?:   string | null,
  *     coach_override_profile?:     string | null,
  *   }
+ *
+ * `custom_llm_instructions` was dropped from the BE PATCH branch in
+ * b004659 (Tab 3 "Global LLM Instructions" card deleted in FE
+ * ed9ed70). Keep this BFF surface narrow so an accidental caller
+ * doesn't try to send a field the BE silently drops.
  *
  * Returns the full updated payload on PUT — same shape as GET — so
  * callers can render from one round-trip without a follow-up fetch.
@@ -43,7 +47,6 @@ export async function GET(
 }
 
 type PutBody = {
-  custom_llm_instructions?: string | null;
   private_admin_notes?: string | null;
   queued_override_question?: string | null;
   coach_override_profile?: string | null;

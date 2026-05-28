@@ -17,10 +17,12 @@ import type { AdminUserContextPayload } from "@/lib/api/admin-client";
  *   { user: AdminUserContextUser, sessions: AdminUserContextSession[] }
  *
  * PATCH body — every key optional, partial update:
- *   { custom_llm_instructions?:    string | null,
- *     private_admin_notes?:        string | null,
+ *   { private_admin_notes?:        string | null,
  *     queued_override_question?:   string | null,
  *     coach_override_profile?:     string | null }
+ *
+ * `custom_llm_instructions` was dropped from the BE PATCH branch in
+ * b004659 (Tab 3 card deleted in FE ed9ed70).
  * PATCH returns the same shape as GET (post-write) so the admin
  * view can replace its local context state from the response.
  *
@@ -48,7 +50,6 @@ export async function GET(
 }
 
 type PatchBody = {
-  custom_llm_instructions?: string | null;
   private_admin_notes?: string | null;
   queued_override_question?: string | null;
   coach_override_profile?: string | null;

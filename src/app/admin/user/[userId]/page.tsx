@@ -155,16 +155,11 @@ export default function UserContextPage() {
               <p className="text-sm text-muted-foreground italic">No general notes yet.</p>
             )}
 
-            {context.custom_instructions ? (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Custom Instructions</p>
-                <p className="text-sm whitespace-pre-wrap font-mono bg-muted p-3 rounded">
-                  {context.custom_instructions}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No custom instructions yet.</p>
-            )}
+            {/* "Custom Instructions" display dropped after b004659 +
+                ed9ed70 — the underlying custom_instructions field is
+                gone from both BE and FE shapes. Whatever surface
+                replaces it (behavioral-profile rework) will render
+                here when the design lands. */}
 
             {context.max_words && (
               <div>
