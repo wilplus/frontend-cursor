@@ -86,6 +86,19 @@ interface ChatMessage {
    * model only sees its own questions and ends up repeating itself.
    */
   transcript?: string | null;
+  /**
+   * Bot-bubble CTA payload — only set on the post-finalize signup
+   * bubble that fires after the session-1 gate passes. The
+   * server-driven copy (`next.signup_cta.copy`) renders as the
+   * bubble body and a primary-style button below the text routes
+   * the user to the signup flow. Hidden when the finalize response
+   * had `signup_cta.show: false` (or didn't ship the field).
+   */
+  cta?: {
+    copy: string;
+    href: string;
+    label: string;
+  };
 }
 
 interface ChatInterviewProps {
@@ -1057,22 +1070,81 @@ export default function ChatInterview({
         })),
       ]);
 
-      void fetch("/api/session/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guest_session_id: sid,
-          total_duration_seconds: totalDurationSeconds,
-          reason,
-        }),
-      }).catch((err) => {
-        // Non-fatal — the user still gets to /results, backend can
-        // reconcile from the existing turn rows if the call dropped.
-        console.warn(
-          `funnel.session_finalize_failed surface=fe reason=${reason}`,
-          err
-        );
-      });
+      // Finalize is fire-and-forget for routing purposes (the parent
+      // navigates after the goodbye timer regardless), but we DO
+      // consume the response when it lands: BE returns
+      // `next.signup_cta: { show, copy }` on the gate-pass path
+      // (task 6 BE commit 082ea33) and we render a CTA bubble in the
+      // thread when it shows. 422 SESSION_INCOMPLETE is logged and
+      // ignored — the FE gate already prevented finalize from firing
+      // early in steady state; the 422 branch only matters for stale
+      // clients and we don't want to break the goodbye-then-route
+      // flow when it does fire.
+      void (async () => {
+        let res: Response;
+        try {
+          res = await fetch("/api/session/finalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              guest_session_id: sid,
+              total_duration_seconds: totalDurationSeconds,
+              reason,
+            }),
+          });
+        } catch (err) {
+          console.warn(
+            `funnel.session_finalize_failed surface=fe reason=${reason}`,
+            err
+          );
+          return;
+        }
+
+        if (res.status === 422) {
+          // Stale-client path. Defensive only — FE shouldn't reach
+          // finalize without the gate satisfied.
+          console.warn(
+            `funnel.session_finalize_too_early surface=fe reason=${reason}`
+          );
+          return;
+        }
+        if (!res.ok) {
+          console.warn(
+            `funnel.session_finalize_non_ok status=${res.status} reason=${reason}`
+          );
+          return;
+        }
+
+        const data = (await res.json().catch(() => null)) as {
+          next?: {
+            signup_cta?: {
+              show?: boolean;
+              copy?: string;
+              href?: string;
+              label?: string;
+            };
+          };
+        } | null;
+        const cta = data?.next?.signup_cta;
+        if (!cta || cta.show !== true || !cta.copy?.trim()) return;
+        if (unmountedRef.current) return;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "signup-cta",
+            type: "bot",
+            cta: {
+              copy: cta.copy!.trim(),
+              // BE-provided defaults; FE falls back to a sensible
+              // signup route + label when not supplied so the bubble
+              // is always actionable.
+              href: cta.href?.trim() || "/login?mode=signup",
+              label: cta.label?.trim() || "Create your account",
+            },
+          },
+        ]);
+      })();
 
       farewellTimerRef.current = setTimeout(() => {
         onThresholdReached(sid);
@@ -1520,15 +1592,48 @@ export default function ChatInterview({
 
       {/* Chat thread — internal scroll only; messages anchor to the bottom */}
       <div className="flex flex-1 flex-col justify-end gap-3 overflow-y-auto py-6">
-        {messages.map((msg) => (
-          <ChatBubble
-            key={msg.id}
-            type={msg.type}
-            content={msg.content}
-            audioUrl={msg.audioUrl}
-            duration={msg.duration}
-          />
-        ))}
+        {messages.map((msg) => {
+          // Post-finalize signup CTA bubble — bot-styled bubble that
+          // carries the server's copy + a primary-style link button.
+          // Rendered as a distinct branch so it doesn't have to ride
+          // through ChatBubble's text-only contract.
+          if (msg.cta) {
+            return (
+              <div
+                key={msg.id}
+                className="flex justify-start animate-fade-in-up"
+              >
+                <div className="flex max-w-[85%] items-start gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary">
+                    <span className="text-xs font-bold text-primary-foreground">
+                      W
+                    </span>
+                  </div>
+                  <div className="rounded-2xl rounded-tl-sm border border-border bg-chat-bot px-4 py-3 shadow-sm">
+                    <p className="mb-3 text-sm leading-relaxed text-foreground">
+                      {msg.cta.copy}
+                    </p>
+                    <Link
+                      href={msg.cta.href}
+                      className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                      {msg.cta.label}
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return (
+            <ChatBubble
+              key={msg.id}
+              type={msg.type}
+              content={msg.content}
+              audioUrl={msg.audioUrl}
+              duration={msg.duration}
+            />
+          );
+        })}
 
         {/* Typing indicator while loading next question */}
         {loadingQuestion && (
