@@ -19,6 +19,7 @@ import {
 import { getSharingConsent, setSharingConsent } from "@/lib/api/client";
 import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
 import { logQuestionAttribution } from "@/lib/chat/questionAttribution";
+import { cn } from "@/lib/utils";
 
 /**
  * TypingIndicator — three bouncing dots, messenger-style. Sits inside the
@@ -398,6 +399,29 @@ export default function ChatInterview({
   const guestSessionIdRef = useRef<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const thresholdReachedRef = useRef(false);
+
+  /**
+   * Live session-1 satisfaction state — fed off every upload-answer
+   * response (`completion_state` field, BE commits 3968868 + 082ea33).
+   * Drives the per-criterion progress display under the mic. Null
+   * until the first upload lands OR when the backend doesn't surface
+   * the field (older deploys); in either case FE renders nothing
+   * extra and falls back to the legacy duration threshold for the
+   * completion trigger.
+   */
+  const [completionState, setCompletionState] = useState<{
+    ready: boolean;
+    criteria: {
+      has_charisma: boolean;
+      has_stress: boolean;
+      duration_ok: boolean;
+    };
+    current: {
+      charisma_count: number;
+      stress_count: number;
+      total_duration_ms: number;
+    };
+  } | null>(null);
   const farewellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Onboarding + chunked-bot-message timers. Cleared on unmount and
    *  before each new chunked rendering so stale chunks from a previous
@@ -1214,6 +1238,15 @@ export default function ChatInterview({
           setDetectedLanguage(result.detected_language.trim());
         }
 
+        // Capture the live session-1 satisfaction state so the
+        // progress display under the mic re-renders with the latest
+        // counts. Absent on older BE deploys — null state hides
+        // the progress widget entirely (FE falls back to the legacy
+        // duration threshold below).
+        if (result.completion_state) {
+          setCompletionState(result.completion_state);
+        }
+
         // Hand raw per-turn metrics off to the parent for the cold-
         // start onboarding flow's AcousticMetricsBubble. Parent
         // accumulates across turns; we don't keep them locally.
@@ -1245,26 +1278,45 @@ export default function ChatInterview({
           });
         }
 
-        // Check end-of-session triggers. Two conditions fire here:
-        //   1. Cold-start aggregate duration threshold (30s) — applies
-        //      to every chat, but contextual chats rarely hit it
-        //      because their answers are short.
-        //   2. Contextual-chat turn cap (3 turns) — applies only when
+        // Check end-of-session triggers. Three conditions fire here:
+        //   1. Session-1 satisfaction gate (BE-driven, cold-start
+        //      only) — replaces the 30s duration constant per task 6.
+        //      Backend's `session_1_complete` flips true when ≥1
+        //      charisma + ≥1 stress + ≥60s. Falls back to the legacy
+        //      duration check when the field is absent (older deploys
+        //      OR contextual chats, which don't surface the gate).
+        //   2. Cold-start aggregate duration threshold (30s) —
+        //      legacy fallback. Stays as the SAFETY net when the
+        //      backend gate isn't available; in steady state the
+        //      session_1_complete signal fires first because it
+        //      reaches a non-zero threshold via ≥60s + intent
+        //      diversity, BUT the duration check is still the floor
+        //      for non-session-1 surfaces (contextual chat answers
+        //      sometimes burn 30s+).
+        //   3. Contextual-chat turn cap (3 turns) — applies only when
         //      sourceSnippetId is set, guarantees finalize runs even
         //      when the user only does 1-2 short answers. This is the
         //      fix for "contextual sessions don't appear in admin"
         //      reported when the duration threshold was the only path
         //      to finalize.
+        const reachedSession1Gate =
+          !sourceSnippetId && result.session_1_complete === true;
         const reachedDurationThreshold =
           effectiveTotal >= AGGREGATE_THRESHOLD_SECONDS;
         const reachedContextualTurnCap =
           !!sourceSnippetId && turnNumber >= CONTEXTUAL_CHAT_MAX_TURNS;
 
-        if (reachedDurationThreshold || reachedContextualTurnCap) {
+        if (
+          reachedSession1Gate ||
+          reachedDurationThreshold ||
+          reachedContextualTurnCap
+        ) {
           endSession(
             result.guest_session_id,
             effectiveTotal,
-            reachedDurationThreshold ? "threshold" : "max_turns"
+            reachedSession1Gate || reachedDurationThreshold
+              ? "threshold"
+              : "max_turns"
           );
           return;
         }
@@ -1390,6 +1442,62 @@ export default function ChatInterview({
               {Math.round(totalDuration)}s / {AGGREGATE_THRESHOLD_SECONDS}s
             </span>
           </div>
+          {/* Session-1 satisfaction progress — three criteria the
+              backend's gate evaluates (≥1 charisma + ≥1 stress + ≥60s
+              audio). Only visible on the cold-start path (no
+              sourceSnippetId) and once the first upload has populated
+              completionState. Each chip dims when unsatisfied; a
+              check appears once the criterion flips green. */}
+          {!sourceSnippetId && completionState && (
+            <div
+              className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5 text-[10px]"
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 tabular-nums",
+                  completionState.criteria.has_charisma
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-border bg-muted text-muted-foreground"
+                )}
+              >
+                {completionState.criteria.has_charisma && (
+                  <span aria-hidden>✓</span>
+                )}
+                {completionState.current.charisma_count} charisma
+              </span>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 tabular-nums",
+                  completionState.criteria.has_stress
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-border bg-muted text-muted-foreground"
+                )}
+              >
+                {completionState.criteria.has_stress && (
+                  <span aria-hidden>✓</span>
+                )}
+                {completionState.current.stress_count} stress
+              </span>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 tabular-nums",
+                  completionState.criteria.duration_ok
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-border bg-muted text-muted-foreground"
+                )}
+              >
+                {completionState.criteria.duration_ok && (
+                  <span aria-hidden>✓</span>
+                )}
+                {Math.round(
+                  completionState.current.total_duration_ms / 1000
+                )}
+                s / 60s
+              </span>
+            </div>
+          )}
           {/* Language transparency pill — surfaces what Whisper
               detected so the user can spot a mismatch (e.g. spoke
               Polish, AI replied in English). Hidden until the first
