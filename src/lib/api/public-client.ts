@@ -89,6 +89,20 @@ export interface GuestClaimResponse {
   status: "ok";
   session_id: UUID;
   analysis_status: "queued" | "already_claimed";
+  /**
+   * Task 7: BE `_merge_anonymous_session_into_user` (commit 7317e25)
+   * returns the post-signup confirmation copy on both claim routes
+   * (`/v2/auth/merge-session` AND `/v2/public/shaky-voice/claim`).
+   * `claimGuestSession` is currently unused on FE — `PendingSessionClaim`
+   * owns the live claim path via the auth/merge-session BFF — but if
+   * any future caller wires this back up they should stash the
+   * payload via `setPostSignupConfirmation` so the welcome_back
+   * phase picks it up. Defaults render when absent.
+   */
+  post_signup_confirmation?: {
+    headline?: string | null;
+    body?: string | null;
+  };
 }
 
 /**
