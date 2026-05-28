@@ -2019,6 +2019,28 @@ export default function AdminUserDetailPage() {
   const [sessionKpiNarrative, setSessionKpiNarrative] = useState<string | null>(
     null
   );
+  /**
+   * Immutable AI version of the session-level commentary, separate
+   * from the editable `sessionKpiNarrative` slot. Drives the >5-word-
+   * change gate's diff baseline — the gate measures "how much the
+   * admin diverged from the AI", not "from the last save", so the
+   * admin can't escape the gate by drip-saving tiny edits.
+   *
+   * Backend exposes this via global_metrics.session_kpi_narrative_ai_draft
+   * on the session detail GET (see BE handoff). Null when the session
+   * predates the AI-draft pinning column.
+   */
+  const [sessionKpiNarrativeAiDraft, setSessionKpiNarrativeAiDraft] =
+    useState<string | null>(null);
+  /** Inline-editor state for the Performance summary card. The card
+   *  flips between read-only blockquote + Edit button (default) and
+   *  textarea + Save/Cancel (when editing === true). */
+  const [editingKpiNarrative, setEditingKpiNarrative] = useState(false);
+  const [kpiNarrativeDraft, setKpiNarrativeDraft] = useState("");
+  const [savingKpiNarrative, setSavingKpiNarrative] = useState(false);
+  /** Override for the >5-word-change gate on the narrative save —
+   *  same semantics as the per-snippet `markAsMinorEdit` checkbox. */
+  const [markKpiAsMinorEdit, setMarkKpiAsMinorEdit] = useState(false);
   const [stickinessTopTopic, setStickinessTopTopic] = useState<string | null>(
     null
   );
@@ -2306,6 +2328,10 @@ export default function AdminUserDetailPage() {
             stickiness_topic_distribution?: Record<string, number> | null;
             stickiness_computed_at?: string | null;
             session_kpi_narrative?: string | null;
+            /** Immutable AI version — pre-edit baseline for the >5-
+             *  word gate. BE handoff defines this field on the session
+             *  payload; FE treats absence as "no baseline → gate skipped". */
+            session_kpi_narrative_ai_draft?: string | null;
           };
           turns?: Array<{
             role?: "ai" | "user";
@@ -2334,6 +2360,13 @@ export default function AdminUserDetailPage() {
         setSessionKpiNarrative(
           data.global_metrics?.session_kpi_narrative ?? null
         );
+        setSessionKpiNarrativeAiDraft(
+          data.global_metrics?.session_kpi_narrative_ai_draft ?? null
+        );
+        // Reset the editor whenever the active session changes —
+        // a stale draft from one session must never leak into another.
+        setEditingKpiNarrative(false);
+        setMarkKpiAsMinorEdit(false);
         setKpiScore(data.global_metrics?.kpi_score ?? null);
         setStickinessTopTopic(data.global_metrics?.stickiness_top_topic ?? null);
         setStickinessScore(data.global_metrics?.stickiness_score ?? null);
@@ -2549,6 +2582,88 @@ export default function AdminUserDetailPage() {
    *     } | null
    *   }
    */
+  /**
+   * Save an edited session-level KPI narrative.
+   *
+   * PATCHes /api/v2/admin/sessions/<id>/kpi-narrative with the same
+   * gate body shape used on the per-snippet comment endpoint:
+   *   { session_kpi_narrative, ai_draft_baseline, is_trivial_edit }
+   *
+   * 422 EDIT_TOO_SMALL surfaces the server's error copy verbatim
+   * via toast — the FE Save button is gated client-side already,
+   * so the 422 only fires on bypass / stale state.
+   */
+  const saveKpiNarrative = useCallback(
+    async (text: string, isTrivialEdit: boolean) => {
+      if (!activeSession?.id) return;
+      setSavingKpiNarrative(true);
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          toast.error("Not authenticated.");
+          return;
+        }
+        const res = await fetch(
+          `/api/v2/admin/sessions/${activeSession.id}/kpi-narrative`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              session_kpi_narrative: text,
+              ai_draft_baseline: sessionKpiNarrativeAiDraft,
+              is_trivial_edit: isTrivialEdit,
+            }),
+          }
+        );
+        if (res.status === 422) {
+          const err = (await res.json().catch(() => ({}))) as {
+            code?: string;
+            error?: string;
+            diff_count?: number;
+            threshold?: number;
+          };
+          if (err.code === "EDIT_TOO_SMALL") {
+            toast.error(
+              err.error ||
+                `Too small a change to count as a correction (need ${
+                  (err.threshold ?? WORD_DIFF_THRESHOLD) + 1
+                }+ word differences). Tick "Mark as minor edit" to save as a cosmetic fix.`
+            );
+            return;
+          }
+        }
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(err.error || `Save failed (HTTP ${res.status})`);
+        }
+        const data = (await res.json().catch(() => ({}))) as {
+          session_kpi_narrative?: string;
+        };
+        if (typeof data.session_kpi_narrative === "string") {
+          setSessionKpiNarrative(data.session_kpi_narrative);
+        } else {
+          // Server didn't echo — apply optimistically.
+          setSessionKpiNarrative(text);
+        }
+        setEditingKpiNarrative(false);
+        setMarkKpiAsMinorEdit(false);
+        toast.success("Performance summary saved");
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Failed to save performance summary"
+        );
+      } finally {
+        setSavingKpiNarrative(false);
+      }
+    },
+    [activeSession?.id, sessionKpiNarrativeAiDraft]
+  );
+
   const computeMetrics = useCallback(async () => {
     if (!activeSession?.id || computingMetrics) return;
     setComputingMetrics(true);
@@ -2570,6 +2685,11 @@ export default function AdminUserDetailPage() {
         ai_summary?: string | null;
         ai_score?: number | null;
         session_kpi_narrative?: string | null;
+        /** Immutable AI version. Compute-metrics regenerates the
+         *  narrative, so the baseline rolls forward to the new AI
+         *  output — admin edits that survive a regenerate get re-
+         *  gated against the fresh draft. */
+        session_kpi_narrative_ai_draft?: string | null;
         stickiness?: {
           top_topic?: string | null;
           score?: number | null;
@@ -2587,6 +2707,10 @@ export default function AdminUserDetailPage() {
       if (data.ai_score !== undefined) setAiScore(data.ai_score ?? null);
       if (data.session_kpi_narrative !== undefined)
         setSessionKpiNarrative(data.session_kpi_narrative ?? null);
+      if (data.session_kpi_narrative_ai_draft !== undefined)
+        setSessionKpiNarrativeAiDraft(
+          data.session_kpi_narrative_ai_draft ?? null
+        );
       if (data.stickiness !== undefined) {
         setStickinessTopTopic(data.stickiness?.top_topic ?? null);
         setStickinessScore(data.stickiness?.score ?? null);
@@ -3390,19 +3514,133 @@ export default function AdminUserDetailPage() {
                 <h3 className="text-base font-semibold">
                   Performance summary
                 </h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void computeMetrics()}
-                  disabled={computingMetrics || !activeSession?.id}
-                  className="rounded-full"
-                >
-                  {computingMetrics ? "Computing…" : "Compute Metrics"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {!editingKpiNarrative && sessionKpiNarrative && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setKpiNarrativeDraft(sessionKpiNarrative);
+                        setMarkKpiAsMinorEdit(false);
+                        setEditingKpiNarrative(true);
+                      }}
+                      className="gap-1.5 rounded-full"
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
+                      Edit
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void computeMetrics()}
+                    disabled={
+                      computingMetrics ||
+                      !activeSession?.id ||
+                      editingKpiNarrative
+                    }
+                    className="rounded-full"
+                    title={
+                      editingKpiNarrative
+                        ? "Finish editing first — Compute Metrics would overwrite your draft."
+                        : undefined
+                    }
+                  >
+                    {computingMetrics ? "Computing…" : "Compute Metrics"}
+                  </Button>
+                </div>
               </div>
 
-              {sessionKpiNarrative ? (
+              {/* Edit mode — inline textarea + Save/Cancel + the
+                  >5-word-change gate UI when the diff is in the
+                  "tiny" zone. Same gate primitives as the per-snippet
+                  comment card. */}
+              {editingKpiNarrative ? (
+                (() => {
+                  const draftTrimmed = kpiNarrativeDraft.trim();
+                  const baseline = sessionKpiNarrativeAiDraft;
+                  const gateApplies = shouldGate(baseline);
+                  const diff = gateApplies
+                    ? wordDiffCount(baseline, draftTrimmed)
+                    : 0;
+                  const showGateUi =
+                    gateApplies && diff > 0 && diff <= WORD_DIFF_THRESHOLD;
+                  const passesGate = !gateApplies || diff > WORD_DIFF_THRESHOLD;
+                  const isTrivialEdit =
+                    showGateUi && markKpiAsMinorEdit ? true : false;
+                  const saveDisabled =
+                    savingKpiNarrative ||
+                    !draftTrimmed ||
+                    (showGateUi && !markKpiAsMinorEdit) ||
+                    (!showGateUi && !passesGate);
+                  return (
+                    <div className="space-y-2">
+                      <Textarea
+                        rows={6}
+                        value={kpiNarrativeDraft}
+                        onChange={(e) =>
+                          setKpiNarrativeDraft(e.target.value)
+                        }
+                        placeholder="Performance summary…"
+                        className="bg-background text-[15px] italic leading-relaxed"
+                      />
+                      {showGateUi && (
+                        <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+                          <p className="text-[11px] leading-relaxed text-amber-900">
+                            <span className="font-semibold tabular-nums">
+                              {diff} / {WORD_DIFF_THRESHOLD + 1}
+                            </span>{" "}
+                            words changed — keep editing to save as a
+                            correction, or tick &ldquo;minor edit&rdquo; to
+                            save cosmetic fixes as-is.
+                          </p>
+                          <label className="flex items-center gap-2 text-[11px] text-amber-900">
+                            <input
+                              type="checkbox"
+                              checked={markKpiAsMinorEdit}
+                              onChange={(e) =>
+                                setMarkKpiAsMinorEdit(e.target.checked)
+                              }
+                              className="h-3.5 w-3.5 rounded border-amber-400 text-amber-700 focus:ring-amber-400"
+                            />
+                            <span title="Cosmetic fixes (typos, punctuation) won't be sent for model review.">
+                              Mark as minor edit
+                            </span>
+                          </label>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={saveDisabled}
+                          onClick={() =>
+                            void saveKpiNarrative(draftTrimmed, isTrivialEdit)
+                          }
+                          className="rounded-full px-4"
+                        >
+                          {savingKpiNarrative ? "Saving…" : "Save"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={savingKpiNarrative}
+                          onClick={() => {
+                            setEditingKpiNarrative(false);
+                            setMarkKpiAsMinorEdit(false);
+                          }}
+                          className="rounded-full"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : sessionKpiNarrative ? (
                 <blockquote className="rounded-xl border-l-4 border-primary/50 bg-primary/5 px-5 py-4">
                   <p className="text-[15px] italic leading-relaxed text-foreground">
                     {sessionKpiNarrative}
