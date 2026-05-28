@@ -64,6 +64,24 @@ interface AdminNextQuestion {
   text: string;
 }
 
+/**
+ * Whisper word-level timestamp entry. Shipped per snippet by BE
+ * Task 3 alongside `transcript` + `language` + `transcribed_
+ * duration_ms`. Offsets are snippet-relative seconds (NOT
+ * recording-relative) so they index directly into the trimmed
+ * audio slice the SnippetPreviewPlayer mounts. The same shape
+ * lands on stress AND charisma snippets — keep the type in one
+ * place so a future shared word-highlight component can reuse it.
+ */
+interface SnippetWord {
+  /** The literal token Whisper emitted (e.g. "really"). */
+  word: string;
+  /** Snippet-relative start offset in seconds. */
+  start: number;
+  /** Snippet-relative end offset in seconds. */
+  end: number;
+}
+
 interface AdminSnippet {
   id: string;
   session_id?: string;
@@ -114,6 +132,33 @@ interface AdminSnippet {
    * soft warning to the admin so they know context will be weaker.
    */
   transcript?: string | null;
+  /**
+   * ISO-639-1 language tag detected by Whisper at transcription
+   * time (e.g. "en", "pl"). Null when the snippet has no
+   * transcript at all, or when transcription succeeded but
+   * Whisper produced no confident language guess. Added by
+   * BE Task 3 (`migrations/add_snippet_transcripts.sql`).
+   */
+  language?: string | null;
+  /**
+   * Word-level timestamps from Whisper — one entry per emitted
+   * token with the offset (seconds, snippet-relative) at which it
+   * starts and ends in the audio. Null when transcription failed
+   * or the snippet pre-dates BE Task 3's `snippet_transcription`
+   * service; treat null AND empty-array identically (fall back
+   * to plain `transcript` rendering). Snippet-relative offsets,
+   * NOT recording-relative — the audio src is already the trimmed
+   * snippet slice.
+   */
+  words?: SnippetWord[] | null;
+  /**
+   * Duration of the audio actually fed to Whisper at
+   * transcription time, in milliseconds. Diverges from
+   * `duration_ms` when the admin's bound adjustments happen after
+   * transcription — useful for spotting "transcript is stale vs
+   * current trim" UX cases. Null on un-transcribed snippets.
+   */
+  transcribed_duration_ms?: number | null;
   /**
    * Predictive next-question text triggered when the user clicks this
    * snippet's CTA on the /results page. Pre-populated by the backend
