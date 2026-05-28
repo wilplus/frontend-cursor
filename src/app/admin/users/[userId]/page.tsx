@@ -3369,21 +3369,29 @@ export default function AdminUserDetailPage() {
                           </p>
                         )}
 
-                        {/* Transcript */}
-                        <div className="mt-3 rounded-lg bg-muted/40 p-3">
-                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Transcript
-                          </p>
-                          {transcript ? (
-                            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                        {/* Transcript — hidden by default per the
+                            brainstorm note ("I don't need transcripts
+                            below the snippets"). The data is still
+                            here for the admin who needs it; the
+                            <details>/<summary> keeps the row dense
+                            while one-click-reachable. */}
+                        {transcript ? (
+                          <details className="mt-3 rounded-lg bg-muted/40 p-3 group">
+                            <summary className="cursor-pointer list-none text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors">
+                              Transcript
+                              <span className="ml-1 text-[10px] font-normal normal-case text-muted-foreground/70 group-open:hidden">
+                                · click to show
+                              </span>
+                            </summary>
+                            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground">
                               {transcript}
                             </p>
-                          ) : (
-                            <p className="text-xs italic text-muted-foreground">
-                              No transcript captured for this turn.
-                            </p>
-                          )}
-                        </div>
+                          </details>
+                        ) : (
+                          <p className="mt-3 text-xs italic text-muted-foreground">
+                            No transcript captured for this turn.
+                          </p>
+                        )}
                       </Card>
                     );
                   })}
