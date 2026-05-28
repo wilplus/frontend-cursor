@@ -33,6 +33,11 @@ import {
   getUserAdminContext,
   updateUserAdminContext,
 } from "@/lib/api/client";
+import {
+  WORD_DIFF_THRESHOLD,
+  shouldGate,
+  wordDiffCount,
+} from "@/lib/admin/wordDiff";
 import type { UserAdminContext } from "@/lib/api/types";
 import { getAuthToken } from "@/lib/api/auth-client";
 import UserFilesTab from "@/components/admin/UserFilesTab";
@@ -1029,11 +1034,26 @@ interface SnippetCardProps {
    * The flag is forwarded to the backend on the /comment POST so
    * the accepted/corrected ratio per session can drive model
    * retraining decisions.
+   *
+   * `isTrivialEdit` is the >5-word-change-gate override (see
+   * src/lib/admin/wordDiff.ts). When the admin's edit changes ≤5
+   * word tokens vs the AI draft, the server-side gate normally
+   * rejects with 422 EDIT_TOO_SMALL. Passing `true` here saves the
+   * user-facing copy WITHOUT writing the RLHF annotation row —
+   * cosmetic fixes / typos go through cleanly without polluting
+   * the training corpus.
+   *
+   * `aiDraftBaseline` is the AI draft the admin started from. FE
+   * sends it explicitly so the BE can run the same word-token
+   * diff without having to look up the row again. Null when the
+   * row has no AI draft to gate against.
    */
   onSaveComment: (
     snippetId: string,
     comment: string,
-    acceptanceMode: "accepted_as_is" | "admin_corrected"
+    acceptanceMode: "accepted_as_is" | "admin_corrected",
+    isTrivialEdit: boolean,
+    aiDraftBaseline: string | null
   ) => Promise<void>;
   onSkip: (snippetId: string) => void;
   /**
@@ -1456,6 +1476,17 @@ function SnippetCard({
     snippet.admin_comment ?? aiDraftComment ?? ""
   );
 
+  /**
+   * Override for the >5-word-change save gate. Surfaced as a
+   * checkbox below the action footer whenever the gate would
+   * otherwise block (admin edited the draft but changed ≤5 word
+   * tokens). When ticked, the save POSTs `is_trivial_edit: true`
+   * and the BE writes the user-facing copy without emitting an
+   * RLHF annotation row — cosmetic fixes pass through cleanly
+   * without polluting the training corpus.
+   */
+  const [markAsMinorEdit, setMarkAsMinorEdit] = useState(false);
+
   /** Field still holds the AI draft verbatim AND admin has never
    *  saved a value here — i.e. this is a pristine prefill state.
    *  The arc-rows version of this signal moved to the directives-queue
@@ -1743,7 +1774,19 @@ function SnippetCard({
             Acceptance now scans ONLY the coach insight (the 5-row arc
             has moved to the user-level directives queue). Pristine
             insight that still matches the AI draft → "accepted_as_is";
-            any divergence → "admin_corrected". */}
+            any divergence → "admin_corrected".
+
+            On top of the acceptance signal, the >5-word-change save
+            gate (BE: word_diff_count util + 422 EDIT_TOO_SMALL) keeps
+            trivial / cosmetic edits out of the RLHF corpus. When the
+            admin's edit changes ≤5 word tokens vs the AI draft, the
+            primary Save is disabled and a "Mark as minor edit"
+            checkbox appears below — ticking it lets the save through
+            with `is_trivial_edit: true` (user-facing copy saved, no
+            annotation row written).
+
+            Skipped entirely when there's no AI draft (shouldGate
+            returns false) — typed-from-scratch content saves freely. */}
         {(() => {
           const trimmedComment = comment.trim();
           // The coach insight falls back to its AI draft on accidental
@@ -1756,6 +1799,28 @@ function SnippetCard({
           const allAccepted = hasAnyAiDraft && commentMatchesDraft;
           const acceptanceMode: "accepted_as_is" | "admin_corrected" =
             allAccepted ? "accepted_as_is" : "admin_corrected";
+
+          // >5-word-change gate. Skipped when there's no AI draft
+          // (admin typing from scratch is fully their work) and
+          // when the admin hasn't diverged at all (acceptance handles
+          // that case). Only matters in the "edited but tiny" zone.
+          const gateApplies = shouldGate(aiDraftComment);
+          const diff = gateApplies
+            ? wordDiffCount(aiDraftComment, commentToSave)
+            : 0;
+          const passesGate = !gateApplies || diff > WORD_DIFF_THRESHOLD;
+          const showGateUi =
+            gateApplies && !allAccepted && diff > 0 && diff <= WORD_DIFF_THRESHOLD;
+          const saveDisabled =
+            saving || (showGateUi && !markAsMinorEdit);
+
+          // `is_trivial_edit` is meaningful only when the gate would
+          // fire. When the diff sails over the threshold we send false
+          // even if the checkbox happens to be ticked — the BE only
+          // skips the RLHF row on (diff ≤ threshold AND flag true).
+          const isTrivialEdit =
+            showGateUi && markAsMinorEdit ? true : false;
+
           const label = saving
             ? "Saving…"
             : !hasAnyAiDraft
@@ -1764,27 +1829,30 @@ function SnippetCard({
             ? "Accept Suggestion"
             : "Save Corrections";
           return (
-            <div className="flex items-center justify-between pt-1">
-              <Button
-                type="button"
-                size="sm"
-                disabled={saving}
-                onClick={() => {
-                  void onSaveComment(
-                    snippet.id,
-                    commentToSave,
-                    acceptanceMode
-                  );
-                }}
-                className={cn(
-                  "rounded-full px-4",
-                  allAccepted &&
-                    !saving &&
-                    "bg-violet-600 hover:bg-violet-700 text-white"
-                )}
-              >
-                {label}
-              </Button>
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saveDisabled}
+                  onClick={() => {
+                    void onSaveComment(
+                      snippet.id,
+                      commentToSave,
+                      acceptanceMode,
+                      isTrivialEdit,
+                      hasAnyAiDraft ? aiDraftComment : null
+                    );
+                  }}
+                  className={cn(
+                    "rounded-full px-4",
+                    allAccepted &&
+                      !saving &&
+                      "bg-violet-600 hover:bg-violet-700 text-white"
+                  )}
+                >
+                  {label}
+                </Button>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -1810,6 +1878,35 @@ function SnippetCard({
               {deleting ? "Deleting…" : "Delete"}
             </Button>
               </div>
+              </div>
+
+              {/* >5-word-change gate UI — only renders in the
+                  "edited the draft but tiny diff" zone. When the gate
+                  is satisfied (diff > 5) or the field's accepted-as-is
+                  / fully-typed-from-scratch, nothing shows here. */}
+              {showGateUi && (
+                <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
+                  <p className="text-[11px] leading-relaxed text-amber-900">
+                    <span className="font-semibold tabular-nums">
+                      {diff} / {WORD_DIFF_THRESHOLD + 1}
+                    </span>{" "}
+                    words changed — keep editing to save as a correction,
+                    or tick &ldquo;minor edit&rdquo; to save cosmetic
+                    fixes as-is.
+                  </p>
+                  <label className="flex items-center gap-2 text-[11px] text-amber-900">
+                    <input
+                      type="checkbox"
+                      checked={markAsMinorEdit}
+                      onChange={(e) => setMarkAsMinorEdit(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-amber-400 text-amber-700 focus:ring-amber-400"
+                    />
+                    <span title="Cosmetic fixes (typos, punctuation) won't be sent for model review.">
+                      Mark as minor edit
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -2617,7 +2714,9 @@ export default function AdminUserDetailPage() {
     async (
       snippetId: string,
       comment: string,
-      acceptanceMode: "accepted_as_is" | "admin_corrected"
+      acceptanceMode: "accepted_as_is" | "admin_corrected",
+      isTrivialEdit: boolean,
+      aiDraftBaseline: string | null
     ) => {
       setSavingSnippetId(snippetId);
       try {
@@ -2649,9 +2748,39 @@ export default function AdminUserDetailPage() {
                 snippets.find((s) => s.id === snippetId)?.snippet_type ??
                 "unlabeled",
               acceptance_mode: acceptanceMode,
+              // >5-word-change gate (BE: word_diff_count + 422
+              // EDIT_TOO_SMALL). `ai_draft_baseline` lets the server
+              // run the same diff without re-reading the snippet row;
+              // `is_trivial_edit: true` makes the server skip the
+              // RLHF annotation row when the diff is ≤5 (cosmetic
+              // override). Both null/false on typed-from-scratch
+              // saves — gate doesn't fire when there's no baseline.
+              ai_draft_baseline: aiDraftBaseline,
+              is_trivial_edit: isTrivialEdit,
             }),
           }
         );
+        // Server-side gate fallback. The FE Save button is disabled
+        // when the gate would fire, but this catches bypass cases
+        // (programmatic submits, stale state) and surfaces the
+        // server's admin-friendly copy verbatim.
+        if (res.status === 422) {
+          const err = (await res.json().catch(() => ({}))) as {
+            code?: string;
+            error?: string;
+            diff_count?: number;
+            threshold?: number;
+          };
+          if (err.code === "EDIT_TOO_SMALL") {
+            toast.error(
+              err.error ||
+                `Too small a change to count as a correction (need ${
+                  (err.threshold ?? WORD_DIFF_THRESHOLD) + 1
+                }+ word differences). Tick "Mark as minor edit" to save as a cosmetic fix.`
+            );
+            return;
+          }
+        }
         if (!res.ok) throw new Error(`Save failed (HTTP ${res.status})`);
         const data = await res.json();
         const updated: AdminSnippet | undefined = data?.snippet;
