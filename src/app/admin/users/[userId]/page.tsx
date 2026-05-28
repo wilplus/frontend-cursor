@@ -7,10 +7,12 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
+  Check,
   ChevronDown,
   Droplet,
   EyeOff,
   Flame,
+  Loader2,
   Mic,
   Minus,
   MoreVertical,
@@ -1849,6 +1851,17 @@ export default function AdminUserDetailPage() {
   // they overlapped with the upcoming behavioral-profile work.
   const [adminNotes, setAdminNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  /**
+   * Last successfully-persisted value for the notes textarea.
+   *   null  = initial state before the first GET resolves; the
+   *           debounced auto-save effect ignores changes until this
+   *           is set, so the initial load doesn't trigger a save.
+   *   string = whatever round-tripped to the server most recently;
+   *           used both to gate the auto-save (skip when value
+   *           matches) and to drive the "Saved" / "Unsaved changes…"
+   *           indicator below the textarea.
+   */
+  const lastSavedNotesRef = useRef<string | null>(null);
 
   // Per-snippet save state.
   const [savingSnippetId, setSavingSnippetId] = useState<string | null>(null);
@@ -1923,7 +1936,11 @@ export default function AdminUserDetailPage() {
         }
         if (contextRes.status === "fulfilled") {
           setContext(contextRes.value);
-          setAdminNotes(contextRes.value.general_notes ?? "");
+          const notes = contextRes.value.general_notes ?? "";
+          setAdminNotes(notes);
+          // Mark the just-loaded value as "saved" so the auto-save
+          // effect doesn't fire on initial hydration.
+          lastSavedNotesRef.current = notes;
         }
         if (snippetsRes.status === "fulfilled") {
           setSnippets(snippetsRes.value.snippets);
@@ -2490,19 +2507,48 @@ export default function AdminUserDetailPage() {
   }, [userId, resettingBaseline]);
 
   const saveNotes = useCallback(async () => {
+    // Capture at submit so a race with further typing doesn't
+    // mis-flag the ref when the response lands.
+    const valueAtSubmit = adminNotes;
     setSavingNotes(true);
     try {
       const next = await updateUserAdminContext(userId, {
-        general_notes: adminNotes,
+        general_notes: valueAtSubmit,
       });
       setContext(next);
-      toast.success("Notes saved");
+      // Persistent "Saved" indicator below the textarea replaces the
+      // success toast — the inline marker is less noisy when auto-
+      // save fires every few seconds.
+      lastSavedNotesRef.current = valueAtSubmit;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save notes");
     } finally {
       setSavingNotes(false);
     }
   }, [userId, adminNotes]);
+
+  /**
+   * Auto-save the admin notes ~600ms after the user stops typing.
+   * Gated on:
+   *   - initial load complete (`lastSavedNotesRef.current !== null`)
+   *   - field is dirty (current value !== last-saved value)
+   *   - no save already in flight
+   *
+   * The effect's cleanup clears the prior timer, so each keystroke
+   * resets the debounce window — only one PATCH lands per typing
+   * pause. The dirty check inside the effect (not just in the
+   * cleanup) ensures a successful save flips us back to "Saved"
+   * immediately even if the user hasn't kept typing.
+   */
+  useEffect(() => {
+    if (lastSavedNotesRef.current === null) return;
+    if (adminNotes === lastSavedNotesRef.current) return;
+    if (savingNotes) return;
+    const timer = setTimeout(() => {
+      void saveNotes();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [adminNotes, savingNotes, saveNotes]);
 
   /**
    * Persist an admin edit to a bot's interview question text. The PATCH
@@ -3687,23 +3733,45 @@ export default function AdminUserDetailPage() {
               <Card className="rounded-2xl border-border p-5">
                 <h3 className="text-base font-semibold">Private Admin Notes</h3>
                 <p className="mb-3 text-sm text-muted-foreground">
-                  Internal context — never shown to the user.
+                  Internal context — never shown to the user. The chat
+                  LLM treats this as &ldquo;don&apos;t-ask topics&rdquo;
+                  (BE 5e88601 wires it into the system prompt across
+                  every chat surface).
                 </p>
                 <Textarea
                   rows={8}
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Notes about this user…"
+                  placeholder="Notes about this user… (auto-saves)"
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="mt-3 rounded-full px-4"
-                  disabled={savingNotes}
-                  onClick={() => void saveNotes()}
+                {/* Inline save indicator — replaces the manual "Save
+                    Notes" button now that the auto-save effect handles
+                    persistence. Three states: in-flight, dirty (typing
+                    pause not yet elapsed), and saved (current value
+                    matches the last-persisted one). */}
+                <p
+                  className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"
+                  role="status"
+                  aria-live="polite"
                 >
-                  {savingNotes ? "Saving…" : "Save Notes"}
-                </Button>
+                  {savingNotes ? (
+                    <>
+                      <Loader2
+                        className="h-3 w-3 animate-spin"
+                        aria-hidden
+                      />
+                      Saving…
+                    </>
+                  ) : lastSavedNotesRef.current !== null &&
+                    adminNotes !== lastSavedNotesRef.current ? (
+                    <>Unsaved changes…</>
+                  ) : (
+                    <>
+                      <Check className="h-3 w-3" aria-hidden />
+                      Saved
+                    </>
+                  )}
+                </p>
               </Card>
             </div>
           </TabsContent>
