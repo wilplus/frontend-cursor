@@ -44,6 +44,7 @@ import type { Phase } from "@/components/chat/thread/types";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { createClient as createSupabaseBrowser } from "@/lib/supabase/client";
 import { consumePostOnboardingWelcome } from "@/lib/funnel/postOnboardingWelcome";
+import { consumePostSignupConfirmation } from "@/lib/funnel/postSignupConfirmation";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 import { botBubblesFromText } from "@/lib/chat/botBubbles";
 
@@ -182,18 +183,29 @@ export function useChatPhase({
   }, [sessionId, guard.checking, guard.redirecting, appendBubble, clearBubbles]);
 
   /* ---------------------------------------------------------------------- */
-  /*  Welcome-back → push two bubbles → flip to Q&A                        */
+  /*  Welcome-back → push confirmation + question → flip to Q&A            */
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (phase !== "welcome_back") return;
-    // Both welcome strings go through the 75-char splitter for
-    // consistency — "Thanks, check…" fits in one bubble, the longer
-    // "Do you have any questions…" question splits into two snappy
-    // beats.
+    // Task 7 confirmation copy. BE may override via the claim
+    // response's `post_signup_confirmation` field (stashed by
+    // PendingSessionClaim); consumer falls back to the default
+    // "human reviews this personally, within one business day" copy
+    // when absent. The old "Thanks, check your email in a few hours"
+    // line went away — "few hours" was the SLA trap the brainstorm
+    // flagged.
+    const confirmation = consumePostSignupConfirmation();
     clearBubbles();
-    for (const b of botBubblesFromText(
-      "Thanks, check your email in a few hours."
-    )) {
+    if (confirmation.headline) {
+      for (const b of botBubblesFromText(confirmation.headline)) {
+        appendBubble(b);
+      }
+    }
+    // Both welcome strings go through the 75-char splitter for
+    // consistency — the confirmation body usually fits in two beats;
+    // the "Do you have any questions…" question splits into two
+    // snappy beats too.
+    for (const b of botBubblesFromText(confirmation.body)) {
       appendBubble(b);
     }
     for (const b of botBubblesFromText(
@@ -201,8 +213,8 @@ export function useChatPhase({
     )) {
       appendBubble(b);
     }
-    // Tiny breath so the user reads "Thanks…" before the input row
-    // mounts; otherwise it feels abrupt.
+    // Tiny breath so the user reads the confirmation before the
+    // input row mounts; otherwise it feels abrupt.
     const t = setTimeout(() => setPhase("q_and_a"), 400);
     return () => clearTimeout(t);
   }, [phase, appendBubble, clearBubbles]);

@@ -7,6 +7,7 @@ import {
   clearPendingSessionId,
   getPendingSessionId,
 } from "@/lib/funnel/pendingSession";
+import { setPostSignupConfirmation } from "@/lib/funnel/postSignupConfirmation";
 
 /**
  * Global post-auth claim — bridges the OAuth round-trip.
@@ -61,10 +62,24 @@ export default function PendingSessionClaim() {
           // page's phase machine can route into waiting/reviewing/
           // welcome_back based on the user's current state. Generic
           // /chat is the safe fallback.
+          //
+          // Task 7: BE may also include `post_signup_confirmation:
+          // { headline, body }` carrying the "human at heart" SLA
+          // copy that the welcome_back phase renders. Stash via the
+          // postSignupConfirmation helper so the /chat re-mount
+          // picks it up; consumer falls back to a sensible default
+          // when absent.
           const data = (await res.json().catch(() => ({}))) as {
             session_id?: string;
+            post_signup_confirmation?: {
+              headline?: string | null;
+              body?: string | null;
+            };
           };
           clearPendingSessionId();
+          if (data.post_signup_confirmation) {
+            setPostSignupConfirmation(data.post_signup_confirmation);
+          }
 
           // Don't bounce the user if they're already on /chat — the
           // welcome-back flag handles the post-onboarding case in-

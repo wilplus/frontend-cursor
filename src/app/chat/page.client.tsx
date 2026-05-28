@@ -12,7 +12,7 @@ import {
 } from "@/components/chat/RichBubbles";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { BottomSlot } from "@/components/chat/BottomSlot";
-import { YesNoPills } from "@/components/chat/slots";
+import { SignupCta, YesNoPills } from "@/components/chat/slots";
 import { RecordingReadyPanel } from "@/components/chat/RecordingReadyPanel";
 import { snippetLabelPrompt } from "@/lib/chat/snippetLabel";
 import ThreadView from "@/components/chat/thread/ThreadView";
@@ -372,15 +372,11 @@ export default function ChatPageClient({
             }
             bottomOverride={
               phase === "metrics_ask" ? (
-                <div className="flex w-full flex-col items-center gap-2">
-                  <Button
-                    type="button"
-                    size="lg"
+                <div className="flex w-full max-w-sm flex-col items-center gap-2">
+                  <SignupCta
                     onClick={handleSignUpClick}
-                    className="w-full max-w-sm rounded-full bg-primary text-primary-foreground hover:shadow-lg"
-                  >
-                    Sign up to receive your analysis
-                  </Button>
+                    label="Sign up for your full analysis"
+                  />
                   <p className="text-[10px] leading-tight text-muted-foreground">
                     Free account, no card. We&apos;ll email your snippets when
                     ready.
