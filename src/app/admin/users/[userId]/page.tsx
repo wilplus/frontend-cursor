@@ -51,6 +51,7 @@ import {
 import type { UserAdminContext } from "@/lib/api/types";
 import { getAuthToken } from "@/lib/api/auth-client";
 import UserFilesTab from "@/components/admin/UserFilesTab";
+import NextSessionIcebreakerCard from "@/components/admin/NextSessionIcebreakerCard";
 import { DirectivesQueuePanel } from "@/components/admin/DirectivesQueuePanel";
 
 /* ----------------------------------------------------------------------------
@@ -3925,6 +3926,15 @@ export default function AdminUserDetailPage() {
                 </p>
               )}
             </Card>
+
+            {/* Task 10 — AI-prefilled opener for the user's NEXT session.
+                Sits directly below the Performance summary so the admin reads
+                "this session's outcome → opener for the next one". Self-
+                contained: fetches / polls / saves on its own, scoped to the
+                open session. */}
+            {activeSession?.id && (
+              <NextSessionIcebreakerCard sessionId={activeSession.id} />
+            )}
 
             {/* Full Recording — the contiguous session audio. Sits ABOVE
                 the per-turn timeline so admins have both: scrub-the-whole-
