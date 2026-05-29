@@ -108,6 +108,10 @@ export type Phase =
   | "compiling"
   | "metrics_ask"
   | "welcome_back"
+  /** T2 dad-joke opener — fires once per account, on first welcome_back
+   *  entry after signup. Has ThreadView + ChatInputBar (like q_and_a).
+   *  Transitions to q_and_a after the pivot line lands. */
+  | "opening"
   | "q_and_a"
   | "reviewing"
   | "roleplaying"

@@ -28,6 +28,8 @@ import { splitAiBubbleText } from "@/lib/chat/bubbleSplit";
 import { botBubblesFromText } from "@/lib/chat/botBubbles";
 import { useRecordingHandoff } from "@/components/chat/hooks/useRecordingHandoff";
 import { useQAComposer } from "@/components/chat/hooks/useQAComposer";
+import { useOnboardingOpener } from "@/components/chat/hooks/useOnboardingOpener";
+import type { ChatInputBarSendArgs } from "@/components/chat/ChatInputBar";
 import { useChatPhase } from "@/components/chat/hooks/useChatPhase";
 import { useReviewingFetch } from "@/components/chat/hooks/useReviewingFetch";
 import { useSnippetLabelingChain } from "@/components/chat/hooks/useSnippetLabelingChain";
@@ -165,6 +167,22 @@ export default function ChatPageClient({
   const actionBubbleInfoRef = useRef<
     Map<string, { bubbleId: string; snippetType: "charisma" | "stress" }>
   >(new Map());
+  // T2 — dad-joke onboarding opener. Fires once per account lifetime
+  // on the first welcome_back entry (useChatPhase intercepts welcome_back
+  // → opening when the opener hasn't been seen yet). submitReply is
+  // forwarded from handleComposerSubmit while phase==="opening".
+  const opener = useOnboardingOpener();
+
+  // Fire the opener when the phase transitions to "opening".
+  useEffect(() => {
+    if (phase !== "opening") return;
+    void opener.run(setPhase, appendBubble);
+    // opener.run is stable (useCallback with no deps that change) —
+    // safe to omit from deps; ESLint exhaustive-deps would flag it but
+    // it's intentional: we want a one-shot fire on phase=opening entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   // Q&A composer surface — owns qaSubmitting, the Rule G per-turn
   // paperclip/record flags, and the file-upload + composer-submit
   // handlers. See `useQAComposer` for the full spec.
@@ -174,9 +192,22 @@ export default function ChatPageClient({
     showUploadUi,
     showRecordUi,
     uploadingFile,
-    handleComposerSubmit,
+    handleComposerSubmit: handleQAComposerSubmit,
     handleQAFileUpload,
   } = useQAComposer({ activeSessionId, appendBubble, replaceBubble });
+
+  // Unified composer submit — delegates to the opener during phase=opening,
+  // falls through to the QA composer otherwise.
+  const handleComposerSubmit = useCallback(
+    async (args: ChatInputBarSendArgs) => {
+      if (phase === "opening") {
+        await opener.submitReply(args.text, setPhase, appendBubble);
+        return;
+      }
+      await handleQAComposerSubmit(args);
+    },
+    [phase, opener, setPhase, appendBubble, handleQAComposerSubmit]
+  );
 
   // Post-labeling recording handoff — owns the big-mic state, the
   // post-upload idle window, and the two RecordingReadyPanel
@@ -499,7 +530,8 @@ export default function ChatPageClient({
 
             Strict bottom toolbar state machine drives the bottom
             slot below. */}
-        {(phase === "welcome_back" ||
+        {(phase === "opening" ||
+          phase === "welcome_back" ||
           phase === "q_and_a" ||
           phase === "reviewing") && (
           <div className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -529,7 +561,11 @@ export default function ChatPageClient({
                       <div className="flex justify-center">
                         <ChatInputBar
                           onSend={handleComposerSubmit}
-                          submitting={qaSubmitting}
+                          submitting={
+                            phase === "opening"
+                              ? opener.isSubmitting
+                              : qaSubmitting
+                          }
                           onUploadFile={
                             mode.showUpload ? handleQAFileUpload : undefined
                           }

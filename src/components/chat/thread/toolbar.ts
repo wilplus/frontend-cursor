@@ -107,7 +107,11 @@ const RECORDING_PHASES: ReadonlySet<Phase> = new Set<Phase>([
 const TOOLBAR_LESS_PHASES: ReadonlySet<Phase> = new Set<Phase>([
   "loading",
   "error",
+  // welcome_back auto-transitions to opening/q_and_a after ~400ms — no
+  // input during that window.
   "welcome_back",
+  // opening (T2 dad-joke opener) deliberately NOT in this set — it needs
+  // the composer so the user can reply to the setup and punchline beats.
 ]);
 
 export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
