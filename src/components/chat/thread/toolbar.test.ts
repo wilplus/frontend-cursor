@@ -145,6 +145,16 @@ describe("deriveToolbar — non-recording surface", () => {
     });
   });
 
+  it("T2: opening phase → composer (dad-joke opener needs input bar)", () => {
+    const result = deriveToolbar(
+      baseInputs({
+        phase: "opening",
+        bubbles: [bubble.bot_text("Attention, before we begin…")],
+      })
+    );
+    expect(result).toEqual({ kind: "composer", showUpload: false });
+  });
+
   it("LI-9: welcome_back → none (read-only window)", () => {
     const result = deriveToolbar(
       baseInputs({

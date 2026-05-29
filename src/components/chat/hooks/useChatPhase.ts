@@ -45,6 +45,7 @@ import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { createClient as createSupabaseBrowser } from "@/lib/supabase/client";
 import { consumePostOnboardingWelcome } from "@/lib/funnel/postOnboardingWelcome";
 import { consumePostSignupConfirmation } from "@/lib/funnel/postSignupConfirmation";
+import { hasSeenOpener } from "@/lib/funnel/onboardingOpenerSeen";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 import { botBubblesFromText } from "@/lib/chat/botBubbles";
 
@@ -187,6 +188,20 @@ export function useChatPhase({
   /* ---------------------------------------------------------------------- */
   useEffect(() => {
     if (phase !== "welcome_back") return;
+
+    // T2 dad-joke opener — fires once per account lifetime on the first
+    // welcome_back entry after signup. If the opener hasn't been seen,
+    // redirect to the "opening" phase; the useOnboardingOpener hook in
+    // page.client.tsx handles the bubble sequence + transitions back to
+    // q_and_a after the pivot line lands.
+    //
+    // On re-entry (opener already seen, or returning signed-in user who
+    // did a profile reset), fall through to the normal welcome_back flow.
+    if (!hasSeenOpener()) {
+      setPhase("opening");
+      return;
+    }
+
     // Task 7 confirmation copy. BE may override via the claim
     // response's `post_signup_confirmation` field (stashed by
     // PendingSessionClaim); consumer falls back to the default
