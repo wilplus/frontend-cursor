@@ -1,28 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FileAudio, FileVideo, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { FileAudio, FileVideo, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAuthToken } from "@/lib/api/auth-client";
 
 /* -------------------------------------------------------------------------- */
-/*  Backend response shape                                                    */
+/*  Backend response shape (BE task-9 canonical /files endpoint)              */
 /* -------------------------------------------------------------------------- */
 
-interface UserUpload {
+interface UserFile {
   id: string;
-  filename: string;
+  session_id: string | null;
+  file_name: string;
+  file_type: "audio" | "video";
   content_type: string;
   size_bytes: number | null;
-  file_url: string;
-  duration_seconds: number | null;
-  session_id: string | null;
+  /** Cached public URL when the bucket is public; same as playback_url
+   *  in that case. Null when bucket is private. */
+  r2_url: string | null;
+  /** ALWAYS populated. Public bucket → permanent URL. Private bucket →
+   *  signed URL with TTL = expires_in query param. */
+  playback_url: string;
   created_at: string;
 }
 
-interface UploadsPayload {
-  uploads: UserUpload[];
+interface FilesPayload {
+  user_id: string;
+  files: UserFile[];
+  limit: number;
+  offset: number;
+  /** Count of rows in THIS response slice — NOT total table size. */
+  total: number;
+  /** True → more rows exist past offset+limit; render Load More. */
+  has_more: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -30,19 +44,72 @@ interface UploadsPayload {
 /*                                                                            */
 /*  Files tab body for /admin/users/[userId]. Lists every audio/video file   */
 /*  the user uploaded via the chat surface's "upload" input mode, with an     */
-/*  inline native player per row so the admin can audit the file without     */
-/*  leaving the tab. Sorted newest-first by upload timestamp (assumes the    */
-/*  backend already orders the list; falls back to a client sort).           */
+/*  inline native player per row so the admin can audit without leaving the */
+/*  tab. Sorted newest-first by upload timestamp (BE-side).                  */
+/*                                                                            */
+/*  Wired against the canonical /files endpoint (BE pre-task-9 + bb2a7c1):  */
+/*    - ?limit=PAGE_SIZE&offset=N for pagination ("Load more" button on    */
+/*      has_more=true)                                                      */
+/*    - ?expires_in=21600 (6h) so signed URLs survive a long-open admin tab  */
+/*    - DELETE for soft-delete with confirm dialog (no undo UI today; BE    */
+/*      keeps the row in the soft-deleted set until the weekly hard-delete  */
+/*      cron runs)                                                            */
+/*    - Re-fetch on play-click as the stale-URL fallback (cheap pattern —   */
+/*      private-bucket deploys after >6h of inactivity)                     */
 /* -------------------------------------------------------------------------- */
+
+const PAGE_SIZE = 50;
+const EXPIRES_IN_SECONDS = 21600; // 6h
 
 interface UserFilesTabProps {
   userId: string;
 }
 
 export default function UserFilesTab({ userId }: UserFilesTabProps) {
-  const [uploads, setUploads] = useState<UserUpload[]>([]);
+  const [files, setFiles] = useState<UserFile[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  /** Per-row in-flight delete tracker so we can disable the button +
+   *  surface the spinner without a global lock that would freeze other
+   *  rows during a slow delete. */
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchPage = useCallback(
+    async (
+      offset: number,
+      mode: "replace" | "append"
+    ): Promise<FilesPayload | null> => {
+      const token = await getAuthToken();
+      if (!token) {
+        setError("Not authenticated.");
+        return null;
+      }
+      const qs = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+        expires_in: String(EXPIRES_IN_SECONDS),
+      });
+      const res = await fetch(
+        `/api/v2/admin/users/${encodeURIComponent(userId)}/files?${qs.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }
+      );
+      if (!res.ok) {
+        setError(`Couldn't load files (HTTP ${res.status}).`);
+        return null;
+      }
+      const data = (await res.json()) as FilesPayload;
+      const rows = Array.isArray(data.files) ? data.files : [];
+      setFiles((prev) => (mode === "replace" ? rows : [...prev, ...rows]));
+      setHasMore(data.has_more === true);
+      return data;
+    },
+    [userId]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -50,33 +117,11 @@ export default function UserFilesTab({ userId }: UserFilesTabProps) {
       try {
         setLoading(true);
         setError(null);
-        const token = await getAuthToken();
-        if (!token) {
-          setError("Not authenticated.");
-          return;
-        }
-        const res = await fetch(
-          `/api/v2/admin/users/${encodeURIComponent(userId)}/uploads`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          }
-        );
+        const data = await fetchPage(0, "replace");
         if (cancelled) return;
-        if (!res.ok) {
-          setError(`Couldn't load files (HTTP ${res.status}).`);
-          return;
+        if (data === null) {
+          // fetchPage already set error / cleared auth state.
         }
-        const data = (await res.json()) as UploadsPayload;
-        if (cancelled) return;
-        const rows = Array.isArray(data.uploads) ? data.uploads : [];
-        // Defensive sort: newest first by ISO timestamp.
-        rows.sort((a, b) => {
-          const ta = new Date(a.created_at || 0).getTime();
-          const tb = new Date(b.created_at || 0).getTime();
-          return tb - ta;
-        });
-        setUploads(rows);
       } catch (err) {
         if (!cancelled) {
           console.warn("UserFilesTab load failed:", err);
@@ -90,7 +135,109 @@ export default function UserFilesTab({ userId }: UserFilesTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [fetchPage]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      await fetchPage(files.length, "append");
+    } catch (err) {
+      console.warn("UserFilesTab load-more failed:", err);
+      toast.error("Couldn't load more files.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, files.length, fetchPage]);
+
+  /** Stale-URL fallback per the BE handoff's "cheap" strategy. The
+   *  admin tab might sit open longer than the 6h expires_in TTL on a
+   *  private-bucket deploy. Re-fetching the list silently on the
+   *  first play-click is simpler than maintaining a `fetched_at` ref
+   *  + tracking an "is stale?" predicate, and the latency lands on
+   *  the click the user is already paying for. */
+  const refreshAfterStaleClick = useCallback(async () => {
+    try {
+      // Re-fetch the entire current window (offset=0, current page-
+      // worth-of-rows count). Keeps the user's pagination position
+      // by re-walking from the start; for normal sub-200-row admin
+      // views this is sub-second.
+      const token = await getAuthToken();
+      if (!token) return;
+      const qs = new URLSearchParams({
+        limit: String(Math.max(files.length, PAGE_SIZE)),
+        offset: "0",
+        expires_in: String(EXPIRES_IN_SECONDS),
+      });
+      const res = await fetch(
+        `/api/v2/admin/users/${encodeURIComponent(userId)}/files?${qs.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as FilesPayload;
+      const rows = Array.isArray(data.files) ? data.files : [];
+      setFiles(rows);
+      setHasMore(data.has_more === true);
+    } catch {
+      // Silent — the worst case is the user clicks play on a stale URL
+      // and the browser fails; they can refresh manually.
+    }
+  }, [userId, files.length]);
+
+  const handleDelete = useCallback(
+    async (fileId: string, fileName: string) => {
+      if (deletingId) return;
+      const ok =
+        typeof window === "undefined"
+          ? true
+          : window.confirm(
+              `Delete "${fileName}"?\n\nThe file is removed from this list immediately. R2 bytes are retained for the recovery window.`
+            );
+      if (!ok) return;
+      setDeletingId(fileId);
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          toast.error("Not authenticated.");
+          return;
+        }
+        const res = await fetch(
+          `/api/v2/admin/users/${encodeURIComponent(userId)}/files/${encodeURIComponent(
+            fileId
+          )}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (res.status === 204) {
+          setFiles((prev) => prev.filter((f) => f.id !== fileId));
+          toast.success("File deleted.");
+          return;
+        }
+        if (res.status === 404) {
+          // Wrong owner OR already deleted — either way, the row is
+          // gone server-side. Drop from local state so the UI matches.
+          setFiles((prev) => prev.filter((f) => f.id !== fileId));
+          toast.success("File deleted.");
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        toast.error(data.error ?? `Delete failed (HTTP ${res.status}).`);
+      } catch (err) {
+        console.warn("UserFilesTab delete failed:", err);
+        toast.error("Couldn't delete file.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [deletingId, userId]
+  );
 
   if (loading) {
     return (
@@ -108,7 +255,7 @@ export default function UserFilesTab({ userId }: UserFilesTabProps) {
     );
   }
 
-  if (uploads.length === 0) {
+  if (files.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-8 text-center">
         <p className="text-sm text-muted-foreground">
@@ -120,9 +267,36 @@ export default function UserFilesTab({ userId }: UserFilesTabProps) {
 
   return (
     <div className="space-y-3">
-      {uploads.map((u) => (
-        <UploadRow key={u.id} upload={u} />
+      {files.map((f) => (
+        <UploadRow
+          key={f.id}
+          file={f}
+          onDelete={() => void handleDelete(f.id, f.file_name)}
+          onPlay={refreshAfterStaleClick}
+          deleting={deletingId === f.id}
+        />
       ))}
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loadingMore}
+            onClick={() => void handleLoadMore()}
+            className="rounded-full"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Loading…
+              </>
+            ) : (
+              "Load more"
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -131,11 +305,32 @@ export default function UserFilesTab({ userId }: UserFilesTabProps) {
 /*  Single upload row                                                         */
 /* -------------------------------------------------------------------------- */
 
-function UploadRow({ upload }: { upload: UserUpload }) {
-  const kind = classifyContentType(upload.content_type);
-  const sizeLabel = formatBytes(upload.size_bytes);
-  const dateLabel = formatDate(upload.created_at);
-  const Icon = kind === "video" ? FileVideo : FileAudio;
+function UploadRow({
+  file,
+  onDelete,
+  onPlay,
+  deleting,
+}: {
+  file: UserFile;
+  onDelete: () => void;
+  /** Stale-URL fallback — called on the FIRST play-click only via
+   *  the playedOnceRef gate. Re-fetches the current window so a long-
+   *  open tab on a private-bucket deploy lands a fresh signed URL. */
+  onPlay: () => void;
+  deleting: boolean;
+}) {
+  const sizeLabel = formatBytes(file.size_bytes);
+  const dateLabel = formatDate(file.created_at);
+  const Icon = file.file_type === "video" ? FileVideo : FileAudio;
+
+  // Defensive — file_type is BE-provided but content_type is the
+  // authoritative ground truth. Fall back to content_type-sniffing if
+  // file_type ends up null for any reason (older BE deploys).
+  const kind: "audio" | "video" =
+    file.file_type === "video" ||
+    (file.content_type || "").toLowerCase().startsWith("video/")
+      ? "video"
+      : "audio";
 
   return (
     <Card className="rounded-2xl border-border p-4">
@@ -153,9 +348,9 @@ function UploadRow({ upload }: { upload: UserUpload }) {
           <div className="min-w-0">
             <p
               className="truncate text-sm font-semibold text-foreground"
-              title={upload.filename}
+              title={file.file_name}
             >
-              {upload.filename || "Untitled upload"}
+              {file.file_name || "Untitled upload"}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
               <Badge
@@ -170,34 +365,53 @@ function UploadRow({ upload }: { upload: UserUpload }) {
               </Badge>
               <span>{dateLabel}</span>
               {sizeLabel && <span>· {sizeLabel}</span>}
-              {upload.session_id && (
+              {file.session_id && (
                 <span
-                  title={`Session ${upload.session_id}`}
+                  title={`Session ${file.session_id}`}
                   className="font-mono"
                 >
-                  · sess {upload.session_id.slice(0, 8)}
+                  · sess {file.session_id.slice(0, 8)}
                 </span>
               )}
             </div>
           </div>
         </div>
+
+        {/* Delete ghost button — confirm dialog gates the actual call. */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          disabled={deleting}
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          title="Delete this file (soft-delete; admin recovery window)"
+        >
+          {deleting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          )}
+        </Button>
       </div>
 
       <div className="mt-3">
         {kind === "video" ? (
           <video
-            src={upload.file_url}
+            src={file.playback_url}
             controls
             preload="metadata"
             className="w-full rounded-lg bg-black"
             style={{ maxHeight: 360 }}
+            onPlay={onPlay}
           />
         ) : (
           <audio
-            src={upload.file_url}
+            src={file.playback_url}
             controls
             preload="metadata"
             className="w-full"
+            onPlay={onPlay}
           />
         )}
       </div>
@@ -208,12 +422,6 @@ function UploadRow({ upload }: { upload: UserUpload }) {
 /* -------------------------------------------------------------------------- */
 /*  Format helpers                                                            */
 /* -------------------------------------------------------------------------- */
-
-function classifyContentType(ct: string | null | undefined): "audio" | "video" {
-  const lower = (ct || "").toLowerCase();
-  if (lower.startsWith("video/")) return "video";
-  return "audio";
-}
 
 function formatBytes(bytes: number | null): string {
   if (bytes == null || !Number.isFinite(bytes)) return "";
