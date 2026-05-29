@@ -19,16 +19,23 @@ import { wordDiffCount } from "@/lib/admin/wordDiff";
 /* -------------------------------------------------------------------------- */
 /*  Task 10 — "Next session opener" card (admin Tab 1, below KPI narrative)    */
 /*                                                                            */
-/*  Self-contained: owns its own GET / poll / PUT / regenerate lifecycle so   */
-/*  it doesn't thread state through the 4k-line user-detail page. Clones the   */
-/*  coaching-rationale split-sink UX (immutable AI draft + editable current   */
+/*  Self-contained: owns its own GET / PUT / regenerate lifecycle so it       */
+/*  doesn't thread state through the 4k-line user-detail page. Clones the      */
+/*  coaching-rationale split-sink UX (immutable AI draft + editable current    */
 /*  + edited badge) and adds a destructive Regenerate lever.                  */
 /*                                                                            */
-/*  Contract (BE Task 10, confirmed in FE sign-off):                         */
-/*    GET   → { ai_draft, current, queue_status, generation_error, … }       */
-/*            409 ICEBREAKER_NOT_READY when the session isn't finalized       */
-/*    PUT   { question } — "" clears (→ skipped); else 5–280 chars + '?'      */
-/*    POST  /regenerate — replaces draft + current; 429 rate-limited          */
+/*  Reconciled to the SHIPPED BE contract (claude/consent-endpoint c07ee07):  */
+/*    - Generation is SYNCHRONOUS at finalize (no async "generating" window), */
+/*      so there's nothing to poll. A session with no draft yet simply hasn't */
+/*      finalized — the admin refreshes after finalizing.                     */
+/*    - There is NO 409. `queue_status:'not_yet_generated'` covers BOTH       */
+/*      pre-finalize AND LLM-failure; `generation_error` is the discriminator.*/
+/*    - Pre-migration the GET returns SESSION_NOT_FOUND (404) → render empty. */
+/*                                                                            */
+/*  Contract:                                                                 */
+/*    GET   → { ai_draft, current, queue_status, generation_error, … }        */
+/*    PUT   { question } — "" clears (→ skipped); else 5–280 chars + '?'       */
+/*    POST  /regenerate — replaces draft + current; 429 rate-limited; 502     */
 /* -------------------------------------------------------------------------- */
 
 type QueueStatus =
@@ -52,8 +59,6 @@ interface IcebreakerPayload {
 
 const MIN_LEN = 5;
 const MAX_LEN = 280;
-const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 20; // ~60s before falling back to manual refresh
 
 interface Props {
   sessionId: string;
@@ -63,13 +68,13 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
   const [data, setData] = useState<IcebreakerPayload | null>(null);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
-  /** True when the backend returned 409 — session not finalized yet. */
-  const [notReady, setNotReady] = useState(false);
+  /** 404 SESSION_NOT_FOUND — the pre-migration window (columns missing) or a
+   *  non-owned session. Render nothing so the card stays invisible until the
+   *  BE columns exist, per the BE handoff ("FE card just renders empty"). */
+  const [hidden, setHidden] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  /** The generation poll burst ran out before a draft appeared. */
-  const [pollExhausted, setPollExhausted] = useState(false);
   /** Bumped by the manual "Refresh" button to re-run the load effect. */
   const [reloadNonce, setReloadNonce] = useState(0);
 
@@ -78,10 +83,11 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
   )}/next-session-icebreaker`;
 
   /** Single GET. `syncDraft` re-seeds the textarea from server `current`
-   *  (used on load / poll / after writes; never mid-edit since the editor
-   *  only renders once we've LEFT the polling state). */
+   *  (load / refresh / after writes). */
   const fetchData = useCallback(
     async (syncDraft: boolean): Promise<IcebreakerPayload | null> => {
+      setHidden(false);
+      setLoadError(null);
       const token = await getAuthToken();
       if (!token) {
         setLoadError("Not authenticated.");
@@ -97,25 +103,17 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
         setLoadError("Couldn't reach the opener service.");
         return null;
       }
-      if (res.status === 409) {
-        setNotReady(true);
-        setData(null);
-        setLoadError(null);
-        return null;
-      }
+      // SESSION_NOT_FOUND (incl. pre-migration "columns missing") and any
+      // owner-scoped 404 → hide the card rather than show an error.
       if (res.status === 404) {
-        // No row for this session — treat as nothing to show, not an error
-        // banner. (Owner-scoped 404s collapse here too.)
+        setHidden(true);
         setData(null);
-        setLoadError(null);
         return null;
       }
       if (!res.ok) {
         setLoadError(`Couldn't load the opener (HTTP ${res.status}).`);
         return null;
       }
-      setNotReady(false);
-      setLoadError(null);
       const d = (await res.json().catch(() => null)) as IcebreakerPayload | null;
       if (!d) {
         setLoadError("Unexpected response from the opener service.");
@@ -128,47 +126,22 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
     [endpoint]
   );
 
-  // Initial load + generation poll burst. One effect, local attempt counter
-  // (no setInterval re-run resets), cancelled on unmount / session change.
+  // Single fetch on mount / session change / manual refresh. Generation is
+  // synchronous at finalize on the BE, so there's no transient "generating"
+  // state to poll — the admin refreshes after a session finalizes.
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let attempts = 0;
-
-    const isGenerating = (d: IcebreakerPayload | null) =>
-      !!d && d.queue_status === "not_yet_generated" && !d.generation_error;
-
-    const poll = async () => {
-      if (cancelled) return;
-      const d = await fetchData(true);
-      if (cancelled) return;
-      if (isGenerating(d)) {
-        if (attempts >= POLL_MAX_ATTEMPTS) {
-          setPollExhausted(true);
-          return;
-        }
-        attempts += 1;
-        timer = setTimeout(poll, POLL_INTERVAL_MS);
-      }
-    };
-
     (async () => {
       setLoading(true);
-      setPollExhausted(false);
-      const d = await fetchData(true);
-      if (cancelled) return;
-      setLoading(false);
-      if (isGenerating(d)) {
-        attempts = 1;
-        timer = setTimeout(poll, POLL_INTERVAL_MS);
-      }
+      await fetchData(true);
+      if (!cancelled) setLoading(false);
     })();
-
     return () => {
       cancelled = true;
-      if (timer) clearTimeout(timer);
     };
   }, [sessionId, reloadNonce, fetchData]);
+
+  const refresh = useCallback(() => setReloadNonce((n) => n + 1), []);
 
   const handleSave = useCallback(async () => {
     const trimmed = draft.trim();
@@ -313,15 +286,8 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
     );
   }
 
-  if (notReady) {
-    return shell(
-      <div className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          The opener is generated automatically once this session is finalized.
-        </p>
-      </div>
-    );
-  }
+  // Pre-migration / 404 — stay invisible.
+  if (hidden) return null;
 
   if (loadError) {
     return shell(
@@ -331,20 +297,11 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
     );
   }
 
-  if (!data) {
-    // 404 / nothing to show for this session.
-    return shell(
-      <div className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          No opener for this session yet.
-        </p>
-      </div>
-    );
-  }
+  if (!data) return null;
 
   const status = data.queue_status;
 
-  // Generation error — both columns stayed null; offer a retry.
+  // LLM failed — both columns stayed null, error tag set. Offer a retry.
   if (status === "not_yet_generated" && data.generation_error) {
     return shell(
       <div className="space-y-3">
@@ -364,34 +321,24 @@ export default function NextSessionIcebreakerCard({ sessionId }: Props) {
     );
   }
 
-  // Still generating — poll spinner, with a manual refresh fallback.
+  // No draft yet, no error → the session simply hasn't finalized. Generation
+  // runs at finalize, so this is a calm "check back" state, not a spinner.
   if (status === "not_yet_generated") {
     return shell(
-      <div className="flex flex-col items-center gap-3 py-5 text-center">
-        {!pollExhausted ? (
-          <>
-            <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
-            <p className="text-sm text-muted-foreground">
-              Generating a personalized opener from this session…
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              This is taking longer than usual.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setReloadNonce((n) => n + 1)}
-              className="gap-1.5 rounded-full"
-            >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-              Refresh
-            </Button>
-          </>
-        )}
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-5 py-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          The opener is generated automatically once this session is finalized.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={refresh}
+          className="gap-1.5 rounded-full"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+          Refresh
+        </Button>
       </div>
     );
   }
@@ -563,13 +510,16 @@ function Blockquote({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Map BE generation_error codes to admin-readable copy. */
+/** Map BE generation_error tag strings to admin-readable copy. Unknown tags
+ *  fall through to a generic line, so new BE tags degrade gracefully. */
 function reasonText(code: string): string {
   switch (code) {
     case "llm_timeout":
       return "the AI timed out";
     case "transcript_too_short":
       return "the session was too short";
+    case "llm_unavailable":
+      return "the AI was unavailable";
     default:
       return "an unexpected error";
   }
