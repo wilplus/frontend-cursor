@@ -33,7 +33,11 @@
 export type NextQuestionSource =
   | "directives_queue"
   | "admin_override"
-  | "llm_generated";
+  | "llm_generated"
+  /** Contextual engine — bridges from user's last transcript. */
+  | "contextual_llm"
+  /** Contextual engine fell back to on-intent generic (no good bridge found). */
+  | "contextual_llm_fallback";
 
 export interface NextQuestionAttribution {
   source: NextQuestionSource;

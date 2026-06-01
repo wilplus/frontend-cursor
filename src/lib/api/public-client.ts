@@ -152,39 +152,74 @@ export interface InterviewQuestion {
   tone: "charisma" | "stress";
   turn_number: number;
   /**
-   * Provenance of the question text. BE-3 attaches this on every
-   * next-question response:
-   *   - "directives_queue" — popped from the user's coaching arc
-   *     (admin's 5-step DirectivesQueuePanel input)
-   *   - "admin_override"   — legacy single-question override path
-   *   - "llm_generated"    — dynamic LLM next-question (the default)
+   * Provenance of the question text:
+   *   - "directives_queue"        — popped from admin's coaching arc
+   *   - "admin_override"          — legacy single-question override
+   *   - "llm_generated"           — dynamic LLM (old next-question)
+   *   - "contextual_llm"          — new contextual engine; bridges
+   *                                 from user's last transcript
+   *   - "contextual_llm_fallback" — contextual engine couldn't find
+   *                                 a good bridge; returned on-intent
+   *                                 generic. Logged for audit.
    *
    * User-facing chat does NOT render this — admin steering stays
-   * invisible to the end user. ChatInterview calls
-   * `logQuestionAttribution` on every fetch so dev / production
-   * console searches can find admin-influenced turns.
+   * invisible. ChatInterview calls `logQuestionAttribution` on every
+   * fetch so dev / production console searches can find influenced turns.
    */
-  source?: "directives_queue" | "admin_override" | "llm_generated";
+  source?: "directives_queue" | "admin_override" | "llm_generated" | "contextual_llm" | "contextual_llm_fallback";
   /**
    * Only present when source === "directives_queue". Carries the
    * row's position (1..5) and intent_tag (free-text label the LLM
    * suggester emitted, e.g. "warm-up", "probe").
    */
   directive?: { position: number; intent_tag: string };
+  /**
+   * Present on contextual_llm responses — the intent the question
+   * steers toward. FE logs via logQuestionAttribution; not rendered.
+   */
+  target_intent?: "charisma" | "stress";
+  /**
+   * Present on contextual_llm responses — what user context the
+   * question bridges from (e.g. "user mentioned cycling"). FE logs;
+   * not rendered.
+   */
+  bridge_to?: string;
 }
 
+/**
+ * Fetch the next interview question.
+ *
+ * Turn 1 (no session yet): calls the canonical opener path
+ *   /api/public/interview/next-question. No guest_session_id available.
+ *   Falls back to "What's been on your mind this week?" server-side.
+ *
+ * Turns 2+ (session exists): calls the contextual engine
+ *   /api/v2/public/interview/contextual-next-question, passing
+ *   guest_session_id so BE can read snippets collected so far and
+ *   steer toward whichever intent (charisma/stress) is still missing.
+ *   Falls back to /next-question if no guestSessionId available yet.
+ */
 export async function fetchNextQuestion(
   turnNumber: number,
-  previousTurns?: { question: string; transcript?: string }[]
+  previousTurns?: { question: string; transcript?: string }[],
+  guestSessionId?: string | null
 ): Promise<InterviewQuestion> {
+  const useContextual = turnNumber > 1 && !!guestSessionId;
+  const endpoint = useContextual
+    ? "/api/v2/public/interview/contextual-next-question"
+    : "/api/public/interview/next-question";
+
   let resp: Response;
   try {
-    resp = await fetch("/api/public/interview/next-question", {
+    resp = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         turn_number: turnNumber,
         previous_turns: previousTurns?.length ? previousTurns : undefined,
+        ...(useContextual && guestSessionId
+          ? { guest_session_id: guestSessionId }
+          : {}),
       }),
     });
   } catch (err) {

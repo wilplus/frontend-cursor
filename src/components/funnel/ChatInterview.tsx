@@ -754,7 +754,11 @@ export default function ChatInterview({
       }
 
       try {
-        const q = await fetchNextQuestion(nextTurn, previousTurns);
+        const q = await fetchNextQuestion(
+          nextTurn,
+          previousTurns,
+          guestSessionIdRef.current
+        );
         if (q.source) {
           // FE-07 attribution log — see the cold-start branch above.
           // Same shape; ignoring the directive object on admin_override
