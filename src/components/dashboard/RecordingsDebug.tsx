@@ -252,8 +252,8 @@ export default function RecordingsDebug() {
         <div className="text-xs text-muted-foreground space-y-1">
           <p><strong>Instructions:</strong></p>
           <ol className="list-decimal list-inside space-y-1 ml-2">
-            <li>Click "Test API (via client)" to test using the API helper</li>
-            <li>Click "Test Direct Fetch" to test the raw fetch call</li>
+            <li>Click &quot;Test API (via client)&quot; to test using the API helper</li>
+            <li>Click &quot;Test Direct Fetch&quot; to test the raw fetch call</li>
             <li>Check the browser Console (F12) for detailed logs</li>
             <li>Check the Network tab to see the actual HTTP request/response</li>
             <li>Check your Flask backend logs for any errors</li>

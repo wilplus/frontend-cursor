@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionForRequest, copyCookies } from "@/lib/api/bff";
 
 /** Use mock homework when env is set or when no backend URL (dev without backend). */
-export function useMockHomework(): boolean {
+export function shouldMockHomework(): boolean {
   return (
     process.env.MOCK_HOMEWORK_BACKEND === "1" ||
     !process.env.NEXT_PUBLIC_API_URL?.trim()

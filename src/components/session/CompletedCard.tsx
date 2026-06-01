@@ -140,7 +140,7 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
         <div>
           <h4 className="text-sm font-semibold mb-2">Key Insight</h4>
           <p className="text-sm italic text-muted-foreground">
-            "{analysis.trend_sentence}"
+            &quot;{analysis.trend_sentence}&quot;
           </p>
         </div>
       )}

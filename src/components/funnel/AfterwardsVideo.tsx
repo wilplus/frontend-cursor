@@ -53,7 +53,7 @@ export default function AfterwardsVideo() {
     return (
       <SectionCard title="Thanks for recording">
         <p className="text-sm text-muted-foreground">
-          We've got your clip. We'll review it and follow up shortly.
+          We&apos;ve got your clip. We&apos;ll review it and follow up shortly.
         </p>
       </SectionCard>
     );
@@ -63,7 +63,7 @@ export default function AfterwardsVideo() {
     return (
       <SectionCard title="Thanks for recording">
         <p className="text-sm text-muted-foreground">
-          Your recording was saved. We'll be in touch.
+          Your recording was saved. We&apos;ll be in touch.
         </p>
       </SectionCard>
     );
