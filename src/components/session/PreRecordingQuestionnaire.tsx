@@ -270,7 +270,7 @@ export default function PreRecordingQuestionnaire() {
                   >
                     <span className="text-2xl block">🎯</span>
                     <p className={`text-xs mt-1 font-medium truncate ${inspirationNeeded === false ? "text-primary" : ""}`}>
-                      NO – I'll choose
+                      NO – I&apos;ll choose
                     </p>
                   </button>
                 </div>

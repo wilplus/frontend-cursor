@@ -73,7 +73,7 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         <Card className="p-6 max-w-md mx-auto">
           <h2 className="text-xl font-semibold mb-4">Access Denied</h2>
           <p className="text-muted-foreground mb-4">
-            You don't have permission to access the admin dashboard. Only administrators can view this page.
+            You don&apos;t have permission to access the admin dashboard. Only administrators can view this page.
           </p>
           <div className="flex gap-2">
             <Button onClick={() => router.push("/dashboard")} variant="outline">

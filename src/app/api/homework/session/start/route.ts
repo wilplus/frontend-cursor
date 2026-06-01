@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getV2AccessToken, getBackendUrl } from "@/app/api/getAuth";
 import {
-  useMockHomework,
+  shouldMockHomework,
   requireAuth,
   mockStartResponse,
 } from "@/lib/api/homework-mock";
@@ -14,7 +14,7 @@ export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (useMockHomework()) {
+  if (shouldMockHomework()) {
     const unauth = await requireAuth(req);
     if (unauth) return unauth;
     return NextResponse.json(mockStartResponse());

@@ -84,7 +84,7 @@ export default function PostQuestionsForm({
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-4">
-            If questions don't appear, the upload may not have completed successfully.
+            If questions don&apos;t appear, the upload may not have completed successfully.
           </p>
         </div>
       </Card>

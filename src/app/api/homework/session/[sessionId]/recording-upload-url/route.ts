@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { proxyJson } from "@/lib/api/bff";
-import { useMockHomework, requireAuth } from "@/lib/api/homework-mock";
+import { shouldMockHomework, requireAuth } from "@/lib/api/homework-mock";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function POST(
   const recording = body.recording === "2" ? "2" : "1";
   const { sessionId } = params;
 
-  if (useMockHomework()) {
+  if (shouldMockHomework()) {
     return Response.json({
       bucket: "recordings",
       storage_path: `homework/mock/${sessionId}/recording-${recording}.webm`,

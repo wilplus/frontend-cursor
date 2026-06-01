@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { proxyJson } from "@/lib/api/bff";
 import {
-  useMockHomework,
+  shouldMockHomework,
   requireAuth,
   mockStartResponse,
 } from "@/lib/api/homework-mock";
@@ -9,7 +9,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (useMockHomework()) {
+  if (shouldMockHomework()) {
     const unauth = await requireAuth(req);
     if (unauth) return unauth;
     return Response.json(mockStartResponse());

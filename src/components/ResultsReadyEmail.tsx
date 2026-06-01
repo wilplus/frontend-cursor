@@ -98,7 +98,7 @@ export default function ResultsReadyEmail({
             <p>Hi {userName},</p>
 
             <p>
-              Your voice analysis is complete! We've extracted your best moments and added detailed feedback from our coaches.
+              Your voice analysis is complete! We&apos;ve extracted your best moments and added detailed feedback from our coaches.
             </p>
 
             <p>
@@ -127,7 +127,7 @@ export default function ResultsReadyEmail({
               © {new Date().getFullYear()} Willab. All rights reserved.
             </p>
             <p style={{ margin: "0" }}>
-              This is an automated message—please don't reply directly to this email.
+              This is an automated message—please don&apos;t reply directly to this email.
             </p>
           </div>
         </div>
