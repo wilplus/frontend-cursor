@@ -30,3 +30,30 @@ export function hasSeenOpener(): boolean {
     return false;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*  In-memory "attempted this page load" guard                                */
+/*                                                                            */
+/*  Distinct from the persistent seen-flag above. The seen-flag means "the    */
+/*  user completed the whole joke — never show it again." This guard means    */
+/*  "the opener already ran (or tried to) during THIS page load — don't       */
+/*  re-enter the opening phase again."                                        */
+/*                                                                            */
+/*  Why both? A 204 (empty dad_jokes table) or a transient error must NOT     */
+/*  permanently disable the opener — it should retry on the next full page    */
+/*  load (e.g. once the BE seeds the table). So the seen-flag is set ONLY on  */
+/*  a completed joke. But within a single load we still must not bounce back  */
+/*  into "opening" after the opener resolves (the routing + welcome_back      */
+/*  effects both gate on these). This module-level flag resets on a full      */
+/*  reload (fresh JS context), giving us "retry next load, but not this one". */
+/* -------------------------------------------------------------------------- */
+
+let attemptedThisLoad = false;
+
+export function markOpenerAttempted(): void {
+  attemptedThisLoad = true;
+}
+
+export function hasAttemptedOpener(): boolean {
+  return attemptedThisLoad;
+}

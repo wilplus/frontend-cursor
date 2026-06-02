@@ -45,7 +45,10 @@ import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { createClient as createSupabaseBrowser } from "@/lib/supabase/client";
 import { consumePostOnboardingWelcome } from "@/lib/funnel/postOnboardingWelcome";
 import { consumePostSignupConfirmation } from "@/lib/funnel/postSignupConfirmation";
-import { hasSeenOpener } from "@/lib/funnel/onboardingOpenerSeen";
+import {
+  hasAttemptedOpener,
+  hasSeenOpener,
+} from "@/lib/funnel/onboardingOpenerSeen";
 import { useSessionRouteGuard } from "@/lib/session/useSessionRouteGuard";
 import { botBubblesFromText } from "@/lib/chat/botBubbles";
 
@@ -163,10 +166,12 @@ export function useChatPhase({
     }
 
     // T2 opener gate — runs on EVERY chat entry path before the surface's
-    // normal first message. Once-per-browser via localStorage. After pivot
-    // the opener hook transitions to the correct next phase by detecting
-    // auth: token present → q_and_a / welcome_back; no token → onboarding.
-    if (!hasSeenOpener()) {
+    // normal first message. Gated on BOTH the persistent seen-flag
+    // (completed the joke, ever) AND the in-memory attempted-guard
+    // (already ran/tried this page load — prevents bouncing back into
+    // "opening" after the opener bails). After pivot the opener hook
+    // routes onward by detecting auth.
+    if (!hasSeenOpener() && !hasAttemptedOpener()) {
       setPhase("opening");
       return;
     }
@@ -204,9 +209,11 @@ export function useChatPhase({
     // page.client.tsx handles the bubble sequence + transitions back to
     // q_and_a after the pivot line lands.
     //
-    // On re-entry (opener already seen, or returning signed-in user who
-    // did a profile reset), fall through to the normal welcome_back flow.
-    if (!hasSeenOpener()) {
+    // On re-entry (opener already seen/attempted this load, or returning
+    // signed-in user who did a profile reset), fall through to the normal
+    // welcome_back flow. The attempted-guard stops the opener bailing
+    // back here from bouncing into "opening" again.
+    if (!hasSeenOpener() && !hasAttemptedOpener()) {
       setPhase("opening");
       return;
     }
