@@ -3,7 +3,9 @@ import type { Phase } from "@/components/chat/thread/types";
 import type { ThreadHandle } from "@/components/chat/thread/useThread";
 import { getAuthToken } from "@/lib/api/auth-client";
 import {
+  hasAttemptedOpener,
   hasSeenOpener,
+  markOpenerAttempted,
   markOpenerSeen,
 } from "@/lib/funnel/onboardingOpenerSeen";
 import { consumePostSignupConfirmation } from "@/lib/funnel/postSignupConfirmation";
@@ -119,14 +121,19 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
     timerRefs.current.push(t);
   };
 
-  /** Bail path. Always marks seen to prevent re-shows on error. */
+  /**
+   * Bail path — opener can't run or failed. Routes onward WITHOUT
+   * persisting the seen-flag: a 204 (empty dad_jokes table) or transient
+   * error must not permanently disable the opener — it retries on the
+   * next full page load. Re-entry within THIS load is blocked by the
+   * in-memory attempted-guard (set in run()). Only a completed joke
+   * (the pivot in submitReply) sets the persistent seen-flag.
+   */
   const bail = useCallback(
     (
       setPhase: (p: Phase) => void,
-      target: "welcome_back" | "q_and_a" | "onboarding" = "welcome_back"
+      target: "welcome_back" | "q_and_a" | "onboarding" = "onboarding"
     ) => {
-      markOpenerSeen();
-      consumePostSignupConfirmation(); // drain even on bail so it doesn't show later
       stepRef.current = "done";
       setPhase(target);
     },
@@ -138,24 +145,34 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
       setPhase: (p: Phase) => void,
       appendBubble: ThreadHandle["appendBubble"]
     ): Promise<void> => {
-      // Frequency cap — once per browser. useChatPhase already checks
-      // this before setting phase="opening", so hitting this branch is
-      // a defensive guard against a race condition. Route to the correct
-      // next phase based on auth state (mirrors the pivot logic below).
-      if (hasSeenOpener()) {
+      // Frequency cap — completed (persistent) OR attempted this load
+      // (in-memory). useChatPhase gates on both before setting
+      // phase="opening", so this is a defensive guard.
+      if (hasSeenOpener() || hasAttemptedOpener()) {
+        markOpenerAttempted();
         const existingToken = await getAuthToken();
-        setPhase(existingToken ? "q_and_a" : "onboarding");
+        setPhase(existingToken ? "welcome_back" : "onboarding");
         return;
       }
 
       if (stepRef.current !== "idle") return; // guard against double-fire
       stepRef.current = "loading";
+      // Mark attempted IMMEDIATELY so the routing + welcome_back effects
+      // can't bounce back into "opening" while this is in flight or after
+      // it bails. Resets on a full page reload, so a 204 retries next time.
+      markOpenerAttempted();
       setIsSubmitting(true);
+
+      // Where to go if the opener can't run (204 empty table, network,
+      // bad payload). Anonymous → straight into onboarding (recording);
+      // authed → welcome_back (the normal post-signup confirmation flow).
+      let afterOpenerPhase: Phase = "onboarding";
 
       try {
         // Auth is optional — anonymous visitors have no token and that
         // is fine. Include the header only when a token is available.
         const token = await getAuthToken();
+        afterOpenerPhase = token ? "welcome_back" : "onboarding";
 
         let res: Response;
         try {
@@ -168,20 +185,21 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
             body: "{}",
           });
         } catch {
-          bail(setPhase);
+          bail(setPhase, afterOpenerPhase);
           return;
         }
 
-        // 204 or any non-200 → silent skip (BFF already degrades all
-        // non-200 BE responses to 204).
+        // 204 (no jokes / table missing) or any non-200 → silent skip.
+        // bail does NOT persist the seen-flag, so once BE seeds the
+        // table the opener appears on the user's next visit.
         if (res.status !== 200) {
-          bail(setPhase);
+          bail(setPhase, afterOpenerPhase);
           return;
         }
 
         const data = (await res.json().catch(() => null)) as StartResponse200 | null;
         if (!data?.joke_id || !data.frame || !data.setup) {
-          bail(setPhase);
+          bail(setPhase, afterOpenerPhase);
           return;
         }
 
@@ -202,7 +220,7 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
         });
       } catch (err) {
         console.warn("useOnboardingOpener.run — unexpected error:", err);
-        bail(setPhase);
+        bail(setPhase, afterOpenerPhase);
         setIsSubmitting(false);
       }
     },
