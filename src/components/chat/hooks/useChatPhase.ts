@@ -162,6 +162,15 @@ export function useChatPhase({
       return;
     }
 
+    // T2 opener gate — runs on EVERY chat entry path before the surface's
+    // normal first message. Once-per-browser via localStorage. After pivot
+    // the opener hook transitions to the correct next phase by detecting
+    // auth: token present → q_and_a / welcome_back; no token → onboarding.
+    if (!hasSeenOpener()) {
+      setPhase("opening");
+      return;
+    }
+
     if (sessionId) {
       // Returning user with an in-flight session. Per the "pending
       // users in active chat" spec, we DON'T show a static waiting
@@ -180,13 +189,6 @@ export function useChatPhase({
     }
 
     // No session, no welcome flag → cold-start recording.
-    // Fire the opener first if this browser hasn't seen it yet —
-    // same once-per-browser cap as the post-signup path. After pivot
-    // the opener transitions to "onboarding" (anonymous → no token).
-    if (!hasSeenOpener()) {
-      setPhase("opening");
-      return;
-    }
     setPhase("onboarding");
   }, [sessionId, guard.checking, guard.redirecting, appendBubble, clearBubbles]);
 
