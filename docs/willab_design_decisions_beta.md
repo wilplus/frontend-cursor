@@ -275,6 +275,8 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 10. **`session_context`** as the per-recording intake (topic required), distinct from the one-time profile.
 11. **Coach-authored message** surfaced in status/insights (no AI session-N+1 opener).
 12. **`CasualVoiceConsentModal` deleted** — consent is covered by the first-run disclosure + the browser `getUserMedia` prompt; the Lounge's local Web Speech never leaves the browser (this doc §9).
+13. **Welcome + consent (this doc §12)** — Spec §4.1 refined to one lightweight screen: recording/privacy disclosure naming **both** data paths (Lab may be sent to a coach; Lounge stored for continuity), accept-to-continue, `localStorage` `accepted` flag, shown once; **not** account creation.
+14. **Send gate (this doc §13)** — Spec §4.8 refined: **park before redirect** (the parked recording is the hand-off token across OAuth); **merge-then-send** callback ordering (a: merge Lounge thread, b: send); **confirmation only on send success** (OAuth success ≠ send success); idempotent send; offline queue + retry; account-exists → log in → same merge-then-send; explicit `Back to Lounge` dismissal (no auto-teleport, no second send).
 
 ---
 
@@ -285,6 +287,84 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 - **`profile` record** — one per user from intake: `domain` (enum) + free-text goal; produces `inferred_learner_profile` / `baseline_summary`.
 - **Signal re-point** — `usePublishLiveSubscription` + `useReviewingFetch` + `ResultsReadyEmail` from the retired `reviewing` phase → the status region.
 - **Coach-side authoring** — overall message + per-snippet notes per session (the admin/coach surface that produces the Insights payload).
+- **Send-gate callback ordering** — on the unsigned OAuth return, run **merge-then-send** in this exact order: (a) merge local Lounge thread → server (chronological append), (b) send the parked recording. Do not reorder.
+- **Idempotency key on send** — server-side dedupe so a double OAuth callback or double-tap can't double-send (client guards the control + handler too).
+- **Offline send-queue + retry** — if send fails / offline (either path), the recording stays `parked`, queued, auto-retried; never render "sent" until send succeeds.
+- **"Confirmation only on send success" gate** — the sent-confirmation is reachable *only* on send success, never on auth success alone (OAuth success ≠ send success).
+
+---
+
+## 12. Welcome + consent (first-run — before Intake)
+*(Flow-ordered before §2; appended here as §12 to keep §1–§11 numbering + cross-references stable.)*
+
+**Purpose:** the very first screen, no account. Lightweight **recording/privacy consent**, **not** account creation. Shown once; then → Intake (§2).
+
+**Locked decisions**
+- **One screen, not a wizard.** Warm headline → 2–3 plain "what this does" lines → a short recording/privacy disclosure → one **Accept & continue** button → links to full Privacy / Terms.
+- **Lightweight consent, not sign-up.** No email/password here — account creation is deferred to the Send gate (§13).
+- **Disclosure names both data paths:** the **Lab** recording is captured and may be sent to a human coach; the **Lounge** chat is stored for *your own* continuity (never used to judge you).
+- **Persistence:** an `accepted` flag in `localStorage` (unsigned at this point); associates with the account on later sign-up. Shown once — returning users (flag set or account present) skip straight past it.
+
+**Layout sketch**
+```
+┌─────────────────────────────────┐
+│            willab                │  Heading
+│  See how you actually sound,     │  Body
+│  then get a real coach's read.   │
+│                                  │
+│  • Record a short speaking task  │  Body — what it does
+│  • See the raw data of your voice│
+│  • A human coach sends insights  │
+│                                  │
+│  We record your Lab task and may │  Meta — disclosure
+│  send it to a coach. Your Lounge │
+│  chats are saved just for you.   │
+│                                  │
+│   [ Accept & continue ]          │  primary
+│   Privacy · Terms                │  Meta links
+└─────────────────────────────────┘
+```
+
+**State:** `welcome_consent` (§8) — first run only. Supersedes any scattered first-run consent; `CasualVoiceConsentModal` is deleted (§9).
+
+---
+
+## 13. Send gate (Readout footer → coach handoff)
+**Purpose:** the only sign-up gate in the whole flow. Entry = the Readout's persistent footer **`Send to my coach for analysis`** (§5). Branch on auth state. **There is no second send action** — landing on the Lounge afterward is a single dismissal tap, never a re-send.
+
+### Path 1 — signed-in (instant)
+1. Tap Send → control **disables immediately** (idempotency guard).
+2. Send fires: Lab audio/transcript + features + stickiness + `profile` + this recording's `session_context`. **Never the Lounge thread** (AC-7).
+3. **Success** → in-overlay confirmation: *"Your coach received your work and will analyze it. You'll get fresh insights by email — and here in your Lounge."* with a single **`Back to Lounge`** action.
+4. Tap `Back to Lounge` → overlay closes → Lounge → session is `review_pending` (🕓 chip already showing).
+5. **Offline / send fails:** recording stays **`parked`** + queued + auto-retry; copy *"will send when you're back online."* **Never show "sent."**
+
+### Path 2 — unsigned (OAuth round-trip)
+1. Tap Send → recording is **`parked`** (held on the Readout — this is the hand-off token across the redirect) → **redirect to the existing wired OAuth auth screen.**
+2. The auth screen is **OAuth** and **already carries the "by signing up you agree to Terms + Privacy" disclosure** — no separate account-ToS surface.
+3. User completes OAuth → **callback returns to the app.**
+4. On callback, **in this exact order** (do not reorder):
+   - **a. merge** the local Lounge thread → server (chronological append, never overwrite);
+   - **b. send** the parked recording (same payload as Path 1; idempotency guard on the callback handler so a double callback can't double-send);
+   - **c.** on send success → continue to step 5.
+5. **Return target = back on the Readout** (where the user acted) → same confirmation as Path 1 → single **`Back to Lounge`** tap → Lounge → `review_pending`.
+6. **Existing account** detected at OAuth → log in instead → run 4a–4c → step 5.
+
+### Failure / abandon branches (both paths)
+- **Bounce off the OAuth screen / abandon sign-up:** nothing is in flight during the redirect (we parked *before* redirecting), so the recording is still `parked` on the Readout with the Send button. Nothing lost.
+- **Callback fires but send fails / offline at callback:** the account now exists, but the recording stays **`parked` + queued + retry**. Never render "sent" until the send actually succeeds.
+- **Double callback / double-tap:** idempotency key dedupes server-side; control + handler guarded client-side. Can't double-send.
+
+### The one trap (write it into the build)
+The confirmation screen is reachable **only on send success — never on auth success alone.** OAuth succeeding does not mean the recording sent. Until send succeeds, the session is `parked`, not `review_pending`.
+
+### States
+`readout` → (`sendgate_unsigned` → OAuth → callback | `sendgate_signed`) → confirmation → `review_pending`. Any abandon/failure → `parked` (held, resumable).
+
+### Code grounding
+- Reuse the existing **OAuth auth screen** + its Terms/Privacy disclosure (no new ToS surface).
+- Reuse the **`PendingSessionClaim`** post-auth handoff pattern for the merge-then-send on callback.
+- `Back to Lounge` is an **explicit dismissal** (locked over auto-dismiss) so the user consciously lands on the Lounge with the `review_pending` chip visible, rather than being teleported.
 
 ---
 *Locked decisions only. Open red-lines are exhausted through the core loop. Anything not covered here defers to Spec v1.1 / v1.2.*
