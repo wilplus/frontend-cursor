@@ -1,9 +1,9 @@
 # willab — Design Decisions (Developer Reference)
 **Audience:** the developer / coding agents implementing the commercial beta.
-**Companion to:** `willab_user_story_beta.md` (Spec v1.1 — the source-of-truth user story). This doc is the **design-decisions consolidation** and folds in the **v1.2 deltas** (see §9). Where this doc and v1.1 differ, the v1.2 delta list is authoritative; everything else defers to the spec.
-**Organization:** by component. Each section = purpose → locked decisions → states (where relevant) → code grounding → per-component deletions. Cross-cutting deletions and backend work are collected in §8 / §10.
-**Two corrections folded in from the latest review** (don't implement the older versions):
-- **Status region is a linear, single-active model** — one official recording in flight at a time, `pending → delivered → back to launch`. *Not* the earlier concurrent stack of session cards. This overrides Spec §5's concurrency DEFAULT.
+**Companion to:** `willab_user_story_beta.md` (Spec v1.1 — the source-of-truth user story). This doc is the **design-decisions consolidation** and folds in the **v1.2 deltas** (see §10). Where this doc and v1.1 differ, the v1.2 delta list is authoritative; everything else defers to the spec.
+**Organization:** by component. Each section = purpose → locked decisions → states (where relevant) → code grounding → per-component deletions. Cross-cutting deletions and backend work are collected in §9 / §11.
+**Two corrections folded in from review** (don't implement the older versions):
+- **Status region is a linear, single-active model** — one official recording in flight at a time, `pending → delivered → back to launch`. *Not* a concurrent stack of session cards. This overrides Spec §5's concurrency DEFAULT.
 - **The Lounge bot is a librarian, not a progress engine** — it retrieves and replays the coach's notes; it never computes or asserts "you're improving."
 
 ---
@@ -15,23 +15,56 @@
 - **Body** — transcript, feature values, AI/coach commentary (the readable substance).
 - **Meta** — labels, counters, scores, timestamps (the quiet scaffolding).
 
-**Bubble vocabulary** — chat message "kinds" are an enumerated set. One kind is being **retired** this phase (`metrics`, see §8).
+**Bubble vocabulary** — chat message "kinds" are an enumerated set. One kind is being **retired** this phase (`metrics`, see §9).
 
 ---
 
-## 2. Lounge (home hub)
+## 2. Intake (first-run interview — conversational, non-recording)
+**Purpose:** first-run only. Capture the one-time **profile** — domain (metadata) + a specific goal in the user's own words. Conversational *framing*, structured *where it should be*. **No audio recorded.** Builds `inferred_learner_profile` / `baseline_summary`. Runs **once**; returning users skip straight to the Lounge.
+
+**Turn structure (locked): exactly two questions, then the CTA to the Lounge.**
+- **Q1 — domain: a selection, not a free chat turn.** Render the five **`DomainChips`** *inside* the chat thread as tappable options (not "type which domain interests you"). Conversational framing, structured input → you get the clean enum key, no parsing layer, one fast tap on mobile.
+- **Q2 — goal: the genuinely open turn.** A single **free-text line** with a **domain-coupled placeholder** seeding it. **No goal chips** — the goal must be *in the user's own words* (it feeds the profile and gives the coach something real to read); goal chips would convert the one piece of genuine self-articulation into a second multiple-choice field.
+- **Order is domain-then-goal** (not both at once) *specifically because* the goal placeholder couples to the chosen domain — the placeholder swaps to match the chip the user just tapped.
+
+**`DomainChips` (flat chips; exactly five — bounded by Decisions 6 & 9, do not add or substitute):**
+| Chip label | `domain` enum (metadata key — the contract) | Goal placeholder (free-text seed) | Vocabulary seed → `session_context.domain_vocabulary` default + Whisper prime |
+|---|---|---|---|
+| Public speaking | `public_speaking` | "I want to keep my nerve through the opening minute of a talk." | keynote, slide, audience, podium, Q&A, pacing |
+| Sales | `sales` | "I want to sound steady when I get to pricing." | pipeline, objection, close, discovery call, pitch, quota |
+| Executive presence | `executive_presence` | "I want to command the room in leadership updates." | board, stakeholder, all-hands, gravitas, brief, alignment |
+| Customer service | `customer_service` | "I want to stay calm with an angry caller." | ticket, escalation, resolution, caller, SLA, de-escalate |
+| Interview preparation | `interview_prep` | "I want to stop rushing my answers under pressure." | recruiter, behavioral question, STAR, panel, role, offer |
+
+**`DomainChips` UI: flat chips, not description cards.** The recruited population (Toastmasters, sales training, MBA/exec programs, ICF coaches, interview-prep seekers) self-identifies its domain before opening the app; the five labels need no gloss. Cards would solve a comprehension problem you don't have and cost the fast single tap at the lowest-stakes moment in the flow. *Back-pocket fallback (don't build now):* if a tester ever stalls on a label, add one line of helper text under the chip row — never per-chip cards.
+
+**Implementer notes**
+- **Enum keys are the contract** — store the key, render the label, keep keys stable; the coach packet and `session_context` reference them.
+- **Goal placeholder** is rotating example copy in the free-text field — it nudges articulation, it does not constrain the answer.
+- **Vocabulary seed** is the editable default that lands in `session_context.domain_vocabulary` (§4) and primes Whisper; the user can edit it per recording.
+- **None of this forks the flow.** Domain stays metadata (Spec §0): no branch in prompts, content, or KPI.
+
+**Guardrails (personality must not overrun scope — this sits right next to the no-judgment spine):**
+- **Bounded turns.** Exactly two questions, then the CTA. **Do not** let it become an open multi-turn steering interview — that is the charisma/stress onboarding interview you just deleted (§9). A chatty intake that drifts into "tell me more about your fears" quietly rebuilds the thing you cut.
+- **No evaluation language.** It captures; it does not assess. "Got it — let's hear you," not "great choice, that's a tough skill."
+
+**State:** `intake_in_progress` (§8) — non-recording.
+
+---
+
+## 3. Lounge (home hub)
 **Purpose:** the always-mounted home surface. Off-task, calm, brand-toned. Everything launches from and returns to it.
 
 **Locked decisions**
-- **Always mounted.** The Lab opens as an overlay *over* the Lounge (§3); the Lounge instance and its live chat thread persist underneath and are restored on overlay close with **no remount**.
+- **Always mounted.** The Lab opens as an overlay *over* the Lounge (§4); the Lounge instance and its live chat thread persist underneath and are restored on overlay close with **no remount**.
 - **Open chat — text or speech**, user's choice, functionally identical, both **unmeasured**. Speech uses the **Web Speech API** (local, free); it is **not** the Whisper pipeline.
 - **Mic ownership:** the Lounge speech input is **released/paused for the entire lifetime of the Lab overlay** so only the Lab's `MediaRecorder` holds `getUserMedia`; it resumes on overlay close.
 - **Persistent "Start official recording" CTA** — always available, **never blocked** by an in-flight or parked session.
 - **Optional warm-opener** — the repurposed former onboarding opener (light brand-tone first touch). Optional flavor only; **must never block or delay the launch CTA**; detached from the first-run path.
-- **Status region pinned to the top** (§5).
-- **The Lounge bot** — see §6 for its full context + the librarian guardrail.
+- **Status region pinned to the top** (§6).
+- **The Lounge bot** — see §7 for its full context + the librarian guardrail.
 
-**Persistence (BE handoff — see §10):**
+**Persistence (BE handoff — see §11):**
 - Signed-in: server-backed `lounge_messages` (survives reload + device switch).
 - Unsigned: `localStorage`; **merges chronologically into the server thread on sign-up** (append, never overwrite).
 - In-memory is ruled out.
@@ -39,19 +72,19 @@
 
 ---
 
-## 3. Lab (official recording — overlay + training zone)
+## 4. Lab (official recording — overlay + training zone)
 **Purpose:** the high-stakes, on-task surface. The single official recording happens here. Visually and behaviorally distinct from the Lounge.
 
 **Locked decisions**
 - **Overlay, not a route.** Launched over the always-mounted Lounge; closing returns to the Lounge underneath with no remount. *(If an agent wires this as its own route, the hub model breaks — this is a STOP-and-check item.)*
 - **Explicit "training zone" chrome.** Distinct from the Lounge: own header conveying official + not-yet-sent (e.g. **"Official recording · not yet sent"**), no casual Lounge affordances inside. The user always knows: in the Lab = on-task; in the Lounge = off-task.
-- **Holds the mic** (`getUserMedia` → `MediaRecorder`) for its lifetime; Lounge speech input released (§2).
+- **Holds the mic** (`getUserMedia` → `MediaRecorder`) for its lifetime; Lounge speech input released (§3).
 
 **Step A — `session_context` (per recording; 1 : many against the one-time profile)**
 - **Topic** — *required* (feeds stickiness "topic coherence", Whisper vocabulary priming, prompt relevance, coach interpretability).
 - **Audience** — optional.
 - **Target length** — optional.
-- **Domain vocabulary** — auto-derived from the profile domain; editable.
+- **Domain vocabulary** — auto-derived from the profile domain via the **vocabulary seed in §2**; editable per recording.
 - The profile **goal** shows as a read-only reminder.
 - Friction target: near-zero — everything but topic is pre-filled/optional.
 - **Do not** merge `session_context` into the one-time profile; **do not** cut it.
@@ -74,18 +107,18 @@
 
 ---
 
-## 4. Readout (the core payoff screen)
+## 5. Readout (the core payoff screen)
 **Purpose:** "here's your voice as data." Neutral, factual, **non-interpretive** — it hands the verdict to the coach. This is the no-judgment promise in screen form.
 
 **The two-stage story (frame the whole component around this)**
 | Moment | Surface | Content | Tone |
 |---|---|---|---|
 | Right after recording | **Readout** (in the Lab overlay) | raw features + AI-stickiness + AI comment | neutral, factual |
-| When analysis returns | **Insights** (in the Lounge, §5) | the **human coach's** notes + message, on the same data | personal, interpretive |
+| When analysis returns | **Insights** (in the Lounge, §6) | the **human coach's** notes + message, on the same data | personal, interpretive |
 
 **Locked decisions**
 - **Sequential reveal → summary list.** One snippet card at a time, tap-to-advance (a paced payoff, not a data dump), then a scrollable list of all cards to revisit.
-- Lives inside the Lab overlay; closing **parks** (§3), it does not discard.
+- Lives inside the Lab overlay; closing **parks** (§4), it does not discard.
 
 **Snippet card anatomy**
 ```
@@ -117,7 +150,7 @@
 3. **"Show dynamics" expander** for the 4 abstract derived features (F0 slope, pause regularity, intensity-envelope shape, F0 mid-vs-end delta). Hierarchy is intentional: equal-for-the-classifier ≠ equal-for-a-human.
 4. **Stickiness = comment-first, score-second, neutral-colored.** No good/bad, no red/green.
 5. **Baseline line included** (flips Spec DEFAULT #4): *"Your personal baseline builds over your first few sessions; these are raw values."* It preempts the "is this good?" anxiety on the card.
-6. **Science lives in the bot, not in tooltips.** A single **"What do these mean?"** link drops the user into the Lounge with the bot primed. **No inline per-feature explainers.** (Diverging here parks the session — §3.)
+6. **Science lives in the bot, not in tooltips.** A single **"What do these mean?"** link drops the user into the Lounge with the bot primed. **No inline per-feature explainers.** (Diverging here parks the session — §4.)
 7. **Persistent send footer:** `Send to my coach for analysis`, always visible under the cards → send gate.
 
 **Code grounding**
@@ -128,10 +161,10 @@
 
 ---
 
-## 5. Status region + Insights view
+## 6. Status region + Insights view
 **Purpose:** the Lounge's pinned top area — where the parked chip lives and where the coach's commentary lands.
 
-### 5a. Status region — LINEAR single-active model
+### 6a. Status region — LINEAR single-active model
 The loop is **linear: one official recording at a time.** `record → (Readout) → send → with coach → insights delivered → back to launch.` So the status region is **not** a stack of concurrent session cards. It shows, at most:
 ```
 ┌─ LOUNGE (status region pinned above chat) ─────────┐
@@ -150,14 +183,14 @@ The loop is **linear: one official recording at a time.** `record → (Readout) 
 | `insights_ready` | ✨ "*[topic]* · insights ready" (+ 💬 if a coach message exists) | **Read ›** → opens the Insights view |
 
 **Locked behavior**
-- `review_pending` and `insights_ready` are **transient states of the current session**, not items that accumulate. Once insights are **read**, the session's coach-annotated snippets **fold into the strong-sides library** (§6) and the status region returns to just the launch CTA. **Past sessions live in the library, not as a growing card stack here.**
+- `review_pending` and `insights_ready` are **transient states of the current session**, not items that accumulate. Once insights are **read**, the session's coach-annotated snippets **fold into the strong-sides library** (§7) and the status region returns to just the launch CTA. **Past sessions live in the library, not as a growing card stack here.**
 - **`parked`** is the one state that persists across a divert, until the user sends or explicitly discards.
 - **Empty state:** no cards — just the Start CTA + chat. The region is invisible until there's something to show.
 - This **replaces** the earlier "read → archive list" and the ready/parked/pending/read ordering; with single-active, ordering is moot.
 
 **Signal wiring (reuse existing infra):** the `pending → ready` flip is already wired — **`usePublishLiveSubscription`** (realtime) + **`useReviewingFetch`** (poll fallback), fired by the admin-publish event; email half = **`ResultsReadyEmail`**. **Re-point these from the retired `reviewing` phase at the status region.**
 
-### 5b. Insights view — "commentary when it comes back"
+### 6b. Insights view — "commentary when it comes back"
 Tapping **Read ›** **re-opens that session's Readout, now with the human layer added on the same data** (annotated Readout — confirmed reuse).
 ```
 ┌─ Insights · Investor pitch ───────── (Lounge chrome, read-only, CALM) ─┐
@@ -175,15 +208,15 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 - **Two commentary layers, clearly attributed.** AI-stickiness comment stays **neutral/automated**; the **🧑 Coach** note is **warmer, human-attributed, visually distinct**. The user never confuses the app's read with the coach's read.
 - **Read-only, Lounge chrome (calm)** — *not* the Lab's training chrome. A payoff to read, not a task to do.
 - **In-app is canonical**; email is a nudge. Opening it flips the card out of `insights_ready`.
-- **On read → ingest into the strong-sides library** (§6).
+- **On read → ingest into the strong-sides library** (§7).
 
 ---
 
-## 6. Strong-sides library + Lounge bot context
+## 7. Strong-sides library + Lounge bot context
 **Purpose:** the user's growing, personal collection of *the coach's own notes* — and the bot's ability to hand it back on request. This is the in-scope feature; a progress engine is **not**.
 
 **Locked decisions**
-- **New persistent store (BE handoff — §10).** After each **delivered** session (on read), it ingests the **coach-annotated snippets**: snippet + raw data + the coach's note, tagged **strong / to-work-on**. It grows session over session.
+- **New persistent store (BE handoff — §11).** After each **delivered** session (on read), it ingests the **coach-annotated snippets**: snippet + raw data + the coach's note, tagged **strong / to-work-on**. It grows session over session.
 - **Bot context = master science doc *+* this user's library.** The bot can retrieve and replay coach notes, surface strong/weak snippets, and offer to pull them up.
 - **Librarian, not judge — hard guardrail.** The bot **retrieves and replays human-authored coach notes**. It **must not compute or assert trajectory, improvement, decline, or any cross-session synthesis.** "Are my strong moments here, in my coach's words?" = yes. "Am I improving?" = the bot does **not** answer with a computed verdict.
 - **The bot's standing offer is invitational, not evaluative**, e.g.: *"Whenever you want to refresh your strong lines or work on the weaker ones, I'm here."* (register, not a mandated string)
@@ -194,7 +227,7 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 
 ---
 
-## 7. Full state model (single source of truth)
+## 8. Full state model (single source of truth)
 1. `welcome_consent` — first run only.
 2. `intake_in_progress` — interview surface, first run only, **non-recording** (profile capture: domain + goal).
 3. `lounge_idle` — home; optional warm-opener may greet.
@@ -213,38 +246,43 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 
 ---
 
-## 8. Master deletions / relocations list
+## 9. Master deletions / relocations list
 **Delete**
 - `AcousticMetricsBubble` component **+** the `metrics` bubble kind. *(Replaced by the per-snippet Readout cards. Keep `SnippetPlayer`.)*
-- The onboarding **charisma/stress recording interview** and the **contrast completion gate** (≥1 charisma + ≥1 stress + ≥60 s). *(Salvage only the min-content check → Lab, §3.)*
-- The **next-session icebreaker** AI auto-prefill + the session-2 first-question wiring (Task 10). *(BE columns may remain dormant. Concept repurposed as the coach-authored message, §5b.)*
+- The onboarding **charisma/stress recording interview** and the **contrast completion gate** (≥1 charisma + ≥1 stress + ≥60 s). *(Salvage only the min-content check → Lab, §4.)*
+- The **next-session icebreaker** AI auto-prefill + the session-2 first-question wiring (Task 10). *(BE columns may remain dormant. Concept repurposed as the coach-authored message, §6b.)*
+- **`CasualVoiceConsentModal`** — premise gone: the Lounge's speech is local **Web Speech** (audio never leaves the browser), and the Lab's recording consent is covered by the first-run privacy disclosure (Spec §4.1) + the browser's own `getUserMedia` permission prompt. No separate "before audio leaves the browser" modal is needed.
 
 **Relocate / repurpose (do NOT delete the asset)**
-- Onboarding **opener** (`useOnboardingOpener`, `OpenerMicButton`, `/opener/*` BFF, `dad_jokes`): **detach from the first-run path**, re-mount as the **optional Lounge warm-opener** (§2). Must never gate the launch CTA.
+- Onboarding **opener** (`useOnboardingOpener`, `OpenerMicButton`, `/opener/*` BFF, `dad_jokes`): **detach from the first-run path**, re-mount as the **optional Lounge warm-opener** (§3). Must never gate the launch CTA.
 
 **Retire (re-point, don't rip out the signals)**
-- The old **`reviewing` phase**: re-point `usePublishLiveSubscription` + `useReviewingFetch` + `ResultsReadyEmail` at the **status region** (§5a).
+- The old **`reviewing` phase**: re-point `usePublishLiveSubscription` + `useReviewingFetch` + `ResultsReadyEmail` at the **status region** (§6a).
 
 ---
 
-## 9. Spec v1.1 → v1.2 delta (fold into the user story)
-1. §4.7 DEFAULT #4 + §8.4 → **baseline line included** (copy locked in §4.6 above).
+## 10. Spec v1.1 → v1.2 delta (fold into the user story)
+*(§-references below point to the **Spec** `willab_user_story_beta.md`, except where it says "this doc.")*
+1. Spec §4.7 DEFAULT #4 + §8.4 → **baseline line included** (copy locked in this doc §5, item 5).
 2. **Delete `AcousticMetricsBubble` + `metrics` bubble kind** (keep `SnippetPlayer`).
-3. **Readout card anatomy** locked (§4): hero pair, 3 groups, "Show dynamics" expander, comment-first neutral stickiness, "What do these mean?" → Lounge.
-4. **Park-not-discard:** new first-class `parked` state; refine §6.5/§6.6 (mid-recording = discard-on-confirm; post-recording pre-send = held/resumable, explicit-discard-only); "Finish your recording" chip.
+3. **Readout card anatomy** locked (this doc §5): hero pair, 3 groups, "Show dynamics" expander, comment-first neutral stickiness, "What do these mean?" → Lounge.
+4. **Park-not-discard:** new first-class `parked` state; refine Spec §6.5/§6.6 (mid-recording = discard-on-confirm; post-recording pre-send = held/resumable, explicit-discard-only); "Finish your recording" chip.
 5. **Lab "training zone" chrome** ("Official recording · not yet sent"; no Lounge affordances inside).
-6. **Status region = linear single-active model** — overrides §5 concurrency DEFAULT and §8.8; `review_pending`/`insights_ready` are transient states of the current session.
+6. **Status region = linear single-active model** — overrides Spec §5 concurrency DEFAULT and §8.8; `review_pending`/`insights_ready` are transient states of the current session.
 7. **Insights view = annotated Readout**, two attributed commentary layers (neutral AI + human Coach) + overall coach message.
 8. **Strong-sides library** store + bot context expansion (master doc + library) + **librarian-not-judge** guardrail.
-9. **`session_context`** as the per-recording intake (topic required), distinct from the one-time profile.
-10. **Coach-authored message** surfaced in status/insights (no AI session-N+1 opener).
+9. **Intake locked:** conversational, non-recording; chip-select domain (five `DomainChips`, enum keys) + free-text goal with domain-coupled placeholder; two-turn bounded; no goal chips; no evaluation language (this doc §2).
+10. **`session_context`** as the per-recording intake (topic required), distinct from the one-time profile.
+11. **Coach-authored message** surfaced in status/insights (no AI session-N+1 opener).
+12. **`CasualVoiceConsentModal` deleted** — consent is covered by the first-run disclosure + the browser `getUserMedia` prompt; the Lounge's local Web Speech never leaves the browser (this doc §9).
 
 ---
 
-## 10. Backend handoffs (new work the original BE doesn't have)
+## 11. Backend handoffs (new work the original BE doesn't have)
 - **`lounge_messages` store** — server-side per signed-in user; `localStorage` + merge-on-sign-up for unsigned; continuity-only, never profiled, deletable, never in coach packet.
 - **Strong-sides library store** — ingests coach-annotated snippets (snippet + raw data + coach note, tagged strong / to-work-on) on each delivered session's read; read by the Lounge bot.
-- **`session_context` record** — per Lab recording, 1 : many against the one-time profile; defaults inherited from profile (vocabulary from domain).
+- **`session_context` record** — per Lab recording, 1 : many against the one-time profile; defaults inherited from profile (vocabulary from the §2 seed).
+- **`profile` record** — one per user from intake: `domain` (enum) + free-text goal; produces `inferred_learner_profile` / `baseline_summary`.
 - **Signal re-point** — `usePublishLiveSubscription` + `useReviewingFetch` + `ResultsReadyEmail` from the retired `reviewing` phase → the status region.
 - **Coach-side authoring** — overall message + per-snippet notes per session (the admin/coach surface that produces the Insights payload).
 
