@@ -29,6 +29,7 @@ import { botBubblesFromText } from "@/lib/chat/botBubbles";
 import { useRecordingHandoff } from "@/components/chat/hooks/useRecordingHandoff";
 import { useQAComposer } from "@/components/chat/hooks/useQAComposer";
 import { useOnboardingOpener } from "@/components/chat/hooks/useOnboardingOpener";
+import OpenerMicButton from "@/components/chat/OpenerMicButton";
 import type { ChatInputBarSendArgs } from "@/components/chat/ChatInputBar";
 import { useChatPhase } from "@/components/chat/hooks/useChatPhase";
 import { useReviewingFetch } from "@/components/chat/hooks/useReviewingFetch";
@@ -555,17 +556,26 @@ export default function ChatPageClient({
               switch (mode.kind) {
                 case "none":
                   return null;
+                case "opener_mic":
+                  // T2 dad-joke opener — big mic captures a voice reply,
+                  // transcript routes to /opener/next via submitReply.
+                  return (
+                    <BottomSlot widthClass="max-w-3xl">
+                      <OpenerMicButton
+                        busy={opener.isSubmitting}
+                        onReply={(text) =>
+                          void opener.submitReply(text, setPhase, appendBubble)
+                        }
+                      />
+                    </BottomSlot>
+                  );
                 case "composer":
                   return (
                     <BottomSlot widthClass="max-w-3xl">
                       <div className="flex justify-center">
                         <ChatInputBar
                           onSend={handleComposerSubmit}
-                          submitting={
-                            phase === "opening"
-                              ? opener.isSubmitting
-                              : qaSubmitting
-                          }
+                          submitting={qaSubmitting}
                           onUploadFile={
                             mode.showUpload ? handleQAFileUpload : undefined
                           }

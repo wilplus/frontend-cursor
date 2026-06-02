@@ -66,7 +66,14 @@ export type ToolbarMode =
    * `source_snippet_id`. Distinct from the small Lounge mic that
    * lives inside `composer`.
    */
-  | { kind: "recording_ready"; snippetId: string };
+  | { kind: "recording_ready"; snippetId: string }
+  /**
+   * T2 dad-joke opener — a big mic that captures a voice transcript and
+   * routes it to /opener/next. Distinct from `recording_ready` (which
+   * uploads audio): the opener only needs the words, never the audio.
+   * Keeps the bottom bar a single big mic from the joke into onboarding.
+   */
+  | { kind: "opener_mic" };
 
 export interface ToolbarInputs {
   phase: Phase;
@@ -132,6 +139,11 @@ export function deriveToolbar(inputs: ToolbarInputs): ToolbarMode {
   //   welcome_back: the two welcome bubbles are read-only for
   //     ~400ms before the q_and_a transition mounts the composer.
   if (TOOLBAR_LESS_PHASES.has(phase)) return { kind: "none" };
+
+  // T2 dad-joke opener — big mic that captures a voice reply (transcript
+  // → /opener/next). Replaces the old text-composer for this phase so the
+  // bottom bar stays "mic or buttons" the whole way through onboarding.
+  if (phase === "opening") return { kind: "opener_mic" };
 
   // label_buttons takes precedence over awaitingAdminReview /
   // recording_ready: a freshly-revealed action_pending bubble means
