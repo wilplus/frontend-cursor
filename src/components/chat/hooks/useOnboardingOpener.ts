@@ -138,10 +138,13 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
       setPhase: (p: Phase) => void,
       appendBubble: ThreadHandle["appendBubble"]
     ): Promise<void> => {
-      // Frequency cap — once per account lifetime.
+      // Frequency cap — once per browser. useChatPhase already checks
+      // this before setting phase="opening", so hitting this branch is
+      // a defensive guard against a race condition. Route to the correct
+      // next phase based on auth state (mirrors the pivot logic below).
       if (hasSeenOpener()) {
-        // Already seen: let useChatPhase run the normal welcome_back flow.
-        setPhase("welcome_back");
+        const existingToken = await getAuthToken();
+        setPhase(existingToken ? "q_and_a" : "onboarding");
         return;
       }
 
