@@ -7,7 +7,9 @@ export const runtime = "nodejs";
  * POST /api/v2/onboarding/opener/start
  *
  * BFF proxy for the dad-joke onboarding opener (Task T2).
- * @require_auth on the BE — user JWT required.
+ * Works for anonymous AND authenticated users — BE endpoint requires
+ * no auth. Authorization header is included when a token exists
+ * (logged-in users) but omitted for anonymous visitors.
  *
  * Success 200:
  *   { stage: "setup", joke_id, frame, setup }
@@ -21,13 +23,9 @@ export const runtime = "nodejs";
  * sees 200 or 204 in practice. Any non-200 is treated as "skip".
  */
 export async function POST(req: NextRequest) {
+  // Auth is optional — anonymous visitors don't have a token and
+  // that's fine. Only include the header when a token is available.
   const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
 
   const backend = getBackendUrl();
   if (!backend) {
@@ -42,7 +40,7 @@ export async function POST(req: NextRequest) {
     upstream = await fetch(`${backend}/v2/onboarding/opener/start`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         Accept: "application/json",
         "Content-Type": "application/json",
       },

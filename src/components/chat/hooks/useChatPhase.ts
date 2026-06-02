@@ -179,7 +179,14 @@ export function useChatPhase({
       return;
     }
 
-    // No session, no welcome flag → record a fresh cold-start.
+    // No session, no welcome flag → cold-start recording.
+    // Fire the opener first if this browser hasn't seen it yet —
+    // same once-per-browser cap as the post-signup path. After pivot
+    // the opener transitions to "onboarding" (anonymous → no token).
+    if (!hasSeenOpener()) {
+      setPhase("opening");
+      return;
+    }
     setPhase("onboarding");
   }, [sessionId, guard.checking, guard.redirecting, appendBubble, clearBubbles]);
 
