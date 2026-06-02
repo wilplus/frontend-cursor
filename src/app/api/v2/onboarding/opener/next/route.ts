@@ -7,7 +7,8 @@ export const runtime = "nodejs";
  * POST /api/v2/onboarding/opener/next
  *
  * BFF proxy for the dad-joke onboarding opener step 2 (Task T2).
- * @require_auth on the BE — user JWT required.
+ * Works for anonymous AND authenticated users — auth optional,
+ * same as /opener/start.
  *
  * Request body:
  *   {
@@ -20,19 +21,13 @@ export const runtime = "nodejs";
  *   200 punchline  { stage: "punchline", joke_id, ack, punchline }
  *   200 pivot      { stage: "pivot", joke_id: null, pivot_line, done: true }
  *   400 INVALID_INPUT — missing/invalid joke_id on punchline call
- *   404 JOKE_NOT_FOUND — admin deactivated joke mid-flow; FE bails to q_and_a
- *   500 V2_ERROR — unexpected; FE bails to q_and_a
+ *   404 JOKE_NOT_FOUND — admin deactivated joke mid-flow; FE bails to onboarding
+ *   500 V2_ERROR — unexpected; FE bails to onboarding
  *
  * Pass-through verbatim — the FE hook handles all error paths.
  */
 export async function POST(req: NextRequest) {
   const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json(
-      { code: "UNAUTHENTICATED", error: "Not authenticated" },
-      { status: 401 }
-    );
-  }
 
   const backend = getBackendUrl();
   if (!backend) {
@@ -49,7 +44,7 @@ export async function POST(req: NextRequest) {
     upstream = await fetch(`${backend}/v2/onboarding/opener/next`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         Accept: "application/json",
         "Content-Type": "application/json",
       },

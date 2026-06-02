@@ -123,7 +123,7 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
   const bail = useCallback(
     (
       setPhase: (p: Phase) => void,
-      target: "welcome_back" | "q_and_a" = "welcome_back"
+      target: "welcome_back" | "q_and_a" | "onboarding" = "welcome_back"
     ) => {
       markOpenerSeen();
       consumePostSignupConfirmation(); // drain even on bail so it doesn't show later
@@ -150,18 +150,16 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
       setIsSubmitting(true);
 
       try {
+        // Auth is optional — anonymous visitors have no token and that
+        // is fine. Include the header only when a token is available.
         const token = await getAuthToken();
-        if (!token) {
-          bail(setPhase);
-          return;
-        }
 
         let res: Response;
         try {
           res = await fetch("/api/v2/onboarding/opener/start", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${token}`,
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
               "Content-Type": "application/json",
             },
             body: "{}",
@@ -226,11 +224,11 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
       setIsSubmitting(true);
 
       try {
+        // Auth is optional — same pattern as /opener/start.
         const token = await getAuthToken();
-        if (!token) {
-          bail(setPhase, "q_and_a");
-          return;
-        }
+        // After pivot: authenticated users go to q_and_a (post-signup
+        // welcome flow); anonymous users go to onboarding (recording).
+        const afterOpenerPhase: Phase = token ? "q_and_a" : "onboarding";
 
         const afterPunchline = step === "awaiting_pivot";
         let res: Response;
@@ -238,7 +236,7 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
           res = await fetch("/api/v2/onboarding/opener/next", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${token}`,
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -252,9 +250,9 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
           return;
         }
 
-        // 404 (joke deactivated mid-flow) or any error → bail to q_and_a.
+        // 404 (joke deactivated mid-flow) or any error → bail.
         if (!res.ok) {
-          bail(setPhase, "q_and_a");
+          bail(setPhase, afterOpenerPhase);
           return;
         }
 
@@ -262,7 +260,7 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
           /* ---- punchline stage ---- */
           const data = (await res.json().catch(() => null)) as NextResponsePunchline | null;
           if (!data) {
-            bail(setPhase, "q_and_a");
+            bail(setPhase, afterOpenerPhase);
             return;
           }
 
@@ -282,7 +280,7 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
           /* ---- pivot stage ---- */
           const data = (await res.json().catch(() => null)) as NextResponsePivot | null;
           if (!data) {
-            bail(setPhase, "q_and_a");
+            bail(setPhase, afterOpenerPhase);
             return;
           }
 
@@ -298,9 +296,10 @@ export function useOnboardingOpener(): UseOnboardingOpenerReturn {
             markOpenerSeen();
             consumePostSignupConfirmation();
 
-            // Beat 6: transition to q_and_a — immediate after pivot lands.
-            // Bypasses welcome_back / clearBubbles so the joke thread stays.
-            setPhase("q_and_a");
+            // Beat 6: transition to the correct next phase.
+            // Anonymous → onboarding (recording starts).
+            // Post-signup → q_and_a (text chat continues).
+            setPhase(afterOpenerPhase);
             setIsSubmitting(false);
           });
         }
