@@ -145,14 +145,14 @@ describe("deriveToolbar — non-recording surface", () => {
     });
   });
 
-  it("T2: opening phase → composer (dad-joke opener needs input bar)", () => {
+  it("T2: opening phase → opener_mic (big mic captures the dad-joke voice reply)", () => {
     const result = deriveToolbar(
       baseInputs({
         phase: "opening",
         bubbles: [bubble.bot_text("Attention, before we begin…")],
       })
     );
-    expect(result).toEqual({ kind: "composer", showUpload: false });
+    expect(result).toEqual({ kind: "opener_mic" });
   });
 
   it("LI-9: welcome_back → none (read-only window)", () => {
