@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { useWillabFlow, type WillabState } from "./useWillabFlow";
 import WelcomeConsent from "./WelcomeConsent";
+import Intake from "./Intake";
 import Lounge from "./Lounge";
 
 /* -------------------------------------------------------------------------- */
@@ -50,7 +51,7 @@ export default function WillabSurface({
     return shell(<WelcomeConsent onAccept={flow.acceptConsent} />);
   }
   if (flow.state === "intake_in_progress") {
-    return shell(<IntakeStub onDone={flow.finishIntake} />);
+    return shell(<Intake onDone={flow.finishIntake} />);
   }
 
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
@@ -76,20 +77,6 @@ function StubBadge({ label }: { label: string }) {
     <span className="mb-3 inline-block rounded-full border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary">
       shell stub · {label}
     </span>
-  );
-}
-
-function IntakeStub({ onDone }: { onDone: () => void }) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <StubBadge label="Intake · domain + goal (§2)" />
-      <p className="max-w-sm text-[15px] text-muted-foreground">
-        Two quick questions (domain chips → goal), then into the Lounge.
-      </p>
-      <Button onClick={onDone} className="mt-6 rounded-full px-5">
-        Finish intake
-      </Button>
-    </div>
   );
 }
 
