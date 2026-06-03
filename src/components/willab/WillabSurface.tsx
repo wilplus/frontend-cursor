@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { useWillabFlow, type WillabState } from "./useWillabFlow";
 import WelcomeConsent from "./WelcomeConsent";
+import Lounge from "./Lounge";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -55,7 +56,7 @@ export default function WillabSurface({
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
   return shell(
     <>
-      <LoungeStub state={flow.state} onStart={flow.startRecording} />
+      <Lounge state={flow.state} onStart={flow.startRecording} goTo={flow.goTo} />
       {flow.labOverlayOpen && (
         <LabOverlayStub
           state={flow.state}
@@ -88,38 +89,6 @@ function IntakeStub({ onDone }: { onDone: () => void }) {
       <Button onClick={onDone} className="mt-6 rounded-full px-5">
         Finish intake
       </Button>
-    </div>
-  );
-}
-
-function LoungeStub({
-  state,
-  onStart,
-}: {
-  state: WillabState;
-  onStart: () => void;
-}) {
-  return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="rounded-2xl border border-border bg-muted/20 p-4">
-        <StubBadge label="Status region (§6a)" />
-        <p className="text-[13px] text-muted-foreground">
-          current state: <code className="text-foreground">{state}</code> — the
-          parked chip / review-pending / insights-ready cards land here.
-        </p>
-        <Button onClick={onStart} className="mt-3 rounded-full px-5">
-          ▶ Start official recording
-        </Button>
-      </div>
-      <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border bg-muted/10">
-        <div className="text-center">
-          <StubBadge label="Lounge thread (§3 / §7 bot)" />
-          <p className="text-[13px] text-muted-foreground">
-            persistent chat home — useLoungeThread + master-doc bot wire in at
-            the Lounge-as-home restructure.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
