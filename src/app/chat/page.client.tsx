@@ -31,6 +31,8 @@ import { useQAComposer } from "@/components/chat/hooks/useQAComposer";
 import { useOnboardingOpener } from "@/components/chat/hooks/useOnboardingOpener";
 import OpenerMicButton from "@/components/chat/OpenerMicButton";
 import type { ChatInputBarSendArgs } from "@/components/chat/ChatInputBar";
+import { useWillabBetaFlag } from "@/lib/flags";
+import WillabSurface from "@/components/willab/WillabSurface";
 import { useChatPhase } from "@/components/chat/hooks/useChatPhase";
 import { useReviewingFetch } from "@/components/chat/hooks/useReviewingFetch";
 import { useSnippetLabelingChain } from "@/components/chat/hooks/useSnippetLabelingChain";
@@ -106,6 +108,19 @@ const COMPILE_DELAY_MS = 1500;
 /* -------------------------------------------------------------------------- */
 
 export default function ChatPageClient({
+  sessionId,
+}: {
+  sessionId: string | null;
+}) {
+  // willab beta is built behind a feature flag; the legacy funnel below is the
+  // untouched flag-off path. The full Lounge-as-home restructure happens inside
+  // WillabSurface in later slices.
+  const willabBeta = useWillabBetaFlag();
+  if (willabBeta) return <WillabSurface sessionId={sessionId} />;
+  return <LegacyChatSurface sessionId={sessionId} />;
+}
+
+function LegacyChatSurface({
   sessionId,
 }: {
   /** `?session=<id>` from the URL. Present after finalize redirects
