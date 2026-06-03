@@ -208,7 +208,8 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 - **Two commentary layers, clearly attributed.** AI-stickiness comment stays **neutral/automated**; the **🧑 Coach** note is **warmer, human-attributed, visually distinct**. The user never confuses the app's read with the coach's read.
 - **Read-only, Lounge chrome (calm)** — *not* the Lab's training chrome. A payoff to read, not a task to do.
 - **In-app is canonical**; email is a nudge. Opening it flips the card out of `insights_ready`.
-- **On read → ingest into the strong-sides library** (§7).
+- **On read → ingest into the strong-sides library** (§7) — **tagged snippets only** (§14).
+- **Overall coach message is optional — hide the "💬 From your coach" block entirely when empty.** The ≥1-tagged-note library floor (§14) already guarantees human presence in every published session; a mandated overall message would only produce filler that cheapens the warmth anchor. Per-snippet coach notes stand alone when there's no overall message.
 
 ---
 
@@ -277,6 +278,7 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 12. **`CasualVoiceConsentModal` deleted** — consent is covered by the first-run disclosure + the browser `getUserMedia` prompt; the Lounge's local Web Speech never leaves the browser (this doc §9).
 13. **Welcome + consent (this doc §12)** — Spec §4.1 refined to one lightweight screen: recording/privacy disclosure naming **both** data paths (Lab may be sent to a coach; Lounge stored for continuity), accept-to-continue, `localStorage` `accepted` flag, shown once; **not** account creation.
 14. **Send gate (this doc §13)** — Spec §4.8 refined: **park before redirect** (the parked recording is the hand-off token across OAuth); **merge-then-send** callback ordering (a: merge Lounge thread, b: send); **confirmation only on send success** (OAuth success ≠ send success); idempotent send; offline queue + retry; account-exists → log in → same merge-then-send; explicit `Back to Lounge` dismissal (no auto-teleport, no second send).
+15. **Coach authoring (this doc §14)** — **direction-only** label (`threat/ambiguous/challenge`, `direction-v1`, schema-versioned + accept/override flags; migration-ready to the 28→12–16 scenario protocol); training/user **zone split** (label private, note+tag user-facing) with **no auto-derive** of the tag from the label; **new purpose-built** authoring surface (reuse components, not Tab 1); **overall message optional + hidden-when-empty**; **publish requires every snippet labeled**; library ingest = **tagged-only**; segmentation **hard-capped to top-N (~10)/session**; **pseudonymized** review queue; capture a training-annotation event on publish, **no per-publish retrain**.
 
 ---
 
@@ -286,7 +288,11 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 - **`session_context` record** — per Lab recording, 1 : many against the one-time profile; defaults inherited from profile (vocabulary from the §2 seed).
 - **`profile` record** — one per user from intake: `domain` (enum) + free-text goal; produces `inferred_learner_profile` / `baseline_summary`.
 - **Signal re-point** — `usePublishLiveSubscription` + `useReviewingFetch` + `ResultsReadyEmail` from the retired `reviewing` phase → the status region.
-- **Coach-side authoring** — overall message + per-snippet notes per session (the admin/coach surface that produces the Insights payload).
+- **Coach-side authoring** — overall message + per-snippet notes per session (the admin/coach surface that produces the Insights payload — this doc §14).
+- **Training-annotation / labels store** — per-snippet direction label (`direction-v1`: `threat/ambiguous/challenge`, schema-versioned, `was_pre_filled` / `was_overridden` flags) captured as an annotation event on publish; the beta's **only** classifier-training signal. **No per-publish retrain** (batched, out of scope). Migration-ready to the 28→12–16 scenario schema. Training-zone — **never** surfaces in Insights.
+- **Publish gate** — Publish requires **every snippet labeled**; overall message optional (soft warning, non-blocking).
+- **Segmentation top-N cap** — the pipeline caps snippets per session to the **top-N (~10) most analyzable**, bounding coach labeling load (and therefore user insight latency) by design, not by after-the-fact alerting.
+- **Pseudonymized review queue** — `review_pending` sessions listed by pseudonymous user ID; the coach sees full transcript + goal (necessarily), disclosed as *pseudonymized* in §12.
 - **Send-gate callback ordering** — on the unsigned OAuth return, run **merge-then-send** in this exact order: (a) merge local Lounge thread → server (chronological append), (b) send the parked recording. Do not reorder.
 - **Idempotency key on send** — server-side dedupe so a double OAuth callback or double-tap can't double-send (client guards the control + handler too).
 - **Offline send-queue + retry** — if send fails / offline (either path), the recording stays `parked`, queued, auto-retried; never render "sent" until send succeeds.
@@ -302,7 +308,7 @@ Tapping **Read ›** **re-opens that session's Readout, now with the human layer
 **Locked decisions**
 - **One screen, not a wizard.** Warm headline → 2–3 plain "what this does" lines → a short recording/privacy disclosure → one **Accept & continue** button → links to full Privacy / Terms.
 - **Lightweight consent, not sign-up.** No email/password here — account creation is deferred to the Send gate (§13).
-- **Disclosure names both data paths:** the **Lab** recording is captured and may be sent to a human coach; the **Lounge** chat is stored for *your own* continuity (never used to judge you).
+- **Disclosure names both data paths:** the **Lab** recording is captured and may be sent to a human coach (who reviews it under a **pseudonymous ID** — disclosed as *pseudonymized*, not anonymized, since the coach necessarily sees your recording + goal); the **Lounge** chat is stored for *your own* continuity (never used to judge you).
 - **Persistence:** an `accepted` flag in `localStorage` (unsigned at this point); associates with the account on later sign-up. Shown once — returning users (flag set or account present) skip straight past it.
 
 **Layout sketch**
@@ -367,4 +373,55 @@ The confirmation screen is reachable **only on send success — never on auth su
 - `Back to Lounge` is an **explicit dismissal** (locked over auto-dismiss) so the user consciously lands on the Lounge with the `review_pending` chip visible, rather than being teleported.
 
 ---
-*Locked decisions only. Open red-lines are exhausted through the core loop. Anything not covered here defers to Spec v1.1 / v1.2.*
+
+## 14. Coach authoring (off-stage — produces the Insights payload)
+*(Off-stage; the coach's **Publish** is what creates the user's `insights_ready`. Appended as §14 to keep numbering stable.)*
+
+**Purpose:** the only human-in-the-loop surface. The coach receives the coach packet, labels each snippet for the classifier (private), authors the user-facing notes, and publishes. It is the *source* of everything §6b (Insights) and §7 (library) render.
+
+**Scope guard:** this surface only — not A (§12) / B (§13). Reuse existing publish infra, do not rebuild it.
+
+### Label schema — direction-only (v1), migration-ready
+- **3-class direction label** per snippet: `threat | ambiguous | challenge`. This is the threat/challenge appraisal — **training zone, never user-visible** (AC-9).
+- **Stored versioned, never a bare string:** `label: { schema_version: "direction-v1", value, labeled_at, labeled_by, was_pre_filled, was_overridden }`.
+- **Migration boundary:** `direction-v1` is the beta schema; it must **augment, not replace,** the master-doc **28→12–16 scenario-anchored** protocol in a future commit. *(Resolves the prior OPEN flag → "direction-only for now, migration-ready.")*
+- **Accept vs override is the signal:** `was_pre_filled` / `was_overridden` distinguish cheap accepts from high-value corrections — do not collapse them.
+
+### Two zones — split-sink, never leak
+| Zone | Fields | Destination |
+|---|---|---|
+| **Training** | direction label (+ accept/override flags) | classifier training store **only** — never the Insights view |
+| **User** | coach note (free text) · strong/to-work-on tag | user (Insights) + library — never the classifier |
+
+**Leak guard (non-negotiable):** the strong/to-work-on tag and the direction label are **independent axes**, and the tag is **never auto-derived or auto-suggested** from the label — an auto-suggest would turn the user-visible tag into a readable proxy for the private appraisal (a T:C leak). Coach guidance decorrelates **by example:** *"strong/to-work-on is celebrate-vs-improve — you can mark a **threat**-appraised moment **strong** (you handled a hard moment well) or a **challenge**-appraised one **to-work-on** (comfortable but sloppy)."*
+
+### Cold-start vs steady-state
+- **Cold start (current):** no trained classifier → **no pre-fill**; the coach labels from scratch (`was_pre_filled: false`).
+- **Steady state:** classifier present → the snippet shows the mechanical verdict pre-filled; the coach **Accepts** (default) or **Overrides**. Gated on a classifier-active flag that **does not exist yet — do not invent it.** Introduce it only when the classifier lands.
+
+### Review queue (one line / session)
+- A list of `review_pending` sessions. Columns: **topic**, **pseudonymous user ID** (the coach sees full transcript + goal — necessarily; "pseudonymized," not "anonymized," §12), **sent-when**. Row → authoring view. No filters / bulk / dashboard.
+
+### Authoring view
+- **Reuses the Readout card** (one source of truth) on a **new, purpose-built surface** — *not* the old `users/[userId]` Tab 1, which carries the trinity / KPI-narrative chrome being deleted in §9. Reuse the **components** (Readout card, coaching-rationale card pattern), not the tab.
+- Per snippet, two clearly demarcated zones:
+  - **Training zone** (labeled "Training — not visible to user", with a divider): 3-button `threat / ambiguous / challenge` selector — pre-filled with Accept/Override **only if a classifier exists**.
+  - **User zone:** coach note (optional) + strong/to-work-on toggle (optional).
+- **Mandatory:** the **label** on every snippet (closed-loop training). **Selective:** note + tag.
+
+### Publish
+- **Enabled when every snippet has a label.** The overall coach message is **optional** — a soft warning if empty at publish, **never a block** (the ≥1-tagged-note library floor already guarantees human presence, so a mandated overall message just yields filler).
+- Fires the **existing** triggers (`usePublishLiveSubscription`, `ResultsReadyEmail`, user → `insights_ready`, library ingest) — re-pointed / built per the foundation — **plus NEW:** capture each label as a **training-annotation event**.
+- **No per-publish retrain** — capture only; retraining is batched and out of scope.
+
+### Library ingest
+- On the user's **read**, only **strong/to-work-on-tagged** snippets enter the strong-sides library (the curated coaching collection). Label-only snippets are training data, **not** library — they carry no human note to replay.
+
+### Coach-workload cap (build constraint, not a monitor)
+- Segmentation **hard-caps per session to the top-N (~10) most analyzable snippets.** "Label every snippet to publish" × unbounded segmentation × **one solo coach** is the pipeline's real bottleneck — coach throughput gates *every* user's insight latency. Bound it **by design**, not by after-the-fact alerting.
+
+**State:** drives `review_pending → insights_ready` (§8). Off-stage.
+**BE handoffs added (§11):** training-annotation/labels store · publish requires-all-labeled gate · segmentation top-N cap · pseudonymized review queue.
+
+---
+*Locked decisions only. Open red-lines are exhausted across all surfaces — core loop + secondary, §1–§14. Anything not covered here defers to Spec v1.1 / v1.2.*
