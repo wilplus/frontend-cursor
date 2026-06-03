@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { useWillabFlow, type WillabState } from "./useWillabFlow";
+import WelcomeConsent from "./WelcomeConsent";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -45,7 +46,7 @@ export default function WillabSurface({
 
   // First-run, full-screen (no Lounge underneath yet).
   if (flow.state === "welcome_consent") {
-    return shell(<WelcomeStub onAccept={flow.acceptConsent} />);
+    return shell(<WelcomeConsent onAccept={flow.acceptConsent} />);
   }
   if (flow.state === "intake_in_progress") {
     return shell(<IntakeStub onDone={flow.finishIntake} />);
@@ -74,21 +75,6 @@ function StubBadge({ label }: { label: string }) {
     <span className="mb-3 inline-block rounded-full border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary">
       shell stub · {label}
     </span>
-  );
-}
-
-function WelcomeStub({ onAccept }: { onAccept: () => void }) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <StubBadge label="Welcome + consent (§12)" />
-      <h1 className="text-[17px] font-semibold">willab</h1>
-      <p className="mt-1 max-w-sm text-[15px] text-muted-foreground">
-        See how you actually sound, then get a real coach&apos;s read.
-      </p>
-      <Button onClick={onAccept} className="mt-6 rounded-full px-5">
-        Accept &amp; continue
-      </Button>
-    </div>
   );
 }
 
