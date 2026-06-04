@@ -7,7 +7,12 @@ import {
   publishWillabSession,
   type Direction,
 } from "@/services/api/publishWillabSession";
-import type { CoachTag, ReadoutPayload, ReadoutSnippet } from "./readout";
+import {
+  buildPublishPayload,
+  publishGate,
+  type SnippetAuthor,
+} from "./coachPublish";
+import type { ReadoutPayload, ReadoutSnippet } from "./readout";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachAuthoring — the human-in-the-loop surface (§14)                       */
@@ -22,12 +27,6 @@ import type { CoachTag, ReadoutPayload, ReadoutSnippet } from "./readout";
 /*  (human-presence + library floor). Overall message optional. Reuses the     */
 /*  Readout's snippet view (MediaPlayer + transcript + hero data).            */
 /* -------------------------------------------------------------------------- */
-
-interface SnippetAuthor {
-  label: Direction | null;
-  note: string;
-  tag: CoachTag | null;
-}
 
 const DIRECTIONS: Direction[] = ["threat", "ambiguous", "challenge"];
 
@@ -54,35 +53,20 @@ export default function CoachAuthoring({
     setAuthors((a) => ({ ...a, [id]: { ...a[id], ...patch } }));
   }
 
-  const allLabeled = snippets.every((s) => authors[s.id]?.label != null);
-  const hasNotePlusTag = snippets.some(
-    (s) => authors[s.id]?.note.trim() && authors[s.id]?.tag != null
-  );
-  const canPublish = allLabeled && hasNotePlusTag && !publishing && snippets.length > 0;
+  const snippetIds = snippets.map((s) => s.id);
+  const gate = publishGate(snippetIds, authors);
+  const canPublish = gate.canPublish && !publishing;
 
   async function publish() {
     if (!canPublish) return;
     setPublishing(true);
     setError(null);
-    const labels = snippets.map((s) => ({
-      snippet_id: s.id,
-      value: authors[s.id]!.label as Direction,
-      was_pre_filled: false, // cold start — no classifier yet (§14)
-      was_overridden: false,
-    }));
-    const notes = snippets
-      .filter((s) => authors[s.id]?.note.trim() && authors[s.id]?.tag != null)
-      .map((s) => ({
-        snippet_id: s.id,
-        note: authors[s.id]!.note.trim(),
-        tag: authors[s.id]!.tag as CoachTag,
-      }));
-    const r = await publishWillabSession({
-      sessionId,
-      overallMessage: overall.trim() || null,
-      notes,
-      labels,
-    });
+    const { labels, notes, overallMessage } = buildPublishPayload(
+      snippetIds,
+      authors,
+      overall
+    );
+    const r = await publishWillabSession({ sessionId, overallMessage, notes, labels });
     setPublishing(false);
     if (r.ok) onPublished();
     else setError(r.message);
@@ -129,7 +113,7 @@ export default function CoachAuthoring({
             <p className="mb-2 text-center text-[13px] text-destructive">{error}</p>
           ) : !canPublish && !publishing ? (
             <p className="mb-2 text-center text-[12px] text-muted-foreground">
-              {!allLabeled
+              {!gate.allLabeled
                 ? "Label every snippet"
                 : "Add at least one coach note + tag"}{" "}
               to publish.
