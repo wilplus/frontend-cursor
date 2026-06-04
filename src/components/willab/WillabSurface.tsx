@@ -1,22 +1,22 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import { useWillabFlow, type WillabState } from "./useWillabFlow";
+import { useWillabFlow } from "./useWillabFlow";
 import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
+import LabOverlay from "./LabOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
 /*                                                                            */
 /*  Renders the willab-beta structure: first-run screens (Welcome → Intake),  */
 /*  then the always-mounted Lounge home with the Lab as an overlay layered     */
-/*  over it. Surfaces are STUBS — each later slice swaps a stub for the real    */
-/*  component (Welcome §12, Intake §2, Lounge §3, Lab §4, Readout §5, …).      */
-/*  The structure (flag gate, state machine, overlay-over-Lounge) is the       */
-/*  deliverable; the stubs prove it's navigable end to end.                   */
+/*  over it. Welcome (§12), Intake (§2), Lounge (§3) and the Lab front-half     */
+/*  (§4: session_context + record capture) are real; the Lab's processing /     */
+/*  Readout / Send tail (§5/§13) is the BE-gated seam, walkable via stubs       */
+/*  inside LabOverlay until the upload handler (BE ③) lands.                   */
 /* -------------------------------------------------------------------------- */
 
 export default function WillabSurface({
@@ -59,7 +59,7 @@ export default function WillabSurface({
     <>
       <Lounge state={flow.state} onStart={flow.startRecording} goTo={flow.goTo} />
       {flow.labOverlayOpen && (
-        <LabOverlayStub
+        <LabOverlay
           state={flow.state}
           sessionId={sessionId}
           goTo={flow.goTo}
@@ -67,75 +67,5 @@ export default function WillabSurface({
         />
       )}
     </>
-  );
-}
-
-/* ----------------------------- shell stubs -------------------------------- */
-
-function StubBadge({ label }: { label: string }) {
-  return (
-    <span className="mb-3 inline-block rounded-full border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary">
-      shell stub · {label}
-    </span>
-  );
-}
-
-function LabOverlayStub({
-  state,
-  sessionId,
-  goTo,
-  onClose,
-}: {
-  state: WillabState;
-  sessionId: string | null;
-  goTo: (s: WillabState) => void;
-  onClose: () => void;
-}) {
-  // Minimal forward nav through the Lab states to prove the overlay flow.
-  const next: Partial<Record<WillabState, WillabState>> = {
-    lab_session_context: "lab_prerecord",
-    lab_prerecord: "lab_recording",
-    lab_recording: "lab_processing",
-    lab_processing: "readout",
-    readout: sessionId ? "sendgate_signed" : "sendgate_unsigned",
-    sendgate_unsigned: "review_pending",
-    sendgate_signed: "review_pending",
-  };
-  const advance = next[state];
-
-  return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      {/* training-zone chrome (§4) */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <span className="text-[13px] font-semibold text-foreground">
-          Official recording · not yet sent
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[13px] text-muted-foreground hover:text-foreground"
-        >
-          Close
-        </button>
-      </div>
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-        <StubBadge label="Lab overlay (§4/§5/§13)" />
-        <p className="text-[15px] text-muted-foreground">
-          step: <code className="text-foreground">{state}</code>
-        </p>
-        {advance ? (
-          <Button
-            onClick={() => goTo(advance)}
-            className="rounded-full px-5"
-          >
-            Next → {advance}
-          </Button>
-        ) : (
-          <Button onClick={onClose} variant="outline" className="rounded-full px-5">
-            Back to Lounge
-          </Button>
-        )}
-      </div>
-    </div>
   );
 }
