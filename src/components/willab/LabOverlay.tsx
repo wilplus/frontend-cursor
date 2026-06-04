@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
@@ -9,6 +9,8 @@ import { readWillabProfile } from "./willabProfile";
 import { fmtClock, parseVocabulary } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { readoutSummaryDraft } from "./loungeReports";
+import { mockReadout } from "./readout";
+import ReadoutCard from "./ReadoutCard";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -68,6 +70,13 @@ export default function LabOverlay({
   const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
   const goal = profile?.goal ?? "";
 
+  // DEV: sample Readout until seam ③ returns the real poll result — swap this
+  // for the polled §3.3 payload (mapReadoutPayload) to make the Readout live.
+  const readoutPayload = useMemo(
+    () => mockReadout(context?.topic ?? "your recording"),
+    [context?.topic]
+  );
+
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
     const s = mic.state;
@@ -111,6 +120,14 @@ export default function LabOverlay({
   function handleClose() {
     if (mic.state.status === "recording") {
       if (!window.confirm("Discard this recording? It hasn't been sent.")) return;
+      mic.cancel();
+      onClose();
+      return;
+    }
+    // Post-recording: closing parks (hold, don't discard) per §4.
+    if (state === "readout") {
+      goTo("parked");
+      return;
     }
     mic.cancel();
     onClose();
@@ -167,11 +184,11 @@ export default function LabOverlay({
         )}
 
         {state === "readout" && (
-          <TailStub
-            label="Readout (§5)"
-            note="The raw acoustic Readout renders here once BE's upload handler returns the §3.3 payload."
-            cta="Next → Send gate"
-            onCta={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
+          <ReadoutCard
+            payload={readoutPayload}
+            isSample
+            onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
+            onExplain={() => goTo("parked")}
           />
         )}
 
