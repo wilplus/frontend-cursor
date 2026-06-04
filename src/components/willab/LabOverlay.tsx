@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { fmtClock, parseVocabulary } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { readoutSummaryDraft } from "./loungeReports";
-import { mockReadout } from "./readout";
+import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import type { WillabState } from "./useWillabFlow";
 
@@ -20,13 +21,12 @@ import type { WillabState } from "./useWillabFlow";
 /*  the Lounge with no remount). Distinct "training zone" chrome; holds the    */
 /*  mic for its lifetime via useDualCaptureMic and releases it on close.       */
 /*                                                                            */
-/*  Real front-half (this slice):                                            */
 /*    lab_session_context → §4 step A form (topic required; rest pre-filled)   */
 /*    lab_prerecord       → task + high-stakes framing + one large record ctrl */
 /*    lab_recording       → live capture, timer, min-content gate (≥60s)       */
-/*  BE-gated tail (seam ③ — stubbed, walkable for testers):                  */
-/*    lab_processing      → SEAM: submitLab(context, blob) → upload + poll     */
-/*    readout / sendgate  → §5 / §13, built when the upload handler lands      */
+/*    lab_processing      → SYNCHRONOUS upload (submitLabRecording, §3.3) →     */
+/*                          Readout on 201 · re-record on 422 · error+retry     */
+/*    readout             → §5 ReadoutCard (live payload); send gate = §13      */
 /* -------------------------------------------------------------------------- */
 
 /** Per-recording context (§4 step A). Shape matches the BE intake-context
@@ -60,27 +60,31 @@ export default function LabOverlay({
   onClose: () => void;
 }) {
   const mic = useDualCaptureMic();
+  const { cancel: cancelMic } = mic;
   const [context, setContext] = useState<LabSessionContext | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const { append: appendToThread } = useLoungeThreadCtx();
   const reportedRef = useRef(false);
 
+  // Upload → Readout (seam ③).
+  const [readout, setReadout] = useState<ReadoutPayload | null>(null);
+  const [labSessionId, setLabSessionId] = useState<string | null>(null);
+  const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const durationRef = useRef(0);
+  const uploadStartedRef = useRef(false);
+
   const profile = useRef(readWillabProfile()).current;
   const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
   const goal = profile?.goal ?? "";
-
-  // DEV: sample Readout until seam ③ returns the real poll result — swap this
-  // for the polled §3.3 payload (mapReadoutPayload) to make the Readout live.
-  const readoutPayload = useMemo(
-    () => mockReadout(context?.topic ?? "your recording"),
-    [context?.topic]
-  );
 
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
     const s = mic.state;
     if (s.status === "recording" && state === "lab_prerecord") {
+      reportedRef.current = false; // fresh recording → allow a new history entry
       goTo("lab_recording");
     }
     if (
@@ -88,10 +92,48 @@ export default function LabOverlay({
       state === "lab_recording" &&
       s.durationSec >= MIN_RECORDING_SEC
     ) {
+      durationRef.current = s.durationSec;
       setBlob(s.audioBlob);
       goTo("lab_processing");
     }
   }, [mic.state, state, goTo]);
+
+  // seam ③ — fire the synchronous upload once on entering processing.
+  useEffect(() => {
+    if (state !== "lab_processing") {
+      uploadStartedRef.current = false;
+      return;
+    }
+    if (!blob || !context || uploadStartedRef.current) return;
+    uploadStartedRef.current = true;
+    let active = true;
+    void (async () => {
+      const result = await submitLabRecording({
+        audioBlob: blob,
+        durationSec: durationRef.current,
+        topic: context.topic,
+        audience: context.audience || undefined,
+        targetLengthSeconds: context.target_length_seconds,
+        domainVocabulary: context.domain_vocabulary,
+      });
+      if (!active) return;
+      if (result.kind === "ok") {
+        setReadout(result.readout);
+        setLabSessionId(result.sessionId);
+        setUploadError(null);
+        goTo("readout");
+      } else if (result.kind === "rejected") {
+        cancelMic();
+        setRejectedMsg(result.message);
+        goTo("lab_prerecord");
+      } else {
+        setUploadError(result.message);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [state, blob, context, goTo, cancelMic, retryNonce]);
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
@@ -113,9 +155,17 @@ export default function LabOverlay({
   useEffect(() => {
     if (state === "readout" && context && !reportedRef.current) {
       reportedRef.current = true;
-      void appendToThread(readoutSummaryDraft({ topic: context.topic }));
+      const hero = readout?.snippets[0]?.features;
+      void appendToThread(
+        readoutSummaryDraft({
+          topic: context.topic,
+          recordingId: labSessionId ?? undefined,
+          speechRate: hero?.speechRate ?? undefined,
+          pauseRatio: hero?.pauseRatio ?? undefined,
+        })
+      );
     }
-  }, [state, context, appendToThread]);
+  }, [state, context, appendToThread, readout, labSessionId]);
 
   function handleClose() {
     if (mic.state.status === "recording") {
@@ -165,7 +215,11 @@ export default function LabOverlay({
         {state === "lab_prerecord" && (
           <PreRecord
             context={context}
-            onRecord={() => void mic.start()}
+            rejectedMsg={rejectedMsg}
+            onRecord={() => {
+              setRejectedMsg(null);
+              void mic.start();
+            }}
             micState={mic.state}
           />
         )}
@@ -180,13 +234,20 @@ export default function LabOverlay({
         )}
 
         {state === "lab_processing" && (
-          <ProcessingSeam blob={blob} sessionId={sessionId} goTo={goTo} />
+          <Processing
+            error={uploadError}
+            onRetry={() => {
+              setUploadError(null);
+              uploadStartedRef.current = false;
+              setRetryNonce((n) => n + 1);
+            }}
+            onClose={onClose}
+          />
         )}
 
         {state === "readout" && (
           <ReadoutCard
-            payload={readoutPayload}
-            isSample
+            payload={readout ?? { snippets: [] }}
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
             onExplain={() => goTo("parked")}
           />
@@ -327,10 +388,12 @@ function SessionContextForm({
 
 function PreRecord({
   context,
+  rejectedMsg,
   onRecord,
   micState,
 }: {
   context: LabSessionContext | null;
+  rejectedMsg: string | null;
   onRecord: () => void;
   micState: ReturnType<typeof useDualCaptureMic>["state"];
 }) {
@@ -354,6 +417,10 @@ function PreRecord({
         This is your official take — speak as if it counts. Aim for at least one
         minute.
       </p>
+
+      {rejectedMsg ? (
+        <p className="max-w-sm text-[13px] text-destructive">{rejectedMsg}</p>
+      ) : null}
 
       <button
         type="button"
@@ -446,36 +513,45 @@ function RecordingPhase({
 
 /* ----------------------- BE seam ③ + tail stubs -------------------------- */
 
-function ProcessingSeam({
-  blob,
-  sessionId,
-  goTo,
+function Processing({
+  error,
+  onRetry,
+  onClose,
 }: {
-  blob: Blob | null;
-  sessionId: string | null;
-  goTo: (s: WillabState) => void;
+  error: string | null;
+  onRetry: () => void;
+  onClose: () => void;
 }) {
-  // TODO(seam ③): submitLab(context, blob) → multipart upload → poll status →
-  // §3.3 Readout payload at readout_ready → goTo("readout") with the data.
-  // sessionId scopes the upload when present (signed-in). Until the BE upload
-  // handler lands, this is a walkable placeholder.
-  void sessionId;
+  if (error) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <p className="max-w-sm text-[15px] text-destructive">{error}</p>
+        <p className="max-w-sm text-[12px] text-muted-foreground">
+          Your recording isn&apos;t lost — try the analysis again, or step back
+          to the Lounge and resume later.
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={onRetry} className="rounded-full px-6">
+            Try again
+          </Button>
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            Back to Lounge
+          </Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       <p className="text-[15px] text-foreground">Analyzing your recording…</p>
       <p className="max-w-sm text-[12px] text-muted-foreground">
-        {blob
-          ? `Captured ${(blob.size / 1024).toFixed(0)} KB. Upload + acoustic analysis wires in at BE seam ③.`
-          : "No audio captured."}
+        Transcribing and measuring your voice — this takes a few seconds.
       </p>
-      <button
-        type="button"
-        onClick={() => goTo("readout")}
-        className="rounded-full border border-dashed border-primary/40 px-4 py-1.5 text-[12px] text-primary hover:bg-primary/5"
-      >
-        [dev] skip to Readout
-      </button>
     </div>
   );
 }
