@@ -11,6 +11,7 @@ import { fmtClock, parseVocabulary } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
+import { clearParked, readParked, writeParked } from "./willabParked";
 import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
@@ -152,6 +153,26 @@ export default function LabOverlay({
     return () => clearInterval(id);
   }, [mic.state.status]);
 
+  // Resume a parked Readout: restore the held payload on (re)entry to the
+  // Readout with nothing loaded (e.g. after reload, via the Lounge's "Resume
+  // Readout"). reportedRef is set so the history entry isn't re-added.
+  useEffect(() => {
+    if (state === "readout" && readout === null) {
+      const parked = readParked();
+      if (parked) {
+        setReadout(parked.readout);
+        setLabSessionId(parked.sessionId);
+        setContext({
+          topic: parked.topic,
+          audience: "",
+          target_length_seconds: null,
+          domain_vocabulary: [],
+        });
+        reportedRef.current = true;
+      }
+    }
+  }, [state, readout]);
+
   // Persist a Readout report into the Lounge history once the recording
   // completes, so the user can scroll back to it (topic now; the §3.3 hero
   // metrics fill in when seam ③ returns real data).
@@ -170,6 +191,14 @@ export default function LabOverlay({
     }
   }, [state, context, appendToThread, readout, labSessionId]);
 
+  // Park the held Readout (persist + route to the Lounge's parked chip).
+  function parkReadout() {
+    if (readout) {
+      writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
+    }
+    goTo("parked");
+  }
+
   function handleClose() {
     if (mic.state.status === "recording") {
       if (!window.confirm("Discard this recording? It hasn't been sent.")) return;
@@ -179,7 +208,7 @@ export default function LabOverlay({
     }
     // Post-recording: closing parks (hold, don't discard) per §4.
     if (state === "readout") {
-      goTo("parked");
+      parkReadout();
       return;
     }
     mic.cancel();
@@ -252,7 +281,7 @@ export default function LabOverlay({
           <ReadoutCard
             payload={readout ?? { snippets: [] }}
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
-            onExplain={() => goTo("parked")}
+            onExplain={parkReadout}
           />
         )}
 
@@ -260,8 +289,11 @@ export default function LabOverlay({
           <SendGate
             sessionId={labSessionId}
             signedIn={signedIn}
-            onSent={() => goTo("review_pending")}
-            onPark={() => goTo("parked")}
+            onSent={() => {
+              clearParked();
+              goTo("review_pending");
+            }}
+            onPark={parkReadout}
           />
         )}
       </div>
