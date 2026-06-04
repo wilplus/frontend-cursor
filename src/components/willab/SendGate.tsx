@@ -28,11 +28,13 @@ export default function SendGate({
   signedIn,
   onSent,
   onPark,
+  onSignIn,
 }: {
   sessionId: string | null;
   signedIn: boolean | null;
   onSent: () => void; // → review_pending (Lounge)
   onPark: () => void; // → parked (held, resumable)
+  onSignIn: () => void; // unsigned → OAuth round-trip (§13 Path 2)
 }) {
   const [send, setSend] = useState<SendState>({ kind: "sending" });
   const firedRef = useRef(false);
@@ -110,22 +112,24 @@ export default function SendGate({
     );
   }
 
-  // need_signin — honest interim until the OAuth round-trip slice lands.
+  // need_signin — sign in, then we auto-send on the callback (§13 Path 2).
   return (
     <Centered>
-      <p className="text-[17px] font-semibold text-foreground">Almost there</p>
+      <p className="text-[17px] font-semibold text-foreground">One quick step</p>
       <p className="max-w-sm text-[15px] text-muted-foreground">
-        Sending to a coach needs an account, so your insights can find their way
-        back to you. One-tap sign-in-and-send is landing next — your recording is
-        saved and held until then.
+        Sign in so your coach&apos;s insights can find their way back to you. We
+        keep your recording safe and send it the moment you&apos;re in.
       </p>
-      <Button
-        onClick={onPark}
-        variant="outline"
-        className="mt-2 rounded-full px-6"
-      >
-        Back to Lounge
+      <Button onClick={onSignIn} className="mt-2 rounded-full px-6">
+        Sign in &amp; send
       </Button>
+      <button
+        type="button"
+        onClick={onPark}
+        className="text-[13px] text-muted-foreground hover:text-foreground"
+      >
+        Not now
+      </button>
     </Centered>
   );
 }
