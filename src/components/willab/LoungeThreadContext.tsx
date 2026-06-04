@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import {
   useLoungeThread,
   type UseLoungeThreadReturn,
-} from "@/components/chat/hooks/useLoungeThread";
+} from "./useLoungeThread";
 import { useSignedIn } from "./useSignedIn";
 
 /* -------------------------------------------------------------------------- */
