@@ -1,0 +1,76 @@
+import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMessages";
+
+/* -------------------------------------------------------------------------- */
+/*  loungeReports — Readout / Insight reports as durable thread entries        */
+/*                                                                            */
+/*  Reports persist in the Lounge thread (kinds `recording_summary` / `insight`)│
+/*  so a user can scroll back to every past Readout and coach Insight. The      */
+/*  FE appends the Readout summary when a recording completes; the BE appends    */
+/*  the Insight on coach publish (handoff). The metadata carries the renderable │
+/*  fields — the hero pair (§5) is optional until seam ③ populates real metrics.*/
+/* -------------------------------------------------------------------------- */
+
+export const REPORT_KINDS = ["recording_summary", "insight"] as const;
+
+export function isReportMessage(m: Pick<LoungeMessage, "kind">): boolean {
+  return m.kind === "recording_summary" || m.kind === "insight";
+}
+
+/** Build the Readout-summary draft appended to the thread on completion. */
+export function readoutSummaryDraft(input: {
+  topic: string;
+  recordingId?: string;
+  speechRate?: number; // §3.3 features.speech_rate (hero)
+  pauseRatio?: number; // §3.3 features.pause_ratio (hero)
+}): LoungeMessageDraft {
+  return {
+    role: "system",
+    kind: "recording_summary",
+    body: `Readout · ${input.topic}`,
+    // Inline object literal so it satisfies Record<string, unknown>.
+    metadata: {
+      report_type: "readout",
+      recording_id: input.recordingId,
+      topic: input.topic,
+      speech_rate: input.speechRate,
+      pause_ratio: input.pauseRatio,
+    },
+  };
+}
+
+/* ----------------------------- render accessors --------------------------- */
+/*  Read report metadata defensively (it crosses the wire as Record<unknown>). */
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+function str(v: unknown): string | null {
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+export interface ReadoutView {
+  topic: string | null;
+  speechRate: number | null;
+  pauseRatio: number | null;
+}
+export interface InsightView {
+  overallMessage: string | null;
+  noteCount: number | null;
+}
+
+export function readoutView(md: Record<string, unknown> | null | undefined): ReadoutView {
+  const m = md ?? {};
+  return {
+    topic: str(m.topic),
+    speechRate: num(m.speech_rate),
+    pauseRatio: num(m.pause_ratio),
+  };
+}
+
+export function insightView(md: Record<string, unknown> | null | undefined): InsightView {
+  const m = md ?? {};
+  return {
+    overallMessage: str(m.overall_message),
+    noteCount: num(m.note_count),
+  };
+}

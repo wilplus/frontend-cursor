@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
-import { useLoungeThread } from "@/components/chat/hooks/useLoungeThread";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { useSignedIn } from "./useSignedIn";
+import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { loungeToHistory } from "./willabHelpers";
+import ReportCard from "./ReportCard";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -30,34 +30,7 @@ export default function Lounge({
   onStart: () => void;
   goTo: (s: WillabState) => void;
 }) {
-  const signedIn = useSignedIn();
-
-  // Mount the thread only once auth resolves, so useLoungeThread sees a stable
-  // `signedIn` and doesn't flash the local thread for signed-in users.
-  if (signedIn === null) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-  return (
-    <LoungeInner signedIn={signedIn} state={state} onStart={onStart} goTo={goTo} />
-  );
-}
-
-function LoungeInner({
-  signedIn,
-  state,
-  onStart,
-  goTo,
-}: {
-  signedIn: boolean;
-  state: WillabState;
-  onStart: () => void;
-  goTo: (s: WillabState) => void;
-}) {
-  const thread = useLoungeThread(signedIn);
+  const thread = useLoungeThreadCtx();
   const { messages } = thread;
   const [draftText, setDraftText] = useState("");
   const [botThinking, setBotThinking] = useState(false);
@@ -159,6 +132,9 @@ function LoungeInner({
 }
 
 function Bubble({ message }: { message: LoungeMessage }) {
+  if (message.kind === "recording_summary" || message.kind === "insight") {
+    return <ReportCard message={message} />;
+  }
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">

@@ -7,6 +7,7 @@ import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
+import { LoungeThreadProvider } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -55,8 +56,10 @@ export default function WillabSurface({
   }
 
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
+  // Both share one thread (LoungeThreadProvider) so the Lab can persist a
+  // recording's Readout into the same scrollable history.
   return shell(
-    <>
+    <LoungeThreadProvider>
       <Lounge state={flow.state} onStart={flow.startRecording} goTo={flow.goTo} />
       {flow.labOverlayOpen && (
         <LabOverlay
@@ -66,6 +69,6 @@ export default function WillabSurface({
           onClose={flow.closeLab}
         />
       )}
-    </>
+    </LoungeThreadProvider>
   );
 }
