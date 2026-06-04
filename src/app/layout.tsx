@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
-import PendingSessionClaim from "@/components/funnel/PendingSessionClaim";
 import WillabPendingSend from "@/components/willab/WillabPendingSend";
 import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 
@@ -51,15 +50,8 @@ export default function RootLayout({
         <Footer />
         <Toaster position="top-center" />
         <PwaInstallPrompt />
-        {/*
-          Side-effect-only client component that runs once on mount.
-          Bridges the OAuth round-trip: if a guest_session_id is stashed
-          in localStorage from the cold-start funnel and the user is now
-          authenticated, claim that anonymous session for them and route
-          to /results. Renders nothing on its own.
-        */}
-        <PendingSessionClaim />
-        {/* willab: post-OAuth merge-then-send for the unsigned send gate (§13). */}
+        {/* Side-effect-only: post-OAuth merge-then-send for the unsigned
+            send gate (§13). Bridges the OAuth round-trip; renders nothing. */}
         <WillabPendingSend />
       </body>
     </html>

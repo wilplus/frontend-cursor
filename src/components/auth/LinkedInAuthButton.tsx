@@ -4,7 +4,6 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getPendingSessionId, setPendingSessionId } from "@/lib/funnel/pendingSession";
 
 /**
  * LinkedIn OIDC sign-in button.
@@ -28,15 +27,6 @@ export default function LinkedInAuthButton({
     setLoading(true);
     try {
       const supabase = createClient();
-
-      // Defense-in-depth: re-write the pending guest-session id to
-      // localStorage right before kicking off OAuth. HeroRecorder already
-      // persists it at threshold, but the OAuth round-trip clears React
-      // state, so we want absolute certainty the id is in storage before
-      // we leave the page. If there's nothing to persist (standalone
-      // /signup with no anonymous recording), this is a no-op.
-      const existingId = getPendingSessionId();
-      if (existingId) setPendingSessionId(existingId);
 
       // Clear any existing session so OAuth flow starts fresh
       // (prevents instant redirect when user already has a stale session)
