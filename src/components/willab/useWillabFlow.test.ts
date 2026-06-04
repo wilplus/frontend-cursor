@@ -25,6 +25,27 @@ describe("initialWillabState", () => {
       initialWillabState({ consentAccepted: true, intakeDone: true, parked: true })
     ).toBe("parked");
   });
+
+  it("routes a returning user awaiting coach review to review_pending", () => {
+    expect(
+      initialWillabState({
+        consentAccepted: true,
+        intakeDone: true,
+        reviewPending: true,
+      })
+    ).toBe("review_pending");
+  });
+
+  it("prefers a parked Readout over review_pending when both are set", () => {
+    expect(
+      initialWillabState({
+        consentAccepted: true,
+        intakeDone: true,
+        parked: true,
+        reviewPending: true,
+      })
+    ).toBe("parked");
+  });
 });
 
 describe("isLabOverlay", () => {

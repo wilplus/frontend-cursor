@@ -12,6 +12,8 @@ import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
 import { clearParked, readParked, writeParked } from "./willabParked";
+import { setPendingSend, setReviewPending } from "./sendStatus";
+import { startWillabSignIn } from "./startWillabSignIn";
 import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
@@ -199,6 +201,16 @@ export default function LabOverlay({
     goTo("parked");
   }
 
+  // Unsigned send (§13 Path 2): park + stash the id, then OAuth. The global
+  // <WillabPendingSend> completes merge-then-send on the callback.
+  function startUnsignedSend() {
+    if (readout && labSessionId) {
+      writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
+      setPendingSend(labSessionId);
+    }
+    void startWillabSignIn();
+  }
+
   function handleClose() {
     if (mic.state.status === "recording") {
       if (!window.confirm("Discard this recording? It hasn't been sent.")) return;
@@ -291,9 +303,11 @@ export default function LabOverlay({
             signedIn={signedIn}
             onSent={() => {
               clearParked();
+              setReviewPending();
               goTo("review_pending");
             }}
             onPark={parkReadout}
+            onSignIn={startUnsignedSend}
           />
         )}
       </div>
