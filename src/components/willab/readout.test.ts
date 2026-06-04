@@ -66,6 +66,25 @@ describe("mapReadoutPayload", () => {
     expect(mapReadoutPayload(null).snippets).toEqual([]);
     expect(mapReadoutPayload({ snippets: "nope" }).snippets).toEqual([]);
   });
+
+  it("maps the post-publish coach lane (overall_message + snippet.coach)", () => {
+    const p = mapReadoutPayload({
+      insights_payload: { overall_message: "Strong session." },
+      snippets: [
+        { id: "a", coach: { note: "nice open", tag: "strong" } },
+        { id: "b", coach: { note: "rushed", tag: "to_work_on" } },
+        { id: "c" }, // no coach yet
+      ],
+    });
+    expect(p.overallMessage).toBe("Strong session.");
+    expect(p.snippets[0]?.coach).toEqual({ note: "nice open", tag: "strong" });
+    expect(p.snippets[1]?.coach?.tag).toBe("to_work_on");
+    expect(p.snippets[2]?.coach).toBeNull();
+  });
+
+  it("defaults overall_message to null pre-publish", () => {
+    expect(mapReadoutPayload({ snippets: [] }).overallMessage).toBeNull();
+  });
 });
 
 describe("mockReadout", () => {
