@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { hasParkedReadout } from "./willabParked";
+import { clearReviewPending, hasReviewPending } from "./sendStatus";
 
 /* -------------------------------------------------------------------------- */
 /*  useWillabFlow — the willab-beta state machine (§8)                         */
@@ -54,10 +55,12 @@ export function initialWillabState(flags: {
   consentAccepted: boolean;
   intakeDone: boolean;
   parked?: boolean;
+  reviewPending?: boolean;
 }): WillabState {
   if (!flags.consentAccepted) return "welcome_consent";
   if (!flags.intakeDone) return "intake_in_progress";
   if (flags.parked) return "parked"; // held Readout survives reload (§4)
+  if (flags.reviewPending) return "review_pending"; // sent; awaiting coach (§6a)
   return "lounge_idle";
 }
 
@@ -104,6 +107,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
         consentAccepted: readFlag(CONSENT_KEY),
         intakeDone: readFlag(INTAKE_KEY),
         parked: hasParkedReadout(),
+        reviewPending: hasReviewPending(),
       })
     );
   }, []);
@@ -117,7 +121,10 @@ export function useWillabFlow(): UseWillabFlowReturn {
     writeFlag(INTAKE_KEY);
     setState("lounge_idle");
   }, []);
-  const startRecording = useCallback(() => setState("lab_session_context"), []);
+  const startRecording = useCallback(() => {
+    clearReviewPending();
+    setState("lab_session_context");
+  }, []);
   // TODO(slice: Lab): a Readout/parked close should → "parked" (held chip),
   // a pre-recording close should → "lounge_idle". Shell uses idle for both.
   const closeLab = useCallback(() => setState("lounge_idle"), []);
