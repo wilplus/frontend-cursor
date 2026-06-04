@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
 import PendingSessionClaim from "@/components/funnel/PendingSessionClaim";
+import WillabPendingSend from "@/components/willab/WillabPendingSend";
 import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 
 // Use system fonts instead of Google Fonts to avoid build-time network dependency
@@ -58,6 +59,8 @@ export default function RootLayout({
           to /results. Renders nothing on its own.
         */}
         <PendingSessionClaim />
+        {/* willab: post-OAuth merge-then-send for the unsigned send gate (§13). */}
+        <WillabPendingSend />
       </body>
     </html>
   );
