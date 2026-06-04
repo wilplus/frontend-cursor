@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { saveUserProfile } from "@/services/api/userProfile";
 import { WILLAB_DOMAINS, domainSpec, type WillabDomain } from "./domains";
 import { writeWillabProfile } from "./willabProfile";
 
@@ -24,10 +25,12 @@ export default function Intake({ onDone }: { onDone: () => void }) {
 
   function handleContinue() {
     if (!domain) return;
-    writeWillabProfile({ domain, goal: goal.trim() });
-    // TODO(slice: profile sync): PUT /v2/user/profile once the BE contract +
-    // migration are confirmed. Until then the local store seeds the Lab and
-    // the intake_done flag (written by onDone) drives the first-run skip.
+    const trimmedGoal = goal.trim();
+    writeWillabProfile({ domain, goal: trimmedGoal });
+    // Best-effort server sync (POST per ①). Unsigned first-run callers 401
+    // and rely on the local cache above; the profile is (re-)synced at
+    // sign-up. Never blocks the flow — onDone advances immediately.
+    void saveUserProfile({ domain, goal: trimmedGoal });
     onDone();
   }
 
