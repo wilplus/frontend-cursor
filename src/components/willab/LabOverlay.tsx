@@ -9,9 +9,11 @@ import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { fmtClock, parseVocabulary } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
+import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
 import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
+import SendGate from "./SendGate";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -61,6 +63,7 @@ export default function LabOverlay({
 }) {
   const mic = useDualCaptureMic();
   const { cancel: cancelMic } = mic;
+  const signedIn = useSignedIn();
   const [context, setContext] = useState<LabSessionContext | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -254,11 +257,11 @@ export default function LabOverlay({
         )}
 
         {(state === "sendgate_unsigned" || state === "sendgate_signed") && (
-          <TailStub
-            label="Send gate (§13)"
-            note="Send-to-coach (and sign-up for unsigned sessions) lands with the coach pipeline."
-            cta="Back to Lounge"
-            onCta={onClose}
+          <SendGate
+            sessionId={labSessionId}
+            signedIn={signedIn}
+            onSent={() => goTo("review_pending")}
+            onPark={() => goTo("parked")}
           />
         )}
       </div>
@@ -556,26 +559,3 @@ function Processing({
   );
 }
 
-function TailStub({
-  label,
-  note,
-  cta,
-  onCta,
-}: {
-  label: string;
-  note: string;
-  cta: string;
-  onCta: () => void;
-}) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-      <span className="inline-block rounded-full border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary">
-        shell stub · {label}
-      </span>
-      <p className="max-w-sm text-[15px] text-muted-foreground">{note}</p>
-      <Button onClick={onCta} className="rounded-full px-6">
-        {cta}
-      </Button>
-    </div>
-  );
-}
