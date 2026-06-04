@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
+import { fmtClock, parseVocabulary } from "./willabHelpers";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -42,11 +43,6 @@ const LENGTH_PRESETS = [
   { label: "3 min", sec: 180 },
   { label: "5 min", sec: 300 },
 ];
-
-function fmtClock(sec: number): string {
-  const s = Math.max(0, Math.floor(sec));
-  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
-}
 
 export default function LabOverlay({
   state,
@@ -202,10 +198,7 @@ function SessionContextForm({
       topic: t,
       audience: audience.trim(),
       target_length_seconds: lengthSec,
-      domain_vocabulary: vocab
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      domain_vocabulary: parseVocabulary(vocab),
     });
   }
 

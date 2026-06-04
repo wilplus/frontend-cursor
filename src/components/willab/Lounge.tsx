@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { postChatQuery, type ChatHistoryEntry } from "@/services/api/chatQuery";
+import { postChatQuery } from "@/services/api/chatQuery";
 import { useLoungeThread } from "@/components/chat/hooks/useLoungeThread";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { useSignedIn } from "./useSignedIn";
+import { loungeToHistory } from "./willabHelpers";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -19,23 +20,6 @@ import type { WillabState } from "./useWillabFlow";
 /*  and the entry into the Lab. Audio, KPIs and labels live in the Lab — the   */
 /*  Lounge is text-only and never judges (§7 librarian-not-judge).            */
 /* -------------------------------------------------------------------------- */
-
-const HISTORY_TURNS = 20;
-
-/** Map the persisted thread into the bot's expected history shape. */
-function toHistory(msgs: LoungeMessage[]): ChatHistoryEntry[] {
-  return msgs
-    .filter(
-      (m) =>
-        (m.role === "user" || m.role === "bot") &&
-        (m.kind === "text" || m.kind === "joke")
-    )
-    .slice(-HISTORY_TURNS)
-    .map((m) => ({
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.body,
-    }));
-}
 
 export default function Lounge({
   state,
@@ -87,7 +71,7 @@ function LoungeInner({
     e?.preventDefault();
     const q = draftText.trim();
     if (!q || botThinking) return;
-    const history = toHistory(messages); // snapshot of prior turns (pre-append)
+    const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     setDraftText("");
     await thread.append({ role: "user", kind: "text", body: q });
     setBotThinking(true);
