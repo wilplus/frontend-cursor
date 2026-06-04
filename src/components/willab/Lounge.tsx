@@ -9,6 +9,7 @@ import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { loungeToHistory } from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
+import LibraryOverlay from "./LibraryOverlay";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -36,6 +37,7 @@ export default function Lounge({
   const [draftText, setDraftText] = useState("");
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -117,6 +119,13 @@ export default function Lounge({
       >
         ▶ Start official recording
       </Button>
+      <button
+        type="button"
+        onClick={() => setLibraryOpen(true)}
+        className="text-center text-[13px] text-muted-foreground hover:text-foreground"
+      >
+        ★ Your strong sides
+      </button>
 
       <form onSubmit={handleSend} className="flex items-center gap-2">
         <input
@@ -142,6 +151,7 @@ export default function Lounge({
           onClose={() => setActiveInsight(null)}
         />
       )}
+      {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
     </div>
   );
 }
