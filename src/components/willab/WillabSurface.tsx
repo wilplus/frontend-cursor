@@ -3,6 +3,8 @@
 import { Loader2 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { useWillabFlow } from "./useWillabFlow";
+import { useSignedIn } from "./useSignedIn";
+import { useStatusHydration } from "./useStatusHydration";
 import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
@@ -26,6 +28,9 @@ export default function WillabSurface({
   sessionId: string | null;
 }) {
   const flow = useWillabFlow();
+  const signedIn = useSignedIn();
+  // Reconcile the at-home status (review_pending / insights) with server truth.
+  useStatusHydration(signedIn, flow.state, flow.goTo);
 
   const shell = (children: React.ReactNode) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
