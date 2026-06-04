@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { hasParkedReadout } from "./willabParked";
 
 /* -------------------------------------------------------------------------- */
 /*  useWillabFlow — the willab-beta state machine (§8)                         */
@@ -52,9 +53,11 @@ export function isLabOverlay(state: WillabState): boolean {
 export function initialWillabState(flags: {
   consentAccepted: boolean;
   intakeDone: boolean;
+  parked?: boolean;
 }): WillabState {
   if (!flags.consentAccepted) return "welcome_consent";
   if (!flags.intakeDone) return "intake_in_progress";
+  if (flags.parked) return "parked"; // held Readout survives reload (§4)
   return "lounge_idle";
 }
 
@@ -100,6 +103,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
       initialWillabState({
         consentAccepted: readFlag(CONSENT_KEY),
         intakeDone: readFlag(INTAKE_KEY),
+        parked: hasParkedReadout(),
       })
     );
   }, []);
