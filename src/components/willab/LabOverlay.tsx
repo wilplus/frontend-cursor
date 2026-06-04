@@ -7,6 +7,8 @@ import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { fmtClock, parseVocabulary } from "./willabHelpers";
+import { useLoungeThreadCtx } from "./LoungeThreadContext";
+import { readoutSummaryDraft } from "./loungeReports";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -59,6 +61,8 @@ export default function LabOverlay({
   const [context, setContext] = useState<LabSessionContext | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const { append: appendToThread } = useLoungeThreadCtx();
+  const reportedRef = useRef(false);
 
   const profile = useRef(readWillabProfile()).current;
   const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
@@ -93,6 +97,16 @@ export default function LabOverlay({
     );
     return () => clearInterval(id);
   }, [mic.state.status]);
+
+  // Persist a Readout report into the Lounge history once the recording
+  // completes, so the user can scroll back to it (topic now; the §3.3 hero
+  // metrics fill in when seam ③ returns real data).
+  useEffect(() => {
+    if (state === "readout" && context && !reportedRef.current) {
+      reportedRef.current = true;
+      void appendToThread(readoutSummaryDraft({ topic: context.topic }));
+    }
+  }, [state, context, appendToThread]);
 
   function handleClose() {
     if (mic.state.status === "recording") {
