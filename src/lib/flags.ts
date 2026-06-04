@@ -3,19 +3,19 @@
 import { useEffect, useState } from "react";
 
 /* -------------------------------------------------------------------------- */
-/*  willab commercial-beta feature flag                                        */
+/*  willab feature flag — willab is now the DEFAULT product (D1 = REPLACE)      */
 /*                                                                            */
-/*  Build-time env (`NEXT_PUBLIC_WILLAB_BETA=1`) is the source of truth — it's  */
-/*  SSR-consistent, so the flag-on branch can render server-side without a     */
-/*  hydration mismatch. A `localStorage` override lets a tester flip it        */
-/*  without a redeploy; it's applied POST-mount only (never in the first       */
-/*  render) so it can't desync SSR ↔ client hydration.                        */
+/*  willab renders by default at `/chat` (and via the `/` → `/chat` redirect,  */
+/*  the whole app). The legacy funnel stays reachable only as a transition      */
+/*  escape hatch until the clearing phase removes it: set env                  */
+/*  `NEXT_PUBLIC_WILLAB_BETA=0`, or the `localStorage` override `"0"`.         */
 /*                                                                            */
-/*  While the flag is OFF, the legacy `/chat` funnel renders unchanged — the   */
-/*  willab beta is built entirely behind this flag (keeps `main` shippable).  */
+/*  Env is SSR-consistent (the branch renders server-side with no hydration    */
+/*  mismatch); the override is applied POST-mount only so it can't desync       */
+/*  SSR ↔ client hydration.                                                    */
 /* -------------------------------------------------------------------------- */
 
-const ENV_ON = process.env.NEXT_PUBLIC_WILLAB_BETA === "1";
+const ENV_ON = process.env.NEXT_PUBLIC_WILLAB_BETA !== "0";
 export const WILLAB_BETA_OVERRIDE_KEY = "willab.beta_override";
 
 /** Env-only read for non-React contexts (the localStorage override is
