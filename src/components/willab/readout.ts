@@ -27,6 +27,15 @@ export interface ReadoutStickiness {
   comment: string | null;
 }
 
+export type CoachTag = "strong" | "to_work_on";
+
+/** Coach's user-facing note on a snippet — POST-PUBLISH ONLY (§14 user lane;
+ *  the private direction label never crosses into this). */
+export interface ReadoutCoach {
+  note: string;
+  tag: CoachTag | null;
+}
+
 export interface ReadoutSnippet {
   id: string;
   startOffsetMs: number;
@@ -35,10 +44,13 @@ export interface ReadoutSnippet {
   audioRef: string | null;
   features: ReadoutFeatures;
   stickiness: ReadoutStickiness;
+  coach: ReadoutCoach | null;
 }
 
 export interface ReadoutPayload {
   snippets: ReadoutSnippet[];
+  /** insights_payload.overall_message — post-publish only; null on the raw Readout. */
+  overallMessage: string | null;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -87,13 +99,32 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
       composite: num(stick.composite),
       comment: typeof stick.comment === "string" ? stick.comment : null,
     },
+    coach: mapCoach(r.coach),
   };
+}
+
+/** Map the post-publish coach block; null when absent or empty (pre-publish). */
+function mapCoach(raw: unknown): ReadoutCoach | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  const note = typeof c.note === "string" ? c.note : "";
+  const tag =
+    c.tag === "strong" || c.tag === "to_work_on" ? (c.tag as CoachTag) : null;
+  if (!note && !tag) return null;
+  return { note, tag };
 }
 
 export function mapReadoutPayload(raw: unknown): ReadoutPayload {
   const r = obj(raw);
   const snippets = Array.isArray(r.snippets) ? r.snippets : [];
-  return { snippets: snippets.map(mapReadoutSnippet) };
+  const insights = obj(r.insights_payload);
+  return {
+    snippets: snippets.map(mapReadoutSnippet),
+    overallMessage:
+      typeof insights.overall_message === "string"
+        ? insights.overall_message
+        : null,
+  };
 }
 
 /* ------------------------------- dev mock --------------------------------- */
@@ -126,8 +157,10 @@ export function mockReadout(topic: string): ReadoutPayload {
       f0MidEndDelta: -8,
     },
     stickiness: { composite: 0.72, comment },
+    coach: null,
   });
   return {
+    overallMessage: null,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(

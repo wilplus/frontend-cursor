@@ -13,9 +13,19 @@ import { insightView, readoutView } from "./loungeReports";
 /*  the title + a "saved to history" line so the entry is still meaningful.     */
 /* -------------------------------------------------------------------------- */
 
-export default function ReportCard({ message }: { message: LoungeMessage }) {
+export default function ReportCard({
+  message,
+  onViewInsights,
+}: {
+  message: LoungeMessage;
+  onViewInsights?: (sessionId: string) => void;
+}) {
   if (message.kind === "insight") {
     const v = insightView(message.metadata);
+    const sessionId =
+      typeof message.metadata?.session_id === "string"
+        ? message.metadata.session_id
+        : null;
     return (
       <div className="my-1 rounded-2xl border border-primary/30 bg-primary/5 p-3">
         <div className="flex items-center gap-2">
@@ -33,6 +43,15 @@ export default function ReportCard({ message }: { message: LoungeMessage }) {
               : message.body}
           </p>
         )}
+        {sessionId && onViewInsights ? (
+          <button
+            type="button"
+            onClick={() => onViewInsights(sessionId)}
+            className="mt-2 text-[13px] font-medium text-primary underline-offset-2 hover:underline"
+          >
+            View insights →
+          </button>
+        ) : null}
       </div>
     );
   }
