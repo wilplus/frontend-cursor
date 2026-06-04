@@ -279,7 +279,7 @@ export default function LabOverlay({
 
         {state === "readout" && (
           <ReadoutCard
-            payload={readout ?? { snippets: [] }}
+            payload={readout ?? { snippets: [], overallMessage: null }}
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
             onExplain={parkReadout}
           />

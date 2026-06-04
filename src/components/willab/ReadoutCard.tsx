@@ -29,11 +29,13 @@ export default function ReadoutCard({
   isSample = false,
   onSend,
   onExplain,
+  variant = "lab",
 }: {
   payload: ReadoutPayload;
   isSample?: boolean;
-  onSend: () => void;
-  onExplain: () => void;
+  onSend?: () => void;
+  onExplain?: () => void;
+  variant?: "lab" | "insights";
 }) {
   const { snippets } = payload;
   const total = snippets.length;
@@ -59,6 +61,17 @@ export default function ReadoutCard({
           Sample data — your real acoustic Readout wires in at seam ③.
         </p>
       )}
+
+      {payload.overallMessage ? (
+        <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-primary">
+            From your coach
+          </p>
+          <p className="mt-1 text-[15px] leading-relaxed text-foreground">
+            {payload.overallMessage}
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-4">
         {showAll
@@ -96,24 +109,32 @@ export default function ReadoutCard({
         </div>
       )}
 
-      <p className="mt-5 text-center text-[12px] leading-relaxed text-muted-foreground">
-        Your personal baseline builds over your first few sessions; these are raw
-        values.
-      </p>
-      <button
-        type="button"
-        onClick={onExplain}
-        className="mt-2 text-center text-[13px] text-primary underline-offset-2 hover:underline"
-      >
-        ▸ What do these mean?
-      </button>
+      {variant === "lab" ? (
+        <>
+          <p className="mt-5 text-center text-[12px] leading-relaxed text-muted-foreground">
+            Your personal baseline builds over your first few sessions; these are
+            raw values.
+          </p>
+          {onExplain ? (
+            <button
+              type="button"
+              onClick={onExplain}
+              className="mt-2 text-center text-[13px] text-primary underline-offset-2 hover:underline"
+            >
+              ▸ What do these mean?
+            </button>
+          ) : null}
 
-      {/* persistent send footer (§5.7) */}
-      <div className="sticky bottom-0 -mx-4 mt-5 border-t border-border bg-background px-4 py-3">
-        <Button onClick={onSend} className="w-full rounded-full">
-          Send to my coach for analysis
-        </Button>
-      </div>
+          {/* persistent send footer (§5.7) */}
+          {onSend ? (
+            <div className="sticky bottom-0 -mx-4 mt-5 border-t border-border bg-background px-4 py-3">
+              <Button onClick={onSend} className="w-full rounded-full">
+                Send to my coach for analysis
+              </Button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -214,6 +235,27 @@ function SnippetCard({
           ) : null}
         </div>
       )}
+
+      {/* coach's note — post-publish only (§6 / §14 user lane) */}
+      {snippet.coach ? (
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-primary">
+              Your coach
+            </span>
+            {snippet.coach.tag ? (
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                {snippet.coach.tag === "strong" ? "Strong" : "To work on"}
+              </span>
+            ) : null}
+          </div>
+          {snippet.coach.note ? (
+            <p className="mt-1 text-[15px] leading-relaxed text-foreground">
+              {snippet.coach.note}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
