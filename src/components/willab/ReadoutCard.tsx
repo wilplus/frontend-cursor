@@ -195,22 +195,25 @@ function SnippetCard({
         </div>
       )}
 
-      {/* stickiness — comment first, score second, neutral */}
-      <div className="mt-4 border-t border-border pt-3">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Stickiness
-        </span>
-        {snippet.stickiness.comment ? (
-          <p className="mt-1 text-[15px] leading-relaxed text-foreground">
-            {snippet.stickiness.comment}
-          </p>
-        ) : null}
-        {snippet.stickiness.composite != null ? (
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            composite {dec(snippet.stickiness.composite)}
-          </p>
-        ) : null}
-      </div>
+      {/* stickiness — comment first, score second, neutral. Both can be null
+          (AI comment may be absent) — render nothing rather than a bare header. */}
+      {(snippet.stickiness.comment || snippet.stickiness.composite != null) && (
+        <div className="mt-4 border-t border-border pt-3">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Stickiness
+          </span>
+          {snippet.stickiness.comment ? (
+            <p className="mt-1 text-[15px] leading-relaxed text-foreground">
+              {snippet.stickiness.comment}
+            </p>
+          ) : null}
+          {snippet.stickiness.composite != null ? (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              composite {dec(snippet.stickiness.composite)}
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
