@@ -36,9 +36,10 @@ export async function submitLabRecording(
     form.append("target_length_seconds", String(input.targetLengthSeconds));
   }
   if (input.domainVocabulary && input.domainVocabulary.length > 0) {
+    // A4: one field, JSON-array string (or CSV) — not repeated fields.
     form.append("domain_vocabulary", JSON.stringify(input.domainVocabulary));
   }
-  form.append("audio_duration_sec", String(Math.round(input.durationSec)));
+  // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
   const token = await getAuthToken(); // optional — public/guest endpoint
   const headers: Record<string, string> = {};
@@ -82,13 +83,15 @@ export async function submitLabRecording(
     return { kind: "error", status: res.status, message: "Empty response from the lab." };
   }
 
-  // BE Q2 (envelope): assume the 201 body IS the readout at top level —
-  // { session_id, state, snippets[] }. Isolated here; if BE nests it (e.g.
-  // { readout: {...} }), change only this block.
+  // BE A2 (verified live): 201 = { status, session_id, recording_id, state,
+  // session_context, readout:{ snippets[] } }. Snippets sit at readout.snippets;
+  // state defaults to readout_ready per the BE note.
+  const readoutObj =
+    body.readout && typeof body.readout === "object" ? body.readout : {};
   return {
     kind: "ok",
     sessionId: typeof body.session_id === "string" ? body.session_id : null,
-    state: typeof body.state === "string" ? body.state : null,
-    readout: mapReadoutPayload(body),
+    state: typeof body.state === "string" ? body.state : "readout_ready",
+    readout: mapReadoutPayload(readoutObj),
   };
 }
