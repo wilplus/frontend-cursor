@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { saveUserProfile } from "@/services/api/userProfile";
+import { fetchUserProfile, saveUserProfile } from "@/services/api/userProfile";
+import { useSignedIn } from "./useSignedIn";
 import { WILLAB_DOMAINS, domainSpec, type WillabDomain } from "./domains";
 import { writeWillabProfile } from "./willabProfile";
 
@@ -20,8 +22,34 @@ import { writeWillabProfile } from "./willabProfile";
 /* -------------------------------------------------------------------------- */
 
 export default function Intake({ onDone }: { onDone: () => void }) {
+  const signedIn = useSignedIn();
+  const [checking, setChecking] = useState(true);
   const [domain, setDomain] = useState<WillabDomain | null>(null);
   const [goal, setGoal] = useState("");
+
+  // Returning signed-in users with a server profile skip the interview (§2 runs
+  // once). Covers the cross-device / cleared-storage case — same-device
+  // returners never reach intake (the flow routes them to the Lounge).
+  useEffect(() => {
+    if (signedIn === null) return; // auth still resolving
+    if (!signedIn) {
+      setChecking(false);
+      return;
+    }
+    let active = true;
+    void fetchUserProfile().then((p) => {
+      if (!active) return;
+      if (p?.domain) {
+        writeWillabProfile({ domain: p.domain as WillabDomain, goal: p.goal });
+        onDone(); // already onboarded
+      } else {
+        setChecking(false);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [signedIn, onDone]);
 
   function handleContinue() {
     if (!domain) return;
@@ -32,6 +60,14 @@ export default function Intake({ onDone }: { onDone: () => void }) {
     // sign-up. Never blocks the flow — onDone advances immediately.
     void saveUserProfile({ domain, goal: trimmedGoal });
     onDone();
+  }
+
+  if (checking) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
