@@ -19,6 +19,12 @@ describe("initialWillabState", () => {
       initialWillabState({ consentAccepted: true, intakeDone: true })
     ).toBe("lounge_idle");
   });
+
+  it("routes an onboarded user with a parked Readout to the parked state", () => {
+    expect(
+      initialWillabState({ consentAccepted: true, intakeDone: true, parked: true })
+    ).toBe("parked");
+  });
 });
 
 describe("isLabOverlay", () => {
