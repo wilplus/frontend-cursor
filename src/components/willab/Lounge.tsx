@@ -8,6 +8,7 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { loungeToHistory } from "./willabHelpers";
 import ReportCard from "./ReportCard";
+import InsightsOverlay from "./InsightsOverlay";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -34,6 +35,7 @@ export default function Lounge({
   const { messages } = thread;
   const [draftText, setDraftText] = useState("");
   const [botThinking, setBotThinking] = useState(false);
+  const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -90,7 +92,13 @@ export default function Lounge({
         ) : messages.length === 0 ? (
           <LoungeEmptyState />
         ) : (
-          messages.map((m) => <Bubble key={m.client_id} message={m} />)
+          messages.map((m) => (
+            <Bubble
+              key={m.client_id}
+              message={m}
+              onViewInsights={setActiveInsight}
+            />
+          ))
         )}
 
         {botThinking && (
@@ -127,13 +135,26 @@ export default function Lounge({
           <Send className="h-4 w-4" />
         </Button>
       </form>
+
+      {activeInsight && (
+        <InsightsOverlay
+          sessionId={activeInsight}
+          onClose={() => setActiveInsight(null)}
+        />
+      )}
     </div>
   );
 }
 
-function Bubble({ message }: { message: LoungeMessage }) {
+function Bubble({
+  message,
+  onViewInsights,
+}: {
+  message: LoungeMessage;
+  onViewInsights?: (sessionId: string) => void;
+}) {
   if (message.kind === "recording_summary" || message.kind === "insight") {
-    return <ReportCard message={message} />;
+    return <ReportCard message={message} onViewInsights={onViewInsights} />;
   }
   if (message.role === "user") {
     return (
