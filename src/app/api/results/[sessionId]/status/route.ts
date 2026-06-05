@@ -98,7 +98,8 @@ export async function GET(
       created_at: data.created_at ?? null,
       ai_summary: data.ai_summary ?? null,
       ai_score: data.ai_score ?? null,
-      kpi_score: data.kpi_score ?? null,
+      // AC-9 (split-sink): no user-facing `kpi_score`. Its only consumer
+      // (chat/hooks/useReviewingFetch) was removed in the willab clearance.
       metrics_ready:
         typeof data.metrics_ready === "boolean" ? data.metrics_ready : false,
       snippets_published:
