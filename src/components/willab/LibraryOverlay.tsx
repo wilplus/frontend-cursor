@@ -28,6 +28,11 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  // §7a: strengths-only gallery — a VIEW filter, never an ingest filter. The
+  // store (fetchLibrary) keeps to_work_on entries so the bot can surface them on
+  // pull and session notes can reference them; only this gallery shows `strong`.
+  const strong = entries.filter((e) => e.tag === "strong");
+
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
@@ -49,14 +54,14 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : entries.length === 0 ? (
+        ) : strong.length === 0 ? (
           <p className="max-w-sm text-[15px] text-muted-foreground">
             Nothing here yet — your coach&apos;s notes on your strongest moments
             collect here as you get reads.
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {entries.map((e) => (
+            {strong.map((e) => (
               <li key={e.id} className="rounded-2xl border border-border bg-card p-4">
                 {e.tag ? (
                   <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
