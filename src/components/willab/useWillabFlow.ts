@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { hasParkedReadout } from "./willabParked";
-import { clearReviewPending, hasReviewPending } from "./sendStatus";
+import { clearReviewPending, getInsightsReady, hasReviewPending } from "./sendStatus";
 
 /* -------------------------------------------------------------------------- */
 /*  useWillabFlow — the willab-beta state machine (§8)                         */
@@ -56,11 +56,13 @@ export function initialWillabState(flags: {
   intakeDone: boolean;
   parked?: boolean;
   reviewPending?: boolean;
+  insightsReady?: boolean;
 }): WillabState {
   if (!flags.consentAccepted) return "welcome_consent";
   if (!flags.intakeDone) return "intake_in_progress";
   if (flags.parked) return "parked"; // held Readout survives reload (§4)
   if (flags.reviewPending) return "review_pending"; // sent; awaiting coach (§6a)
+  if (flags.insightsReady) return "insights_ready"; // coach published; unread (§6a)
   return "lounge_idle";
 }
 
@@ -108,6 +110,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
         intakeDone: readFlag(INTAKE_KEY),
         parked: hasParkedReadout(),
         reviewPending: hasReviewPending(),
+        insightsReady: getInsightsReady() != null,
       })
     );
   }, []);

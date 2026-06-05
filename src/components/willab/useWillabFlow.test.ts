@@ -46,6 +46,27 @@ describe("initialWillabState", () => {
       })
     ).toBe("parked");
   });
+
+  it("routes a returning user with unread coach insights to insights_ready", () => {
+    expect(
+      initialWillabState({
+        consentAccepted: true,
+        intakeDone: true,
+        insightsReady: true,
+      })
+    ).toBe("insights_ready");
+  });
+
+  it("prefers review_pending over insights_ready when both are set", () => {
+    expect(
+      initialWillabState({
+        consentAccepted: true,
+        intakeDone: true,
+        reviewPending: true,
+        insightsReady: true,
+      })
+    ).toBe("review_pending");
+  });
 });
 
 describe("isLabOverlay", () => {

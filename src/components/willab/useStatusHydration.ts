@@ -2,7 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { fetchReadouts } from "@/services/api/readouts";
-import { clearReviewPending, setReviewPending } from "./sendStatus";
+import {
+  clearReviewPending,
+  getReviewPending,
+  setInsightsReady,
+  setReviewPending,
+} from "./sendStatus";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -16,6 +21,34 @@ import type { WillabState } from "./useWillabFlow";
 /*  interrupts onboarding or the Lab.                                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Reconcile the at-home status against server truth (§6a single-active model:
+ * newest readout = the relevant session). Shared by the on-load hook AND the
+ * live publish signal, so one logic drives the status — no second write.
+ *   - newest is review_pending → review_pending
+ *   - we were waiting and it moved off review_pending (the only forward move is
+ *     publish; detected by the state change, since the BE pins no "published"
+ *     string) → insights_ready
+ *   - otherwise → lounge_idle
+ */
+export async function reconcileWillabStatus(
+  goTo: (s: WillabState) => void
+): Promise<void> {
+  const rows = await fetchReadouts();
+  const latest = rows[0];
+  if (latest?.state === "review_pending") {
+    setReviewPending(latest.sessionId);
+    goTo("review_pending");
+  } else if (getReviewPending() != null) {
+    setInsightsReady(latest?.sessionId ?? getReviewPending()!);
+    clearReviewPending();
+    goTo("insights_ready");
+  } else {
+    clearReviewPending();
+    goTo("lounge_idle");
+  }
+}
+
 export function useStatusHydration(
   signedIn: boolean | null,
   state: WillabState | null,
@@ -28,15 +61,6 @@ export function useStatusHydration(
     ranRef.current = true; // once, on the first resolved signed-in load
     if (state !== "lounge_idle" && state !== "review_pending") return;
 
-    void fetchReadouts().then((rows) => {
-      const latest = rows[0]; // newest first
-      if (latest?.state === "review_pending") {
-        setReviewPending(latest.sessionId);
-        if (state !== "review_pending") goTo("review_pending");
-      } else {
-        clearReviewPending();
-        if (state === "review_pending") goTo("lounge_idle");
-      }
-    });
+    void reconcileWillabStatus(goTo);
   }, [signedIn, state, goTo]);
 }
