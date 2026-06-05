@@ -31,7 +31,7 @@ export function useStatusHydration(
     void fetchReadouts().then((rows) => {
       const latest = rows[0]; // newest first
       if (latest?.state === "review_pending") {
-        setReviewPending();
+        setReviewPending(latest.sessionId);
         if (state !== "review_pending") goTo("review_pending");
       } else {
         clearReviewPending();

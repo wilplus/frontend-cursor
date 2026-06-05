@@ -50,11 +50,17 @@ export function clearPendingSend(): void {
   del(SEND_KEY);
 }
 
-export function setReviewPending(): void {
-  set(REVIEW_KEY, "1");
+export function setReviewPending(sessionId?: string | null): void {
+  set(REVIEW_KEY, sessionId ? sessionId : "1");
+}
+export function getReviewPending(): string | null {
+  // The in-review session id, so the Lounge can open its Readout while it's with
+  // the coach. null when pending without an id (legacy "1" value).
+  const v = get(REVIEW_KEY);
+  return v && v !== "1" ? v : null;
 }
 export function hasReviewPending(): boolean {
-  return get(REVIEW_KEY) === "1";
+  return get(REVIEW_KEY) != null;
 }
 export function clearReviewPending(): void {
   del(REVIEW_KEY);

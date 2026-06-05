@@ -48,7 +48,7 @@ export default function WillabPendingSend() {
         if (r.kind === "sent") {
           clearPendingSend();
           clearParked();
-          setReviewPending();
+          setReviewPending(pendingId);
           // Full load so the willab flow re-derives state → review_pending.
           window.location.href = "/chat";
         }
