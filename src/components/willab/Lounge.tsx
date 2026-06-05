@@ -10,7 +10,7 @@ import { loungeToHistory } from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
-import { getReviewPending } from "./sendStatus";
+import { clearInsightsReady, getInsightsReady, getReviewPending } from "./sendStatus";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -262,14 +262,30 @@ function StatusRegion({
     );
   }
   if (state === "insights_ready") {
+    const sid = getInsightsReady();
     return (
       <StatusCard tone="ready">
         <p className="text-[15px] text-foreground">
           Your coach sent through new insights.
         </p>
-        <p className="mt-0.5 text-[12px] text-muted-foreground">
-          They&apos;re saved to your thread below.
-        </p>
+        {sid ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              onViewReadout(sid); // opens the annotated Readout (read → BE library fold §3.11)
+              clearInsightsReady();
+              goTo("lounge_idle"); // transient: once read, back to the launch CTA (§6a)
+            }}
+            className="mt-2 rounded-full"
+          >
+            Read ›
+          </Button>
+        ) : (
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            They&apos;re saved to your history.
+          </p>
+        )}
       </StatusCard>
     );
   }
