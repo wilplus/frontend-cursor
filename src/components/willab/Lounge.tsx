@@ -10,6 +10,7 @@ import { loungeToHistory } from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
+import HistoryOverlay from "./HistoryOverlay";
 import { clearInsightsReady, getInsightsReady, getReviewPending } from "./sendStatus";
 import type { WillabState } from "./useWillabFlow";
 
@@ -39,6 +40,7 @@ export default function Lounge({
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -120,13 +122,22 @@ export default function Lounge({
       >
         ▶ Start official recording
       </Button>
-      <button
-        type="button"
-        onClick={() => setLibraryOpen(true)}
-        className="text-center text-[13px] text-muted-foreground hover:text-foreground"
-      >
-        ★ Your strong sides
-      </button>
+      <div className="flex items-center justify-center gap-5">
+        <button
+          type="button"
+          onClick={() => setLibraryOpen(true)}
+          className="text-[13px] text-muted-foreground hover:text-foreground"
+        >
+          ★ Your strong sides
+        </button>
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
+          className="text-[13px] text-muted-foreground hover:text-foreground"
+        >
+          🕓 Your recordings
+        </button>
+      </div>
 
       <form onSubmit={handleSend} className="flex items-center gap-2">
         <input
@@ -153,6 +164,15 @@ export default function Lounge({
         />
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
+      {historyOpen && (
+        <HistoryOverlay
+          onClose={() => setHistoryOpen(false)}
+          onOpenSession={(sid) => {
+            setHistoryOpen(false);
+            setActiveInsight(sid);
+          }}
+        />
+      )}
     </div>
   );
 }
