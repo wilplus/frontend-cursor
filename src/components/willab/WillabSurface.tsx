@@ -1,10 +1,14 @@
 "use client";
 
+import { useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { useWillabFlow } from "./useWillabFlow";
 import { useSignedIn } from "./useSignedIn";
-import { useStatusHydration } from "./useStatusHydration";
+import { useUserId } from "./useUserId";
+import { useStatusHydration, reconcileWillabStatus } from "./useStatusHydration";
+import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
@@ -29,8 +33,19 @@ export default function WillabSurface({
 }) {
   const flow = useWillabFlow();
   const signedIn = useSignedIn();
-  // Reconcile the at-home status (review_pending / insights) with server truth.
+  const userId = useUserId();
+  // Reconcile the at-home status (review_pending / insights) with server truth
+  // once on load…
   useStatusHydration(signedIn, flow.state, flow.goTo);
+  // …and live: while awaiting a coach, flip review_pending → insights_ready the
+  // instant the coach publishes (realtime sub + 20s poll fallback), reusing the
+  // same reconcile so the publish event is the single source of truth (no 2nd write).
+  const { goTo } = flow;
+  const onPublish = useCallback(() => {
+    if (getReviewPending() == null) return; // only relevant while awaiting a coach
+    void reconcileWillabStatus(goTo);
+  }, [goTo]);
+  usePublishLiveSubscription(userId, onPublish);
 
   const shell = (children: React.ReactNode) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">

@@ -14,6 +14,7 @@
 
 const SEND_KEY = "willab.pending_send";
 const REVIEW_KEY = "willab.review_pending";
+const INSIGHTS_KEY = "willab.insights_ready";
 
 function get(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -64,4 +65,18 @@ export function hasReviewPending(): boolean {
 }
 export function clearReviewPending(): void {
   del(REVIEW_KEY);
+}
+
+/* insights_ready — the published session whose coach read is unread. Set when
+   review_pending flips to published (live sub or on-load reconcile); carries the
+   session id so the status card's "Read ›" can open that session's Insights.
+   Cleared on read. */
+export function setInsightsReady(sessionId: string): void {
+  set(INSIGHTS_KEY, sessionId);
+}
+export function getInsightsReady(): string | null {
+  return get(INSIGHTS_KEY);
+}
+export function clearInsightsReady(): void {
+  del(INSIGHTS_KEY);
 }
