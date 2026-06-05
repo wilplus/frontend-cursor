@@ -49,7 +49,11 @@ export default function InsightsOverlay({
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <span className="text-[13px] font-semibold text-foreground">
-          Coach insights
+          {data &&
+          (data.readout.overallMessage != null ||
+            data.readout.snippets.some((s) => s.coach != null))
+            ? "Coach insights"
+            : "Your readout"}
         </span>
         <button
           type="button"

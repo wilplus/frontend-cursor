@@ -303,7 +303,7 @@ export default function LabOverlay({
             signedIn={signedIn}
             onSent={() => {
               clearParked();
-              setReviewPending();
+              setReviewPending(labSessionId);
               goTo("review_pending");
             }}
             onPark={parkReadout}

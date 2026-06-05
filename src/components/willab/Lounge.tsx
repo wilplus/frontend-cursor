@@ -10,6 +10,7 @@ import { loungeToHistory } from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
+import { getReviewPending } from "./sendStatus";
 import type { WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
@@ -73,7 +74,7 @@ export default function Lounge({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      <StatusRegion state={state} goTo={goTo} />
+      <StatusRegion state={state} goTo={goTo} onViewReadout={setActiveInsight} />
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {thread.hasMore && (
@@ -211,9 +212,11 @@ function LoungeEmptyState() {
 function StatusRegion({
   state,
   goTo,
+  onViewReadout,
 }: {
   state: WillabState;
   goTo: (s: WillabState) => void;
+  onViewReadout: (sessionId: string) => void;
 }) {
   if (state === "parked") {
     return (
@@ -234,6 +237,7 @@ function StatusRegion({
     );
   }
   if (state === "review_pending") {
+    const sid = getReviewPending();
     return (
       <StatusCard tone="info">
         <p className="text-[15px] text-foreground">
@@ -243,6 +247,17 @@ function StatusRegion({
           We&apos;ll surface their read here as soon as it lands — no need to
           wait around.
         </p>
+        {sid ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onViewReadout(sid)}
+            className="mt-2 rounded-full"
+          >
+            View your readout
+          </Button>
+        ) : null}
       </StatusCard>
     );
   }
