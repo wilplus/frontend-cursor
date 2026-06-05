@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Menu, Settings } from "lucide-react";
+import { Menu } from "lucide-react";
 import WillabLogo from "@/components/WillabLogo";
 import { createClient } from "@/lib/supabase/client";
 import { homeworkApi } from "@/lib/api/homework-client";
@@ -18,7 +18,6 @@ import { pollCreditsAfterCheckout } from "@/lib/homework/pollCreditsAfterCheckou
 
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
-const ADMIN_EMAIL = "artur@willonski.com";
 type AuthState = "unknown" | "anonymous" | "signed_in";
 
 export default function DashboardHeader() {
@@ -188,16 +187,6 @@ export default function DashboardHeader() {
           >
             <WillabLogo size="md" />
           </Link>
-          {authState === "signed_in" && userEmail === ADMIN_EMAIL && (
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              title="Admin"
-            >
-              <Settings className="h-4 w-4" aria-hidden />
-              Admin
-            </Link>
-          )}
         </div>
 
         {/* Right-side: depends on auth state. While "unknown" we render an
