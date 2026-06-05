@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   clearPendingSend,
+  clearInsightsReady,
   clearReviewPending,
+  getInsightsReady,
   getPendingSend,
   getReviewPending,
   hasReviewPending,
+  setInsightsReady,
   setPendingSend,
   setReviewPending,
 } from "./sendStatus";
@@ -63,5 +66,15 @@ describe("sendStatus — review pending flag", () => {
     setReviewPending();
     expect(hasReviewPending()).toBe(true);
     expect(getReviewPending()).toBeNull();
+  });
+});
+
+describe("sendStatus — insights ready", () => {
+  it("round-trips the published session id and clears", () => {
+    expect(getInsightsReady()).toBeNull();
+    setInsightsReady("sess-pub");
+    expect(getInsightsReady()).toBe("sess-pub");
+    clearInsightsReady();
+    expect(getInsightsReady()).toBeNull();
   });
 });
