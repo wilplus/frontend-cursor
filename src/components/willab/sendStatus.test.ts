@@ -3,6 +3,7 @@ import {
   clearPendingSend,
   clearReviewPending,
   getPendingSend,
+  getReviewPending,
   hasReviewPending,
   setPendingSend,
   setReviewPending,
@@ -48,5 +49,19 @@ describe("sendStatus — review pending flag", () => {
     expect(hasReviewPending()).toBe(true);
     clearReviewPending();
     expect(hasReviewPending()).toBe(false);
+  });
+
+  it("stores the in-review session id and reads it back", () => {
+    setReviewPending("sess-9");
+    expect(hasReviewPending()).toBe(true);
+    expect(getReviewPending()).toBe("sess-9");
+    clearReviewPending();
+    expect(getReviewPending()).toBeNull();
+  });
+
+  it("pending without an id (legacy) is flagged but has no session id", () => {
+    setReviewPending();
+    expect(hasReviewPending()).toBe(true);
+    expect(getReviewPending()).toBeNull();
   });
 });
