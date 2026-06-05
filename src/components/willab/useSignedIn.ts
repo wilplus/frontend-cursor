@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 /* -------------------------------------------------------------------------- */
 /*  useSignedIn — lightweight auth probe for the Lounge                         */
 /*                                                                            */
-/*  Unlike `useAuthReady`, this NEVER redirects: the Lounge is the unsigned    */
+/*  This NEVER redirects: the Lounge is the unsigned                           */
 /*  home, so "signed out" is a first-class state, not an error. Returns:       */
 /*    null  → still resolving (don't mount the thread yet)                     */
 /*    false → no session (Lounge persists to localStorage)                     */
