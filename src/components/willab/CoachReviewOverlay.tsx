@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
 import CoachVideoSlot from "./CoachVideoSlot";
 import type { CoachSnippetState } from "@/services/api/coachReview";
+import {
+  publishWillabSession,
+  type PublishLabel,
+  type PublishNote,
+} from "@/services/api/publishWillabSession";
 
 /* -------------------------------------------------------------------------- */
-/*  CoachReviewOverlay — full-screen takeover for per-session review (§F.2)    */
+/*  CoachReviewOverlay — full-screen takeover for per-session review           */
+/*  (§F.2 + §F.5)                                                              */
 /*                                                                            */
 /*  Mirrors LabOverlay's shape (H1 — full-screen consistency) but mounted      */
 /*  over the Lounge, not the Lab, so the coach can close it and return        */
@@ -17,16 +23,25 @@ import type { CoachSnippetState } from "@/services/api/coachReview";
 /*                                                                            */
 /*  Identity hygiene (§S.4 / §F.7): the header carries the pseudonym + domain  */
 /*  + topic ONLY. No name, no email. Same chrome whether the coach is on the   */
-/*  first session or the hundredth.                                            */
+/*  first session or the hundredth. The success confirmation is name-free too  */
+/*  ("Insights published ✓" — no "to Maria", no real-name fallback).           */
 /*                                                                            */
 /*  Snippet order: BE returns chronologically (§S.3 label hygiene). The FE    */
 /*  renders that order verbatim — no best/worst hint, no pre-fill, no AI       */
 /*  direction guess in the UI. The coach labels blind.                         */
 /*                                                                            */
-/*  Publish: deferred to PR 4 (waits on BE 3c — the assemble-from-drafts +    */
-/*  notify_client rewire). The overlay shows the §3.10 floor status inline    */
-/*  but the publish button itself is wired in the next PR; for now the coach   */
-/*  closes the overlay to leave (drafts persist via per-snippet save).        */
+/*  Publish (§F.5):                                                            */
+/*    - Floor: ≥1 surfaced snippet with both note + tag. Server enforces too   */
+/*      but the FE button is disabled until the local mirror clears it.        */
+/*    - Notify toggle: ON for first publish (state ∈ pending/in_progress),     */
+/*      OFF for re-publish (state === done). Maps to body.notify_client.       */
+/*    - Body assembled from session.snippets + the local per-snippet save      */
+/*      mirror (which IS the BE's persisted truth — every save round-trips).   */
+/*      Sent against the existing internal publish endpoint; BE's 3c rewire    */
+/*      accepts this shape AND the simplified {overall_message, notify_client} */
+/*      future shape — we send the full one for backward compat.               */
+/*    - Success → name-free "Insights published ✓" → tap-anywhere closes →     */
+/*      Lounge bubble flips to ✓ done via the parent's reviewQueue.refresh().  */
 /* -------------------------------------------------------------------------- */
 
 export default function CoachReviewOverlay({
@@ -40,8 +55,7 @@ export default function CoachReviewOverlay({
 
   // Local mirror of per-snippet state, seeded from the payload and updated
   // by each card's save echo. Used to derive the publish-floor status
-  // (§3.10) without a session refetch. PR 4 hooks this up to the publish
-  // button's enabled state.
+  // (§3.10) and assemble the publish payload without a session refetch.
   const [localState, setLocalState] = useState<Record<string, CoachSnippetState>>(
     {}
   );
@@ -50,23 +64,105 @@ export default function CoachReviewOverlay({
   // on load; updated optimistically when the coach uploads a new video so
   // the preview shows immediately without re-fetching the session.
   const [videoRef, setVideoRef] = useState<string | null>(null);
+
+  // §F.5 publish state — overall message + notify toggle + lifecycle flags.
+  // Overall message is saved at publish-time (not per-keystroke) since the
+  // BE doesn't expose a draft endpoint for it — it's part of the publish
+  // payload itself.
+  const [overallMessage, setOverallMessage] = useState("");
+  const [notifyClient, setNotifyClient] = useState(true);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
+
+  // Seed local state from the session payload on load.
   useEffect(() => {
-    if (session) setVideoRef(session.videoRef);
+    if (!session) return;
+    setVideoRef(session.videoRef);
+    setOverallMessage(session.overallMessage);
+    // §F.5 notify toggle defaults:
+    //   first publish (pending / in_progress) → ON
+    //   re-publish    (done)                  → OFF
+    // The coach typically tightens copy on edit without wanting to ping
+    // the user a second time.
+    setNotifyClient(session.state !== "done");
   }, [session]);
 
   function onSnippetSaved(snippetId: string, next: CoachSnippetState) {
     setLocalState((prev) => ({ ...prev, [snippetId]: next }));
   }
 
-  // §3.10 floor preview: ≥1 surfaced snippet with both a note and a tag.
-  // Computed from the latest known state per snippet (payload merged with
-  // local saves). PR 4 enables the publish button on this.
+  // §3.10 floor: ≥1 surfaced snippet with both a note and a tag. Computed
+  // from the latest known state per snippet (payload merged with local
+  // saves). The publish button is disabled until this clears.
   const floorMet = session
     ? session.snippets.some((s) => {
         const cs = localState[s.id] ?? s.coachState;
         return cs.surfaced && cs.note.trim() !== "" && cs.tag !== null;
       })
     : false;
+
+  async function handlePublish() {
+    if (!session || !floorMet || publishing) return;
+    setPublishing(true);
+    setPublishError(null);
+
+    // Assemble payload from session.snippets + local state mirror.
+    // - notes / tags: user lane — only SURFACED snippets with note+tag.
+    // - labels:       private lane — every labeled snippet, independent
+    //                 of surfaced (§S.1.2 — the two lanes don't cross).
+    const notes: PublishNote[] = [];
+    const labels: PublishLabel[] = [];
+    for (const s of session.snippets) {
+      const cs = localState[s.id] ?? s.coachState;
+      if (cs.surfaced && cs.note.trim() && cs.tag) {
+        notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag });
+      }
+      if (cs.directionLabel) {
+        labels.push({ snippet_id: s.id, value: cs.directionLabel });
+      }
+    }
+
+    const result = await publishWillabSession({
+      sessionId: session.sessionId,
+      overallMessage: overallMessage.trim() || null,
+      notes,
+      labels,
+      notifyClient,
+    });
+
+    setPublishing(false);
+    if (result.ok) {
+      setPublished(true);
+    } else {
+      setPublishError(result.message);
+    }
+  }
+
+  // §F.5 / J2 — name-free confirmation. No "to <pseudonym>", no "to Maria"
+  // (which would be a §F.7 leak), no email surface. Just the verb.
+  // Tap-anywhere closes → bubble in the Lounge thread flips to ✓ done via
+  // the parent's reviewQueue.refresh() called in closeReview().
+  if (published) {
+    return (
+      <div
+        className="fixed inset-0 z-40 flex cursor-pointer flex-col items-center justify-center gap-4 bg-background p-6 text-center"
+        onClick={onClose}
+        role="button"
+        tabIndex={0}
+        aria-label="Close — insights published"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onClose();
+        }}
+      >
+        <CheckCircle2 className="h-14 w-14 text-success" aria-hidden />
+        <p className="text-[20px] font-semibold text-foreground">
+          Insights published
+        </p>
+        <p className="text-[14px] text-muted-foreground">Tap anywhere to close</p>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -135,8 +231,27 @@ export default function CoachReviewOverlay({
                 />
               ))}
 
+              {/* Overall message — optional per §14 / red-line 3. The §6b
+                  "💬 From your coach" block hides entirely when empty,
+                  so an empty submission is honest, not penalized. */}
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <p className="text-sm font-semibold text-foreground">
+                  Overall message
+                  <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                    Shown to user · optional
+                  </span>
+                </p>
+                <textarea
+                  value={overallMessage}
+                  onChange={(e) => setOverallMessage(e.target.value)}
+                  rows={3}
+                  placeholder="A warm opener tying these snippets together…"
+                  className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+                />
+              </div>
+
               {/* §F.6 — session-level coach video. Optional. Lives between
-                  the per-snippet cards and the publish footer so the coach
+                  the overall message and the publish footer so the coach
                   can record a single closing message tying the labeled
                   snippets together. Mobile input triggers the phone camera
                   directly. */}
@@ -146,22 +261,37 @@ export default function CoachReviewOverlay({
                 onUploaded={(nextRef) => setVideoRef(nextRef)}
               />
 
-              {/* Publish footer — disabled in PR 3 (waits on BE 3c rewire).
-                  The §3.10 floor preview is computed so the surface is honest
-                  about what the publish button will check once it's wired. */}
+              {/* Publish footer (§F.5) — sticky bottom of the scroll area. */}
               <div className="sticky bottom-0 -mx-4 mt-4 border-t border-border bg-background px-4 py-3">
                 <div className="mx-auto max-w-2xl">
-                  <p className="mb-2 text-center text-[12px] text-muted-foreground">
-                    {floorMet
-                      ? "Publish floor met — wiring lands with BE 3c."
-                      : "Add at least one surfaced snippet with note + tag to publish."}
-                  </p>
+                  {publishError ? (
+                    <p className="mb-2 text-center text-[13px] text-destructive">
+                      {publishError}
+                    </p>
+                  ) : !floorMet ? (
+                    <p className="mb-2 text-center text-[12px] text-muted-foreground">
+                      Add at least one surfaced snippet with note + tag to
+                      publish.
+                    </p>
+                  ) : null}
+
+                  <label className="mb-2 flex cursor-pointer items-center justify-center gap-2 text-[13px] text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={notifyClient}
+                      onChange={(e) => setNotifyClient(e.target.checked)}
+                      className="h-4 w-4 cursor-pointer rounded border-border text-primary accent-primary"
+                    />
+                    <span>Notify the client about this update</span>
+                  </label>
+
                   <Button
                     type="button"
-                    disabled
+                    onClick={() => void handlePublish()}
+                    disabled={!floorMet || publishing}
                     className="w-full rounded-full"
                   >
-                    Publish to user (PR 4)
+                    {publishing ? "Publishing…" : "Publish to user"}
                   </Button>
                 </div>
               </div>
