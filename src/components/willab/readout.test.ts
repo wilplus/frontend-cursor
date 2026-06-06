@@ -13,7 +13,7 @@ describe("mapReadoutSnippet", () => {
         f0_mean: 165,
         f0_sd: 28,
         speech_rate: 148,
-        mean_pause: 400,
+        mean_pause: 0.22,
         pause_ratio: 0.32,
         loudness_range: 14,
         voiced_ratio: 0.71,
@@ -30,7 +30,7 @@ describe("mapReadoutSnippet", () => {
     expect(s.audioRef).toBe("https://cdn/full.webm");
     expect(s.features.speechRate).toBe(148);
     expect(s.features.pauseRatio).toBe(0.32);
-    expect(s.features.meanPause).toBe(0.4); // pause_ms 400 → 0.4s (ms→s at boundary)
+    expect(s.features.meanPause).toBe(0.22); // BE returns seconds (normalized server-side, PR #32)
     expect(s.features.f0MidEndDelta).toBe(-8);
     expect(s.stickiness).toEqual({ composite: 0.72, comment: "nice" });
   });
