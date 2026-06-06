@@ -34,6 +34,11 @@ export type CoachTag = "strong" | "to_work_on";
 export interface ReadoutCoach {
   note: string;
   tag: CoachTag | null;
+  /** §6b coaching guidance — "when/how to use this" (`when`) + "E.g." example
+   *  lines (`examples`). Additive (post-corrections), coaching not prescription;
+   *  null / [] until the coach authors them. */
+  when: string | null;
+  examples: string[];
 }
 
 export interface ReadoutSnippet {
@@ -110,8 +115,14 @@ function mapCoach(raw: unknown): ReadoutCoach | null {
   const note = typeof c.note === "string" ? c.note : "";
   const tag =
     c.tag === "strong" || c.tag === "to_work_on" ? (c.tag as CoachTag) : null;
-  if (!note && !tag) return null;
-  return { note, tag };
+  const when = typeof c.when === "string" && c.when.length > 0 ? c.when : null;
+  const examples = Array.isArray(c.examples)
+    ? c.examples.filter(
+        (e): e is string => typeof e === "string" && e.length > 0
+      )
+    : [];
+  if (!note && !tag && !when && examples.length === 0) return null;
+  return { note, tag, when, examples };
 }
 
 export function mapReadoutPayload(raw: unknown): ReadoutPayload {

@@ -77,9 +77,37 @@ describe("mapReadoutPayload", () => {
       ],
     });
     expect(p.overallMessage).toBe("Strong session.");
-    expect(p.snippets[0]?.coach).toEqual({ note: "nice open", tag: "strong" });
+    expect(p.snippets[0]?.coach).toEqual({
+      note: "nice open",
+      tag: "strong",
+      when: null,
+      examples: [],
+    });
     expect(p.snippets[1]?.coach?.tag).toBe("to_work_on");
     expect(p.snippets[2]?.coach).toBeNull();
+  });
+
+  it("maps the coach When guidance + examples, dropping blank examples", () => {
+    const p = mapReadoutPayload({
+      snippets: [
+        {
+          id: "a",
+          coach: {
+            note: "great open",
+            tag: "strong",
+            when: "Reuse this opener when you want to land emphasis.",
+            examples: ["Why should you care?", "", "Why us?"],
+          },
+        },
+      ],
+    });
+    expect(p.snippets[0]?.coach?.when).toBe(
+      "Reuse this opener when you want to land emphasis."
+    );
+    expect(p.snippets[0]?.coach?.examples).toEqual([
+      "Why should you care?",
+      "Why us?",
+    ]);
   });
 
   it("defaults overall_message to null pre-publish", () => {
