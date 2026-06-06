@@ -39,6 +39,8 @@ export interface UseLoungeThreadReturn {
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
   /** Page in the next-older window (server only; no-op when unsigned). */
   loadOlder: () => Promise<void>;
+  /** Re-fetch the newest window — e.g. to pull a BE-appended insight ping (§6c). */
+  reload: () => Promise<void>;
   /** Wipe the thread (server DELETE or local clear). */
   clear: () => Promise<void>;
   /** Replay the local thread into the server thread on sign-up, then rehydrate. */
@@ -122,6 +124,15 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     oldestCursorRef.current = null;
   }, [signedIn]);
 
+  const reload = useCallback(async () => {
+    // Insight pings are server-written; the local thread has nothing new to pull.
+    if (!signedIn) return;
+    const page = await fetchLoungeHistory();
+    setMessages(page.messages);
+    setHasMore(page.has_more);
+    oldestCursorRef.current = page.oldest_cursor;
+  }, [signedIn]);
+
   const mergeFromLocal = useCallback(async () => {
     await mergeLocalLoungeThreadToServer();
     // Rehydrate from the now-merged server thread (single source of truth).
@@ -138,6 +149,7 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     hasMore,
     append,
     loadOlder,
+    reload,
     clear,
     mergeFromLocal,
   };
