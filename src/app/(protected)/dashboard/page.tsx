@@ -4,7 +4,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import CreditsCheckoutReturnToast from "@/components/dashboard/CreditsCheckoutReturnToast";
 
 export const metadata: Metadata = {
-  title: "Dashboard | Willab",
+  title: "Dashboard | WillpowerLab",
 };
 
 export default function DashboardPage() {

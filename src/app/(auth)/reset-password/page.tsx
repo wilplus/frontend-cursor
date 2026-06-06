@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
-import WillabLogo from "@/components/WillabLogo";
+import Logo from "@/components/Logo";
 
 export const metadata: Metadata = {
-  title: "Reset Password | Willab",
+  title: "Reset Password | WillpowerLab",
 };
 
 export default function ResetPasswordPage() {
@@ -12,7 +12,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="flex justify-center">
-            <WillabLogo size="lg" />
+            <Logo size="lg" />
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Reset your password

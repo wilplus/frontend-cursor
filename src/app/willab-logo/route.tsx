@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 /**
  * GET /willab-logo
  *
- * Dynamically-rendered Willab wordmark for transactional email
+ * Dynamically-rendered WillpowerLab wordmark for transactional email
  * headers (PostSessionResultsEmail and friends). Same trick as
  * src/app/icon.tsx — Vercel renders the JSX into a PNG at the
  * edge, hosts it for free, no static asset upload needed.
@@ -69,7 +69,7 @@ export async function GET() {
           paddingBottom: 8,
         }}
       >
-        <span>willab</span>
+        <span>WillpowerLab</span>
         <span style={{ color: COLOR_DOT }}>.</span>
       </div>
     ),

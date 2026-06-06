@@ -4,30 +4,42 @@
 
 @layer base {
   :root {
-    /* Voice-Journey design tokens — warm off-white surface, saturated
-       Willab orange. Promoted from the previous .willab-chat scope so
-       the whole app shares one palette (per spec: do NOT introduce a
-       parallel system). The .willab-chat selector below is now an
-       identity override kept for backward-compat with funnel pages
-       that already wrap themselves in it. */
-    --background: 30 25% 97%;
-    --foreground: 20 15% 15%;
-    --card: 35 30% 98%;
-    --card-foreground: 20 15% 15%;
-    --muted: 30 15% 90%;
-    --muted-foreground: 20 10% 40%;
-    --accent: 25 80% 93%;
-    --accent-foreground: 25 90% 35%;
+    /* WillpowerLab design tokens — pure white surface, near-black ink,
+       single orange accent (#FF6A14). Restraint rule: orange is for
+       LIVE-ACTION signals only (send-active, recording pulse, official-
+       recording dot, coach-insights accent, logo active state) — every
+       other surface is black/white/gray. When everything is orange,
+       nothing is.
+
+       Legacy palette tokens that were dashboard/funnel/neuro-wheel
+       scoped have been left in place (they're orphaned by the BE
+       clearance and will retire with the surfaces that consumed them);
+       this block redefines only the root palette every shared
+       primitive (button, input, card, etc.) reads from. */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 22 100% 96%;
+    --accent-foreground: 22 100% 42%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --input: 30 15% 88%;
-    --ring: 25 95% 55%;
-    --border: 30 15% 88%;
-    --secondary: 30 20% 94%;
-    --primary: 25 95% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --input: 0 0% 92%;
+    --ring: 22 100% 52%;
+    --border: 0 0% 92%;
+    --secondary: 0 0% 96%;
+    --primary: 22 100% 52%;
     --radius: 0.75rem;
-    --font-heading: "DM Serif Display", serif;
-    --font-body: "DM Sans", sans-serif;
+    /* System font stack — zero FOIT, no 200KB Inter download, honours
+       the user's OS preference. DM Sans / DM Serif Display are retired. */
+    --font-heading:
+      ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    --font-body:
+      ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     --step-completed: 142 76% 36%;
     --step-pending: 210 40% 96.1%;
     /* Dartboard ring strokes (1px), HSL-compatible */
@@ -52,11 +64,14 @@
     --email-divider: 220 13% 91%;
     --primary-foreground: 0 0% 100%;
 
-    /* Willab chat (Curiosity-Gate funnel) — bubbles + recording pulse */
-    --chat-bubble-bot: 35 30% 98%;
-    --chat-bubble-user: 25 95% 55%;
+    /* Chat bubbles — black user bubble (high authority, the user's
+       voice), light-gray bot bubble (quiet scaffolding). Orange is
+       NEVER on a passive history bubble; that would dilute the
+       signal-only role of the accent. */
+    --chat-bubble-bot: 0 0% 96%;
+    --chat-bubble-user: 0 0% 7%;
     --chat-bubble-user-foreground: 0 0% 100%;
-    --recording-pulse: 0 84% 60%;
+    --recording-pulse: 22 100% 52%;
 
     /*
      * Charisma Awareness Dashboard tokens — light, minimalist palette
@@ -415,6 +430,38 @@ body {
 .dash-bar-grow {
   transform-origin: left center;
   animation: dash-bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Logo voice-dot — three-dot speaking/EQ rhythm. Each dot in the
+   WillpowerLab logo scales gently on a staggered cycle so the mark
+   reads as "active voice" rather than a static icon. Applied via the
+   `Logo` component's animated state; idle state holds the dots
+   static (no animation class applied) so the mark is calm everywhere
+   except where the product is literally listening. */
+@keyframes voice-dot {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.6);
+  }
+}
+
+.animate-voice-dot {
+  transform-origin: center;
+  animation: voice-dot 1.2s ease-in-out infinite;
+}
+
+/* Accessibility: users who request reduced motion get the static
+   form for all the continuous animations (logo, recording pulse,
+   bubble fade-in-up). One-shot transitions are left alone. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-voice-dot,
+  .animate-pulse-ring,
+  .animate-fade-in-up {
+    animation: none !important;
+  }
 }
 
 /* Recording mode: lock body scroll; allow main content to scroll if needed (safe mobile pattern) */

@@ -142,11 +142,11 @@ export default function PwaInstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="Install Willab"
+      aria-label="Install WillpowerLab"
       className="fixed inset-x-0 bottom-4 z-50 mx-auto w-[min(92vw,28rem)] rounded-xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur"
     >
       <p className="text-sm font-medium text-foreground">
-        Add Willab to your home screen for the best experience.
+        Add WillpowerLab to your home screen for the best experience.
       </p>
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
