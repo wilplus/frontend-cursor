@@ -105,6 +105,7 @@ export async function postChatQuery(
       body: form,
       credentials: "include",
     });
+    if (!res.ok) throw new Error(`chat query failed (HTTP ${res.status})`);
     return (await res.json().catch(() => ({}))) as ChatQueryResponse;
   }
 
@@ -119,5 +120,9 @@ export async function postChatQuery(
     }),
     credentials: "include",
   });
+  // Non-2xx (500 / network) → throw so the Lounge catch shows "trouble reaching
+  // the lab", not the blank-answer "I didn't quite catch that". (The chat-401
+  // case is gone — BE degrades a lapsed session to an anonymous 200 answer.)
+  if (!res.ok) throw new Error(`chat query failed (HTTP ${res.status})`);
   return (await res.json().catch(() => ({}))) as ChatQueryResponse;
 }
