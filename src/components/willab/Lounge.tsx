@@ -36,7 +36,7 @@ export default function Lounge({
   goTo: (s: WillabState) => void;
 }) {
   const thread = useLoungeThreadCtx();
-  const { messages } = thread;
+  const { messages, reload } = thread;
   const [draftText, setDraftText] = useState("");
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
@@ -54,6 +54,13 @@ export default function Lounge({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, botThinking]);
+
+  // §6c: when the coach publishes (status flips to insights_ready), pull the
+  // thread so the BE-appended "insights ready" ping shows in-chat at once — the
+  // status card already flips live. The BE is the sole writer; we only re-read.
+  useEffect(() => {
+    if (state === "insights_ready") void reload();
+  }, [state, reload]);
 
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
