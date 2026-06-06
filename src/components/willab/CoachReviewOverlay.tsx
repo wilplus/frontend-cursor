@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
+import CoachVideoSlot from "./CoachVideoSlot";
 import type { CoachSnippetState } from "@/services/api/coachReview";
 
 /* -------------------------------------------------------------------------- */
@@ -44,6 +45,14 @@ export default function CoachReviewOverlay({
   const [localState, setLocalState] = useState<Record<string, CoachSnippetState>>(
     {}
   );
+
+  // Local mirror of the session-level video_ref. Seeded from the payload
+  // on load; updated optimistically when the coach uploads a new video so
+  // the preview shows immediately without re-fetching the session.
+  const [videoRef, setVideoRef] = useState<string | null>(null);
+  useEffect(() => {
+    if (session) setVideoRef(session.videoRef);
+  }, [session]);
 
   function onSnippetSaved(snippetId: string, next: CoachSnippetState) {
     setLocalState((prev) => ({ ...prev, [snippetId]: next }));
@@ -125,6 +134,17 @@ export default function CoachReviewOverlay({
                   onStateChange={onSnippetSaved}
                 />
               ))}
+
+              {/* §F.6 — session-level coach video. Optional. Lives between
+                  the per-snippet cards and the publish footer so the coach
+                  can record a single closing message tying the labeled
+                  snippets together. Mobile input triggers the phone camera
+                  directly. */}
+              <CoachVideoSlot
+                sessionId={session.sessionId}
+                videoRef={videoRef}
+                onUploaded={(nextRef) => setVideoRef(nextRef)}
+              />
 
               {/* Publish footer — disabled in PR 3 (waits on BE 3c rewire).
                   The §3.10 floor preview is computed so the surface is honest
