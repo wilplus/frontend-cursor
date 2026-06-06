@@ -33,6 +33,20 @@ export interface PublishInput {
   overallMessage: string | null;
   notes: PublishNote[];
   labels: PublishLabel[];
+  /** §F.5 / BE 3c — gates email/push notification to the user. In-app
+   *  Lounge update always fires (the realtime publish event isn't
+   *  silenced). When omitted, defaults to `true` so the legacy
+   *  CoachAuthoring caller (which doesn't know about this field)
+   *  keeps today's "notification on every publish" behavior.
+   *  CoachReviewOverlay sets it explicitly per §F.5:
+   *    - default true for the first publish (state ∈ pending/in_progress)
+   *    - default false for edits (state === done)
+   *
+   *  The BE accepts the field whether 3c is live or not: pre-3c it's
+   *  ignored (notification fires unconditionally — today's behavior);
+   *  post-3c it gates the email path per the spec. Either way, the FE
+   *  contract stays forward-compatible. */
+  notifyClient?: boolean;
 }
 
 export type PublishResult =
@@ -54,6 +68,7 @@ export async function publishWillabSession(
       snippet_notes: input.notes,
     },
     labels: input.labels,
+    notify_client: input.notifyClient ?? true,
   };
 
   try {
