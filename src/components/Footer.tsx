@@ -13,22 +13,16 @@ export default function Footer() {
       <span>WillpowerLab 2026</span>
       <div className="flex gap-3 items-center sm:gap-4">
         <Link
+          href="/about"
+          className="no-underline hover:text-foreground transition-colors"
+        >
+          About
+        </Link>
+        <Link
           href="/science"
           className="no-underline hover:text-foreground transition-colors"
         >
           Science
-        </Link>
-        <Link
-          href="/privacy"
-          className="no-underline hover:text-foreground transition-colors"
-        >
-          Privacy
-        </Link>
-        <Link
-          href="/terms"
-          className="no-underline hover:text-foreground transition-colors"
-        >
-          Terms
         </Link>
       </div>
     </footer>
