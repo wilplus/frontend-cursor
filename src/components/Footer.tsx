@@ -16,7 +16,7 @@ export default function Footer() {
           href="/about"
           className="no-underline hover:text-foreground transition-colors"
         >
-          About
+          About us
         </Link>
         <Link
           href="/science"
