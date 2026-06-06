@@ -79,8 +79,8 @@ const PAST: Entry[] = [
     title: "The first studio",
     body: "We built the recording-and-analysis loop that turns a voice into a map.",
     image: {
-      src: "https://picsum.photos/seed/willpowerlab-2024/640/360",
-      alt: "Studio microphone (placeholder)",
+      src: "/icon",
+      alt: "The WillpowerLab dots",
     },
   },
   {
@@ -98,7 +98,7 @@ const PAST: Entry[] = [
   {
     side: "right",
     date: "Origin",
-    title: "A microphone and a hunch",
+    title: "Three dots and a hunch",
     body: "WillpowerLab began as a side experiment in whether presence could be taught.",
   },
 ];
@@ -136,7 +136,7 @@ function EntryCard({ entry }: { entry: Entry }) {
             src={entry.image.src}
             alt={entry.image.alt}
             loading="lazy"
-            className="h-44 w-full object-cover"
+            className="h-44 w-full object-contain p-6"
           />
         </div>
       )}
