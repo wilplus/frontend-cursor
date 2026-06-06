@@ -3,9 +3,9 @@ import Link from "next/link";
 import { ArrowLeft, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Science | Willab",
+  title: "Science | WillpowerLab",
   description:
-    "The research foundation behind Willab — EBCP, NECP, and biologically-grounded charisma training.",
+    "The research foundation behind WillpowerLab — EBCP, NECP, and biologically-grounded charisma training.",
 };
 
 const PAPERS: ReadonlyArray<{
@@ -43,7 +43,7 @@ export default function SciencePage() {
           The Science
         </h1>
         <p className="text-muted-foreground">
-          The research that frames how Willab thinks about charisma, stress,
+          The research that frames how WillpowerLab thinks about charisma, stress,
           and trainable speaker presence.
         </p>
       </header>

@@ -151,13 +151,13 @@ function MissingTokenState() {
         Link isn&apos;t valid
       </h1>
       <p className="text-sm text-muted-foreground">
-        This page needs an unsubscribe link from a Willab email. If you got
+        This page needs an unsubscribe link from a WillpowerLab email. If you got
         here by typing the URL, head back to your inbox and click the
         Unsubscribe link in the email footer.
       </p>
       <Link href="/" className="inline-block">
         <Button variant="outline" size="sm" className="rounded-full">
-          Back to Willab
+          Back to WillpowerLab
         </Button>
       </Link>
     </div>
@@ -207,7 +207,7 @@ function SuccessState({
       </p>
       <Link href="/" className="inline-block pt-2">
         <Button variant="outline" size="sm" className="rounded-full">
-          Back to Willab
+          Back to WillpowerLab
         </Button>
       </Link>
     </div>

@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Willab",
-  description: "How Willab collects, stores, and protects your data.",
+  title: "Privacy Policy | WillpowerLab",
+  description: "How WillpowerLab collects, stores, and protects your data.",
 };
 
 /**

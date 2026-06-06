@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Terms of Use | Willab",
-  description: "The terms that govern your use of Willab.",
+  title: "Terms of Use | WillpowerLab",
+  description: "The terms that govern your use of WillpowerLab.",
 };
 
 /**
@@ -35,7 +35,7 @@ export default function TermsPage() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">Acceptance</h2>
           <p className="text-muted-foreground">
-            By creating an account or recording a voice sample on Willab,
+            By creating an account or recording a voice sample on WillpowerLab,
             you agree to these Terms of Use and to our{" "}
             <Link
               href="/privacy"
@@ -50,7 +50,7 @@ export default function TermsPage() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">Account &amp; eligibility</h2>
           <p className="text-muted-foreground">
-            You must be at least 18 years old to use Willab. You are
+            You must be at least 18 years old to use WillpowerLab. You are
             responsible for keeping your login credentials secure and for
             all activity under your account.
           </p>

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import SignupForm from "@/components/auth/SignupForm";
-import WillabLogo from "@/components/WillabLogo";
+import Logo from "@/components/Logo";
 
 export const metadata: Metadata = {
-  title: "Sign Up | Willab",
+  title: "Sign Up | WillpowerLab",
 };
 
 export default function SignupPage() {
@@ -12,7 +12,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="flex justify-center">
-            <WillabLogo size="lg" />
+            <Logo size="lg" />
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Turning stress into charisma
