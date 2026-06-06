@@ -17,6 +17,10 @@ export interface SnippetAuthor {
   label: Direction | null;
   note: string;
   tag: CoachTag | null;
+  /** §6b coaching (post-corrections). `when` = how/when to use it; `examples` is
+   *  raw textarea text (one example per line) — split into lines at publish. */
+  when: string;
+  examples: string;
 }
 
 /** Publish floor (§14): every snippet labeled AND ≥1 carries a note + tag. */
@@ -53,10 +57,19 @@ export function buildPublishPayload(
   }));
   const notes: PublishNote[] = snippetIds
     .filter((id) => authors[id]?.note.trim() && authors[id]?.tag != null)
-    .map((id) => ({
-      snippet_id: id,
-      note: authors[id]!.note.trim(),
-      tag: authors[id]!.tag as CoachTag,
-    }));
+    .map((id) => {
+      const a = authors[id]!;
+      const examples = a.examples
+        .split("\n")
+        .map((e) => e.trim())
+        .filter((e) => e.length > 0);
+      return {
+        snippet_id: id,
+        note: a.note.trim(),
+        tag: a.tag as CoachTag,
+        when: a.when.trim() || null,
+        examples,
+      };
+    });
   return { labels, notes, overallMessage: overall.trim() || null };
 }

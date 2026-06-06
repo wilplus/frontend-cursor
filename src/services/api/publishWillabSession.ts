@@ -22,6 +22,11 @@ export interface PublishNote {
   snippet_id: string;
   note: string;
   tag: CoachTag;
+  /** §6b coaching guidance (post-corrections; additive). `when` = how/when to use
+   *  it; `examples` = "E.g." lines. Optional — omitted/empty when not authored.
+   *  BE must persist + return these on coach.when / coach.examples in the readout. */
+  when?: string | null;
+  examples?: string[];
 }
 export interface PublishInput {
   sessionId: string;
