@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
@@ -18,6 +17,7 @@ import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
+import CoachReviewOverlay from "./CoachReviewOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -62,7 +62,6 @@ export default function Lounge({
 }) {
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
-  const router = useRouter();
   const [draftText, setDraftText] = useState("");
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
@@ -76,6 +75,10 @@ export default function Lounge({
   // see exactly the same Lounge as today.
   const { isCoach } = useUserProfile();
   const reviewQueue = useReviewQueue(isCoach);
+  // §F.2 — overlay sessionId. null = closed. Setting to a sessionId mounts
+  // the CoachReviewOverlay over the Lounge; closing it returns to the chat
+  // thread underneath with no remount of the queue.
+  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
 
   // Interleave the coach's review queue rows with regular Lounge messages so
   // a "new session ready to label" bubble appears chronologically alongside
@@ -104,11 +107,19 @@ export default function Lounge({
     return items;
   }, [messages, isCoach, reviewQueue.rows]);
 
-  // PR 2 routes review-bubble taps to the existing /coach/willab/<sid>
-  // authoring scaffold. PR 3 swaps this for an in-Lounge overlay (§F.2);
-  // when that lands the navigation goes away and the queue stays mounted.
+  // §F.2 — open the review overlay over the Lounge. No navigation: the chat
+  // thread stays mounted beneath the overlay so closing returns the coach
+  // to the same scroll position, same queue, same chat history. The
+  // overlay refetches via useCoachReview on its own.
   function openReview(sessionId: string): void {
-    router.push(`/coach/willab/${encodeURIComponent(sessionId)}`);
+    setReviewSessionId(sessionId);
+  }
+
+  function closeReview(): void {
+    setReviewSessionId(null);
+    // Refresh the queue so the bubble's state badge (pending → in_progress)
+    // reflects any per-snippet saves the coach made inside the overlay.
+    void reviewQueue.refresh();
   }
 
   // Voice input has been removed from the Lounge (product call): only
@@ -263,6 +274,12 @@ export default function Lounge({
             setHistoryOpen(false);
             setActiveInsight(sid);
           }}
+        />
+      )}
+      {reviewSessionId && (
+        <CoachReviewOverlay
+          sessionId={reviewSessionId}
+          onClose={closeReview}
         />
       )}
     </div>
