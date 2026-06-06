@@ -8,15 +8,38 @@ import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 // Use system fonts instead of Google Fonts to avoid build-time network dependency
 // Inter font will be loaded at runtime if available
 
+const SITE_URL = "https://www.willpowerlab.com";
+const SITE_TITLE = "WillpowerLab — Turning stress into charisma";
+const SITE_DESCRIPTION =
+  "Turning stress into charisma. WillpowerLab analyses your voice and shows you the exact moments where you sound powerful — and where stress takes over.";
+
 export const metadata: Metadata = {
-  title: "WillpowerLab — Turning stress into charisma",
-  description: "Turning stress into charisma. WillpowerLab analyses your voice and shows you the exact moments where you sound powerful — and where stress takes over.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.webmanifest",
   applicationName: "WillpowerLab",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "WillpowerLab",
+  },
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "WillpowerLab",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    images: [{ url: "/icon", alt: "WillpowerLab" }],
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ["/icon"],
   },
   icons: {
     icon: "/icon",

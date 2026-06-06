@@ -58,7 +58,7 @@ export function buildPostSessionResultsText(
     ``,
     `--`,
     `Unsubscribe: ${unsubscribeUrl}`,
-    `Privacy:     https://www.willonski.com/privacy`,
-    `Terms:       https://www.willonski.com/terms`,
+    `Privacy:     https://www.willpowerlab.com/privacy`,
+    `Terms:       https://www.willpowerlab.com/terms`,
   ].join("\n");
 }
