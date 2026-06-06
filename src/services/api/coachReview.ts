@@ -161,6 +161,37 @@ export async function fetchCoachReviewSession(
   return mapCoachReviewSession(data);
 }
 
+/** Upload a coach video for the session (§B.5 / §F.6). Multipart
+ *  pass-through; BE reuses its user-video transport (storage bucket,
+ *  MIME whitelist, size limits). Returns the persisted `video_ref` so
+ *  the FE can update `CoachReviewSession.videoRef` and render the
+ *  preview without a session refetch. */
+export async function uploadCoachVideo(
+  sessionId: string,
+  file: File
+): Promise<string | null> {
+  const form = new FormData();
+  form.append("video_file", file, file.name || "video.webm");
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/coach/sessions/${encodeURIComponent(sessionId)}/video`,
+      {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      }
+    );
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (!data || typeof data !== "object") return null;
+  const ref = (data as Record<string, unknown>).video_ref;
+  return typeof ref === "string" ? ref : null;
+}
+
 /** Save a per-snippet patch. Returns the persisted state on success
  *  (echo from BE) or null on failure. The two-lane split is preserved:
  *  the BE persists `direction_label` to `training_labels` and
