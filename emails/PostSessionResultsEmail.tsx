@@ -183,7 +183,7 @@ export default function PostSessionResultsEmail({
               Google Fonts strip risk. */}
           <Section style={{ paddingBottom: 24, textAlign: "center" }}>
             <Img
-              src="https://www.willonski.com/willab-logo"
+              src="https://www.willpowerlab.com/willab-logo"
               alt="Willab"
               width="160"
               height="40"
@@ -415,14 +415,14 @@ export default function PostSessionResultsEmail({
               </Link>
               <span>{"  ·  "}</span>
               <Link
-                href="https://www.willonski.com/privacy"
+                href="https://www.willpowerlab.com/privacy"
                 style={{ color: COLOR.textMuted, textDecoration: "underline" }}
               >
                 Privacy
               </Link>
               <span>{"  ·  "}</span>
               <Link
-                href="https://www.willonski.com/terms"
+                href="https://www.willpowerlab.com/terms"
                 style={{ color: COLOR.textMuted, textDecoration: "underline" }}
               >
                 Terms
@@ -435,7 +435,7 @@ export default function PostSessionResultsEmail({
             indexing still get *something* visual. Tiny so it doesn't
             inflate the email. */}
         <Img
-          src="https://www.willonski.com/icon"
+          src="https://www.willpowerlab.com/icon"
           width={1}
           height={1}
           alt=""
@@ -458,7 +458,7 @@ PostSessionResultsEmail.PreviewProps = {
   // standalone /results page was retired in favour of the in-chat
   // review flow. Backend must construct the URL with this shape;
   // we only validate it's a fully-qualified http(s) URL.
-  journeyUrl: "https://www.willonski.com/chat?session=preview-session-id",
-  unsubscribeUrl: "https://www.willonski.com/unsubscribe?token=preview",
+  journeyUrl: "https://www.willpowerlab.com/chat?session=preview-session-id",
+  unsubscribeUrl: "https://www.willpowerlab.com/unsubscribe?token=preview",
   subscribedEmail: "artur@willonski.com",
 } satisfies PostSessionResultsEmailProps;
