@@ -8,6 +8,7 @@ import {
   type SessionReadout,
 } from "@/services/api/sessionReadout";
 import ReadoutCard from "./ReadoutCard";
+import AuditInsights from "./AuditInsights";
 
 /* -------------------------------------------------------------------------- */
 /*  InsightsOverlay — the coach's read on a sent recording (§6)               */
@@ -80,7 +81,11 @@ export default function InsightsOverlay({
               Back to Lounge
             </Button>
           </div>
+        ) : data.readout.snippets.some((s) => s.coach?.tag != null) ? (
+          // Post-publish, coach-curated → the paged Voice Audit (Double down / Avoid).
+          <AuditInsights payload={data.readout} />
         ) : (
+          // Pre-publish / untagged → the neutral raw §5 Readout.
           <ReadoutCard payload={data.readout} variant="insights" />
         )}
       </div>
