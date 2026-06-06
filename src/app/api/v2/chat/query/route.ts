@@ -57,13 +57,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Anonymous access is allowed (§3 — signed-out Lounge is the
+    // unsigned-home surface). Backend's `@optional_auth` accepts both:
+    // present-and-valid → personalized; absent → anonymous 200. So we
+    // attach `Authorization: Bearer <token>` ONLY when a real token is
+    // available. Never `Bearer null` / `Bearer undefined` — that would
+    // be sent to the backend as a malformed credential and might trip
+    // its auth-error path even when we meant "no auth at all."
     const token = await getV2AccessToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { code: "UNAUTHENTICATED", error: "Not authenticated" },
-        { status: 401 }
-      );
-    }
+    const authHeaders: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
 
     const url = `${backend}/v2/chat/query`;
     const contentType = req.headers.get("content-type") ?? "";
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
         upstream = await fetch(url, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            ...authHeaders,
             Accept: "application/json",
           },
           body: out,
@@ -103,7 +107,7 @@ export async function POST(req: NextRequest) {
         upstream = await fetch(url, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            ...authHeaders,
             Accept: "application/json",
             "Content-Type": "application/json",
           },
