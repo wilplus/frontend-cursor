@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
+import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { loungeToHistory } from "./willabHelpers";
 import ReportCard from "./ReportCard";
@@ -13,6 +15,9 @@ import LibraryOverlay from "./LibraryOverlay";
 import HistoryOverlay from "./HistoryOverlay";
 import { clearInsightsReady, getInsightsReady, getReviewPending } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
+import { useUserProfile } from "./useUserProfile";
+import { useReviewQueue } from "./useReviewQueue";
+import CoachReviewBubble from "./CoachReviewBubble";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -23,7 +28,28 @@ import { type WillabState } from "./useWillabFlow";
 /*  ignored), the single-active status region (§6a: parked / review / ready),  */
 /*  and the entry into the Lab. Audio, KPIs and labels live in the Lab — the   */
 /*  Lounge is text-only and never judges (§7 librarian-not-judge).            */
+/*                                                                            */
+/*  Coach-mode addition (§F.1): when the signed-in user's profile carries     */
+/*  `is_coach: true`, the chat thread also surfaces review-queue rows as       */
+/*  inbound bubbles, chronologically interleaved with regular messages.        */
+/*  Non-coach users see exactly the same Lounge as before.                    */
 /* -------------------------------------------------------------------------- */
+
+/** Discriminated union of items rendered in the Lounge thread. Carries the
+ *  sort key + react key explicitly so the merge stays type-safe. */
+type ThreadItem =
+  | {
+      kind: "message";
+      sortKey: string;
+      reactKey: string;
+      message: LoungeMessage;
+    }
+  | {
+      kind: "review";
+      sortKey: string;
+      reactKey: string;
+      row: ReviewQueueRow;
+    };
 
 export default function Lounge({
   state,
@@ -36,12 +62,54 @@ export default function Lounge({
 }) {
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
+  const router = useRouter();
   const [draftText, setDraftText] = useState("");
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // §F.0 / §F.1 — coach-mode surface. is_coach is the RENDER gate (the BE
+  // role-gates each endpoint independently via require_admin_or_coach, so a
+  // tampered FE flag wouldn't get past the upstream wall). Non-coach users
+  // see exactly the same Lounge as today.
+  const { isCoach } = useUserProfile();
+  const reviewQueue = useReviewQueue(isCoach);
+
+  // Interleave the coach's review queue rows with regular Lounge messages so
+  // a "new session ready to label" bubble appears chronologically alongside
+  // the rest of the chat — that's the §3 design ("message in his chat from
+  // that user"). Sort by created_at / sent_at ascending so oldest sits at
+  // the top and newest at the bottom (matching how the existing thread
+  // already reads).
+  const threadItems = useMemo<ThreadItem[]>(() => {
+    const items: ThreadItem[] = messages.map((m) => ({
+      kind: "message",
+      sortKey: m.client_created_at,
+      reactKey: m.client_id,
+      message: m,
+    }));
+    if (isCoach) {
+      for (const row of reviewQueue.rows) {
+        items.push({
+          kind: "review",
+          sortKey: row.sentAt || "",
+          reactKey: `review:${row.sessionId}`,
+          row,
+        });
+      }
+    }
+    items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    return items;
+  }, [messages, isCoach, reviewQueue.rows]);
+
+  // PR 2 routes review-bubble taps to the existing /coach/willab/<sid>
+  // authoring scaffold. PR 3 swaps this for an in-Lounge overlay (§F.2);
+  // when that lands the navigation goes away and the queue stays mounted.
+  function openReview(sessionId: string): void {
+    router.push(`/coach/willab/${encodeURIComponent(sessionId)}`);
+  }
 
   // Voice input has been removed from the Lounge (product call): only
   // the **official recording** holds the mic. Off-task chat is
@@ -110,16 +178,24 @@ export default function Lounge({
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : threadItems.length === 0 ? (
           <LoungeEmptyState />
         ) : (
-          messages.map((m) => (
-            <Bubble
-              key={m.client_id}
-              message={m}
-              onViewInsights={setActiveInsight}
-            />
-          ))
+          threadItems.map((item) =>
+            item.kind === "message" ? (
+              <Bubble
+                key={item.reactKey}
+                message={item.message}
+                onViewInsights={setActiveInsight}
+              />
+            ) : (
+              <CoachReviewBubble
+                key={item.reactKey}
+                row={item.row}
+                onOpen={openReview}
+              />
+            )
+          )
         )}
 
         {botThinking && (

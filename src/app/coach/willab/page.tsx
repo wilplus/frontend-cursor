@@ -50,11 +50,12 @@ export default function CoachWillabQueuePage() {
               >
                 <div>
                   <p className="text-[15px] font-medium text-foreground">
-                    {r.topic || "Untitled session"}
+                    {r.pseudonym || "Untitled session"}
                   </p>
                   <p className="text-[12px] text-muted-foreground">
-                    {r.pseudonymousUserId}
-                    {r.sentAt ? ` · ${r.sentAt}` : ""}
+                    {[r.domain, r.topic, r.sentAt]
+                      .filter((v) => v && v.length > 0)
+                      .join(" · ")}
                   </p>
                 </div>
                 <span className="shrink-0 text-[13px] text-primary">Review →</span>
