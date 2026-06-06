@@ -87,9 +87,30 @@ export interface ChatQueryContrastDelta {
 
 const ENDPOINT = "/api/v2/chat/query";
 
+/**
+ * Thrown when the BFF returns a non-2xx. Carries the HTTP status so
+ * callers can distinguish a real auth/network/server failure from a
+ * 2xx-with-empty-answer (which is the librarian's "didn't catch
+ * that" deflection branch and should render the persona fallback,
+ * NOT a network-error message). Pre-fix this code was reading 401
+ * bodies as "empty answer" and firing the persona fallback on auth
+ * failures — exactly the bug the §3 anonymous-Lounge ask uncovered.
+ */
+export class ChatQueryRequestError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  constructor(status: number, code?: string, message?: string) {
+    super(message ?? `chat-query failed: HTTP ${status}`);
+    this.name = "ChatQueryRequestError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export async function postChatQuery(
   args: ChatQueryArgs
 ): Promise<ChatQueryResponse> {
+  let res: Response;
   if (args.audioBlob) {
     const form = new FormData();
     form.append("question", args.question);
@@ -100,24 +121,41 @@ export async function postChatQuery(
     if (args.durationSec != null) {
       form.append("audio_duration_sec", String(args.durationSec));
     }
-    const res = await fetch(ENDPOINT, {
+    res = await fetch(ENDPOINT, {
       method: "POST",
       body: form,
       credentials: "include",
     });
-    return (await res.json().catch(() => ({}))) as ChatQueryResponse;
+  } else {
+    // No audio → existing JSON path, unchanged from today.
+    res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: args.question,
+        history: args.history,
+        session_id: args.sessionId,
+      }),
+      credentials: "include",
+    });
   }
 
-  // No audio → existing JSON path, unchanged from today.
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question: args.question,
-      history: args.history,
-      session_id: args.sessionId,
-    }),
-    credentials: "include",
-  });
-  return (await res.json().catch(() => ({}))) as ChatQueryResponse;
+  const data = (await res.json().catch(() => ({}))) as
+    | (ChatQueryResponse & { code?: string })
+    | Record<string, never>;
+
+  // Anything non-2xx is a transport / auth / server failure — let the
+  // caller's catch block decide how to surface it (typically a
+  // "having trouble reaching the lab" message). 2xx with empty
+  // `answer` is intentionally still a 2xx — that's the librarian's
+  // own "didn't catch that" branch and renders the persona fallback.
+  if (!res.ok) {
+    throw new ChatQueryRequestError(
+      res.status,
+      data.code,
+      typeof data.error === "string" ? data.error : undefined
+    );
+  }
+
+  return data as ChatQueryResponse;
 }
