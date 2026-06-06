@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Mic, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -12,7 +12,8 @@ import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import HistoryOverlay from "./HistoryOverlay";
 import { clearInsightsReady, getInsightsReady, getReviewPending } from "./sendStatus";
-import type { WillabState } from "./useWillabFlow";
+import { useSpeechInput } from "./useSpeechInput";
+import { isLabOverlay, type WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -42,6 +43,13 @@ export default function Lounge({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // Voice input (§3): text-or-speech, both unmeasured. Released while the Lab
+  // overlay is open so only the Lab's MediaRecorder holds the mic (§4).
+  const speech = useSpeechInput({
+    enabled: !isLabOverlay(state),
+    onTranscript: (t) => setDraftText((d) => (d ? `${d} ${t}` : t)),
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -147,6 +155,19 @@ export default function Lounge({
           className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-[15px] outline-none focus:border-primary"
           aria-label="Message the willab librarian"
         />
+        {speech.supported ? (
+          <Button
+            type="button"
+            variant={speech.listening ? "default" : "outline"}
+            onClick={speech.toggle}
+            disabled={botThinking}
+            className="rounded-full px-3"
+            aria-label={speech.listening ? "Stop voice input" : "Speak your message"}
+            aria-pressed={speech.listening}
+          >
+            <Mic className={`h-4 w-4 ${speech.listening ? "animate-pulse" : ""}`} />
+          </Button>
+        ) : null}
         <Button
           type="submit"
           disabled={!draftText.trim() || botThinking}
