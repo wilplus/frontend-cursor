@@ -42,7 +42,10 @@ export default function CoachAuthoring({
   const snippets = readout.snippets;
   const [authors, setAuthors] = useState<Record<string, SnippetAuthor>>(() =>
     Object.fromEntries(
-      snippets.map((s) => [s.id, { label: null, note: "", tag: null }])
+      snippets.map((s) => [
+        s.id,
+        { label: null, note: "", tag: null, when: "", examples: "" },
+      ])
     )
   );
   const [overall, setOverall] = useState("");
@@ -229,6 +232,20 @@ function CoachSnippet({
             );
           })}
         </div>
+        <textarea
+          value={author.when}
+          onChange={(e) => onUpdate({ when: e.target.value })}
+          rows={2}
+          placeholder="When / how to use this — coaching, not a rule (optional)…"
+          className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+        />
+        <textarea
+          value={author.examples}
+          onChange={(e) => onUpdate({ examples: e.target.value })}
+          rows={2}
+          placeholder="Examples, one per line (optional)…"
+          className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+        />
       </div>
     </div>
   );
