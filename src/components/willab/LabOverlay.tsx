@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
@@ -13,7 +14,6 @@ import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
 import { clearParked, readParked, writeParked } from "./willabParked";
 import { setPendingSend, setReviewPending } from "./sendStatus";
-import { startWillabSignIn } from "./startWillabSignIn";
 import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
@@ -64,6 +64,7 @@ export default function LabOverlay({
   goTo: (s: WillabState) => void;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const mic = useDualCaptureMic();
   const { cancel: cancelMic } = mic;
   const signedIn = useSignedIn();
@@ -201,14 +202,20 @@ export default function LabOverlay({
     goTo("parked");
   }
 
-  // Unsigned send (§13 Path 2): park + stash the id, then OAuth. The global
-  // <WillabPendingSend> completes merge-then-send on the callback.
+  // Unsigned send (§13 Path 2, amended): park + stash the id, then navigate
+  // to the /signup picker so the user can choose LinkedIn OR email/password
+  // — the original spec went straight to LinkedIn OAuth ("one tap to ship"),
+  // but that dead-ends users who don't have LinkedIn or who prefer email.
+  // The picker costs one extra tap for LinkedIn users; gains a real path for
+  // everyone else. The resume mechanism is unchanged: the global
+  // <WillabPendingSend> reads the pending id on any post-auth landing
+  // (SIGNED_IN event from either provider) and runs merge-then-send.
   function startUnsignedSend() {
     if (readout && labSessionId) {
       writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
       setPendingSend(labSessionId);
     }
-    void startWillabSignIn();
+    router.push("/signup");
   }
 
   function handleClose() {
