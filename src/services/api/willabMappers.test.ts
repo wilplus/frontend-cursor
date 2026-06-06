@@ -3,20 +3,52 @@ import { mapReviewQueueRow } from "./reviewQueue";
 import { mapLibraryEntry } from "./library";
 
 describe("mapReviewQueueRow", () => {
-  it("maps snake → camel", () => {
+  it("maps snake → camel (§B.1 shape)", () => {
     expect(
       mapReviewQueueRow({
         session_id: "s",
+        pseudonym: "Playful Octopus",
+        domain: "public_speaking",
         topic: "Q3 pitch",
-        pseudonymous_user_id: "user-7f3",
+        n_snippets: 8,
+        state: "pending",
         sent_at: "2026-06-01T00:00:00Z",
       })
     ).toEqual({
       sessionId: "s",
+      pseudonym: "Playful Octopus",
+      domain: "public_speaking",
       topic: "Q3 pitch",
-      pseudonymousUserId: "user-7f3",
+      nSnippets: 8,
+      state: "pending",
       sentAt: "2026-06-01T00:00:00Z",
     });
+  });
+
+  it("defaults missing optionals + clamps unknown state to pending", () => {
+    expect(
+      mapReviewQueueRow({
+        session_id: "s",
+        state: "weird",
+      })
+    ).toEqual({
+      sessionId: "s",
+      pseudonym: "",
+      domain: "",
+      topic: "",
+      nSnippets: 0,
+      state: "pending",
+      sentAt: "",
+    });
+  });
+
+  it("accepts in_progress and done states", () => {
+    expect(
+      mapReviewQueueRow({ session_id: "s", state: "in_progress" })?.state
+    ).toBe("in_progress");
+    expect(mapReviewQueueRow({ session_id: "s", state: "done" })?.state).toBe(
+      "done"
+    );
   });
 
   it("returns null without a session_id", () => {
