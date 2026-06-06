@@ -1,18 +1,18 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import WillabLogo from "@/components/WillabLogo";
+import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Logged Out | Willab",
+  title: "Logged Out | WillpowerLab",
 };
 
 export default function LoggedOutPage() {
   return (
     <div className="relative flex flex-col items-center bg-background px-4 pt-24 pb-10 sm:px-6 sm:pt-28">
       <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
-        <WillabLogo size="lg" />
+        <Logo size="lg" />
       </div>
 
       <Card className="w-full max-w-md border-0 bg-transparent p-0 shadow-none">

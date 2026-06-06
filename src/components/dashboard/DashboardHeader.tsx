@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu } from "lucide-react";
-import WillabLogo from "@/components/WillabLogo";
+import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import { homeworkApi } from "@/lib/api/homework-client";
 import { Button } from "@/components/ui/button";
@@ -183,9 +183,9 @@ export default function DashboardHeader() {
           <Link
             href="/"
             className="hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-            aria-label="Willab home"
+            aria-label="WillpowerLab home"
           >
-            <WillabLogo size="md" />
+            <Logo size="md" />
           </Link>
         </div>
 

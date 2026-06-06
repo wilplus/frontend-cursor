@@ -4,7 +4,7 @@ import CreditPricingCards from "@/components/credits/CreditPricingCards";
 import { getCheckoutCreditPackDisplay } from "@/lib/stripe/checkoutCreditPacks.server";
 
 export const metadata: Metadata = {
-  title: "Credits & pricing | Willab",
+  title: "Credits & pricing | WillpowerLab",
 };
 
 export default function PricingPage() {

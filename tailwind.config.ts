@@ -29,7 +29,7 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        // Willab chat (funnel) — pulsing-ring around the active record button
+        // Chat surface — pulsing ring around the active record button
         // and the chat-bubble entrance animation.
         "pulse-ring": {
           "0%": { transform: "scale(1)", opacity: "0.6" },
@@ -39,6 +39,15 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // WillpowerLab logo — three-dot voice rhythm. Each dot in
+        // the Logo SVG uses this keyframe with a staggered delay so
+        // the mark reads as "active voice." Idle state holds dots
+        // static; reduced-motion users get the static form (the CSS
+        // override in globals.css).
+        "voice-dot": {
+          "0%, 100%": { transform: "scaleY(1)" },
+          "50%": { transform: "scaleY(0.6)" },
+        },
       },
       animation: {
         "question-in": "question-fade-in 0.25s ease-out forwards",
@@ -47,6 +56,7 @@ const config: Config = {
         "pulse-ring":
           "pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite",
         "fade-in-up": "fade-in-up 0.5s ease-out both",
+        "voice-dot": "voice-dot 1.2s ease-in-out infinite",
       },
       colors: {
         background: "hsl(var(--background))",
