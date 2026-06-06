@@ -63,6 +63,12 @@ export interface ReadoutPayload {
 function num(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
+/** BE sends mean_pause as `pause_ms` (milliseconds, confirmed); normalize to
+ *  seconds at the boundary so meanPause is uniformly seconds like every other
+ *  display feature. (A 200ms pause was rendering as "200.0s" without this.) */
+function msToSec(v: number | null): number | null {
+  return v != null ? v / 1000 : null;
+}
 function int(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
@@ -79,7 +85,7 @@ function mapFeatures(raw: unknown): ReadoutFeatures {
     f0Mean: num(f.f0_mean),
     f0Sd: num(f.f0_sd),
     speechRate: num(f.speech_rate),
-    meanPause: num(f.mean_pause),
+    meanPause: msToSec(num(f.mean_pause)), // pause_ms (ms) → seconds
     pauseRatio: num(f.pause_ratio),
     loudnessRange: num(f.loudness_range),
     voicedRatio: num(f.voiced_ratio),
