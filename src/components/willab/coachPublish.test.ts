@@ -9,6 +9,8 @@ const A = (over: Partial<SnippetAuthor> = {}): SnippetAuthor => ({
   label: null,
   note: "",
   tag: null,
+  when: "",
+  examples: "",
   ...over,
 });
 
@@ -55,10 +57,28 @@ describe("buildPublishPayload (split-sink)", () => {
     expect(p.labels.map((l) => l.snippet_id)).toEqual(["a", "b", "c"]);
     expect(p.labels.map((l) => l.value)).toEqual(["threat", "challenge", "ambiguous"]);
     expect(p.notes).toEqual([
-      { snippet_id: "a", note: "open strong", tag: "strong" },
-      { snippet_id: "c", note: "rushed", tag: "to_work_on" },
+      { snippet_id: "a", note: "open strong", tag: "strong", when: null, examples: [] },
+      { snippet_id: "c", note: "rushed", tag: "to_work_on", when: null, examples: [] },
     ]);
     expect(p.overallMessage).toBeNull();
+  });
+
+  it("carries trimmed When + line-split examples on noted snippets", () => {
+    const p = buildPublishPayload(
+      ["a"],
+      {
+        a: A({
+          label: "threat",
+          note: "n",
+          tag: "strong",
+          when: "  reuse it under pressure  ",
+          examples: "Why should you care?\n\n  Why us? \n",
+        }),
+      },
+      ""
+    );
+    expect(p.notes[0]?.when).toBe("reuse it under pressure");
+    expect(p.notes[0]?.examples).toEqual(["Why should you care?", "Why us?"]);
   });
 
   it("keeps a trimmed non-empty overall message", () => {
