@@ -6,22 +6,31 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ReadoutPayload, ReadoutSnippet } from "./readout";
 
 /* -------------------------------------------------------------------------- */
-/*  ReadoutCard — the core payoff screen (§5)                                  */
+/*  ReadoutCard — the core payoff screen (§5), pre-judgment view               */
 /*                                                                            */
 /*  "Here's your voice as data" — neutral, factual, NON-interpretive (the      */
 /*  verdict is the coach's job). Sequential reveal (one snippet at a time,      */
-/*  tap-to-advance) → scrollable list to revisit. Hero pair (speech rate +      */
-/*  pause ratio) as Display; the other 8 features grouped Pitch / Pace &        */
-/*  Pauses / Volume & Voice, with the 4 derived behind "Show dynamics".         */
-/*  Stickiness is comment-first, score-second, neutral (no red/green).         */
-/*  Reused by the coach-authoring view (§14). Reuses MediaPlayer for playback. */
+/*  tap-to-advance) → scrollable list to revisit. Reuses MediaPlayer for       */
+/*  playback.                                                                   */
+/*                                                                            */
+/*  Anatomy mirrors AuditInsights's post-publish snippet card so the user      */
+/*  reads the same shape at both lifecycle stages — only the lens shifts.      */
+/*  Two sections:                                                              */
+/*    • What — audio + transcript (italic, orange-bordered).                   */
+/*    • Topic stickiness — the ONE neutral metric we surface pre-judgment      */
+/*      (comment first, composite second). Acoustic features (pitch, pace,    */
+/*      volume) are deliberately not shown here — without a baseline they      */
+/*      read as "is this good or bad?", and §5's whole point is to hand        */
+/*      that interpretation to the coach. The post-publish Insights view      */
+/*      adds those metrics back under a "Why" section authored alongside       */
+/*      the human note.                                                        */
+/*                                                                            */
+/*  Reused by the coach-authoring view (§14): the optional `snippet.coach`     */
+/*  block at the bottom renders when a coach note has been attached, so the    */
+/*  same card carries the authoring lens with no structural divergence.       */
 /* -------------------------------------------------------------------------- */
 
 const DASH = "—";
-const hz = (v: number | null) => (v != null ? `${Math.round(v)} Hz` : DASH);
-const sec = (v: number | null) => (v != null ? `${v.toFixed(1)}s` : DASH);
-const dB = (v: number | null) => (v != null ? `${Math.round(v)} dB` : DASH);
-const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : DASH);
 const dec = (v: number | null) => (v != null ? v.toFixed(2) : DASH);
 
 export default function ReadoutCard({
@@ -150,95 +159,56 @@ function SnippetCard({
   index: number;
   total: number;
 }) {
-  const f = snippet.features;
-  const [showDynamics, setShowDynamics] = useState(false);
-
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[12px] text-muted-foreground">
-          Snippet {index + 1} of {total}
-        </span>
-      </div>
+    <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4">
+      <span className="text-[12px] text-muted-foreground">
+        Snippet {index + 1} of {total}
+      </span>
 
-      <MediaPlayer
-        src={snippet.audioRef}
-        startOffsetMs={snippet.startOffsetMs}
-        durationMs={snippet.durationMs}
-      />
-
-      {snippet.transcript ? (
-        <blockquote className="mt-3 border-l-2 border-primary/50 pl-3 text-[15px] italic leading-relaxed text-foreground">
-          {snippet.transcript}
-        </blockquote>
-      ) : null}
-
-      {/* hero pair (Display) */}
-      <div className="mt-4 flex gap-10">
-        <Hero
-          value={f.speechRate}
-          label="speech rate"
-          fmt={(v) => `${Math.round(v)} wpm`}
-        />
-        <Hero
-          value={f.pauseRatio}
-          label="pause ratio"
-          fmt={(v) => `${Math.round(v * 100)}%`}
-        />
-      </div>
-
-      {/* grouped rest */}
-      <div className="mt-4 flex flex-col gap-2">
-        <Group label="Pitch" value={`F0 mean ${hz(f.f0Mean)} · SD ${hz(f.f0Sd)}`} />
-        <Group
-          label="Pace & pauses"
-          value={`mean pause ${sec(f.meanPause)}`}
-        />
-        <Group
-          label="Volume & voice"
-          value={`range ${dB(f.loudnessRange)} · voiced ${pct(f.voicedRatio)}`}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowDynamics((s) => !s)}
-        className="mt-3 text-[12px] text-muted-foreground hover:text-foreground"
-      >
-        {showDynamics ? "▾" : "▸"} Show dynamics
-      </button>
-      {showDynamics && (
-        <div className="mt-2 flex flex-col gap-2">
-          <Group label="F0 slope" value={dec(f.f0Slope)} />
-          <Group label="Pause regularity" value={dec(f.pauseRegularity)} />
-          <Group label="Intensity envelope" value={dec(f.intensityEnvelope)} />
-          <Group label="F0 mid→end Δ" value={dec(f.f0MidEndDelta)} />
+      {/* What — audio + transcript. Mirrors AuditInsights's post-publish
+          card so pre-judgment and post-publish read as the same anatomy,
+          only the lens shifts. */}
+      <div>
+        <p className="text-sm font-semibold text-foreground">What</p>
+        <div className="mt-2">
+          <MediaPlayer
+            src={snippet.audioRef}
+            startOffsetMs={snippet.startOffsetMs}
+            durationMs={snippet.durationMs}
+          />
         </div>
-      )}
+        {snippet.transcript ? (
+          <blockquote className="mt-3 border-l-2 border-primary pl-3 text-[17px] font-medium italic leading-relaxed text-foreground">
+            {snippet.transcript}
+          </blockquote>
+        ) : null}
+      </div>
 
-      {/* stickiness — comment first, score second, neutral. Both can be null
-          (AI comment may be absent) — render nothing rather than a bare header. */}
+      {/* Topic stickiness — the one neutral, non-coach-judged metric we
+          surface pre-judgment. Comment first (the substance), composite
+          second (the receipt). Both nullable; if neither exists, drop
+          the section entirely (don't render a bare header). */}
       {(snippet.stickiness.comment || snippet.stickiness.composite != null) && (
-        <div className="mt-4 border-t border-border pt-3">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Stickiness
-          </span>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Topic stickiness</p>
           {snippet.stickiness.comment ? (
-            <p className="mt-1 text-[15px] leading-relaxed text-foreground">
+            <p className="mt-1.5 text-[14px] italic leading-relaxed text-foreground">
               {snippet.stickiness.comment}
             </p>
           ) : null}
           {snippet.stickiness.composite != null ? (
-            <p className="mt-1 text-[12px] text-muted-foreground">
+            <p className="mt-1 text-[14px] text-muted-foreground">
               composite {dec(snippet.stickiness.composite)}
             </p>
           ) : null}
         </div>
       )}
 
-      {/* coach's note — post-publish only (§6 / §14 user lane) */}
+      {/* Post-publish coach note (§14 user-facing lane). Pre-judgment
+          this block stays absent — the §5 promise is that the verdict
+          is the coach's job, not the FE's. */}
       {snippet.coach ? (
-        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3">
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium uppercase tracking-wide text-primary">
               Your coach
@@ -256,36 +226,6 @@ function SnippetCard({
           ) : null}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function Hero({
-  value,
-  label,
-  fmt,
-}: {
-  value: number | null;
-  label: string;
-  fmt: (v: number) => string;
-}) {
-  return (
-    <div>
-      <p className="text-[22px] font-semibold tabular-nums text-foreground">
-        {value != null ? fmt(value) : DASH}
-      </p>
-      <p className="text-[12px] text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function Group({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-right text-[13px] text-foreground">{value}</span>
     </div>
   );
 }
