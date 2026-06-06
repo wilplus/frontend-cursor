@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import UpdatePasswordForm from "@/components/auth/UpdatePasswordForm";
-import WillabLogo from "@/components/WillabLogo";
+import Logo from "@/components/Logo";
 
 export const metadata: Metadata = {
-  title: "Update Password | Willab",
+  title: "Update Password | WillpowerLab",
 };
 
 export default function UpdatePasswordPage() {
@@ -13,7 +13,7 @@ export default function UpdatePasswordPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="flex justify-center">
-            <WillabLogo size="lg" />
+            <Logo size="lg" />
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Set your new password below. You are not signed in yet — after saving, you’ll sign in with your new password.

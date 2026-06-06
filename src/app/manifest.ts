@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "willab",
-    short_name: "willab",
-    description: "willab - willpower lab for your confidence on stage",
+    name: "WillpowerLab",
+    short_name: "WillpowerLab",
+    description: "WillpowerLab — the willpower lab for your confidence on stage",
     start_url: "/",
     scope: "/",
     display: "standalone",
