@@ -1,20 +1,28 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 
 /* -------------------------------------------------------------------------- */
-/*  userProfile — the willab one-time profile client (§2 / ①)                 */
+/*  userProfile — the willab one-time profile client (§2 / ① + §F.0)           */
 /*                                                                            */
-/*   GET  /api/v2/user/profile → { domain, goal, domain_vocabulary_default }   */
+/*   GET  /api/v2/user/profile → { domain, goal, domain_vocabulary_default,    */
+/*                                  is_coach }                                  */
 /*   POST /api/v2/user/profile   body { domain?, goal? }                       */
 /*                                                                            */
 /*  Write is POST (not PUT) per the BE contract. `domain` is typed `string`    */
 /*  here (transport stays decoupled from the component enum) — the BE          */
 /*  validates it against the five keys and 422s otherwise.                    */
+/*                                                                            */
+/*  `is_coach` (§F.0, BE B.0): RENDER-ONLY flag the FE uses to decide whether  */
+/*  to mount the coach review surface. Authorization is server-enforced on     */
+/*  every coach route via the `require_admin_or_coach` decorator — the FE flag */
+/*  is NEVER the security boundary. Strict-bool default to `false` so a        */
+/*  missing/null field never accidentally promotes a normal user.              */
 /* -------------------------------------------------------------------------- */
 
 export interface UserProfile {
   domain: string | null;
   goal: string;
   domain_vocabulary_default: string[];
+  is_coach: boolean;
 }
 
 export interface UserProfileDraft {
@@ -54,6 +62,10 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     domain_vocabulary_default: Array.isArray(data.domain_vocabulary_default)
       ? data.domain_vocabulary_default
       : [],
+    // Strict-bool: only the literal `true` promotes; anything else (null,
+    // undefined, "", 0, missing field) → false. Prevents a typo or a BE
+    // response shape drift from silently surfacing the coach UI.
+    is_coach: data.is_coach === true,
   };
 }
 
