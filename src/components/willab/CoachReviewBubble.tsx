@@ -16,9 +16,11 @@ import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 /*  or email — that's the C1 violation §14 red-line 6 forbids. The bubble has   */
 /*  no avatar of the user; the pseudonym IS the identifier.                    */
 /*                                                                            */
-/*  Tap action: opens the per-session authoring view. PR 2 navigates to the     */
-/*  existing /coach/willab/<sid> scaffold; PR 3 replaces with an in-Lounge     */
-/*  overlay (§F.2) and the navigation falls away.                              */
+/*  Tap action: `onOpen(sessionId)` opens the in-Lounge CoachReviewOverlay      */
+/*  (§F.2) via state — pure, no navigation, the chat thread stays mounted        */
+/*  beneath. The old standalone /coach/willab/<sid> route is RETIRED (N1): it     */
+/*  bounced the coach to /login on back-nav (the route-vs-overlay violation),     */
+/*  and now just redirects into the Lounge.                                      */
 /* -------------------------------------------------------------------------- */
 
 export default function CoachReviewBubble({
