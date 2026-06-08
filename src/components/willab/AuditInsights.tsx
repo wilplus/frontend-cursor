@@ -64,6 +64,26 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         </div>
       ) : null}
 
+      {/* §F.6 — overall coach video. Top-level (sibling of overallMessage),
+          NOT per-snippet. The BE folds insights_payload.video_ref into the
+          published readout (ready-to-use public URL). Hide-when-empty, same
+          pattern as overallMessage — a session published without a coach
+          video carries no ref and renders nothing here. */}
+      {payload.videoRef ? (
+        <div className="overflow-hidden rounded-2xl border border-primary/30 bg-primary/5">
+          <p className="px-4 pt-4 text-[11px] font-medium uppercase tracking-wide text-primary">
+            A note from your coach
+          </p>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video
+            src={payload.videoRef}
+            controls
+            playsInline
+            className="mt-2 w-full bg-black"
+          />
+        </div>
+      ) : null}
+
       {/* progress through the curated set */}
       {total > 1 ? (
         <div className="flex items-center gap-1.5">
