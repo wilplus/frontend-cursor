@@ -12,8 +12,12 @@ import WillabSurface from "@/components/willab/WillabSurface";
  */
 export default function ChatPageClient({
   sessionId,
+  reviewSessionId,
 }: {
   sessionId: string | null;
+  reviewSessionId: string | null;
 }) {
-  return <WillabSurface sessionId={sessionId} />;
+  return (
+    <WillabSurface sessionId={sessionId} reviewSessionId={reviewSessionId} />
+  );
 }

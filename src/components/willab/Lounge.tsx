@@ -55,10 +55,14 @@ export default function Lounge({
   state,
   onStart,
   goTo,
+  initialReviewSessionId = null,
 }: {
   state: WillabState;
   onStart: () => void;
   goTo: (s: WillabState) => void;
+  /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
+   *  that session once on mount. Coach-gated; ignored for non-coaches. */
+  initialReviewSessionId?: string | null;
 }) {
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
@@ -127,6 +131,18 @@ export default function Lounge({
     // reflects any per-snippet saves the coach made inside the overlay.
     void reviewQueue.refresh();
   }
+
+  // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
+  // that session once on mount. Coach-gated (isCoach is the render gate; the BE
+  // role-gates the endpoint regardless). Fire-once so closing it doesn't
+  // immediately reopen; isCoach can resolve async, so the effect re-runs when it
+  // flips true.
+  const deepLinkOpenedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkOpenedRef.current || !isCoach || !initialReviewSessionId) return;
+    deepLinkOpenedRef.current = true;
+    setReviewSessionId(initialReviewSessionId);
+  }, [isCoach, initialReviewSessionId]);
 
   // Voice input has been removed from the Lounge (product call): only
   // the **official recording** holds the mic. Off-task chat is
