@@ -549,6 +549,7 @@ function RecordingPhase({
   }
 
   const reachedMin = elapsed >= MIN_RECORDING_SEC;
+  const remaining = Math.max(0, Math.ceil(MIN_RECORDING_SEC - elapsed));
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
       <div className="flex items-center gap-2 text-destructive">
@@ -562,14 +563,27 @@ function RecordingPhase({
       <p className="text-[12px] text-muted-foreground">
         {reachedMin
           ? "Minimum reached — stop whenever you're ready."
-          : `Keep going — at least ${fmtClock(MIN_RECORDING_SEC)}.`}
+          : `Keep going — ${fmtClock(remaining)} until you can stop.`}
       </p>
 
+      {/* U11 — the stop control is LOCKED until the minimum is reached, so a
+          recording can't be ended too short (FE enforcement of the §3.3/§5.5
+          min-content gate). Remaining time is surfaced above; the button is
+          disabled + visually muted until then. */}
       <button
         type="button"
         onClick={onStop}
-        className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-transform hover:scale-105"
-        aria-label="Stop recording"
+        disabled={!reachedMin}
+        aria-label={
+          reachedMin
+            ? "Stop recording"
+            : `Keep recording — ${fmtClock(remaining)} until you can stop`
+        }
+        className={`flex h-20 w-20 items-center justify-center rounded-full border-2 transition-transform ${
+          reachedMin
+            ? "border-destructive text-destructive hover:scale-105"
+            : "cursor-not-allowed border-muted-foreground/25 text-muted-foreground/40"
+        }`}
       >
         <Square className="h-7 w-7 fill-current" />
       </button>
