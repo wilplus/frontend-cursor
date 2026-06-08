@@ -136,10 +136,6 @@ const PAST_EARLIER: Entry[] = [
     date: "2014 —",
     title: "Lecturing",
     body: "Teaching and speaking — where the coaching craft began.",
-    image: {
-      src: "/about/photos/lecture.jpg",
-      alt: "A historic university lecture hall",
-    },
   },
   {
     side: "left",
