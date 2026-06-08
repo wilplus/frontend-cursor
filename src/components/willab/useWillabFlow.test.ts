@@ -72,6 +72,7 @@ describe("initialWillabState", () => {
 describe("isLabOverlay", () => {
   it("is true for the Lab + send-gate states (overlay over the Lounge)", () => {
     const labStates: WillabState[] = [
+      "lab_feelings",
       "lab_session_context",
       "lab_prerecord",
       "lab_recording",
