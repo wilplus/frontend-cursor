@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ThumbsUp, AlertTriangle } from "lucide-react";
+import { ThumbsUp, AlertTriangle, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ReadoutPayload } from "./readout";
@@ -133,7 +133,10 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         ) : null}
       </div>
 
-      {/* Why — flat metric lines + AI stickiness comment-first (neutral) */}
+      {/* Why — flat metric lines (raw measurements, no author) + the
+          AUTOMATED stickiness read. T6: the stickiness comment is
+          machine-generated, not the coach — label it so the user never
+          mistakes the app's neutral read for the human coach's note. */}
       <div>
         <p className="text-sm font-semibold text-foreground">Why</p>
         <div className="mt-1.5 flex flex-col gap-0.5 text-[14px] text-foreground">
@@ -147,12 +150,23 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
           </p>
         </div>
         {s.stickiness.comment || s.stickiness.composite != null ? (
-          <div className="mt-2 text-[14px]">
+          <div className="mt-3 rounded-lg border border-border bg-muted/30 p-2.5">
+            <div className="flex items-center gap-1.5">
+              <Sparkles
+                className="h-3 w-3 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Automated read
+              </span>
+            </div>
             {s.stickiness.comment ? (
-              <p className="italic text-foreground">{s.stickiness.comment}</p>
+              <p className="mt-1 text-[14px] italic text-foreground">
+                {s.stickiness.comment}
+              </p>
             ) : null}
             {s.stickiness.composite != null ? (
-              <p className="text-muted-foreground">
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 Stickiness composite {dec(s.stickiness.composite)}
               </p>
             ) : null}
@@ -160,23 +174,40 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         ) : null}
       </div>
 
-      {/* When — coach note + when-guidance + examples */}
+      {/* Coach note + when-guidance + examples — the HUMAN layer (§14 user
+          lane / §6b). T6: badge it 🧑 Your coach with the primary-tint card
+          chrome so it visually ties to the top "From your coach" message
+          and reads as one human identity, distinct from the neutral
+          automated read above. The §14 "When"/"E.g." structure is kept as
+          sub-labels inside. */}
       {s.coach.note || s.coach.when || s.coach.examples.length > 0 ? (
-        <div>
-          <p className="text-sm font-semibold text-foreground">When</p>
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5 text-primary" aria-hidden />
+            <span className="text-[11px] font-medium uppercase tracking-wide text-primary">
+              Your coach
+            </span>
+          </div>
           {s.coach.note ? (
             <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
               {s.coach.note}
             </p>
           ) : null}
           {s.coach.when ? (
-            <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
-              {s.coach.when}
-            </p>
+            <>
+              <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                When to use it
+              </p>
+              <p className="mt-0.5 text-[14px] leading-relaxed text-foreground">
+                {s.coach.when}
+              </p>
+            </>
           ) : null}
           {s.coach.examples.length > 0 ? (
             <div className="mt-2 text-[14px] text-foreground">
-              <p className="text-muted-foreground">E.g.</p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                E.g.
+              </p>
               {s.coach.examples.map((ex, i) => (
                 <p key={`${i}-${ex.slice(0, 12)}`} className="mt-0.5">
                   {ex}
