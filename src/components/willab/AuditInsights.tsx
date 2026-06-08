@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ThumbsUp, AlertTriangle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import SpeechDataPanel from "./SpeechDataPanel";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -37,19 +38,6 @@ import type { ReadoutPayload } from "./readout";
 /*  pre-publish case falls back to ReadoutCard. The overlay shell owns the       */
 /*  header + X close.                                                           */
 /* -------------------------------------------------------------------------- */
-
-function hz(v: number | null): string {
-  return v != null ? `${Math.round(v)} Hz` : "—";
-}
-function pct(v: number | null): string {
-  return v != null ? `${Math.round(v * 100)}%` : "—";
-}
-function wpm(v: number | null): string {
-  return v != null ? `${Math.round(v)} wpm` : "—";
-}
-function db(v: number | null): string {
-  return v != null ? `${Math.round(v)} dB` : "—";
-}
 
 export default function AuditInsights({ payload }: { payload: ReadoutPayload }) {
   // Coach-curated set only; strong → Double down, to_work_on → Avoid.
@@ -161,27 +149,12 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         </blockquote>
       ) : null}
 
-      {/* The mathematics of your speech — raw acoustic data, KEPT but demoted
-          into its own low-emphasis collapsible panel, visually separated from
-          the coach's interpretation. Native <details> so the figures stay in
-          the DOM + reachable (not display:none, not deleted). No translation
-          layer — raw numbers are data; characterizing them would be the system
-          judging the voice. */}
-      <details className="rounded-xl border border-border bg-muted/20">
-        <summary className="cursor-pointer list-none px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground">
-          ▸ The mathematics of your speech
-        </summary>
-        <div className="flex flex-col gap-0.5 px-3 pb-3 text-[13px] text-muted-foreground">
-          <p>
-            Pitch: F0 mean {hz(f.f0Mean)} · SD {hz(f.f0Sd)}
-          </p>
-          <p>Pause ratio: {pct(f.pauseRatio)}</p>
-          <p>Speed (words / min): {wpm(f.speechRate)}</p>
-          <p>
-            Volume: range {db(f.loudnessRange)} · voiced {pct(f.voicedRatio)}
-          </p>
-        </div>
-      </details>
+      {/* Speech data — raw acoustic figures, demoted into the shared collapsed
+          panel (SpeechDataPanel). The coach review card renders the very same
+          panel, so "what the user sees" and "what the coach sees" can't drift
+          (C1). No translation layer — raw numbers are data; characterizing
+          them would be the system judging the voice. */}
+      <SpeechDataPanel features={f} />
 
       {/* nav */}
       <div className="flex items-center justify-between pt-2">

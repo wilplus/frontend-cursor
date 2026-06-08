@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import SpeechDataPanel from "./SpeechDataPanel";
 import {
   saveCoachSnippet,
   type CoachReviewSnippet,
@@ -186,6 +187,15 @@ export default function CoachSnippetReviewCard({
           ) : null}
         </div>
       )}
+
+      {/* Speech data (C1) — the SAME acoustic panel the user sees on their
+          Readout, now that the coach packet serializes `features` (§B.1).
+          Reference only: the coach interprets the numbers, we render no verdict
+          over them. Neutral label ("Speech data") — the coach is looking at the
+          user's snippet, not their own, so never "your". */}
+      {snippet.features ? (
+        <SpeechDataPanel features={snippet.features} label="Speech data" />
+      ) : null}
 
       {/* Coach controls — the §F.3 split-sink surface */}
       <div className="border-t border-border pt-4">

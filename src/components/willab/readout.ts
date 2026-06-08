@@ -80,7 +80,10 @@ function obj(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
 }
 
-function mapFeatures(raw: unknown): ReadoutFeatures {
+/** Snake→camel for the acoustic 11-vector. Exported so the coach-review parser
+ *  (coachReview.ts) reuses the SAME map — including the `mean_pause_seconds`
+ *  unit contract — instead of duplicating it (C1: coach sees the same data). */
+export function mapReadoutFeatures(raw: unknown): ReadoutFeatures {
   const f = obj(raw);
   return {
     f0Mean: num(f.f0_mean),
@@ -109,7 +112,7 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
     durationMs: int(r.duration_ms),
     transcript: str(r.transcript),
     audioRef: typeof r.audio_ref === "string" ? r.audio_ref : null,
-    features: mapFeatures(r.features),
+    features: mapReadoutFeatures(r.features),
     stickiness: {
       composite: num(stick.composite),
       comment: typeof stick.comment === "string" ? stick.comment : null,
