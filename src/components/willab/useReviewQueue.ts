@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchReviewQueue,
+  reconcileReviewQueue,
   type ReviewQueueRow,
 } from "@/services/api/reviewQueue";
 
@@ -43,22 +44,32 @@ export function useReviewQueue(enabled: boolean): UseReviewQueueResult {
   const [rows, setRows] = useState<ReviewQueueRow[]>([]);
   const [loading, setLoading] = useState(false);
   const cancelRef = useRef(false);
+  // C2 — sessions the FE optimistically published. The BE drops published
+  // sessions from /v2/coach/queue, so on refresh we re-merge these as `done`
+  // (reconcileReviewQueue) rather than letting the ✓'d bubble vanish.
+  const publishedRef = useRef<Map<string, ReviewQueueRow>>(new Map());
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
     setLoading(true);
     const next = await fetchReviewQueue();
     if (cancelRef.current) return;
-    setRows(next);
+    setRows(
+      reconcileReviewQueue(next, Array.from(publishedRef.current.values()))
+    );
     setLoading(false);
   }, [enabled]);
 
   const markDone = useCallback((sessionId: string) => {
-    setRows((prev) =>
-      prev.map((r) =>
+    setRows((prev) => {
+      const row = prev.find((r) => r.sessionId === sessionId);
+      // Remember the published row so a later refresh (served WITHOUT published
+      // sessions) retains it as ✓ done in place instead of dropping it.
+      if (row) publishedRef.current.set(sessionId, { ...row, state: "done" });
+      return prev.map((r) =>
         r.sessionId === sessionId ? { ...r, state: "done" } : r
-      )
-    );
+      );
+    });
   }, []);
 
   useEffect(() => {
