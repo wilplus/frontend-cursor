@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
+import MediaPlayer from "@/components/results/MediaPlayer";
 import { fetchLibrary, type LibraryEntry } from "@/services/api/library";
 
 /* -------------------------------------------------------------------------- */
@@ -10,6 +11,11 @@ import { fetchLibrary, type LibraryEntry } from "@/services/api/library";
 /*  A read-only collection of the coach's curated notes on your tagged         */
 /*  moments — the same human-authored lines the Lounge librarian replays.      */
 /*  Never trajectory/profiling; just the notes + their strong / to-work-on tag.*/
+/*                                                                            */
+/*  FE-6 / T7: each entry now carries the PLAYABLE CLIP (parent-audio +         */
+/*  offset window) + transcript, so the user can hear the exact moment the      */
+/*  coach's note refers to — the note alone wasn't enough to recognize which    */
+/*  moment it meant.                                                            */
 /* -------------------------------------------------------------------------- */
 
 export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
@@ -68,8 +74,25 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
                     {e.tag === "strong" ? "Strong" : "To work on"}
                   </span>
                 ) : null}
+                {/* T7 — the clip: hear the moment the note is about. */}
+                {e.snippet?.audioRef ? (
+                  <div className="mt-2">
+                    <MediaPlayer
+                      src={e.snippet.audioRef}
+                      startOffsetMs={e.snippet.startOffsetMs}
+                      durationMs={e.snippet.durationMs}
+                    />
+                  </div>
+                ) : null}
+                {/* the words you said in that clip */}
+                {e.snippet?.transcript ? (
+                  <blockquote className="mt-2 border-l-2 border-primary/40 pl-3 text-[14px] italic leading-relaxed text-foreground">
+                    {e.snippet.transcript}
+                  </blockquote>
+                ) : null}
+                {/* the coach's note about it */}
                 {e.note ? (
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground">
+                  <p className="mt-2 text-[15px] leading-relaxed text-foreground">
                     {e.note}
                   </p>
                 ) : null}
