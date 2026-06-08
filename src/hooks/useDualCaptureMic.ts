@@ -124,6 +124,13 @@ export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
   const finalRef = useRef<string>("");
   const startedAtRef = useRef<number>(0);
   const mimeRef = useRef<string>("audio/webm");
+  // Re-entrancy latch (T2). start() awaits getUserMedia; a second tap during
+  // that async gap would fire a concurrent start() whose teardown() rips out
+  // the first start's half-built recorder — leaving a recorder that exists
+  // but can't stop (the "Stop button dies after a too-short re-record" bug).
+  // One in-flight start at a time; cleared in a finally so the latch can
+  // never stick (success, early-return, or throw) and jam the mic.
+  const startingRef = useRef(false);
 
   // teardown is the single source of truth for releasing the mic. Anything
   // calling start/stop/cancel ends up here. Defensive try/catch on each leg
@@ -168,98 +175,107 @@ export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
   }, []);
 
   const start = useCallback(async () => {
-    const Ctor = getSpeechRecognitionCtor();
-    const mime = pickDualCaptureMimeType();
-    if (!Ctor || !mime) {
-      setState({
-        status: "error",
-        code: "no_support",
-        message: "Voice capture isn't supported in this browser.",
-      });
-      return;
-    }
-
-    // Ensure any previous session is fully released before starting a
-    // new one. Idempotent — no-ops on a clean state.
-    teardown();
-    chunksRef.current = [];
-    partialRef.current = "";
-    finalRef.current = "";
-
-    let stream: MediaStream;
+    // One in-flight start at a time (T2). See `startingRef` above.
+    if (startingRef.current) return;
+    startingRef.current = true;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      const name =
-        err instanceof Error ? `${err.name} ${err.message}` : String(err);
-      const denied = /NotAllowed|Permission|denied/i.test(name);
-      setState({
-        status: "error",
-        code: denied ? "denied" : "stream_failed",
-        message: denied
-          ? "Microphone permission denied."
-          : "Couldn't access the microphone.",
-      });
-      return;
-    }
-    streamRef.current = stream;
-    mimeRef.current = mime;
-    startedAtRef.current =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-
-    const recorder = new MediaRecorder(stream, { mimeType: mime });
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    recorderRef.current = recorder;
-
-    const recognition = new Ctor();
-    recognition.lang = lang;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (event) => {
-      // The contract is "transcript visible to the user IS what gets
-      // sent" (C4). We accumulate finalised segments in finalRef and
-      // expose finalRef + current interim as the live partialText.
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const text = result[0]?.transcript ?? "";
-        if (result.isFinal) {
-          finalRef.current = `${finalRef.current} ${text}`.trim();
-        } else {
-          interim += text;
-        }
+      const Ctor = getSpeechRecognitionCtor();
+      const mime = pickDualCaptureMimeType();
+      if (!Ctor || !mime) {
+        setState({
+          status: "error",
+          code: "no_support",
+          message: "Voice capture isn't supported in this browser.",
+        });
+        return;
       }
-      partialRef.current = interim;
-      const composite = `${finalRef.current} ${interim}`.trim();
-      setState({ status: "recording", partialText: composite });
-    };
-    recognition.onerror = () => {
-      // "no-speech", "audio-capture", "network" etc. are common and
-      // shouldn't kill the recording — the user might still be mid-
-      // sentence. We let MediaRecorder keep going; if Web Speech
-      // permanently dies the user can still send the recorded audio
-      // and the backend will transcribe via Whisper as a fallback.
-    };
-    recognition.onend = () => {
-      // Don't auto-restart — `continuous: true` is best-effort and
-      // some browsers (Safari) end the session unilaterally. Leaving
-      // this as a no-op preserves whatever finalRef has captured so
-      // stop() can still compose a clean transcript.
-    };
-    recognitionRef.current = recognition;
 
-    recorder.start();
-    try {
-      recognition.start();
-    } catch {
-      // start() can throw "InvalidStateError" if already started; we
-      // just attempted a fresh construct so this should be rare, but
-      // tolerate it rather than poison the state.
+      // Ensure any previous session is fully released before starting a
+      // new one. Idempotent — no-ops on a clean state.
+      teardown();
+      chunksRef.current = [];
+      partialRef.current = "";
+      finalRef.current = "";
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        const name =
+          err instanceof Error ? `${err.name} ${err.message}` : String(err);
+        const denied = /NotAllowed|Permission|denied/i.test(name);
+        setState({
+          status: "error",
+          code: denied ? "denied" : "stream_failed",
+          message: denied
+            ? "Microphone permission denied."
+            : "Couldn't access the microphone.",
+        });
+        return;
+      }
+      streamRef.current = stream;
+      mimeRef.current = mime;
+      startedAtRef.current =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+
+      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorderRef.current = recorder;
+
+      const recognition = new Ctor();
+      recognition.lang = lang;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (event) => {
+        // The contract is "transcript visible to the user IS what gets
+        // sent" (C4). We accumulate finalised segments in finalRef and
+        // expose finalRef + current interim as the live partialText.
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const text = result[0]?.transcript ?? "";
+          if (result.isFinal) {
+            finalRef.current = `${finalRef.current} ${text}`.trim();
+          } else {
+            interim += text;
+          }
+        }
+        partialRef.current = interim;
+        const composite = `${finalRef.current} ${interim}`.trim();
+        setState({ status: "recording", partialText: composite });
+      };
+      recognition.onerror = () => {
+        // "no-speech", "audio-capture", "network" etc. are common and
+        // shouldn't kill the recording — the user might still be mid-
+        // sentence. We let MediaRecorder keep going; if Web Speech
+        // permanently dies the user can still send the recorded audio
+        // and the backend will transcribe via Whisper as a fallback.
+      };
+      recognition.onend = () => {
+        // Don't auto-restart — `continuous: true` is best-effort and
+        // some browsers (Safari) end the session unilaterally. Leaving
+        // this as a no-op preserves whatever finalRef has captured so
+        // stop() can still compose a clean transcript.
+      };
+      recognitionRef.current = recognition;
+
+      recorder.start();
+      try {
+        recognition.start();
+      } catch {
+        // start() can throw "InvalidStateError" if already started; we
+        // just attempted a fresh construct so this should be rare, but
+        // tolerate it rather than poison the state.
+      }
+
+      setState({ status: "recording", partialText: "" });
+    } finally {
+      // Cleared on every exit — success, early-return, or an unexpected
+      // throw from MediaRecorder construction — so the latch never sticks.
+      startingRef.current = false;
     }
-
-    setState({ status: "recording", partialText: "" });
   }, [lang, teardown]);
 
   const stop = useCallback(async () => {
