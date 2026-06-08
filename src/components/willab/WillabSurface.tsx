@@ -28,8 +28,12 @@ import { LoungeThreadProvider } from "./LoungeThreadContext";
 
 export default function WillabSurface({
   sessionId,
+  reviewSessionId,
 }: {
   sessionId: string | null;
+  /** U12 — coach deep-link target from `/chat?review=<id>`; opens the in-Lounge
+   *  CoachReviewOverlay on mount (coach-gated inside the Lounge). */
+  reviewSessionId: string | null;
 }) {
   const flow = useWillabFlow();
   const signedIn = useSignedIn();
@@ -80,7 +84,12 @@ export default function WillabSurface({
   // recording's Readout into the same scrollable history.
   return shell(
     <LoungeThreadProvider>
-      <Lounge state={flow.state} onStart={flow.startRecording} goTo={flow.goTo} />
+      <Lounge
+        state={flow.state}
+        onStart={flow.startRecording}
+        goTo={flow.goTo}
+        initialReviewSessionId={reviewSessionId}
+      />
       {flow.labOverlayOpen && (
         <LabOverlay
           state={flow.state}
