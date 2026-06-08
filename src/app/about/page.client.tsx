@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { ArrowDown, ArrowUp, Image as ImageIcon, Menu, Quote, X } from "lucide-react";
-import Logo from "@/components/Logo";
+import { useEffect, useRef, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, Image as ImageIcon, Quote } from "lucide-react";
+import SiteHeader from "@/components/SiteHeader";
 
 /**
  * WillpowerLab — About / Timeline.
@@ -310,7 +309,6 @@ function TestimonialCard({ t }: { t: Testimonial }) {
 export default function AboutTimeline() {
   const nowRef = useRef<HTMLDivElement>(null);
   const pastRef = useRef<HTMLElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // Open scroll-centered on "now". Defer to after first paint (two rAFs)
   // so the scroll container has its final height before we jump.
@@ -329,49 +327,7 @@ export default function AboutTimeline() {
 
   return (
     <div className="bg-background text-foreground">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur">
-        <Link href="/" className="no-underline" aria-label="WillpowerLab — home">
-          <Logo />
-        </Link>
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Menu"
-            aria-expanded={menuOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-muted active:scale-95"
-          >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-
-          {menuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setMenuOpen(false)}
-                aria-hidden
-              />
-              <nav className="absolute right-0 top-11 z-20 w-40 overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg">
-                {[
-                  { href: "/", label: "Home" },
-                  { href: "/about", label: "About" },
-                  { href: "/science", label: "Science" },
-                ].map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="block px-3 py-2 text-[13px] text-foreground no-underline transition hover:bg-muted"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </nav>
-            </>
-          )}
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="mx-auto max-w-3xl px-4">
         {/* FUTURE — scroll up to reach */}
