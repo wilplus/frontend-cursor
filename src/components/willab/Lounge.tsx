@@ -7,7 +7,7 @@ import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
-import { loungeToHistory } from "./willabHelpers";
+import { loungeToHistory, splitBotMessage } from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
@@ -232,11 +232,7 @@ export default function Lounge({
           )
         )}
 
-        {botThinking && (
-          <div className="mr-auto rounded-2xl bg-muted px-3 py-2 text-[15px] text-muted-foreground">
-            …
-          </div>
-        )}
+        {botThinking && <TypingDots />}
       </div>
 
       {/* U2 — record CTA: dark fill + a red record dot, full-width. Deliberately
@@ -328,6 +324,24 @@ export default function Lounge({
   );
 }
 
+/** U4 — animated "librarian is typing" indicator. Three dots bouncing out of
+ *  phase (staggered negative animation-delays) in a bot-side bubble. Replaces
+ *  the static "…" so the wait reads as a live, responsive chat — and pairs with
+ *  the U3 bubble-split (typing → a few short bubbles land). */
+function TypingDots() {
+  return (
+    <div
+      role="status"
+      aria-label="Librarian is typing"
+      className="mr-auto flex items-center gap-1 rounded-2xl bg-muted px-3.5 py-3"
+    >
+      <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
+      <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground/60" />
+    </div>
+  );
+}
+
 function Bubble({
   message,
   onViewInsights,
@@ -346,9 +360,20 @@ function Bubble({
     );
   }
   if (message.role === "bot") {
+    // U3 (bubble-split): a multi-paragraph answer renders as several stacked
+    // bubbles — the librarian "sends" a few short messages, not one wall of
+    // text. Blank-line breaks split; soft single newlines stay in a bubble.
+    const chunks = splitBotMessage(message.body);
     return (
-      <div className="mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground">
-        {message.body}
+      <div className="mr-auto flex max-w-[85%] flex-col gap-1.5">
+        {chunks.map((part, i) => (
+          <div
+            key={`${i}-${part.slice(0, 12)}`}
+            className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
+          >
+            {part}
+          </div>
+        ))}
       </div>
     );
   }

@@ -30,6 +30,21 @@ export function loungeToHistory(msgs: LoungeMessage[]): ChatHistoryEntry[] {
     }));
 }
 
+/**
+ * U3 (bubble-split): split a bot message body into the paragraphs to render as
+ * separate chat bubbles. Splits on blank lines (2+ newlines) ONLY — a single
+ * soft newline stays inside a bubble (preserved by `whitespace-pre-wrap`), so
+ * the librarian "sends" a few short bubbles instead of one wall of text.
+ * Returns [] for an empty / whitespace-only body (render nothing) and a single
+ * element when there's no blank-line break.
+ */
+export function splitBotMessage(body: string): string[] {
+  return body
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 /** Seconds → `m:ss`. Clamps negatives to 0 and floors fractional seconds. */
 export function fmtClock(sec: number): string {
   const s = Math.max(0, Math.floor(sec));

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { fmtClock, loungeToHistory, parseVocabulary } from "./willabHelpers";
+import {
+  fmtClock,
+  loungeToHistory,
+  parseVocabulary,
+  splitBotMessage,
+} from "./willabHelpers";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
 const m = (over: Partial<LoungeMessage>): LoungeMessage => ({
@@ -34,6 +39,36 @@ describe("parseVocabulary", () => {
   it("returns an empty array for blank input", () => {
     expect(parseVocabulary("")).toEqual([]);
     expect(parseVocabulary("   ")).toEqual([]);
+  });
+});
+
+describe("splitBotMessage", () => {
+  it("splits on blank lines into separate bubbles", () => {
+    expect(splitBotMessage("First thought.\n\nSecond thought.")).toEqual([
+      "First thought.",
+      "Second thought.",
+    ]);
+  });
+
+  it("keeps a single soft newline inside one bubble", () => {
+    expect(splitBotMessage("line one\nline two")).toEqual([
+      "line one\nline two",
+    ]);
+  });
+
+  it("returns one element when there is no blank-line break", () => {
+    expect(splitBotMessage("just one paragraph")).toEqual([
+      "just one paragraph",
+    ]);
+  });
+
+  it("trims chunks and drops empties (3+ newlines, trailing blanks)", () => {
+    expect(splitBotMessage("  a  \n\n\n  b  \n\n")).toEqual(["a", "b"]);
+  });
+
+  it("returns [] for empty / whitespace-only bodies", () => {
+    expect(splitBotMessage("")).toEqual([]);
+    expect(splitBotMessage("   \n  ")).toEqual([]);
   });
 });
 
