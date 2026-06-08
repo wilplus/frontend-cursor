@@ -142,9 +142,11 @@ export default function ReadoutCard({
             </button>
           ) : null}
 
-          {/* persistent send footer (§5.7) */}
+          {/* persistent send footer (§5.7 / B10) — pinned to the bottom with
+              safe-area padding so the finish-line action clears the iOS home
+              bar and sits flush against the edge (no dead gap below). */}
           {onSend ? (
-            <div className="sticky bottom-0 -mx-4 mt-5 border-t border-border bg-background px-4 py-3">
+            <div className="sticky bottom-0 -mx-4 mt-5 border-t border-border bg-background px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               <Button onClick={onSend} className="w-full rounded-full">
                 Send to my coach for analysis
               </Button>
