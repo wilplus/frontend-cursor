@@ -1,14 +1,5 @@
 import type { ApiError, UUID } from "./types";
 
-export interface GuestUploadResponse {
-  status: "ok";
-  guest_session_id: UUID;
-}
-
-export interface GuestUploadError extends ApiError {
-  status: number;
-}
-
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 
 export class GuestUploadFailure extends Error {
@@ -21,69 +12,12 @@ export class GuestUploadFailure extends Error {
   }
 }
 
-export async function uploadGuestRecording(
-  blob: Blob,
-  durationSeconds: number | null
-): Promise<GuestUploadResponse> {
-  if (blob.size > MAX_AUDIO_BYTES) {
-    throw new GuestUploadFailure(
-      "FILE_TOO_LARGE",
-      "Recording is over the 5 MB limit.",
-      413
-    );
-  }
-
-  const form = new FormData();
-  const filename = blobFilename(blob);
-  form.append("audio_file", blob, filename);
-  if (durationSeconds != null && Number.isFinite(durationSeconds)) {
-    form.append("duration_seconds", String(durationSeconds));
-  }
-
-  let resp: Response;
-  try {
-    resp = await fetch("/api/public/shaky-voice/upload", {
-      method: "POST",
-      body: form,
-    });
-  } catch (err) {
-    throw new GuestUploadFailure(
-      "NETWORK_ERROR",
-      err instanceof Error ? err.message : "Network error",
-      0
-    );
-  }
-
-  let json: unknown = null;
-  try {
-    json = await resp.json();
-  } catch {
-    json = null;
-  }
-
-  if (!resp.ok) {
-    const code =
-      (json as ApiError | null)?.code ??
-      (resp.status === 413 ? "FILE_TOO_LARGE" : `HTTP_${resp.status}`);
-    const message =
-      (json as ApiError | null)?.error ??
-      (resp.status === 429
-        ? "Rate limited"
-        : resp.statusText || "Upload failed");
-    throw new GuestUploadFailure(code, message, resp.status);
-  }
-
-  const body = json as GuestUploadResponse | null;
-  if (!body || body.status !== "ok" || !body.guest_session_id) {
-    throw new GuestUploadFailure(
-      "INVALID_RESPONSE",
-      "Backend returned an unexpected response.",
-      resp.status
-    );
-  }
-
-  return body;
-}
+/* uploadGuestRecording (POST /api/public/shaky-voice/upload) was DELETED —
+ * the legacy anonymous-audio funnel is cut. The only anonymous path now is
+ * the unified Lab funnel (record → park → sign-up → merge-then-send). The
+ * BFF route src/app/api/public/shaky-voice/upload/route.ts is removed too.
+ * (The sibling shaky-voice/claim path is left in place per the scoped cut,
+ * though it's also FE-orphaned — a candidate for the next sweep.) */
 
 export interface GuestClaimResponse {
   status: "ok";
