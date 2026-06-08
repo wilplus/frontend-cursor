@@ -12,7 +12,7 @@ import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import HistoryOverlay from "./HistoryOverlay";
-import { clearInsightsReady, getInsightsReady, getReviewPending } from "./sendStatus";
+import { clearInsightsReady, getInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
@@ -247,6 +247,17 @@ export default function Lounge({
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
           placeholder="Ask about how communication works…"
+          /* B9 — kill any autofill / password-manager overlay that can ghost
+             a second line of placeholder text over a chat composer. The
+             markup is a single clean input, so the reported "doubled
+             placeholder" is a runtime overlay or a font-swap flash, not a
+             stacked element. These attrs remove the most common overlay
+             cause; if the doubling persists on a device it's a font-load
+             flash and needs a repro screenshot to pin. */
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="sentences"
+          spellCheck
           className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-[15px] outline-none focus:border-primary"
           aria-label="Message the willab librarian"
         />
@@ -350,8 +361,9 @@ function StatusRegion({
   if (state === "parked") {
     return (
       <StatusCard tone="hold">
+        {/* B5 — training vocabulary. */}
         <p className="text-[15px] text-foreground">
-          Your Readout is held — pick it back up whenever you&apos;re ready.
+          Your training isn&apos;t finished.
         </p>
         {/* TODO(slice: Readout): restore the held Readout data on resume. */}
         <Button
@@ -360,33 +372,25 @@ function StatusRegion({
           onClick={() => goTo("readout")}
           className="mt-2 rounded-full"
         >
-          Resume Readout
+          Resume
         </Button>
       </StatusCard>
     );
   }
   if (state === "review_pending") {
-    const sid = getReviewPending();
     return (
       <StatusCard tone="info">
-        <p className="text-[15px] text-foreground">
-          Your recording is with a coach.
-        </p>
+        {/* B6 — training vocabulary. */}
+        <p className="text-[15px] text-foreground">Good job! Training sent!</p>
+        {/* B12 (founder decision 2 — time promise): no number yet. Soft,
+            no-commit copy until the founder picks "~Xh" / "within a day" /
+            no-number. Swap this single line when decided. */}
         <p className="mt-0.5 text-[12px] text-muted-foreground">
-          We&apos;ll surface their read here as soon as it lands — no need to
-          wait around.
+          Your coach will take it from here — insights land here when
+          they&apos;re ready.
         </p>
-        {sid ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => onViewReadout(sid)}
-            className="mt-2 rounded-full"
-          >
-            View your readout
-          </Button>
-        ) : null}
+        {/* B6 / B11: the "View your readout" button is removed — History
+            (🕓 Your recordings) is the access path to a sent session. */}
       </StatusCard>
     );
   }
