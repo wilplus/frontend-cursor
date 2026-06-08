@@ -12,7 +12,7 @@ import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import HistoryOverlay from "./HistoryOverlay";
-import { clearInsightsReady, getInsightsReady } from "./sendStatus";
+import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
@@ -79,6 +79,10 @@ export default function Lounge({
   // down whenever they'd scrolled up to read history — the non-native feel.
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const atBottomRef = useRef(true);
+  // U3 — baseline of message ids present on first load (historical). A bot
+  // message NOT in this set, rendered as the last thread item, is a freshly-
+  // arrived reply → it reveals sequentially (animate). Set once, post first load.
+  const baselineRef = useRef<Set<string> | null>(null);
 
   // §F.0 / §F.1 — coach-mode surface. is_coach is the RENDER gate (the BE
   // role-gates each endpoint independently via require_admin_or_coach, so a
@@ -133,6 +137,18 @@ export default function Lounge({
     void reviewQueue.refresh();
   }
 
+  // U6 — opening the in-thread insight card is the single "mark read" path now
+  // that the top banner is gone: open the overlay, and if we were in the unread
+  // insights_ready state, clear the flag + return the status machine to idle
+  // (exactly what the banner's "Read ›" button used to do).
+  function handleViewInsights(sessionId: string): void {
+    setActiveInsight(sessionId);
+    if (state === "insights_ready") {
+      clearInsightsReady();
+      goTo("lounge_idle");
+    }
+  }
+
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
   // that session once on mount. Coach-gated (isCoach is the render gate; the BE
   // role-gates the endpoint regardless). Fire-once so closing it doesn't
@@ -161,6 +177,14 @@ export default function Lounge({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, botThinking]);
+
+  // U3 — capture the historical baseline once the thread first loads, so only
+  // messages that arrive AFTER it (new bot replies) animate.
+  useEffect(() => {
+    if (baselineRef.current === null && messages.length > 0) {
+      baselineRef.current = new Set(messages.map((m) => m.client_id));
+    }
+  }, [messages]);
 
   // Track whether the thread is parked at the bottom. Within 80px counts as
   // "at bottom" (sub-pixel rounding + a partially-visible last bubble).
@@ -207,7 +231,7 @@ export default function Lounge({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      <StatusRegion state={state} goTo={goTo} onViewReadout={setActiveInsight} />
+      <StatusRegion state={state} goTo={goTo} />
 
       <div
         ref={scrollRef}
@@ -232,12 +256,17 @@ export default function Lounge({
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState />
         ) : (
-          threadItems.map((item) =>
+          threadItems.map((item, i) =>
             item.kind === "message" ? (
               <Bubble
                 key={item.reactKey}
                 message={item.message}
-                onViewInsights={setActiveInsight}
+                onViewInsights={handleViewInsights}
+                animate={
+                  i === threadItems.length - 1 &&
+                  baselineRef.current !== null &&
+                  !baselineRef.current.has(item.message.client_id)
+                }
               />
             ) : (
               <CoachReviewBubble
@@ -398,12 +427,67 @@ function TypingDots() {
   );
 }
 
+/** U3 — gap between sequentially-revealed bubbles (ms of "typing"). */
+const CHUNK_DELAY_MS = 750;
+
+/** U3 — render a bot message's split chunks. A freshly-arrived reply
+ *  (`animate`) reveals them one at a time with a typing indicator between, so
+ *  it reads like a person sending a few short messages. Historical messages,
+ *  single-chunk messages, and reduced-motion users render everything at once. */
+function SequentialBotBubbles({
+  chunks,
+  animate,
+}: {
+  chunks: string[];
+  animate: boolean;
+}) {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    setReduceMotion(
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }, []);
+
+  const shouldAnimate = animate && !reduceMotion && chunks.length > 1;
+  const [revealed, setRevealed] = useState(shouldAnimate ? 1 : chunks.length);
+
+  useEffect(() => {
+    if (!shouldAnimate) {
+      setRevealed(chunks.length); // instant: historical / single / reduced-motion
+      return;
+    }
+    if (revealed >= chunks.length) return;
+    const id = setTimeout(() => setRevealed((n) => n + 1), CHUNK_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [shouldAnimate, revealed, chunks.length]);
+
+  const stillTyping = shouldAnimate && revealed < chunks.length;
+
+  return (
+    <div className="mr-auto flex max-w-[85%] flex-col gap-1.5">
+      {chunks.slice(0, revealed).map((part, i) => (
+        <div
+          key={`${i}-${part.slice(0, 12)}`}
+          className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
+        >
+          {part}
+        </div>
+      ))}
+      {stillTyping ? <TypingDots /> : null}
+    </div>
+  );
+}
+
 function Bubble({
   message,
   onViewInsights,
+  animate = false,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
+  /** U3 — true only for a freshly-arrived last message → sequential reveal. */
+  animate?: boolean;
 }) {
   if (message.kind === "recording_summary" || message.kind === "insight") {
     return <ReportCard message={message} onViewInsights={onViewInsights} />;
@@ -418,19 +502,13 @@ function Bubble({
   if (message.role === "bot") {
     // U3 (bubble-split): a multi-paragraph answer renders as several stacked
     // bubbles — the librarian "sends" a few short messages, not one wall of
-    // text. Blank-line breaks split; soft single newlines stay in a bubble.
-    const chunks = splitBotMessage(message.body);
+    // text. A freshly-arrived reply reveals them SEQUENTIALLY with a typing
+    // indicator between (animate); historical messages render at once.
     return (
-      <div className="mr-auto flex max-w-[85%] flex-col gap-1.5">
-        {chunks.map((part, i) => (
-          <div
-            key={`${i}-${part.slice(0, 12)}`}
-            className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
-          >
-            {part}
-          </div>
-        ))}
-      </div>
+      <SequentialBotBubbles
+        chunks={splitBotMessage(message.body)}
+        animate={animate}
+      />
     );
   }
   // system / status / recording_summary / insight → centered meta line
@@ -464,11 +542,9 @@ function LoungeEmptyState() {
 function StatusRegion({
   state,
   goTo,
-  onViewReadout,
 }: {
   state: WillabState;
   goTo: (s: WillabState) => void;
-  onViewReadout: (sessionId: string) => void;
 }) {
   if (state === "parked") {
     return (
@@ -493,34 +569,11 @@ function StatusRegion({
   // in-thread bubble (<SentConfirmationBubble>) at the bottom of the thread, so
   // the "sent" acknowledgement reads as part of the conversation rather than a
   // top banner. StatusRegion renders nothing for review_pending now.
-  if (state === "insights_ready") {
-    const sid = getInsightsReady();
-    return (
-      <StatusCard tone="ready">
-        <p className="text-[15px] text-foreground">
-          Your coach sent through new insights.
-        </p>
-        {sid ? (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              onViewReadout(sid); // opens the annotated Readout (read → BE library fold §3.11)
-              clearInsightsReady();
-              goTo("lounge_idle"); // transient: once read, back to the launch CTA (§6a)
-            }}
-            className="mt-2 rounded-full"
-          >
-            Read ›
-          </Button>
-        ) : (
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            They&apos;re saved to your history.
-          </p>
-        )}
-      </StatusCard>
-    );
-  }
+  // U6 — the "insights ready" top banner is REMOVED. The coach's insight is
+  // delivered as an in-thread card (BE-appends it on publish, idempotent), which
+  // is now the sole surface + "mark read" path (handleViewInsights). The
+  // insights_ready state still drives the one-shot thread reload; StatusRegion
+  // renders no card for it.
   return null;
 }
 
