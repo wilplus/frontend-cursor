@@ -34,15 +34,13 @@ export default function ReportCard({
             Coach insights
           </span>
         </div>
+        {/* B8 — drop the redundant "Your coach's insights are ready."
+            fallback line; the icon + header + "View insights →" already say
+            that. Keep the coach's actual overall message when present (the
+            warm human line worth showing); show nothing extra when absent. */}
         {v.overallMessage ? (
           <p className="mt-1.5 text-[15px] text-foreground">{v.overallMessage}</p>
-        ) : (
-          <p className="mt-1.5 text-[13px] text-muted-foreground">
-            {v.noteCount != null
-              ? `${v.noteCount} note${v.noteCount === 1 ? "" : "s"} from your coach.`
-              : message.body}
-          </p>
-        )}
+        ) : null}
         {sessionId && onViewInsights ? (
           <button
             type="button"
@@ -56,41 +54,17 @@ export default function ReportCard({
     );
   }
 
+  // B7 — a "completed training" marker in the thread: an ordinary bubble,
+  // NOT a metrics card. The acoustic breakdown lives in the Readout / History
+  // surface; the thread entry just confirms the session happened (bolded,
+  // icon kept, no special metric styling).
   const v = readoutView(message.metadata);
-  const hasMetrics = v.speechRate != null || v.pauseRatio != null;
   return (
-    <div className="my-1 rounded-2xl border border-border bg-muted/30 p-3">
-      <div className="flex items-center gap-2">
-        <FileAudio className="h-4 w-4 text-muted-foreground" />
-        <span className="text-[13px] font-semibold text-foreground">
-          Readout{v.topic ? ` · ${v.topic}` : ""}
-        </span>
-      </div>
-      {hasMetrics ? (
-        <div className="mt-2 flex gap-6">
-          {v.speechRate != null && (
-            <Metric label="Speech rate" value={`${Math.round(v.speechRate)} wpm`} />
-          )}
-          {v.pauseRatio != null && (
-            <Metric label="Pause ratio" value={`${Math.round(v.pauseRatio * 100)}%`} />
-          )}
-        </div>
-      ) : (
-        <p className="mt-1 text-[12px] text-muted-foreground">
-          Saved to your history — the full breakdown opens once analysis lands.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[17px] font-semibold tabular-nums text-foreground">
-        {value}
-      </p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+    <div className="my-1 flex items-center gap-2 rounded-2xl bg-chat-bot px-4 py-2.5">
+      <FileAudio className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="text-[15px] font-semibold text-foreground">
+        Completed training{v.topic ? ` · ${v.topic}` : ""}
+      </span>
     </div>
   );
 }
