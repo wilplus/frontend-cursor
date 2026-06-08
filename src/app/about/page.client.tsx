@@ -89,8 +89,8 @@ const PAST_RECENT: Entry[] = [
     title: "Early testing",
     body: "First speakers put the method to work in real interviews, pitches, and talks.",
     image: {
-      src: "/about/photos/speaking.jpg",
-      alt: "A speaker presenting to a room of chairs",
+      src: "/about/photos/early-testing.jpg",
+      alt: "WillpowerLab's founder leading a 'Move your body' workshop session",
     },
   },
 ];
