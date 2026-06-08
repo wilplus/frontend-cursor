@@ -1,26 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { ThumbsUp, AlertTriangle, User, Sparkles } from "lucide-react";
+import { ThumbsUp, AlertTriangle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
-/*  AuditInsights — the post-publish §6b Insights view (the "Voice Audit")      */
+/*  AuditInsights — the post-publish §6b Insights view (Insights redesign v2)   */
 /*                                                                            */
 /*  A paged walk through the coach-CURATED set only (snippets the coach tagged   */
-/*  strong / to_work_on). One analysis per page, advanced by "Next analysis →":  */
-/*    strong      → "Things to double down"                                     */
-/*    to_work_on  → "What to avoid"                                             */
-/*  Per analysis: What (audio + quote) · Why (flat metric lines + AI stickiness  */
-/*  comment-first, neutral) · When (coach note + when-guidance + examples).      */
-/*  Overall coach message on top (hidden when empty). Coach video deferred.      */
-/*  Untagged snippets are excluded here — they live in the raw §5 Readout.       */
+/*  strong / to_work_on). One analysis per page.                                */
+/*                                                                            */
+/*  Hierarchy (redesign v2): human-forward, data demoted.                       */
+/*    Top tier (once):                                                          */
+/*      • warm coach encouragement — prominent, no caps label, "— your coach"   */
+/*      • coach video — COLLAPSED card ("▶ Watch your coach's note"), expands    */
+/*        on tap; demoted, not full-bleed; no duration (the payload carries     */
+/*        none, never hardcode one).                                            */
+/*    Per snippet:                                                              */
+/*      tag ("Things to double down") → audio → "What you said" (transcript,    */
+/*      regular weight) → coach's note (inline attributed quote) → the speech   */
+/*      data in a COLLAPSED "mathematics of your speech" panel.                 */
+/*                                                                            */
+/*  Split-sink (BE-verified, no leak): `features` + `stickiness` are user-lane   */
+/*  topic-coherence / acoustics, NOT the private threat/challenge or salience    */
+/*  vectors. The raw acoustics are kept as DATA ("voice as data") — never        */
+/*  translated into a system characterization (that would be the system         */
+/*  judging the voice). The machine scaffolding the old layout exposed — the     */
+/*  "AUTOMATED READ" label + the raw `stickiness composite` score — is removed;  */
+/*  a raw score shown at the user breaks the no-judgment promise (the coach      */
+/*  interprets, the system doesn't score). The topic-coherence sentence is       */
+/*  default-hidden for the same reason.                                          */
 /*                                                                            */
 /*  Rendered by InsightsOverlay only when ≥1 snippet is tagged; the raw /        */
-/*  pre-publish case falls back to ReadoutCard. Willab tokens, not the mock's    */
-/*  orange theme; the overlay shell owns the header + X close.                  */
+/*  pre-publish case falls back to ReadoutCard. The overlay shell owns the       */
+/*  header + X close.                                                           */
 /* -------------------------------------------------------------------------- */
 
 function hz(v: number | null): string {
@@ -34,9 +49,6 @@ function wpm(v: number | null): string {
 }
 function db(v: number | null): string {
   return v != null ? `${Math.round(v)} dB` : "—";
-}
-function dec(v: number | null): string {
-  return v != null ? v.toFixed(2) : "—";
 }
 
 export default function AuditInsights({ payload }: { payload: ReadoutPayload }) {
@@ -53,36 +65,20 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
 
   return (
     <div className="flex flex-col gap-5 pb-8">
+      {/* Top tier — warm encouragement. No caps label; it's a person talking,
+          not a section header. Generic "your coach" (no name field). */}
       {payload.overallMessage ? (
-        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-primary">
-            From your coach
-          </p>
-          <p className="mt-1 text-[15px] leading-relaxed text-foreground">
+        <div className="rounded-2xl bg-primary/5 p-4">
+          <p className="text-[17px] leading-relaxed text-foreground">
             {payload.overallMessage}
           </p>
+          <p className="mt-2 text-[13px] text-muted-foreground">— your coach</p>
         </div>
       ) : null}
 
-      {/* §F.6 — overall coach video. Top-level (sibling of overallMessage),
-          NOT per-snippet. The BE folds insights_payload.video_ref into the
-          published readout (ready-to-use public URL). Hide-when-empty, same
-          pattern as overallMessage — a session published without a coach
-          video carries no ref and renders nothing here. */}
-      {payload.videoRef ? (
-        <div className="overflow-hidden rounded-2xl border border-primary/30 bg-primary/5">
-          <p className="px-4 pt-4 text-[11px] font-medium uppercase tracking-wide text-primary">
-            A note from your coach
-          </p>
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video
-            src={payload.videoRef}
-            controls
-            playsInline
-            className="mt-2 w-full bg-black"
-          />
-        </div>
-      ) : null}
+      {/* Coach video — collapsed by default; a supporting P.S., not the
+          headline. Expands + plays on tap. No duration (payload carries none). */}
+      {payload.videoRef ? <CoachVideoCard src={payload.videoRef} /> : null}
 
       {/* progress through the curated set */}
       {total > 1 ? (
@@ -98,7 +94,7 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         </div>
       ) : null}
 
-      {/* bucket label */}
+      {/* tag */}
       <div
         className={`flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide ${
           isStrong ? "text-primary" : "text-foreground"
@@ -112,9 +108,10 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         {isStrong ? "Things to double down" : "What to avoid"}
       </div>
 
-      {/* What */}
+      {/* What you said — audio + transcript (regular weight, generous
+          line-height; the old multi-line italic was hard to read). */}
       <div>
-        <p className="text-sm font-semibold text-foreground">What</p>
+        <p className="text-sm font-semibold text-foreground">What you said</p>
         <div className="mt-2">
           <MediaPlayer
             src={s.audioRef}
@@ -123,79 +120,26 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
           />
         </div>
         {s.transcript ? (
-          <blockquote
-            className={`mt-3 border-l-2 pl-3 text-[17px] font-medium italic leading-relaxed text-foreground ${
-              isStrong ? "border-primary" : "border-foreground"
-            }`}
-          >
+          <blockquote className="mt-3 border-l-2 border-border pl-3 text-[16px] leading-relaxed text-foreground">
             {s.transcript}
           </blockquote>
         ) : null}
       </div>
 
-      {/* Why — flat metric lines (raw measurements, no author) + the
-          AUTOMATED stickiness read. T6: the stickiness comment is
-          machine-generated, not the coach — label it so the user never
-          mistakes the app's neutral read for the human coach's note. */}
-      <div>
-        <p className="text-sm font-semibold text-foreground">Why</p>
-        <div className="mt-1.5 flex flex-col gap-0.5 text-[14px] text-foreground">
-          <p>
-            Pitch: F0 mean {hz(f.f0Mean)} · SD {hz(f.f0Sd)}
-          </p>
-          <p>Pause ratio: {pct(f.pauseRatio)}</p>
-          <p>Speed (words / min): {wpm(f.speechRate)}</p>
-          <p>
-            Volume: range {db(f.loudnessRange)} · voiced {pct(f.voicedRatio)}
-          </p>
-        </div>
-        {s.stickiness.comment || s.stickiness.composite != null ? (
-          <div className="mt-3 rounded-lg border border-border bg-muted/30 p-2.5">
-            <div className="flex items-center gap-1.5">
-              <Sparkles
-                className="h-3 w-3 text-muted-foreground"
-                aria-hidden
-              />
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Automated read
-              </span>
-            </div>
-            {s.stickiness.comment ? (
-              <p className="mt-1 text-[14px] italic text-foreground">
-                {s.stickiness.comment}
-              </p>
-            ) : null}
-            {s.stickiness.composite != null ? (
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Stickiness composite {dec(s.stickiness.composite)}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      {/* Coach note + when-guidance + examples — the HUMAN layer (§14 user
-          lane / §6b). T6: badge it 🧑 Your coach with the primary-tint card
-          chrome so it visually ties to the top "From your coach" message
-          and reads as one human identity, distinct from the neutral
-          automated read above. The §14 "When"/"E.g." structure is kept as
-          sub-labels inside. */}
+      {/* Coach's note — the meaning of the moment, in the coach's own words.
+          Inline attributed quote (warm left border + "— your coach"), NOT an
+          orange section header. The §14 when/examples stay as the coach's
+          voice, under muted (non-orange) sub-labels. */}
       {s.coach.note || s.coach.when || s.coach.examples.length > 0 ? (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
-          <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 text-primary" aria-hidden />
-            <span className="text-[11px] font-medium uppercase tracking-wide text-primary">
-              Your coach
-            </span>
-          </div>
+        <blockquote className="border-l-2 border-primary/50 pl-3">
           {s.coach.note ? (
-            <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
+            <p className="text-[15px] leading-relaxed text-foreground">
               {s.coach.note}
             </p>
           ) : null}
           {s.coach.when ? (
             <>
-              <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="mt-2 text-[12px] text-muted-foreground">
                 When to use it
               </p>
               <p className="mt-0.5 text-[14px] leading-relaxed text-foreground">
@@ -205,9 +149,7 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
           ) : null}
           {s.coach.examples.length > 0 ? (
             <div className="mt-2 text-[14px] text-foreground">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                E.g.
-              </p>
+              <p className="text-[12px] text-muted-foreground">For example</p>
               {s.coach.examples.map((ex, i) => (
                 <p key={`${i}-${ex.slice(0, 12)}`} className="mt-0.5">
                   {ex}
@@ -215,8 +157,31 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
               ))}
             </div>
           ) : null}
-        </div>
+          <p className="mt-2 text-[13px] text-muted-foreground">— your coach</p>
+        </blockquote>
       ) : null}
+
+      {/* The mathematics of your speech — raw acoustic data, KEPT but demoted
+          into its own low-emphasis collapsible panel, visually separated from
+          the coach's interpretation. Native <details> so the figures stay in
+          the DOM + reachable (not display:none, not deleted). No translation
+          layer — raw numbers are data; characterizing them would be the system
+          judging the voice. */}
+      <details className="rounded-xl border border-border bg-muted/20">
+        <summary className="cursor-pointer list-none px-3 py-2 text-[13px] text-muted-foreground hover:text-foreground">
+          ▸ The mathematics of your speech
+        </summary>
+        <div className="flex flex-col gap-0.5 px-3 pb-3 text-[13px] text-muted-foreground">
+          <p>
+            Pitch: F0 mean {hz(f.f0Mean)} · SD {hz(f.f0Sd)}
+          </p>
+          <p>Pause ratio: {pct(f.pauseRatio)}</p>
+          <p>Speed (words / min): {wpm(f.speechRate)}</p>
+          <p>
+            Volume: range {db(f.loudnessRange)} · voiced {pct(f.voicedRatio)}
+          </p>
+        </div>
+      </details>
 
       {/* nav */}
       <div className="flex items-center justify-between pt-2">
@@ -233,6 +198,42 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------- coach video ------------------------------ */
+
+/** Collapsed-by-default coach video. The note is a supporting P.S.: a small
+ *  pill on first paint so it never pushes the analysis below the fold;
+ *  expands + autoplays on tap. No duration label — `video_ref` is a bare URL
+ *  with no duration (per the frozen contract); never hardcode one. */
+function CoachVideoCard({ src }: { src: string }) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 self-start rounded-full border border-border px-4 py-2 text-[14px] text-foreground transition-colors hover:border-primary/50"
+      >
+        <Play className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        Watch your coach&apos;s note
+      </button>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video
+        src={src}
+        controls
+        autoPlay
+        playsInline
+        className="w-full bg-black"
+      />
     </div>
   );
 }
