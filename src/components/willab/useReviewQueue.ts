@@ -32,6 +32,11 @@ export interface UseReviewQueueResult {
    *  changes server-side and the poll wouldn't catch it for up to 30s
    *  otherwise. */
   refresh: () => void;
+  /** C2 — optimistically flip a row to `done` IN PLACE, the instant a publish
+   *  succeeds, so the Lounge bubble shows ✓ immediately instead of waiting on a
+   *  refetch (the BE may not have propagated the state yet). The subsequent
+   *  refresh() reconciles with server truth; a no-op if the id isn't present. */
+  markDone: (sessionId: string) => void;
 }
 
 export function useReviewQueue(enabled: boolean): UseReviewQueueResult {
@@ -48,6 +53,14 @@ export function useReviewQueue(enabled: boolean): UseReviewQueueResult {
     setLoading(false);
   }, [enabled]);
 
+  const markDone = useCallback((sessionId: string) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.sessionId === sessionId ? { ...r, state: "done" } : r
+      )
+    );
+  }, []);
+
   useEffect(() => {
     cancelRef.current = false;
     if (!enabled) {
@@ -63,5 +76,5 @@ export function useReviewQueue(enabled: boolean): UseReviewQueueResult {
     };
   }, [enabled, refresh]);
 
-  return { rows, loading, refresh };
+  return { rows, loading, refresh, markDone };
 }
