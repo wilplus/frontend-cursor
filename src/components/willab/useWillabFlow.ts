@@ -23,6 +23,7 @@ export type WillabState =
   | "welcome_consent"
   | "intake_in_progress"
   | "lounge_idle"
+  | "lab_feelings"
   | "lab_session_context"
   | "lab_prerecord"
   | "lab_recording"
@@ -37,6 +38,7 @@ export type WillabState =
 
 /** States that render *inside* the Lab overlay (over the mounted Lounge). */
 const LAB_OVERLAY_STATES: ReadonlySet<WillabState> = new Set<WillabState>([
+  "lab_feelings",
   "lab_session_context",
   "lab_prerecord",
   "lab_recording",
@@ -71,6 +73,8 @@ export function initialWillabState(flags: {
  * profile, which later supersedes `intake_done`. */
 const CONSENT_KEY = "willab.consent_accepted";
 const INTAKE_KEY = "willab.intake_done";
+// U10 — set once the user completes the first-recording feelings onboarding.
+const FIRST_RECORDING_KEY = "willab.first_recording_done";
 
 function readFlag(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -87,6 +91,12 @@ function writeFlag(key: string): void {
   } catch {
     /* ignore */
   }
+}
+
+/** U10 — mark the first-recording feelings onboarding complete, so later
+ *  recordings skip it and go straight to the session-context form. */
+export function markFirstRecordingOnboarded(): void {
+  writeFlag(FIRST_RECORDING_KEY);
 }
 
 export interface UseWillabFlowReturn {
@@ -126,7 +136,12 @@ export function useWillabFlow(): UseWillabFlowReturn {
   }, []);
   const startRecording = useCallback(() => {
     clearReviewPending();
-    setState("lab_session_context");
+    // U10 — the first official recording opens the feelings check-in onboarding
+    // before the setup form (one-time, localStorage-gated). Later recordings go
+    // straight to the session-context form.
+    setState(
+      readFlag(FIRST_RECORDING_KEY) ? "lab_session_context" : "lab_feelings"
+    );
   }, []);
   // TODO(slice: Lab): a Readout/parked close should → "parked" (held chip),
   // a pre-recording close should → "lounge_idle". Shell uses idle for both.
