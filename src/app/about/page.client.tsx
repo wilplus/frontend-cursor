@@ -13,9 +13,9 @@ import Logo from "@/components/Logo";
  * Pure white/black/gray, with the brand orange reserved for the one
  * "we are here" focal block and the Vision dot — nothing else is orange.
  *
- * NOTE: all copy and images below are MOCK placeholders, to be replaced
- * with real photos + descriptions. Images use picsum.photos seeds so the
- * cards render something real and are trivial to swap.
+ * NOTE: the copy below is MOCK placeholder, to be replaced with real
+ * descriptions. The timeline images use the WillpowerLab dots (/icon) as the
+ * brand mark until real photos land — trivial to swap per entry.
  */
 
 type Entry = {
@@ -43,8 +43,8 @@ const FUTURE: Entry[] = [
     title: "A global charisma standard",
     body: "WillpowerLab protocols used by universities and accelerators on five continents.",
     image: {
-      src: "https://picsum.photos/seed/willpowerlab-2030/640/360",
-      alt: "Mountains at dawn (placeholder)",
+      src: "/icon",
+      alt: "The WillpowerLab dots",
     },
   },
   {
@@ -59,8 +59,8 @@ const FUTURE: Entry[] = [
     title: "Research work, patents, PhDs",
     body: "Peer-reviewed protocols and the science behind charismatic delivery.",
     image: {
-      src: "https://picsum.photos/seed/willpowerlab-2027/640/360",
-      alt: "EEG cap in the lab (placeholder)",
+      src: "/icon",
+      alt: "The WillpowerLab dots",
     },
   },
 ];
