@@ -19,6 +19,13 @@ import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import WillabInstallPrompt from "./WillabInstallPrompt";
+import {
+  EXPLORE_PROMPT,
+  postLessonPrompt,
+  CHIP_LABEL,
+  type ChipAction,
+  type LoungePrompt,
+} from "./loungePrompts";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -72,6 +79,9 @@ export default function Lounge({
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // U7/U9 — transient, FE-injected conversational prompts (with quick-reply
+  // chips) rendered at the foot of the thread. Not persisted (freeze-safe).
+  const [prompts, setPrompts] = useState<LoungePrompt[]>([]);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -149,6 +159,33 @@ export default function Lounge({
     }
   }
 
+  // U7/U9 — push a conversational prompt to the foot of the thread, de-duped by id.
+  function pushPrompt(prompt: LoungePrompt): void {
+    setPrompts((prev) =>
+      prev.some((p) => p.id === prompt.id) ? prev : [...prev, prompt]
+    );
+  }
+
+  // U9 — on closing the insights overlay, the founder's max-2-negatives guard:
+  // > 2 `to_work_on` snippets → a low-pressure anchor (no chips); else the
+  // "go again" nudge + a Record-again chip. Purely client-side — the count comes
+  // from the overlay's already-loaded readout; null = not a coach lesson → no prompt.
+  function handleInsightsClose(toWorkOnCount: number | null): void {
+    const sid = activeInsight;
+    setActiveInsight(null);
+    if (sid === null) return;
+    const prompt = postLessonPrompt(sid, toWorkOnCount);
+    if (prompt) pushPrompt(prompt);
+  }
+
+  // Quick-reply chip → action. record_again starts a fresh recording; the other
+  // two open the strong-sides / recordings overlays (the deleted bottom buttons).
+  function onChip(action: ChipAction): void {
+    if (action === "strong_sides") setLibraryOpen(true);
+    else if (action === "recordings") setHistoryOpen(true);
+    else if (action === "record_again") onStart();
+  }
+
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
   // that session once on mount. Coach-gated (isCoach is the render gate; the BE
   // role-gates the endpoint regardless). Fire-once so closing it doesn't
@@ -160,6 +197,18 @@ export default function Lounge({
     deepLinkOpenedRef.current = true;
     setReviewSessionId(initialReviewSessionId);
   }, [isCoach, initialReviewSessionId]);
+
+  // U7 — on app visit the bot offers strong-sides / recordings as quick-reply
+  // chips (the bottom buttons are gone). Once per mount, so one-tap access stays
+  // available each visit without nagging on every re-render.
+  const explorePushedRef = useRef(false);
+  useEffect(() => {
+    if (explorePushedRef.current) return;
+    explorePushedRef.current = true;
+    setPrompts((prev) =>
+      prev.some((p) => p.id === EXPLORE_PROMPT.id) ? prev : [...prev, EXPLORE_PROMPT]
+    );
+  }, []);
 
   // Voice input has been removed from the Lounge (product call): only
   // the **official recording** holds the mic. Off-task chat is
@@ -176,7 +225,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking]);
+  }, [messages.length, botThinking, prompts.length]);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -278,6 +327,12 @@ export default function Lounge({
           )
         )}
 
+        {/* U7/U9 — conversational prompts with quick-reply chips, at the foot
+            of the thread (transient, FE-injected, freeze-safe). */}
+        {prompts.map((p) => (
+          <ChipPrompt key={p.id} prompt={p} onChip={onChip} />
+        ))}
+
         {/* U5 — sent-confirmation as an in-thread bubble (was the top
             review_pending StatusCard). Sits at the bottom of the thread, where
             the user lands after sending (sticky via U1); transient — it clears
@@ -301,26 +356,9 @@ export default function Lounge({
         Start official recording
       </Button>
 
-      {/* U7 — strong-sides + recordings as quick-reply chips, sitting just above
-          the composer like chat quick-replies (was a centred text-button row
-          that flanked the record CTA). */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setLibraryOpen(true)}
-          className="rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
-        >
-          ★ Strong sides
-        </button>
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(true)}
-          className="rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
-        >
-          🕓 Recordings
-        </button>
-      </div>
-
+      {/* U7 — the standing strong-sides / recordings chip row is GONE; the bot
+          now offers them as quick-reply chips on an in-thread message
+          (EXPLORE_PROMPT), so the composer footer is just the CTA + input. */}
       <form onSubmit={handleSend} className="flex items-center gap-2">
         <input
           value={draftText}
@@ -353,13 +391,9 @@ export default function Lounge({
       {activeInsight && (
         <InsightsOverlay
           sessionId={activeInsight}
-          onClose={() => setActiveInsight(null)}
-          // U9 — post-lesson CTA: close the insights overlay and start a fresh
-          // recording so the user applies the read straight away.
-          onRecordAgain={() => {
-            setActiveInsight(null);
-            onStart();
-          }}
+          // U9 — on close the overlay reports the `to_work_on` count; the guard
+          // (max-2-negatives) lives in handleInsightsClose.
+          onClose={handleInsightsClose}
         />
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
@@ -384,6 +418,39 @@ export default function Lounge({
           first-run flow). Self-gates to installable mobile, post-send only;
           captures beforeinstallprompt as early as this always-mounted Lounge. */}
       <WillabInstallPrompt show={state === "review_pending"} />
+    </div>
+  );
+}
+
+/** U7/U9 — a conversational bot prompt with optional quick-reply chips (an
+ *  inbound bubble + a tappable chip row). Pure presentation; the chip action is
+ *  resolved by the Lounge (onChip). No chips → just the warm text (U9 anchor). */
+function ChipPrompt({
+  prompt,
+  onChip,
+}: {
+  prompt: LoungePrompt;
+  onChip: (action: ChipAction) => void;
+}) {
+  return (
+    <div className="mr-auto flex max-w-[85%] flex-col gap-2">
+      <div className="rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
+        {prompt.text}
+      </div>
+      {prompt.chipActions.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {prompt.chipActions.map((action) => (
+            <button
+              key={action}
+              type="button"
+              onClick={() => onChip(action)}
+              className="rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+            >
+              {CHIP_LABEL[action]}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
