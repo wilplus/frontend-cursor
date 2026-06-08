@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mapReviewQueueRow } from "./reviewQueue";
 import { mapLibraryEntry } from "./library";
+import { mapCoachReviewSession } from "./coachReview";
 
 describe("mapReviewQueueRow", () => {
   it("maps snake → camel (§B.1 shape)", () => {
@@ -105,5 +106,52 @@ describe("mapLibraryEntry", () => {
   it("drops an invalid tag to null and rejects a row without an id", () => {
     expect(mapLibraryEntry({ id: "x", tag: "weird" })?.tag).toBeNull();
     expect(mapLibraryEntry({ note: "no id" })).toBeNull();
+  });
+});
+
+describe("mapCoachReviewSession — features (C1 / §B.1)", () => {
+  it("parses the per-snippet acoustic vector (snake→camel, mean_pause_seconds → meanPause)", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        {
+          id: "n1",
+          features: {
+            f0_mean: 180,
+            f0_sd: 30,
+            speech_rate: 150,
+            mean_pause_seconds: 0.4,
+            pause_ratio: 0.3,
+            loudness_range: 14,
+            voiced_ratio: 0.7,
+            f0_slope: -2,
+            pause_regularity: 0.6,
+            intensity_envelope: 0.5,
+            f0_mid_end_delta: -8,
+          },
+        },
+      ],
+    });
+    expect(s?.snippets[0].features).toEqual({
+      f0Mean: 180,
+      f0Sd: 30,
+      speechRate: 150,
+      meanPause: 0.4,
+      pauseRatio: 0.3,
+      loudnessRange: 14,
+      voicedRatio: 0.7,
+      f0Slope: -2,
+      pauseRegularity: 0.6,
+      intensityEnvelope: 0.5,
+      f0MidEndDelta: -8,
+    });
+  });
+
+  it("nulls features when the packet omits them (no all-null panel)", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [{ id: "n1" }],
+    });
+    expect(s?.snippets[0].features).toBeNull();
   });
 });
