@@ -1,69 +1,20 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { fetchReviewQueue, type ReviewQueueRow } from "@/services/api/reviewQueue";
+import { redirect } from "next/navigation";
 
 /**
- * /coach/willab — willab coach review queue (§14 / §3.8).
+ * /coach/willab — RETIRED (N1).
  *
- * Lists review_pending sessions (keyed on the pseudonymous id); a row opens the
- * authoring view at /coach/willab/<sessionId>. Data lands when BE confirms
- * contract ① (fetchReviewQueue); the UI is ready for it.
+ * This standalone queue was a *route*, which violated the architecture
+ * invariant: "the Lounge is the always-mounted hub; review is an overlay, not
+ * a route." Because it was a separate page, browser-back walked history out of
+ * the authenticated shell and dropped the coach at /login (the N1 bug, diagnosis
+ * (a) — route-vs-overlay, confirmed by the founder).
+ *
+ * The coach review queue now lives INLINE in the Lounge: `useReviewQueue`
+ * interleaves "session ready to label" bubbles into the chat thread, and each
+ * opens the in-Lounge `CoachReviewOverlay` (coach-auth, §B.4-pseudonymised,
+ * split-sink) via state — no navigation, no remount, no bounce. This route just
+ * forwards there so any bookmark keeps working instead of 404-ing.
  */
-export default function CoachWillabQueuePage() {
-  const [rows, setRows] = useState<ReviewQueueRow[] | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void fetchReviewQueue().then((r) => {
-      if (active) setRows(r);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col px-4 py-6">
-      <h1 className="text-[17px] font-semibold text-foreground">Review queue</h1>
-      <p className="mb-4 text-[12px] text-muted-foreground">
-        Sessions awaiting your read.
-      </p>
-
-      {rows === null ? (
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : rows.length === 0 ? (
-        <p className="text-[15px] text-muted-foreground">
-          No sessions awaiting review.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {rows.map((r) => (
-            <li key={r.sessionId}>
-              <Link
-                href={`/coach/willab/${r.sessionId}`}
-                className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/50"
-              >
-                <div>
-                  <p className="text-[15px] font-medium text-foreground">
-                    {r.pseudonym || "Untitled session"}
-                  </p>
-                  <p className="text-[12px] text-muted-foreground">
-                    {[r.domain, r.topic, r.sentAt]
-                      .filter((v) => v && v.length > 0)
-                      .join(" · ")}
-                  </p>
-                </div>
-                <span className="shrink-0 text-[13px] text-primary">Review →</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
-  );
+export default function CoachWillabQueueRedirect() {
+  redirect("/chat");
 }
