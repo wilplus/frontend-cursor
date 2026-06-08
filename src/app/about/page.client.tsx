@@ -27,7 +27,7 @@ type Entry = {
   body: string;
   media?: Media;
   /** A real image (takes precedence over the placeholder slot). */
-  image?: { src: string; alt: string };
+  image?: { src: string; alt: string; position?: string };
   /** A row of small logos (e.g. funder/affiliation marks). */
   logos?: { src: string; alt: string }[];
   /** Orange dot — reserved for the Vision entry. */
@@ -40,32 +40,38 @@ type Testimonial = { quote: string; name: string; role: string };
 const FUTURE: Entry[] = [
   {
     side: "left",
-    date: "Vision",
-    title: "Charisma, made measurable",
-    body: "A future where presence is trained with science — physiology, emotion, and delivery in one loop — so anyone can be heard.",
+    date: "Mission & Vision",
+    title: "We bring humanity to a higher level of self-awareness",
+    body: "We do it through empathy and cutting-edge technology, with the human always at the very center.",
     emphasis: true,
   },
   {
     side: "right",
-    date: "2031 —",
+    date: "2031",
+    title: "Robotics",
+    body: "Sensing-first machines that help people develop, not replace them.",
+  },
+  {
+    side: "left",
+    date: "2031",
     title: "Advanced wearables",
     body: "Continuous sensing of presence and affect, in the moments that matter most.",
   },
   {
-    side: "left",
+    side: "right",
     date: "2031",
     title: "Affective-states research, completed",
     body: "A validated model linking inner emotional state to outward delivery.",
   },
   {
-    side: "right",
+    side: "left",
     date: "2028",
     title: "Physiological calibration",
     body: "Tuning the analysis to each speaker's own baseline signals.",
   },
   {
-    side: "left",
-    date: "2027 —",
+    side: "right",
+    date: "2027",
     title: "PhD",
     body: "Formalising the method into peer-reviewed, defensible science.",
   },
@@ -85,7 +91,7 @@ const PAST_RECENT: Entry[] = [
   },
   {
     side: "left",
-    date: "2025 — 2026",
+    date: "2025-2026",
     title: "Early testing",
     body: "First speakers put the method to work in real interviews, pitches, and talks.",
     image: {
@@ -111,18 +117,18 @@ const PAST_EARLIER: Entry[] = [
     logos: [
       {
         src: "/about/logos/poland.svg",
-        alt: "Mazovian Education Authority — national emblem of Poland",
+        alt: "Mazovian Education Authority, national emblem of Poland",
       },
     ],
   },
   {
     side: "right",
-    date: "2018 — 2022",
+    date: "2018-2022",
     title: "Projects in the EU health framework",
     body: "Multiple projects under EU health programmes and Swiss Contribution grants.",
     logos: [
       { src: "/about/logos/eu.svg", alt: "European Union emblem" },
-      { src: "/about/logos/swiss.svg", alt: "Switzerland — Swiss Contribution" },
+      { src: "/about/logos/swiss.svg", alt: "Switzerland, Swiss Contribution" },
     ],
   },
   {
@@ -133,21 +139,26 @@ const PAST_EARLIER: Entry[] = [
   },
   {
     side: "right",
-    date: "2014 —",
+    date: "2014",
     title: "Lecturing",
-    body: "Teaching and speaking — where the coaching craft began.",
+    body: "Teaching and speaking, where the coaching craft began.",
   },
   {
     side: "left",
-    date: "2000 —",
+    date: "From 2000",
     title: "Institutional work and practice",
     body: "Two decades of applied work inside institutions.",
+    image: {
+      src: "/about/photos/institutional.jpg",
+      alt: "An international institutional event, framed by rows of national flags",
+      position: "object-top",
+    },
   },
   {
     side: "right",
     date: "2000",
     title: "Where it began",
-    body: "A social analysis of society's approach toward people with mental disabilities — the root of a career spent on people.",
+    body: "A social analysis of society's approach toward people with mental disabilities, the root of a career spent on people.",
   },
 ];
 
@@ -217,7 +228,7 @@ function EntryCard({ entry }: { entry: Entry }) {
             src={entry.image.src}
             alt={entry.image.alt}
             loading="lazy"
-            className="h-52 w-full object-cover"
+            className={`h-52 w-full object-cover ${entry.image.position ?? ""}`}
           />
         </div>
       ) : entry.logos ? (
@@ -351,7 +362,7 @@ export default function AboutTimeline() {
               We have just launched the Willpower Laboratory
             </h2>
             <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-              Its main purpose is to help you persist in your journey — to beat
+              Its main purpose is to help you persist in your journey, to beat
               the stress on the stage.
             </p>
             <button
