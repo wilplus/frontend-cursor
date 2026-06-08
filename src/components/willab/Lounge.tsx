@@ -324,6 +324,12 @@ export default function Lounge({
         <InsightsOverlay
           sessionId={activeInsight}
           onClose={() => setActiveInsight(null)}
+          // U9 — post-lesson CTA: close the insights overlay and start a fresh
+          // recording so the user applies the read straight away.
+          onRecordAgain={() => {
+            setActiveInsight(null);
+            onStart();
+          }}
         />
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
