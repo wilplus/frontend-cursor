@@ -122,31 +122,24 @@
   }
 
   /*
-   * .willab-chat: warm-palette scope for the Curiosity-Gate funnel.
-   * Mirrors the reference design system (warm off-whites + saturated orange).
-   * Apply to a wrapper element on funnel pages — does not affect admin/dashboard.
+   * .willab-chat — RETIRED palette scope (intentionally a no-op now).
+   *
+   * This used to revert the wrapped surface to the old warm-orange
+   * "Curiosity-Gate funnel" theme (warm off-white --background, the legacy
+   * --primary 25 95% 55% orange, warm cards/borders). The WillpowerLab rebrand
+   * moved `:root` to the white / near-black / #FF6A14 system, but this scope
+   * was left in place — so the ENTIRE willab product surface (Lounge, Lab,
+   * insights, coach review — everything that wraps in .willab-chat) silently
+   * kept rendering the PRE-rebrand palette, mismatched against About-us and
+   * every other page.
+   *
+   * Override removed: the surface now inherits the rebrand `:root` tokens
+   * (white background to match About-us, the new orange, neutral cards). The
+   * selector is kept as an empty marker so the wrappers that still carry the
+   * className don't need editing; it no longer changes any token.
    */
   .willab-chat {
-    --background: 30 25% 97%;
-    --foreground: 20 15% 15%;
-    --card: 35 30% 98%;
-    --card-foreground: 20 15% 15%;
-    --popover: 35 30% 98%;
-    --popover-foreground: 20 15% 15%;
-    --primary: 25 95% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 30 20% 92%;
-    --secondary-foreground: 20 15% 15%;
-    --muted: 30 15% 90%;
-    /* Spec-aligned: muted text is darker (40% L) for stronger contrast on
-       the warm off-white card surfaces. Was 50% L. */
-    --muted-foreground: 20 10% 40%;
-    --accent: 25 80% 93%;
-    --accent-foreground: 25 90% 35%;
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
-    --ring: 25 95% 55%;
-    --radius: 0.75rem;
+    /* inherits :root — the rebrand palette. No overrides. */
   }
 
   /* Email template scope: design system for assignment email (backend can replicate) */
