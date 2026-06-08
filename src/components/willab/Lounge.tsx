@@ -67,7 +67,13 @@ export default function Lounge({
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
+  // only when the user is already there. The old code called scrollIntoView on
+  // a bottom sentinel on every new message + every bot-typing toggle, which
+  // (a) could pan the whole page / iOS viewport, and (b) yanked the user back
+  // down whenever they'd scrolled up to read history — the non-native feel.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const atBottomRef = useRef(true);
 
   // §F.0 / §F.1 — coach-mode surface. is_coach is the RENDER gate (the BE
   // role-gates each endpoint independently via require_admin_or_coach, so a
@@ -132,8 +138,20 @@ export default function Lounge({
   // to bring it back, but the Lounge no longer calls it.
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
+    // Stick to bottom only if the user hasn't scrolled up. Scroll the container
+    // itself (not a sentinel) so the page/viewport never moves.
+    if (!atBottomRef.current) return;
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length, botThinking]);
+
+  // Track whether the thread is parked at the bottom. Within 80px counts as
+  // "at bottom" (sub-pixel rounding + a partially-visible last bubble).
+  function handleThreadScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }
 
   // §6c: when the coach publishes (status flips to insights_ready), pull the
   // thread so the BE-appended "insights ready" ping shows in-chat at once — the
@@ -146,6 +164,7 @@ export default function Lounge({
     e?.preventDefault();
     const q = draftText.trim();
     if (!q || botThinking) return;
+    atBottomRef.current = true; // sending always scrolls to your own message
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     setDraftText("");
     await thread.append({ role: "user", kind: "text", body: q });
@@ -173,7 +192,11 @@ export default function Lounge({
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       <StatusRegion state={state} goTo={goTo} onViewReadout={setActiveInsight} />
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+      <div
+        ref={scrollRef}
+        onScroll={handleThreadScroll}
+        className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1"
+      >
         {thread.hasMore && (
           <button
             type="button"
@@ -214,31 +237,39 @@ export default function Lounge({
             …
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
+      {/* U2 — record CTA: dark fill + a red record dot, full-width. Deliberately
+          distinct from the orange primary (Send) and the calm text composer so
+          the high-stakes "on-stage" action never reads as just another button.
+          No flanking buttons — the strong-sides / recordings shortcuts moved to
+          quick-reply chips below (U7). */}
       <Button
         type="button"
-        variant="outline"
         onClick={onStart}
-        className="w-full rounded-full"
+        className="w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
       >
-        ▶ Start official recording
+        <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+        Start official recording
       </Button>
-      <div className="flex items-center justify-center gap-5">
+
+      {/* U7 — strong-sides + recordings as quick-reply chips, sitting just above
+          the composer like chat quick-replies (was a centred text-button row
+          that flanked the record CTA). */}
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setLibraryOpen(true)}
-          className="text-[13px] text-muted-foreground hover:text-foreground"
+          className="rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
         >
-          ★ Your strong sides
+          ★ Strong sides
         </button>
         <button
           type="button"
           onClick={() => setHistoryOpen(true)}
-          className="text-[13px] text-muted-foreground hover:text-foreground"
+          className="rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
         >
-          🕓 Your recordings
+          🕓 Recordings
         </button>
       </div>
 
