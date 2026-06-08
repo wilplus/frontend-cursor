@@ -18,6 +18,7 @@ import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
 import CoachReviewOverlay from "./CoachReviewOverlay";
+import WillabInstallPrompt from "./WillabInstallPrompt";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -349,6 +350,11 @@ export default function Lounge({
           onPublished={reviewQueue.markDone}
         />
       )}
+
+      {/* U10 pt2 — PWA install at the post-send moment (the final beat of the
+          first-run flow). Self-gates to installable mobile, post-send only;
+          captures beforeinstallprompt as early as this always-mounted Lounge. */}
+      <WillabInstallPrompt show={state === "review_pending"} />
     </div>
   );
 }
