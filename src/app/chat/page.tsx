@@ -26,6 +26,11 @@ export default function ChatPage({
   // session. For now we forward both so existing email links keep
   // working until backend stops emitting them.
   const sessionId = firstQueryValue(searchParams.session);
+  // U12 — coach email deep-link: `?review=<id>` opens the in-Lounge
+  // CoachReviewOverlay for that session on mount (the param N1's redirect
+  // preserved). Distinct from `?session=` (user review→roleplay loop); coach-
+  // gated downstream, ignored for non-coaches.
+  const reviewSessionId = firstQueryValue(searchParams.review);
 
   return (
     <Suspense
@@ -35,7 +40,7 @@ export default function ChatPage({
         </div>
       }
     >
-      <ChatPageClient sessionId={sessionId} />
+      <ChatPageClient sessionId={sessionId} reviewSessionId={reviewSessionId} />
     </Suspense>
   );
 }
