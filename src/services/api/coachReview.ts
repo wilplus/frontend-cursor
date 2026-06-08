@@ -12,6 +12,11 @@
 /*  the BE handler dispatches one path per lane.                               */
 /* -------------------------------------------------------------------------- */
 
+import {
+  mapReadoutFeatures,
+  type ReadoutFeatures,
+} from "@/components/willab/readout";
+
 export type DirectionLabel = "threat" | "ambiguous" | "challenge";
 export type CoachTag = "strong" | "to_work_on";
 
@@ -36,6 +41,12 @@ export interface CoachReviewSnippet {
     composite: number | null;
     comment: string | null;
   };
+  /** User-lane acoustic 11-vector (§B.1) — REFERENCE only, the same data the
+   *  user sees on their Readout. NOT a verdict, NOT the private direction/KPI/
+   *  salience lane; AC-9-safe (nothing new reaches a user surface). The coach
+   *  interprets it; the system renders no judgment over it. Null if the BE
+   *  packet omits it (defensive — older sessions, partial payloads). */
+  features: ReadoutFeatures | null;
   coachState: CoachSnippetState;
 }
 
@@ -108,6 +119,12 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
       comment:
         typeof stickiness.comment === "string" ? stickiness.comment : null,
     },
+    // §B.1 acoustic vector — present-only (null when the BE packet omits it),
+    // mapped through the SAME snake→camel parser the user Readout uses.
+    features:
+      r.features && typeof r.features === "object"
+        ? mapReadoutFeatures(r.features)
+        : null,
     coachState: pickCoachState(r.coach_state),
   };
 }
