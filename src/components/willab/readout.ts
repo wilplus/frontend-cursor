@@ -56,6 +56,13 @@ export interface ReadoutPayload {
   snippets: ReadoutSnippet[];
   /** insights_payload.overall_message — post-publish only; null on the raw Readout. */
   overallMessage: string | null;
+  /** insights_payload.video_ref — the OVERALL coach video (§F.6), a sibling of
+   *  overall_message, NOT per-snippet. A ready-to-use public URL
+   *  (`coach_media_public_url`) the BE folds into insights_payload at publish
+   *  time. Present only on sessions published after a coach video upload;
+   *  null otherwise → hide-when-empty, same as overallMessage. A session
+   *  published before the coach added a video won't carry one until re-publish. */
+  videoRef: string | null;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -137,6 +144,10 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
       typeof insights.overall_message === "string"
         ? insights.overall_message
         : null,
+    videoRef:
+      typeof insights.video_ref === "string" && insights.video_ref.length > 0
+        ? insights.video_ref
+        : null,
   };
 }
 
@@ -174,6 +185,7 @@ export function mockReadout(topic: string): ReadoutPayload {
   });
   return {
     overallMessage: null,
+    videoRef: null,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(
