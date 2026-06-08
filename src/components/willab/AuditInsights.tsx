@@ -39,7 +39,15 @@ import type { ReadoutPayload } from "./readout";
 /*  header + X close.                                                           */
 /* -------------------------------------------------------------------------- */
 
-export default function AuditInsights({ payload }: { payload: ReadoutPayload }) {
+export default function AuditInsights({
+  payload,
+  onRecordAgain,
+}: {
+  payload: ReadoutPayload;
+  /** U9 — post-lesson prompt action: close insights + start a fresh recording.
+   *  The closing prompt only renders on the final analysis when provided. */
+  onRecordAgain?: () => void;
+}) {
   // Coach-curated set only; strong → Double down, to_work_on → Avoid.
   const analyses = payload.snippets.filter((s) => s.coach?.tag != null);
   const [cursor, setCursor] = useState(0);
@@ -171,6 +179,29 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
           </Button>
         ) : null}
       </div>
+
+      {/* U9 — post-lesson prompt. Once the user has walked their full read,
+          nudge them to apply it: an elegant closing card on the final analysis
+          with a single warm CTA back into a fresh recording. Non-judgmental —
+          a nudge to practise, not a score. */}
+      {cursor >= total - 1 && onRecordAgain ? (
+        <div className="mt-1 rounded-2xl bg-primary/5 p-4 text-center">
+          <p className="text-[15px] font-medium text-foreground">
+            That&apos;s your full read.
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            The fastest way to grow is to use it — go again with one of these in
+            mind.
+          </p>
+          <Button
+            type="button"
+            onClick={onRecordAgain}
+            className="mt-3 rounded-full"
+          >
+            Record with this in mind
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -22,9 +22,13 @@ import AuditInsights from "./AuditInsights";
 export default function InsightsOverlay({
   sessionId,
   onClose,
+  onRecordAgain,
 }: {
   sessionId: string;
   onClose: () => void;
+  /** U9 — passed through to AuditInsights for the post-lesson "record again"
+   *  CTA (close insights → start a fresh recording). */
+  onRecordAgain?: () => void;
 }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [data, setData] = useState<SessionReadout | null>(null);
@@ -83,7 +87,7 @@ export default function InsightsOverlay({
           </div>
         ) : data.readout.snippets.some((s) => s.coach?.tag != null) ? (
           // Post-publish, coach-curated → the paged Voice Audit (Double down / Avoid).
-          <AuditInsights payload={data.readout} />
+          <AuditInsights payload={data.readout} onRecordAgain={onRecordAgain} />
         ) : (
           // Pre-publish / untagged → the neutral raw §5 Readout.
           <ReadoutCard payload={data.readout} variant="insights" />
