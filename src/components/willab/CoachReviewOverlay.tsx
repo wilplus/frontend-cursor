@@ -40,16 +40,22 @@ import {
 /*      Sent against the existing internal publish endpoint; BE's 3c rewire    */
 /*      accepts this shape AND the simplified {overall_message, notify_client} */
 /*      future shape — we send the full one for backward compat.               */
-/*    - Success → name-free "Insights published ✓" → tap-anywhere closes →     */
-/*      Lounge bubble flips to ✓ done via the parent's reviewQueue.refresh().  */
+/*    - Success → name-free "Insights published ✓" → tap-anywhere closes. The   */
+/*      Lounge bubble flips to ✓ done IN PLACE the moment publish succeeds       */
+/*      (C2 — onPublished → optimistic markDone); the close-time refresh()        */
+/*      then reconciles with server truth.                                        */
 /* -------------------------------------------------------------------------- */
 
 export default function CoachReviewOverlay({
   sessionId,
   onClose,
+  onPublished,
 }: {
   sessionId: string;
   onClose: () => void;
+  /** C2 — fired once the publish round-trip succeeds, so the parent can flip
+   *  the Lounge bubble to ✓ done in place without waiting on a refetch. */
+  onPublished?: (sessionId: string) => void;
 }) {
   const { status, session } = useCoachReview(sessionId);
 
@@ -134,6 +140,10 @@ export default function CoachReviewOverlay({
     setPublishing(false);
     if (result.ok) {
       setPublished(true);
+      // C2 — flip the Lounge bubble to ✓ done immediately; don't wait for the
+      // post-close refetch (BE state may lag). closeReview() still refresh()es
+      // to reconcile with server truth.
+      onPublished?.(session.sessionId);
     } else {
       setPublishError(result.message);
     }
@@ -141,8 +151,8 @@ export default function CoachReviewOverlay({
 
   // §F.5 / J2 — name-free confirmation. No "to <pseudonym>", no "to Maria"
   // (which would be a §F.7 leak), no email surface. Just the verb.
-  // Tap-anywhere closes → bubble in the Lounge thread flips to ✓ done via
-  // the parent's reviewQueue.refresh() called in closeReview().
+  // The Lounge bubble already flipped to ✓ done on publish-success (C2 —
+  // onPublished); tap-anywhere closes and closeReview() refresh()es to reconcile.
   if (published) {
     return (
       <div

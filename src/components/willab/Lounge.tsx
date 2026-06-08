@@ -318,6 +318,7 @@ export default function Lounge({
         <CoachReviewOverlay
           sessionId={reviewSessionId}
           onClose={closeReview}
+          onPublished={reviewQueue.markDone}
         />
       )}
     </div>
