@@ -75,7 +75,7 @@ export default function ReadoutCard({
     <div className="flex flex-col">
       {isSample && (
         <p className="mb-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-[12px] text-primary">
-          Sample data — your real acoustic Readout wires in at seam ③.
+          Sample data — your real acoustic Training Profile wires in at seam ③.
         </p>
       )}
 
