@@ -86,9 +86,10 @@ function mapFeatures(raw: unknown): ReadoutFeatures {
     f0Mean: num(f.f0_mean),
     f0Sd: num(f.f0_sd),
     speechRate: num(f.speech_rate),
-    // BE normalizes mean_pause to SECONDS server-side (their PR #32) — pass
-    // through, do NOT divide (storage stays ms; the readout already returns s).
-    meanPause: num(f.mean_pause),
+    // BE-2: the unit contract is baked into the field name now —
+    // `mean_pause_seconds` (BE locked seconds, ending the ms↔s ping-pong).
+    // Read it directly; no /1000, no ambiguity.
+    meanPause: num(f.mean_pause_seconds),
     pauseRatio: num(f.pause_ratio),
     loudnessRange: num(f.loudness_range),
     voicedRatio: num(f.voiced_ratio),
