@@ -17,7 +17,8 @@ import { setPendingSend, setReviewPending } from "./sendStatus";
 import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
-import type { WillabState } from "./useWillabFlow";
+import FeelingsCheckIn from "./FeelingsCheckIn";
+import { markFirstRecordingOnboarded, type WillabState } from "./useWillabFlow";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -252,6 +253,15 @@ export default function LabOverlay({
       </div>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
+        {state === "lab_feelings" && (
+          <FeelingsCheckIn
+            onReady={() => {
+              markFirstRecordingOnboarded();
+              goTo("lab_session_context");
+            }}
+          />
+        )}
+
         {state === "lab_session_context" && (
           <SessionContextForm
             goal={goal}
