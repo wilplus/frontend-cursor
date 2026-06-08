@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mapReviewQueueRow } from "./reviewQueue";
+import { mapReviewQueueRow, reconcileReviewQueue } from "./reviewQueue";
+import type { ReviewQueueRow } from "./reviewQueue";
 import { mapLibraryEntry } from "./library";
 import { mapCoachReviewSession } from "./coachReview";
 
@@ -55,6 +56,40 @@ describe("mapReviewQueueRow", () => {
   it("returns null without a session_id", () => {
     expect(mapReviewQueueRow({ topic: "t" })).toBeNull();
     expect(mapReviewQueueRow(null)).toBeNull();
+  });
+});
+
+describe("reconcileReviewQueue (C2)", () => {
+  const row = (
+    sessionId: string,
+    state: ReviewQueueRow["state"] = "pending"
+  ): ReviewQueueRow => ({
+    sessionId,
+    pseudonym: "P",
+    domain: "public_speaking",
+    topic: "t",
+    nSnippets: 1,
+    state,
+    sentAt: "2026-06-01T00:00:00Z",
+  });
+
+  it("retains a published row the BE dropped on refresh, as done", () => {
+    const out = reconcileReviewQueue([row("a")], [row("b", "done")]);
+    expect(out.map((r) => `${r.sessionId}:${r.state}`)).toEqual([
+      "a:pending",
+      "b:done",
+    ]);
+  });
+
+  it("coerces a still-present published row to done (BE lag)", () => {
+    expect(
+      reconcileReviewQueue([row("b", "in_progress")], [row("b", "done")])
+    ).toEqual([row("b", "done")]);
+  });
+
+  it("passes rows through unchanged when nothing is published", () => {
+    const next = [row("a"), row("b", "in_progress")];
+    expect(reconcileReviewQueue(next, [])).toEqual(next);
   });
 });
 

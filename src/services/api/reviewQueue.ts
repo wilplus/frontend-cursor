@@ -56,6 +56,31 @@ export function mapReviewQueueRow(raw: unknown): ReviewQueueRow | null {
   };
 }
 
+/**
+ * C2 — merge a fresh queue fetch with rows the FE optimistically published.
+ *
+ * The BE drops a session from `/v2/coach/queue` the moment it's published
+ * (`list_review_queue` filters out `results_published_at`), so a freshly-✓'d
+ * row would VANISH on the next poll instead of staying "done in place". This
+ * keeps any locally-published row the BE no longer returns (as `done`), and
+ * coerces a still-present published row to `done` in case the BE lags. FE-only,
+ * no BE change (the agreed option (a)).
+ */
+export function reconcileReviewQueue(
+  next: ReviewQueueRow[],
+  published: ReviewQueueRow[]
+): ReviewQueueRow[] {
+  const publishedIds = new Set(published.map((r) => r.sessionId));
+  const present = new Set(next.map((r) => r.sessionId));
+  const merged = next.map((r) =>
+    publishedIds.has(r.sessionId) ? { ...r, state: "done" as const } : r
+  );
+  const retained = published
+    .filter((r) => !present.has(r.sessionId))
+    .map((r) => ({ ...r, state: "done" as const }));
+  return [...merged, ...retained];
+}
+
 const ENDPOINT = "/api/v2/coach/queue";
 
 /**
