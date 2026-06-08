@@ -54,7 +54,7 @@ export default function InsightsOverlay({
           (data.readout.overallMessage != null ||
             data.readout.snippets.some((s) => s.coach != null))
             ? "Coach insights"
-            : "Your readout"}
+            : "Your Training Profile"}
         </span>
         <button
           type="button"
