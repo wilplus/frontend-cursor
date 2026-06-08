@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Send } from "lucide-react";
+import { CheckCircle2, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -232,6 +232,12 @@ export default function Lounge({
           )
         )}
 
+        {/* U5 — sent-confirmation as an in-thread bubble (was the top
+            review_pending StatusCard). Sits at the bottom of the thread, where
+            the user lands after sending (sticky via U1); transient — it clears
+            when state moves on (e.g. → insights_ready). */}
+        {state === "review_pending" && <SentConfirmationBubble />}
+
         {botThinking && <TypingDots />}
       </div>
 
@@ -321,6 +327,27 @@ export default function Lounge({
           onPublished={reviewQueue.markDone}
         />
       )}
+    </div>
+  );
+}
+
+/** U5 — the "training sent" acknowledgement, as an inbound thread bubble (was
+ *  the top review_pending StatusCard). Same B6 / B12 copy, verbatim — no time
+ *  number until the founder picks one. Rendered from review_pending state, not
+ *  persisted, so it clears when the state moves on. */
+function SentConfirmationBubble() {
+  return (
+    <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm border border-primary/30 bg-primary/5 px-4 py-3">
+      <p className="flex items-center gap-1.5 text-[15px] font-medium text-foreground">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden />
+        Good job! Training sent!
+      </p>
+      {/* B12 (founder decision 2 — time promise): no number yet. Swap this one
+          line when the founder picks "~Xh" / "within a day" / no-number. */}
+      <p className="mt-0.5 text-[12px] text-muted-foreground">
+        Your coach will take it from here — insights land here when they&apos;re
+        ready.
+      </p>
     </div>
   );
 }
@@ -434,23 +461,10 @@ function StatusRegion({
       </StatusCard>
     );
   }
-  if (state === "review_pending") {
-    return (
-      <StatusCard tone="info">
-        {/* B6 — training vocabulary. */}
-        <p className="text-[15px] text-foreground">Good job! Training sent!</p>
-        {/* B12 (founder decision 2 — time promise): no number yet. Soft,
-            no-commit copy until the founder picks "~Xh" / "within a day" /
-            no-number. Swap this single line when decided. */}
-        <p className="mt-0.5 text-[12px] text-muted-foreground">
-          Your coach will take it from here — insights land here when
-          they&apos;re ready.
-        </p>
-        {/* B6 / B11: the "View your readout" button is removed — History
-            (🕓 Your recordings) is the access path to a sent session. */}
-      </StatusCard>
-    );
-  }
+  // U5 — the review_pending confirmation moved OUT of the status region into an
+  // in-thread bubble (<SentConfirmationBubble>) at the bottom of the thread, so
+  // the "sent" acknowledgement reads as part of the conversation rather than a
+  // top banner. StatusRegion renders nothing for review_pending now.
   if (state === "insights_ready") {
     const sid = getInsightsReady();
     return (
