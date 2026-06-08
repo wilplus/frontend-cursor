@@ -27,7 +27,7 @@ type Entry = {
   body: string;
   media?: Media;
   /** A real image (takes precedence over the placeholder slot). */
-  image?: { src: string; alt: string };
+  image?: { src: string; alt: string; position?: string };
   /** A row of small logos (e.g. funder/affiliation marks). */
   logos?: { src: string; alt: string }[];
   /** Orange dot — reserved for the Vision entry. */
@@ -148,6 +148,11 @@ const PAST_EARLIER: Entry[] = [
     date: "From 2000",
     title: "Institutional work and practice",
     body: "Two decades of applied work inside institutions.",
+    image: {
+      src: "/about/photos/institutional.jpg",
+      alt: "An international institutional event, framed by rows of national flags",
+      position: "object-top",
+    },
   },
   {
     side: "right",
@@ -223,7 +228,7 @@ function EntryCard({ entry }: { entry: Entry }) {
             src={entry.image.src}
             alt={entry.image.alt}
             loading="lazy"
-            className="h-52 w-full object-cover"
+            className={`h-52 w-full object-cover ${entry.image.position ?? ""}`}
           />
         </div>
       ) : entry.logos ? (
