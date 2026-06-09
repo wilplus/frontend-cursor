@@ -8,7 +8,7 @@ import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
-import { fmtClock, parseVocabulary } from "./willabHelpers";
+import { fmtClock, liveWpm, parseVocabulary } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
@@ -550,6 +550,10 @@ function RecordingPhase({
 
   const reachedMin = elapsed >= MIN_RECORDING_SEC;
   const remaining = Math.max(0, Math.ceil(MIN_RECORDING_SEC - elapsed));
+  // U8 — live wpm from the interim transcript (null when Web Speech yields none).
+  const partialText =
+    micState.status === "recording" ? micState.partialText : "";
+  const wpm = liveWpm(partialText, elapsed);
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
       <div className="flex items-center gap-2 text-destructive">
@@ -557,9 +561,18 @@ function RecordingPhase({
         <span className="text-[13px] font-medium">Recording</span>
       </div>
 
-      <p className="text-[40px] font-semibold tabular-nums text-foreground">
-        {fmtClock(elapsed)}
-      </p>
+      <div className="flex flex-col items-center gap-1">
+        <p className="text-[40px] font-semibold tabular-nums text-foreground">
+          {fmtClock(elapsed)}
+        </p>
+        {/* U8 — live words-per-minute from the interim transcript; hidden when
+            Web Speech yields no transcript (unavailable) rather than showing 0. */}
+        {wpm != null ? (
+          <p className="text-[12px] tabular-nums text-muted-foreground">
+            ≈ {wpm} wpm
+          </p>
+        ) : null}
+      </div>
       <p className="text-[12px] text-muted-foreground">
         {reachedMin
           ? "Minimum reached — stop whenever you're ready."

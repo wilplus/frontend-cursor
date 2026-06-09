@@ -45,6 +45,20 @@ export function splitBotMessage(body: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * U8 — live words-per-minute from the interim transcript (cumulative words ÷
+ * elapsed minutes). Returns null when there's no transcript yet or too little
+ * elapsed time — so the readout HIDES (rather than showing a stale 0 / a jumpy
+ * one-word spike), which also covers the "Web Speech unavailable" case: no
+ * transcript ever arrives, so it never shows.
+ */
+export function liveWpm(transcript: string, elapsedSec: number): number | null {
+  const trimmed = transcript.trim();
+  const words = trimmed ? trimmed.split(/\s+/).length : 0;
+  if (words === 0 || elapsedSec < 3) return null;
+  return Math.round(words / (elapsedSec / 60));
+}
+
 /** Seconds → `m:ss`. Clamps negatives to 0 and floors fractional seconds. */
 export function fmtClock(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
