@@ -19,6 +19,9 @@ import { pollCreditsAfterCheckout } from "@/lib/homework/pollCreditsAfterCheckou
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
 type AuthState = "unknown" | "anonymous" | "signed_in";
+// Shared menu-item styling so Support / Log in / Log out read identically.
+const MENU_ITEM_CLASS =
+  "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
 
 export default function DashboardHeader() {
   const router = useRouter();
@@ -195,24 +198,11 @@ export default function DashboardHeader() {
         <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
           {authState === "unknown" && <div className="h-10" aria-hidden />}
 
-          {authState === "anonymous" && (
+          {authState !== "unknown" && (
             <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm" className="rounded-full">
-                  Log in
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button size="sm" className="rounded-full px-4">
-                  Sign up
-                </Button>
-              </Link>
-            </>
-          )}
-
-          {authState === "signed_in" && (
-            <>
-              {credits !== null && (
+              {/* Primary affordance to the left of the hamburger: the credits
+                  chip for a signed-in user, the Sign-up CTA for a guest. */}
+              {authState === "signed_in" && credits !== null && (
                 <Link
                   href="/dashboard/pricing"
                   title="Top up credits"
@@ -222,6 +212,17 @@ export default function DashboardHeader() {
                   <span>{credits}</span>
                 </Link>
               )}
+              {authState === "anonymous" && (
+                <Link href="/signup">
+                  <Button size="sm" className="rounded-full px-4">
+                    Sign up
+                  </Button>
+                </Link>
+              )}
+
+              {/* Unified hamburger — now rendered for guests AND signed-in users
+                  (was signed-in only). The menu adapts: Support for everyone,
+                  then Log out (signed-in) or Log in (guest). */}
               <div className="relative flex shrink-0" ref={menuRef}>
                 <Button
                   ref={buttonRef}
@@ -247,21 +248,29 @@ export default function DashboardHeader() {
                     <a
                       ref={firstLinkRef}
                       href={`mailto:${SUPPORT_EMAIL}`}
-                      className="block px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+                      className={MENU_ITEM_CLASS}
                       onClick={() => setMenuOpen(false)}
                     >
                       Support
                     </a>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      disabled={loading}
-                      className={cn(
-                        "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:opacity-50"
-                      )}
-                    >
-                      {loading ? "Logging out…" : "Log out"}
-                    </button>
+                    {authState === "signed_in" ? (
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loading}
+                        className={cn(MENU_ITEM_CLASS, "disabled:opacity-50")}
+                      >
+                        {loading ? "Logging out…" : "Log out"}
+                      </button>
+                    ) : (
+                      <Link
+                        href="/login"
+                        className={MENU_ITEM_CLASS}
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Log in
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
