@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Image as ImageIcon, Quote } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, Image as ImageIcon, Quote } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 
 /**
@@ -30,6 +30,8 @@ type Entry = {
   image?: { src: string; alt: string; position?: string };
   /** A row of small logos (e.g. funder/affiliation marks). */
   logos?: { src: string; alt: string }[];
+  /** Optional external link rendered under the body. */
+  link?: { href: string; label: string };
   /** Orange dot — reserved for the Vision entry. */
   emphasis?: boolean;
 };
@@ -134,8 +136,9 @@ const PAST_EARLIER: Entry[] = [
   {
     side: "left",
     date: "2019",
-    title: "Wearables in lifestyle health",
-    body: "Research on how wearable signals reflect everyday health and behaviour.",
+    title: "Willoński Lab founded",
+    body: "A boutique research center, where our research on wearables in lifestyle health began.",
+    link: { href: "https://willonski.com", label: "willonski.com" },
   },
   {
     side: "right",
@@ -221,6 +224,17 @@ function EntryCard({ entry }: { entry: Entry }) {
       <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
         {entry.body}
       </p>
+      {entry.link && (
+        <a
+          href={entry.link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-foreground no-underline transition hover:text-primary"
+        >
+          {entry.link.label}
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      )}
       {entry.image ? (
         <div className="mt-3 overflow-hidden rounded-xl border border-border bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
