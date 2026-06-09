@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, Image as ImageIcon, Quote } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 
@@ -27,14 +27,16 @@ type Entry = {
   body: string;
   media?: Media;
   /** A real image (takes precedence over the placeholder slot). */
-  image?: { src: string; alt: string; position?: string };
+  image?: { src: string; alt: string; position?: string; tall?: boolean };
   /** A row of small logos (e.g. funder/affiliation marks). */
   logos?: { src: string; alt: string }[];
   /** Optional external link rendered under the body. */
   link?: { href: string; label: string };
   /** Optional anchor id, for deep-linking straight to this entry. */
   id?: string;
-  /** Orange dot — reserved for the Vision entry. */
+  /** Renders the orange "We are here · Today" badge above the entry. */
+  now?: boolean;
+  /** Orange dot (the Mission & Vision entry and the "now" entry). */
   emphasis?: boolean;
 };
 
@@ -80,6 +82,19 @@ const FUTURE: Entry[] = [
     body: "Formalising the method into peer-reviewed, defensible science.",
   },
 ];
+
+// "Now" — WillpowerLab, rendered as a regular timeline event with the orange
+// "We are here · Today" badge. The page opens centered on this (id="now").
+const NOW_ENTRY: Entry = {
+  side: "left",
+  id: "now",
+  now: true,
+  emphasis: true,
+  date: "2026",
+  title: "WillpowerLab launched",
+  body: "We have just launched the Willpower Laboratory to help you persist in your journey and beat the stress on the stage.",
+  link: { href: "https://www.willpowerlab.com", label: "willpowerlab.com" },
+};
 
 // History (recent half) — shown directly below "now", before testimonials.
 const PAST_RECENT: Entry[] = [
@@ -139,7 +154,7 @@ const PAST_EARLIER: Entry[] = [
     side: "left",
     date: "2019",
     title: "Willoński Lab founded",
-    body: "A boutique research center, where our research on wearables in lifestyle health began.",
+    body: "A family-based boutique research facility, born of a research calling passed from mother to son. That continuity of curiosity across the family set this whole journey in motion.",
     link: { href: "https://willonski.com", label: "willonski.com" },
     id: "willonski-lab",
   },
@@ -153,11 +168,12 @@ const PAST_EARLIER: Entry[] = [
     side: "left",
     date: "From 2000",
     title: "Institutional work and practice",
-    body: "Two decades of applied work inside institutions.",
+    body: "Wioletta's two decades of applied work inside institutions.",
     image: {
       src: "/about/photos/institutional.jpg",
       alt: "An international institutional event, framed by rows of national flags",
       position: "object-top",
+      tall: true,
     },
   },
   {
@@ -218,6 +234,12 @@ function EntryCard({ entry }: { entry: Entry }) {
         entry.side === "left" ? "ml-auto" : ""
       }`}
     >
+      {entry.now && (
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.06] px-3 py-1 text-[12px] font-medium">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+          We are here · Today
+        </div>
+      )}
       <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
         {entry.date}
       </div>
@@ -245,7 +267,7 @@ function EntryCard({ entry }: { entry: Entry }) {
             src={entry.image.src}
             alt={entry.image.alt}
             loading="lazy"
-            className={`h-52 w-full object-cover ${entry.image.position ?? ""}`}
+            className={`w-full object-cover ${entry.image.tall ? "h-96" : "h-52"} ${entry.image.position ?? ""}`}
           />
         </div>
       ) : entry.logos ? (
@@ -334,23 +356,17 @@ function TestimonialCard({ t }: { t: Testimonial }) {
 }
 
 export default function AboutTimeline() {
-  const nowRef = useRef<HTMLDivElement>(null);
-  const pastRef = useRef<HTMLElement>(null);
-
   // On load, scroll to the URL-hash entry if one is given (deep links like
-  // /about#willonski-lab), otherwise center on "now". Deferred to after the
-  // first paint (two rAFs) so the scroll container has its final height.
+  // /about#willonski-lab), otherwise center on the "now" entry. Deferred to
+  // after first paint (two rAFs) so the scroll container has its final height.
   useEffect(() => {
     let inner = 0;
     const outer = requestAnimationFrame(() => {
       inner = requestAnimationFrame(() => {
-        const id = window.location.hash.slice(1);
-        const target = id ? document.getElementById(id) : null;
-        if (target) {
-          target.scrollIntoView({ block: "center", behavior: "auto" });
-        } else {
-          nowRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
-        }
+        const id = window.location.hash.slice(1) || "now";
+        document
+          .getElementById(id)
+          ?.scrollIntoView({ block: "center", behavior: "auto" });
       });
     });
     return () => {
@@ -377,38 +393,16 @@ export default function AboutTimeline() {
           </ul>
         </section>
 
-        {/* NOW — centered on load */}
-        <div ref={nowRef} className="relative py-10">
+        {/* NOW — WillpowerLab, rendered as a regular timeline event */}
+        <section className="relative">
           <TimelineLine />
-          <div className="relative mx-auto max-w-xl animate-fade-in-up text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/[0.06] px-3 py-1 text-[12px] font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              We are here · Today
-            </div>
-            <h2 className="mt-5 text-[20px] font-semibold leading-snug tracking-tight">
-              We have just launched the Willpower Laboratory
-            </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-              Its main purpose is to help you persist in your journey, to beat
-              the stress on the stage.
-            </p>
-            <button
-              type="button"
-              onClick={() =>
-                pastRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                })
-              }
-              className="mt-8 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-[13px] font-medium shadow-sm transition hover:bg-muted active:scale-[.98]"
-            >
-              See our history <ArrowDown className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
+          <ul className="py-10">
+            <TimelineItem entry={NOW_ENTRY} />
+          </ul>
+        </section>
 
         {/* HISTORY — scroll down to reach */}
-        <section ref={pastRef} className="relative pb-32">
+        <section className="relative pb-32">
           <TimelineLine />
           <SectionLabel icon={<ArrowDown className="h-3.5 w-3.5" />}>
             Our history
