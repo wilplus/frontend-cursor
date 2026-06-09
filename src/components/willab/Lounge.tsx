@@ -350,7 +350,7 @@ export default function Lounge({
       <Button
         type="button"
         onClick={onStart}
-        className="w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
+        className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
       >
         <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
         Start official recording
@@ -359,33 +359,33 @@ export default function Lounge({
       {/* U7 — the standing strong-sides / recordings chip row is GONE; the bot
           now offers them as quick-reply chips on an in-thread message
           (EXPLORE_PROMPT), so the composer footer is just the CTA + input. */}
-      <form onSubmit={handleSend} className="flex items-center gap-2">
+      {/* A5 — the send button lives INSIDE the input (right edge): grey when the
+          field is empty, black once there's text. A4 — the input height (h-12)
+          matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
+      <form onSubmit={handleSend} className="relative">
         <input
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
-          placeholder="Ask about how communication works…"
-          /* B9 — kill any autofill / password-manager overlay that can ghost
-             a second line of placeholder text over a chat composer. The
-             markup is a single clean input, so the reported "doubled
-             placeholder" is a runtime overlay or a font-swap flash, not a
-             stacked element. These attrs remove the most common overlay
-             cause; if the doubling persists on a device it's a font-load
-             flash and needs a repro screenshot to pin. */
+          placeholder="Ask Will about how communication works…"
+          /* B9 — kill any autofill / password-manager overlay that can ghost a
+             second line of placeholder text over a chat composer. */
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="sentences"
           spellCheck
-          className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-[15px] outline-none focus:border-primary"
-          aria-label="Message the willab librarian"
+          className="h-12 w-full rounded-full border border-border bg-background pl-4 pr-12 text-[15px] outline-none focus:border-primary"
+          aria-label="Message Will"
         />
-        <Button
+        <button
           type="submit"
           disabled={!draftText.trim() || botThinking}
-          className="rounded-full px-4"
           aria-label="Send"
+          className={`absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
+            draftText.trim() ? "text-foreground" : "text-muted-foreground"
+          }`}
         >
-          <Send className="h-4 w-4" />
-        </Button>
+          <Send className="h-5 w-5" />
+        </button>
       </form>
 
       {activeInsight && (
@@ -587,17 +587,14 @@ function Bubble({
 }
 
 function LoungeEmptyState() {
+  // B3 — "Will" greeting (de-dashed; §3.12 librarian behaviour unchanged).
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-      <p className="max-w-sm text-[15px] text-foreground">
-        Hi — I&apos;m your willab librarian.
-      </p>
-      <p className="mt-1 max-w-sm text-[13px] text-muted-foreground">
-        Ask me anything about how communication actually works, or hit{" "}
-        <span className="font-medium text-foreground">
-          Start official recording
-        </span>{" "}
-        when you want a coach&apos;s read on how you sound.
+      <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+        Hi, I am Will and I will (hehe) assist you in your training. I suggest
+        you jump into the{" "}
+        <span className="font-medium">official recording</span>, but I can answer
+        any other of your communication-related questions.
       </p>
     </div>
   );
