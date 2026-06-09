@@ -152,9 +152,12 @@ export default function CoachSnippetReviewCard({
         Snippet {index + 1} of {total}
       </span>
 
-      {/* What — mirrors ReadoutCard / AuditInsights anatomy 1:1 */}
+      {/* What you said — E1: matches the user AuditInsights styling 1:1 (regular
+          weight, border-border, text-[16px]; the #89 redesign dropped the italic
+          for readability), so the coach reads the snippet in the same form the
+          user will. */}
       <div>
-        <p className="text-sm font-semibold text-foreground">What</p>
+        <p className="text-sm font-semibold text-foreground">What you said</p>
         <div className="mt-2">
           <MediaPlayer
             src={snippet.audioRef}
@@ -163,7 +166,7 @@ export default function CoachSnippetReviewCard({
           />
         </div>
         {snippet.transcript ? (
-          <blockquote className="mt-3 border-l-2 border-primary pl-3 text-[17px] font-medium italic leading-relaxed text-foreground">
+          <blockquote className="mt-3 border-l-2 border-border pl-3 text-[16px] leading-relaxed text-foreground">
             {snippet.transcript}
           </blockquote>
         ) : null}
@@ -176,7 +179,7 @@ export default function CoachSnippetReviewCard({
             Topic stickiness
           </p>
           {snippet.stickiness.comment ? (
-            <p className="mt-1.5 text-[14px] italic leading-relaxed text-foreground">
+            <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
               {snippet.stickiness.comment}
             </p>
           ) : null}
