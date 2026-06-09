@@ -467,4 +467,57 @@ body.no-scroll {
   overflow-y: auto;
 }
 
+/* Welcome voice mark — three dots pulse vertically (EQ-style) while three faint
+   rings breathe outward; the outer ring is the only colour. NOTE: namespaced
+   `welcome-voice-dot` because the bare `voice-dot` keyframe above is already the
+   Logo's; this is the Welcome-spec animation under a non-colliding name. */
+@keyframes welcome-voice-dot {
+  0%,
+  60%,
+  100% {
+    transform: scaleY(0.5);
+    opacity: 0.6;
+  }
+  30% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+.welcome-voice-dot {
+  transform-box: fill-box; /* so transform-origin:center is the circle's centre */
+  transform-origin: center;
+  animation: welcome-voice-dot 1.4s ease-in-out infinite;
+}
+.welcome-voice-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.welcome-voice-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes breath-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+.breath-ring {
+  animation: breath-ring 3.6s ease-in-out infinite;
+}
+
+/* Reduced-motion: hold the welcome mark static (matches the logo/pulse rule). */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-voice-dot,
+  .breath-ring {
+    animation: none !important;
+  }
+}
+
 /* Strength/pace wheel: on narrow viewports scale the 533px row to fit so it’s visibly big on mobile */
