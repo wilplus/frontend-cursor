@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fmtClock,
+  liveWpm,
   loungeToHistory,
   parseVocabulary,
   splitBotMessage,
@@ -39,6 +40,22 @@ describe("parseVocabulary", () => {
   it("returns an empty array for blank input", () => {
     expect(parseVocabulary("")).toEqual([]);
     expect(parseVocabulary("   ")).toEqual([]);
+  });
+});
+
+describe("liveWpm (U8)", () => {
+  it("hides (null) when there is no transcript — covers Web Speech unavailable", () => {
+    expect(liveWpm("", 10)).toBeNull();
+    expect(liveWpm("   ", 10)).toBeNull();
+  });
+
+  it("hides (null) below the 3s floor to avoid a jumpy one-word spike", () => {
+    expect(liveWpm("hello world", 1)).toBeNull();
+  });
+
+  it("computes cumulative words ÷ elapsed minutes, rounded", () => {
+    expect(liveWpm("a b c d e f", 6)).toBe(60); // 6 words / 0.1 min
+    expect(liveWpm("one two three", 60)).toBe(3); // 3 words / 1 min
   });
 });
 
