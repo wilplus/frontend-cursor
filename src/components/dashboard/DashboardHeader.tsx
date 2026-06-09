@@ -200,8 +200,9 @@ export default function DashboardHeader() {
 
           {authState !== "unknown" && (
             <>
-              {/* Primary affordance to the left of the hamburger: the credits
-                  chip for a signed-in user, the Sign-up CTA for a guest. */}
+              {/* Left of the hamburger: the credits chip for a signed-in user.
+                  Guests get just the hamburger (the inline Sign-up CTA was
+                  removed — signup is reached via the record → send flow). */}
               {authState === "signed_in" && credits !== null && (
                 <Link
                   href="/dashboard/pricing"
@@ -210,13 +211,6 @@ export default function DashboardHeader() {
                 >
                   <span className="text-base leading-none">🎓</span>
                   <span>{credits}</span>
-                </Link>
-              )}
-              {authState === "anonymous" && (
-                <Link href="/signup">
-                  <Button size="sm" className="rounded-full px-4">
-                    Sign up
-                  </Button>
                 </Link>
               )}
 
