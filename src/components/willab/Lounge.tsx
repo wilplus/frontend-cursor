@@ -20,8 +20,9 @@ import CoachReviewBubble from "./CoachReviewBubble";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import WillabInstallPrompt from "./WillabInstallPrompt";
 import {
-  EXPLORE_PROMPT,
   postLessonPrompt,
+  wasOfferShown,
+  markOfferShown,
   CHIP_LABEL,
   type ChipAction,
   type LoungePrompt,
@@ -166,16 +167,20 @@ export default function Lounge({
     );
   }
 
-  // U9 — on closing the insights overlay, the founder's max-2-negatives guard:
-  // > 2 `to_work_on` snippets → a low-pressure anchor (no chips); else the
-  // "go again" nudge + a Record-again chip. Purely client-side — the count comes
-  // from the overlay's already-loaded readout; null = not a coach lesson → no prompt.
+  // B4/B5 — the post-feedback moment is closing the insights overlay. Fire the
+  // offer/prompt ONCE per coach-feedback'd session (offer-shown flag), gated by
+  // the max-2-negatives guard inside postLessonPrompt. null = not a coach lesson
+  // → no prompt. Outside this moment there is no proactive offer (the bot is
+  // "standing by"); the B3 "Will" intro is the empty-thread greeting.
   function handleInsightsClose(toWorkOnCount: number | null): void {
     const sid = activeInsight;
     setActiveInsight(null);
-    if (sid === null) return;
+    if (sid === null || toWorkOnCount === null || wasOfferShown(sid)) return;
     const prompt = postLessonPrompt(sid, toWorkOnCount);
-    if (prompt) pushPrompt(prompt);
+    if (prompt) {
+      markOfferShown(sid);
+      pushPrompt(prompt);
+    }
   }
 
   // Quick-reply chip → action. record_again starts a fresh recording; the other
@@ -198,17 +203,9 @@ export default function Lounge({
     setReviewSessionId(initialReviewSessionId);
   }, [isCoach, initialReviewSessionId]);
 
-  // U7 — on app visit the bot offers strong-sides / recordings as quick-reply
-  // chips (the bottom buttons are gone). Once per mount, so one-tap access stays
-  // available each visit without nagging on every re-render.
-  const explorePushedRef = useRef(false);
-  useEffect(() => {
-    if (explorePushedRef.current) return;
-    explorePushedRef.current = true;
-    setPrompts((prev) =>
-      prev.some((p) => p.id === EXPLORE_PROMPT.id) ? prev : [...prev, EXPLORE_PROMPT]
-    );
-  }, []);
+  // B4 — the every-visit strong-sides/recordings offer is GONE. The bot only
+  // offers them in the post-feedback moment (handleInsightsClose), once per
+  // session; otherwise it stays quietly standing by. Free-text asks still work.
 
   // Voice input has been removed from the Lounge (product call): only
   // the **official recording** holds the mic. Off-task chat is
@@ -356,9 +353,9 @@ export default function Lounge({
         Start official recording
       </Button>
 
-      {/* U7 — the standing strong-sides / recordings chip row is GONE; the bot
-          now offers them as quick-reply chips on an in-thread message
-          (EXPLORE_PROMPT), so the composer footer is just the CTA + input. */}
+      {/* B4 — the standing strong-sides / recordings chip row is GONE; the bot
+          offers them only in the post-feedback moment (handleInsightsClose), so
+          the composer footer is just the CTA + input. */}
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
