@@ -3,6 +3,38 @@ import { mapReviewQueueRow, reconcileReviewQueue } from "./reviewQueue";
 import type { ReviewQueueRow } from "./reviewQueue";
 import { mapLibraryEntry } from "./library";
 import { mapCoachReviewSession } from "./coachReview";
+import { mapCoachStudent } from "./coachStudents";
+
+describe("mapCoachStudent (E3)", () => {
+  it("maps snake → camel, pseudonymized, with sessionCount", () => {
+    expect(
+      mapCoachStudent({
+        pseudonym: "Playful Octopus",
+        domain: "sales",
+        last_active: "2026-06-08T00:00:00Z",
+        session_count: 7,
+      })
+    ).toEqual({
+      pseudonym: "Playful Octopus",
+      domain: "sales",
+      lastActive: "2026-06-08T00:00:00Z",
+      sessionCount: 7,
+    });
+  });
+
+  it("omits sessionCount when absent and defaults optionals", () => {
+    const s = mapCoachStudent({ pseudonym: "Calm Otter" });
+    expect(s?.pseudonym).toBe("Calm Otter");
+    expect(s?.domain).toBe("");
+    expect(s?.lastActive).toBe("");
+    expect(s?.sessionCount).toBeUndefined();
+  });
+
+  it("rejects a row with no pseudonym (no identity to show)", () => {
+    expect(mapCoachStudent({ domain: "sales" })).toBeNull();
+    expect(mapCoachStudent(null)).toBeNull();
+  });
+});
 
 describe("mapReviewQueueRow", () => {
   it("maps snake → camel (§B.1 shape)", () => {
