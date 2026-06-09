@@ -29,11 +29,15 @@ import { LoungeThreadProvider } from "./LoungeThreadContext";
 export default function WillabSurface({
   sessionId,
   reviewSessionId,
+  insightSessionId,
 }: {
   sessionId: string | null;
   /** U12 — coach deep-link target from `/chat?review=<id>`; opens the in-Lounge
    *  CoachReviewOverlay on mount (coach-gated inside the Lounge). */
   reviewSessionId: string | null;
+  /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
+   *  InsightsOverlay on mount. */
+  insightSessionId: string | null;
 }) {
   const flow = useWillabFlow();
   const signedIn = useSignedIn();
@@ -95,6 +99,7 @@ export default function WillabSurface({
         onStart={flow.startRecording}
         goTo={flow.goTo}
         initialReviewSessionId={reviewSessionId}
+        initialInsightSessionId={insightSessionId}
       />
       {flow.labOverlayOpen && (
         <LabOverlay
