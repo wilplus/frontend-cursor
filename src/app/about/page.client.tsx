@@ -32,6 +32,8 @@ type Entry = {
   logos?: { src: string; alt: string }[];
   /** Optional external link rendered under the body. */
   link?: { href: string; label: string };
+  /** Optional anchor id, for deep-linking straight to this entry. */
+  id?: string;
   /** Orange dot — reserved for the Vision entry. */
   emphasis?: boolean;
 };
@@ -139,6 +141,7 @@ const PAST_EARLIER: Entry[] = [
     title: "Willoński Lab founded",
     body: "A boutique research center, where our research on wearables in lifestyle health began.",
     link: { href: "https://willonski.com", label: "willonski.com" },
+    id: "willonski-lab",
   },
   {
     side: "right",
@@ -268,7 +271,10 @@ function EntryCard({ entry }: { entry: Entry }) {
 /** One row: left cell · center dot · right cell. */
 function TimelineItem({ entry }: { entry: Entry }) {
   return (
-    <li className="relative grid grid-cols-[1fr_auto_1fr] items-start gap-4">
+    <li
+      id={entry.id}
+      className="relative grid scroll-mt-20 grid-cols-[1fr_auto_1fr] items-start gap-4"
+    >
       <div className="pr-2 text-right md:pr-6">
         {entry.side === "left" && <EntryCard entry={entry} />}
       </div>
@@ -331,13 +337,20 @@ export default function AboutTimeline() {
   const nowRef = useRef<HTMLDivElement>(null);
   const pastRef = useRef<HTMLElement>(null);
 
-  // Open scroll-centered on "now". Defer to after first paint (two rAFs)
-  // so the scroll container has its final height before we jump.
+  // On load, scroll to the URL-hash entry if one is given (deep links like
+  // /about#willonski-lab), otherwise center on "now". Deferred to after the
+  // first paint (two rAFs) so the scroll container has its final height.
   useEffect(() => {
     let inner = 0;
     const outer = requestAnimationFrame(() => {
       inner = requestAnimationFrame(() => {
-        nowRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
+        const id = window.location.hash.slice(1);
+        const target = id ? document.getElementById(id) : null;
+        if (target) {
+          target.scrollIntoView({ block: "center", behavior: "auto" });
+        } else {
+          nowRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
+        }
       });
     });
     return () => {
