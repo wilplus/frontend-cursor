@@ -51,12 +51,18 @@ export default function WillabSurface({
   }, [goTo]);
   usePublishLiveSubscription(userId, onPublish);
 
-  const shell = (children: React.ReactNode) => (
+  // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
+  // (no gap). Scoped to the home/Lounge call only; welcome + intake keep py-6.
+  const shell = (children: React.ReactNode, flush = false) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">
         <DashboardHeader />
       </div>
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-6">
+      <div
+        className={`mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 pb-6 ${
+          flush ? "pt-0" : "pt-6"
+        }`}
+      >
         {children}
       </div>
     </main>
@@ -98,6 +104,7 @@ export default function WillabSurface({
           onClose={flow.closeLab}
         />
       )}
-    </LoungeThreadProvider>
+    </LoungeThreadProvider>,
+    true // A2 — home/Lounge: flush the chat to the navbar (no top gap)
   );
 }
