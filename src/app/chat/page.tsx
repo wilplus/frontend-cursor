@@ -31,6 +31,10 @@ export default function ChatPage({
   // preserved). Distinct from `?session=` (user review→roleplay loop); coach-
   // gated downstream, ignored for non-coaches.
   const reviewSessionId = firstQueryValue(searchParams.review);
+  // D3 — user results email deep-link: `?insight=<id>` opens the in-Lounge
+  // InsightsOverlay for that session on mount. User-side (the ResultsReadyEmail
+  // CTA); distinct from the coach `?review=`.
+  const insightSessionId = firstQueryValue(searchParams.insight);
 
   return (
     <Suspense
@@ -40,7 +44,11 @@ export default function ChatPage({
         </div>
       }
     >
-      <ChatPageClient sessionId={sessionId} reviewSessionId={reviewSessionId} />
+      <ChatPageClient
+        sessionId={sessionId}
+        reviewSessionId={reviewSessionId}
+        insightSessionId={insightSessionId}
+      />
     </Suspense>
   );
 }
