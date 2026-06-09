@@ -200,23 +200,12 @@ export default function DashboardHeader() {
 
           {authState !== "unknown" && (
             <>
-              {/* Left of the hamburger: the credits chip for a signed-in user.
-                  Guests get just the hamburger (the inline Sign-up CTA was
-                  removed — signup is reached via the record → send flow). */}
-              {authState === "signed_in" && credits !== null && (
-                <Link
-                  href="/dashboard/pricing"
-                  title="Top up credits"
-                  className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <span className="text-base leading-none">🎓</span>
-                  <span>{credits}</span>
-                </Link>
-              )}
+              {/* C4 — credits moved INTO the hamburger menu (name → Support →
+                  Credits → Log out); the right side is just the hamburger now. */}
 
-              {/* Unified hamburger — now rendered for guests AND signed-in users
-                  (was signed-in only). The menu adapts: Support for everyone,
-                  then Log out (signed-in) or Log in (guest). */}
+              {/* Unified hamburger — rendered for guests AND signed-in users.
+                  Menu (C4): signed-in → name → Support → Credits → Log out;
+                  guest → Support → Log in. */}
               <div className="relative flex shrink-0" ref={menuRef}>
                 <Button
                   ref={buttonRef}
@@ -239,31 +228,72 @@ export default function DashboardHeader() {
                     id={HEADER_MENU_ID}
                     className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
                   >
-                    <a
-                      ref={firstLinkRef}
-                      href={`mailto:${SUPPORT_EMAIL}`}
-                      className={MENU_ITEM_CLASS}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Support
-                    </a>
                     {authState === "signed_in" ? (
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={loading}
-                        className={cn(MENU_ITEM_CLASS, "disabled:opacity-50")}
-                      >
-                        {loading ? "Logging out…" : "Log out"}
-                      </button>
+                      <>
+                        {/* C4 — name. Intake captures no name, so this is the
+                            linked-account email (S.3); hidden if unavailable. */}
+                        {userEmail && (
+                          <div
+                            className="truncate border-b border-border px-4 py-2 text-[13px] text-muted-foreground"
+                            title={userEmail}
+                          >
+                            {userEmail}
+                          </div>
+                        )}
+                        <a
+                          ref={firstLinkRef}
+                          href={`mailto:${SUPPORT_EMAIL}`}
+                          className={MENU_ITEM_CLASS}
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Support
+                        </a>
+                        {/* C5 — credits count; tap → checkout. Balance from the
+                            existing status source; swaps to GET /v2/user/credits
+                            when the BE ships it. */}
+                        {credits !== null && (
+                          <Link
+                            href="/dashboard/pricing"
+                            className={cn(
+                              MENU_ITEM_CLASS,
+                              "flex items-center justify-between"
+                            )}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <span>Credits</span>
+                            <span className="flex items-center gap-1 font-normal text-muted-foreground">
+                              <span className="text-base leading-none">🎓</span>
+                              {credits}
+                            </span>
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          disabled={loading}
+                          className={cn(MENU_ITEM_CLASS, "disabled:opacity-50")}
+                        >
+                          {loading ? "Logging out…" : "Log out"}
+                        </button>
+                      </>
                     ) : (
-                      <Link
-                        href="/login"
-                        className={MENU_ITEM_CLASS}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Log in
-                      </Link>
+                      <>
+                        <a
+                          ref={firstLinkRef}
+                          href={`mailto:${SUPPORT_EMAIL}`}
+                          className={MENU_ITEM_CLASS}
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Support
+                        </a>
+                        <Link
+                          href="/login"
+                          className={MENU_ITEM_CLASS}
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Log in
+                        </Link>
+                      </>
                     )}
                   </div>
                 )}
