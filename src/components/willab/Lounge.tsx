@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Loader2, Send } from "lucide-react";
+import { CheckCircle2, Loader2, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -12,6 +12,7 @@ import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import HistoryOverlay from "./HistoryOverlay";
+import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
@@ -84,6 +85,8 @@ export default function Lounge({
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // E3 — coach-only student roster overlay.
+  const [rosterOpen, setRosterOpen] = useState(false);
   // U7/U9 — transient, FE-injected conversational prompts (with quick-reply
   // chips) rendered at the foot of the thread. Not persisted (freeze-safe).
   const [prompts, setPrompts] = useState<LoungePrompt[]>([]);
@@ -353,6 +356,20 @@ export default function Lounge({
         {botThinking && <TypingDots />}
       </div>
 
+      {/* E3 — coach-only entry to the student roster (pseudonymized). Coaches
+          can still record, so this sits above the record CTA, not instead of it. */}
+      {isCoach && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setRosterOpen(true)}
+          className="h-12 w-full gap-2 rounded-full"
+        >
+          <Users className="h-4 w-4" />
+          Your students
+        </Button>
+      )}
+
       {/* U2 — record CTA: dark fill + a red record dot, full-width. Deliberately
           distinct from the orange primary (Send) and the calm text composer so
           the high-stakes "on-stage" action never reads as just another button.
@@ -408,6 +425,9 @@ export default function Lounge({
         />
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
+      {rosterOpen && (
+        <StudentRosterOverlay onClose={() => setRosterOpen(false)} />
+      )}
       {historyOpen && (
         <HistoryOverlay
           onClose={() => setHistoryOpen(false)}
