@@ -65,6 +65,7 @@ export default function Lounge({
   onStart,
   goTo,
   initialReviewSessionId = null,
+  initialInsightSessionId = null,
 }: {
   state: WillabState;
   onStart: () => void;
@@ -72,6 +73,9 @@ export default function Lounge({
   /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
    *  that session once on mount. Coach-gated; ignored for non-coaches. */
   initialReviewSessionId?: string | null;
+  /** D3 — when set (from /chat?insight=<id>), open the InsightsOverlay for that
+   *  session once on mount (user results email deep-link). */
+  initialInsightSessionId?: string | null;
 }) {
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
@@ -202,6 +206,16 @@ export default function Lounge({
     deepLinkOpenedRef.current = true;
     setReviewSessionId(initialReviewSessionId);
   }, [isCoach, initialReviewSessionId]);
+
+  // D3 — user results email deep-link (/chat?insight=<id>): open the insights
+  // overlay for that session once on mount. Not coach-gated (InsightsOverlay
+  // fetches the owner-auth readout); fire-once so closing it doesn't reopen.
+  const insightLinkOpenedRef = useRef(false);
+  useEffect(() => {
+    if (insightLinkOpenedRef.current || !initialInsightSessionId) return;
+    insightLinkOpenedRef.current = true;
+    setActiveInsight(initialInsightSessionId);
+  }, [initialInsightSessionId]);
 
   // B4 — the every-visit strong-sides/recordings offer is GONE. The bot only
   // offers them in the post-feedback moment (handleInsightsClose), once per
