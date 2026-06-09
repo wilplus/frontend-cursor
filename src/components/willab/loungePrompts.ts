@@ -23,23 +23,17 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
   record_again: "Record again",
 };
 
-/** U7 — on-visit offer; keeps one-tap access to the two surfaces the (now
- *  deleted) bottom buttons used to provide, as quick-reply chips. */
-export const EXPLORE_PROMPT: LoungePrompt = {
-  id: "explore",
-  text: "Want me to show your strong sides or your recordings? You can always ping me about them.",
-  chipActions: ["strong_sides", "recordings"],
-};
-
 /**
- * U9 — the post-lesson prompt, with the founder's max-2-negatives guardrail.
- *
- * On closing the insights overlay we count the snippets the coach tagged
- * `to_work_on`. To avoid pushing an anxious user straight back on stage after a
- * heavily-critical read:
- *   - > 2 to_work_on → a warm, low-pressure anchor, NO action chips.
- *   - <= 2           → the "go again with this in mind" nudge + a Record-again chip.
- *   - null           → it wasn't a coach lesson (raw / errored overlay) → no prompt.
+ * B4/B5 (reworks U9) — the post-feedback prompt. Fires ONCE per coach-
+ * feedback'd session (see wasOfferShown / markOfferShown), at the post-feedback
+ * moment (insights-overlay close). The every-visit offer is gone — the bot only
+ * offers strong sides / recordings here, never on each visit. The founder's
+ * max-2-negatives guardrail is preserved:
+ *   - > 2 to_work_on → a warm, low-pressure anchor, NO chips (don't push an
+ *                      anxious user straight back on stage after a hard read).
+ *   - <= 2           → the "complete picture" offer: strong sides + power
+ *                      phrases (B5), recordings (B4), and a go-again chip.
+ *   - null           → it wasn't a coach lesson (raw / errored overlay) → none.
  *
  * Purely client-side (counts the already-loaded readout) — freeze-safe.
  */
@@ -51,13 +45,37 @@ export function postLessonPrompt(
   if (toWorkOnCount > 2) {
     return {
       id: `anchor:${sessionId}`,
-      text: "Take your time to review these notes — your coach has highlighted some great anchors for you to sit with. Whenever you're ready for your next session, I'll be right here.",
+      text: "Take your time to review these notes. Your coach has highlighted some great anchors for you to sit with. Whenever you're ready for your next session, I'll be right here.",
       chipActions: [],
     };
   }
   return {
-    id: `again:${sessionId}`,
-    text: "That's your read. The fastest way to grow is to use it — want to go again with one of these in mind?",
-    chipActions: ["record_again"],
+    id: `feedback:${sessionId}`,
+    text: "Want the complete picture of your strong sides, and the power phrases you can lean on for specific situations? Or go again with this read fresh in mind.",
+    chipActions: ["strong_sides", "recordings", "record_again"],
   };
+}
+
+/* ─── B4 — never repeat the offer for a session ─────────────────────────── */
+
+const OFFER_KEY_PREFIX = "willab.offer_shown:";
+
+/** Has the post-feedback offer already fired for this session? */
+export function wasOfferShown(sessionId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(OFFER_KEY_PREFIX + sessionId) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Mark the post-feedback offer shown for this session (best-effort). */
+export function markOfferShown(sessionId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(OFFER_KEY_PREFIX + sessionId, "1");
+  } catch {
+    /* swallow — Safari private mode etc. */
+  }
 }

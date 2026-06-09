@@ -12,11 +12,15 @@ describe("postLessonPrompt — U9 max-2-negatives guard", () => {
     expect(p?.chipActions).toEqual([]);
   });
 
-  it("offers record-again at and below the boundary (<= 2)", () => {
+  it("offers the complete-picture prompt + chips at and below the boundary (<= 2)", () => {
     for (const n of [0, 1, 2]) {
       const p = postLessonPrompt("s", n);
-      expect(p?.id).toBe("again:s");
-      expect(p?.chipActions).toEqual(["record_again"]);
+      expect(p?.id).toBe("feedback:s");
+      expect(p?.chipActions).toEqual([
+        "strong_sides",
+        "recordings",
+        "record_again",
+      ]);
     }
   });
 });
