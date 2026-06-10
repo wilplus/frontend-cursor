@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
 import CoachVideoSlot from "./CoachVideoSlot";
+import { useBackDismiss } from "./useBackDismiss";
 import type { CoachSnippetState } from "@/services/api/coachReview";
 import {
   publishWillabSession,
@@ -57,6 +58,8 @@ export default function CoachReviewOverlay({
    *  the Lounge bubble to ✓ done in place without waiting on a refetch. */
   onPublished?: (sessionId: string) => void;
 }) {
+  // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
+  useBackDismiss(onClose);
   const { status, session } = useCoachReview(sessionId);
 
   // Local mirror of per-snippet state, seeded from the payload and updated

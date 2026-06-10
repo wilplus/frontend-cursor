@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { fetchLibrary, type LibraryEntry } from "@/services/api/library";
+import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
 /*  LibraryOverlay — your strong-sides library (§7)                           */
@@ -19,6 +20,8 @@ import { fetchLibrary, type LibraryEntry } from "@/services/api/library";
 /* -------------------------------------------------------------------------- */
 
 export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
+  // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
+  useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
 
