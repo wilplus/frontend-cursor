@@ -19,6 +19,7 @@ import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
 import { markFirstRecordingOnboarded, type WillabState } from "./useWillabFlow";
+import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -65,6 +66,8 @@ export default function LabOverlay({
   goTo: (s: WillabState) => void;
   onClose: () => void;
 }) {
+  // D-3 — back-gesture / Back exits the Lab instead of routing away.
+  useBackDismiss(onClose);
   const router = useRouter();
   const mic = useDualCaptureMic();
   const { cancel: cancelMic } = mic;
