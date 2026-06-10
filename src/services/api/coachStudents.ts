@@ -9,6 +9,9 @@
 /* -------------------------------------------------------------------------- */
 
 export interface CoachStudent {
+  /** Opaque user id for the drill-down (E-1b / S6 is keyed by it). NOT PII —
+   *  an id, not a name/email. Empty when the BE row omits it → not drillable. */
+  id: string;
   /** Stable per-user pseudonym (e.g. "Playful Octopus"). NEVER real name. */
   pseudonym: string;
   /** The user's profile domain enum key (public_speaking, sales, etc.). */
@@ -28,6 +31,12 @@ export function mapCoachStudent(raw: unknown): CoachStudent | null {
   const pseudonym = typeof r.pseudonym === "string" ? r.pseudonym : "";
   if (!pseudonym) return null;
   return {
+    id:
+      typeof r.user_id === "string"
+        ? r.user_id
+        : typeof r.id === "string"
+          ? r.id
+          : "",
     pseudonym,
     domain: typeof r.domain === "string" ? r.domain : "",
     lastActive: typeof r.last_active === "string" ? r.last_active : "",
@@ -40,13 +49,24 @@ export function mapCoachStudent(raw: unknown): CoachStudent | null {
 
 const ENDPOINT = "/api/v2/coach/students";
 
+/** Result of a roster fetch. `forbidden` distinguishes "not authorized" (403,
+ *  caller isn't on the coach/admin allowlist) from an authorized coach with an
+ *  empty roster (E-1a c) — collapsing both to [] is exactly why the roster
+ *  looked broken ("no students yet" when the real cause was a 403). */
+export interface CoachStudentsResult {
+  students: CoachStudent[];
+  forbidden: boolean;
+}
+
 /**
- * Fetch the coach's roster. Soft-fails to [] on non-2xx (e.g. 403 for non-coach
- * users — the BE `@require_coach` gate is the real boundary), network errors, or
- * a missing route. Accepts `{ items: [...] }`, `{ students: [...] }`, or a bare
- * array (BE wrapping isn't pinned yet).
+ * Fetch the coach's roster. `forbidden` is true ONLY on a 403 (the BE
+ * `@require_coach` gate — caller isn't on the allowlist), so the UI can say
+ * "you're not set up as a coach" instead of the misleading "no students yet".
+ * Every other failure (network, 5xx, missing route, unparseable body) soft-fails
+ * to an empty, non-forbidden result. Accepts `{ items: [...] }`,
+ * `{ students: [...] }`, or a bare array.
  */
-export async function fetchCoachStudents(): Promise<CoachStudent[]> {
+export async function fetchCoachStudents(): Promise<CoachStudentsResult> {
   let res: Response;
   try {
     res = await fetch(ENDPOINT, {
@@ -55,14 +75,15 @@ export async function fetchCoachStudents(): Promise<CoachStudent[]> {
       cache: "no-store",
     });
   } catch {
-    return [];
+    return { students: [], forbidden: false };
   }
-  if (!res.ok) return [];
+  if (res.status === 403) return { students: [], forbidden: true };
+  if (!res.ok) return { students: [], forbidden: false };
   const data = (await res.json().catch(() => null)) as
     | { items?: unknown[]; students?: unknown[] }
     | unknown[]
     | null;
-  if (!data) return [];
+  if (!data) return { students: [], forbidden: false };
   const items = Array.isArray(data)
     ? data
     : Array.isArray(data.items)
@@ -70,7 +91,10 @@ export async function fetchCoachStudents(): Promise<CoachStudent[]> {
     : Array.isArray(data.students)
     ? data.students
     : [];
-  return items
-    .map(mapCoachStudent)
-    .filter((s): s is CoachStudent => s !== null);
+  return {
+    students: items
+      .map(mapCoachStudent)
+      .filter((s): s is CoachStudent => s !== null),
+    forbidden: false,
+  };
 }
