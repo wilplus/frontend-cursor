@@ -16,6 +16,11 @@ export const maxDuration = 60;
  *
  * 200 → { snippets: [...] } | { count } (BE-defined). The FE refetches the
  * session after a success rather than trusting the returned shape.
+ *
+ * 409 RECUT_WOULD_DISCARD_LABELS { labels, drafts } (BE-6) — the session has
+ * review work and ?force=true was absent. This route forwards the ?force flag
+ * and passes the upstream status + body through unchanged, so the FE can read
+ * the counts, confirm, and re-call with ?force=true to discard + proceed.
  */
 export async function POST(
   req: NextRequest,
@@ -37,12 +42,16 @@ export async function POST(
   }
 
   const sid = encodeURIComponent(params.sessionId);
+  // BE-6 — forward ?force=true so a coach-confirmed re-cut can discard the
+  // orphaned labels/drafts the BE would otherwise 409 on.
+  const force =
+    req.nextUrl.searchParams.get("force") === "true" ? "?force=true" : "";
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 55_000);
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/coach/sessions/${sid}/recut`, {
+    upstream = await fetch(`${backend}/v2/coach/sessions/${sid}/recut${force}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       signal: controller.signal,
