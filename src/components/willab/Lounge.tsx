@@ -11,7 +11,8 @@ import { loungeToHistory, splitBotMessage } from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
-import HistoryOverlay from "./HistoryOverlay";
+import AuditOverlay from "./AuditOverlay";
+import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
@@ -81,7 +82,8 @@ export default function Lounge({
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  // C-1 — the unified audit / history view (recordings + all moments).
+  const [auditOpen, setAuditOpen] = useState(false);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // B-1 — the single intent-driven quick-action button for the latest turn,
@@ -173,11 +175,12 @@ export default function Lounge({
     setActiveInsight(null);
   }
 
-  // Quick-reply chip → action. record_again starts a fresh recording; the other
-  // two open the strong-sides / recordings overlays (the deleted bottom buttons).
+  // Quick-action → surface. record_again starts a fresh recording; strong_sides
+  // opens the strong-sides gallery; recordings opens the unified audit view (C-1,
+  // recordings + all moments — supersedes the old recordings-only overlay).
   function onChip(action: ChipAction): void {
     if (action === "strong_sides") setLibraryOpen(true);
-    else if (action === "recordings") setHistoryOpen(true);
+    else if (action === "recordings") setAuditOpen(true);
     else if (action === "record_again") onStart();
   }
 
@@ -329,11 +332,15 @@ export default function Lounge({
         )}
 
         {/* A-4 / B-2 — the post-send beat (review_pending): a warm follow-up
-            offer + one proactive "review strong sides" button. The formal
-            "sent to your coach" record is the persisted completed-training
-            card (A-3) just above. Transient; clears when the state moves on. */}
+            offer + one proactive "review strong sides" button, then the C-2
+            progress-to-first-audit bar. The formal "sent to your coach" record
+            is the persisted completed-training card (A-3) just above.
+            Transient; clears when the state moves on. */}
         {state === "review_pending" && (
-          <PostSendOffer onReviewStrongSides={() => onChip("strong_sides")} />
+          <>
+            <PostSendOffer onReviewStrongSides={() => onChip("strong_sides")} />
+            <ProgressToAuditBubble onOpenAudit={() => setAuditOpen(true)} />
+          </>
         )}
 
         {/* B-1 — the single intent-driven action button, from the BE's
@@ -412,21 +419,21 @@ export default function Lounge({
         </button>
       </form>
 
+      {/* C-1 — the unified audit view. Rendered BEFORE the insights overlay so
+          opening a session from here paints the read ON TOP; closing the read
+          returns to the audit (it stays mounted underneath). */}
+      {auditOpen && (
+        <AuditOverlay
+          onClose={() => setAuditOpen(false)}
+          onOpenSession={(sid) => setActiveInsight(sid)}
+        />
+      )}
       {activeInsight && (
         <InsightsOverlay sessionId={activeInsight} onClose={handleInsightsClose} />
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
       {rosterOpen && (
         <StudentRosterOverlay onClose={() => setRosterOpen(false)} />
-      )}
-      {historyOpen && (
-        <HistoryOverlay
-          onClose={() => setHistoryOpen(false)}
-          onOpenSession={(sid) => {
-            setHistoryOpen(false);
-            setActiveInsight(sid);
-          }}
-        />
       )}
       {reviewSessionId && (
         <CoachReviewOverlay
