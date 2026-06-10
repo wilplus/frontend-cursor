@@ -36,7 +36,7 @@ export function buildPostSessionResultsText(
   const snippetWord = snippetCount === 1 ? "moment" : "moments";
 
   return [
-    `willab.`,
+    `WillpowerLab`,
     ``,
     `YOUR VOICE JOURNEY`,
     ``,
@@ -44,7 +44,7 @@ export function buildPostSessionResultsText(
     `your latest voice ${snippetWord} are ready.`,
     ``,
     `Your coach finished pulling out the moments where your delivery`,
-    `hit hardest — and the ones worth a second pass. Open your journey`,
+    `hit hardest, and the ones worth a second pass. Open your journey`,
     `to listen back, read the coach's notes, and pick what to push on next.`,
     ``,
     `  • Published snippets: ${snippetCount} new`,
@@ -53,7 +53,7 @@ export function buildPostSessionResultsText(
     `  ${journeyUrl}`,
     ``,
     `Each snippet has a coach note, a one-tap player, and a CTA back`,
-    `into a contextual chat — pick the moment that grabs you and push`,
+    `into a contextual chat. Pick the moment that grabs you and push`,
     `on it.`,
     ``,
     `--`,
