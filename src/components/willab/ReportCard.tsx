@@ -13,6 +13,19 @@ import { insightView, readoutView } from "./loungeReports";
 /*  the title + a "saved to history" line so the entry is still meaningful.     */
 /* -------------------------------------------------------------------------- */
 
+/** A-3 — the completed-training card's small date line, from the message's
+ *  FE-stamped timestamp. Returns null for a missing / unparseable stamp. */
+function reportDateLabel(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function ReportCard({
   message,
   onViewInsights,
@@ -54,17 +67,30 @@ export default function ReportCard({
     );
   }
 
-  // B7 — a "completed training" marker in the thread: an ordinary bubble,
-  // NOT a metrics card. The acoustic breakdown lives in the Readout / History
-  // surface; the thread entry just confirms the session happened (bolded,
-  // icon kept, no special metric styling).
+  // A-3 (wave-3) — the completed-training card: the durable in-thread record
+  // that this session was finished and handed to the coach. Bold topic · small
+  // date · a soft (not hard-ETA) coach line. The acoustic breakdown lives in
+  // the Readout / History surface; this is the conversational confirmation.
   const v = readoutView(message.metadata);
+  const date = reportDateLabel(message.client_created_at);
   return (
-    <div className="my-1 flex items-center gap-2 rounded-2xl bg-chat-bot px-4 py-2.5">
-      <FileAudio className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="text-[15px] font-semibold text-foreground">
-        Completed training{v.topic ? ` · ${v.topic}` : ""}
-      </span>
+    <div className="my-1 rounded-2xl bg-chat-bot px-4 py-3">
+      <div className="flex items-center gap-2">
+        <FileAudio
+          className="h-4 w-4 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
+        <span className="text-[15px] font-semibold text-foreground">
+          {v.topic || "Training"}
+        </span>
+      </div>
+      {date ? (
+        <p className="mt-0.5 text-[12px] text-muted-foreground">{date}</p>
+      ) : null}
+      <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
+        Training completed and sent to your coach, who&apos;ll review and send
+        your feedback, usually within a few hours.
+      </p>
     </div>
   );
 }
