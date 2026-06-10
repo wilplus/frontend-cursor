@@ -5,6 +5,7 @@ import { Loader2, X, FileAudio, ThumbsUp, AlertTriangle } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { fetchReadouts, type ReadoutSummaryRow } from "@/services/api/readouts";
 import { fetchLibrary, type LibraryEntry } from "@/services/api/library";
+import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
 /*  AuditOverlay — the unified, re-openable audit / history view (C-1)         */
@@ -38,6 +39,8 @@ export default function AuditOverlay({
    *  the read returns the user here ("always come back to it", C-1). */
   onOpenSession: (sessionId: string) => void;
 }) {
+  // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
+  useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [readouts, setReadouts] = useState<ReadoutSummaryRow[]>([]);
   const [moments, setMoments] = useState<LibraryEntry[]>([]);
