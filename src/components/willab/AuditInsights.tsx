@@ -39,9 +39,21 @@ import type { ReadoutPayload } from "./readout";
 /*  header + X close.                                                           */
 /* -------------------------------------------------------------------------- */
 
+// D-1 — walk order: to-work-on first, then double-down (strong). Stable within
+// each group (preserves the coach's per-snippet sequence).
+const TAG_ORDER: Record<string, number> = { to_work_on: 0, strong: 1 };
+
 export default function AuditInsights({ payload }: { payload: ReadoutPayload }) {
-  // Coach-curated set only; strong → Double down, to_work_on → Avoid.
-  const analyses = payload.snippets.filter((s) => s.coach?.tag != null);
+  // Coach-curated set only; strong → Double down, to_work_on → Avoid. Ordered
+  // to-work-on first per D-1 (a copy — never mutate the payload's snippets).
+  const analyses = payload.snippets
+    .filter((s) => s.coach?.tag != null)
+    .slice()
+    .sort(
+      (a, b) =>
+        (TAG_ORDER[a.coach?.tag ?? ""] ?? 2) -
+        (TAG_ORDER[b.coach?.tag ?? ""] ?? 2)
+    );
   const [cursor, setCursor] = useState(0);
   const total = analyses.length;
   const s = analyses[Math.min(cursor, total - 1)];
@@ -156,20 +168,30 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
           them would be the system judging the voice. */}
       <SpeechDataPanel features={f} />
 
-      {/* nav */}
-      <div className="flex items-center justify-between pt-2">
+      {/* nav (D-1) — bottom bar: Prev + Next flank the position so you can move
+          BOTH ways through the curated set (was Next-only — no way back). The
+          orange primary stays on Next; Prev is the quieter outline. */}
+      <div className="flex items-center justify-between gap-3 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setCursor((c) => Math.max(c - 1, 0))}
+          disabled={cursor === 0}
+          className="rounded-full disabled:opacity-40"
+        >
+          ← Prev
+        </Button>
         <span className="text-[12px] text-muted-foreground">
-          Analysis {Math.min(cursor + 1, total)} of {total}
+          {Math.min(cursor + 1, total)} of {total}
         </span>
-        {cursor < total - 1 ? (
-          <Button
-            type="button"
-            onClick={() => setCursor((c) => Math.min(c + 1, total - 1))}
-            className="rounded-full"
-          >
-            Next analysis →
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          onClick={() => setCursor((c) => Math.min(c + 1, total - 1))}
+          disabled={cursor >= total - 1}
+          className="rounded-full disabled:opacity-40"
+        >
+          Next →
+        </Button>
       </div>
     </div>
   );
