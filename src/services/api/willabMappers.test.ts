@@ -25,6 +25,16 @@ describe("mapCoachStudent (E3)", () => {
     });
   });
 
+  it("coerces a numeric id and prefers user_id over id", () => {
+    expect(mapCoachStudent({ pseudonym: "P", user_id: 42 })?.id).toBe("42");
+    expect(
+      mapCoachStudent({ pseudonym: "P", user_id: "u_1", id: "z_9" })?.id
+    ).toBe("u_1");
+    expect(mapCoachStudent({ pseudonym: "P", id: "fallback" })?.id).toBe(
+      "fallback"
+    );
+  });
+
   it("omits sessionCount when absent and defaults optionals (incl. empty id)", () => {
     const s = mapCoachStudent({ pseudonym: "Calm Otter" });
     expect(s?.id).toBe("");
