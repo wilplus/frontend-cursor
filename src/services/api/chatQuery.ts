@@ -63,6 +63,14 @@ export interface ChatQueryResponse {
    * Per-turn signal — caller should NOT cache across turns.
    */
   show_record_ui?: boolean;
+  /**
+   * S1 (wave-3 B-1) — the BE classifies the user's ask into ONE quick action
+   * so the FE renders the single matching button (Strong sides / Recordings /
+   * Record again) under the reply. null / absent → no button. Absent on every
+   * turn until BE-2 ships `suggested_action`; the FE degrades to no button.
+   * Per-turn signal — caller should NOT cache across turns.
+   */
+  suggested_action?: "strong_sides" | "recordings" | "record_again" | null;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;

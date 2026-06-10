@@ -24,26 +24,14 @@ export default function InsightsOverlay({
   onClose,
 }: {
   sessionId: string;
-  /** U9 — on close, report how many snippets the coach tagged `to_work_on`
-   *  (null when this wasn't a coach lesson) so the Lounge can apply the
-   *  max-2-negatives guard before nudging a re-record. */
-  onClose: (toWorkOnCount: number | null) => void;
+  /** Closing returns to the Lounge thread underneath. (Wave-3 B-1 dropped the
+   *  post-feedback offer this overlay used to feed a `to_work_on` count for;
+   *  the proactive strong-sides offer now lives at the post-send moment,
+   *  A-4 / B-2, so close carries no payload.) */
+  onClose: () => void;
 }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [data, setData] = useState<SessionReadout | null>(null);
-
-  // U9 — count `to_work_on` only when a coach LESSON was shown (curated tags);
-  // a raw / errored overlay reports null → the Lounge shows no post-lesson prompt.
-  function close(): void {
-    let toWorkOn: number | null = null;
-    if (status === "ready" && data) {
-      const snips = data.readout.snippets;
-      if (snips.some((s) => s.coach?.tag != null)) {
-        toWorkOn = snips.filter((s) => s.coach?.tag === "to_work_on").length;
-      }
-    }
-    onClose(toWorkOn);
-  }
 
   useEffect(() => {
     let active = true;
@@ -74,7 +62,7 @@ export default function InsightsOverlay({
         </span>
         <button
           type="button"
-          onClick={close}
+          onClick={onClose}
           aria-label="Close insights"
           className="text-muted-foreground hover:text-foreground"
         >
