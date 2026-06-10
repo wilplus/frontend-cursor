@@ -120,7 +120,7 @@ export default function PostSessionResultsEmail({
         <meta name="color-scheme" content="light only" />
         <meta name="supported-color-schemes" content="light" />
 
-        {/* Pacifico for the "willab." wordmark only. Gracefully
+        {/* Pacifico for the "WillpowerLab" wordmark only. Gracefully
             falls back to "Brush Script MT, cursive" in Outlook +
             other clients that strip Google Fonts. */}
         <Font
@@ -174,7 +174,7 @@ export default function PostSessionResultsEmail({
             margin: "0 auto",
           }}
         >
-          {/* Top: centred Willab wordmark logo, dynamically rendered
+          {/* Top: centred WillpowerLab wordmark logo, dynamically rendered
               by /willab-logo (src/app/willab-logo/route.tsx — Vercel
               edge ImageResponse with Pacifico baked into the PNG).
               4:1 aspect (480×120 source) sits properly in an email
@@ -184,7 +184,7 @@ export default function PostSessionResultsEmail({
           <Section style={{ paddingBottom: 24, textAlign: "center" }}>
             <Img
               src="https://www.willpowerlab.com/willab-logo"
-              alt="Willab"
+              alt="WillpowerLab"
               width="160"
               height="40"
               style={{
@@ -249,7 +249,7 @@ export default function PostSessionResultsEmail({
               }}
             >
               Your coach finished pulling out the moments where your delivery
-              hit hardest — and the ones worth a second pass. Open your
+              hit hardest, and the ones worth a second pass. Open your
               journey to listen back, read the coach&apos;s notes, and pick
               what to push on next.
             </Text>
@@ -392,7 +392,7 @@ export default function PostSessionResultsEmail({
               }}
             >
               Each snippet has a coach note, a one-tap player, and a CTA back
-              into a contextual chat — pick the moment that grabs you and
+              into a contextual chat. Pick the moment that grabs you and
               push on it.
             </Text>
           </Section>
