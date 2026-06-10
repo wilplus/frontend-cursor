@@ -85,21 +85,28 @@ export default function CoachReviewOverlay({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
 
-  // E-2 — admin on-demand re-cut (re-run the segmenter on the stored audio).
+  // E-2 / BE-6 — admin on-demand re-cut. Re-cut mints NEW snippet ids and
+  // orphans any labels / notes / drafts on the session, so the BE refuses a
+  // labeled session with 409 unless ?force=true. We try WITHOUT force first; on
+  // the 409 we surface the BE's exact counts (drafts included — not visible to
+  // the FE locally) and let the coach confirm the discard before re-calling.
   const [recutting, setRecutting] = useState(false);
   const [recutError, setRecutError] = useState<string | null>(null);
-  // E-2 — re-cut mints NEW snippet ids and orphans any labels/notes already on
-  // the session, so a mid-review re-cut needs an explicit confirm.
-  const [confirmingRecut, setConfirmingRecut] = useState(false);
+  const [recutConfirm, setRecutConfirm] = useState<{
+    labels: number;
+    drafts: number;
+  } | null>(null);
 
-  async function handleRecut() {
+  async function handleRecut(force: boolean) {
     if (!session || recutting) return;
     setRecutting(true);
     setRecutError(null);
-    const result = await recutSession(session.sessionId);
-    if (result.ok) {
-      setConfirmingRecut(false);
+    const result = await recutSession(session.sessionId, { force });
+    if (result.status === "ok") {
+      setRecutConfirm(null);
       await refresh(); // pull the new snippets from the canonical read
+    } else if (result.status === "needs_confirm") {
+      setRecutConfirm({ labels: result.labels, drafts: result.drafts });
     } else {
       setRecutError(result.message);
     }
@@ -130,18 +137,6 @@ export default function CoachReviewOverlay({
     ? session.snippets.some((s) => {
         const cs = localState[s.id] ?? s.coachState;
         return cs.surfaced && cs.note.trim() !== "" && cs.tag !== null;
-      })
-    : false;
-
-  // E-2 — any review work on this session yet (note / tag / direction label)?
-  // Re-cut would orphan it (new snippet ids), so we confirm first; a re-cut
-  // before any review is safe and goes straight through.
-  const hasReviewWork = session
-    ? session.snippets.some((s) => {
-        const cs = localState[s.id] ?? s.coachState;
-        return (
-          cs.note.trim() !== "" || cs.tag !== null || cs.directionLabel !== null
-        );
       })
     : false;
 
@@ -267,10 +262,11 @@ export default function CoachReviewOverlay({
             </p>
           ) : (
             <>
-              {/* E-2 — admin on-demand re-cut: re-run the segmenter on this
-                  session's stored audio (no upload), then refresh to pull the
-                  new snippets. Re-cut mid-review orphans existing labels, so it
-                  confirms first when there's review work (safe otherwise). */}
+              {/* E-2 / BE-6 — admin on-demand re-cut: re-run the segmenter on
+                  this session's stored audio (no upload), then refresh to pull
+                  the new snippets. Try without force; the BE 409s if it would
+                  orphan labels/drafts, and we confirm with the real counts
+                  before re-calling with force. */}
               <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -281,12 +277,12 @@ export default function CoachReviewOverlay({
                       Re-run segmentation on the stored audio.
                     </p>
                   </div>
-                  {confirmingRecut ? (
+                  {recutConfirm ? (
                     <div className="flex shrink-0 items-center gap-2">
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setConfirmingRecut(false)}
+                        onClick={() => setRecutConfirm(null)}
                         disabled={recutting}
                         className="rounded-full disabled:opacity-50"
                       >
@@ -294,7 +290,7 @@ export default function CoachReviewOverlay({
                       </Button>
                       <Button
                         type="button"
-                        onClick={handleRecut}
+                        onClick={() => handleRecut(true)}
                         disabled={recutting}
                         className="rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                       >
@@ -305,9 +301,7 @@ export default function CoachReviewOverlay({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() =>
-                        hasReviewWork ? setConfirmingRecut(true) : handleRecut()
-                      }
+                      onClick={() => handleRecut(false)}
                       disabled={recutting}
                       className="shrink-0 rounded-full disabled:opacity-50"
                     >
@@ -315,10 +309,17 @@ export default function CoachReviewOverlay({
                     </Button>
                   )}
                 </div>
-                {confirmingRecut ? (
+                {recutConfirm ? (
                   <p className="mt-2 text-[12px] text-red-600">
-                    This re-cuts the audio into new snippets and discards the
-                    notes and labels you&apos;ve already added to this session.
+                    This re-cuts the audio into new snippets and discards{" "}
+                    {recutConfirm.labels > 0 || recutConfirm.drafts > 0
+                      ? `${recutConfirm.labels} label${
+                          recutConfirm.labels === 1 ? "" : "s"
+                        } and ${recutConfirm.drafts} draft${
+                          recutConfirm.drafts === 1 ? "" : "s"
+                        }`
+                      : "the notes and labels you've added"}{" "}
+                    on this session.
                   </p>
                 ) : null}
                 {recutError ? (
