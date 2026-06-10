@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { ChevronRight, Loader2, X } from "lucide-react";
 import {
   fetchCoachStudents,
   type CoachStudent,
@@ -131,14 +131,24 @@ export default function StudentRosterOverlay({
                         </span>
                       ) : null}
                     </span>
-                    {s.sessionCount != null ? (
-                      <span
-                        className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-medium text-foreground"
-                        title="Sessions sent for review"
-                      >
-                        {s.sessionCount} sent
-                      </span>
-                    ) : null}
+                    <span className="flex shrink-0 items-center gap-2">
+                      {s.sessionCount != null ? (
+                        <span
+                          className="rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-medium text-foreground"
+                          title="Sessions sent for review"
+                        >
+                          {s.sessionCount} sent
+                        </span>
+                      ) : null}
+                      {/* Drillable rows get a chevron, so a non-drillable row
+                          (BE sent no id) reads as static info, not a dead tap. */}
+                      {s.id ? (
+                        <ChevronRight
+                          className="h-4 w-4 text-muted-foreground"
+                          aria-hidden
+                        />
+                      ) : null}
+                    </span>
                   </button>
                 </li>
               );

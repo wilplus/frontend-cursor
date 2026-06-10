@@ -23,6 +23,17 @@ export interface CoachStudent {
   sessionCount?: number;
 }
 
+/** Coerce the first usable id from candidate fields: a non-empty string, or a
+ *  finite number stringified (some BE serializers send numeric ids). "" when
+ *  none → the row isn't drillable. */
+function coerceId(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 0) return c;
+    if (typeof c === "number" && Number.isFinite(c)) return String(c);
+  }
+  return "";
+}
+
 /** Map a BE row (snake_case) → CoachStudent. A missing pseudonym rejects the
  *  row (no identity = nothing to show); everything else defaults safely. */
 export function mapCoachStudent(raw: unknown): CoachStudent | null {
@@ -31,12 +42,8 @@ export function mapCoachStudent(raw: unknown): CoachStudent | null {
   const pseudonym = typeof r.pseudonym === "string" ? r.pseudonym : "";
   if (!pseudonym) return null;
   return {
-    id:
-      typeof r.user_id === "string"
-        ? r.user_id
-        : typeof r.id === "string"
-          ? r.id
-          : "",
+    // Drill-down key (E-1b). Prefer user_id, fall back to id; string OR number.
+    id: coerceId(r.user_id, r.id),
     pseudonym,
     domain: typeof r.domain === "string" ? r.domain : "",
     lastActive: typeof r.last_active === "string" ? r.last_active : "",
