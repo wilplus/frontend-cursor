@@ -4,17 +4,20 @@ import type { ReviewQueueRow } from "./reviewQueue";
 import { mapLibraryEntry } from "./library";
 import { mapCoachReviewSession } from "./coachReview";
 import { mapCoachStudent } from "./coachStudents";
+import { mapCoachStudentDetail } from "./coachStudentDetail";
 
 describe("mapCoachStudent (E3)", () => {
-  it("maps snake → camel, pseudonymized, with sessionCount", () => {
+  it("maps snake → camel, pseudonymized, with id + sessionCount", () => {
     expect(
       mapCoachStudent({
+        user_id: "u_123",
         pseudonym: "Playful Octopus",
         domain: "sales",
         last_active: "2026-06-08T00:00:00Z",
         session_count: 7,
       })
     ).toEqual({
+      id: "u_123",
       pseudonym: "Playful Octopus",
       domain: "sales",
       lastActive: "2026-06-08T00:00:00Z",
@@ -22,8 +25,9 @@ describe("mapCoachStudent (E3)", () => {
     });
   });
 
-  it("omits sessionCount when absent and defaults optionals", () => {
+  it("omits sessionCount when absent and defaults optionals (incl. empty id)", () => {
     const s = mapCoachStudent({ pseudonym: "Calm Otter" });
+    expect(s?.id).toBe("");
     expect(s?.pseudonym).toBe("Calm Otter");
     expect(s?.domain).toBe("");
     expect(s?.lastActive).toBe("");
@@ -33,6 +37,57 @@ describe("mapCoachStudent (E3)", () => {
   it("rejects a row with no pseudonym (no identity to show)", () => {
     expect(mapCoachStudent({ domain: "sales" })).toBeNull();
     expect(mapCoachStudent(null)).toBeNull();
+  });
+});
+
+describe("mapCoachStudentDetail (E-1b / S6)", () => {
+  it("maps the pseudonymized detail + session history", () => {
+    expect(
+      mapCoachStudentDetail({
+        pseudonym: "Playful Octopus",
+        domain: "sales",
+        goal: "close bigger deals",
+        sessions: [
+          {
+            session_id: "s1",
+            topic: "Q3 pitch",
+            created_at: "2026-06-01T00:00:00Z",
+            state: "done",
+          },
+        ],
+      })
+    ).toEqual({
+      pseudonym: "Playful Octopus",
+      domain: "sales",
+      goal: "close bigger deals",
+      sessions: [
+        {
+          sessionId: "s1",
+          topic: "Q3 pitch",
+          createdAt: "2026-06-01T00:00:00Z",
+          state: "done",
+        },
+      ],
+    });
+  });
+
+  it("defaults optionals + empties a missing session list", () => {
+    expect(mapCoachStudentDetail({ pseudonym: "Calm Otter" })).toEqual({
+      pseudonym: "Calm Otter",
+      domain: "",
+      goal: "",
+      sessions: [],
+    });
+  });
+
+  it("drops malformed sessions + rejects a row with no pseudonym", () => {
+    const d = mapCoachStudentDetail({
+      pseudonym: "P",
+      sessions: [{ topic: "no id" }, { session_id: "ok" }],
+    });
+    expect(d?.sessions.map((s) => s.sessionId)).toEqual(["ok"]);
+    expect(mapCoachStudentDetail({ domain: "sales" })).toBeNull();
+    expect(mapCoachStudentDetail(null)).toBeNull();
   });
 });
 

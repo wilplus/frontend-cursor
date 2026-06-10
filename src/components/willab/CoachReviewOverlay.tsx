@@ -7,6 +7,7 @@ import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
 import CoachVideoSlot from "./CoachVideoSlot";
 import { useBackDismiss } from "./useBackDismiss";
+import { recutSession } from "@/services/api/recutSession";
 import type { CoachSnippetState } from "@/services/api/coachReview";
 import {
   publishWillabSession,
@@ -60,7 +61,7 @@ export default function CoachReviewOverlay({
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
-  const { status, session } = useCoachReview(sessionId);
+  const { status, session, refresh } = useCoachReview(sessionId);
 
   // Local mirror of per-snippet state, seeded from the payload and updated
   // by each card's save echo. Used to derive the publish-floor status
@@ -83,6 +84,23 @@ export default function CoachReviewOverlay({
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
+
+  // E-2 — admin on-demand re-cut (re-run the segmenter on the stored audio).
+  const [recutting, setRecutting] = useState(false);
+  const [recutError, setRecutError] = useState<string | null>(null);
+
+  async function handleRecut() {
+    if (!session || recutting) return;
+    setRecutting(true);
+    setRecutError(null);
+    const result = await recutSession(session.sessionId);
+    if (result.ok) {
+      await refresh(); // pull the new snippets from the canonical read
+    } else {
+      setRecutError(result.message);
+    }
+    setRecutting(false);
+  }
 
   // Seed local state from the session payload on load.
   useEffect(() => {
@@ -233,6 +251,32 @@ export default function CoachReviewOverlay({
             </p>
           ) : (
             <>
+              {/* E-2 — admin on-demand re-cut: re-run the segmenter on this
+                  session's stored audio (no upload), then refresh to pull the
+                  new snippets. Coach convenience, not the PhD lab tool. */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-foreground">
+                    Re-cut snippets
+                  </p>
+                  <p className="text-[12px] text-muted-foreground">
+                    Re-run segmentation on the stored audio.
+                  </p>
+                  {recutError ? (
+                    <p className="mt-1 text-[12px] text-red-600">{recutError}</p>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRecut}
+                  disabled={recutting}
+                  className="shrink-0 rounded-full disabled:opacity-50"
+                >
+                  {recutting ? "Re-cutting…" : "Re-cut"}
+                </Button>
+              </div>
+
               {session.snippets.map((s, i) => (
                 <CoachSnippetReviewCard
                   key={s.id}
