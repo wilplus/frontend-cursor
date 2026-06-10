@@ -9,6 +9,9 @@
 /* -------------------------------------------------------------------------- */
 
 export interface CoachStudent {
+  /** Opaque user id for the drill-down (E-1b / S6 is keyed by it). NOT PII —
+   *  an id, not a name/email. Empty when the BE row omits it → not drillable. */
+  id: string;
   /** Stable per-user pseudonym (e.g. "Playful Octopus"). NEVER real name. */
   pseudonym: string;
   /** The user's profile domain enum key (public_speaking, sales, etc.). */
@@ -28,6 +31,12 @@ export function mapCoachStudent(raw: unknown): CoachStudent | null {
   const pseudonym = typeof r.pseudonym === "string" ? r.pseudonym : "";
   if (!pseudonym) return null;
   return {
+    id:
+      typeof r.user_id === "string"
+        ? r.user_id
+        : typeof r.id === "string"
+          ? r.id
+          : "",
     pseudonym,
     domain: typeof r.domain === "string" ? r.domain : "",
     lastActive: typeof r.last_active === "string" ? r.last_active : "",

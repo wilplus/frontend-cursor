@@ -433,7 +433,10 @@ export default function Lounge({
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
       {rosterOpen && (
-        <StudentRosterOverlay onClose={() => setRosterOpen(false)} />
+        <StudentRosterOverlay
+          onClose={() => setRosterOpen(false)}
+          onOpenReview={openReview}
+        />
       )}
       {reviewSessionId && (
         <CoachReviewOverlay
