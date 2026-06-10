@@ -78,10 +78,10 @@ export default function InsightsOverlay({
         ) : status === "error" || !data ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <p className="max-w-sm text-[15px] text-muted-foreground">
-              We couldn&apos;t load these insights just now — try again in a
+              We couldn&apos;t load these insights just now. Try again in a
               moment.
             </p>
-            <Button onClick={close} variant="outline" className="rounded-full px-6">
+            <Button onClick={onClose} variant="outline" className="rounded-full px-6">
               Back to Lounge
             </Button>
           </div>
