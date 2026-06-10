@@ -56,6 +56,9 @@ export default function StudentRosterOverlay({
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
   const [students, setStudents] = useState<CoachStudent[] | null>(null);
+  // E-1a (c) — true on a 403 (not on the coach allowlist), distinct from an
+  // authorized coach with an empty roster.
+  const [forbidden, setForbidden] = useState(false);
   // E-1b — the selected student for the drill-down (null = roster list).
   const [selected, setSelected] = useState<{
     id: string;
@@ -64,8 +67,10 @@ export default function StudentRosterOverlay({
 
   useEffect(() => {
     let active = true;
-    void fetchCoachStudents().then((s) => {
-      if (active) setStudents(s);
+    void fetchCoachStudents().then((r) => {
+      if (!active) return;
+      setStudents(r.students);
+      setForbidden(r.forbidden);
     });
     return () => {
       active = false;
@@ -93,6 +98,11 @@ export default function StudentRosterOverlay({
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : forbidden ? (
+          <p className="text-[15px] text-muted-foreground">
+            This account isn&apos;t set up as a coach yet. Ask an admin to add
+            you to the coach list.
+          </p>
         ) : students.length === 0 ? (
           <p className="text-[15px] text-muted-foreground">No students yet.</p>
         ) : (

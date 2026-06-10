@@ -88,6 +88,9 @@ export default function CoachReviewOverlay({
   // E-2 — admin on-demand re-cut (re-run the segmenter on the stored audio).
   const [recutting, setRecutting] = useState(false);
   const [recutError, setRecutError] = useState<string | null>(null);
+  // E-2 — re-cut mints NEW snippet ids and orphans any labels/notes already on
+  // the session, so a mid-review re-cut needs an explicit confirm.
+  const [confirmingRecut, setConfirmingRecut] = useState(false);
 
   async function handleRecut() {
     if (!session || recutting) return;
@@ -95,6 +98,7 @@ export default function CoachReviewOverlay({
     setRecutError(null);
     const result = await recutSession(session.sessionId);
     if (result.ok) {
+      setConfirmingRecut(false);
       await refresh(); // pull the new snippets from the canonical read
     } else {
       setRecutError(result.message);
@@ -126,6 +130,18 @@ export default function CoachReviewOverlay({
     ? session.snippets.some((s) => {
         const cs = localState[s.id] ?? s.coachState;
         return cs.surfaced && cs.note.trim() !== "" && cs.tag !== null;
+      })
+    : false;
+
+  // E-2 — any review work on this session yet (note / tag / direction label)?
+  // Re-cut would orphan it (new snippet ids), so we confirm first; a re-cut
+  // before any review is safe and goes straight through.
+  const hasReviewWork = session
+    ? session.snippets.some((s) => {
+        const cs = localState[s.id] ?? s.coachState;
+        return (
+          cs.note.trim() !== "" || cs.tag !== null || cs.directionLabel !== null
+        );
       })
     : false;
 
@@ -253,28 +269,61 @@ export default function CoachReviewOverlay({
             <>
               {/* E-2 — admin on-demand re-cut: re-run the segmenter on this
                   session's stored audio (no upload), then refresh to pull the
-                  new snippets. Coach convenience, not the PhD lab tool. */}
-              <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground">
-                    Re-cut snippets
-                  </p>
-                  <p className="text-[12px] text-muted-foreground">
-                    Re-run segmentation on the stored audio.
-                  </p>
-                  {recutError ? (
-                    <p className="mt-1 text-[12px] text-red-600">{recutError}</p>
-                  ) : null}
+                  new snippets. Re-cut mid-review orphans existing labels, so it
+                  confirms first when there's review work (safe otherwise). */}
+              <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-foreground">
+                      Re-cut snippets
+                    </p>
+                    <p className="text-[12px] text-muted-foreground">
+                      Re-run segmentation on the stored audio.
+                    </p>
+                  </div>
+                  {confirmingRecut ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setConfirmingRecut(false)}
+                        disabled={recutting}
+                        className="rounded-full disabled:opacity-50"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleRecut}
+                        disabled={recutting}
+                        className="rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {recutting ? "Re-cutting…" : "Re-cut anyway"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        hasReviewWork ? setConfirmingRecut(true) : handleRecut()
+                      }
+                      disabled={recutting}
+                      className="shrink-0 rounded-full disabled:opacity-50"
+                    >
+                      {recutting ? "Re-cutting…" : "Re-cut"}
+                    </Button>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleRecut}
-                  disabled={recutting}
-                  className="shrink-0 rounded-full disabled:opacity-50"
-                >
-                  {recutting ? "Re-cutting…" : "Re-cut"}
-                </Button>
+                {confirmingRecut ? (
+                  <p className="mt-2 text-[12px] text-red-600">
+                    This re-cuts the audio into new snippets and discards the
+                    notes and labels you&apos;ve already added to this session.
+                  </p>
+                ) : null}
+                {recutError ? (
+                  <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
+                ) : null}
               </div>
 
               {session.snippets.map((s, i) => (
