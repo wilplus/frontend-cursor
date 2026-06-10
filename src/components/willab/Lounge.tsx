@@ -299,7 +299,7 @@ export default function Lounge({
       <div
         ref={scrollRef}
         onScroll={handleThreadScroll}
-        className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1"
+        className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
       >
         {thread.hasMore && (
           <button
