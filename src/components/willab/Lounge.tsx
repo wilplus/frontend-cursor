@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Loader2, Send, Users } from "lucide-react";
+import { Loader2, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -21,12 +21,9 @@ import CoachReviewBubble from "./CoachReviewBubble";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import WillabInstallPrompt from "./WillabInstallPrompt";
 import {
-  postLessonPrompt,
-  wasOfferShown,
-  markOfferShown,
   CHIP_LABEL,
+  coerceSuggestedAction,
   type ChipAction,
-  type LoungePrompt,
 } from "./loungePrompts";
 
 /* -------------------------------------------------------------------------- */
@@ -87,9 +84,10 @@ export default function Lounge({
   const [historyOpen, setHistoryOpen] = useState(false);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
-  // U7/U9 — transient, FE-injected conversational prompts (with quick-reply
-  // chips) rendered at the foot of the thread. Not persisted (freeze-safe).
-  const [prompts, setPrompts] = useState<LoungePrompt[]>([]);
+  // B-1 — the single intent-driven quick-action button for the latest turn,
+  // from the BE's suggested_action (S1). null → no button. Transient: cleared
+  // on the next send / on tap. Not persisted (freeze-safe).
+  const [pendingAction, setPendingAction] = useState<ChipAction | null>(null);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -167,27 +165,12 @@ export default function Lounge({
     }
   }
 
-  // U7/U9 — push a conversational prompt to the foot of the thread, de-duped by id.
-  function pushPrompt(prompt: LoungePrompt): void {
-    setPrompts((prev) =>
-      prev.some((p) => p.id === prompt.id) ? prev : [...prev, prompt]
-    );
-  }
-
-  // B4/B5 — the post-feedback moment is closing the insights overlay. Fire the
-  // offer/prompt ONCE per coach-feedback'd session (offer-shown flag), gated by
-  // the max-2-negatives guard inside postLessonPrompt. null = not a coach lesson
-  // → no prompt. Outside this moment there is no proactive offer (the bot is
-  // "standing by"); the B3 "Will" intro is the empty-thread greeting.
-  function handleInsightsClose(toWorkOnCount: number | null): void {
-    const sid = activeInsight;
+  // Closing the insights overlay just returns to the thread. Wave-3 B-1 removed
+  // the post-feedback chip offer here; the proactive strong-sides offer now
+  // fires at the post-send moment (A-4 / B-2), and intent-driven buttons come
+  // from the BE's suggested_action (B-1).
+  function handleInsightsClose(): void {
     setActiveInsight(null);
-    if (sid === null || toWorkOnCount === null || wasOfferShown(sid)) return;
-    const prompt = postLessonPrompt(sid, toWorkOnCount);
-    if (prompt) {
-      markOfferShown(sid);
-      pushPrompt(prompt);
-    }
   }
 
   // Quick-reply chip → action. record_again starts a fresh recording; the other
@@ -220,9 +203,9 @@ export default function Lounge({
     setActiveInsight(initialInsightSessionId);
   }, [initialInsightSessionId]);
 
-  // B4 — the every-visit strong-sides/recordings offer is GONE. The bot only
-  // offers them in the post-feedback moment (handleInsightsClose), once per
-  // session; otherwise it stays quietly standing by. Free-text asks still work.
+  // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
+  // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays
+  // quietly standing by. Intent-driven buttons come from the BE (B-1).
 
   // Voice input has been removed from the Lounge (product call): only
   // the **official recording** holds the mic. Off-task chat is
@@ -239,7 +222,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, prompts.length]);
+  }, [messages.length, botThinking, pendingAction]);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -269,6 +252,7 @@ export default function Lounge({
     const q = draftText.trim();
     if (!q || botThinking) return;
     atBottomRef.current = true; // sending always scrolls to your own message
+    setPendingAction(null); // B-1 — a new question supersedes any prior suggestion
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     setDraftText("");
     await thread.append({ role: "user", kind: "text", body: q });
@@ -279,13 +263,16 @@ export default function Lounge({
       await thread.append({
         role: "bot",
         kind: "text",
-        body: answer || "I didn't quite catch that — mind putting it another way?",
+        body: answer || "I didn't quite catch that. Mind putting it another way?",
       });
+      // B-1 — render the one quick-action button the BE suggests for this turn
+      // (S1). undefined until BE-2 ships the field → null → no button.
+      setPendingAction(coerceSuggestedAction(resp.suggested_action));
     } catch {
       await thread.append({
         role: "bot",
         kind: "text",
-        body: "I'm having trouble reaching the lab right now — give it another try in a moment.",
+        body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
       });
     } finally {
       setBotThinking(false);
@@ -341,17 +328,27 @@ export default function Lounge({
           )
         )}
 
-        {/* U7/U9 — conversational prompts with quick-reply chips, at the foot
-            of the thread (transient, FE-injected, freeze-safe). */}
-        {prompts.map((p) => (
-          <ChipPrompt key={p.id} prompt={p} onChip={onChip} />
-        ))}
+        {/* A-4 / B-2 — the post-send beat (review_pending): a warm follow-up
+            offer + one proactive "review strong sides" button. The formal
+            "sent to your coach" record is the persisted completed-training
+            card (A-3) just above. Transient; clears when the state moves on. */}
+        {state === "review_pending" && (
+          <PostSendOffer onReviewStrongSides={() => onChip("strong_sides")} />
+        )}
 
-        {/* U5 — sent-confirmation as an in-thread bubble (was the top
-            review_pending StatusCard). Sits at the bottom of the thread, where
-            the user lands after sending (sticky via U1); transient — it clears
-            when state moves on (e.g. → insights_ready). */}
-        {state === "review_pending" && <SentConfirmationBubble />}
+        {/* B-1 — the single intent-driven action button, from the BE's
+            suggested_action for the latest turn (S1). One button, never a row;
+            renders under the reply; clears on tap / next send. */}
+        {pendingAction && !botThinking && (
+          <ActionButton
+            action={pendingAction}
+            onClick={() => {
+              const action = pendingAction;
+              setPendingAction(null);
+              onChip(action);
+            }}
+          />
+        )}
 
         {botThinking && <TypingDots />}
       </div>
@@ -384,9 +381,8 @@ export default function Lounge({
         Start official recording
       </Button>
 
-      {/* B4 — the standing strong-sides / recordings chip row is GONE; the bot
-          offers them only in the post-feedback moment (handleInsightsClose), so
-          the composer footer is just the CTA + input. */}
+      {/* Wave-3 — no standing chip row above the composer; quick actions are
+          single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
@@ -417,12 +413,7 @@ export default function Lounge({
       </form>
 
       {activeInsight && (
-        <InsightsOverlay
-          sessionId={activeInsight}
-          // U9 — on close the overlay reports the `to_work_on` count; the guard
-          // (max-2-negatives) lives in handleInsightsClose.
-          onClose={handleInsightsClose}
-        />
+        <InsightsOverlay sessionId={activeInsight} onClose={handleInsightsClose} />
       )}
       {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
       {rosterOpen && (
@@ -453,56 +444,54 @@ export default function Lounge({
   );
 }
 
-/** U7/U9 — a conversational bot prompt with optional quick-reply chips (an
- *  inbound bubble + a tappable chip row). Pure presentation; the chip action is
- *  resolved by the Lounge (onChip). No chips → just the warm text (U9 anchor). */
-function ChipPrompt({
-  prompt,
-  onChip,
+/** A-4 / B-2 — the post-send beat. Once the training is handed to the coach
+ *  (review_pending), a warm "that's it for today" line + one proactive button
+ *  to revisit past strong sides (B-2). Ordinary styling (not full-width).
+ *  Transient: rendered from review_pending state, not persisted, so it clears
+ *  when the state moves on. The formal "sent to your coach" record is the
+ *  persisted completed-training card (A-3) above it. */
+function PostSendOffer({
+  onReviewStrongSides,
 }: {
-  prompt: LoungePrompt;
-  onChip: (action: ChipAction) => void;
+  onReviewStrongSides: () => void;
 }) {
   return (
     <div className="mr-auto flex max-w-[85%] flex-col gap-2">
       <div className="rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
-        {prompt.text}
+        That&apos;s it for the practice today. Maybe you want to review your
+        previous strong sides and settle the neural pathways for your charismatic
+        performance?
       </div>
-      {prompt.chipActions.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {prompt.chipActions.map((action) => (
-            <button
-              key={action}
-              type="button"
-              onClick={() => onChip(action)}
-              className="rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
-            >
-              {CHIP_LABEL[action]}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <button
+        type="button"
+        onClick={onReviewStrongSides}
+        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+      >
+        {CHIP_LABEL.strong_sides}
+      </button>
     </div>
   );
 }
 
-/** U5 — the "training sent" acknowledgement, as an inbound thread bubble (was
- *  the top review_pending StatusCard). Same B6 / B12 copy, verbatim — no time
- *  number until the founder picks one. Rendered from review_pending state, not
- *  persisted, so it clears when the state moves on. */
-function SentConfirmationBubble() {
+/** B-1 — a single intent-driven quick-action button (from the BE's
+ *  suggested_action, S1), rendered under the bot's reply. One button, never a
+ *  row; pure presentation, the Lounge resolves the action (onChip). */
+function ActionButton({
+  action,
+  onClick,
+}: {
+  action: ChipAction;
+  onClick: () => void;
+}) {
   return (
-    <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm border border-primary/30 bg-primary/5 px-4 py-3">
-      <p className="flex items-center gap-1.5 text-[15px] font-medium text-foreground">
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden />
-        Good job! Training sent!
-      </p>
-      {/* B12 (founder decision 2 — time promise): no number yet. Swap this one
-          line when the founder picks "~Xh" / "within a day" / no-number. */}
-      <p className="mt-0.5 text-[12px] text-muted-foreground">
-        Your coach will take it from here — insights land here when they&apos;re
-        ready.
-      </p>
+    <div className="mr-auto flex max-w-[85%]">
+      <button
+        type="button"
+        onClick={onClick}
+        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+      >
+        {CHIP_LABEL[action]}
+      </button>
     </div>
   );
 }

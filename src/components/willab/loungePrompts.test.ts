@@ -1,26 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { postLessonPrompt } from "./loungePrompts";
+import { coerceSuggestedAction, CHIP_LABEL } from "./loungePrompts";
 
-describe("postLessonPrompt — U9 max-2-negatives guard", () => {
-  it("returns null when it wasn't a coach lesson", () => {
-    expect(postLessonPrompt("s", null)).toBeNull();
+describe("coerceSuggestedAction (B-1 / S1)", () => {
+  it("passes through the three known actions", () => {
+    expect(coerceSuggestedAction("strong_sides")).toBe("strong_sides");
+    expect(coerceSuggestedAction("recordings")).toBe("recordings");
+    expect(coerceSuggestedAction("record_again")).toBe("record_again");
   });
 
-  it("suppresses record-again when > 2 to_work_on → low-pressure anchor, no chips", () => {
-    const p = postLessonPrompt("s", 3);
-    expect(p?.id).toBe("anchor:s");
-    expect(p?.chipActions).toEqual([]);
+  it("returns null for absent / null / unknown (graceful degradation)", () => {
+    expect(coerceSuggestedAction(undefined)).toBeNull();
+    expect(coerceSuggestedAction(null)).toBeNull();
+    expect(coerceSuggestedAction("")).toBeNull();
+    expect(coerceSuggestedAction("explore")).toBeNull();
+    expect(coerceSuggestedAction(42)).toBeNull();
+    expect(coerceSuggestedAction({ action: "strong_sides" })).toBeNull();
   });
 
-  it("offers the complete-picture prompt + chips at and below the boundary (<= 2)", () => {
-    for (const n of [0, 1, 2]) {
-      const p = postLessonPrompt("s", n);
-      expect(p?.id).toBe("feedback:s");
-      expect(p?.chipActions).toEqual([
-        "strong_sides",
-        "recordings",
-        "record_again",
-      ]);
+  it("every action has a label", () => {
+    for (const a of ["strong_sides", "recordings", "record_again"] as const) {
+      expect(CHIP_LABEL[a]).toBeTruthy();
     }
   });
 });
