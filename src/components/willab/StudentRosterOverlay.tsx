@@ -6,6 +6,7 @@ import {
   fetchCoachStudents,
   type CoachStudent,
 } from "@/services/api/coachStudents";
+import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
 /*  StudentRosterOverlay — the coach's roster (E3)                             */
@@ -48,6 +49,8 @@ export default function StudentRosterOverlay({
 }: {
   onClose: () => void;
 }) {
+  // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
+  useBackDismiss(onClose);
   const [students, setStudents] = useState<CoachStudent[] | null>(null);
 
   useEffect(() => {

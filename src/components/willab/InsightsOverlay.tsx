@@ -9,6 +9,7 @@ import {
 } from "@/services/api/sessionReadout";
 import ReadoutCard from "./ReadoutCard";
 import AuditInsights from "./AuditInsights";
+import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
 /*  InsightsOverlay — the coach's read on a sent recording (§6)               */
@@ -30,6 +31,8 @@ export default function InsightsOverlay({
    *  A-4 / B-2, so close carries no payload.) */
   onClose: () => void;
 }) {
+  // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
+  useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [data, setData] = useState<SessionReadout | null>(null);
 
