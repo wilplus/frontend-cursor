@@ -1,5 +1,6 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
+import { type PresentationSlide } from "@/components/willab/presentation";
 
 /* -------------------------------------------------------------------------- */
 /*  labRecording — the Lab upload client (seam ③, §3.3)                        */
@@ -16,6 +17,12 @@ export interface LabUploadInput {
   audience?: string;
   targetLengthSeconds?: number | null;
   domainVocabulary?: string[];
+  /** Slide-deck context (§S): title/body per slide, rides as a JSON field. */
+  slides?: PresentationSlide[];
+  /** The BE-served PDF url linking the rendered deck; omitted = manual-only. */
+  presentationRef?: string | null;
+  /** Tap timeline — which slide was advanced to, at t_ms from record start. */
+  slideAdvances?: { index: number; tMs: number }[];
 }
 
 export type LabUploadResult =
@@ -38,6 +45,22 @@ export async function submitLabRecording(
   if (input.domainVocabulary && input.domainVocabulary.length > 0) {
     // A4: one field, JSON-array string (or CSV) — not repeated fields.
     form.append("domain_vocabulary", JSON.stringify(input.domainVocabulary));
+  }
+  // Slide-deck context (§S): slides JSON + the served-PDF ref + the tap
+  // timeline. All optional; the deck deepens the read, it's never required.
+  if (input.slides && input.slides.length > 0) {
+    form.append("slides", JSON.stringify(input.slides));
+  }
+  if (input.presentationRef) {
+    form.append("presentation_ref", input.presentationRef);
+  }
+  if (input.slideAdvances && input.slideAdvances.length > 0) {
+    form.append(
+      "slide_advances",
+      JSON.stringify(
+        input.slideAdvances.map((a) => ({ index: a.index, t_ms: a.tMs }))
+      )
+    );
   }
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
