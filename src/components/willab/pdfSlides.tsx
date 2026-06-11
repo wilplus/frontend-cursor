@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { bulletLines } from "./presentation";
 
 /* -------------------------------------------------------------------------- */
@@ -14,8 +15,7 @@ import { bulletLines } from "./presentation";
 /*  rendered deck is an enhancement over a guaranteed text floor.               */
 /* -------------------------------------------------------------------------- */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-type PdfDoc = any;
+type PdfDoc = PDFDocumentProxy;
 
 // One in-flight/loaded promise per url (the report renders many pages off one
 // doc). Failures are evicted so a later retry can re-attempt.
