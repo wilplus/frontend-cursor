@@ -1,24 +1,15 @@
+import { getAuthToken } from "@/lib/api/auth-client";
 import { type LabSessionContext } from "./LabOverlay";
 import { type PresentationSlide } from "./presentation";
 
 /* -------------------------------------------------------------------------- */
-/*  willabLastSetup — remember the last recording set-up (FE-local)            */
+/*  willabLastSetup — "Same as last time" prefill, sourced from the BE          */
 /*                                                                            */
-/*  Persists the just-submitted SessionContext so the next set-up can re-fill  */
-/*  it in one tap ("Same as last time"). localStorage only — freeze-safe, no   */
-/*  BE write. Defensive read; a malformed / absent blob → null.                */
+/*  GET /api/v2/user/last-setup → the user's most-recent session's intake       */
+/*  context (topic / audience / length / key words / slides / deck). BE-sourced  */
+/*  so it survives a cache clear and works cross-device. slide_advances is       */
+/*  deliberately omitted (the new run makes its own tap timeline).              */
 /* -------------------------------------------------------------------------- */
-
-const KEY = "willab.last_setup";
-
-export function saveLastSetup(ctx: LabSessionContext): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(ctx));
-  } catch {
-    /* swallow — private mode / quota */
-  }
-}
 
 function parseSlides(raw: unknown): PresentationSlide[] {
   if (!Array.isArray(raw)) return [];
@@ -30,28 +21,43 @@ function parseSlides(raw: unknown): PresentationSlide[] {
     }));
 }
 
-export function readLastSetup(): LabSessionContext | null {
-  if (typeof window === "undefined") return null;
+/** Map the /last-setup response → a re-fillable context, or null when there's
+ *  no prior session (`available: false`) or the payload is malformed. */
+export function mapLastSetup(raw: unknown): LabSessionContext | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (r.available !== true) return null;
+  if (typeof r.topic !== "string" || r.topic.trim() === "") return null;
+  return {
+    topic: r.topic,
+    audience: typeof r.audience === "string" ? r.audience : "",
+    target_length_seconds:
+      typeof r.target_length_seconds === "number"
+        ? r.target_length_seconds
+        : null,
+    domain_vocabulary: Array.isArray(r.domain_vocabulary)
+      ? r.domain_vocabulary.filter((x): x is string => typeof x === "string")
+      : [],
+    slides: parseSlides(r.slides),
+    presentationRef:
+      typeof r.presentation_ref === "string" ? r.presentation_ref : null,
+  };
+}
+
+/** Fetch the last set-up for "Same as last time". null = nothing to repeat
+ *  (guest, no prior session, or any failure → the button hides). */
+export async function fetchLastSetup(): Promise<LabSessionContext | null> {
+  const token = await getAuthToken();
+  if (!token) return null;
+  let res: Response;
   try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw) as Record<string, unknown>;
-    if (typeof v.topic !== "string" || v.topic.trim() === "") return null;
-    return {
-      topic: v.topic,
-      audience: typeof v.audience === "string" ? v.audience : "",
-      target_length_seconds:
-        typeof v.target_length_seconds === "number"
-          ? v.target_length_seconds
-          : null,
-      domain_vocabulary: Array.isArray(v.domain_vocabulary)
-        ? v.domain_vocabulary.filter((x): x is string => typeof x === "string")
-        : [],
-      slides: parseSlides(v.slides),
-      presentationRef:
-        typeof v.presentationRef === "string" ? v.presentationRef : null,
-    };
+    res = await fetch("/api/v2/user/last-setup", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
   } catch {
     return null;
   }
+  if (!res.ok) return null;
+  return mapLastSetup(await res.json().catch(() => null));
 }
