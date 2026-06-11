@@ -52,7 +52,7 @@ export async function extractPresentation(file: File): Promise<ExtractResult> {
   if (res.status === 415) {
     return {
       status: "error",
-      message: "That file type isn't supported. Use a .pptx or .pdf.",
+      message: "That file type isn't supported. Export your slides to PDF and upload that.",
     };
   }
   if (res.status === 422) {

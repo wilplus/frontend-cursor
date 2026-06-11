@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
+import { SlideRender } from "./pdfSlides";
 import type { ReadoutPayload, ReadoutSnippet } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -93,13 +94,20 @@ export default function ReadoutCard({
       <div className="flex flex-col gap-4">
         {showAll
           ? snippets.map((s, i) => (
-              <SnippetCard key={s.id || i} snippet={s} index={i} total={total} />
+              <SnippetCard
+                key={s.id || i}
+                snippet={s}
+                index={i}
+                total={total}
+                presentationRef={payload.presentationRef}
+              />
             ))
           : (
               <SnippetCard
                 snippet={snippets[cursor]}
                 index={cursor}
                 total={total}
+                presentationRef={payload.presentationRef}
               />
             )}
       </div>
@@ -164,10 +172,12 @@ function SnippetCard({
   snippet,
   index,
   total,
+  presentationRef,
 }: {
   snippet: ReadoutSnippet;
   index: number;
   total: number;
+  presentationRef: string | null;
 }) {
   const f = snippet.features;
   // Default collapsed (T5) — the card reads calm; the hero pair carries the
@@ -179,6 +189,18 @@ function SnippetCard({
       <span className="text-[12px] text-muted-foreground">
         Snippet {index + 1} of {total}
       </span>
+
+      {/* Slide on screen during this snippet (deck attached) — the rendered
+          PDF page or its text card, above the words; stickiness stays below. */}
+      {snippet.slide ? (
+        <SlideRender
+          presentationRef={presentationRef}
+          pageIndex={snippet.slide.index}
+          title={snippet.slide.title}
+          body={snippet.slide.body}
+          className="w-full"
+        />
+      ) : null}
 
       {/* What — audio + transcript. Mirrors AuditInsights's post-publish
           card so pre-judgment and post-publish read as the same anatomy,
