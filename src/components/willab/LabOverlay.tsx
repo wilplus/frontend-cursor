@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { readLastSetup, saveLastSetup } from "./willabLastSetup";
+import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
@@ -108,10 +108,18 @@ export default function LabOverlay({
 
   const profile = useRef(readWillabProfile()).current;
   const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
-  // "Same as last time" — the last submitted set-up (FE-local), re-fillable from
-  // the set-up header. applyLastNonce bumps to trigger the form to re-fill.
-  const [lastSetup] = useState(() => readLastSetup());
+  // "Same as last time" — the last set-up, sourced from the BE (cross-device,
+  // survives a cache clear); null → no prior session → the button hides.
+  // applyLastNonce bumps to trigger the form to re-fill.
+  const [lastSetup, setLastSetup] = useState<LabSessionContext | null>(null);
   const [applyLastNonce, setApplyLastNonce] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void fetchLastSetup().then((s) => active && setLastSetup(s));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
@@ -346,7 +354,6 @@ export default function LabOverlay({
             lastSetup={lastSetup}
             applyNonce={applyLastNonce}
             onSubmit={(ctx) => {
-              saveLastSetup(ctx);
               setContext(ctx);
               goTo("lab_prerecord");
             }}
