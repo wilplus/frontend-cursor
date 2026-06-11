@@ -5,6 +5,7 @@ import { ThumbsUp, AlertTriangle, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import SpeechDataPanel from "./SpeechDataPanel";
+import { SlideRender } from "./pdfSlides";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -107,6 +108,19 @@ export default function AuditInsights({ payload }: { payload: ReadoutPayload }) 
         )}
         {isStrong ? "Things to double down" : "What to avoid"}
       </div>
+
+      {/* Phase 2 — the slide on screen during this moment (when a deck was
+          attached): the rendered PDF page, or its text card. Above the words;
+          the coach comment stays below. */}
+      {s.slide ? (
+        <SlideRender
+          presentationRef={payload.presentationRef}
+          pageIndex={s.slide.index}
+          title={s.slide.title}
+          body={s.slide.body}
+          className="w-full"
+        />
+      ) : null}
 
       {/* What you said — audio + transcript (regular weight, generous
           line-height; the old multi-line italic was hard to read). */}

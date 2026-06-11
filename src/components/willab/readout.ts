@@ -41,6 +41,15 @@ export interface ReadoutCoach {
   examples: string[];
 }
 
+/** Phase 2 — the slide on screen during this snippet, mapped BE-side from the
+ *  tap timeline (greatest t_ms ≤ start_offset_ms). `index` → the PDF page;
+ *  title/body are the slide text (the text-card fallback). null = no deck. */
+export interface ReadoutSlide {
+  index: number;
+  title: string;
+  body: string;
+}
+
 export interface ReadoutSnippet {
   id: string;
   startOffsetMs: number;
@@ -50,6 +59,8 @@ export interface ReadoutSnippet {
   features: ReadoutFeatures;
   stickiness: ReadoutStickiness;
   coach: ReadoutCoach | null;
+  /** Phase 2 — the slide delivered during this snippet; null when no deck. */
+  slide: ReadoutSlide | null;
 }
 
 export interface ReadoutPayload {
@@ -63,6 +74,9 @@ export interface ReadoutPayload {
    *  null otherwise → hide-when-empty, same as overallMessage. A session
    *  published before the coach added a video won't carry one until re-publish. */
   videoRef: string | null;
+  /** Phase 2 — the session's served deck PDF (presentation_ref), used to render
+   *  the per-snippet slide page. null when no deck was attached. */
+  presentationRef: string | null;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -118,7 +132,18 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
       comment: typeof stick.comment === "string" ? stick.comment : null,
     },
     coach: mapCoach(r.coach),
+    slide: mapReadoutSlide(r.slide),
   };
+}
+
+/** Phase 2 — the slide delivered during this snippet (BE-mapped). Requires a
+ *  numeric index; title/body default to "". */
+function mapReadoutSlide(raw: unknown): ReadoutSlide | null {
+  if (!raw || typeof raw !== "object") return null;
+  const s = raw as Record<string, unknown>;
+  const index = num(s.index);
+  if (index === null) return null;
+  return { index, title: str(s.title), body: str(s.body) };
 }
 
 /** Map the post-publish coach block; null when absent or empty (pre-publish). */
@@ -152,7 +177,25 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
       typeof insights.video_ref === "string" && insights.video_ref.length > 0
         ? insights.video_ref
         : null,
+    presentationRef: pickPresentationRef(r, insights),
   };
+}
+
+/** Phase 2 — the session deck PDF. The BE may surface it top-level, under
+ *  insights_payload, or under session_context; read all three defensively. */
+function pickPresentationRef(
+  r: Record<string, unknown>,
+  insights: Record<string, unknown>
+): string | null {
+  const candidates = [
+    r.presentation_ref,
+    insights.presentation_ref,
+    obj(r.session_context).presentation_ref,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 0) return c;
+  }
+  return null;
 }
 
 /* ------------------------------- dev mock --------------------------------- */
@@ -186,10 +229,12 @@ export function mockReadout(topic: string): ReadoutPayload {
     },
     stickiness: { composite: 0.72, comment },
     coach: null,
+    slide: null,
   });
   return {
     overallMessage: null,
     videoRef: null,
+    presentationRef: null,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(
