@@ -57,6 +57,14 @@ type ThreadItem =
       sortKey: string;
       reactKey: string;
       row: ReviewQueueRow;
+    }
+  | {
+      // A-4 / B-2 — the post-send offer + audit-progress, anchored in the thread
+      // right after the completed-training card (not pinned to the foot), so new
+      // chat sorts below it.
+      kind: "postsend";
+      sortKey: string;
+      reactKey: string;
     };
 
 export default function Lounge({
@@ -136,9 +144,24 @@ export default function Lounge({
         });
       }
     }
+    // A-4 / B-2 — anchor the post-send offer right after the latest completed-
+    // training card (its timestamp + "~" sorts just after that card but before
+    // any later message), so chatting on doesn't push it to the foot.
+    if (state === "review_pending") {
+      const lastSummaryAt = messages
+        .filter((m) => m.kind === "recording_summary")
+        .map((m) => m.client_created_at)
+        .sort()
+        .pop();
+      items.push({
+        kind: "postsend",
+        sortKey: `${lastSummaryAt ?? ""}~`,
+        reactKey: "postsend",
+      });
+    }
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewQueue.rows]);
+  }, [messages, isCoach, reviewQueue.rows, state]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -321,26 +344,21 @@ export default function Lounge({
                   !baselineRef.current.has(item.message.client_id)
                 }
               />
-            ) : (
+            ) : item.kind === "review" ? (
               <CoachReviewBubble
                 key={item.reactKey}
                 row={item.row}
                 onOpen={openReview}
               />
+            ) : (
+              <div key={item.reactKey} className="flex flex-col gap-2">
+                <PostSendOffer
+                  onReviewStrongSides={() => onChip("strong_sides")}
+                />
+                <ProgressToAuditBubble onOpenAudit={() => setAuditOpen(true)} />
+              </div>
             )
           )
-        )}
-
-        {/* A-4 / B-2 — the post-send beat (review_pending): a warm follow-up
-            offer + one proactive "review strong sides" button, then the C-2
-            progress-to-first-audit bar. The formal "sent to your coach" record
-            is the persisted completed-training card (A-3) just above.
-            Transient; clears when the state moves on. */}
-        {state === "review_pending" && (
-          <>
-            <PostSendOffer onReviewStrongSides={() => onChip("strong_sides")} />
-            <ProgressToAuditBubble onOpenAudit={() => setAuditOpen(true)} />
-          </>
         )}
 
         {/* B-1 — the single intent-driven action button, from the BE's
