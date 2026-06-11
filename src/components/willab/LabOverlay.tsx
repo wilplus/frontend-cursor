@@ -10,7 +10,7 @@ import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
-import { fmtClock, liveWpm, parseVocabulary } from "./willabHelpers";
+import { fmtClock, parseVocabulary } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
@@ -296,47 +296,29 @@ export default function LabOverlay({
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      {/* §4 training-zone chrome. The set-up step is a clean X-only header
-          (design spec); the recording/readout steps keep the status line. */}
-      {state === "lab_session_context" ? (
-        <header className="flex h-12 shrink-0 items-center justify-between px-4">
-          {/* Top-left: re-fill the whole set-up from last time (only when there
-              is a saved set-up). Right: close. */}
-          {lastSetup ? (
-            <button
-              type="button"
-              onClick={() => setApplyLastNonce((n) => n + 1)}
-              className="inline-flex h-9 items-center rounded-full px-3 text-[14px] text-foreground/70 transition hover:bg-muted"
-            >
-              Same as last time
-            </button>
-          ) : (
-            <span />
-          )}
+      {/* Unified X-only header: no status title on any step; the set-up step
+          also gets the "Same as last time" re-fill on the left. */}
+      <header className="flex h-12 shrink-0 items-center justify-between px-4">
+        {state === "lab_session_context" && lastSetup ? (
           <button
             type="button"
-            onClick={handleClose}
-            aria-label="Close"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-muted"
+            onClick={() => setApplyLastNonce((n) => n + 1)}
+            className="inline-flex h-9 items-center rounded-full px-3 text-[14px] text-foreground/70 transition hover:bg-muted"
           >
-            <X className="h-5 w-5" />
+            Same as last time
           </button>
-        </header>
-      ) : (
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-[13px] font-semibold text-foreground">
-            Official recording · not yet sent
-          </span>
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Close the Lab"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={handleClose}
+          aria-label="Close"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-muted"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {state === "lab_feelings" && (
@@ -408,7 +390,6 @@ export default function LabOverlay({
               }
             }
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
-            onExplain={parkReadout}
           />
         )}
 
@@ -699,10 +680,6 @@ function RecordingPhase({
 
   const reachedMin = elapsed >= MIN_RECORDING_SEC;
   const remaining = Math.max(0, Math.ceil(MIN_RECORDING_SEC - elapsed));
-  // U8 — live wpm from the interim transcript (null when Web Speech yields none).
-  const partialText =
-    micState.status === "recording" ? micState.partialText : "";
-  const wpm = liveWpm(partialText, elapsed);
   const hasDeck = slides.length > 0;
   return (
     <div
@@ -731,13 +708,6 @@ function RecordingPhase({
         <p className="text-[40px] font-semibold tabular-nums text-foreground">
           {fmtClock(elapsed)}
         </p>
-        {/* U8 — live words-per-minute from the interim transcript; hidden when
-            Web Speech yields no transcript (unavailable) rather than showing 0. */}
-        {wpm != null ? (
-          <p className="text-[12px] tabular-nums text-muted-foreground">
-            ≈ {wpm} wpm
-          </p>
-        ) : null}
       </div>
       <p className="text-[12px] text-muted-foreground">
         {reachedMin
