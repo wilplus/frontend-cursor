@@ -20,6 +20,13 @@ import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
 import { markFirstRecordingOnboarded, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
+import PresentationInput from "./PresentationInput";
+import SlideStage from "./SlideStage";
+import {
+  initialSlides,
+  nonEmptySlides,
+  type PresentationSlide,
+} from "./presentation";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -43,6 +50,10 @@ export interface LabSessionContext {
   audience: string;
   target_length_seconds: number | null;
   domain_vocabulary: string[];
+  /** Slide-deck context (§S) — the user's deck; optional. */
+  slides: PresentationSlide[];
+  /** The BE-served PDF url when a deck was uploaded; null for manual / none. */
+  presentationRef: string | null;
 }
 
 /** §4 min-content gate (client pre-check; BE ③ is authoritative for has-speech). */
@@ -75,6 +86,12 @@ export default function LabOverlay({
   const [context, setContext] = useState<LabSessionContext | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  // In-Lab presenter (T8): which slide is up + the tap timeline captured during
+  // recording. Each entry is a real timestamp of a user tap (mechanical, never
+  // voice-driven); the BE maps snippet → slide from it (greatest t_ms ≤ start).
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const slideAdvancesRef = useRef<{ index: number; tMs: number }[]>([]);
+  const recordStartRef = useRef(0);
   const { append: appendToThread } = useLoungeThreadCtx();
   const reportedRef = useRef(false);
 
@@ -96,6 +113,10 @@ export default function LabOverlay({
     const s = mic.state;
     if (s.status === "recording" && state === "lab_prerecord") {
       reportedRef.current = false; // fresh recording → allow a new history entry
+      // T8 — start the slide timeline: slide 0 is on screen at t=0.
+      recordStartRef.current = performance.now();
+      setCurrentSlide(0);
+      slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
       goTo("lab_recording");
     }
     if (
@@ -126,6 +147,9 @@ export default function LabOverlay({
         audience: context.audience || undefined,
         targetLengthSeconds: context.target_length_seconds,
         domainVocabulary: context.domain_vocabulary,
+        slides: context.slides,
+        presentationRef: context.presentationRef,
+        slideAdvances: slideAdvancesRef.current,
       });
       if (!active) return;
       if (result.kind === "ok") {
@@ -174,6 +198,8 @@ export default function LabOverlay({
           audience: "",
           target_length_seconds: null,
           domain_vocabulary: [],
+          slides: [],
+          presentationRef: null,
         });
         reportedRef.current = true;
       }
@@ -220,6 +246,23 @@ export default function LabOverlay({
       setPendingSend(labSessionId);
     }
     router.push("/signup");
+  }
+
+  // T8 — advance the deck during recording, logging the tap timeline. Any change
+  // (forward or back) is a real "what's on screen now" event with its timestamp.
+  function advanceSlide(dir: 1 | -1) {
+    const total = context?.slides.length ?? 0;
+    if (total === 0) return;
+    setCurrentSlide((c) => {
+      const next = Math.min(Math.max(c + dir, 0), total - 1);
+      if (next !== c) {
+        slideAdvancesRef.current.push({
+          index: next,
+          tMs: Math.round(performance.now() - recordStartRef.current),
+        });
+      }
+      return next;
+    });
   }
 
   function handleClose() {
@@ -294,6 +337,10 @@ export default function LabOverlay({
             elapsed={elapsed}
             onStop={() => void mic.stop()}
             onRecordAgain={() => void mic.start()}
+            slides={context?.slides ?? []}
+            presentationRef={context?.presentationRef ?? null}
+            currentSlide={currentSlide}
+            onAdvance={advanceSlide}
           />
         )}
 
@@ -350,6 +397,8 @@ function SessionContextForm({
   const [audience, setAudience] = useState("");
   const [lengthSec, setLengthSec] = useState<number | null>(null);
   const [vocab, setVocab] = useState(seededVocab.join(", "));
+  const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
+  const [presentationRef, setPresentationRef] = useState<string | null>(null);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -360,6 +409,8 @@ function SessionContextForm({
       audience: audience.trim(),
       target_length_seconds: lengthSec,
       domain_vocabulary: parseVocabulary(vocab),
+      slides: nonEmptySlides(slides),
+      presentationRef,
     });
   }
 
@@ -440,6 +491,15 @@ function SessionContextForm({
         />
       </label>
 
+      <PresentationInput
+        slides={slides}
+        presentationRef={presentationRef}
+        onChange={(s, ref) => {
+          setSlides(s);
+          setPresentationRef(ref);
+        }}
+      />
+
       <div className="mt-auto">
         <Button
           type="submit"
@@ -514,11 +574,19 @@ function RecordingPhase({
   elapsed,
   onStop,
   onRecordAgain,
+  slides,
+  presentationRef,
+  currentSlide,
+  onAdvance,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
   onStop: () => void;
   onRecordAgain: () => void;
+  slides: PresentationSlide[];
+  presentationRef: string | null;
+  currentSlide: number;
+  onAdvance: (dir: 1 | -1) => void;
 }) {
   // Too-short re-record prompt (min-content gate).
   if (micState.status === "stopped" && micState.durationSec < MIN_RECORDING_SEC) {
@@ -557,8 +625,25 @@ function RecordingPhase({
   const partialText =
     micState.status === "recording" ? micState.partialText : "";
   const wpm = liveWpm(partialText, elapsed);
+  const hasDeck = slides.length > 0;
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+    <div
+      className={`flex flex-1 flex-col items-center gap-6 text-center ${
+        hasDeck ? "justify-start pt-1" : "justify-center"
+      }`}
+    >
+      {/* T9 — the deck during recording: the user taps to advance while they
+          speak (manual). Only shown when a deck was attached. */}
+      {hasDeck ? (
+        <SlideStage
+          slides={slides}
+          presentationRef={presentationRef}
+          current={currentSlide}
+          onNext={() => onAdvance(1)}
+          onPrev={() => onAdvance(-1)}
+        />
+      ) : null}
+
       <div className="flex items-center gap-2 text-destructive">
         <span className="h-3 w-3 animate-pulse rounded-full bg-destructive" />
         <span className="text-[13px] font-medium">Recording</span>
@@ -578,8 +663,8 @@ function RecordingPhase({
       </div>
       <p className="text-[12px] text-muted-foreground">
         {reachedMin
-          ? "Minimum reached — stop whenever you're ready."
-          : `Keep going — ${fmtClock(remaining)} until you can stop.`}
+          ? "Minimum reached. Stop whenever you're ready."
+          : `Keep going, ${fmtClock(remaining)} until you can stop.`}
       </p>
 
       {/* U11 — the stop control is LOCKED until the minimum is reached, so a
@@ -593,7 +678,7 @@ function RecordingPhase({
         aria-label={
           reachedMin
             ? "Stop recording"
-            : `Keep recording — ${fmtClock(remaining)} until you can stop`
+            : `Keep recording, ${fmtClock(remaining)} until you can stop`
         }
         className={`flex h-20 w-20 items-center justify-center rounded-full border-2 transition-transform ${
           reachedMin

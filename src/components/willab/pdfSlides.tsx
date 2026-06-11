@@ -1,0 +1,193 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { bulletLines } from "./presentation";
+
+/* -------------------------------------------------------------------------- */
+/*  pdfSlides — client-only rendering of the deck (T0)                          */
+/*                                                                            */
+/*  The FE renders the BE-served PDF (presentation_ref) via PDF.js — page index */
+/*  = slide index. It NEVER parses the raw upload (the BE converts pptx/pdf →    */
+/*  one PDF). pdfjs is imported dynamically (client-only, never SSR'd → no node  */
+/*  `canvas` bundling) and its worker is pinned to the installed version via     */
+/*  unpkg. ANY failure (CORS, network, corrupt) degrades to the text card: the   */
+/*  rendered deck is an enhancement over a guaranteed text floor.               */
+/* -------------------------------------------------------------------------- */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type PdfDoc = any;
+
+// One in-flight/loaded promise per url (the report renders many pages off one
+// doc). Failures are evicted so a later retry can re-attempt.
+const docCache = new Map<string, Promise<PdfDoc>>();
+
+function loadPdf(url: string): Promise<PdfDoc> {
+  let p = docCache.get(url);
+  if (!p) {
+    p = (async () => {
+      const pdfjs = await import("pdfjs-dist");
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      return pdfjs.getDocument({ url }).promise;
+    })();
+    docCache.set(url, p);
+    void p.catch(() => docCache.delete(url));
+  }
+  return p;
+}
+
+function usePdfDocument(url: string | null): {
+  doc: PdfDoc | null;
+  status: "loading" | "ready" | "error";
+} {
+  const [state, setState] = useState<{
+    doc: PdfDoc | null;
+    status: "loading" | "ready" | "error";
+  }>({ doc: null, status: url ? "loading" : "error" });
+
+  useEffect(() => {
+    if (!url) {
+      setState({ doc: null, status: "error" });
+      return;
+    }
+    let active = true;
+    setState({ doc: null, status: "loading" });
+    loadPdf(url).then(
+      (doc) => active && setState({ doc, status: "ready" }),
+      () => active && setState({ doc: null, status: "error" })
+    );
+    return () => {
+      active = false;
+    };
+  }, [url]);
+
+  return state;
+}
+
+/** Render one PDF page (0-based `pageIndex`) to a canvas scaled to the container
+ *  width. Calls `onError` on any failure so the parent falls back to text. */
+export function PdfPage({
+  url,
+  pageIndex,
+  onError,
+  className,
+}: {
+  url: string;
+  pageIndex: number;
+  onError: () => void;
+  className?: string;
+}) {
+  const { doc, status } = usePdfDocument(url);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    if (status === "error") onError();
+  }, [status, onError]);
+
+  useEffect(() => {
+    if (status !== "ready" || !doc) return;
+    let cancelled = false;
+    setRendered(false);
+    void (async () => {
+      try {
+        const pageNum = Math.min(Math.max(pageIndex + 1, 1), doc.numPages || 1);
+        const page = await doc.getPage(pageNum);
+        const canvas = canvasRef.current;
+        const wrap = wrapRef.current;
+        if (!canvas || !wrap || cancelled) return;
+        const base = page.getViewport({ scale: 1 });
+        const targetW = wrap.clientWidth || 320;
+        const viewport = page.getViewport({ scale: targetW / base.width });
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if (!cancelled) setRendered(true);
+      } catch {
+        if (!cancelled) onError();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, doc, pageIndex, onError]);
+
+  return (
+    <div ref={wrapRef} className={className}>
+      {!rendered ? (
+        <div className="flex h-full w-full items-center justify-center text-[12px] text-muted-foreground">
+          Loading slide…
+        </div>
+      ) : null}
+      <canvas
+        ref={canvasRef}
+        className={`mx-auto h-auto max-w-full rounded-lg ${rendered ? "" : "hidden"}`}
+      />
+    </div>
+  );
+}
+
+/** Text-card slide: title + newline bullets. The manual path AND the PDF
+ *  fallback — so the deck always has a text floor. */
+export function TextSlide({ title, body }: { title: string; body: string }) {
+  const bullets = bulletLines(body);
+  const blank = title.trim() === "" && bullets.length === 0;
+  return (
+    <div className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-card p-5">
+      {title ? (
+        <p className="text-[18px] font-semibold leading-snug text-foreground">
+          {title}
+        </p>
+      ) : null}
+      {bullets.length > 0 ? (
+        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-relaxed text-foreground">
+          {bullets.map((b, i) => (
+            <li key={`${i}-${b.slice(0, 12)}`}>{b}</li>
+          ))}
+        </ul>
+      ) : null}
+      {blank ? (
+        <p className="m-auto text-[13px] text-muted-foreground">Blank slide</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** What a viewer shows for one slide: the rendered PDF page when a deck PDF is
+ *  present (and renders), otherwise the text card. PDF failure → text. */
+export function SlideRender({
+  presentationRef,
+  pageIndex,
+  title,
+  body,
+  className,
+}: {
+  presentationRef: string | null;
+  pageIndex: number;
+  title: string;
+  body: string;
+  className?: string;
+}) {
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const handleError = useCallback(() => setPdfFailed(true), []);
+  // A new deck source gets a fresh chance to render.
+  useEffect(() => setPdfFailed(false), [presentationRef]);
+
+  if (presentationRef && !pdfFailed) {
+    return (
+      <PdfPage
+        url={presentationRef}
+        pageIndex={pageIndex}
+        onError={handleError}
+        className={className}
+      />
+    );
+  }
+  return (
+    <div className={className}>
+      <TextSlide title={title} body={body} />
+    </div>
+  );
+}

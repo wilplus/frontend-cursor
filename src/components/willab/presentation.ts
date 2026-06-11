@@ -1,0 +1,114 @@
+/* -------------------------------------------------------------------------- */
+/*  presentation — slide-deck context (what the slide CLAIMED)                  */
+/*                                                                            */
+/*  Per-session deck: each slide is { title, body } with body a single string  */
+/*  (newlines = bullets, the BE-canonical wire shape). Typed manually or auto-  */
+/*  extracted from an uploaded PPTX/PDF (the BE converts the file to ONE served  */
+/*  PDF + returns the per-slide text). The deck rides the recording multipart   */
+/*  so the analysis can judge spoken delivery against the slide's promise. It's  */
+/*  the user's own input — echoed back, never a verdict. Optional throughout.   */
+/* -------------------------------------------------------------------------- */
+
+export interface PresentationSlide {
+  title: string;
+  /** Body as one string; newlines are bullet breaks (wire contract: body:string). */
+  body: string;
+}
+
+/** BE-enforced caps; the FE mirrors them as the first line (BE is the backstop). */
+export const SLIDE_CAPS = {
+  maxSlides: 60,
+  maxTitle: 200,
+  maxBody: 2000,
+  maxFileBytes: 20 * 1024 * 1024,
+} as const;
+
+export const ACCEPTED_DECK_EXTENSIONS = [".pptx", ".pdf"] as const;
+/** `accept` attribute for the file input (extensions + MIME types). */
+export const ACCEPTED_DECK_ACCEPT =
+  ".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf";
+
+export function emptySlide(): PresentationSlide {
+  return { title: "", body: "" };
+}
+
+/** The manual form opens with 5 empty slide blocks (founder spec). */
+export function initialSlides(): PresentationSlide[] {
+  return Array.from({ length: 5 }, emptySlide);
+}
+
+function clampSlide(s: PresentationSlide): PresentationSlide {
+  return {
+    title: s.title.slice(0, SLIDE_CAPS.maxTitle),
+    body: s.body.slice(0, SLIDE_CAPS.maxBody),
+  };
+}
+
+/** Drop rows blank in BOTH title and body, clamp to caps, cap the count. The
+ *  submit-boundary filter — empty trailing blocks never reach the wire. */
+export function nonEmptySlides(slides: PresentationSlide[]): PresentationSlide[] {
+  return slides
+    .filter((s) => s.title.trim() !== "" || s.body.trim() !== "")
+    .slice(0, SLIDE_CAPS.maxSlides)
+    .map(clampSlide);
+}
+
+/** Render-only: split a body string into bullet lines (blank lines dropped). */
+export function bulletLines(body: string): string[] {
+  return body
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+}
+
+/** Pre-upload guard. Returns a user-facing message, or null when the file is OK. */
+export function deckFileError(file: File): string | null {
+  const name = file.name.toLowerCase();
+  if (!ACCEPTED_DECK_EXTENSIONS.some((e) => name.endsWith(e))) {
+    return "Upload a .pptx or .pdf file.";
+  }
+  if (file.size > SLIDE_CAPS.maxFileBytes) {
+    return "That file is over 20 MB. Try a smaller export.";
+  }
+  return null;
+}
+
+/* ------------------------- parse-response mapping ------------------------- */
+
+export interface ExtractedDeck {
+  /** The BE-served PDF url (public, browser-fetchable). null = no file. */
+  presentationRef: string | null;
+  slides: PresentationSlide[];
+  warnings: string[];
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+export function mapSlide(raw: unknown): PresentationSlide | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const slide = clampSlide({ title: str(r.title), body: str(r.body) });
+  if (slide.title.trim() === "" && slide.body.trim() === "") return null;
+  return slide;
+}
+
+/** Map the `POST /v2/lab/presentation/extract` response defensively. */
+export function mapExtractedDeck(raw: unknown): ExtractedDeck {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const slides = Array.isArray(r.slides)
+    ? r.slides
+        .map(mapSlide)
+        .filter((s): s is PresentationSlide => s !== null)
+        .slice(0, SLIDE_CAPS.maxSlides)
+    : [];
+  const warnings = Array.isArray(r.warnings)
+    ? r.warnings.filter((w): w is string => typeof w === "string")
+    : [];
+  const ref =
+    typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
+      ? r.presentation_ref
+      : null;
+  return { presentationRef: ref, slides, warnings };
+}
