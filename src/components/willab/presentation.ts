@@ -23,10 +23,11 @@ export const SLIDE_CAPS = {
   maxFileBytes: 20 * 1024 * 1024,
 } as const;
 
-export const ACCEPTED_DECK_EXTENSIONS = [".pptx", ".pdf"] as const;
-/** `accept` attribute for the file input (extensions + MIME types). */
-export const ACCEPTED_DECK_ACCEPT =
-  ".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf";
+// PDF only for now: the BE doesn't convert decks; PPTX returns a 415 ("export
+// to PDF"). Narrowed so the picker never offers a dead-end type.
+export const ACCEPTED_DECK_EXTENSIONS = [".pdf"] as const;
+/** `accept` attribute for the file input (extension + MIME type). */
+export const ACCEPTED_DECK_ACCEPT = ".pdf,application/pdf";
 
 export function emptySlide(): PresentationSlide {
   return { title: "", body: "" };
@@ -65,7 +66,7 @@ export function bulletLines(body: string): string[] {
 export function deckFileError(file: File): string | null {
   const name = file.name.toLowerCase();
   if (!ACCEPTED_DECK_EXTENSIONS.some((e) => name.endsWith(e))) {
-    return "Upload a .pptx or .pdf file.";
+    return "Upload a PDF. Export your slides to PDF first if they aren't already.";
   }
   if (file.size > SLIDE_CAPS.maxFileBytes) {
     return "That file is over 20 MB. Try a smaller export.";
