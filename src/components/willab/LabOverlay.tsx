@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
@@ -106,7 +107,6 @@ export default function LabOverlay({
 
   const profile = useRef(readWillabProfile()).current;
   const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
-  const goal = profile?.goal ?? "";
 
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
@@ -283,20 +283,34 @@ export default function LabOverlay({
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      {/* §4 training-zone chrome */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <span className="text-[13px] font-semibold text-foreground">
-          Official recording · not yet sent
-        </span>
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label="Close the Lab"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+      {/* §4 training-zone chrome. The set-up step is a clean X-only header
+          (design spec); the recording/readout steps keep the status line. */}
+      {state === "lab_session_context" ? (
+        <header className="flex h-12 shrink-0 items-center justify-end px-4">
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-muted"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+      ) : (
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+          <span className="text-[13px] font-semibold text-foreground">
+            Official recording · not yet sent
+          </span>
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close the Lab"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {state === "lab_feelings" && (
@@ -310,7 +324,6 @@ export default function LabOverlay({
 
         {state === "lab_session_context" && (
           <SessionContextForm
-            goal={goal}
             seededVocab={seededVocab}
             onSubmit={(ctx) => {
               setContext(ctx);
@@ -391,12 +404,37 @@ export default function LabOverlay({
 
 /* --------------------------- §4 step A: context --------------------------- */
 
+/** Setup-page input — one shared style (design spec). */
+const SETUP_INPUT_CLS =
+  "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
+
+/** A labelled setup section. One label style throughout; no badges / hints. */
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="py-4">
+      <label
+        htmlFor={htmlFor}
+        className="mb-3 block text-[15px] font-semibold text-foreground"
+      >
+        {label}
+      </label>
+      {children}
+    </section>
+  );
+}
+
 function SessionContextForm({
-  goal,
   seededVocab,
   onSubmit,
 }: {
-  goal: string;
   seededVocab: string[];
   onSubmit: (ctx: LabSessionContext) => void;
 }) {
@@ -422,99 +460,88 @@ function SessionContextForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-1 flex-col gap-5">
-      <div>
-        <h2 className="text-[17px] font-semibold text-foreground">
-          Set up your recording
-        </h2>
-        {goal ? (
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            Your goal: {goal}
-          </p>
-        ) : null}
+    <form onSubmit={submit}>
+      {/* pb clears the fixed CTA */}
+      <div className="pb-24">
+        <Field label="What are you speaking on?" htmlFor="topic">
+          <input
+            id="topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="e.g. my Q3 results pitch"
+            className={SETUP_INPUT_CLS}
+            autoFocus
+          />
+        </Field>
+
+        <Field label="Audience" htmlFor="aud">
+          <input
+            id="aud"
+            value={audience}
+            onChange={(e) => setAudience(e.target.value)}
+            placeholder="e.g. the leadership team"
+            className={SETUP_INPUT_CLS}
+          />
+        </Field>
+
+        <Field label="Target length">
+          <div className="flex flex-wrap gap-2">
+            {LENGTH_PRESETS.map((p) => {
+              const active = lengthSec === p.sec;
+              return (
+                <button
+                  key={p.sec}
+                  type="button"
+                  onClick={() => setLengthSec(active ? null : p.sec)}
+                  aria-pressed={active}
+                  className={cn(
+                    "h-10 rounded-full border px-4 text-[14px] transition active:scale-[0.98]",
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-foreground hover:bg-muted"
+                  )}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="Key words" htmlFor="words">
+          <input
+            id="words"
+            value={vocab}
+            onChange={(e) => setVocab(e.target.value)}
+            placeholder="Words that help transcription accuracy"
+            className={SETUP_INPUT_CLS}
+          />
+        </Field>
+
+        <Field label="Your slides">
+          <PresentationInput
+            slides={slides}
+            presentationRef={presentationRef}
+            onChange={(s, ref) => {
+              setSlides(s);
+              setPresentationRef(ref);
+            }}
+          />
+        </Field>
       </div>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-foreground">
-          What are you speaking on? <span className="text-primary">*</span>
-        </span>
-        <input
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="e.g. my Q3 results pitch"
-          className="rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
-          autoFocus
-        />
-      </label>
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-foreground">
-          Audience <span className="text-muted-foreground">(optional)</span>
-        </span>
-        <input
-          value={audience}
-          onChange={(e) => setAudience(e.target.value)}
-          placeholder="e.g. the leadership team"
-          className="rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
-        />
-      </label>
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-foreground">
-          Target length <span className="text-muted-foreground">(optional)</span>
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {LENGTH_PRESETS.map((p) => {
-            const active = lengthSec === p.sec;
-            return (
-              <button
-                key={p.sec}
-                type="button"
-                onClick={() => setLengthSec(active ? null : p.sec)}
-                aria-pressed={active}
-                className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:border-primary/50"
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
+      {/* Sticky CTA (design spec) — disabled until there's a topic. */}
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div className="mx-auto max-w-2xl px-5 py-3">
+          <button
+            type="submit"
+            disabled={!topic.trim()}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-medium text-background transition hover:bg-foreground/90 active:scale-[0.99] disabled:opacity-40"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            Start recording
+          </button>
         </div>
-      </div>
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-foreground">
-          Words we should expect{" "}
-          <span className="text-muted-foreground">(helps transcription)</span>
-        </span>
-        <input
-          value={vocab}
-          onChange={(e) => setVocab(e.target.value)}
-          placeholder="comma-separated terms"
-          className="rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
-        />
-      </label>
-
-      <PresentationInput
-        slides={slides}
-        presentationRef={presentationRef}
-        onChange={(s, ref) => {
-          setSlides(s);
-          setPresentationRef(ref);
-        }}
-      />
-
-      <div className="mt-auto">
-        <Button
-          type="submit"
-          disabled={!topic.trim()}
-          className="w-full rounded-full"
-        >
-          Continue
-        </Button>
       </div>
     </form>
   );
