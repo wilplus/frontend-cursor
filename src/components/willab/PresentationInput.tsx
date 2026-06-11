@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Upload, X } from "lucide-react";
 import { extractPresentation } from "@/services/api/presentationExtract";
 import {
   ACCEPTED_DECK_ACCEPT,
@@ -14,11 +13,15 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  PresentationInput — capture the deck in the recording setup (T4)            */
 /*                                                                            */
-/*  Two ways into one `slides[]`: upload a .pptx/.pdf (the BE parses → fills    */
-/*  the blocks + attaches the served PDF via presentationRef) OR type the       */
-/*  slides by hand (opens with 5 blocks). Fully optional; a failed upload       */
-/*  degrades to manual entry. Controlled — the parent owns slides+ref.          */
+/*  Rendered inside the setup page's "Your slides" Field (the label lives in    */
+/*  the Field). Upload a PDF (the BE parses → fills the blocks + attaches the    */
+/*  served PDF via presentationRef) OR type the slides by hand (opens with 5     */
+/*  blocks). Optional; a failed upload degrades to manual entry. Controlled —    */
+/*  the parent owns slides + ref.                                               */
 /* -------------------------------------------------------------------------- */
+
+const CARD_INPUT_CLS =
+  "w-full rounded-lg border border-border bg-background px-3.5 text-[14px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
 
 export default function PresentationInput({
   slides,
@@ -66,8 +69,7 @@ export default function PresentationInput({
     setWarnings([]);
     const result = await extractPresentation(file);
     if (result.status === "ok") {
-      const next =
-        result.deck.slides.length > 0 ? result.deck.slides : slides;
+      const next = result.deck.slides.length > 0 ? result.deck.slides : slides;
       onChange(next, result.deck.presentationRef);
       setWarnings(result.deck.warnings);
       setUploadState("idle");
@@ -78,18 +80,10 @@ export default function PresentationInput({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <span className="text-[13px] font-medium text-foreground">
-          Your slides{" "}
-          <span className="text-muted-foreground">(optional)</span>
-        </span>
-        <p className="mt-0.5 text-[12px] text-muted-foreground">
-          Training without slides works. Adding them sharpens the read on how
-          your delivery lands against each slide. PowerPoint? Export it to PDF
-          first.
-        </p>
-      </div>
+    <div>
+      <p className="-mt-1 mb-4 text-[13px] leading-relaxed text-muted-foreground">
+        Adding slides will make a truly incredibly valuable experience! Promise.
+      </p>
 
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -99,20 +93,19 @@ export default function PresentationInput({
           onChange={handleFile}
           className="hidden"
         />
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
           onClick={() => fileRef.current?.click()}
           disabled={uploadState === "uploading"}
-          className="rounded-full"
+          className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-4 text-[14px] transition hover:bg-muted active:scale-[0.98] disabled:opacity-50"
         >
+          <Upload className="h-3.5 w-3.5" />
           {uploadState === "uploading"
             ? "Reading your deck…"
             : presentationRef
               ? "Replace deck"
               : "Upload your deck (PDF)"}
-        </Button>
+        </button>
         {presentationRef ? (
           <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
             Deck attached
@@ -127,24 +120,24 @@ export default function PresentationInput({
         ) : null}
       </div>
       {errorMsg ? (
-        <p className="text-[12px] text-destructive">{errorMsg}</p>
+        <p className="mt-2 text-[12px] text-destructive">{errorMsg}</p>
       ) : null}
       {warnings.length > 0 ? (
-        <ul className="flex flex-col gap-0.5 text-[12px] text-muted-foreground">
+        <ul className="mt-2 flex flex-col gap-0.5 text-[12px] text-muted-foreground">
           {warnings.map((w, i) => (
             <li key={`${i}-${w.slice(0, 12)}`}>• {w}</li>
           ))}
         </ul>
       ) : null}
 
-      <div className="flex flex-col gap-3">
+      <div className="mt-4 space-y-3">
         {slides.map((s, i) => (
           <div
             key={i}
-            className="rounded-xl border border-border bg-background p-3"
+            className="space-y-2.5 rounded-xl border border-border p-3.5"
           >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[12px] font-medium text-muted-foreground">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-foreground/70">
                 Slide {i + 1}
               </span>
               {slides.length > 1 ? (
@@ -163,7 +156,7 @@ export default function PresentationInput({
               onChange={(e) => updateSlide(i, { title: e.target.value })}
               maxLength={SLIDE_CAPS.maxTitle}
               placeholder="Slide title"
-              className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-[14px] outline-none focus:border-primary"
+              className={`h-11 ${CARD_INPUT_CLS}`}
             />
             <textarea
               value={s.body}
@@ -171,7 +164,7 @@ export default function PresentationInput({
               maxLength={SLIDE_CAPS.maxBody}
               placeholder="Bullet points, one per line"
               rows={3}
-              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-[14px] outline-none focus:border-primary"
+              className={`resize-none py-2.5 ${CARD_INPUT_CLS}`}
             />
           </div>
         ))}
@@ -181,9 +174,9 @@ export default function PresentationInput({
         type="button"
         onClick={addSlide}
         disabled={slides.length >= SLIDE_CAPS.maxSlides}
-        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50 disabled:opacity-50"
+        className="mt-3 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-[13px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
       >
-        + Add slide
+        <Plus className="h-3.5 w-3.5" /> Add slide
       </button>
     </div>
   );
