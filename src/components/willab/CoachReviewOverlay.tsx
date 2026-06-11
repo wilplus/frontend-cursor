@@ -334,6 +334,7 @@ export default function CoachReviewOverlay({
                   snippet={s}
                   index={i}
                   total={session.snippets.length}
+                  presentationRef={session.presentationRef}
                   onStateChange={onSnippetSaved}
                 />
               ))}
