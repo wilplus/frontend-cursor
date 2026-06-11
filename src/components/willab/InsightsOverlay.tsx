@@ -93,7 +93,7 @@ export default function InsightsOverlay({
           <AuditInsights payload={data.readout} />
         ) : (
           // Pre-publish / untagged → the neutral raw §5 Readout.
-          <ReadoutCard payload={data.readout} variant="insights" />
+          <ReadoutCard payload={data.readout} />
         )}
       </div>
     </div>

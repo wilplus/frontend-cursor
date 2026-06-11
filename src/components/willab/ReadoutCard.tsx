@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import type { ReadoutPayload, ReadoutSnippet } from "./readout";
@@ -46,21 +46,15 @@ export default function ReadoutCard({
   payload,
   isSample = false,
   onSend,
-  onExplain,
-  variant = "lab",
 }: {
   payload: ReadoutPayload;
   isSample?: boolean;
   onSend?: () => void;
-  onExplain?: () => void;
-  variant?: "lab" | "insights";
 }) {
   const { snippets } = payload;
   const total = snippets.length;
-  // Sequential reveal → list. One card at a time until the user has seen them
-  // all (or taps "See all"), then the full scrollable list.
+  // One snippet at a time — Back / Next; the last snippet's Next becomes Send.
   const [cursor, setCursor] = useState(0);
-  const [showAll, setShowAll] = useState(total <= 1);
 
   if (total === 0) {
     return (
@@ -72,8 +66,12 @@ export default function ReadoutCard({
     );
   }
 
+  const idx = Math.min(cursor, total - 1);
+  const atFirst = idx === 0;
+  const atLast = idx === total - 1;
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-1 flex-col">
       {isSample && (
         <p className="mb-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-[12px] text-primary">
           Sample data — your real acoustic Training Profile wires in at seam ③.
@@ -91,77 +89,46 @@ export default function ReadoutCard({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4">
-        {showAll
-          ? snippets.map((s, i) => (
-              <SnippetCard
-                key={s.id || i}
-                snippet={s}
-                index={i}
-                total={total}
-                presentationRef={payload.presentationRef}
-              />
-            ))
-          : (
-              <SnippetCard
-                snippet={snippets[cursor]}
-                index={cursor}
-                total={total}
-                presentationRef={payload.presentationRef}
-              />
-            )}
+      <SnippetCard
+        snippet={snippets[idx]}
+        index={idx}
+        total={total}
+        presentationRef={payload.presentationRef}
+      />
+
+      {/* Back (grey) + Next (orange). On the last snippet the Next becomes the
+          send action when this is the pre-send Lab readout (onSend present);
+          in the read-only insights view it just disables at the end. */}
+      <div className="mt-5 flex items-stretch gap-3">
+        <button
+          type="button"
+          onClick={() => setCursor((c) => Math.max(c - 1, 0))}
+          disabled={atFirst}
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-muted py-4 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-40"
+        >
+          <ChevronLeft className="h-5 w-5" />
+          Back
+        </button>
+        {atLast && onSend ? (
+          <button
+            type="button"
+            onClick={onSend}
+            className="flex flex-1 items-center justify-center rounded-full bg-primary py-4 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Send to my coach
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCursor((c) => Math.min(c + 1, total - 1))}
+            disabled={atLast}
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-4 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+          >
+            Next
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        )}
       </div>
-
-      {!showAll && (
-        <div className="mt-4 flex justify-center">
-          {cursor < total - 1 ? (
-            <Button
-              variant="outline"
-              onClick={() => setCursor((c) => c + 1)}
-              className="rounded-full px-6"
-            >
-              Next snippet →
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => setShowAll(true)}
-              className="rounded-full px-6"
-            >
-              See all {total} →
-            </Button>
-          )}
-        </div>
-      )}
-
-      {variant === "lab" ? (
-        <>
-          <p className="mt-5 text-center text-[12px] leading-relaxed text-muted-foreground">
-            Your personal baseline builds over your first few sessions; these are
-            raw values.
-          </p>
-          {onExplain ? (
-            <button
-              type="button"
-              onClick={onExplain}
-              className="mt-2 text-center text-[13px] text-primary underline-offset-2 hover:underline"
-            >
-              ▸ What do these mean?
-            </button>
-          ) : null}
-
-          {/* persistent send footer (§5.7 / B10) — pinned to the bottom with
-              safe-area padding so the finish-line action clears the iOS home
-              bar and sits flush against the edge (no dead gap below). */}
-          {onSend ? (
-            <div className="sticky bottom-0 -mx-4 mt-5 border-t border-border bg-background px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <Button onClick={onSend} className="w-full rounded-full">
-                Send to my coach for analysis
-              </Button>
-            </div>
-          ) : null}
-        </>
-      ) : null}
     </div>
   );
 }
