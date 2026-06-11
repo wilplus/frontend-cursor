@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
@@ -107,6 +108,18 @@ export default function LabOverlay({
 
   const profile = useRef(readWillabProfile()).current;
   const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
+  // "Same as last time" — the last set-up, sourced from the BE (cross-device,
+  // survives a cache clear); null → no prior session → the button hides.
+  // applyLastNonce bumps to trigger the form to re-fill.
+  const [lastSetup, setLastSetup] = useState<LabSessionContext | null>(null);
+  const [applyLastNonce, setApplyLastNonce] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void fetchLastSetup().then((s) => active && setLastSetup(s));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
@@ -286,7 +299,20 @@ export default function LabOverlay({
       {/* §4 training-zone chrome. The set-up step is a clean X-only header
           (design spec); the recording/readout steps keep the status line. */}
       {state === "lab_session_context" ? (
-        <header className="flex h-12 shrink-0 items-center justify-end px-4">
+        <header className="flex h-12 shrink-0 items-center justify-between px-4">
+          {/* Top-left: re-fill the whole set-up from last time (only when there
+              is a saved set-up). Right: close. */}
+          {lastSetup ? (
+            <button
+              type="button"
+              onClick={() => setApplyLastNonce((n) => n + 1)}
+              className="inline-flex h-9 items-center rounded-full px-3 text-[14px] text-foreground/70 transition hover:bg-muted"
+            >
+              Same as last time
+            </button>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
             onClick={handleClose}
@@ -325,6 +351,8 @@ export default function LabOverlay({
         {state === "lab_session_context" && (
           <SessionContextForm
             seededVocab={seededVocab}
+            lastSetup={lastSetup}
+            applyNonce={applyLastNonce}
             onSubmit={(ctx) => {
               setContext(ctx);
               goTo("lab_prerecord");
@@ -433,9 +461,13 @@ function Field({
 
 function SessionContextForm({
   seededVocab,
+  lastSetup,
+  applyNonce,
   onSubmit,
 }: {
   seededVocab: string[];
+  lastSetup: LabSessionContext | null;
+  applyNonce: number;
   onSubmit: (ctx: LabSessionContext) => void;
 }) {
   const [topic, setTopic] = useState("");
@@ -444,6 +476,18 @@ function SessionContextForm({
   const [vocab, setVocab] = useState(seededVocab.join(", "));
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
+
+  // "Same as last time" — when the header bumps applyNonce, re-fill every field
+  // from the last submitted set-up.
+  useEffect(() => {
+    if (applyNonce <= 0 || !lastSetup) return;
+    setTopic(lastSetup.topic);
+    setAudience(lastSetup.audience);
+    setLengthSec(lastSetup.target_length_seconds);
+    setVocab(lastSetup.domain_vocabulary.join(", "));
+    setSlides(lastSetup.slides.length > 0 ? lastSetup.slides : initialSlides());
+    setPresentationRef(lastSetup.presentationRef);
+  }, [applyNonce, lastSetup]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
