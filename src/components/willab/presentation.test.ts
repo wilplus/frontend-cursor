@@ -53,12 +53,12 @@ describe("bulletLines", () => {
 describe("deckFileError", () => {
   const file = (name: string, size: number) =>
     ({ name, size }) as File;
-  it("accepts pptx/pdf under the size cap", () => {
-    expect(deckFileError(file("deck.pptx", 1000))).toBeNull();
+  it("accepts pdf under the size cap", () => {
     expect(deckFileError(file("DECK.PDF", 1000))).toBeNull();
   });
-  it("rejects wrong type and oversize", () => {
-    expect(deckFileError(file("deck.key", 1000))).toMatch(/pptx or .pdf/);
+  it("rejects non-pdf (incl. pptx, now PDF-only) and oversize", () => {
+    expect(deckFileError(file("deck.pptx", 1000))).toMatch(/PDF/);
+    expect(deckFileError(file("deck.key", 1000))).toMatch(/PDF/);
     expect(deckFileError(file("deck.pdf", SLIDE_CAPS.maxFileBytes + 1))).toMatch(
       /20 MB/
     );
