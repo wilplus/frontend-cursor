@@ -42,6 +42,18 @@ const dB = (v: number | null) => (v != null ? `${Math.round(v)} dB` : DASH);
 const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : DASH);
 const dec = (v: number | null) => (v != null ? v.toFixed(2) : DASH);
 
+/** Gross speaking rate (words ÷ minutes) derived from a snippet's own
+ *  transcript + duration — the fallback for the speed hero when the BE omits
+ *  `speech_rate` from the instant readout. Words per minute including pauses
+ *  (the textbook speaking-rate). null when there's nothing to divide, so the
+ *  hero falls back to the dash. */
+function grossWpm(transcript: string, durationMs: number): number | null {
+  if (durationMs <= 0) return null;
+  const words = transcript.trim().split(/\s+/).filter(Boolean).length;
+  if (words === 0) return null;
+  return words / (durationMs / 60000);
+}
+
 export default function ReadoutCard({
   payload,
   isSample = false,
@@ -193,7 +205,7 @@ function SnippetCard({
           fold (noise without a baseline up top). */}
       <div className="flex gap-10">
         <Hero
-          value={f.speechRate}
+          value={f.speechRate ?? grossWpm(snippet.transcript, snippet.durationMs)}
           label="speed"
           fmt={(v) => `${Math.round(v)} wpm`}
         />
