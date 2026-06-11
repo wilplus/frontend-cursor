@@ -55,14 +55,9 @@ export default function InsightsOverlay({
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <span className="text-[13px] font-semibold text-foreground">
-          {data &&
-          (data.readout.overallMessage != null ||
-            data.readout.snippets.some((s) => s.coach != null))
-            ? "Coach insights"
-            : "Your Training Profile"}
-        </span>
+      {/* Unified X-only header — no title (matches the Lab overlay); each page's
+          own heading ("Avoid" / "Do more" / "From your coach") carries context. */}
+      <div className="flex h-12 shrink-0 items-center justify-end px-4">
         <button
           type="button"
           onClick={onClose}
