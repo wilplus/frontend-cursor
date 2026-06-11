@@ -218,7 +218,16 @@ export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
       startedAtRef.current =
         typeof performance !== "undefined" ? performance.now() : Date.now();
 
-      const recorder = new MediaRecorder(stream, { mimeType: mime });
+      // Cap the bitrate so a normal-length recording stays under the upload
+      // route's request-body ceiling: the BFF buffers the body and Vercel
+      // serverless functions cap a request at ~4.5 MB. The browser default
+      // (~128 kbps ≈ 1 MB/min) blows past that after ~4 min and the upload 413s.
+      // 48 kbps opus mono is ample for the acoustic read (pitch / rate / pauses
+      // / loudness) and keeps a ~12 min take under the limit.
+      const recorder = new MediaRecorder(stream, {
+        mimeType: mime,
+        audioBitsPerSecond: 48_000,
+      });
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
       };
