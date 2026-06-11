@@ -86,7 +86,8 @@ export default function PresentationInput({
         </span>
         <p className="mt-0.5 text-[12px] text-muted-foreground">
           Training without slides works. Adding them sharpens the read on how
-          your delivery lands against each slide.
+          your delivery lands against each slide. PowerPoint? Export it to PDF
+          first.
         </p>
       </div>
 
@@ -110,7 +111,7 @@ export default function PresentationInput({
             ? "Reading your deck…"
             : presentationRef
               ? "Replace deck"
-              : "Upload your deck (.pptx, .pdf)"}
+              : "Upload your deck (PDF)"}
         </Button>
         {presentationRef ? (
           <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
