@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import SpeechDataPanel from "./SpeechDataPanel";
+import { SlideRender } from "./pdfSlides";
 import {
   saveCoachSnippet,
   type CoachReviewSnippet,
@@ -54,11 +55,14 @@ export default function CoachSnippetReviewCard({
   index,
   total,
   onStateChange,
+  presentationRef,
 }: {
   sessionId: string;
   snippet: CoachReviewSnippet;
   index: number;
   total: number;
+  /** The session's served deck PDF (for the per-snippet slide page); null = none. */
+  presentationRef: string | null;
   /** Fires after every successful save so the parent overlay can update
    *  its publish-floor calculation (§3.10) without a session refetch. */
   onStateChange?: (snippetId: string, next: CoachSnippetState) => void;
@@ -151,6 +155,19 @@ export default function CoachSnippetReviewCard({
       <span className="text-[12px] text-muted-foreground">
         Snippet {index + 1} of {total}
       </span>
+
+      {/* The slide on screen when this snippet started (deck attached) — the
+          coach's reference for what the user was talking about, same slide the
+          user sees. Above the words; coach controls stay below. */}
+      {snippet.slide ? (
+        <SlideRender
+          presentationRef={presentationRef}
+          pageIndex={snippet.slide.index}
+          title={snippet.slide.title}
+          body={snippet.slide.body}
+          className="w-full"
+        />
+      ) : null}
 
       {/* What you said — E1: matches the user AuditInsights styling 1:1 (regular
           weight, border-border, text-[16px]; the #89 redesign dropped the italic
