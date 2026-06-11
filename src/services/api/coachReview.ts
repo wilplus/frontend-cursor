@@ -14,7 +14,9 @@
 
 import {
   mapReadoutFeatures,
+  mapReadoutSlide,
   type ReadoutFeatures,
+  type ReadoutSlide,
 } from "@/components/willab/readout";
 
 export type DirectionLabel = "threat" | "ambiguous" | "challenge";
@@ -47,6 +49,9 @@ export interface CoachReviewSnippet {
    *  interprets it; the system renders no judgment over it. Null if the BE
    *  packet omits it (defensive — older sessions, partial payloads). */
   features: ReadoutFeatures | null;
+  /** The slide on screen when this snippet started (BE-mapped from the tap
+   *  timeline) — coach reference, same slide the user sees. null when no deck. */
+  slide: ReadoutSlide | null;
   coachState: CoachSnippetState;
 }
 
@@ -60,6 +65,9 @@ export interface CoachReviewSession {
   state: "pending" | "in_progress" | "done";
   overallMessage: string;
   videoRef: string | null;
+  /** The session's served deck PDF, for rendering each snippet's slide page.
+   *  null when no deck was attached. */
+  presentationRef: string | null;
   snippets: CoachReviewSnippet[];
 }
 
@@ -125,6 +133,7 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
       r.features && typeof r.features === "object"
         ? mapReadoutFeatures(r.features)
         : null,
+    slide: mapReadoutSlide(r.slide),
     coachState: pickCoachState(r.coach_state),
   };
 }
@@ -149,6 +158,10 @@ export function mapCoachReviewSession(
     overallMessage:
       typeof r.overall_message === "string" ? r.overall_message : "",
     videoRef: typeof r.video_ref === "string" ? r.video_ref : null,
+    presentationRef:
+      typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
+        ? r.presentation_ref
+        : null,
     snippets: Array.isArray(r.snippets)
       ? r.snippets
           .map(pickSnippet)
