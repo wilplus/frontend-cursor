@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
@@ -85,6 +85,12 @@ export default function CoachReviewOverlay({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
 
+  // Paged review (unified with the user-facing readout): one snippet per page,
+  // then a final "wrap up & publish" page at index === snippets.length. Cards
+  // stay mounted (hidden when off-page) so each snippet's draft + the debounced
+  // note autosave survive Back/Next.
+  const [cursor, setCursor] = useState(0);
+
   // E-2 / BE-6 — admin on-demand re-cut. Re-cut mints NEW snippet ids and
   // orphans any labels / notes / drafts on the session, so the BE refuses a
   // labeled session with 409 unless ?force=true. We try WITHOUT force first; on
@@ -104,6 +110,7 @@ export default function CoachReviewOverlay({
     const result = await recutSession(session.sessionId, { force });
     if (result.status === "ok") {
       setRecutConfirm(null);
+      setCursor(0); // the snippet set changed under us — back to the first page
       await refresh(); // pull the new snippets from the canonical read
     } else if (result.status === "needs_confirm") {
       setRecutConfirm({ labels: result.labels, drafts: result.drafts });
@@ -262,146 +269,201 @@ export default function CoachReviewOverlay({
             </p>
           ) : (
             <>
-              {/* E-2 / BE-6 — admin on-demand re-cut: re-run the segmenter on
-                  this session's stored audio (no upload), then refresh to pull
-                  the new snippets. Try without force; the BE 409s if it would
-                  orphan labels/drafts, and we confirm with the real counts
-                  before re-calling with force. */}
-              <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-foreground">
-                      Re-cut snippets
-                    </p>
-                    <p className="text-[12px] text-muted-foreground">
-                      Re-run segmentation on the stored audio.
-                    </p>
-                  </div>
-                  {recutConfirm ? (
-                    <div className="flex shrink-0 items-center gap-2">
+              {/* Paged review — unified with the user readout: one snippet per
+                  page, then a wrap-up & publish page. Every card stays mounted
+                  (hidden off-page) so the per-snippet draft + the debounced note
+                  autosave survive Back/Next; only the current page shows. */}
+              {session.snippets.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={i === cursor ? "flex flex-col gap-4" : "hidden"}
+                >
+                  <CoachSnippetReviewCard
+                    sessionId={session.sessionId}
+                    snippet={s}
+                    index={i}
+                    total={session.snippets.length}
+                    presentationRef={session.presentationRef}
+                    onStateChange={onSnippetSaved}
+                  />
+                </div>
+              ))}
+
+              {/* Wrap-up & publish — the final page (cursor === snippets.length):
+                  the coach's closing surface, then the publish action. */}
+              <div
+                className={
+                  cursor >= session.snippets.length
+                    ? "flex flex-col gap-4"
+                    : "hidden"
+                }
+              >
+                <h2 className="text-[20px] font-semibold text-foreground">
+                  Wrap up
+                </h2>
+
+                {/* Overall message — optional per §14 / red-line 3. The §6b
+                    "💬 From your coach" block hides entirely when empty, so an
+                    empty submission is honest, not penalized. */}
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    Overall message
+                    <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                      Shown to user · optional
+                    </span>
+                  </p>
+                  <textarea
+                    value={overallMessage}
+                    onChange={(e) => setOverallMessage(e.target.value)}
+                    rows={3}
+                    placeholder="A warm opener tying these snippets together…"
+                    className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+                  />
+                </div>
+
+                {/* §F.6 — session-level coach video. Optional. A single closing
+                    message tying the labeled snippets together. Mobile input
+                    triggers the phone camera directly. */}
+                <CoachVideoSlot
+                  sessionId={session.sessionId}
+                  videoRef={videoRef}
+                  onUploaded={(nextRef) => setVideoRef(nextRef)}
+                />
+
+                {/* E-2 / BE-6 — admin on-demand re-cut: re-run the segmenter on
+                    this session's stored audio (no upload), then refresh. Try
+                    without force; the BE 409s if it would orphan labels/drafts,
+                    and we confirm with the real counts before re-calling. */}
+                <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium text-foreground">
+                        Re-cut snippets
+                      </p>
+                      <p className="text-[12px] text-muted-foreground">
+                        Re-run segmentation on the stored audio.
+                      </p>
+                    </div>
+                    {recutConfirm ? (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setRecutConfirm(null)}
+                          disabled={recutting}
+                          className="rounded-full disabled:opacity-50"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleRecut(true)}
+                          disabled={recutting}
+                          className="rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {recutting ? "Re-cutting…" : "Re-cut anyway"}
+                        </Button>
+                      </div>
+                    ) : (
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setRecutConfirm(null)}
+                        onClick={() => handleRecut(false)}
                         disabled={recutting}
-                        className="rounded-full disabled:opacity-50"
+                        className="shrink-0 rounded-full disabled:opacity-50"
                       >
-                        Cancel
+                        {recutting ? "Re-cutting…" : "Re-cut"}
                       </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleRecut(true)}
-                        disabled={recutting}
-                        className="rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {recutting ? "Re-cutting…" : "Re-cut anyway"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleRecut(false)}
-                      disabled={recutting}
-                      className="shrink-0 rounded-full disabled:opacity-50"
-                    >
-                      {recutting ? "Re-cutting…" : "Re-cut"}
-                    </Button>
-                  )}
-                </div>
-                {recutConfirm ? (
-                  <p className="mt-2 text-[12px] text-red-600">
-                    This re-cuts the audio into new snippets and discards{" "}
-                    {recutConfirm.labels > 0 || recutConfirm.drafts > 0
-                      ? `${recutConfirm.labels} label${
-                          recutConfirm.labels === 1 ? "" : "s"
-                        } and ${recutConfirm.drafts} draft${
-                          recutConfirm.drafts === 1 ? "" : "s"
-                        }`
-                      : "the notes and labels you've added"}{" "}
-                    on this session.
-                  </p>
-                ) : null}
-                {recutError ? (
-                  <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
-                ) : null}
-              </div>
-
-              {session.snippets.map((s, i) => (
-                <CoachSnippetReviewCard
-                  key={s.id}
-                  sessionId={session.sessionId}
-                  snippet={s}
-                  index={i}
-                  total={session.snippets.length}
-                  presentationRef={session.presentationRef}
-                  onStateChange={onSnippetSaved}
-                />
-              ))}
-
-              {/* Overall message — optional per §14 / red-line 3. The §6b
-                  "💬 From your coach" block hides entirely when empty,
-                  so an empty submission is honest, not penalized. */}
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-sm font-semibold text-foreground">
-                  Overall message
-                  <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-                    Shown to user · optional
-                  </span>
-                </p>
-                <textarea
-                  value={overallMessage}
-                  onChange={(e) => setOverallMessage(e.target.value)}
-                  rows={3}
-                  placeholder="A warm opener tying these snippets together…"
-                  className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
-                />
-              </div>
-
-              {/* §F.6 — session-level coach video. Optional. Lives between
-                  the overall message and the publish footer so the coach
-                  can record a single closing message tying the labeled
-                  snippets together. Mobile input triggers the phone camera
-                  directly. */}
-              <CoachVideoSlot
-                sessionId={session.sessionId}
-                videoRef={videoRef}
-                onUploaded={(nextRef) => setVideoRef(nextRef)}
-              />
-
-              {/* Publish footer (§F.5) — sticky bottom of the scroll area. */}
-              <div className="sticky bottom-0 -mx-4 mt-4 border-t border-border bg-background px-4 py-3">
-                <div className="mx-auto max-w-2xl">
-                  {publishError ? (
-                    <p className="mb-2 text-center text-[13px] text-destructive">
-                      {publishError}
-                    </p>
-                  ) : !floorMet ? (
-                    <p className="mb-2 text-center text-[12px] text-muted-foreground">
-                      Add at least one surfaced snippet with note + tag to
-                      publish.
+                    )}
+                  </div>
+                  {recutConfirm ? (
+                    <p className="mt-2 text-[12px] text-red-600">
+                      This re-cuts the audio into new snippets and discards{" "}
+                      {recutConfirm.labels > 0 || recutConfirm.drafts > 0
+                        ? `${recutConfirm.labels} label${
+                            recutConfirm.labels === 1 ? "" : "s"
+                          } and ${recutConfirm.drafts} draft${
+                            recutConfirm.drafts === 1 ? "" : "s"
+                          }`
+                        : "the notes and labels you've added"}{" "}
+                      on this session.
                     </p>
                   ) : null}
-
-                  <label className="mb-2 flex cursor-pointer items-center justify-center gap-2 text-[13px] text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={notifyClient}
-                      onChange={(e) => setNotifyClient(e.target.checked)}
-                      className="h-4 w-4 cursor-pointer rounded border-border text-primary accent-primary"
-                    />
-                    <span>Notify the client about this update</span>
-                  </label>
-
-                  <Button
-                    type="button"
-                    onClick={() => void handlePublish()}
-                    disabled={!floorMet || publishing}
-                    className="w-full rounded-full"
-                  >
-                    {publishing ? "Publishing…" : "Publish to user"}
-                  </Button>
+                  {recutError ? (
+                    <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
+                  ) : null}
                 </div>
+              </div>
+
+              {/* Nav — grey Back + orange Next/Publish, unified with the readout.
+                  Snippet pages: Back / Next. Wrap-up: Back / Publish (terminal).
+                  The publish floor hint + notify toggle sit just above it. */}
+              <div className="pt-1">
+                {cursor >= session.snippets.length ? (
+                  <>
+                    {publishError ? (
+                      <p className="mb-2 text-center text-[13px] text-destructive">
+                        {publishError}
+                      </p>
+                    ) : !floorMet ? (
+                      <p className="mb-2 text-center text-[12px] text-muted-foreground">
+                        Add at least one surfaced snippet with note + tag to
+                        publish.
+                      </p>
+                    ) : null}
+
+                    <label className="mb-3 flex cursor-pointer items-center justify-center gap-2 text-[13px] text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={notifyClient}
+                        onChange={(e) => setNotifyClient(e.target.checked)}
+                        className="h-4 w-4 cursor-pointer rounded border-border text-primary accent-primary"
+                      />
+                      <span>Notify the client about this update</span>
+                    </label>
+
+                    <div className="flex items-stretch gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCursor((c) => Math.max(c - 1, 0))}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-muted py-4 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted/70"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handlePublish()}
+                        disabled={!floorMet || publishing}
+                        className="flex flex-1 items-center justify-center rounded-full bg-primary py-4 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+                      >
+                        {publishing ? "Publishing…" : "Publish to user"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-stretch gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCursor((c) => Math.max(c - 1, 0))}
+                      disabled={cursor === 0}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-muted py-4 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-40"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCursor((c) => Math.min(c + 1, session.snippets.length))
+                      }
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-4 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      Next
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
