@@ -1,16 +1,17 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SlideRender } from "./pdfSlides";
 import { type PresentationSlide } from "./presentation";
 
 /* -------------------------------------------------------------------------- */
 /*  SlideStage — the deck shown WHILE recording (T7)                            */
 /*                                                                            */
-/*  The user taps to advance while they speak — manual, like a real            */
-/*  presentation; nothing is voice-driven. Tap the stage = next; the Back       */
-/*  chevron = prev. Renders the BE PDF page (presentationRef) or a text card.   */
-/*  The parent owns `current` + captures the tap timeline (slide_advances).     */
+/*  The user advances slides while they speak — manual, like a real            */
+/*  presentation; nothing is voice-driven. Big symmetric controls below the     */
+/*  slide: orange Next (right) + grey Back (left); tapping the slide itself      */
+/*  also advances (clicker feel). Renders the BE PDF page (presentationRef) or  */
+/*  a text card. The parent owns `current` + captures the tap timeline.         */
 /* -------------------------------------------------------------------------- */
 
 export default function SlideStage({
@@ -30,10 +31,13 @@ export default function SlideStage({
   if (total === 0) return null;
   const idx = Math.min(Math.max(current, 0), total - 1);
   const slide = slides[idx];
+  const atFirst = idx === 0;
+  const atLast = idx === total - 1;
 
   return (
-    <div className="flex w-full flex-col gap-2">
-      {/* Tap anywhere on the stage to advance, like a clicker. */}
+    <div className="flex w-full flex-col gap-3">
+      {/* The slide. Tapping it also advances (clicker feel); the buttons below
+          are the primary control. */}
       <div
         role="button"
         tabIndex={0}
@@ -58,21 +62,32 @@ export default function SlideStage({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
+      <p className="text-center text-[12px] tabular-nums text-muted-foreground">
+        Slide {idx + 1} of {total}
+      </p>
+
+      {/* Big symmetric nav: grey Back (left) + orange Next (right). */}
+      <div className="flex items-stretch gap-3">
         <button
           type="button"
           onClick={onPrev}
-          disabled={idx === 0}
+          disabled={atFirst}
           aria-label="Previous slide"
-          className="flex items-center gap-1 text-[13px] text-muted-foreground enabled:hover:text-foreground disabled:opacity-40"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-muted py-4 text-[16px] font-semibold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-40"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-5 w-5" />
           Back
         </button>
-        <span className="text-[12px] tabular-nums text-muted-foreground">
-          {idx + 1} / {total}
-        </span>
-        <span className="text-[12px] text-muted-foreground">Tap to advance</span>
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={atLast}
+          aria-label="Next slide"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-4 text-[16px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+        >
+          Next
+          <ChevronRight className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
