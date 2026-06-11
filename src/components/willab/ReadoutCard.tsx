@@ -113,9 +113,9 @@ export default function ReadoutCard({
           <button
             type="button"
             onClick={onSend}
-            className="flex flex-1 items-center justify-center rounded-full bg-primary py-4 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="flex flex-1 items-center justify-center rounded-full bg-primary px-3 py-4 text-center text-[15px] font-semibold leading-tight text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Send to my coach
+            Send for a detailed analysis
           </button>
         ) : (
           <button
