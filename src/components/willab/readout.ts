@@ -137,8 +137,9 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
 }
 
 /** Phase 2 — the slide delivered during this snippet (BE-mapped). Requires a
- *  numeric index; title/body default to "". */
-function mapReadoutSlide(raw: unknown): ReadoutSlide | null {
+ *  numeric index; title/body default to "". Exported so the coach-review parser
+ *  reuses the SAME shape (the coach sees the same slide the user does). */
+export function mapReadoutSlide(raw: unknown): ReadoutSlide | null {
   if (!raw || typeof raw !== "object") return null;
   const s = raw as Record<string, unknown>;
   const index = num(s.index);
