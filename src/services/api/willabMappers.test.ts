@@ -209,10 +209,6 @@ describe("mapLibraryEntry", () => {
       tag: "strong",
       createdAt: "t",
       snippet: null,
-      slide: null,
-      presentationRef: null,
-      rank: null,
-      sessionTopic: "",
     });
   });
 
