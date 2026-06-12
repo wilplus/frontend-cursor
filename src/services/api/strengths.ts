@@ -1,0 +1,135 @@
+import { getAuthToken } from "@/lib/api/auth-client";
+
+/* -------------------------------------------------------------------------- */
+/*  strengths — the slide-grouped strong-sides page (§7b, BE PR #76)           */
+/*                                                                            */
+/*  GET /api/v2/user/strengths → { general:[moment], trainings:[{ session_id,  */
+/*  topic, created_at, presentation_ref, title_slide, slides:[{ index, title,  */
+/*  body, strong_snippets:[moment] }] }] }. A dedicated, pre-grouped endpoint   */
+/*  (separate from /user/library, which the Lounge bot still uses):             */
+/*    • general — strong moments from sessions with NO deck, newest-first.      */
+/*    • trainings — one per deck-session (newest-first), each walking its deck   */
+/*      slides; every slide carries the strong moments delivered on it, sorted   */
+/*      by rank (1 = best). Slides with NO strong moment are KEPT — a prompt to   */
+/*      train that one again.                                                   */
+/* -------------------------------------------------------------------------- */
+
+export interface StrengthMoment {
+  transcript: string;
+  note: string;
+  audioRef: string | null;
+  startOffsetMs: number;
+  durationMs: number;
+  /** Rank within a slide (1 = best); null on general / unranked moments. */
+  rank: number | null;
+}
+
+export interface StrengthSlide {
+  index: number;
+  title: string;
+  body: string;
+  /** Strong moments delivered on this slide, best-first. [] = none yet. */
+  moments: StrengthMoment[];
+}
+
+export interface StrengthTraining {
+  sessionId: string;
+  topic: string;
+  createdAt: string;
+  presentationRef: string | null;
+  /** The deck's title slide (index 0) — null when absent. */
+  titleSlide: StrengthSlide | null;
+  slides: StrengthSlide[];
+}
+
+export interface StrengthsView {
+  general: StrengthMoment[];
+  trainings: StrengthTraining[];
+}
+
+const num = (v: unknown): number =>
+  typeof v === "number" && Number.isFinite(v) ? v : 0;
+
+function mapMoment(raw: unknown): StrengthMoment | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const transcript = typeof r.transcript === "string" ? r.transcript : "";
+  const note = typeof r.note === "string" ? r.note : "";
+  const audioRef = typeof r.audio_ref === "string" ? r.audio_ref : null;
+  // Nothing renderable → drop, so no empty cards leak into the gallery.
+  if (!transcript && !note && !audioRef) return null;
+  return {
+    transcript,
+    note,
+    audioRef,
+    startOffsetMs: num(r.start_offset_ms),
+    durationMs: num(r.duration_ms),
+    rank: typeof r.rank === "number" && Number.isFinite(r.rank) ? r.rank : null,
+  };
+}
+
+function mapSlide(raw: unknown): StrengthSlide | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.index !== "number") return null;
+  return {
+    index: r.index,
+    title: typeof r.title === "string" ? r.title : "",
+    body: typeof r.body === "string" ? r.body : "",
+    moments: Array.isArray(r.strong_snippets)
+      ? r.strong_snippets
+          .map(mapMoment)
+          .filter((m): m is StrengthMoment => m !== null)
+      : [],
+  };
+}
+
+function mapTraining(raw: unknown): StrengthTraining | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.session_id !== "string") return null;
+  return {
+    sessionId: r.session_id,
+    topic: typeof r.topic === "string" ? r.topic : "",
+    createdAt: typeof r.created_at === "string" ? r.created_at : "",
+    presentationRef:
+      typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
+        ? r.presentation_ref
+        : null,
+    titleSlide: mapSlide(r.title_slide),
+    slides: Array.isArray(r.slides)
+      ? r.slides.map(mapSlide).filter((s): s is StrengthSlide => s !== null)
+      : [],
+  };
+}
+
+export function mapStrengths(raw: unknown): StrengthsView {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    general: Array.isArray(r.general)
+      ? r.general.map(mapMoment).filter((m): m is StrengthMoment => m !== null)
+      : [],
+    trainings: Array.isArray(r.trainings)
+      ? r.trainings
+          .map(mapTraining)
+          .filter((t): t is StrengthTraining => t !== null)
+      : [],
+  };
+}
+
+export async function fetchStrengths(): Promise<StrengthsView> {
+  const token = await getAuthToken();
+  if (!token) return { general: [], trainings: [] };
+
+  let res: Response;
+  try {
+    res = await fetch("/api/v2/user/strengths", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+  } catch {
+    return { general: [], trainings: [] };
+  }
+  if (!res.ok) return { general: [], trainings: [] };
+  return mapStrengths(await res.json().catch(() => null));
+}
