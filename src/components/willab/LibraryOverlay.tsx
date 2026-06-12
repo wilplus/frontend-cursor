@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Image as ImageIcon,
-  Loader2,
-  X,
-} from "lucide-react";
-import MediaPlayer from "@/components/results/MediaPlayer";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, X } from "lucide-react";
 import {
   fetchStrengths,
   strengthsHome,
@@ -19,8 +11,8 @@ import {
   type StrengthsView,
   type TakeCard,
 } from "@/services/api/strengths";
-import type { ReadoutFeatures } from "./readout";
 import { SlideRender } from "./pdfSlides";
+import { SlidePlaceholder, SlideTake, type SlideTakeEntry } from "./SlideTake";
 import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
@@ -79,6 +71,36 @@ const generalDeck = (moments: StrengthMoment[]): Deck => ({
   presentationRef: null,
   slides: moments.map((m, i) => ({ index: i, title: "", body: "", moment: m })),
 });
+
+/** Map a Deck's slides to the generic SlideTakeEntry shape. */
+function deckToEntries(deck: Deck): SlideTakeEntry[] {
+  return deck.slides.map((s, i): SlideTakeEntry => {
+    const m = s.moment;
+    return {
+      key: String(i),
+      presentationRef: deck.presentationRef,
+      slideIndex: s.index,
+      // Only show the take title when there is actually a moment — otherwise
+      // the empty-state message ("No standout moment…") should show instead.
+      topBar:
+        m && deck.takeTitle ? (
+          <p className="text-[15px] font-semibold text-foreground">
+            {deck.takeTitle}
+          </p>
+        ) : undefined,
+      audioRef: m?.audioRef ?? null,
+      startOffsetMs: m?.startOffsetMs,
+      durationMs: m?.durationMs,
+      transcript: m?.transcript,
+      advise: m?.note ? (
+        <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+          {m.note}
+        </p>
+      ) : null,
+      features: m?.features ?? null,
+    };
+  });
+}
 
 export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
   useBackDismiss(onClose);
@@ -163,15 +185,12 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
           </div>
         ) : deck && slideIdx != null ? (
           <SlideTake
-            deck={deck}
+            entries={deckToEntries(deck)}
             slideIdx={slideIdx}
             onSlideIdx={setSlideIdx}
           />
         ) : deck ? (
-          <SlideList
-            deck={deck}
-            onOpenSlide={(i) => setSlideIdx(i)}
-          />
+          <SlideList deck={deck} onOpenSlide={(i) => setSlideIdx(i)} />
         ) : isEmpty ? (
           <p className="mx-auto w-full max-w-2xl px-4 text-[15px] text-muted-foreground">
             Nothing here yet — your strongest moments collect here as your coach
@@ -323,193 +342,6 @@ function Thumb({
         body=""
         className="h-full w-full"
       />
-    </div>
-  );
-}
-
-function SlidePlaceholder({ className }: { className?: string }) {
-  return (
-    <div
-      className={`flex items-center justify-center bg-muted ${className ?? ""}`}
-      aria-label="No slide uploaded"
-    >
-      <ImageIcon className="h-7 w-7 text-muted-foreground/40" aria-hidden />
-    </div>
-  );
-}
-
-/* ───────────────────── L3 slide take (the shared piece) ──────────────────── */
-
-function SlideTake({
-  deck,
-  slideIdx,
-  onSlideIdx,
-}: {
-  deck: Deck;
-  slideIdx: number;
-  onSlideIdx: (i: number) => void;
-}) {
-  const total = deck.slides.length;
-  const slide = deck.slides[slideIdx];
-  const touchX = useRef<number | null>(null);
-  const go = (dir: -1 | 1) =>
-    onSlideIdx(Math.min(Math.max(slideIdx + dir, 0), total - 1));
-
-  if (!slide) return null;
-  const m = slide.moment;
-
-  return (
-    <div className="mx-auto w-full max-w-2xl pb-16">
-      {/* slide, edge-to-edge, swipe + ‹ › + faint dots */}
-      <div
-        className="relative w-full select-none"
-        onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
-        onTouchEnd={(e) => {
-          if (touchX.current == null) return;
-          const dx = e.changedTouches[0].clientX - touchX.current;
-          if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
-          touchX.current = null;
-        }}
-      >
-        <div className="aspect-video w-full bg-muted">
-          {deck.presentationRef ? (
-            <SlideRender
-              presentationRef={deck.presentationRef}
-              pageIndex={slide.index}
-              title={slide.title}
-              body=""
-              className="h-full w-full"
-            />
-          ) : (
-            <SlidePlaceholder className="h-full w-full" />
-          )}
-        </div>
-        {slideIdx > 0 ? (
-          <NavBtn side="left" onClick={() => go(-1)} />
-        ) : null}
-        {slideIdx < total - 1 ? (
-          <NavBtn side="right" onClick={() => go(1)} />
-        ) : null}
-        {total > 1 ? (
-          <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1.5">
-            {deck.slides.map((s, i) => (
-              <span
-                key={`${s.index}-${i}`}
-                className={`h-1.5 w-1.5 rounded-full ${
-                  i === slideIdx ? "bg-white/90" : "bg-white/30"
-                }`}
-                aria-hidden
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-5 px-4 pt-4">
-        {m ? (
-          <>
-            {/* bold take title */}
-            {deck.takeTitle ? (
-              <p className="text-[15px] font-semibold text-foreground">
-                {deck.takeTitle}
-              </p>
-            ) : null}
-
-            {/* small inline playback, right under the picture, above the text */}
-            {m.audioRef ? (
-              <MediaPlayer
-                src={m.audioRef}
-                startOffsetMs={m.startOffsetMs}
-                durationMs={m.durationMs}
-              />
-            ) : null}
-
-            {/* your text — same font, not bold */}
-            {m.transcript ? (
-              <p className="text-[15px] leading-relaxed text-foreground">
-                {m.transcript}
-              </p>
-            ) : null}
-
-            {/* Advise ▾ — the coach's note */}
-            {m.note ? (
-              <Toggle title="Advise">
-                <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                  {m.note}
-                </p>
-              </Toggle>
-            ) : null}
-
-            {/* Data ▾ — the acoustic numbers (shows once the BE adds features) */}
-            {m.features ? (
-              <Toggle title="Data">
-                <FeaturesData features={m.features} />
-              </Toggle>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-[15px] text-muted-foreground">
-            No standout moment on this slide yet.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function NavBtn({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={side === "left" ? "Previous slide" : "Next slide"}
-      className={`absolute top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm ${
-        side === "left" ? "left-2" : "right-2"
-      }`}
-    >
-      {side === "left" ? (
-        <ChevronLeft className="h-5 w-5" />
-      ) : (
-        <ChevronRight className="h-5 w-5" />
-      )}
-    </button>
-  );
-}
-
-/** Bold title + arrow, content toggles open. */
-function Toggle({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex items-center gap-1.5"
-      >
-        <span className="text-[15px] font-semibold text-foreground">{title}</span>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-      {open ? <div className="mt-2">{children}</div> : null}
-    </div>
-  );
-}
-
-/** The acoustic numbers — same font/size, no tiny labels. */
-function FeaturesData({ features: f }: { features: ReadoutFeatures }) {
-  const hz = (v: number | null) => (v != null ? `${Math.round(v)} Hz` : "—");
-  const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : "—");
-  const wpm = (v: number | null) => (v != null ? `${Math.round(v)} wpm` : "—");
-  const db = (v: number | null) => (v != null ? `${Math.round(v)} dB` : "—");
-  return (
-    <div className="flex flex-col gap-1 text-[15px] leading-relaxed text-foreground">
-      <p>Pitch: F0 mean {hz(f.f0Mean)}, SD {hz(f.f0Sd)}</p>
-      <p>Pace: {wpm(f.speechRate)}, pause {pct(f.pauseRatio)}</p>
-      <p>Volume: range {db(f.loudnessRange)}, voiced {pct(f.voicedRatio)}</p>
     </div>
   );
 }
