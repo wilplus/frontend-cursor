@@ -144,3 +144,77 @@ export async function fetchStrengths(): Promise<StrengthsView> {
   if (!res.ok) return { general: [], trainings: [] };
   return mapStrengths(await res.json().catch(() => null));
 }
+
+/* ─────────────────────── Trainings home: takes + best lines ─────────────── */
+
+export interface TakeCard {
+  training: StrengthTraining;
+  takeNumber: number;
+  /** "<topic>, take N" */
+  label: string;
+}
+
+export interface BestLines {
+  topic: string;
+  presentationRef: string | null;
+  /** Best moment per slide (one per slide), in deck order. */
+  slides: { index: number; title: string; body: string; moment: StrengthMoment }[];
+}
+
+export interface StrengthsHome {
+  /** Combined best line per slide (the highlight reel); null when no deck data. */
+  bestLines: BestLines | null;
+  /** Every recording as a numbered take, newest first. */
+  takes: TakeCard[];
+  general: StrengthMoment[];
+}
+
+/**
+ * Shape the strengths view into the Trainings home: a best-lines reel + each
+ * recording as a numbered take ("<topic>, take N", take 1 = first recording of
+ * that deck), newest first. FE fallback for grouping/best — the BE `take_number`
+ * + `best_lines` are authoritative (a deck re-served with a new presentation_ref,
+ * or a true cross-take "best", can't be derived from per-session data here).
+ */
+export function strengthsHome(view: StrengthsView): StrengthsHome {
+  const byTopic = new Map<string, StrengthTraining[]>();
+  for (const t of view.trainings) {
+    const key = t.topic || "Presentation";
+    const arr = byTopic.get(key);
+    if (arr) arr.push(t);
+    else byTopic.set(key, [t]);
+  }
+
+  const takes: TakeCard[] = [];
+  for (const [topic, group] of byTopic) {
+    group
+      .slice()
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .forEach((training, i) =>
+        takes.push({
+          training,
+          takeNumber: i + 1,
+          label: `${topic}, take ${i + 1}`,
+        })
+      );
+  }
+  takes.sort((a, b) => b.training.createdAt.localeCompare(a.training.createdAt));
+
+  return { bestLines: buildBestLines(view.trainings), takes, general: view.general };
+}
+
+function buildBestLines(trainings: StrengthTraining[]): BestLines | null {
+  // FE fallback: the most recent recording's best moment per slide. (The BE's
+  // cross-take aggregation picks the best of each slide across ALL takes.)
+  const recent = trainings[0];
+  if (!recent) return null;
+  const slides = recent.slides
+    .filter((s) => s.moments.length > 0)
+    .map((s) => ({ index: s.index, title: s.title, body: s.body, moment: s.moments[0] }));
+  if (slides.length === 0) return null;
+  return {
+    topic: recent.topic || "Presentation",
+    presentationRef: recent.presentationRef,
+    slides,
+  };
+}
