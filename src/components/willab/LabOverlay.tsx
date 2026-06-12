@@ -82,7 +82,11 @@ export default function LabOverlay({
   // D-3 — back-gesture / Back exits the Lab instead of routing away.
   useBackDismiss(onClose);
   const router = useRouter();
-  const mic = useDualCaptureMic();
+  // T8 — the Lab transcribes server-side (Whisper) and never shows a live
+  // transcript, so skip Web Speech: its per-result events would re-render the
+  // whole recording overlay many times a second (worse the longer the take),
+  // which is what made the screen go stale / the slide Next feel unresponsive.
+  const mic = useDualCaptureMic({ transcript: false });
   const { cancel: cancelMic } = mic;
   const signedIn = useSignedIn();
   const [context, setContext] = useState<LabSessionContext | null>(null);
