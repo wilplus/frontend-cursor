@@ -51,6 +51,7 @@ describe("mapStrengths", () => {
       startOffsetMs: 100,
       durationMs: 2000,
       rank: null,
+      features: null,
     });
 
     expect(v.trainings).toHaveLength(1);

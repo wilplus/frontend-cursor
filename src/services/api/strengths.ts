@@ -1,4 +1,8 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import {
+  mapReadoutFeatures,
+  type ReadoutFeatures,
+} from "@/components/willab/readout";
 
 /* -------------------------------------------------------------------------- */
 /*  strengths — the slide-grouped strong-sides page (§7b, BE PR #76)           */
@@ -22,6 +26,9 @@ export interface StrengthMoment {
   durationMs: number;
   /** Rank within a slide (1 = best); null on general / unranked moments. */
   rank: number | null;
+  /** §7b — the per-moment acoustic vector (same shape as the readout), for the
+   *  "mathematics behind it" toggle. null until the BE adds `features` here. */
+  features: ReadoutFeatures | null;
 }
 
 export interface StrengthSlide {
@@ -65,6 +72,10 @@ function mapMoment(raw: unknown): StrengthMoment | null {
     startOffsetMs: num(r.start_offset_ms),
     durationMs: num(r.duration_ms),
     rank: typeof r.rank === "number" && Number.isFinite(r.rank) ? r.rank : null,
+    features:
+      r.features != null && typeof r.features === "object"
+        ? mapReadoutFeatures(r.features)
+        : null,
   };
 }
 
