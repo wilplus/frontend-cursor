@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   initialSlides,
   nonEmptySlides,
+  clampSlides,
   bulletLines,
   deckFileError,
   mapExtractedDeck,
@@ -65,8 +66,31 @@ describe("deckFileError", () => {
   });
 });
 
+describe("clampSlides", () => {
+  it("keeps blanks (clamp + cap only) so PDF pages stay aligned", () => {
+    const out = clampSlides([
+      { title: "p1", body: "a" },
+      { title: "", body: "" },
+      { title: "p3", body: "c" },
+    ]);
+    expect(out).toEqual([
+      { title: "p1", body: "a" },
+      { title: "", body: "" },
+      { title: "p3", body: "c" },
+    ]);
+  });
+
+  it("caps at maxSlides", () => {
+    const many = Array.from({ length: SLIDE_CAPS.maxSlides + 5 }, () => ({
+      title: "t",
+      body: "b",
+    }));
+    expect(clampSlides(many).length).toBe(SLIDE_CAPS.maxSlides);
+  });
+});
+
 describe("mapExtractedDeck", () => {
-  it("maps presentation_ref + slides + warnings, dropping blank slides", () => {
+  it("keeps blank slides (PDF page alignment), dropping only non-object junk", () => {
     expect(
       mapExtractedDeck({
         presentation_ref: "https://cdn/x.pdf",
@@ -79,7 +103,10 @@ describe("mapExtractedDeck", () => {
       })
     ).toEqual({
       presentationRef: "https://cdn/x.pdf",
-      slides: [{ title: "Open", body: "hook\nstory" }],
+      slides: [
+        { title: "Open", body: "hook\nstory" },
+        { title: "", body: "" },
+      ],
       warnings: ["slide 4 had no text"],
     });
   });
