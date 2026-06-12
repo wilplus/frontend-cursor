@@ -350,11 +350,14 @@ export default function Lounge({
         setStrongSidesAt(new Date().toISOString());
       } else {
         const answer = (resp.answer ?? "").trim();
-        await thread.append({
-          role: "bot",
-          kind: "text",
-          body: answer || "I know nothing about that, at least yet 😏",
-        });
+        // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
+        // We persist the joined body and the thread re-splits on the same
+        // blank-line marker, so a reload shows exactly the bubbles that were sent.
+        const body =
+          resp.bubbles && resp.bubbles.length > 0
+            ? resp.bubbles.join("\n\n")
+            : answer || "I know nothing about that, at least yet 😏";
+        await thread.append({ role: "bot", kind: "text", body });
         setPendingAction(suggested);
       }
     } catch {
