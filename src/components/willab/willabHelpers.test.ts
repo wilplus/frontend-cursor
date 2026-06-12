@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fmtClock,
+  isStrongSidesAsk,
   loungeToHistory,
   parseVocabulary,
   splitBotMessage,
@@ -94,5 +95,30 @@ describe("loungeToHistory", () => {
     expect(h.length).toBe(20);
     expect(h[0]?.content).toBe("m5");
     expect(h[19]?.content).toBe("m24");
+  });
+});
+
+describe("isStrongSidesAsk", () => {
+  it("matches an explicit strong-sides ask", () => {
+    expect(isStrongSidesAsk("can I see my strong sides?")).toBe(true);
+    expect(isStrongSidesAsk("show me my strengths")).toBe(true);
+    expect(isStrongSidesAsk("what are my strong points")).toBe(true);
+  });
+
+  it("matches an anaphoric follow-up only in a strong-sides context", () => {
+    const ctx = "Your strong side from the last session is: ...";
+    expect(isStrongSidesAsk("Can i see all of them?", ctx)).toBe(true);
+    expect(isStrongSidesAsk("show me the rest", ctx)).toBe(true);
+    // same follow-up, non-strong-sides context → no match
+    expect(
+      isStrongSidesAsk("Can i see all of them?", "here are your recordings")
+    ).toBe(false);
+    // no context → no match
+    expect(isStrongSidesAsk("Can i see all of them?")).toBe(false);
+  });
+
+  it("ignores unrelated questions", () => {
+    expect(isStrongSidesAsk("how does communication work?")).toBe(false);
+    expect(isStrongSidesAsk("what's the weather")).toBe(false);
   });
 });

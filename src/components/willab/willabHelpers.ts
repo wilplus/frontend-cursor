@@ -51,6 +51,30 @@ export function fmtClock(sec: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 }
 
+/**
+ * Does a Lounge message read as "show me my strong sides"? True on an explicit
+ * mention (strong side(s) / strengths / strong points), or an anaphoric
+ * follow-up ("all of them", "the rest", "show me more") when the conversation
+ * was already about strong sides (`context` = the bot's previous turn). Lets the
+ * Lounge answer with the Strong sides bubble instead of reciting the coach
+ * notes as text.
+ */
+export function isStrongSidesAsk(text: string, context = ""): boolean {
+  const t = text.toLowerCase();
+  if (
+    /\bstrong\s*sides?\b/.test(t) ||
+    /\bstrengths?\b/.test(t) ||
+    /\bstrong points?\b/.test(t)
+  ) {
+    return true;
+  }
+  const refersBack =
+    /\b(all of them|them all|the rest|the others?|see them|show (me )?them|see more|show more|more of them)\b/.test(
+      t
+    );
+  return refersBack && /\bstrong\s*sides?\b/.test(context.toLowerCase());
+}
+
 /** Parse a comma-separated vocabulary field into clean terms (§4). */
 export function parseVocabulary(text: string): string[] {
   return text
