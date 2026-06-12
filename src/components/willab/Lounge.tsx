@@ -315,12 +315,8 @@ export default function Lounge({
     // recite the coach notes as text — answer briefly and surface the existing
     // Strong sides bubble (it opens the library). Skips the LLM round-trip.
     if (isStrongSidesAsk(q, prevBotText)) {
-      await thread.append({
-        role: "bot",
-        kind: "text",
-        body: "Sure! Tap the button below to see your strong sides.",
-      });
-      // Anchor the button in the thread (after this reply), not at the foot.
+      // Button only — no text bubble. Anchored in the thread after the user's
+      // ask, so it stays put like any other bubble (not the sticky foot button).
       setStrongSidesAt(new Date().toISOString());
       return;
     }
@@ -328,20 +324,20 @@ export default function Lounge({
     setBotThinking(true);
     try {
       const resp = await postChatQuery({ question: q, history });
-      const answer = (resp.answer ?? "").trim();
-      await thread.append({
-        role: "bot",
-        kind: "text",
-        body: answer || "I didn't quite catch that. Mind putting it another way?",
-      });
       // B-1 — the one quick-action the BE suggests for this turn (S1). A
-      // strong-sides suggestion goes to the in-thread button (same as the FE
-      // shortcut, never the sticky foot button); other actions stay as the
-      // transient foot button. undefined → null → no button.
+      // strong-sides suggestion shows ONLY the in-thread button — no text /
+      // note recital. Every other turn renders the reply (+ any foot button).
       const suggested = coerceSuggestedAction(resp.suggested_action);
       if (suggested === "strong_sides") {
         setStrongSidesAt(new Date().toISOString());
       } else {
+        const answer = (resp.answer ?? "").trim();
+        await thread.append({
+          role: "bot",
+          kind: "text",
+          body:
+            answer || "I didn't quite catch that. Mind putting it another way?",
+        });
         setPendingAction(suggested);
       }
     } catch {

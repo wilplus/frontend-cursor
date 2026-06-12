@@ -53,18 +53,20 @@ export function fmtClock(sec: number): string {
 
 /**
  * Does a Lounge message read as "show me my strong sides"? True on an explicit
- * mention (strong side(s) / strengths / strong points), or an anaphoric
- * follow-up ("all of them", "the rest", "show me more") when the conversation
- * was already about strong sides (`context` = the bot's previous turn). Lets the
- * Lounge answer with the Strong sides bubble instead of reciting the coach
- * notes as text.
+ * mention (strong side(s) / strengths / strong points — incl. the common
+ * "strenghts" typo and Polish "mocne strony"), or an anaphoric follow-up ("all
+ * of them", "the rest", "show me more") when the conversation was already about
+ * strong sides (`context` = the bot's previous turn). Lets the Lounge answer
+ * with the Strong sides button instead of reciting the coach notes as text.
  */
 export function isStrongSidesAsk(text: string, context = ""): boolean {
   const t = text.toLowerCase();
   if (
     /\bstrong\s*sides?\b/.test(t) ||
     /\bstrengths?\b/.test(t) ||
-    /\bstrong points?\b/.test(t)
+    /\bstrenghts?\b/.test(t) || // common typo (h/t swapped)
+    /\bstrong points?\b/.test(t) ||
+    /\bmocn\w*\s+stron\w*/.test(t) // PL: "mocne strony" / "mocnych stron"
   ) {
     return true;
   }
