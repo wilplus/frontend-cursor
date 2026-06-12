@@ -48,6 +48,9 @@ export interface ChatQueryArgs {
  */
 export interface ChatQueryResponse {
   answer?: string;
+  /** RULE F (server-side split) — the answer pre-split into render-ready bubbles.
+   *  Authoritative over `answer`; render each 1:1. Absent → split `answer`. */
+  bubbles?: string[];
   error?: string;
   show_upload_ui?: boolean;
   /**
