@@ -54,6 +54,14 @@ export function nonEmptySlides(slides: PresentationSlide[]): PresentationSlide[]
     .map(clampSlide);
 }
 
+/** Clamp + cap WITHOUT dropping blanks — for a served-PDF deck, where each slide
+ *  is a PDF PAGE. Blank-text pages must stay: the page still renders during
+ *  recording, and the slide indices must line up with the tap timeline and the
+ *  served PDF. (Manual entry uses nonEmptySlides, which drops empty blocks.) */
+export function clampSlides(slides: PresentationSlide[]): PresentationSlide[] {
+  return slides.slice(0, SLIDE_CAPS.maxSlides).map(clampSlide);
+}
+
 /** Render-only: split a body string into bullet lines (blank lines dropped). */
 export function bulletLines(body: string): string[] {
   return body
@@ -98,10 +106,15 @@ export function mapSlide(raw: unknown): PresentationSlide | null {
 /** Map the `POST /v2/lab/presentation/extract` response defensively. */
 export function mapExtractedDeck(raw: unknown): ExtractedDeck {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  // Keep one slide per BE entry, INCLUDING blank-text ones: for a served PDF
+  // each entry is a PAGE, and an image-only / text-free page is still a real
+  // slide (it renders from the PDF, and its index must line up with the rest).
+  // Only genuinely malformed (non-object) entries are dropped. This is why a
+  // 10-page deck with 2 blank pages now keeps all 10 slides, not just 8.
   const slides = Array.isArray(r.slides)
     ? r.slides
-        .map(mapSlide)
-        .filter((s): s is PresentationSlide => s !== null)
+        .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
+        .map((s) => clampSlide({ title: str(s.title), body: str(s.body) }))
         .slice(0, SLIDE_CAPS.maxSlides)
     : [];
   const warnings = Array.isArray(r.warnings)
