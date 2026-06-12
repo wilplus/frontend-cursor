@@ -42,8 +42,9 @@ export function mapCoachStudent(raw: unknown): CoachStudent | null {
   const pseudonym = typeof r.pseudonym === "string" ? r.pseudonym : "";
   if (!pseudonym) return null;
   return {
-    // Drill-down key (E-1b). Prefer user_id, fall back to id; string OR number.
-    id: coerceId(r.user_id, r.id),
+    // Drill-down key (E-1b). Prefer user_id, then id, then other id fields the
+    // BE roster might use; string OR number. Empty → the row isn't drillable.
+    id: coerceId(r.user_id, r.id, r.student_id, r.uid, r.user),
     pseudonym,
     domain: typeof r.domain === "string" ? r.domain : "",
     lastActive: typeof r.last_active === "string" ? r.last_active : "",
