@@ -69,6 +69,14 @@ type ThreadItem =
       kind: "postsend";
       sortKey: string;
       reactKey: string;
+    }
+  | {
+      // The "Strong sides" button when the user asks for them — anchored IN the
+      // thread like any other bubble, not the sticky foot action button, so it
+      // stays put as the conversation continues.
+      kind: "strongsides";
+      sortKey: string;
+      reactKey: string;
     };
 
 export default function Lounge({
@@ -102,6 +110,11 @@ export default function Lounge({
   // from the BE's suggested_action (S1). null → no button. Transient: cleared
   // on the next send / on tap. Not persisted (freeze-safe).
   const [pendingAction, setPendingAction] = useState<ChipAction | null>(null);
+  // The "Strong sides" ask surfaces a button anchored IN the thread (not the
+  // sticky foot action button). Holds the timestamp it was offered at, so it
+  // sorts chronologically right after the bot's reply and stays put. Persists
+  // (a new ask just re-anchors it); cleared only when the thread resets.
+  const [strongSidesAt, setStrongSidesAt] = useState<string | null>(null);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -163,9 +176,18 @@ export default function Lounge({
         reactKey: "postsend",
       });
     }
+    // The Strong sides button sits where it was offered (anchored after the
+    // bot's reply), so it scrolls with the thread like any other bubble.
+    if (strongSidesAt) {
+      items.push({
+        kind: "strongsides",
+        sortKey: strongSidesAt,
+        reactKey: "strongsides",
+      });
+    }
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewQueue.rows, state]);
+  }, [messages, isCoach, reviewQueue.rows, state, strongSidesAt]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -252,7 +274,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, pendingAction]);
+  }, [messages.length, botThinking, pendingAction, strongSidesAt]);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -293,27 +315,31 @@ export default function Lounge({
     // recite the coach notes as text — answer briefly and surface the existing
     // Strong sides bubble (it opens the library). Skips the LLM round-trip.
     if (isStrongSidesAsk(q, prevBotText)) {
-      await thread.append({
-        role: "bot",
-        kind: "text",
-        body: "Sure! Tap the button below to see your strong sides.",
-      });
-      setPendingAction("strong_sides");
+      // Button only — no text bubble. Anchored in the thread after the user's
+      // ask, so it stays put like any other bubble (not the sticky foot button).
+      setStrongSidesAt(new Date().toISOString());
       return;
     }
 
     setBotThinking(true);
     try {
       const resp = await postChatQuery({ question: q, history });
-      const answer = (resp.answer ?? "").trim();
-      await thread.append({
-        role: "bot",
-        kind: "text",
-        body: answer || "I didn't quite catch that. Mind putting it another way?",
-      });
-      // B-1 — render the one quick-action button the BE suggests for this turn
-      // (S1). undefined until BE-2 ships the field → null → no button.
-      setPendingAction(coerceSuggestedAction(resp.suggested_action));
+      // B-1 — the one quick-action the BE suggests for this turn (S1). A
+      // strong-sides suggestion shows ONLY the in-thread button — no text /
+      // note recital. Every other turn renders the reply (+ any foot button).
+      const suggested = coerceSuggestedAction(resp.suggested_action);
+      if (suggested === "strong_sides") {
+        setStrongSidesAt(new Date().toISOString());
+      } else {
+        const answer = (resp.answer ?? "").trim();
+        await thread.append({
+          role: "bot",
+          kind: "text",
+          body:
+            answer || "I didn't quite catch that. Mind putting it another way?",
+        });
+        setPendingAction(suggested);
+      }
     } catch {
       await thread.append({
         role: "bot",
@@ -370,13 +396,19 @@ export default function Lounge({
                 row={item.row}
                 onOpen={openReview}
               />
-            ) : (
+            ) : item.kind === "postsend" ? (
               <div key={item.reactKey} className="flex flex-col gap-2">
                 <PostSendOffer
                   onReviewStrongSides={() => onChip("strong_sides")}
                 />
                 <ProgressToAuditBubble onOpenAudit={() => setAuditOpen(true)} />
               </div>
+            ) : (
+              <ActionButton
+                key={item.reactKey}
+                action="strong_sides"
+                onClick={() => onChip("strong_sides")}
+              />
             )
           )
         )}

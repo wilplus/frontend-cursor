@@ -105,6 +105,15 @@ describe("isStrongSidesAsk", () => {
     expect(isStrongSidesAsk("what are my strong points")).toBe(true);
   });
 
+  it("matches the strenghts typo and Polish mocne strony", () => {
+    expect(isStrongSidesAsk("Strenghts")).toBe(true);
+    expect(isStrongSidesAsk("strenght")).toBe(true);
+    expect(isStrongSidesAsk("Mocne strony")).toBe(true);
+    expect(isStrongSidesAsk("pokaż moje mocnych stron")).toBe(true);
+    // doesn't false-positive on the verb "strengthen"
+    expect(isStrongSidesAsk("how do I strengthen my argument?")).toBe(false);
+  });
+
   it("matches an anaphoric follow-up only in a strong-sides context", () => {
     const ctx = "Your strong side from the last session is: ...";
     expect(isStrongSidesAsk("Can i see all of them?", ctx)).toBe(true);
