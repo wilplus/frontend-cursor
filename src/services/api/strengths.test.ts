@@ -1,5 +1,67 @@
 import { describe, expect, it } from "vitest";
-import { mapStrengths } from "./strengths";
+import {
+  mapStrengths,
+  strengthsHome,
+  type StrengthMoment,
+  type StrengthSlide,
+  type StrengthTraining,
+} from "./strengths";
+
+const mom = (over: Partial<StrengthMoment> = {}): StrengthMoment => ({
+  transcript: "t",
+  note: "n",
+  audioRef: null,
+  startOffsetMs: 0,
+  durationMs: 0,
+  rank: 1,
+  features: null,
+  ...over,
+});
+const sl = (index: number, moments: StrengthMoment[]): StrengthSlide => ({
+  index,
+  title: `S${index}`,
+  body: "",
+  moments,
+});
+const tr = (over: Partial<StrengthTraining> = {}): StrengthTraining => ({
+  sessionId: "s",
+  topic: "My app",
+  createdAt: "2026-01-01",
+  presentationRef: "u",
+  titleSlide: null,
+  slides: [],
+  ...over,
+});
+
+describe("strengthsHome", () => {
+  it("numbers takes per topic (oldest = 1) and lists them newest first", () => {
+    const h = strengthsHome({
+      general: [],
+      trainings: [
+        tr({ sessionId: "b", createdAt: "2026-02-01", slides: [sl(0, [mom()])] }),
+        tr({ sessionId: "a", createdAt: "2026-01-01", slides: [sl(0, [mom()])] }),
+      ],
+    });
+    expect(h.takes.map((t) => `${t.label}:${t.training.sessionId}`)).toEqual([
+      "My app, take 2:b",
+      "My app, take 1:a",
+    ]);
+  });
+
+  it("best lines = the most recent take's best moment per slide (empty slides dropped)", () => {
+    const h = strengthsHome({
+      general: [],
+      trainings: [
+        tr({
+          createdAt: "2026-02-01",
+          slides: [sl(0, [mom({ transcript: "best0" })]), sl(1, [])],
+        }),
+      ],
+    });
+    expect(h.bestLines?.slides.map((s) => s.index)).toEqual([0]);
+    expect(h.bestLines?.slides[0].moment.transcript).toBe("best0");
+  });
+});
 
 describe("mapStrengths", () => {
   it("maps general + trainings (snake → camel) and keeps empty slides", () => {
