@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -139,6 +140,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
     <Card className="min-w-0 p-4 sm:p-6">
       <div className="mb-4 space-y-3">
         <LinkedInAuthButton mode="login" />
+        <GoogleAuthButton mode="login" />
 
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">

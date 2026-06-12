@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 interface SignupFormProps {
   onSuccess?: () => void;
@@ -171,6 +172,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             visual rhythm. */}
         <div className="flex flex-col">
           <LinkedInAuthButton mode="signup" />
+          <GoogleAuthButton mode="signup" className="mt-3" />
 
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
