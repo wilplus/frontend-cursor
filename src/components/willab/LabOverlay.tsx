@@ -25,6 +25,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import PresentationInput from "./PresentationInput";
 import SlideStage from "./SlideStage";
 import {
+  clampSlides,
   initialSlides,
   nonEmptySlides,
   type PresentationSlide,
@@ -483,7 +484,10 @@ function SessionContextForm({
       audience: audience.trim(),
       target_length_seconds: lengthSec,
       domain_vocabulary: parseVocabulary(vocab),
-      slides: nonEmptySlides(slides),
+      // A served-PDF deck keeps every page (clampSlides); manual entry drops
+      // empty blocks (nonEmptySlides). So a 10-page PDF with blank pages now
+      // carries all 10 slides, not just the ones the extractor found text on.
+      slides: presentationRef ? clampSlides(slides) : nonEmptySlides(slides),
       presentationRef,
     });
   }
