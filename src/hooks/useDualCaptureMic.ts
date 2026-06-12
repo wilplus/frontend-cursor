@@ -112,8 +112,17 @@ export function isDualCaptureSupported(): boolean {
   return getSpeechRecognitionCtor() !== null && pickDualCaptureMimeType() !== null;
 }
 
-export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
+export function useDualCaptureMic(opts?: {
+  lang?: string;
+  /** Run Web Speech for a live transcript (default true). The Lab sets this
+   *  false: it transcribes server-side (Whisper) and never shows the live
+   *  transcript, so per-result recognition events would only churn re-renders
+   *  (and rebuild a growing transcript string) for nothing — which made the
+   *  recording screen progressively stale on long takes. Audio is unaffected. */
+  transcript?: boolean;
+}): DualCaptureMic {
   const lang = opts?.lang ?? "en-US";
+  const wantTranscript = opts?.transcript ?? true;
   const [state, setState] = useState<DualCaptureState>({ status: "idle" });
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -179,9 +188,11 @@ export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
     if (startingRef.current) return;
     startingRef.current = true;
     try {
-      const Ctor = getSpeechRecognitionCtor();
+      // The Lab (transcript:false) needs only MediaRecorder; Web Speech is
+      // optional there, so don't fail when the browser lacks it (e.g. Firefox).
+      const Ctor = wantTranscript ? getSpeechRecognitionCtor() : null;
       const mime = pickDualCaptureMimeType();
-      if (!Ctor || !mime) {
+      if (!mime || (wantTranscript && !Ctor)) {
         setState({
           status: "error",
           code: "no_support",
@@ -233,50 +244,55 @@ export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
       };
       recorderRef.current = recorder;
 
-      const recognition = new Ctor();
-      recognition.lang = lang;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.onresult = (event) => {
-        // The contract is "transcript visible to the user IS what gets
-        // sent" (C4). We accumulate finalised segments in finalRef and
-        // expose finalRef + current interim as the live partialText.
-        let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          const text = result[0]?.transcript ?? "";
-          if (result.isFinal) {
-            finalRef.current = `${finalRef.current} ${text}`.trim();
-          } else {
-            interim += text;
+      if (Ctor) {
+        const recognition = new Ctor();
+        recognition.lang = lang;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (event) => {
+          // The contract is "transcript visible to the user IS what gets
+          // sent" (C4). We accumulate finalised segments in finalRef and
+          // expose finalRef + current interim as the live partialText.
+          let interim = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            const text = result[0]?.transcript ?? "";
+            if (result.isFinal) {
+              finalRef.current = `${finalRef.current} ${text}`.trim();
+            } else {
+              interim += text;
+            }
           }
-        }
-        partialRef.current = interim;
-        const composite = `${finalRef.current} ${interim}`.trim();
-        setState({ status: "recording", partialText: composite });
-      };
-      recognition.onerror = () => {
-        // "no-speech", "audio-capture", "network" etc. are common and
-        // shouldn't kill the recording — the user might still be mid-
-        // sentence. We let MediaRecorder keep going; if Web Speech
-        // permanently dies the user can still send the recorded audio
-        // and the backend will transcribe via Whisper as a fallback.
-      };
-      recognition.onend = () => {
-        // Don't auto-restart — `continuous: true` is best-effort and
-        // some browsers (Safari) end the session unilaterally. Leaving
-        // this as a no-op preserves whatever finalRef has captured so
-        // stop() can still compose a clean transcript.
-      };
-      recognitionRef.current = recognition;
+          partialRef.current = interim;
+          const composite = `${finalRef.current} ${interim}`.trim();
+          setState({ status: "recording", partialText: composite });
+        };
+        recognition.onerror = () => {
+          // "no-speech", "audio-capture", "network" etc. are common and
+          // shouldn't kill the recording — the user might still be mid-
+          // sentence. We let MediaRecorder keep going; if Web Speech
+          // permanently dies the user can still send the recorded audio
+          // and the backend will transcribe via Whisper as a fallback.
+        };
+        recognition.onend = () => {
+          // Don't auto-restart — `continuous: true` is best-effort and
+          // some browsers (Safari) end the session unilaterally. Leaving
+          // this as a no-op preserves whatever finalRef has captured so
+          // stop() can still compose a clean transcript.
+        };
+        recognitionRef.current = recognition;
+      }
 
       recorder.start();
-      try {
-        recognition.start();
-      } catch {
-        // start() can throw "InvalidStateError" if already started; we
-        // just attempted a fresh construct so this should be rare, but
-        // tolerate it rather than poison the state.
+      const recognition = recognitionRef.current;
+      if (recognition) {
+        try {
+          recognition.start();
+        } catch {
+          // start() can throw "InvalidStateError" if already started; we
+          // just attempted a fresh construct so this should be rare, but
+          // tolerate it rather than poison the state.
+        }
       }
 
       setState({ status: "recording", partialText: "" });
@@ -285,7 +301,7 @@ export function useDualCaptureMic(opts?: { lang?: string }): DualCaptureMic {
       // throw from MediaRecorder construction — so the latch never sticks.
       startingRef.current = false;
     }
-  }, [lang, teardown]);
+  }, [lang, teardown, wantTranscript]);
 
   const stop = useCallback(async () => {
     // No-op if not actively recording — callers may invoke stop()
