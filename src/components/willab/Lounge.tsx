@@ -63,7 +63,7 @@ type ThreadItem =
       row: ReviewQueueRow;
     }
   | {
-      // A-4 / B-2 — the post-send offer + audit-progress, anchored in the thread
+      // A-4 / B-2 — the post-send strong-sides offer, anchored in the thread
       // right after the completed-training card (not pinned to the foot), so new
       // chat sorts below it.
       kind: "postsend";
@@ -75,6 +75,14 @@ type ThreadItem =
       // thread like any other bubble, not the sticky foot action button, so it
       // stays put as the conversation continues.
       kind: "strongsides";
+      sortKey: string;
+      reactKey: string;
+    }
+  | {
+      // The audit-progress line. Once you've sent a training it stays in the
+      // thread (any state), anchored after the completed-training card — like
+      // any other bubble, never disappearing.
+      kind: "auditprogress";
       sortKey: string;
       reactKey: string;
     };
@@ -161,19 +169,29 @@ export default function Lounge({
         });
       }
     }
-    // A-4 / B-2 — anchor the post-send offer right after the latest completed-
-    // training card (its timestamp + "~" sorts just after that card but before
-    // any later message), so chatting on doesn't push it to the foot.
+    // Anchor both the post-send offer and the audit-progress line right after the
+    // latest completed-training card (its timestamp + "~" sorts just after that
+    // card but before any later message), so chatting on doesn't push them down.
+    const lastSummaryAt = messages
+      .filter((m) => m.kind === "recording_summary")
+      .map((m) => m.client_created_at)
+      .sort()
+      .pop();
     if (state === "review_pending") {
-      const lastSummaryAt = messages
-        .filter((m) => m.kind === "recording_summary")
-        .map((m) => m.client_created_at)
-        .sort()
-        .pop();
       items.push({
         kind: "postsend",
         sortKey: `${lastSummaryAt ?? ""}~`,
         reactKey: "postsend",
+      });
+    }
+    // The audit-progress line persists once you've sent a training — in ANY
+    // state, never disappearing (it self-hides only when there's no progress
+    // data). It's an ordinary thread bubble, anchored, not the transient offer.
+    if (lastSummaryAt) {
+      items.push({
+        kind: "auditprogress",
+        sortKey: `${lastSummaryAt}~~`,
+        reactKey: "auditprogress",
       });
     }
     // The Strong sides button sits where it was offered (anchored after the
@@ -335,8 +353,7 @@ export default function Lounge({
         await thread.append({
           role: "bot",
           kind: "text",
-          body:
-            answer || "I didn't quite catch that. Mind putting it another way?",
+          body: answer || "I know nothing about that, at least yet 😏",
         });
         setPendingAction(suggested);
       }
@@ -397,12 +414,15 @@ export default function Lounge({
                 onOpen={openReview}
               />
             ) : item.kind === "postsend" ? (
-              <div key={item.reactKey} className="flex flex-col gap-2">
-                <PostSendOffer
-                  onReviewStrongSides={() => onChip("strong_sides")}
-                />
-                <ProgressToAuditBubble onOpenAudit={() => setAuditOpen(true)} />
-              </div>
+              <PostSendOffer
+                key={item.reactKey}
+                onReviewStrongSides={() => onChip("strong_sides")}
+              />
+            ) : item.kind === "auditprogress" ? (
+              <ProgressToAuditBubble
+                key={item.reactKey}
+                onOpenAudit={() => setAuditOpen(true)}
+              />
             ) : (
               <ActionButton
                 key={item.reactKey}
