@@ -42,11 +42,11 @@ const dB = (v: number | null) => (v != null ? `${Math.round(v)} dB` : DASH);
 const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : DASH);
 const dec = (v: number | null) => (v != null ? v.toFixed(2) : DASH);
 
-// Speed shows as a percentage of a 50-wpm reference (50 wpm = 100%), scaling
-// proportionally and uncapped (100 wpm = 200%, 25 wpm = 50%). Product call — one
-// intuitive "speed" number on the hero instead of raw words-per-minute (the raw
-// wpm still lives in the Show-details panel).
-const SPEED_REF_WPM = 50;
+// Speed shows as a percentage of a 125-wpm reference (125 wpm = 100%), scaling
+// proportionally (90 wpm = 72%, 150 wpm = 120%). Product call — one intuitive
+// "speed" number on the hero instead of raw words-per-minute (the raw wpm still
+// lives in the Show-details panel).
+const SPEED_REF_WPM = 125;
 const speedPct = (wpm: number) => `${Math.round((wpm / SPEED_REF_WPM) * 100)}%`;
 
 /** Gross speaking rate (words ÷ minutes) derived from a snippet's own
