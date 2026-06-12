@@ -42,6 +42,13 @@ const dB = (v: number | null) => (v != null ? `${Math.round(v)} dB` : DASH);
 const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : DASH);
 const dec = (v: number | null) => (v != null ? v.toFixed(2) : DASH);
 
+// Speed shows as a percentage of a 50-wpm reference (50 wpm = 100%), scaling
+// proportionally and uncapped (100 wpm = 200%, 25 wpm = 50%). Product call — one
+// intuitive "speed" number on the hero instead of raw words-per-minute (the raw
+// wpm still lives in the Show-details panel).
+const SPEED_REF_WPM = 50;
+const speedPct = (wpm: number) => `${Math.round((wpm / SPEED_REF_WPM) * 100)}%`;
+
 /** Gross speaking rate (words ÷ minutes) derived from a snippet's own
  *  transcript + duration — the fallback for the speed hero when the BE omits
  *  `speech_rate` from the instant readout. Words per minute including pauses
@@ -207,7 +214,7 @@ function SnippetCard({
         <Hero
           value={f.speechRate ?? grossWpm(snippet.transcript, snippet.durationMs)}
           label="speed"
-          fmt={(v) => `${Math.round(v)} wpm`}
+          fmt={speedPct}
         />
         <Hero
           value={f.pauseRatio}
