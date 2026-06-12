@@ -7,7 +7,11 @@ import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
-import { loungeToHistory, splitBotMessage } from "./willabHelpers";
+import {
+  isStrongSidesAsk,
+  loungeToHistory,
+  splitBotMessage,
+} from "./willabHelpers";
 import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
@@ -280,8 +284,24 @@ export default function Lounge({
     atBottomRef.current = true; // sending always scrolls to your own message
     setPendingAction(null); // B-1 — a new question supersedes any prior suggestion
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
+    const botTurns = messages.filter((msg) => msg.role === "bot");
+    const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
     setDraftText("");
     await thread.append({ role: "user", kind: "text", body: q });
+
+    // Strong-sides shortcut: when the user asks to see their strong sides, don't
+    // recite the coach notes as text — answer briefly and surface the existing
+    // Strong sides bubble (it opens the library). Skips the LLM round-trip.
+    if (isStrongSidesAsk(q, prevBotText)) {
+      await thread.append({
+        role: "bot",
+        kind: "text",
+        body: "Sure! Tap the button below to see your strong sides.",
+      });
+      setPendingAction("strong_sides");
+      return;
+    }
+
     setBotThinking(true);
     try {
       const resp = await postChatQuery({ question: q, history });
