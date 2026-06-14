@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Send, Users } from "lucide-react";
+import { Loader2, Mic, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -118,6 +118,9 @@ export default function Lounge({
   // from the BE's suggested_action (S1). null → no button. Transient: cleared
   // on the next send / on tap. Not persisted (freeze-safe).
   const [pendingAction, setPendingAction] = useState<ChipAction | null>(null);
+  // show_record_ui (seam 2) — per-turn mic invite. Hidden by default; revealed
+  // when the BE sends show_record_ui=true. Reset on every user send.
+  const [showRecordUi, setShowRecordUi] = useState(false);
   // The "Strong sides" ask surfaces a button anchored IN the thread (not the
   // sticky foot action button). Holds the timestamp it was offered at, so it
   // sorts chronologically right after the bot's reply and stays put. Persists
@@ -247,7 +250,7 @@ export default function Lounge({
   // recordings + all moments — supersedes the old recordings-only overlay).
   function onChip(action: ChipAction): void {
     if (action === "strong_sides") setLibraryOpen(true);
-    else if (action === "recordings") setAuditOpen(true);
+    else if (action === "trainings") setLibraryOpen(true); // seam 1 — Trainings tab
     else if (action === "record_again") onStart();
   }
 
@@ -322,7 +325,8 @@ export default function Lounge({
     const q = draftText.trim();
     if (!q || botThinking) return;
     atBottomRef.current = true; // sending always scrolls to your own message
-    setPendingAction(null); // B-1 — a new question supersedes any prior suggestion
+    setPendingAction(null);  // B-1 — a new question supersedes any prior suggestion
+    setShowRecordUi(false);  // seam 2 — reset mic invite on every send
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     const botTurns = messages.filter((msg) => msg.role === "bot");
     const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
@@ -359,6 +363,8 @@ export default function Lounge({
             : answer || "I know nothing about that, at least yet 😏";
         await thread.append({ role: "bot", kind: "text", body });
         setPendingAction(suggested);
+        // seam 2 — reveal the composer mic when the BE requests it.
+        setShowRecordUi(resp.show_record_ui === true);
       }
     } catch {
       await thread.append({
@@ -487,6 +493,17 @@ export default function Lounge({
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
       <form onSubmit={handleSend} className="relative">
+        {/* seam 2 — mic invite: hidden by default, revealed on show_record_ui. */}
+        {showRecordUi && (
+          <button
+            type="button"
+            onClick={onStart}
+            aria-label="Start recording"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-primary"
+          >
+            <Mic className="h-5 w-5" />
+          </button>
+        )}
         <input
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
@@ -497,7 +514,7 @@ export default function Lounge({
           autoCorrect="off"
           autoCapitalize="sentences"
           spellCheck
-          className="h-12 w-full rounded-full border border-border bg-background pl-4 pr-12 text-[15px] outline-none focus:border-primary"
+          className={`h-12 w-full rounded-full border border-border bg-background pr-12 text-[15px] outline-none focus:border-primary ${showRecordUi ? "pl-10" : "pl-4"}`}
           aria-label="Message Will"
         />
         <button

@@ -9,17 +9,17 @@
 /*  no FE intent logic — the classification is BE-owned.                        */
 /* -------------------------------------------------------------------------- */
 
-export type ChipAction = "strong_sides" | "recordings" | "record_again";
+export type ChipAction = "strong_sides" | "trainings" | "record_again";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
   strong_sides: "★ Strong sides",
-  recordings: "🕓 Recordings",
+  trainings: "Trainings",
   record_again: "Record again",
 };
 
 const VALID_ACTIONS: readonly ChipAction[] = [
   "strong_sides",
-  "recordings",
+  "trainings",
   "record_again",
 ];
 
