@@ -403,8 +403,22 @@ function PresentationDetail({
   onOpenTake: (t: PresentationTake) => void;
   onDeleteTake: (takeNumber: number) => void;
 }) {
+  const coverSlide = presentation.slides[0];
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10">
+    <div className="flex w-full flex-col">
+      {presentation.presentationRef && coverSlide ? (
+        <div className="aspect-video w-full overflow-hidden bg-muted">
+          <SlideRender
+            presentationRef={presentation.presentationRef}
+            pageIndex={coverSlide.index}
+            title={coverSlide.title}
+            body={coverSlide.body}
+            className="h-full w-full"
+          />
+        </div>
+      ) : null}
+
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10 pt-4">
       {presentation.bestLines.length > 0 ? (
         <>
           <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -445,6 +459,7 @@ function PresentationDetail({
           ]}
         />
       ))}
+      </div>
     </div>
   );
 }
@@ -463,7 +478,7 @@ function SlideList({
       {deck.slides.map((s, i) => (
         <Card
           key={`${s.index}-${i}`}
-          height={51}
+          height={108}
           onClick={() => onOpenSlide(i)}
           presentationRef={deck.presentationRef}
           slideIndex={s.index}
