@@ -86,16 +86,7 @@ type ThreadItem =
       sortKey: string;
       reactKey: string;
     }
-  | {
-      // B-1 — the intent-driven action chip from suggested_action. Anchored in
-      // the thread (not floating) so it scrolls up naturally as new messages
-      // arrive. Stays visible after being tapped (active=true = muted look).
-      kind: "action";
-      sortKey: string;
-      reactKey: string;
-      action: ChipAction;
-      active: boolean;
-    };
+  ;
 
 export default function Lounge({
   state,
@@ -124,14 +115,6 @@ export default function Lounge({
   const [auditOpen, setAuditOpen] = useState(false);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
-  // B-1 — the intent-driven action chip from the BE's suggested_action (S1).
-  // Anchored in the thread by sortKey so it scrolls up as new messages arrive.
-  // active=true after the user taps it (stays visible, muted style).
-  const [actionOffer, setActionOffer] = useState<{
-    action: ChipAction;
-    sortKey: string;
-    active: boolean;
-  } | null>(null);
   // show_record_ui (seam 2) — per-turn mic invite. Hidden by default; revealed
   // when the BE sends show_record_ui=true. Reset on every user send.
   const [showRecordUi, setShowRecordUi] = useState(false);
@@ -220,19 +203,9 @@ export default function Lounge({
         reactKey: "strongsides",
       });
     }
-    // B-1 action chip — anchored in the thread, stays after tap.
-    if (actionOffer) {
-      items.push({
-        kind: "action",
-        sortKey: actionOffer.sortKey,
-        reactKey: "action-offer",
-        action: actionOffer.action,
-        active: actionOffer.active,
-      });
-    }
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewQueue.rows, state, strongSidesAt, actionOffer]);
+  }, [messages, isCoach, reviewQueue.rows, state, strongSidesAt]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -319,7 +292,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, actionOffer, strongSidesAt]);
+  }, [messages.length, botThinking, strongSidesAt]);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -384,13 +357,14 @@ export default function Lounge({
           resp.bubbles && resp.bubbles.length > 0
             ? resp.bubbles.join("\n\n")
             : answer || "I know nothing about that, at least yet 😏";
-        await thread.append({ role: "bot", kind: "text", body });
-        // B-1 — anchor the action chip right after this reply in the thread.
-        setActionOffer(
-          suggested
-            ? { action: suggested, sortKey: new Date().toISOString(), active: false }
-            : null
-        );
+        await thread.append({
+          role: "bot",
+          kind: "text",
+          body,
+          // B-1 — persist the chip with the message so it survives reload and
+          // scroll-back. metadata round-trips through the server and localStorage.
+          metadata: suggested ? { suggested_action: suggested } : null,
+        });
         // seam 2 — reveal the composer mic when the BE requests it.
         setShowRecordUi(resp.show_record_ui === true);
       }
@@ -438,6 +412,7 @@ export default function Lounge({
                 key={item.reactKey}
                 message={item.message}
                 onViewInsights={handleViewInsights}
+                onChip={onChip}
                 animate={
                   i === threadItems.length - 1 &&
                   baselineRef.current !== null &&
@@ -459,18 +434,6 @@ export default function Lounge({
               <ProgressToAuditBubble
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
-              />
-            ) : item.kind === "action" ? (
-              <ActionButton
-                key={item.reactKey}
-                action={item.action}
-                active={item.active}
-                onClick={() => {
-                  setActionOffer((prev) =>
-                    prev ? { ...prev, active: true } : null
-                  );
-                  onChip(item.action);
-                }}
               />
             ) : (
               <ActionButton
@@ -620,28 +583,15 @@ function PostSendOffer({
 }
 
 /** B-1 — a single intent-driven quick-action button (from the BE's
- *  suggested_action, S1). Anchored in the thread; stays visible after tap
- *  with a muted "active" style so the user can see what they chose. */
-function ActionButton({
-  action,
-  active = false,
-  onClick,
-}: {
-  action: ChipAction;
-  active?: boolean;
-  onClick: () => void;
-}) {
+ *  suggested_action, S1). Lives inside the bot bubble it came with, persists
+ *  in thread history, and is always clickable (action is idempotent). */
+function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => void }) {
   return (
     <div className="mr-auto flex max-w-[85%]">
       <button
         type="button"
         onClick={onClick}
-        disabled={active}
-        className={`self-start rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
-          active
-            ? "border-primary/30 bg-primary/[0.06] text-foreground/50 cursor-default"
-            : "border-border text-foreground hover:border-primary/50"
-        }`}
+        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
       >
         {CHIP_LABEL[action]}
       </button>
@@ -722,10 +672,12 @@ function SequentialBotBubbles({
 function Bubble({
   message,
   onViewInsights,
+  onChip,
   animate = false,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
+  onChip?: (action: ChipAction) => void;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
@@ -740,18 +692,25 @@ function Bubble({
     );
   }
   if (message.role === "bot") {
-    // U3 (bubble-split): a multi-paragraph answer renders as several stacked
-    // bubbles — the librarian "sends" a few short messages, not one wall of
-    // text. A freshly-arrived reply reveals them SEQUENTIALLY with a typing
-    // indicator between (animate); historical messages render at once.
+    // B-1 — read the persisted action from metadata; render below the bubbles.
+    const action =
+      onChip && message.metadata
+        ? coerceSuggestedAction(message.metadata.suggested_action)
+        : null;
     return (
-      <SequentialBotBubbles
-        chunks={splitBotMessage(message.body)}
-        animate={animate}
-      />
+      <>
+        {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}
+        <SequentialBotBubbles
+          chunks={splitBotMessage(message.body)}
+          animate={animate}
+        />
+        {action && (
+          <ActionButton action={action} onClick={() => onChip!(action)} />
+        )}
+      </>
     );
   }
-  // system / status / recording_summary / insight → centered meta line
+  // system / status → centered meta line
   return (
     <div className="mx-auto max-w-[90%] text-center text-[12px] text-muted-foreground">
       {message.body}
