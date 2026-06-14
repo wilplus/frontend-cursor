@@ -1,30 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, MoreHorizontal, X } from "lucide-react";
 import {
+  deletePresentation,
+  deleteTake,
   fetchStrengths,
-  strengthsHome,
-  type BestLines,
+  type PresentationGroup,
+  type PresentationTake,
   type StrengthMoment,
-  type StrengthTraining,
   type StrengthsView,
-  type TakeCard,
 } from "@/services/api/strengths";
 import { SlideRender } from "./pdfSlides";
 import { SlidePlaceholder, SlideTake, type SlideTakeEntry } from "./SlideTake";
 import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
-/*  LibraryOverlay — "Trainings" (§ unification, phase 1)                      */
+/*  LibraryOverlay — "Trainings" 4-level nav                                  */
 /*                                                                            */
-/*  Home → slide list → slide take. Breadcrumb (Training / My app, take 3 /     */
-/*  Slide 1) is the nav — no back arrow. The slide "take" is the shared piece    */
-/*  (picture → Take N → inline playback → text → Advise ▾ → Data ▾, swipe);      */
-/*  phase 2 reuses it for Coach Insights with a different top bar.              */
+/*  L1  Presentations list                                                    */
+/*  L2  Presentation detail (best takes + all takes)                          */
+/*  L2g General moments                                                       */
+/*  L3  Slide list                                                             */
+/*  L4  SlideTake                                                              */
 /* -------------------------------------------------------------------------- */
 
-const EMPTY: StrengthsView = { general: [], trainings: [] };
+const EMPTY: StrengthsView = { general: [], presentations: [] };
 
 type DeckSlide = {
   index: number;
@@ -34,36 +35,42 @@ type DeckSlide = {
 };
 type Deck = {
   topic: string;
-  takeLabel: string; // "take 3" | "best takes" | "general"
-  takeTitle: string; // bold in-slide title: "Take 3" | "Best take" | ""
+  takeLabel: string;
+  takeTitle: string;
   presentationRef: string | null;
   slides: DeckSlide[];
 };
 
-const takeDeck = (c: TakeCard): Deck => ({
-  topic: c.training.topic || "Presentation",
-  takeLabel: `take ${c.takeNumber}`,
-  takeTitle: `Take ${c.takeNumber}`,
-  presentationRef: c.training.presentationRef,
-  slides: c.training.slides.map((s) => ({
-    index: s.index,
-    title: s.title,
-    body: s.body,
-    moment: s.moments[0] ?? null,
-  })),
-});
-const bestDeck = (b: BestLines): Deck => ({
-  topic: b.topic,
-  takeLabel: "best takes",
-  takeTitle: "Best take",
-  presentationRef: b.presentationRef,
-  slides: b.slides.map((s) => ({
-    index: s.index,
-    title: s.title,
-    body: s.body,
-    moment: s.moment,
-  })),
-});
+function bestLinesDeck(p: PresentationGroup): Deck {
+  return {
+    topic: p.topic || "Presentation",
+    takeLabel: "best takes",
+    takeTitle: "Best take",
+    presentationRef: p.presentationRef,
+    slides: p.bestLines.map((b) => ({
+      index: b.index,
+      title: b.title,
+      body: b.body,
+      moment: b.moment,
+    })),
+  };
+}
+
+function takeDeck(take: PresentationTake, topic: string): Deck {
+  return {
+    topic: topic || "Presentation",
+    takeLabel: `take ${take.takeNumber}`,
+    takeTitle: `Take ${take.takeNumber}`,
+    presentationRef: take.presentationRef,
+    slides: take.slides.map((s) => ({
+      index: s.index,
+      title: s.title,
+      body: s.body,
+      moment: s.moments[0] ?? null,
+    })),
+  };
+}
+
 const generalDeck = (moments: StrengthMoment[]): Deck => ({
   topic: "General strengths",
   takeLabel: "general",
@@ -80,8 +87,6 @@ function deckToEntries(deck: Deck): SlideTakeEntry[] {
       key: String(i),
       presentationRef: deck.presentationRef,
       slideIndex: s.index,
-      // Only show the take title when there is actually a moment — otherwise
-      // the empty-state message ("No standout moment…") should show instead.
       topBar:
         m && deck.takeTitle ? (
           <p className="text-[15px] font-semibold text-foreground">
@@ -102,18 +107,29 @@ function deckToEntries(deck: Deck): SlideTakeEntry[] {
   });
 }
 
+/* ─────────────────────── nav state ────────────────────────────────────── */
+
+type NavLevel =
+  | { level: "L1" }
+  | { level: "L2"; presentation: PresentationGroup }
+  | { level: "L2g" }
+  | { level: "L3"; deck: Deck; topic: string; takeLabel: string }
+  | { level: "L4"; deck: Deck; topic: string; takeLabel: string; slideIdx: number };
+
 export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
   useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
-  const [view, setView] = useState<StrengthsView>(EMPTY);
-  const [deck, setDeck] = useState<Deck | null>(null);
-  const [slideIdx, setSlideIdx] = useState<number | null>(null); // null = slide list
+  const [presentations, setPresentations] = useState<PresentationGroup[]>([]);
+  const [general, setGeneral] = useState<StrengthMoment[]>([]);
+  const [nav, setNav] = useState<NavLevel>({ level: "L1" });
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     void fetchStrengths().then((v) => {
       if (!active) return;
-      setView(v);
+      setPresentations(v.presentations);
+      setGeneral(v.general);
       setStatus("ready");
     });
     return () => {
@@ -121,32 +137,108 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  const home = useMemo(() => strengthsHome(view), [view]);
   const isEmpty =
-    !home.bestLines && home.takes.length === 0 && home.general.length === 0;
+    presentations.length === 0 && general.length === 0;
 
-  const goHome = () => {
-    setDeck(null);
-    setSlideIdx(null);
+  /* ── breadcrumbs ── */
+  const goL1 = () => setNav({ level: "L1" });
+  const goL2 = (p: PresentationGroup) => setNav({ level: "L2", presentation: p });
+
+  const crumbs: { label: string; onClick?: () => void }[] = (() => {
+    if (nav.level === "L1") return [{ label: "Trainings" }];
+    if (nav.level === "L2") {
+      return [
+        { label: "Trainings", onClick: goL1 },
+        { label: nav.presentation.topic || "Presentation" },
+      ];
+    }
+    if (nav.level === "L2g") {
+      return [
+        { label: "Trainings", onClick: goL1 },
+        { label: "Other moments" },
+      ];
+    }
+    if (nav.level === "L3") {
+      const goBack =
+        nav.deck.takeLabel === "general"
+          ? () => setNav({ level: "L2g" })
+          : () => {
+              // find the matching presentation to go back to L2
+              const p = presentations.find(
+                (pr) => (pr.topic || "Presentation") === nav.topic
+              );
+              if (p) setNav({ level: "L2", presentation: p });
+              else goL1();
+            };
+      return [
+        { label: "Trainings", onClick: goL1 },
+        { label: `${nav.topic}, ${nav.takeLabel}`, onClick: goBack },
+      ];
+    }
+    // L4
+    if (nav.level === "L4") {
+      return [
+        { label: "Trainings", onClick: goL1 },
+        {
+          label: `${nav.topic}, ${nav.takeLabel}`,
+          onClick: () =>
+            setNav({
+              level: "L3",
+              deck: nav.deck,
+              topic: nav.topic,
+              takeLabel: nav.takeLabel,
+            }),
+        },
+        { label: `Slide ${nav.slideIdx + 1}` },
+      ];
+    }
+    return [{ label: "Trainings" }];
+  })();
+
+  /* ── delete handlers ── */
+  const handleDeletePresentation = (p: PresentationGroup) => {
+    if (!window.confirm("Delete this presentation and all its takes?")) return;
+    const prev = presentations;
+    setPresentations((ps) => ps.filter((x) => x.presentationId !== p.presentationId));
+    if (nav.level === "L2" && nav.presentation.presentationId === p.presentationId) {
+      goL1();
+    }
+    deletePresentation(p.presentationId).catch(() => {
+      setPresentations(prev);
+      setDeleteError("Could not delete presentation. Please try again.");
+      setTimeout(() => setDeleteError(null), 3000);
+    });
   };
-  const goList = () => setSlideIdx(null);
 
-  // Breadcrumb segments (the nav). Root closes nothing — the X closes the overlay.
-  const crumbs: { label: string; onClick?: () => void }[] = deck
-    ? slideIdx != null
-      ? [
-          { label: "Training", onClick: goHome },
-          { label: `${deck.topic}, ${deck.takeLabel}`, onClick: goList },
-          { label: `Slide ${slideIdx + 1}` },
-        ]
-      : [
-          { label: "Training", onClick: goHome },
-          { label: `${deck.topic}, ${deck.takeLabel}` },
-        ]
-    : [{ label: "Trainings" }];
+  const handleDeleteTake = (presentationId: string, takeNumber: number) => {
+    setPresentations((ps) =>
+      ps.map((p) =>
+        p.presentationId !== presentationId
+          ? p
+          : { ...p, takes: p.takes.filter((t) => t.takeNumber !== takeNumber) }
+      )
+    );
+    deleteTake(presentationId, takeNumber).catch(() => {
+      // re-fetch on failure rather than trying to reconstruct the old state
+      void fetchStrengths().then((v) => {
+        setPresentations(v.presentations);
+        setGeneral(v.general);
+      });
+    });
+  };
+
+  /* ── slide navigation ── */
+  const openDeck = (deck: Deck, topic: string, takeLabel: string) =>
+    setNav({ level: "L3", deck, topic, takeLabel });
+
+  const openSlide = (slideIdx: number) => {
+    if (nav.level !== "L3") return;
+    setNav({ level: "L4", deck: nav.deck, topic: nav.topic, takeLabel: nav.takeLabel, slideIdx });
+  };
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
+      {/* header */}
       <div className="flex h-12 shrink-0 items-center justify-between px-4">
         <nav className="flex min-w-0 items-center gap-1.5 text-[15px]">
           {crumbs.map((c, i) => (
@@ -183,25 +275,59 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : deck && slideIdx != null ? (
+        ) : nav.level === "L4" ? (
           <SlideTake
-            entries={deckToEntries(deck)}
-            slideIdx={slideIdx}
-            onSlideIdx={setSlideIdx}
+            entries={deckToEntries(nav.deck)}
+            slideIdx={nav.slideIdx}
+            onSlideIdx={(i) =>
+              setNav({ level: "L4", deck: nav.deck, topic: nav.topic, takeLabel: nav.takeLabel, slideIdx: i })
+            }
           />
-        ) : deck ? (
-          <SlideList deck={deck} onOpenSlide={(i) => setSlideIdx(i)} />
+        ) : nav.level === "L3" ? (
+          <SlideList deck={nav.deck} onOpenSlide={openSlide} />
+        ) : nav.level === "L2" ? (
+          <PresentationDetail
+            presentation={nav.presentation}
+            onOpenBest={() =>
+              openDeck(
+                bestLinesDeck(nav.presentation),
+                nav.presentation.topic || "Presentation",
+                "best takes"
+              )
+            }
+            onOpenTake={(t) =>
+              openDeck(
+                takeDeck(t, nav.presentation.topic),
+                nav.presentation.topic || "Presentation",
+                `take ${t.takeNumber}`
+              )
+            }
+            onDeleteTake={(tn) => handleDeleteTake(nav.presentation.presentationId, tn)}
+          />
+        ) : nav.level === "L2g" ? (
+          <SlideList
+            deck={generalDeck(general)}
+            onOpenSlide={(i) => {
+              const deck = generalDeck(general);
+              setNav({ level: "L4", deck, topic: "Other moments", takeLabel: "general", slideIdx: i });
+            }}
+          />
         ) : isEmpty ? (
           <p className="mx-auto w-full max-w-2xl px-4 text-[15px] text-muted-foreground">
-            Nothing here yet — your strongest moments collect here as your coach
+            Nothing here yet. Your strongest moments collect here as your coach
             sends reads.
           </p>
         ) : (
-          <Home
-            home={home}
-            onOpenBest={() => home.bestLines && setDeck(bestDeck(home.bestLines))}
-            onOpenTake={(c) => setDeck(takeDeck(c))}
-            onOpenGeneral={() => setDeck(generalDeck(home.general))}
+          <PresentationsList
+            presentations={presentations}
+            general={general}
+            onOpenPresentation={(p) => {
+              // update nav to L2 with fresh presentation state
+              goL2(p);
+            }}
+            onOpenGeneral={() => setNav({ level: "L2g" })}
+            onDeletePresentation={handleDeletePresentation}
+            deleteError={deleteError}
           />
         )}
       </div>
@@ -209,57 +335,121 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ─────────────────────────────── L1 home ─────────────────────────────── */
+/* ─────────────────────────────── L1 presentations ─────────────────────── */
 
-function Home({
-  home,
-  onOpenBest,
-  onOpenTake,
+function PresentationsList({
+  presentations,
+  general,
+  onOpenPresentation,
   onOpenGeneral,
+  onDeletePresentation,
+  deleteError,
 }: {
-  home: ReturnType<typeof strengthsHome>;
-  onOpenBest: () => void;
-  onOpenTake: (c: TakeCard) => void;
+  presentations: PresentationGroup[];
+  general: StrengthMoment[];
+  onOpenPresentation: (p: PresentationGroup) => void;
   onOpenGeneral: () => void;
+  onDeletePresentation: (p: PresentationGroup) => void;
+  deleteError: string | null;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10">
-      {home.bestLines ? (
+      {presentations.map((p) => (
         <Card
+          key={p.presentationId}
           height={84}
-          top
-          onClick={onOpenBest}
-          presentationRef={home.bestLines.presentationRef}
-          slideIndex={home.bestLines.slides[0]?.index ?? 0}
-          title="These are your best lines ready to use on your next presentation"
-        />
-      ) : null}
-
-      {home.takes.map((c) => (
-        <Card
-          key={c.training.sessionId}
-          height={84}
-          onClick={() => onOpenTake(c)}
-          presentationRef={c.training.presentationRef}
-          slideIndex={c.training.titleSlide?.index ?? 0}
-          title={c.label}
+          onClick={() => onOpenPresentation(p)}
+          presentationRef={p.presentationRef}
+          slideIndex={p.slides[0]?.index ?? 0}
+          title={p.topic || "Presentation"}
+          sub={`${p.takes.length} take${p.takes.length === 1 ? "" : "s"}`}
+          menuItems={[
+            {
+              label: "Delete presentation",
+              danger: true,
+              onClick: () => onDeletePresentation(p),
+            },
+          ]}
         />
       ))}
 
-      {home.general.length > 0 ? (
+      {general.length > 0 ? (
         <Card
           height={84}
           onClick={onOpenGeneral}
           presentationRef={null}
           slideIndex={0}
-          title="General strengths"
+          title="Other moments"
         />
+      ) : null}
+
+      {deleteError ? (
+        <p className="text-[13px] text-destructive">{deleteError}</p>
       ) : null}
     </div>
   );
 }
 
-/* ─────────────────────────────── L2 slides ───────────────────────────── */
+/* ─────────────────────────────── L2 presentation detail ────────────────── */
+
+function PresentationDetail({
+  presentation,
+  onOpenBest,
+  onOpenTake,
+  onDeleteTake,
+}: {
+  presentation: PresentationGroup;
+  onOpenBest: () => void;
+  onOpenTake: (t: PresentationTake) => void;
+  onDeleteTake: (takeNumber: number) => void;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10">
+      {presentation.bestLines.length > 0 ? (
+        <>
+          <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Best takes
+          </p>
+          <Card
+            height={84}
+            top
+            onClick={onOpenBest}
+            presentationRef={presentation.presentationRef}
+            slideIndex={presentation.bestLines[0]?.index ?? 0}
+            title="Best takes"
+          />
+        </>
+      ) : null}
+
+      {presentation.takes.length > 0 ? (
+        <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+          All takes
+        </p>
+      ) : null}
+
+      {presentation.takes.map((t) => (
+        <Card
+          key={t.takeNumber}
+          height={84}
+          onClick={() => onOpenTake(t)}
+          presentationRef={t.presentationRef}
+          slideIndex={t.slides[0]?.index ?? 0}
+          title={`Take ${t.takeNumber}`}
+          sub={new Date(t.createdAt).toLocaleDateString()}
+          menuItems={[
+            {
+              label: "Delete take",
+              danger: true,
+              onClick: () => onDeleteTake(t.takeNumber),
+            },
+          ]}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── L3 slide list ─────────────────────────── */
 
 function SlideList({
   deck,
@@ -286,42 +476,105 @@ function SlideList({
 
 /* ─────────────────────── card + thumbnail (shared) ─────────────────────── */
 
+type MenuItem = { label: string; onClick: () => void; danger?: boolean };
+
 function Card({
   height,
   onClick,
   presentationRef,
   slideIndex,
   title,
+  sub,
   top,
+  menuItems,
 }: {
   height: number;
   onClick: () => void;
   presentationRef: string | null;
   slideIndex: number;
   title: string;
+  sub?: string;
   top?: boolean;
+  menuItems?: MenuItem[];
 }) {
   const thumbW = Math.round((height * 16) / 9);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /* click-outside close */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ height }}
-      className={`flex w-full items-stretch overflow-hidden rounded-xl border text-left transition active:scale-[0.995] ${
-        top
-          ? "border-primary/40 bg-primary/[0.04] hover:bg-primary/[0.07]"
-          : "border-border bg-card hover:bg-muted/50"
-      }`}
-    >
-      <div className="shrink-0" style={{ width: thumbW }}>
-        <Thumb presentationRef={presentationRef} slideIndex={slideIndex} />
-      </div>
-      <div className="flex min-w-0 flex-1 items-center px-4">
-        <span className="line-clamp-2 text-[15px] font-medium text-foreground">
-          {title}
-        </span>
-      </div>
-    </button>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onClick}
+        style={{ height }}
+        className={`flex w-full items-stretch overflow-hidden rounded-xl border text-left transition active:scale-[0.995] ${
+          top
+            ? "border-primary/40 bg-primary/[0.04] hover:bg-primary/[0.07]"
+            : "border-border bg-card hover:bg-muted/50"
+        }`}
+      >
+        <div className="shrink-0" style={{ width: thumbW }}>
+          <Thumb presentationRef={presentationRef} slideIndex={slideIndex} />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center px-4">
+          <span className="line-clamp-2 text-[15px] font-medium text-foreground">
+            {title}
+          </span>
+          {sub ? (
+            <span className="mt-0.5 text-[13px] text-muted-foreground">{sub}</span>
+          ) : null}
+        </div>
+      </button>
+
+      {menuItems && menuItems.length > 0 ? (
+        <div ref={menuRef} className="absolute right-2 top-1/2 z-10 -translate-y-1/2">
+          <button
+            type="button"
+            aria-label="More options"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((v) => !v);
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+
+          {menuOpen ? (
+            <div className="absolute right-2 top-8 min-w-[160px] rounded-lg border border-border bg-card py-1 shadow-md">
+              {menuItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    item.onClick();
+                  }}
+                  className={`block w-full px-4 py-2 text-left text-[14px] hover:bg-muted ${
+                    item.danger ? "text-destructive" : "text-foreground"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
