@@ -14,7 +14,7 @@ describe("initialWillabState", () => {
     ).toBe("intake_in_progress");
   });
 
-  it("routes a fully-onboarded user straight to the Lounge", () => {
+  it("routes a fully-onboarded user to the Lounge (no parked readout)", () => {
     expect(
       initialWillabState({ consentAccepted: true, intakeDone: true })
     ).toBe("lounge_idle");
@@ -26,47 +26,8 @@ describe("initialWillabState", () => {
     ).toBe("parked");
   });
 
-  it("routes a returning user awaiting coach review to review_pending", () => {
-    expect(
-      initialWillabState({
-        consentAccepted: true,
-        intakeDone: true,
-        reviewPending: true,
-      })
-    ).toBe("review_pending");
-  });
-
-  it("prefers a parked Readout over review_pending when both are set", () => {
-    expect(
-      initialWillabState({
-        consentAccepted: true,
-        intakeDone: true,
-        parked: true,
-        reviewPending: true,
-      })
-    ).toBe("parked");
-  });
-
-  it("routes a returning user with unread coach insights to insights_ready", () => {
-    expect(
-      initialWillabState({
-        consentAccepted: true,
-        intakeDone: true,
-        insightsReady: true,
-      })
-    ).toBe("insights_ready");
-  });
-
-  it("prefers review_pending over insights_ready when both are set", () => {
-    expect(
-      initialWillabState({
-        consentAccepted: true,
-        intakeDone: true,
-        reviewPending: true,
-        insightsReady: true,
-      })
-    ).toBe("review_pending");
-  });
+  // Note: review_pending / insights_ready are now BE-owned (seam 8).
+  // They are derived via fetchSessionState() in useWillabFlow, not initialWillabState.
 });
 
 describe("isLabOverlay", () => {
