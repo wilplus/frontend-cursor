@@ -4,7 +4,7 @@ import { coerceSuggestedAction, CHIP_LABEL } from "./loungePrompts";
 describe("coerceSuggestedAction (B-1 / S1)", () => {
   it("passes through the three known actions", () => {
     expect(coerceSuggestedAction("strong_sides")).toBe("strong_sides");
-    expect(coerceSuggestedAction("recordings")).toBe("recordings");
+    expect(coerceSuggestedAction("trainings")).toBe("trainings");
     expect(coerceSuggestedAction("record_again")).toBe("record_again");
   });
 
@@ -18,7 +18,7 @@ describe("coerceSuggestedAction (B-1 / S1)", () => {
   });
 
   it("every action has a label", () => {
-    for (const a of ["strong_sides", "recordings", "record_again"] as const) {
+    for (const a of ["strong_sides", "trainings", "record_again"] as const) {
       expect(CHIP_LABEL[a]).toBeTruthy();
     }
   });

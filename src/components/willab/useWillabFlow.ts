@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchSessionState } from "@/services/api/chatSessionState";
 import { hasParkedReadout } from "./willabParked";
-import { clearReviewPending, getInsightsReady, hasReviewPending } from "./sendStatus";
+import { clearReviewPending } from "./sendStatus";
 
 /* -------------------------------------------------------------------------- */
 /*  useWillabFlow — the willab-beta state machine (§8)                         */
@@ -52,19 +53,17 @@ export function isLabOverlay(state: WillabState): boolean {
   return LAB_OVERLAY_STATES.has(state);
 }
 
-/** Pure initial-state derivation (testable; the hook feeds it localStorage). */
+/** Pure local-state derivation for the onboarding + parked gates (testable).
+ *  Post-intake active state (review_pending / insights_ready) is BE-owned —
+ *  see useWillabFlow where fetchSessionState() is called for those. */
 export function initialWillabState(flags: {
   consentAccepted: boolean;
   intakeDone: boolean;
   parked?: boolean;
-  reviewPending?: boolean;
-  insightsReady?: boolean;
 }): WillabState {
   if (!flags.consentAccepted) return "welcome_consent";
   if (!flags.intakeDone) return "intake_in_progress";
-  if (flags.parked) return "parked"; // held Readout survives reload (§4)
-  if (flags.reviewPending) return "review_pending"; // sent; awaiting coach (§6a)
-  if (flags.insightsReady) return "insights_ready"; // coach published; unread (§6a)
+  if (flags.parked) return "parked";
   return "lounge_idle";
 }
 
@@ -114,15 +113,21 @@ export function useWillabFlow(): UseWillabFlowReturn {
   // Resolve post-mount so SSR and first client render agree (both `null`).
   const [state, setState] = useState<WillabState | null>(null);
   useEffect(() => {
-    setState(
-      initialWillabState({
-        consentAccepted: readFlag(CONSENT_KEY),
-        intakeDone: readFlag(INTAKE_KEY),
-        parked: hasParkedReadout(),
-        reviewPending: hasReviewPending(),
-        insightsReady: getInsightsReady() != null,
-      })
-    );
+    const consent = readFlag(CONSENT_KEY);
+    const intake = readFlag(INTAKE_KEY);
+
+    // Pre-session states are FE-local (onboarding gates + parked readout).
+    if (!consent) { setState("welcome_consent"); return; }
+    if (!intake) { setState("intake_in_progress"); return; }
+    if (hasParkedReadout()) { setState("parked"); return; }
+
+    // Post-intake active state is BE-owned (seam 8). Fetch once on mount;
+    // immediate transitions (Lab send → review_pending) still use goTo().
+    void fetchSessionState().then((v) => {
+      if (v === "PENDING_COACH") setState("review_pending");
+      else if (v === "REVIEW_LOOP") setState("insights_ready");
+      else setState("lounge_idle"); // NO_SESSION or fetch failed
+    });
   }, []);
 
   const goTo = useCallback((s: WillabState) => setState(s), []);

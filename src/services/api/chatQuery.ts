@@ -52,28 +52,18 @@ export interface ChatQueryResponse {
    *  Authoritative over `answer`; render each 1:1. Absent → split `answer`. */
   bubbles?: string[];
   error?: string;
-  show_upload_ui?: boolean;
   /**
-   * Per-turn record-intent signal — true when the backend detects the
-   * user wants to record audio *in the app* (vs uploading a file). The
-   * mic already POSTs multipart audio to /v2/chat/query for the casual
-   * voice analytics path; this flag just tells the frontend to make
-   * the mic visually invited (pulse / accent) on this turn.
-   *
-   * Mutually exclusive with show_upload_ui in practice. Both falsy is
-   * the neutral default (text composer only).
-   *
-   * Per-turn signal — caller should NOT cache across turns.
+   * Per-turn record-intent signal — true when the BE wants the composer mic
+   * revealed for this turn. Hidden (false) by default. Per-turn, never cache.
+   * Co-arrives with suggested_action="record_again" on record-redirect turns.
    */
   show_record_ui?: boolean;
   /**
    * S1 (wave-3 B-1) — the BE classifies the user's ask into ONE quick action
-   * so the FE renders the single matching button (Strong sides / Recordings /
-   * Record again) under the reply. null / absent → no button. Absent on every
-   * turn until BE-2 ships `suggested_action`; the FE degrades to no button.
-   * Per-turn signal — caller should NOT cache across turns.
+   * so the FE renders the single matching button under the reply.
+   * null / absent → no button. Per-turn signal — caller should NOT cache.
    */
-  suggested_action?: "strong_sides" | "recordings" | "record_again" | null;
+  suggested_action?: "strong_sides" | "trainings" | "record_again" | null;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;
