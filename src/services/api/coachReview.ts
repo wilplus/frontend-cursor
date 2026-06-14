@@ -52,6 +52,10 @@ export interface CoachReviewSnippet {
   /** The slide on screen when this snippet started (BE-mapped from the tap
    *  timeline) — coach reference, same slide the user sees. null when no deck. */
   slide: ReadoutSlide | null;
+  /** AI-Commentator draft (§C1 / BE Prompt 2). Generated at process time,
+   *  frozen — never overwritten by coach edits so the (draft,final) diff
+   *  survives for the comment-clone corpus. null = AI didn't produce one. */
+  aiDraftNote: string | null;
   coachState: CoachSnippetState;
 }
 
@@ -134,6 +138,11 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
         ? mapReadoutFeatures(r.features)
         : null,
     slide: mapReadoutSlide(r.slide),
+    aiDraftNote:
+      typeof r.ai_draft_coach_note === "string" &&
+      r.ai_draft_coach_note.length > 0
+        ? r.ai_draft_coach_note
+        : null,
     coachState: pickCoachState(r.coach_state),
   };
 }
@@ -162,11 +171,14 @@ export function mapCoachReviewSession(
       typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
         ? r.presentation_ref
         : null,
-    snippets: Array.isArray(r.snippets)
+    snippets: (Array.isArray(r.snippets)
       ? r.snippets
           .map(pickSnippet)
           .filter((s): s is CoachReviewSnippet => s !== null)
-      : [],
+      : []).sort(
+        (a, b) =>
+          (a.slide?.index ?? Infinity) - (b.slide?.index ?? Infinity)
+      ),
   };
 }
 

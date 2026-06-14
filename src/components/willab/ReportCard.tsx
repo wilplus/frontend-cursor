@@ -88,8 +88,9 @@ export default function ReportCard({
         <p className="mt-0.5 text-[12px] text-muted-foreground">{date}</p>
       ) : null}
       <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
-        Training completed and sent to your coach, who&apos;ll review and send
-        your feedback, usually within a few hours.
+        Training completed and sent to coach, who will email you when the
+        analysis is ready. You can always access your trainings, just ask in
+        the chat for &ldquo;my trainings&rdquo;.
       </p>
     </div>
   );
