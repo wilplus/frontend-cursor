@@ -5,17 +5,13 @@ import {
 } from "@/components/willab/readout";
 
 /* -------------------------------------------------------------------------- */
-/*  strengths — the slide-grouped strong-sides page (§7b, BE PR #76)           */
+/*  strengths — the slide-grouped strong-sides page (§7b, BE PR #76→#79)       */
 /*                                                                            */
-/*  GET /api/v2/user/strengths → { general:[moment], trainings:[{ session_id,  */
-/*  topic, created_at, presentation_ref, title_slide, slides:[{ index, title,  */
-/*  body, strong_snippets:[moment] }] }] }. A dedicated, pre-grouped endpoint   */
-/*  (separate from /user/library, which the Lounge bot still uses):             */
-/*    • general — strong moments from sessions with NO deck, newest-first.      */
-/*    • trainings — one per deck-session (newest-first), each walking its deck   */
-/*      slides; every slide carries the strong moments delivered on it, sorted   */
-/*      by rank (1 = best). Slides with NO strong moment are KEPT — a prompt to   */
-/*      train that one again.                                                   */
+/*  GET /api/v2/user/strengths → { general:[moment], presentations:[{         */
+/*  presentation_id, presentation_ref, topic, slides, best_lines, takes }] }   */
+/*    • general — strong moments from sessions with NO deck, newest-first.    */
+/*    • presentations — one per unique deck (by presentation_id), each with   */
+/*      a best_lines cross-take highlight reel and individual takes.          */
 /* -------------------------------------------------------------------------- */
 
 export interface StrengthMoment {
@@ -39,19 +35,26 @@ export interface StrengthSlide {
   moments: StrengthMoment[];
 }
 
-export interface StrengthTraining {
+export interface PresentationTake {
+  takeNumber: number;
   sessionId: string;
-  topic: string;
   createdAt: string;
   presentationRef: string | null;
-  /** The deck's title slide (index 0) — null when absent. */
-  titleSlide: StrengthSlide | null;
   slides: StrengthSlide[];
+}
+
+export interface PresentationGroup {
+  presentationId: string;
+  presentationRef: string | null;
+  topic: string;
+  slides: StrengthSlide[];
+  bestLines: { index: number; title: string; body: string; moment: StrengthMoment }[];
+  takes: PresentationTake[]; // newest-first
 }
 
 export interface StrengthsView {
   general: StrengthMoment[];
-  trainings: StrengthTraining[];
+  presentations: PresentationGroup[];
 }
 
 const num = (v: unknown): number =>
@@ -95,21 +98,66 @@ function mapSlide(raw: unknown): StrengthSlide | null {
   };
 }
 
-function mapTraining(raw: unknown): StrengthTraining | null {
+function mapBestLine(
+  raw: unknown
+): { index: number; title: string; body: string; moment: StrengthMoment } | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  if (typeof r.session_id !== "string") return null;
+  if (typeof r.slide_index !== "number") return null;
+  const moment = mapMoment(r.moment);
+  if (!moment) return null;
   return {
-    sessionId: r.session_id,
-    topic: typeof r.topic === "string" ? r.topic : "",
+    index: r.slide_index,
+    title: typeof r.title === "string" ? r.title : "",
+    body: typeof r.body === "string" ? r.body : "",
+    moment,
+  };
+}
+
+function mapTake(raw: unknown): PresentationTake | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.take_number !== "number") return null;
+  return {
+    takeNumber: r.take_number,
+    sessionId: typeof r.session_id === "string" ? r.session_id : "",
     createdAt: typeof r.created_at === "string" ? r.created_at : "",
     presentationRef:
       typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
         ? r.presentation_ref
         : null,
-    titleSlide: mapSlide(r.title_slide),
     slides: Array.isArray(r.slides)
       ? r.slides.map(mapSlide).filter((s): s is StrengthSlide => s !== null)
+      : [],
+  };
+}
+
+function mapPresentation(raw: unknown): PresentationGroup | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.presentation_id !== "string") return null;
+  return {
+    presentationId: r.presentation_id,
+    presentationRef:
+      typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
+        ? r.presentation_ref
+        : null,
+    topic: typeof r.topic === "string" ? r.topic : "",
+    slides: Array.isArray(r.slides)
+      ? r.slides.map(mapSlide).filter((s): s is StrengthSlide => s !== null)
+      : [],
+    bestLines: Array.isArray(r.best_lines)
+      ? r.best_lines
+          .map(mapBestLine)
+          .filter(
+            (
+              b
+            ): b is { index: number; title: string; body: string; moment: StrengthMoment } =>
+              b !== null
+          )
+      : [],
+    takes: Array.isArray(r.takes)
+      ? r.takes.map(mapTake).filter((t): t is PresentationTake => t !== null)
       : [],
   };
 }
@@ -120,17 +168,17 @@ export function mapStrengths(raw: unknown): StrengthsView {
     general: Array.isArray(r.general)
       ? r.general.map(mapMoment).filter((m): m is StrengthMoment => m !== null)
       : [],
-    trainings: Array.isArray(r.trainings)
-      ? r.trainings
-          .map(mapTraining)
-          .filter((t): t is StrengthTraining => t !== null)
+    presentations: Array.isArray(r.presentations)
+      ? r.presentations
+          .map(mapPresentation)
+          .filter((p): p is PresentationGroup => p !== null)
       : [],
   };
 }
 
 export async function fetchStrengths(): Promise<StrengthsView> {
   const token = await getAuthToken();
-  if (!token) return { general: [], trainings: [] };
+  if (!token) return { general: [], presentations: [] };
 
   let res: Response;
   try {
@@ -139,82 +187,34 @@ export async function fetchStrengths(): Promise<StrengthsView> {
       cache: "no-store",
     });
   } catch {
-    return { general: [], trainings: [] };
+    return { general: [], presentations: [] };
   }
-  if (!res.ok) return { general: [], trainings: [] };
+  if (!res.ok) return { general: [], presentations: [] };
   return mapStrengths(await res.json().catch(() => null));
 }
 
-/* ─────────────────────── Trainings home: takes + best lines ─────────────── */
-
-export interface TakeCard {
-  training: StrengthTraining;
-  takeNumber: number;
-  /** "<topic>, take N" */
-  label: string;
+export async function deletePresentation(presentationId: string): Promise<void> {
+  const token = await getAuthToken();
+  if (!token) throw new Error("Not authenticated");
+  const res = await fetch(`/api/v2/user/presentations/${presentationId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Delete presentation failed: ${res.status}`);
 }
 
-export interface BestLines {
-  topic: string;
-  presentationRef: string | null;
-  /** Best moment per slide (one per slide), in deck order. */
-  slides: { index: number; title: string; body: string; moment: StrengthMoment }[];
-}
-
-export interface StrengthsHome {
-  /** Combined best line per slide (the highlight reel); null when no deck data. */
-  bestLines: BestLines | null;
-  /** Every recording as a numbered take, newest first. */
-  takes: TakeCard[];
-  general: StrengthMoment[];
-}
-
-/**
- * Shape the strengths view into the Trainings home: a best-lines reel + each
- * recording as a numbered take ("<topic>, take N", take 1 = first recording of
- * that deck), newest first. FE fallback for grouping/best — the BE `take_number`
- * + `best_lines` are authoritative (a deck re-served with a new presentation_ref,
- * or a true cross-take "best", can't be derived from per-session data here).
- */
-export function strengthsHome(view: StrengthsView): StrengthsHome {
-  const byTopic = new Map<string, StrengthTraining[]>();
-  for (const t of view.trainings) {
-    const key = t.topic || "Presentation";
-    const arr = byTopic.get(key);
-    if (arr) arr.push(t);
-    else byTopic.set(key, [t]);
-  }
-
-  const takes: TakeCard[] = [];
-  for (const [topic, group] of byTopic) {
-    group
-      .slice()
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .forEach((training, i) =>
-        takes.push({
-          training,
-          takeNumber: i + 1,
-          label: `${topic}, take ${i + 1}`,
-        })
-      );
-  }
-  takes.sort((a, b) => b.training.createdAt.localeCompare(a.training.createdAt));
-
-  return { bestLines: buildBestLines(view.trainings), takes, general: view.general };
-}
-
-function buildBestLines(trainings: StrengthTraining[]): BestLines | null {
-  // FE fallback: the most recent recording's best moment per slide. (The BE's
-  // cross-take aggregation picks the best of each slide across ALL takes.)
-  const recent = trainings[0];
-  if (!recent) return null;
-  const slides = recent.slides
-    .filter((s) => s.moments.length > 0)
-    .map((s) => ({ index: s.index, title: s.title, body: s.body, moment: s.moments[0] }));
-  if (slides.length === 0) return null;
-  return {
-    topic: recent.topic || "Presentation",
-    presentationRef: recent.presentationRef,
-    slides,
-  };
+export async function deleteTake(
+  presentationId: string,
+  takeNumber: number
+): Promise<void> {
+  const token = await getAuthToken();
+  if (!token) throw new Error("Not authenticated");
+  const res = await fetch(
+    `/api/v2/user/presentations/${presentationId}/takes/${takeNumber}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  if (!res.ok) throw new Error(`Delete take failed: ${res.status}`);
 }
