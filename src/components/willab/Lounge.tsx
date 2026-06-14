@@ -85,6 +85,16 @@ type ThreadItem =
       kind: "auditprogress";
       sortKey: string;
       reactKey: string;
+    }
+  | {
+      // B-1 — the intent-driven action chip from suggested_action. Anchored in
+      // the thread (not floating) so it scrolls up naturally as new messages
+      // arrive. Stays visible after being tapped (active=true = muted look).
+      kind: "action";
+      sortKey: string;
+      reactKey: string;
+      action: ChipAction;
+      active: boolean;
     };
 
 export default function Lounge({
@@ -114,10 +124,14 @@ export default function Lounge({
   const [auditOpen, setAuditOpen] = useState(false);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
-  // B-1 — the single intent-driven quick-action button for the latest turn,
-  // from the BE's suggested_action (S1). null → no button. Transient: cleared
-  // on the next send / on tap. Not persisted (freeze-safe).
-  const [pendingAction, setPendingAction] = useState<ChipAction | null>(null);
+  // B-1 — the intent-driven action chip from the BE's suggested_action (S1).
+  // Anchored in the thread by sortKey so it scrolls up as new messages arrive.
+  // active=true after the user taps it (stays visible, muted style).
+  const [actionOffer, setActionOffer] = useState<{
+    action: ChipAction;
+    sortKey: string;
+    active: boolean;
+  } | null>(null);
   // show_record_ui (seam 2) — per-turn mic invite. Hidden by default; revealed
   // when the BE sends show_record_ui=true. Reset on every user send.
   const [showRecordUi, setShowRecordUi] = useState(false);
@@ -206,9 +220,19 @@ export default function Lounge({
         reactKey: "strongsides",
       });
     }
+    // B-1 action chip — anchored in the thread, stays after tap.
+    if (actionOffer) {
+      items.push({
+        kind: "action",
+        sortKey: actionOffer.sortKey,
+        reactKey: "action-offer",
+        action: actionOffer.action,
+        active: actionOffer.active,
+      });
+    }
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewQueue.rows, state, strongSidesAt]);
+  }, [messages, isCoach, reviewQueue.rows, state, strongSidesAt, actionOffer]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -295,7 +319,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, pendingAction, strongSidesAt]);
+  }, [messages.length, botThinking, actionOffer, strongSidesAt]);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -325,7 +349,6 @@ export default function Lounge({
     const q = draftText.trim();
     if (!q || botThinking) return;
     atBottomRef.current = true; // sending always scrolls to your own message
-    setPendingAction(null);  // B-1 — a new question supersedes any prior suggestion
     setShowRecordUi(false);  // seam 2 — reset mic invite on every send
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     const botTurns = messages.filter((msg) => msg.role === "bot");
@@ -362,7 +385,12 @@ export default function Lounge({
             ? resp.bubbles.join("\n\n")
             : answer || "I know nothing about that, at least yet 😏";
         await thread.append({ role: "bot", kind: "text", body });
-        setPendingAction(suggested);
+        // B-1 — anchor the action chip right after this reply in the thread.
+        setActionOffer(
+          suggested
+            ? { action: suggested, sortKey: new Date().toISOString(), active: false }
+            : null
+        );
         // seam 2 — reveal the composer mic when the BE requests it.
         setShowRecordUi(resp.show_record_ui === true);
       }
@@ -432,6 +460,18 @@ export default function Lounge({
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
               />
+            ) : item.kind === "action" ? (
+              <ActionButton
+                key={item.reactKey}
+                action={item.action}
+                active={item.active}
+                onClick={() => {
+                  setActionOffer((prev) =>
+                    prev ? { ...prev, active: true } : null
+                  );
+                  onChip(item.action);
+                }}
+              />
             ) : (
               <ActionButton
                 key={item.reactKey}
@@ -440,20 +480,6 @@ export default function Lounge({
               />
             )
           )
-        )}
-
-        {/* B-1 — the single intent-driven action button, from the BE's
-            suggested_action for the latest turn (S1). One button, never a row;
-            renders under the reply; clears on tap / next send. */}
-        {pendingAction && !botThinking && (
-          <ActionButton
-            action={pendingAction}
-            onClick={() => {
-              const action = pendingAction;
-              setPendingAction(null);
-              onChip(action);
-            }}
-          />
         )}
 
         {botThinking && <TypingDots />}
@@ -594,13 +620,15 @@ function PostSendOffer({
 }
 
 /** B-1 — a single intent-driven quick-action button (from the BE's
- *  suggested_action, S1), rendered under the bot's reply. One button, never a
- *  row; pure presentation, the Lounge resolves the action (onChip). */
+ *  suggested_action, S1). Anchored in the thread; stays visible after tap
+ *  with a muted "active" style so the user can see what they chose. */
 function ActionButton({
   action,
+  active = false,
   onClick,
 }: {
   action: ChipAction;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -608,7 +636,12 @@ function ActionButton({
       <button
         type="button"
         onClick={onClick}
-        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+        disabled={active}
+        className={`self-start rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
+          active
+            ? "border-primary/30 bg-primary/[0.06] text-foreground/50 cursor-default"
+            : "border-border text-foreground hover:border-primary/50"
+        }`}
       >
         {CHIP_LABEL[action]}
       </button>
