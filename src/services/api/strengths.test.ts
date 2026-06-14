@@ -1,11 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   mapStrengths,
-  strengthsHome,
+  deletePresentation,
+  deleteTake,
   type StrengthMoment,
   type StrengthSlide,
-  type StrengthTraining,
+  type PresentationTake,
+  type PresentationGroup,
 } from "./strengths";
+
+vi.mock("@/lib/api/auth-client", () => ({
+  getAuthToken: vi.fn().mockResolvedValue("test-token"),
+}));
 
 const mom = (over: Partial<StrengthMoment> = {}): StrengthMoment => ({
   transcript: "t",
@@ -23,48 +29,26 @@ const sl = (index: number, moments: StrengthMoment[]): StrengthSlide => ({
   body: "",
   moments,
 });
-const tr = (over: Partial<StrengthTraining> = {}): StrengthTraining => ({
+const take = (over: Partial<PresentationTake> = {}): PresentationTake => ({
+  takeNumber: 1,
   sessionId: "s",
-  topic: "My app",
   createdAt: "2026-01-01",
   presentationRef: "u",
-  titleSlide: null,
   slides: [],
   ...over,
 });
-
-describe("strengthsHome", () => {
-  it("numbers takes per topic (oldest = 1) and lists them newest first", () => {
-    const h = strengthsHome({
-      general: [],
-      trainings: [
-        tr({ sessionId: "b", createdAt: "2026-02-01", slides: [sl(0, [mom()])] }),
-        tr({ sessionId: "a", createdAt: "2026-01-01", slides: [sl(0, [mom()])] }),
-      ],
-    });
-    expect(h.takes.map((t) => `${t.label}:${t.training.sessionId}`)).toEqual([
-      "My app, take 2:b",
-      "My app, take 1:a",
-    ]);
-  });
-
-  it("best lines = the most recent take's best moment per slide (empty slides dropped)", () => {
-    const h = strengthsHome({
-      general: [],
-      trainings: [
-        tr({
-          createdAt: "2026-02-01",
-          slides: [sl(0, [mom({ transcript: "best0" })]), sl(1, [])],
-        }),
-      ],
-    });
-    expect(h.bestLines?.slides.map((s) => s.index)).toEqual([0]);
-    expect(h.bestLines?.slides[0].moment.transcript).toBe("best0");
-  });
+const pres = (over: Partial<PresentationGroup> = {}): PresentationGroup => ({
+  presentationId: "pid",
+  presentationRef: "u",
+  topic: "My app",
+  slides: [],
+  bestLines: [],
+  takes: [take()],
+  ...over,
 });
 
 describe("mapStrengths", () => {
-  it("maps general + trainings (snake → camel) and keeps empty slides", () => {
+  it("maps general + presentations (snake to camel) and keeps empty slides", () => {
     const v = mapStrengths({
       general: [
         {
@@ -76,13 +60,11 @@ describe("mapStrengths", () => {
         },
         { transcript: "", note: "", audio_ref: null }, // nothing renderable → dropped
       ],
-      trainings: [
+      presentations: [
         {
-          session_id: "s1",
-          topic: "Pitch",
-          created_at: "2026-02-01",
+          presentation_id: "pid1",
           presentation_ref: "u",
-          title_slide: { index: 0, title: "Cover", body: "" },
+          topic: "Pitch",
           slides: [
             {
               index: 0,
@@ -101,6 +83,46 @@ describe("mapStrengths", () => {
             },
             { index: 1, title: "Body", body: "x", strong_snippets: [] }, // kept
           ],
+          best_lines: [
+            {
+              slide_index: 0,
+              title: "Cover",
+              body: "",
+              moment: {
+                transcript: "open",
+                note: "n",
+                audio_ref: "a",
+                start_offset_ms: 0,
+                duration_ms: 1000,
+                rank: 1,
+              },
+            },
+          ],
+          takes: [
+            {
+              take_number: 1,
+              session_id: "s1",
+              created_at: "2026-02-01",
+              presentation_ref: "u",
+              slides: [
+                {
+                  index: 0,
+                  title: "Cover",
+                  body: "",
+                  strong_snippets: [
+                    {
+                      transcript: "open",
+                      note: "n",
+                      audio_ref: "a",
+                      start_offset_ms: 0,
+                      duration_ms: 1000,
+                      rank: 1,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
         },
       ],
     });
@@ -116,22 +138,173 @@ describe("mapStrengths", () => {
       features: null,
     });
 
-    expect(v.trainings).toHaveLength(1);
-    const t = v.trainings[0];
-    expect(t.topic).toBe("Pitch");
-    expect(t.presentationRef).toBe("u");
-    expect(t.titleSlide?.index).toBe(0);
-    expect(t.slides).toHaveLength(2);
-    expect(t.slides[0].moments[0].rank).toBe(1);
-    expect(t.slides[1].moments).toEqual([]); // empty slide preserved
+    expect(v.presentations).toHaveLength(1);
+    const p = v.presentations[0];
+    expect(p.presentationId).toBe("pid1");
+    expect(p.topic).toBe("Pitch");
+    expect(p.presentationRef).toBe("u");
+    expect(p.slides).toHaveLength(2);
+    expect(p.slides[0].moments[0].rank).toBe(1);
+    expect(p.slides[1].moments).toEqual([]); // empty slide preserved
+
+    expect(p.bestLines).toHaveLength(1);
+    expect(p.bestLines[0].index).toBe(0);
+    expect(p.bestLines[0].moment.transcript).toBe("open");
+
+    expect(p.takes).toHaveLength(1);
+    expect(p.takes[0].takeNumber).toBe(1);
+    expect(p.takes[0].sessionId).toBe("s1");
+    expect(p.takes[0].slides).toHaveLength(1);
   });
 
   it("defaults to an empty view on a bad / blank body", () => {
-    expect(mapStrengths(null)).toEqual({ general: [], trainings: [] });
-    expect(mapStrengths({})).toEqual({ general: [], trainings: [] });
+    expect(mapStrengths(null)).toEqual({ general: [], presentations: [] });
+    expect(mapStrengths({})).toEqual({ general: [], presentations: [] });
   });
 
-  it("drops a training with no session_id", () => {
-    expect(mapStrengths({ trainings: [{ topic: "x" }] }).trainings).toEqual([]);
+  it("drops a presentation with no presentation_id", () => {
+    expect(
+      mapStrengths({ presentations: [{ topic: "x", takes: [] }] }).presentations
+    ).toEqual([]);
+  });
+
+  it("drops a take with no take_number", () => {
+    const v = mapStrengths({
+      presentations: [
+        {
+          presentation_id: "pid",
+          presentation_ref: "u",
+          topic: "T",
+          slides: [],
+          best_lines: [],
+          takes: [{ session_id: "s1", created_at: "2026-01-01" }], // no take_number
+        },
+      ],
+    });
+    expect(v.presentations[0].takes).toEqual([]);
+  });
+
+  it("drops a best_line with no slide_index", () => {
+    const v = mapStrengths({
+      presentations: [
+        {
+          presentation_id: "pid",
+          presentation_ref: "u",
+          topic: "T",
+          slides: [],
+          best_lines: [{ title: "x", body: "" }], // no slide_index
+          takes: [],
+        },
+      ],
+    });
+    expect(v.presentations[0].bestLines).toEqual([]);
+  });
+
+  it("maps a take with null presentation_ref", () => {
+    const v = mapStrengths({
+      presentations: [
+        {
+          presentation_id: "pid",
+          presentation_ref: "u",
+          topic: "T",
+          slides: [],
+          best_lines: [],
+          takes: [
+            {
+              take_number: 2,
+              session_id: "s2",
+              created_at: "2026-03-01",
+              presentation_ref: null,
+              slides: [],
+            },
+          ],
+        },
+      ],
+    });
+    expect(v.presentations[0].takes[0].presentationRef).toBeNull();
+    expect(v.presentations[0].takes[0].takeNumber).toBe(2);
   });
 });
+
+describe("mapPresentation", () => {
+  it("preserves all fields from a well-formed raw presentation", () => {
+    const v = mapStrengths({
+      presentations: [
+        {
+          presentation_id: "abc123",
+          presentation_ref: "https://example.com/deck.pdf",
+          topic: "Product demo",
+          slides: [{ index: 0, title: "Title", body: "Content", strong_snippets: [] }],
+          best_lines: [],
+          takes: [
+            {
+              take_number: 1,
+              session_id: "sess-1",
+              created_at: "2026-01-15",
+              presentation_ref: "https://example.com/deck.pdf",
+              slides: [],
+            },
+          ],
+        },
+      ],
+    });
+    const p = v.presentations[0];
+    expect(p.presentationId).toBe("abc123");
+    expect(p.presentationRef).toBe("https://example.com/deck.pdf");
+    expect(p.topic).toBe("Product demo");
+    expect(p.slides).toHaveLength(1);
+    expect(p.takes).toHaveLength(1);
+    expect(p.takes[0].sessionId).toBe("sess-1");
+  });
+});
+
+describe("deletePresentation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("calls DELETE on the correct URL and resolves on 200", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(deletePresentation("pid-123")).resolves.toBeUndefined();
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/v2/user/presentations/pid-123",
+      expect.objectContaining({ method: "DELETE" })
+    );
+  });
+
+  it("throws on non-ok response", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(deletePresentation("pid-404")).rejects.toThrow("404");
+  });
+});
+
+describe("deleteTake", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("calls DELETE on the correct URL and resolves on 200", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(deleteTake("pid-123", 2)).resolves.toBeUndefined();
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/v2/user/presentations/pid-123/takes/2",
+      expect.objectContaining({ method: "DELETE" })
+    );
+  });
+
+  it("throws on non-ok response", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(deleteTake("pid-123", 1)).rejects.toThrow("500");
+  });
+});
+
+// Fixture factories re-exported for downstream tests (type-check only)
+export const _fixtures = { mom, sl, take, pres };
