@@ -81,7 +81,9 @@ export default function CoachSnippetReviewCard({
   // Debounced note save. We don't want to fire on every keystroke — that
   // would saturate the BE on a long note. 500 ms after the last edit, we
   // ship whatever's in `noteDraft`.
-  const [noteDraft, setNoteDraft] = useState(snippet.coachState.note);
+  const [noteDraft, setNoteDraft] = useState(
+    snippet.coachState.note || snippet.aiDraftNote || ""
+  );
   const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persist = useCallback(
