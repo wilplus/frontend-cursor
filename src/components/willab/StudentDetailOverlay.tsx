@@ -125,6 +125,14 @@ export default function StudentDetailOverlay({
                 <p className="text-[15px] leading-relaxed text-foreground">
                   {detail.goal}
                 </p>
+                {detail.previousGoal ? (
+                  <p className="mt-1 text-[12px] text-muted-foreground">
+                    Previously: {detail.previousGoal}
+                    {detail.goalChangedAt
+                      ? ` · changed ${dateLabel(detail.goalChangedAt)}`
+                      : null}
+                  </p>
+                ) : null}
               </section>
             ) : null}
 
