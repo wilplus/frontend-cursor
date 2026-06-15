@@ -19,7 +19,10 @@ export type LoungeKind =
   | "joke"
   | "status"
   | "recording_summary"
-  | "insight";
+  | "insight"
+  /** BE-rendered cadence beat (explore-session multi-take arc). Already
+   *  localized server-side — rendered as a plain bot bubble, same as "text". */
+  | "cadence";
 
 /** Server-shared limits (keep in lockstep with the BE contract). */
 export const LOUNGE_BODY_MAX = 16_000;

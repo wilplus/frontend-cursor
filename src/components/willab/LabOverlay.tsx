@@ -25,6 +25,11 @@ import { useBackDismiss } from "./useBackDismiss";
 import PresentationInput from "./PresentationInput";
 import SlideStage from "./SlideStage";
 import {
+  clearExploreArc,
+  readExploreArc,
+  writeExploreArc,
+} from "@/lib/willab/exploreArc";
+import {
   clampSlides,
   initialSlides,
   nonEmptySlides,
@@ -102,6 +107,16 @@ export default function LabOverlay({
   const { append: appendToThread } = useLoungeThreadCtx();
   const reportedRef = useRef(false);
 
+  // Explore-arc state (Prompt B §F2). Read from localStorage on mount so the
+  // arc_id carries across LabOverlay sessions (Lounge → Lab → Lounge → Lab…).
+  // initArc is stable for the overlay's lifetime; state mirrors it for renders.
+  const initArc = useRef(readExploreArc()).current;
+  const [arcId, setArcId] = useState<string | null>(initArc?.arcId ?? null);
+  const [arcTakeIndex, setArcTakeIndex] = useState<number>(
+    initArc?.nextTakeIndex ?? 1
+  );
+  const [exploreEnabled, setExploreEnabled] = useState<boolean>(!!initArc);
+
   // Upload → Readout (seam ③).
   const [readout, setReadout] = useState<ReadoutPayload | null>(null);
   const [labSessionId, setLabSessionId] = useState<string | null>(null);
@@ -168,9 +183,32 @@ export default function LabOverlay({
         slides: context.slides,
         presentationRef: context.presentationRef,
         slideAdvances: slideAdvancesRef.current,
+        // Explore-arc fields — omitted for standalone recordings.
+        exploreSession: exploreEnabled && arcId === null ? true : undefined,
+        arcId: arcId ?? undefined,
+        takeIndex: exploreEnabled ? arcTakeIndex : undefined,
       });
       if (!active) return;
       if (result.kind === "ok") {
+        // Carry the arc: write the returned arc_id + next take_index to
+        // localStorage so the next LabOverlay session picks it up.
+        if (exploreEnabled) {
+          const returnedArcId = result.arcId ?? arcId;
+          if (returnedArcId) {
+            const nextIdx = arcTakeIndex + 1;
+            if (nextIdx > 4) {
+              // Arc exhausted (3 takes + optional spark done).
+              clearExploreArc();
+              setArcId(null);
+              setArcTakeIndex(1);
+              setExploreEnabled(false);
+            } else {
+              writeExploreArc(returnedArcId, nextIdx);
+              setArcId(returnedArcId);
+              setArcTakeIndex(nextIdx);
+            }
+          }
+        }
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
@@ -340,7 +378,10 @@ export default function LabOverlay({
             seededVocab={seededVocab}
             lastSetup={lastSetup}
             applyNonce={applyLastNonce}
-            onSubmit={(ctx) => {
+            activeArcTake={arcId ? arcTakeIndex : null}
+            onExploreChange={setExploreEnabled}
+            onSubmit={(ctx, explore) => {
+              setExploreEnabled(explore);
               setContext(ctx);
               goTo("lab_prerecord");
             }}
@@ -351,6 +392,7 @@ export default function LabOverlay({
           <PreRecord
             context={context}
             rejectedMsg={rejectedMsg}
+            arcTake={exploreEnabled ? arcTakeIndex : null}
             onRecord={() => {
               setRejectedMsg(null);
               void mic.start();
@@ -369,6 +411,7 @@ export default function LabOverlay({
             presentationRef={context?.presentationRef ?? null}
             currentSlide={currentSlide}
             onAdvance={advanceSlide}
+            arcTake={exploreEnabled ? arcTakeIndex : null}
           />
         )}
 
@@ -449,12 +492,17 @@ function SessionContextForm({
   seededVocab,
   lastSetup,
   applyNonce,
+  activeArcTake,
+  onExploreChange,
   onSubmit,
 }: {
   seededVocab: string[];
   lastSetup: LabSessionContext | null;
   applyNonce: number;
-  onSubmit: (ctx: LabSessionContext) => void;
+  /** Set when continuing an active arc (take 2+). null = no active arc. */
+  activeArcTake: number | null;
+  onExploreChange: (enabled: boolean) => void;
+  onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
 }) {
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("");
@@ -462,6 +510,8 @@ function SessionContextForm({
   const [vocab, setVocab] = useState(seededVocab.join(", "));
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
+  // Explore-session toggle: auto-on when continuing an active arc.
+  const [explore, setExplore] = useState<boolean>(activeArcTake !== null);
 
   // "Same as last time" — when the header bumps applyNonce, re-fill every field
   // from the last submitted set-up.
@@ -479,23 +529,71 @@ function SessionContextForm({
     e.preventDefault();
     const t = topic.trim();
     if (!t) return;
-    onSubmit({
-      topic: t,
-      audience: audience.trim(),
-      target_length_seconds: lengthSec,
-      domain_vocabulary: parseVocabulary(vocab),
-      // A served-PDF deck keeps every page (clampSlides); manual entry drops
-      // empty blocks (nonEmptySlides). So a 10-page PDF with blank pages now
-      // carries all 10 slides, not just the ones the extractor found text on.
-      slides: presentationRef ? clampSlides(slides) : nonEmptySlides(slides),
-      presentationRef,
-    });
+    onSubmit(
+      {
+        topic: t,
+        audience: audience.trim(),
+        target_length_seconds: lengthSec,
+        domain_vocabulary: parseVocabulary(vocab),
+        slides: presentationRef ? clampSlides(slides) : nonEmptySlides(slides),
+        presentationRef,
+      },
+      explore
+    );
   }
 
   return (
     <form onSubmit={submit}>
       {/* pb clears the fixed CTA */}
       <div className="pb-24">
+        {/* Explore-arc: banner when continuing an active arc, toggle when fresh. */}
+        {activeArcTake !== null ? (
+          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <p className="text-[13px] font-medium text-primary">
+              Take {activeArcTake} of 3 — same talk, next style
+            </p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Same topic as before. Record the same talk in the next vibe.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                clearExploreArc();
+                setExplore(false);
+                onExploreChange(false);
+              }}
+              className="mt-2 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Start a different recording instead
+            </button>
+          </div>
+        ) : (
+          <div className="mb-2 flex items-center gap-2 py-2">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !explore;
+                setExplore(next);
+                onExploreChange(next);
+              }}
+              aria-pressed={explore}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-[13px] transition-colors",
+                explore
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-foreground hover:border-primary/50"
+              )}
+            >
+              Explore (3 takes)
+            </button>
+            {explore ? (
+              <span className="text-[12px] text-muted-foreground">
+                Same talk, 3 styles, ~30 min
+              </span>
+            ) : null}
+          </div>
+        )}
+
         <Field label="What are you speaking on?" htmlFor="topic">
           <input
             id="topic"
@@ -585,17 +683,25 @@ function SessionContextForm({
 function PreRecord({
   context,
   rejectedMsg,
+  arcTake,
   onRecord,
   micState,
 }: {
   context: LabSessionContext | null;
   rejectedMsg: string | null;
+  /** Current take number when in an explore arc; null for standalone. */
+  arcTake: number | null;
   onRecord: () => void;
   micState: ReturnType<typeof useDualCaptureMic>["state"];
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
       <div>
+        {arcTake !== null ? (
+          <p className="text-[11px] font-medium uppercase tracking-wider text-primary">
+            Take {arcTake} of 3
+          </p>
+        ) : null}
         <p className="text-[12px] uppercase tracking-wide text-muted-foreground">
           Speak on
         </p>
@@ -645,6 +751,7 @@ function RecordingPhase({
   presentationRef,
   currentSlide,
   onAdvance,
+  arcTake,
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
@@ -654,6 +761,8 @@ function RecordingPhase({
   presentationRef: string | null;
   currentSlide: number;
   onAdvance: (dir: 1 | -1) => void;
+  /** Current take number when in an explore arc; null for standalone. */
+  arcTake: number | null;
 }) {
   // Too-short re-record prompt (min-content gate).
   if (micState.status === "stopped" && micState.durationSec < MIN_RECORDING_SEC) {
@@ -707,9 +816,16 @@ function RecordingPhase({
         />
       ) : null}
 
-      <div className="flex items-center gap-2 text-destructive">
-        <span className="h-3 w-3 animate-pulse rounded-full bg-destructive" />
-        <span className="text-[13px] font-medium">Recording</span>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-destructive">
+          <span className="h-3 w-3 animate-pulse rounded-full bg-destructive" />
+          <span className="text-[13px] font-medium">Recording</span>
+        </div>
+        {arcTake !== null ? (
+          <span className="text-[11px] font-medium uppercase tracking-wider text-primary">
+            Take {arcTake} of 3
+          </span>
+        ) : null}
       </div>
 
       <div className="flex flex-col items-center gap-1">
