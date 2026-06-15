@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/change-password"];
+const PROTECTED_ROUTES = ["/dashboard", "/profile", "/recordings", "/change-password", "/audits"];
 const ADMIN_ROUTES = ["/admin"];
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password", "/update-password"];
 /** Routes that must always be reachable without auth (Curiosity Gate funnel). */
