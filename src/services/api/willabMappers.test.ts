@@ -70,6 +70,8 @@ describe("mapCoachStudentDetail (E-1b / S6)", () => {
       pseudonym: "Playful Octopus",
       domain: "sales",
       goal: "close bigger deals",
+      previousGoal: null,
+      goalChangedAt: null,
       sessions: [
         {
           sessionId: "s1",
@@ -86,6 +88,8 @@ describe("mapCoachStudentDetail (E-1b / S6)", () => {
       pseudonym: "Calm Otter",
       domain: "",
       goal: "",
+      previousGoal: null,
+      goalChangedAt: null,
       sessions: [],
     });
   });
