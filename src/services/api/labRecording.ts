@@ -1,6 +1,7 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
 import { type PresentationSlide } from "@/components/willab/presentation";
+import { type Feeling } from "@/components/willab/willabFeelings";
 
 /* -------------------------------------------------------------------------- */
 /*  labRecording — the Lab upload client (seam ③, §3.3)                        */
@@ -29,6 +30,8 @@ export interface LabUploadInput {
   exploreSession?: boolean;
   arcId?: string;
   takeIndex?: number;
+  /** Pre-recording feeling — private correlation input (AC-9, never shown back). */
+  feeling?: Feeling;
 }
 
 export type LabUploadResult =
@@ -72,6 +75,9 @@ export async function submitLabRecording(
   if (input.exploreSession) form.append("explore_session", "true");
   if (input.arcId) form.append("arc_id", input.arcId);
   if (input.takeIndex != null) form.append("take_index", String(input.takeIndex));
+  // Pre-recording feeling — private correlation input; AC-9 bars it from any
+  // user-facing surface. Omit when absent so the field never arrives as "null".
+  if (input.feeling) form.append("feeling", input.feeling);
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
   const token = await getAuthToken(); // optional — public/guest endpoint
