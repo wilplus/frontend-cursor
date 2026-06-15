@@ -78,6 +78,7 @@ describe("mapCoachStudentDetail (E-1b / S6)", () => {
           topic: "Q3 pitch",
           createdAt: "2026-06-01T00:00:00Z",
           state: "done",
+          feeling: null,
         },
       ],
     });

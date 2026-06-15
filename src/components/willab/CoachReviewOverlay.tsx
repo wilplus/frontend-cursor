@@ -8,7 +8,7 @@ import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
 import CoachVideoSlot from "./CoachVideoSlot";
 import { useBackDismiss } from "./useBackDismiss";
 import { recutSession } from "@/services/api/recutSession";
-import type { CoachSnippetState } from "@/services/api/coachReview";
+import type { CoachSnippetState, SessionFeeling } from "@/services/api/coachReview";
 import {
   publishWillabSession,
   type PublishLabel,
@@ -47,6 +47,24 @@ import {
 /*      (C2 — onPublished → optimistic markDone); the close-time refresh()        */
 /*      then reconciles with server truth.                                        */
 /* -------------------------------------------------------------------------- */
+
+const FEELING_EMOJI: Record<string, string> = {
+  nervous: "😬",
+  excited: "🔥",
+  calm: "😌",
+  unsure: "🤔",
+};
+
+function FeelingBadge({ feeling }: { feeling: SessionFeeling }) {
+  const emoji = FEELING_EMOJI[feeling.feeling] ?? "";
+  const label = feeling.feeling.charAt(0).toUpperCase() + feeling.feeling.slice(1);
+  const takeLabel = feeling.takeIndex != null ? ` · Take ${feeling.takeIndex}` : "";
+  return (
+    <span>
+      {emoji} {label}{takeLabel}
+    </span>
+  );
+}
 
 export default function CoachReviewOverlay({
   sessionId,
@@ -301,6 +319,30 @@ export default function CoachReviewOverlay({
                 <h2 className="text-[20px] font-semibold text-foreground">
                   Wrap up
                 </h2>
+
+                {/* Pre-recording feelings (BE #108) — coach-only context.
+                    Hidden when the BE returns no data (older sessions / not yet
+                    captured). Never shown to the user. */}
+                {session.feelings.length > 0 ? (
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <p className="mb-3 text-sm font-semibold text-foreground">
+                      Pre-recording state
+                      <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                        Coach only
+                      </span>
+                    </p>
+                    <ul className="flex flex-wrap gap-2">
+                      {session.feelings.map((f, i) => (
+                        <li
+                          key={i}
+                          className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[13px] text-foreground"
+                        >
+                          <FeelingBadge feeling={f} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
 
                 {/* Overall message — optional per §14 / red-line 3. The §6b
                     "💬 From your coach" block hides entirely when empty, so an
