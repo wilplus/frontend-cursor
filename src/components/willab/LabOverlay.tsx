@@ -769,14 +769,29 @@ function RecordingPhase({
   }
 
   if (micState.status === "error") {
+    const isPwaIos =
+      micState.code === "denied" &&
+      typeof window !== "undefined" &&
+      (window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as unknown as { standalone?: boolean }).standalone === true) &&
+      /iPhone|iPad|iPod/.test(navigator.userAgent);
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <p className="max-w-sm text-[15px] text-destructive">
           {micState.message}
         </p>
-        <Button onClick={onRecordAgain} variant="outline" className="rounded-full px-6">
-          Try again
-        </Button>
+        {isPwaIos ? (
+          <a
+            href="app-settings:"
+            className="rounded-full border border-border px-6 py-2.5 text-[15px] text-foreground"
+          >
+            Open Settings
+          </a>
+        ) : (
+          <Button onClick={onRecordAgain} variant="outline" className="rounded-full px-6">
+            Try again
+          </Button>
+        )}
       </div>
     );
   }
