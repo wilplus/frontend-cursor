@@ -10,7 +10,7 @@ import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
-import { fmtClock, parseVocabulary } from "./willabHelpers";
+import { fmtClock } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
@@ -127,7 +127,6 @@ export default function LabOverlay({
   const uploadStartedRef = useRef(false);
 
   const profile = useRef(readWillabProfile()).current;
-  const seededVocab = profile ? domainSpec(profile.domain).vocabulary : [];
   // "Same as last time" — the last set-up, sourced from the BE (cross-device,
   // survives a cache clear); null → no prior session → the button hides.
   // applyLastNonce bumps to trigger the form to re-fill.
@@ -375,7 +374,6 @@ export default function LabOverlay({
 
         {state === "lab_session_context" && (
           <SessionContextForm
-            seededVocab={seededVocab}
             lastSetup={lastSetup}
             applyNonce={applyLastNonce}
             activeArcTake={arcId ? arcTakeIndex : null}
@@ -489,14 +487,12 @@ function Field({
 }
 
 function SessionContextForm({
-  seededVocab,
   lastSetup,
   applyNonce,
   activeArcTake,
   onExploreChange,
   onSubmit,
 }: {
-  seededVocab: string[];
   lastSetup: LabSessionContext | null;
   applyNonce: number;
   /** Set when continuing an active arc (take 2+). null = no active arc. */
@@ -507,7 +503,6 @@ function SessionContextForm({
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("");
   const [lengthSec, setLengthSec] = useState<number | null>(null);
-  const [vocab, setVocab] = useState(seededVocab.join(", "));
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
   // Explore-session toggle: auto-on when continuing an active arc.
@@ -520,7 +515,6 @@ function SessionContextForm({
     setTopic(lastSetup.topic);
     setAudience(lastSetup.audience);
     setLengthSec(lastSetup.target_length_seconds);
-    setVocab(lastSetup.domain_vocabulary.join(", "));
     setSlides(lastSetup.slides.length > 0 ? lastSetup.slides : initialSlides());
     setPresentationRef(lastSetup.presentationRef);
   }, [applyNonce, lastSetup]);
@@ -534,7 +528,7 @@ function SessionContextForm({
         topic: t,
         audience: audience.trim(),
         target_length_seconds: lengthSec,
-        domain_vocabulary: parseVocabulary(vocab),
+        domain_vocabulary: [],
         slides: presentationRef ? clampSlides(slides) : nonEmptySlides(slides),
         presentationRef,
       },
@@ -637,16 +631,6 @@ function SessionContextForm({
               );
             })}
           </div>
-        </Field>
-
-        <Field label="Key words" htmlFor="words">
-          <input
-            id="words"
-            value={vocab}
-            onChange={(e) => setVocab(e.target.value)}
-            placeholder="Words that help transcription accuracy"
-            className={SETUP_INPUT_CLS}
-          />
         </Field>
 
         <Field label="Your slides">
