@@ -22,6 +22,11 @@ export interface CoachStudentDetail {
   domain: string;
   /** The user's free-text goal. May self-identify; never name/email. */
   goal: string;
+  /** The previous goal before the most recent update. null if goal was never
+   *  changed (or BE hasn't migrated add_goal_change_tracking.sql yet). */
+  previousGoal: string | null;
+  /** ISO timestamp of the most recent goal change. null when unchanged. */
+  goalChangedAt: string | null;
   sessions: CoachStudentSession[];
 }
 
@@ -52,6 +57,12 @@ export function mapCoachStudentDetail(raw: unknown): CoachStudentDetail | null {
     pseudonym,
     domain: typeof r.domain === "string" ? r.domain : "",
     goal: typeof r.goal === "string" ? r.goal : "",
+    previousGoal:
+      typeof r.previous_goal === "string" && r.previous_goal.length > 0
+        ? r.previous_goal
+        : null,
+    goalChangedAt:
+      typeof r.goal_changed_at === "string" ? r.goal_changed_at : null,
     sessions,
   };
 }
