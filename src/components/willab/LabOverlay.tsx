@@ -20,6 +20,7 @@ import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
+import { getLastFeeling } from "./willabFeelings";
 import { markFirstRecordingOnboarded, type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import PresentationInput from "./PresentationInput";
@@ -187,6 +188,7 @@ export default function LabOverlay({
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
+        feeling: getLastFeeling() ?? undefined,
       });
       if (!active) return;
       if (result.kind === "ok") {
