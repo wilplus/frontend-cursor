@@ -8,7 +8,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
-import { SlideRender } from "./pdfSlides";
+import { SlideRender, TextSlide } from "./pdfSlides";
 import type { ReadoutFeatures } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -27,6 +27,9 @@ export interface SlideTakeEntry {
   key: string;
   presentationRef: string | null;
   slideIndex: number;
+  /** Slide text — used as fallback when presentationRef is null. */
+  title?: string;
+  body?: string;
   /** Rendered at the top of the content area below the slide image.
    *  Trainings: bold take title. Coach Insights: verdict badge.
    *  When null/undefined AND audioRef+transcript are absent, the empty-state
@@ -95,10 +98,14 @@ export function SlideTake({
             <SlideRender
               presentationRef={entry.presentationRef}
               pageIndex={entry.slideIndex}
-              title=""
-              body=""
+              title={entry.title ?? ""}
+              body={entry.body ?? ""}
               className="h-full w-full"
             />
+          ) : entry.title || entry.body ? (
+            <div className="h-full w-full overflow-hidden">
+              <TextSlide title={entry.title ?? ""} body={entry.body ?? ""} />
+            </div>
           ) : (
             <SlidePlaceholder className="h-full w-full" />
           )}
