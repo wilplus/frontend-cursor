@@ -146,7 +146,7 @@ export default function CoachAuditPageClient({
                 Your best line, slide by slide
               </h2>
               <p className="text-[14px] text-muted-foreground">
-                This section draws from the student's personal strengths view
+                This section draws from the student&apos;s personal strengths view
                 and is visible when the student opens their audit.
               </p>
             </section>
