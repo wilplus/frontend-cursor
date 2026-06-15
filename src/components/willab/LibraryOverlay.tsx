@@ -12,7 +12,7 @@ import {
   type StrengthsView,
 } from "@/services/api/strengths";
 import { SlideRender } from "./pdfSlides";
-import { SlidePlaceholder, SlideTake, type SlideTakeEntry } from "./SlideTake";
+import { SlideTake, type SlideTakeEntry } from "./SlideTake";
 import { useBackDismiss } from "./useBackDismiss";
 
 /* -------------------------------------------------------------------------- */
@@ -87,6 +87,8 @@ function deckToEntries(deck: Deck): SlideTakeEntry[] {
       key: String(i),
       presentationRef: deck.presentationRef,
       slideIndex: s.index,
+      title: s.title,
+      body: s.body,
       topBar:
         m && deck.takeTitle ? (
           <p className="text-[15px] font-semibold text-foreground">
@@ -361,6 +363,8 @@ function PresentationsList({
           onClick={() => onOpenPresentation(p)}
           presentationRef={p.presentationRef}
           slideIndex={p.slides[0]?.index ?? 0}
+          slideTitle={p.slides[0]?.title}
+          slideBody={p.slides[0]?.body}
           title={p.topic || "Presentation"}
           sub={`${p.takes.length} take${p.takes.length === 1 ? "" : "s"}`}
           menuItems={[
@@ -406,7 +410,7 @@ function PresentationDetail({
   const coverSlide = presentation.slides[0];
   return (
     <div className="flex w-full flex-col">
-      {presentation.presentationRef && coverSlide ? (
+      {coverSlide ? (
         <div className="aspect-video w-full overflow-hidden bg-muted">
           <SlideRender
             presentationRef={presentation.presentationRef}
@@ -430,6 +434,8 @@ function PresentationDetail({
             onClick={onOpenBest}
             presentationRef={presentation.presentationRef}
             slideIndex={presentation.bestLines[0]?.index ?? 0}
+            slideTitle={presentation.bestLines[0]?.title}
+            slideBody={presentation.bestLines[0]?.body}
             title="Best takes"
           />
         </>
@@ -448,6 +454,8 @@ function PresentationDetail({
           onClick={() => onOpenTake(t)}
           presentationRef={t.presentationRef}
           slideIndex={t.slides[0]?.index ?? 0}
+          slideTitle={t.slides[0]?.title}
+          slideBody={t.slides[0]?.body}
           title={`Take ${t.takeNumber}`}
           sub={new Date(t.createdAt).toLocaleDateString()}
           menuItems={[
@@ -482,6 +490,8 @@ function SlideList({
           onClick={() => onOpenSlide(i)}
           presentationRef={deck.presentationRef}
           slideIndex={s.index}
+          slideTitle={s.title}
+          slideBody={s.body}
           title={s.title || `Slide ${i + 1}`}
         />
       ))}
@@ -498,6 +508,8 @@ function Card({
   onClick,
   presentationRef,
   slideIndex,
+  slideTitle,
+  slideBody,
   title,
   sub,
   top,
@@ -507,6 +519,8 @@ function Card({
   onClick: () => void;
   presentationRef: string | null;
   slideIndex: number;
+  slideTitle?: string;
+  slideBody?: string;
   title: string;
   sub?: string;
   top?: boolean;
@@ -541,7 +555,12 @@ function Card({
         }`}
       >
         <div className="shrink-0" style={{ width: thumbW }}>
-          <Thumb presentationRef={presentationRef} slideIndex={slideIndex} />
+          <Thumb
+            presentationRef={presentationRef}
+            slideIndex={slideIndex}
+            slideTitle={slideTitle}
+            slideBody={slideBody}
+          />
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-center px-4">
           <span className="line-clamp-2 text-[15px] font-medium text-foreground">
@@ -596,18 +615,21 @@ function Card({
 function Thumb({
   presentationRef,
   slideIndex,
+  slideTitle = "",
+  slideBody = "",
 }: {
   presentationRef: string | null;
   slideIndex: number;
+  slideTitle?: string;
+  slideBody?: string;
 }) {
-  if (!presentationRef) return <SlidePlaceholder className="h-full w-full" />;
   return (
     <div className="h-full w-full overflow-hidden bg-muted">
       <SlideRender
         presentationRef={presentationRef}
         pageIndex={slideIndex}
-        title=""
-        body=""
+        title={slideTitle}
+        body={slideBody}
         className="h-full w-full"
       />
     </div>

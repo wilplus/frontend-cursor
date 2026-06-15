@@ -55,6 +55,8 @@ function buildEntry(s: ReadoutSnippet, payload: ReadoutPayload): SlideTakeEntry 
     key: s.id || String(s.startOffsetMs),
     presentationRef: payload.presentationRef,
     slideIndex: s.slide?.index ?? 0,
+    title: s.slide?.title ?? "",
+    body: s.slide?.body ?? "",
     topBar: (
       <div
         className={`flex items-center gap-2 ${

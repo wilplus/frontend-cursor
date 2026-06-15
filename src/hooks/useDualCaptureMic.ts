@@ -2,6 +2,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+function isPwaStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+function isIos(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
+function deniedMessage(): string {
+  if (isPwaStandalone() && isIos()) {
+    return "Microphone blocked. Open iPhone Settings, find WillpowerLab, and turn on Microphone.";
+  }
+  return "Microphone permission denied.";
+}
+
 /* -------------------------------------------------------------------------- */
 /*  useDualCaptureMic — Web Speech + MediaRecorder, single stream             */
 /*                                                                            */
@@ -218,9 +238,7 @@ export function useDualCaptureMic(opts?: {
         setState({
           status: "error",
           code: denied ? "denied" : "stream_failed",
-          message: denied
-            ? "Microphone permission denied."
-            : "Couldn't access the microphone.",
+          message: denied ? deniedMessage() : "Couldn't access the microphone.",
         });
         return;
       }

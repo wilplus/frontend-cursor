@@ -135,21 +135,21 @@ export function TextSlide({ title, body }: { title: string; body: string }) {
   const bullets = bulletLines(body);
   const blank = title.trim() === "" && bullets.length === 0;
   return (
-    <div className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-card p-5">
+    <div className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-xl border border-gray-200 bg-white p-5">
       {title ? (
-        <p className="text-[18px] font-semibold leading-snug text-foreground">
+        <p className="text-[18px] font-semibold leading-snug text-gray-900">
           {title}
         </p>
       ) : null}
       {bullets.length > 0 ? (
-        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-relaxed text-foreground">
+        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-relaxed text-gray-900">
           {bullets.map((b, i) => (
             <li key={`${i}-${b.slice(0, 12)}`}>{b}</li>
           ))}
         </ul>
       ) : null}
       {blank ? (
-        <p className="m-auto text-[13px] text-muted-foreground">Blank slide</p>
+        <p className="m-auto text-[13px] text-gray-400">Blank slide</p>
       ) : null}
     </div>
   );
