@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Mic, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
@@ -105,6 +106,7 @@ export default function Lounge({
    *  session once on mount (user results email deep-link). */
   initialInsightSessionId?: string | null;
 }) {
+  const router = useRouter();
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
   const [draftText, setDraftText] = useState("");
@@ -249,6 +251,7 @@ export default function Lounge({
     if (action === "strong_sides") setLibraryOpen(true);
     else if (action === "trainings") setLibraryOpen(true); // seam 1 — Trainings tab
     else if (action === "record_again") onStart();
+    else if (action === "audit") router.push("/audits");
   }
 
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
