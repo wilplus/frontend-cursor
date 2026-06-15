@@ -53,6 +53,13 @@ function stateLabel(state: string): string {
   return state ? state.replace(/_/g, " ") : "";
 }
 
+const FEELING_EMOJI: Record<string, string> = {
+  nervous: "😬",
+  excited: "🔥",
+  calm: "😌",
+  unsure: "🤔",
+};
+
 export default function StudentDetailOverlay({
   userId,
   fallbackPseudonym,
@@ -164,6 +171,11 @@ export default function StudentDetailOverlay({
                             </span>
                           ) : null}
                         </span>
+                        {s.feeling ? (
+                          <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                            {FEELING_EMOJI[s.feeling]} {s.feeling}
+                          </span>
+                        ) : null}
                         <span className="shrink-0 text-[12px] text-muted-foreground">
                           {stateLabel(s.state)}
                         </span>

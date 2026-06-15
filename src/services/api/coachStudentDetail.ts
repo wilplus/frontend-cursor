@@ -9,12 +9,16 @@
 /*  Soft-fails to null (no endpoint / 403 / network) → the FE shows nothing.     */
 /* -------------------------------------------------------------------------- */
 
+export type Feeling = "nervous" | "excited" | "calm" | "unsure";
+
 export interface CoachStudentSession {
   sessionId: string;
   topic: string;
   createdAt: string;
   /** Lifecycle state (review_pending / readout_ready / done / …) — display only. */
   state: string;
+  /** Pre-recording feeling (BE #109). null when not captured or older session. */
+  feeling: Feeling | null;
 }
 
 export interface CoachStudentDetail {
@@ -30,6 +34,11 @@ export interface CoachStudentDetail {
   sessions: CoachStudentSession[];
 }
 
+function pickFeeling(v: unknown): Feeling | null {
+  if (v === "nervous" || v === "excited" || v === "calm" || v === "unsure") return v;
+  return null;
+}
+
 function mapSession(raw: unknown): CoachStudentSession | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -39,6 +48,7 @@ function mapSession(raw: unknown): CoachStudentSession | null {
     topic: typeof r.topic === "string" ? r.topic : "",
     createdAt: typeof r.created_at === "string" ? r.created_at : "",
     state: typeof r.state === "string" ? r.state : "",
+    feeling: pickFeeling(r.feeling),
   };
 }
 

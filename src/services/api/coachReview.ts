@@ -18,6 +18,7 @@ import {
   type ReadoutFeatures,
   type ReadoutSlide,
 } from "@/components/willab/readout";
+import { type Feeling } from "@/components/willab/willabFeelings";
 
 export type DirectionLabel = "threat" | "ambiguous" | "challenge";
 export type CoachTag = "strong" | "to_work_on";
@@ -59,6 +60,13 @@ export interface CoachReviewSnippet {
   coachState: CoachSnippetState;
 }
 
+/** Pre-recording feeling captured before a take. Coach-only — AC-9. */
+export interface SessionFeeling {
+  feeling: Feeling;
+  takeIndex: number | null;
+  capturedAt: string;
+}
+
 /** Per-session review payload (§S.4). Identity is pseudonym + domain only. */
 export interface CoachReviewSession {
   sessionId: string;
@@ -73,6 +81,8 @@ export interface CoachReviewSession {
    *  null when no deck was attached. */
   presentationRef: string | null;
   snippets: CoachReviewSnippet[];
+  /** Pre-recording feelings (BE #108) — newest-first from feelings[]. Coach-only. */
+  feelings: SessionFeeling[];
 }
 
 /** What the FE sends per per-snippet save. Any subset of fields. The BE
@@ -104,6 +114,18 @@ function pickCoachState(raw: unknown): CoachSnippetState {
     note: typeof r.note === "string" ? r.note : "",
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
+  };
+}
+
+function pickFeeling(raw: unknown): SessionFeeling | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const f = r.feeling;
+  if (f !== "nervous" && f !== "excited" && f !== "calm" && f !== "unsure") return null;
+  return {
+    feeling: f,
+    takeIndex: typeof r.take_index === "number" ? r.take_index : null,
+    capturedAt: typeof r.captured_at === "string" ? r.captured_at : "",
   };
 }
 
@@ -179,6 +201,9 @@ export function mapCoachReviewSession(
         (a, b) =>
           (a.slide?.index ?? Infinity) - (b.slide?.index ?? Infinity)
       ),
+    feelings: Array.isArray(r.feelings)
+      ? r.feelings.map(pickFeeling).filter((f): f is SessionFeeling => f !== null)
+      : [],
   };
 }
 
