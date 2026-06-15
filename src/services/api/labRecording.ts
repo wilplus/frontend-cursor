@@ -23,10 +23,16 @@ export interface LabUploadInput {
   presentationRef?: string | null;
   /** Tap timeline — which slide was advanced to, at t_ms from record start. */
   slideAdvances?: { index: number; tMs: number }[];
+  /** Explore-session arc (Prompt B §F2). Set explore_session=true on take 1
+   *  (no arc_id yet); subsequent takes carry the returned arc_id + incremented
+   *  take_index. undefined = standalone recording, arc_id null on response. */
+  exploreSession?: boolean;
+  arcId?: string;
+  takeIndex?: number;
 }
 
 export type LabUploadResult =
-  | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload }
+  | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload; arcId: string | null; takeIndex: number | null }
   | { kind: "rejected"; message: string } // 422 — min-content gate
   | { kind: "error"; status: number; message: string };
 
@@ -62,6 +68,10 @@ export async function submitLabRecording(
       )
     );
   }
+  // Explore-session arc fields — omit entirely for standalone recordings.
+  if (input.exploreSession) form.append("explore_session", "true");
+  if (input.arcId) form.append("arc_id", input.arcId);
+  if (input.takeIndex != null) form.append("take_index", String(input.takeIndex));
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
   const token = await getAuthToken(); // optional — public/guest endpoint
@@ -116,5 +126,7 @@ export async function submitLabRecording(
     sessionId: typeof body.session_id === "string" ? body.session_id : null,
     state: typeof body.state === "string" ? body.state : "readout_ready",
     readout: mapReadoutPayload(readoutObj),
+    arcId: typeof body.arc_id === "string" ? body.arc_id : null,
+    takeIndex: typeof body.take_index === "number" ? body.take_index : null,
   };
 }
