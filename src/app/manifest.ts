@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "WillpowerLab — the willpower lab for your confidence on stage",
     start_url: "/",
     scope: "/",
-    display: "standalone",
+    display: "browser",
     orientation: "portrait",
     background_color: "#ffffff",
     theme_color: "#ffffff",

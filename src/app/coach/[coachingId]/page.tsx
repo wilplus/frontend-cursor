@@ -224,7 +224,7 @@ export default function CoachingPage({ params }: PageProps) {
       recordTimeoutRef.current = setTimeout(() => stopRecording(), 60_000);
     } catch (err) {
       console.error("startRecording failed:", err);
-      toast.error("Microphone permission denied or unavailable.");
+      toast.error("Recording needs microphone access — open willab in Safari, or enable the mic in Settings.");
     }
   };
 
