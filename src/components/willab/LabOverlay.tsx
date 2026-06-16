@@ -339,7 +339,7 @@ export default function LabOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
+    <div className={`fixed inset-0 z-30 flex flex-col ${state === "lab_recording" ? "bg-neutral-50" : "bg-background"}`}>
       {/* Unified X-only header: no status title on any step; the set-up step
           also gets the "Same as last time" re-fill on the left. */}
       <header className="flex h-12 shrink-0 items-center justify-between px-4">
