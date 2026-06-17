@@ -11,7 +11,8 @@
 export interface ReadoutFeatures {
   f0Mean: number | null;
   f0Sd: number | null;
-  speechRate: number | null; // HERO
+  speechRate: number | null; // HERO — raw wpm
+  speechRatePct: number | null; // HERO — % of 125-wpm reference, e.g. 143
   meanPause: number | null;
   pauseRatio: number | null; // HERO
   loudnessRange: number | null;
@@ -99,10 +100,14 @@ function obj(v: unknown): Record<string, unknown> {
  *  unit contract — instead of duplicating it (C1: coach sees the same data). */
 export function mapReadoutFeatures(raw: unknown): ReadoutFeatures {
   const f = obj(raw);
+  const speechRate = num(f.speech_rate);
   return {
     f0Mean: num(f.f0_mean),
     f0Sd: num(f.f0_sd),
-    speechRate: num(f.speech_rate),
+    speechRate,
+    speechRatePct:
+      num(f.speech_rate_pct) ??
+      (speechRate !== null ? Math.round((speechRate / 125) * 100) : null),
     // BE-2: the unit contract is baked into the field name now —
     // `mean_pause_seconds` (BE locked seconds, ending the ms↔s ping-pong).
     // Read it directly; no /1000, no ambiguity.
@@ -219,6 +224,7 @@ export function mockReadout(topic: string): ReadoutPayload {
       f0Mean: 165,
       f0Sd: 28,
       speechRate,
+      speechRatePct: Math.round((speechRate / 125) * 100),
       meanPause: 0.4,
       pauseRatio,
       loudnessRange: 14,

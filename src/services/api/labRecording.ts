@@ -1,5 +1,6 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
+import { mapRecordingProgress, type RecordingProgress } from "./recordingProgress";
 import { type PresentationSlide } from "@/components/willab/presentation";
 import { type Feeling } from "@/components/willab/willabFeelings";
 
@@ -35,7 +36,7 @@ export interface LabUploadInput {
 }
 
 export type LabUploadResult =
-  | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload; arcId: string | null; takeIndex: number | null }
+  | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload; arcId: string | null; takeIndex: number | null; recordingProgress: RecordingProgress | null }
   | { kind: "rejected"; message: string } // 422 — min-content gate
   | { kind: "error"; status: number; message: string };
 
@@ -134,5 +135,6 @@ export async function submitLabRecording(
     readout: mapReadoutPayload(readoutObj),
     arcId: typeof body.arc_id === "string" ? body.arc_id : null,
     takeIndex: typeof body.take_index === "number" ? body.take_index : null,
+    recordingProgress: mapRecordingProgress(body.recording_progress),
   };
 }

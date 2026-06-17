@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import type { RecordingProgress } from "@/services/api/recordingProgress";
 import { Loader2 } from "lucide-react";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
@@ -40,6 +41,8 @@ export default function WillabSurface({
   insightSessionId: string | null;
 }) {
   const flow = useWillabFlow();
+  const [recordingProgress, setRecordingProgress] =
+    useState<RecordingProgress | null>(null);
   const signedIn = useSignedIn();
   const userId = useUserId();
   // Reconcile the at-home status (review_pending / insights) with server truth
@@ -100,6 +103,7 @@ export default function WillabSurface({
         goTo={flow.goTo}
         initialReviewSessionId={reviewSessionId}
         initialInsightSessionId={insightSessionId}
+        recordingProgress={recordingProgress}
       />
       {flow.labOverlayOpen && (
         <LabOverlay
@@ -107,6 +111,7 @@ export default function WillabSurface({
           sessionId={sessionId}
           goTo={flow.goTo}
           onClose={flow.closeLab}
+          onRecordingProgress={setRecordingProgress}
         />
       )}
     </LoungeThreadProvider>,

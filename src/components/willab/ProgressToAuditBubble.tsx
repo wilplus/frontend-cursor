@@ -1,72 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  fetchRecordingProgress,
-  audioRemainingLabel,
-  progressFraction,
-  type RecordingProgress,
-} from "@/services/api/recordingProgress";
+  fetchBestPresentationProgress,
+  type BestPresentationProgress,
+} from "@/services/api/bestPresentation";
+import { readExploreArc } from "@/lib/willab/exploreArc";
 
 /* -------------------------------------------------------------------------- */
-/*  ProgressToAuditBubble — progress toward the first audit (C-2 / B-3)        */
+/*  ProgressToAuditBubble — progress toward the arc deliverable (C-2 / F1)   */
 /*                                                                            */
-/*  An ordinary thread bubble shown after a training is sent: a bar toward the   */
-/*  10-min (600s) cumulative recording threshold (S2). The figure comes straight */
-/*  from the BE total — we never sum snippet durations. Hides entirely until the  */
-/*  BE ships /recording-progress (fetch → null → render nothing). Carries the     */
-/*  B-3 "What is the audit?" disclosure inline.                                  */
+/*  Arc mode only (explore takes in progress):                                */
+/*    Polls GET /api/v2/explore/arc/<arc_id>/progress → takes_done / target.  */
+/*    ready === false → "Your best presentation needs N more takes — min 3."  */
+/*                     + "Record next take" CTA (calls onStartNextTake).      */
+/*    ready === true  → "Your best presentation is ready." + view button.     */
+/*                                                                            */
+/*  Hides entirely when there is no active arc (no localStorage entry) or     */
+/*  when the progress endpoint returns null (not shipped yet / error).        */
+/*                                                                            */
+/*  The legacy seconds-based audit progress path is retired — the audit       */
+/*  deliverable no longer surfaces to users.                                  */
 /* -------------------------------------------------------------------------- */
-
-// B-3 — locked copy (audit explainer).
-const AUDIT_EXPLAINER =
-  "It's a summary of your strong sides and the moments to work on. It's the first historical document of your journey as a public speaker, and we'll send it to you by email.";
 
 export default function ProgressToAuditBubble({
   onOpenAudit,
+  onOpenBestPresentation,
+  onStartNextTake,
 }: {
+  /** Fallback when onOpenBestPresentation is absent. */
   onOpenAudit: () => void;
+  /** Called when the user taps "View your best presentation" in arc mode.
+   *  Receives the arcId so the parent can mount the right overlay. */
+  onOpenBestPresentation?: (arcId: string) => void;
+  /** Opens the recording overlay for the next explore take. */
+  onStartNextTake?: () => void;
 }) {
-  const [progress, setProgress] = useState<RecordingProgress | null>(null);
-  const [explain, setExplain] = useState(false);
+  // Arc mode — set once on mount from localStorage.
+  const arcRef = useRef(readExploreArc());
+  const arcId = arcRef.current?.arcId ?? null;
+
+  const [arcProgress, setArcProgress] = useState<BestPresentationProgress | null>(null);
 
   useEffect(() => {
+    if (!arcId) return;
     let active = true;
-    void fetchRecordingProgress().then((p) => {
-      if (active) setProgress(p);
+    void fetchBestPresentationProgress(arcId).then((p) => {
+      if (active) setArcProgress(p);
     });
     return () => {
       active = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Degrade: no endpoint / unparseable → render nothing (no empty bubble).
-  if (!progress) return null;
+  if (!arcId || !arcProgress) return null;
 
-  const remaining = audioRemainingLabel(progress);
-  const pct = Math.round(progressFraction(progress) * 100);
+  const pct = Math.round((arcProgress.takesDone / arcProgress.takesTarget) * 100);
 
   return (
     <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5">
-      {progress.unlocked ? (
+      {arcProgress.ready ? (
         <>
           <p className="text-[15px] leading-relaxed text-foreground">
-            Your first audit is ready.
+            Your best presentation is ready.
           </p>
           <button
             type="button"
-            onClick={onOpenAudit}
+            onClick={() =>
+              onOpenBestPresentation
+                ? onOpenBestPresentation(arcId)
+                : onOpenAudit()
+            }
             className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
           >
-            View your audit
+            View your best presentation
           </button>
         </>
       ) : (
         <>
           <p className="text-[15px] leading-relaxed text-foreground">
-            {remaining
-              ? `${remaining} of recording left to unlock your first audit.`
-              : "You're almost at your first audit."}
+            Your best presentation needs {arcProgress.takesRemaining} more{" "}
+            {arcProgress.takesRemaining === 1 ? "take" : "takes"} — minimum 3.
           </p>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
             <div
@@ -76,26 +91,23 @@ export default function ProgressToAuditBubble({
               aria-valuenow={pct}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label="Progress to your first audit"
+              aria-label="Progress to your best presentation"
             />
           </div>
+          <p className="text-[12px] text-muted-foreground">
+            {arcProgress.takesDone} of {arcProgress.takesTarget} takes done
+          </p>
+          {onStartNextTake ? (
+            <button
+              type="button"
+              onClick={onStartNextTake}
+              className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+            >
+              Record next take
+            </button>
+          ) : null}
         </>
       )}
-
-      {/* B-3 — what is the audit? */}
-      <button
-        type="button"
-        onClick={() => setExplain((v) => !v)}
-        className="self-start text-[12px] text-muted-foreground underline-offset-2 hover:underline"
-        aria-expanded={explain}
-      >
-        What is the audit?
-      </button>
-      {explain ? (
-        <p className="text-[13px] leading-relaxed text-muted-foreground">
-          {AUDIT_EXPLAINER}
-        </p>
-      ) : null}
     </div>
   );
 }

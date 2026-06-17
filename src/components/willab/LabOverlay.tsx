@@ -80,11 +80,13 @@ export default function LabOverlay({
   sessionId,
   goTo,
   onClose,
+  onRecordingProgress,
 }: {
   state: WillabState;
   sessionId: string | null;
   goTo: (s: WillabState) => void;
   onClose: () => void;
+  onRecordingProgress?: (p: import("@/services/api/recordingProgress").RecordingProgress | null) => void;
 }) {
   // D-3 — back-gesture / Back exits the Lab instead of routing away.
   useBackDismiss(onClose);
@@ -213,6 +215,7 @@ export default function LabOverlay({
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
+        onRecordingProgress?.(result.recordingProgress);
         goTo("readout");
       } else if (result.kind === "rejected") {
         cancelMic();

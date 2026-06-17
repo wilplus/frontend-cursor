@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
+import SnippetReadoutBlock from "./SnippetReadoutBlock";
 import type { ReadoutPayload, ReadoutSnippet } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -35,31 +35,6 @@ import type { ReadoutPayload, ReadoutSnippet } from "./readout";
 /*  `snippet.coach` block renders when a note is attached.                     */
 /* -------------------------------------------------------------------------- */
 
-const DASH = "—";
-const hz = (v: number | null) => (v != null ? `${Math.round(v)} Hz` : DASH);
-const sec = (v: number | null) => (v != null ? `${v.toFixed(1)}s` : DASH);
-const dB = (v: number | null) => (v != null ? `${Math.round(v)} dB` : DASH);
-const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : DASH);
-const dec = (v: number | null) => (v != null ? v.toFixed(2) : DASH);
-
-// Speed shows as a percentage of a 125-wpm reference (125 wpm = 100%), scaling
-// proportionally (90 wpm = 72%, 150 wpm = 120%). Product call — one intuitive
-// "speed" number on the hero instead of raw words-per-minute (the raw wpm still
-// lives in the Show-details panel).
-const SPEED_REF_WPM = 125;
-const speedPct = (wpm: number) => `${Math.round((wpm / SPEED_REF_WPM) * 100)}%`;
-
-/** Gross speaking rate (words ÷ minutes) derived from a snippet's own
- *  transcript + duration — the fallback for the speed hero when the BE omits
- *  `speech_rate` from the instant readout. Words per minute including pauses
- *  (the textbook speaking-rate). null when there's nothing to divide, so the
- *  hero falls back to the dash. */
-function grossWpm(transcript: string, durationMs: number): number | null {
-  if (durationMs <= 0) return null;
-  const words = transcript.trim().split(/\s+/).filter(Boolean).length;
-  if (words === 0) return null;
-  return words / (durationMs / 60000);
-}
 
 export default function ReadoutCard({
   payload,
@@ -165,19 +140,13 @@ function SnippetCard({
   total: number;
   presentationRef: string | null;
 }) {
-  const f = snippet.features;
-  // Default collapsed (T5) — the card reads calm; the hero pair carries the
-  // at-a-glance signal, the rest is one tap away for the curious.
-  const [showDetails, setShowDetails] = useState(false);
-
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4">
       <span className="text-[12px] text-muted-foreground">
         Snippet {index + 1} of {total}
       </span>
 
-      {/* Slide on screen during this snippet (deck attached) — the rendered
-          PDF page or its text card, above the words; stickiness stays below. */}
+      {/* Slide on screen during this snippet (deck attached) */}
       {snippet.slide ? (
         <SlideRender
           presentationRef={presentationRef}
@@ -188,89 +157,14 @@ function SnippetCard({
         />
       ) : null}
 
-      {/* What — audio + transcript. Mirrors AuditInsights's post-publish
-          card so pre-judgment and post-publish read as the same anatomy,
-          only the lens shifts. */}
-      <div>
-        <p className="text-sm font-semibold text-foreground">What</p>
-        <div className="mt-2">
-          <MediaPlayer
-            src={snippet.audioRef}
-            startOffsetMs={snippet.startOffsetMs}
-            durationMs={snippet.durationMs}
-          />
-        </div>
-        {snippet.transcript ? (
-          <blockquote className="mt-3 border-l-2 border-primary pl-3 text-[17px] font-medium italic leading-relaxed text-foreground">
-            {snippet.transcript}
-          </blockquote>
-        ) : null}
-      </div>
-
-      {/* Hero pair (§5 / T3) — speed + pause ratio, always visible. The two
-          numbers a non-expert feels immediately; F0/Hz etc. stay below the
-          fold (noise without a baseline up top). */}
-      <div className="flex gap-10">
-        <Hero
-          value={f.speechRate ?? grossWpm(snippet.transcript, snippet.durationMs)}
-          label="speed"
-          fmt={speedPct}
-        />
-        <Hero
-          value={f.pauseRatio}
-          label="pause ratio"
-          fmt={(v) => `${Math.round(v * 100)}%`}
-        />
-      </div>
-
-      {/* Show details (T5) — one collapse, default collapsed, holding the
-          grouped acoustic lines + the 4 derived dynamics. */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowDetails((s) => !s)}
-          className="text-[12px] text-muted-foreground hover:text-foreground"
-        >
-          {showDetails ? "▾" : "▸"} Show details
-        </button>
-        {showDetails && (
-          <div className="mt-2 flex flex-col gap-2">
-            <Group
-              label="Pitch"
-              value={`F0 mean ${hz(f.f0Mean)} · SD ${hz(f.f0Sd)}`}
-            />
-            <Group label="Pace & pauses" value={`mean pause ${sec(f.meanPause)}`} />
-            <Group
-              label="Volume & voice"
-              value={`range ${dB(f.loudnessRange)} · voiced ${pct(f.voicedRatio)}`}
-            />
-            <Group label="F0 slope" value={dec(f.f0Slope)} />
-            <Group label="Pause regularity" value={dec(f.pauseRegularity)} />
-            <Group label="Intensity envelope" value={dec(f.intensityEnvelope)} />
-            <Group label="F0 mid→end Δ" value={dec(f.f0MidEndDelta)} />
-          </div>
-        )}
-      </div>
-
-      {/* Topic stickiness — the one neutral, non-coach-judged metric we
-          surface pre-judgment. Comment first (the substance), composite
-          second (the receipt). Both nullable; if neither exists, drop
-          the section entirely (don't render a bare header). */}
-      {(snippet.stickiness.comment || snippet.stickiness.composite != null) && (
-        <div>
-          <p className="text-sm font-semibold text-foreground">Topic stickiness</p>
-          {snippet.stickiness.comment ? (
-            <p className="mt-1.5 text-[14px] italic leading-relaxed text-foreground">
-              {snippet.stickiness.comment}
-            </p>
-          ) : null}
-          {snippet.stickiness.composite != null ? (
-            <p className="mt-1 text-[14px] text-muted-foreground">
-              composite {dec(snippet.stickiness.composite)}
-            </p>
-          ) : null}
-        </div>
-      )}
+      <SnippetReadoutBlock
+        audioRef={snippet.audioRef}
+        startOffsetMs={snippet.startOffsetMs}
+        durationMs={snippet.durationMs}
+        transcript={snippet.transcript}
+        stickiness={snippet.stickiness}
+        features={snippet.features}
+      />
 
       {/* Post-publish coach note (§14 user-facing lane). Pre-judgment
           this block stays absent — the §5 promise is that the verdict
@@ -298,38 +192,3 @@ function SnippetCard({
   );
 }
 
-/* ------------------------------- primitives ------------------------------- */
-
-/** Hero numeral — large Display value + Meta label. The two a non-expert
- *  reads at a glance (speed + pause ratio). */
-function Hero({
-  value,
-  label,
-  fmt,
-}: {
-  value: number | null;
-  label: string;
-  fmt: (v: number) => string;
-}) {
-  return (
-    <div>
-      <p className="text-[22px] font-semibold tabular-nums text-foreground">
-        {value != null ? fmt(value) : DASH}
-      </p>
-      <p className="text-[12px] text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-/** Grouped metric row — Meta label left, Body value right. Used inside the
- *  Show-details collapse for the non-hero acoustic features. */
-function Group({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-right text-[13px] text-foreground">{value}</span>
-    </div>
-  );
-}
