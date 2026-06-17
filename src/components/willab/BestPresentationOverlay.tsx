@@ -58,7 +58,7 @@ export default function BestPresentationOverlay({
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <span className="text-[15px] font-semibold text-foreground">
-          Your ideal presentation
+          Your best presentation
         </span>
         <button
           type="button"
@@ -120,9 +120,8 @@ function NotReadyState({
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
       <p className="text-[15px] text-foreground">
-        we need {progress.takesRemaining} more{" "}
-        {progress.takesRemaining === 1 ? "take" : "takes"} to generate your
-        best lines
+        Your best presentation needs {progress.takesRemaining} more{" "}
+        {progress.takesRemaining === 1 ? "take" : "takes"} — minimum 3.
       </p>
       <div className="h-1.5 w-48 overflow-hidden rounded-full bg-border">
         <div

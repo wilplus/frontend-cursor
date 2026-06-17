@@ -108,7 +108,7 @@ export default function Lounge({
   /** D3 — when set (from /chat?insight=<id>), open the InsightsOverlay for that
    *  session once on mount (user results email deep-link). */
   initialInsightSessionId?: string | null;
-  /** Seeded from the upload response so ProgressToAuditBubble skips its fetch. */
+  /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
   const router = useRouter();
@@ -445,7 +445,7 @@ export default function Lounge({
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
-                progress={recordingProgress}
+                onStartNextTake={onStart}
               />
             ) : (
               <ActionButton
