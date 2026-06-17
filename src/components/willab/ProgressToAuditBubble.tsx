@@ -24,13 +24,19 @@ const AUDIT_EXPLAINER =
 
 export default function ProgressToAuditBubble({
   onOpenAudit,
+  progress: initialProgress,
 }: {
   onOpenAudit: () => void;
+  /** Seed value from the upload response — skips the fetch when provided. */
+  progress?: RecordingProgress | null;
 }) {
-  const [progress, setProgress] = useState<RecordingProgress | null>(null);
+  const [progress, setProgress] = useState<RecordingProgress | null>(
+    initialProgress ?? null
+  );
   const [explain, setExplain] = useState(false);
 
   useEffect(() => {
+    if (initialProgress !== undefined) return; // already seeded from upload
     let active = true;
     void fetchRecordingProgress().then((p) => {
       if (active) setProgress(p);
@@ -38,6 +44,7 @@ export default function ProgressToAuditBubble({
     return () => {
       active = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Degrade: no endpoint / unparseable → render nothing (no empty bubble).

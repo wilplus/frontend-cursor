@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
-import MediaPlayer from "@/components/results/MediaPlayer";
-import SpeechDataPanel from "./SpeechDataPanel";
+import SnippetReadoutBlock from "./SnippetReadoutBlock";
 import { SlideRender } from "./pdfSlides";
 import {
   saveCoachSnippet,
@@ -171,53 +170,14 @@ export default function CoachSnippetReviewCard({
         />
       ) : null}
 
-      {/* What you said — E1: matches the user AuditInsights styling 1:1 (regular
-          weight, border-border, text-[16px]; the #89 redesign dropped the italic
-          for readability), so the coach reads the snippet in the same form the
-          user will. */}
-      <div>
-        <p className="text-sm font-semibold text-foreground">What you said</p>
-        <div className="mt-2">
-          <MediaPlayer
-            src={snippet.audioRef}
-            startOffsetMs={snippet.startOffsetMs}
-            durationMs={snippet.durationMs}
-          />
-        </div>
-        {snippet.transcript ? (
-          <blockquote className="mt-3 border-l-2 border-border pl-3 text-[16px] leading-relaxed text-foreground">
-            {snippet.transcript}
-          </blockquote>
-        ) : null}
-      </div>
-
-      {/* Topic stickiness — the one neutral metric, unchanged from ReadoutCard */}
-      {(snippet.stickiness.comment || snippet.stickiness.composite != null) && (
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            Topic stickiness
-          </p>
-          {snippet.stickiness.comment ? (
-            <p className="mt-1.5 text-[14px] leading-relaxed text-foreground">
-              {snippet.stickiness.comment}
-            </p>
-          ) : null}
-          {snippet.stickiness.composite != null ? (
-            <p className="mt-1 text-[14px] text-muted-foreground">
-              composite {snippet.stickiness.composite.toFixed(2)}
-            </p>
-          ) : null}
-        </div>
-      )}
-
-      {/* Speech data (C1) — the SAME acoustic panel the user sees on their
-          Readout, now that the coach packet serializes `features` (§B.1).
-          Reference only: the coach interprets the numbers, we render no verdict
-          over them. Neutral label ("Speech data") — the coach is looking at the
-          user's snippet, not their own, so never "your". */}
-      {snippet.features ? (
-        <SpeechDataPanel features={snippet.features} label="Speech data" />
-      ) : null}
+      <SnippetReadoutBlock
+        audioRef={snippet.audioRef}
+        startOffsetMs={snippet.startOffsetMs}
+        durationMs={snippet.durationMs}
+        transcript={snippet.transcript}
+        stickiness={snippet.stickiness}
+        features={snippet.features}
+      />
 
       {/* Coach controls — the §F.3 split-sink surface */}
       <div className="border-t border-border pt-4">

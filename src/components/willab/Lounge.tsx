@@ -31,6 +31,7 @@ import {
   coerceSuggestedAction,
   type ChipAction,
 } from "./loungePrompts";
+import type { RecordingProgress } from "@/services/api/recordingProgress";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -95,6 +96,7 @@ export default function Lounge({
   goTo,
   initialReviewSessionId = null,
   initialInsightSessionId = null,
+  recordingProgress = null,
 }: {
   state: WillabState;
   onStart: () => void;
@@ -105,6 +107,8 @@ export default function Lounge({
   /** D3 — when set (from /chat?insight=<id>), open the InsightsOverlay for that
    *  session once on mount (user results email deep-link). */
   initialInsightSessionId?: string | null;
+  /** Seeded from the upload response so ProgressToAuditBubble skips its fetch. */
+  recordingProgress?: RecordingProgress | null;
 }) {
   const router = useRouter();
   const thread = useLoungeThreadCtx();
@@ -437,6 +441,7 @@ export default function Lounge({
               <ProgressToAuditBubble
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
+                progress={recordingProgress}
               />
             ) : (
               <ActionButton

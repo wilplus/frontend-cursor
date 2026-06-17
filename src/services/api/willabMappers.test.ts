@@ -273,6 +273,7 @@ describe("mapCoachReviewSession — features (C1 / §B.1)", () => {
       f0Mean: 180,
       f0Sd: 30,
       speechRate: 150,
+      speechRatePct: 120, // fallback: Math.round(150/125*100)
       meanPause: 0.4,
       pauseRatio: 0.3,
       loudnessRange: 14,
