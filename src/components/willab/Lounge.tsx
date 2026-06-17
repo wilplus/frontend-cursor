@@ -17,6 +17,7 @@ import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import AuditOverlay from "./AuditOverlay";
+import BestPresentationOverlay from "./BestPresentationOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
@@ -31,6 +32,7 @@ import {
   coerceSuggestedAction,
   type ChipAction,
 } from "./loungePrompts";
+import type { RecordingProgress } from "@/services/api/recordingProgress";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -95,6 +97,7 @@ export default function Lounge({
   goTo,
   initialReviewSessionId = null,
   initialInsightSessionId = null,
+  recordingProgress = null,
 }: {
   state: WillabState;
   onStart: () => void;
@@ -105,6 +108,8 @@ export default function Lounge({
   /** D3 — when set (from /chat?insight=<id>), open the InsightsOverlay for that
    *  session once on mount (user results email deep-link). */
   initialInsightSessionId?: string | null;
+  /** Seed from the upload response; reserved for future per-take state. */
+  recordingProgress?: RecordingProgress | null;
 }) {
   const router = useRouter();
   const thread = useLoungeThreadCtx();
@@ -115,6 +120,8 @@ export default function Lounge({
   const [libraryOpen, setLibraryOpen] = useState(false);
   // C-1 — the unified audit / history view (recordings + all moments).
   const [auditOpen, setAuditOpen] = useState(false);
+  // F2 — best-presentation overlay. arcId drives which arc to show.
+  const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // show_record_ui (seam 2) — per-turn mic invite. Hidden by default; revealed
@@ -437,6 +444,8 @@ export default function Lounge({
               <ProgressToAuditBubble
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
+                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+                onStartNextTake={onStart}
               />
             ) : (
               <ActionButton
@@ -528,6 +537,13 @@ export default function Lounge({
         <AuditOverlay
           onClose={() => setAuditOpen(false)}
           onOpenSession={(sid) => setActiveInsight(sid)}
+        />
+      )}
+      {/* F2 — best-presentation overlay (replaces the audit as the arc deliverable). */}
+      {bestPresentationArcId && (
+        <BestPresentationOverlay
+          arcId={bestPresentationArcId}
+          onClose={() => setBestPresentationArcId(null)}
         />
       )}
       {activeInsight && (

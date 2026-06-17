@@ -160,11 +160,11 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
         ? mapReadoutFeatures(r.features)
         : null,
     slide: mapReadoutSlide(r.slide),
-    aiDraftNote:
-      typeof r.ai_draft_coach_note === "string" &&
-      r.ai_draft_coach_note.length > 0
-        ? r.ai_draft_coach_note
-        : null,
+    aiDraftNote: (() => {
+      const coachStateRaw = (r.coach_state ?? {}) as Record<string, unknown>;
+      const v = coachStateRaw.ai_draft_coach_note;
+      return typeof v === "string" && v.length > 0 ? v : null;
+    })(),
     coachState: pickCoachState(r.coach_state),
   };
 }
