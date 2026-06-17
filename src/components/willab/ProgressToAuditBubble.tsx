@@ -19,8 +19,8 @@ import { readExploreArc } from "@/lib/willab/exploreArc";
 /*  Two modes, chosen on mount by checking localStorage for an active arc:    */
 /*                                                                            */
 /*  Arc mode (explore takes in progress):                                     */
-/*    Polls GET /api/v2/user/explore/<arc_id>/progress → takes_done / target. */
-/*    Shows "X of Y sessions complete" + a fill bar.                          */
+/*    Polls GET /api/v2/explore/arc/<arc_id>/progress → takes_done / target.  */
+/*    Shows "we need N more takes to generate your best lines" + a fill bar.  */
 /*    When ready → "Your ideal presentation is ready" + "View" button         */
 /*    which calls onOpenBestPresentation(arcId).                               */
 /*                                                                            */
@@ -106,9 +106,9 @@ export default function ProgressToAuditBubble({
         ) : (
           <>
             <p className="text-[15px] leading-relaxed text-foreground">
-              {arcProgress.takesTarget - arcProgress.takesDone} more session
-              {arcProgress.takesTarget - arcProgress.takesDone !== 1 ? "s" : ""}{" "}
-              to your ideal presentation.
+              we need {arcProgress.takesRemaining} more{" "}
+              {arcProgress.takesRemaining === 1 ? "take" : "takes"} to generate
+              your best lines
             </p>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
               <div

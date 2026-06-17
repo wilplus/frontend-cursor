@@ -115,14 +115,14 @@ export default function BestPresentationOverlay({
 function NotReadyState({
   progress,
 }: {
-  progress: { takesDone: number; takesTarget: number };
+  progress: { takesDone: number; takesTarget: number; takesRemaining: number };
 }) {
-  const remaining = progress.takesTarget - progress.takesDone;
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
       <p className="text-[15px] text-foreground">
-        {remaining} more session{remaining !== 1 ? "s" : ""} to unlock your
-        ideal presentation.
+        we need {progress.takesRemaining} more{" "}
+        {progress.takesRemaining === 1 ? "take" : "takes"} to generate your
+        best lines
       </p>
       <div className="h-1.5 w-48 overflow-hidden rounded-full bg-border">
         <div
@@ -153,22 +153,38 @@ function SlideCard({
   slide: BestPresentationSlide;
   presentationRef: string | null;
 }) {
+  const [noteOpen, setNoteOpen] = useState(false);
   const hasContent = slide.text.length > 0 || slide.audioRef !== null;
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
       {/* Slide header */}
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] text-muted-foreground">
-          Slide {slide.index + 1}
-        </span>
-        {slide.breakthrough ? (
-          <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+      <span className="text-[12px] text-muted-foreground">
+        Slide {slide.index + 1}
+      </span>
+
+      {/* Breakthrough badge (F3) — tappable when a note is available */}
+      {slide.breakthrough ? (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={
+              slide.breakthroughNote ? () => setNoteOpen((v) => !v) : undefined
+            }
+            disabled={!slide.breakthroughNote}
+            className="flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
+            aria-expanded={slide.breakthroughNote ? noteOpen : undefined}
+          >
             <Sparkles className="h-3 w-3" aria-hidden />
-            Breakthrough
-          </span>
-        ) : null}
-      </div>
+            You turned your stress into charisma.
+          </button>
+          {noteOpen && slide.breakthroughNote ? (
+            <p className="pl-1 text-[12px] leading-snug text-muted-foreground">
+              {slide.breakthroughNote}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Slide visual — PDF page when ref available, B&W text-card otherwise */}
       <SlideRender

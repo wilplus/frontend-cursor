@@ -15,6 +15,7 @@ import { getAuthToken } from "@/lib/api/auth-client";
 export interface BestPresentationProgress {
   takesDone: number;
   takesTarget: number;
+  takesRemaining: number;
   ready: boolean;
 }
 
@@ -32,6 +33,9 @@ export interface BestPresentationSlide {
   /** true when this slide's best take follows a threat snippet in the same
    *  arc — the moment the challenge mindset clicked. Challenge-side only. */
   breakthrough: boolean;
+  /** Short plain-language "why" text for the breakthrough, e.g.
+   *  "Comfortable pace, natural rise and fall." Render verbatim. */
+  breakthroughNote: string | null;
 }
 
 export interface BestPresentationResult {
@@ -59,9 +63,14 @@ function mapProgress(raw: unknown): BestPresentationProgress | null {
       ? r.takes_target
       : null;
   if (done === null || target === null) return null;
+  const remaining =
+    typeof r.takes_remaining === "number" && Number.isFinite(r.takes_remaining)
+      ? r.takes_remaining
+      : Math.max(0, target - done);
   return {
     takesDone: done,
     takesTarget: target,
+    takesRemaining: remaining,
     ready: typeof r.ready === "boolean" ? r.ready : done >= target,
   };
 }
@@ -80,6 +89,10 @@ function mapSlide(raw: unknown): BestPresentationSlide | null {
     takeIndex: typeof r.take_index === "number" ? r.take_index : 1,
     breakthrough:
       typeof r.breakthrough === "boolean" ? r.breakthrough : false,
+    breakthroughNote:
+      typeof r.breakthrough_note === "string" && r.breakthrough_note.length > 0
+        ? r.breakthrough_note
+        : null,
   };
 }
 
@@ -99,7 +112,7 @@ export async function fetchBestPresentationProgress(
   let res: Response;
   try {
     res = await fetch(
-      `/api/v2/user/explore/${encodeURIComponent(arcId)}/progress`,
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/progress`,
       { method: "GET", headers, credentials: "include", cache: "no-store" }
     );
   } catch {
@@ -118,7 +131,7 @@ export async function fetchBestPresentation(
   let res: Response;
   try {
     res = await fetch(
-      `/api/v2/user/explore/${encodeURIComponent(arcId)}/best-presentation`,
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation`,
       { method: "GET", headers, credentials: "include", cache: "no-store" }
     );
   } catch {
