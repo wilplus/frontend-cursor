@@ -1,21 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchRecordingProgress,
   audioRemainingLabel,
   progressFraction,
   type RecordingProgress,
 } from "@/services/api/recordingProgress";
+import {
+  fetchBestPresentationProgress,
+  type BestPresentationProgress,
+} from "@/services/api/bestPresentation";
+import { readExploreArc } from "@/lib/willab/exploreArc";
 
 /* -------------------------------------------------------------------------- */
-/*  ProgressToAuditBubble — progress toward the first audit (C-2 / B-3)        */
+/*  ProgressToAuditBubble — progress toward the arc deliverable (C-2 / F3)   */
 /*                                                                            */
-/*  An ordinary thread bubble shown after a training is sent: a bar toward the   */
-/*  10-min (600s) cumulative recording threshold (S2). The figure comes straight */
-/*  from the BE total — we never sum snippet durations. Hides entirely until the  */
-/*  BE ships /recording-progress (fetch → null → render nothing). Carries the     */
-/*  B-3 "What is the audit?" disclosure inline.                                  */
+/*  Two modes, chosen on mount by checking localStorage for an active arc:    */
+/*                                                                            */
+/*  Arc mode (explore takes in progress):                                     */
+/*    Polls GET /api/v2/user/explore/<arc_id>/progress → takes_done / target. */
+/*    Shows "X of Y sessions complete" + a fill bar.                          */
+/*    When ready → "Your ideal presentation is ready" + "View" button         */
+/*    which calls onOpenBestPresentation(arcId).                               */
+/*                                                                            */
+/*  Legacy mode (no active arc, standalone recording):                        */
+/*    Falls back to GET /api/v2/user/recording-progress → cumulative seconds. */
+/*    Shows "M:SS of recording left to unlock your first audit" (now dormant  */
+/*    — the audit user surface is retired). When unlocked → onOpenAudit().    */
+/*                                                                            */
+/*  Hides entirely when both sources return null (no endpoint yet / error).   */
 /* -------------------------------------------------------------------------- */
 
 // B-3 — locked copy (audit explainer).
@@ -24,38 +38,108 @@ const AUDIT_EXPLAINER =
 
 export default function ProgressToAuditBubble({
   onOpenAudit,
+  onOpenBestPresentation,
   progress: initialProgress,
 }: {
   onOpenAudit: () => void;
+  /** Called when the user taps "View your ideal presentation" in arc mode.
+   *  Receives the arcId so the parent can mount the right overlay. */
+  onOpenBestPresentation?: (arcId: string) => void;
   /** Seed value from the upload response — skips the fetch when provided. */
   progress?: RecordingProgress | null;
 }) {
-  const [progress, setProgress] = useState<RecordingProgress | null>(
+  // Arc mode — set once on mount from localStorage.
+  const arcRef = useRef(readExploreArc());
+  const arcId = arcRef.current?.arcId ?? null;
+
+  // Arc-mode progress (takes-based).
+  const [arcProgress, setArcProgress] = useState<BestPresentationProgress | null>(null);
+  // Legacy-mode progress (seconds-based).
+  const [legacyProgress, setLegacyProgress] = useState<RecordingProgress | null>(
     initialProgress ?? null
   );
   const [explain, setExplain] = useState(false);
 
   useEffect(() => {
-    if (initialProgress !== undefined) return; // already seeded from upload
     let active = true;
-    void fetchRecordingProgress().then((p) => {
-      if (active) setProgress(p);
-    });
+    if (arcId) {
+      // Arc mode: poll the per-arc progress endpoint.
+      void fetchBestPresentationProgress(arcId).then((p) => {
+        if (active) setArcProgress(p);
+      });
+    } else {
+      // Legacy mode: fetch cumulative seconds (if not already seeded).
+      if (initialProgress !== undefined) return;
+      void fetchRecordingProgress().then((p) => {
+        if (active) setLegacyProgress(p);
+      });
+    }
     return () => {
       active = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Degrade: no endpoint / unparseable → render nothing (no empty bubble).
-  if (!progress) return null;
+  // — Arc mode render —
+  if (arcId) {
+    if (!arcProgress) return null; // no endpoint yet → hide gracefully
+    const pct = Math.round((arcProgress.takesDone / arcProgress.takesTarget) * 100);
+    return (
+      <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5">
+        {arcProgress.ready ? (
+          <>
+            <p className="text-[15px] leading-relaxed text-foreground">
+              Your ideal presentation is ready.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                onOpenBestPresentation
+                  ? onOpenBestPresentation(arcId)
+                  : onOpenAudit()
+              }
+              className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+            >
+              View your ideal presentation
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {arcProgress.takesTarget - arcProgress.takesDone} more session
+              {arcProgress.takesTarget - arcProgress.takesDone !== 1 ? "s" : ""}{" "}
+              to your ideal presentation.
+            </p>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${pct}%` }}
+                role="progressbar"
+                aria-valuenow={pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Progress to your ideal presentation"
+              />
+            </div>
+            <p className="text-[12px] text-muted-foreground">
+              {arcProgress.takesDone} of {arcProgress.takesTarget} sessions
+              complete
+            </p>
+          </>
+        )}
+      </div>
+    );
+  }
 
-  const remaining = audioRemainingLabel(progress);
-  const pct = Math.round(progressFraction(progress) * 100);
+  // — Legacy mode render —
+  if (!legacyProgress) return null;
+
+  const remaining = audioRemainingLabel(legacyProgress);
+  const legacyPct = Math.round(progressFraction(legacyProgress) * 100);
 
   return (
     <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5">
-      {progress.unlocked ? (
+      {legacyProgress.unlocked ? (
         <>
           <p className="text-[15px] leading-relaxed text-foreground">
             Your first audit is ready.
@@ -78,9 +162,9 @@ export default function ProgressToAuditBubble({
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
             <div
               className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${pct}%` }}
+              style={{ width: `${legacyPct}%` }}
               role="progressbar"
-              aria-valuenow={pct}
+              aria-valuenow={legacyPct}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-label="Progress to your first audit"

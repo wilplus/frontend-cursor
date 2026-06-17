@@ -17,6 +17,7 @@ import ReportCard from "./ReportCard";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import AuditOverlay from "./AuditOverlay";
+import BestPresentationOverlay from "./BestPresentationOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
@@ -119,6 +120,8 @@ export default function Lounge({
   const [libraryOpen, setLibraryOpen] = useState(false);
   // C-1 — the unified audit / history view (recordings + all moments).
   const [auditOpen, setAuditOpen] = useState(false);
+  // F2 — best-presentation overlay. arcId drives which arc to show.
+  const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // show_record_ui (seam 2) — per-turn mic invite. Hidden by default; revealed
@@ -441,6 +444,7 @@ export default function Lounge({
               <ProgressToAuditBubble
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
+                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 progress={recordingProgress}
               />
             ) : (
@@ -533,6 +537,13 @@ export default function Lounge({
         <AuditOverlay
           onClose={() => setAuditOpen(false)}
           onOpenSession={(sid) => setActiveInsight(sid)}
+        />
+      )}
+      {/* F2 — best-presentation overlay (replaces the audit as the arc deliverable). */}
+      {bestPresentationArcId && (
+        <BestPresentationOverlay
+          arcId={bestPresentationArcId}
+          onClose={() => setBestPresentationArcId(null)}
         />
       )}
       {activeInsight && (
