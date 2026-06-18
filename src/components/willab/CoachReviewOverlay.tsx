@@ -198,19 +198,11 @@ export default function CoachReviewOverlay({
       nextLabel={isAtWrapup ? (publishing ? "Publishing..." : "Publish to user") : undefined}
       nextTone={isAtWrapup ? "terminal" : "primary"}
       nextDisabled={isAtWrapup ? !floorMet || publishing : false}
-      contextStrip={
-        <>
-          <b>{session.pseudonym}</b>
-          {" · "}
-          {prettifyDomain(session.domain)}
-          {session.topic ? ` · "${session.topic}"` : null}
-        </>
-      }
       managed={false}
     >
       {/* Snippet pages — all stay mounted for draft preservation. */}
       {session.snippets.map((s, i) => (
-        <div key={s.id} className={i === cursor ? "flex flex-col gap-4" : "hidden"}>
+        <div key={s.id} className={i === cursor ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
           <CoachSnippetReviewCard
             sessionId={session.sessionId}
             snippet={s}
@@ -223,7 +215,7 @@ export default function CoachReviewOverlay({
       ))}
 
       {/* Wrap-up page */}
-      <div className={isAtWrapup ? "flex flex-col gap-4" : "hidden"}>
+      <div className={isAtWrapup ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
         <h2 className="text-[20px] font-semibold text-foreground">Wrap up</h2>
 
         {session.feelings.length > 0 ? (
