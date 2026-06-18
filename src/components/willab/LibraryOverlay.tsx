@@ -651,21 +651,19 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
   return (
     <div className="flex flex-col">
       {/* Slide — edge-to-edge */}
-      <div className="aspect-video w-full overflow-hidden bg-muted">
+      <div className="w-full bg-muted">
         {deck.presentationRef ? (
           <SlideRender
             presentationRef={deck.presentationRef}
             pageIndex={slide.index}
             title={slide.title}
             body={slide.body}
-            className="h-full w-full"
+            className="w-full"
           />
         ) : slide.title || slide.body ? (
-          <div className="h-full w-full overflow-hidden">
-            <TextSlide title={slide.title} body={slide.body} />
-          </div>
+          <TextSlide title={slide.title} body={slide.body} />
         ) : (
-          <SlidePlaceholder className="h-full w-full" />
+          <SlidePlaceholder className="w-full" />
         )}
       </div>
 
