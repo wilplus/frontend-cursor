@@ -239,13 +239,13 @@ function SlideCard({
     <div className="flex flex-col">
       {/* Slide — edge-to-edge, pencil overlaid at bottom-left */}
       <div className="relative">
-        <div className="aspect-video w-full overflow-hidden bg-muted">
+        <div className="w-full bg-muted">
           <SlideRender
             presentationRef={presentationRef}
             pageIndex={slide.index}
             title={slide.title}
             body=""
-            className="h-full w-full"
+            className="w-full"
           />
         </div>
         <button
