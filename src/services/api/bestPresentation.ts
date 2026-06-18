@@ -36,6 +36,8 @@ export interface BestPresentationSlide {
   /** Short plain-language "why" text for the breakthrough, e.g.
    *  "Comfortable pace, natural rise and fall." Render verbatim. */
   breakthroughNote: string | null;
+  /** True when the user has saved a custom edit to this slide's text. */
+  edited: boolean;
 }
 
 export interface BestPresentationResult {
@@ -93,6 +95,7 @@ function mapSlide(raw: unknown): BestPresentationSlide | null {
       typeof r.breakthrough_note === "string" && r.breakthrough_note.length > 0
         ? r.breakthrough_note
         : null,
+    edited: typeof r.edited === "boolean" ? r.edited : false,
   };
 }
 
@@ -122,9 +125,9 @@ export async function fetchBestPresentationProgress(
   return mapProgress(await res.json().catch(() => null));
 }
 
-/** Patch the user-edited composed text for a single slide.
+/** Save the user-edited composed text for a single slide.
  *  Called when the user saves an edit in F1 BestPresentationOverlay. */
-export async function patchBestPresentationSlideText(
+export async function saveBestPresentationSlideText(
   arcId: string,
   slideIndex: number,
   text: string
@@ -135,7 +138,7 @@ export async function patchBestPresentationSlideText(
     res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation/slides/${slideIndex}`,
       {
-        method: "PATCH",
+        method: "PUT",
         headers: { ...headers, "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ text }),
