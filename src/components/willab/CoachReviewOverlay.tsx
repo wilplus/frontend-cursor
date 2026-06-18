@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
@@ -87,9 +87,9 @@ export default function CoachReviewOverlay({
     setNotifyClient(session.state !== "done");
   }, [session]);
 
-  function onSnippetSaved(snippetId: string, next: CoachSnippetState) {
+  const onSnippetSaved = useCallback((snippetId: string, next: CoachSnippetState) => {
     setLocalState((prev) => ({ ...prev, [snippetId]: next }));
-  }
+  }, []);
 
   const floorMet = session
     ? session.snippets.some((s) => {
@@ -218,6 +218,18 @@ export default function CoachReviewOverlay({
       <div className={isAtWrapup ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
         <h2 className="text-[20px] font-semibold text-foreground">Wrap up</h2>
 
+        {!floorMet ? (
+          <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
+            Surface at least one snippet with a note and tag to publish.
+          </p>
+        ) : null}
+
+        {publishError ? (
+          <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
+            {publishError}
+          </p>
+        ) : null}
+
         {session.feelings.length > 0 ? (
           <div className="rounded-2xl border border-border bg-card p-4">
             <p className="mb-3 text-sm font-semibold text-foreground">
@@ -314,18 +326,6 @@ export default function CoachReviewOverlay({
             <p className="mt-2 text-[12px] text-red-600">{recutError}</p>
           ) : null}
         </div>
-
-        {/* Floor hint and notify toggle live just above the Publish button in
-            the shell's navbar. Scroll here to see them before publishing. */}
-        {!floorMet ? (
-          <p className="text-center text-[12px] text-muted-foreground">
-            Add at least one surfaced snippet with note + tag to publish.
-          </p>
-        ) : null}
-
-        {publishError ? (
-          <p className="text-center text-[13px] text-destructive">{publishError}</p>
-        ) : null}
 
         <label className="flex cursor-pointer items-center justify-center gap-2 text-[13px] text-foreground">
           <input

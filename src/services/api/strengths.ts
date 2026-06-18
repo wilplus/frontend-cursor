@@ -136,12 +136,15 @@ function mapPresentation(raw: unknown): PresentationGroup | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.presentation_id !== "string") return null;
+  const takes = Array.isArray(r.takes)
+    ? r.takes.map(mapTake).filter((t): t is PresentationTake => t !== null)
+    : [];
   return {
     presentationId: r.presentation_id,
     presentationRef:
       typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
         ? r.presentation_ref
-        : null,
+        : takes.find((t) => t.presentationRef != null)?.presentationRef ?? null,
     topic: typeof r.topic === "string" ? r.topic : "",
     slides: Array.isArray(r.slides)
       ? r.slides.map(mapSlide).filter((s): s is StrengthSlide => s !== null)
@@ -156,9 +159,7 @@ function mapPresentation(raw: unknown): PresentationGroup | null {
               b !== null
           )
       : [],
-    takes: Array.isArray(r.takes)
-      ? r.takes.map(mapTake).filter((t): t is PresentationTake => t !== null)
-      : [],
+    takes,
   };
 }
 

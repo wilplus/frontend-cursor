@@ -84,6 +84,7 @@ export default function CoachSnippetReviewCard({
     snippet.coachState.note || snippet.aiDraftNote || ""
   );
   const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didAutoSaveRef = useRef(false);
 
   const persist = useCallback(
     async (
@@ -128,13 +129,20 @@ export default function CoachSnippetReviewCard({
 
   useEffect(() => {
     return () => {
-      // Flush any pending note save when the card unmounts (e.g. overlay
-      // closes mid-typing). Drop on the floor if the timer hasn't fired —
-      // the immediate-persist guarantee is on the keystroke loop, and a
-      // closing card is a fine moment to give up the pending edit.
       if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
     };
   }, []);
+
+  // The textarea is pre-filled with aiDraftNote when coachState.note is empty.
+  // That draft is never saved until the coach edits the field, which means
+  // floorMet stays false in the parent even though the note looks filled.
+  // Auto-saving the draft on mount closes the gap.
+  useEffect(() => {
+    if (!didAutoSaveRef.current && snippet.aiDraftNote && !snippet.coachState.note) {
+      didAutoSaveRef.current = true;
+      void persist("note", { note: snippet.aiDraftNote });
+    }
+  }, [snippet.aiDraftNote, snippet.coachState.note, persist]);
 
   // Status badge — three states (per §F.3):
   //   "Skipped"        — nothing set
