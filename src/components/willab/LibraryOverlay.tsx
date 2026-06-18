@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MoreHorizontal, X } from "lucide-react";
+import { ChevronDown, Loader2, MoreHorizontal, X } from "lucide-react";
 import {
   deletePresentation,
   deleteTake,
@@ -11,9 +11,12 @@ import {
   type StrengthMoment,
   type StrengthsView,
 } from "@/services/api/strengths";
-import { SlideRender } from "./pdfSlides";
-import { SlideTake, type SlideTakeEntry } from "./SlideTake";
+import MediaPlayer from "@/components/results/MediaPlayer";
+import { SlideRender, TextSlide } from "./pdfSlides";
+import { SlidePlaceholder } from "./SlideTake";
+import SnippetScreenShell from "./SnippetScreenShell";
 import { useBackDismiss } from "./useBackDismiss";
+import type { ReadoutFeatures } from "./readout";
 
 /* -------------------------------------------------------------------------- */
 /*  LibraryOverlay — "Trainings" 4-level nav                                  */
@@ -78,36 +81,6 @@ const generalDeck = (moments: StrengthMoment[]): Deck => ({
   presentationRef: null,
   slides: moments.map((m, i) => ({ index: i, title: "", body: "", moment: m })),
 });
-
-/** Map a Deck's slides to the generic SlideTakeEntry shape. */
-function deckToEntries(deck: Deck): SlideTakeEntry[] {
-  return deck.slides.map((s, i): SlideTakeEntry => {
-    const m = s.moment;
-    return {
-      key: String(i),
-      presentationRef: deck.presentationRef,
-      slideIndex: s.index,
-      title: s.title,
-      body: s.body,
-      topBar:
-        m && deck.takeTitle ? (
-          <p className="text-[15px] font-semibold text-foreground">
-            {deck.takeTitle}
-          </p>
-        ) : undefined,
-      audioRef: m?.audioRef ?? null,
-      startOffsetMs: m?.startOffsetMs,
-      durationMs: m?.durationMs,
-      transcript: m?.transcript,
-      advise: m?.note ? (
-        <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-          {m.note}
-        </p>
-      ) : null,
-      features: m?.features ?? null,
-    };
-  });
-}
 
 /* ─────────────────────── nav state ────────────────────────────────────── */
 
@@ -278,11 +251,14 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : nav.level === "L4" ? (
-          <SlideTake
-            entries={deckToEntries(nav.deck)}
+          <LibraryMomentPage
+            deck={nav.deck}
             slideIdx={nav.slideIdx}
             onSlideIdx={(i) =>
               setNav({ level: "L4", deck: nav.deck, topic: nav.topic, takeLabel: nav.takeLabel, slideIdx: i })
+            }
+            onClose={() =>
+              setNav({ level: "L3", deck: nav.deck, topic: nav.topic, takeLabel: nav.takeLabel })
             }
           />
         ) : nav.level === "L3" ? (
@@ -632,6 +608,144 @@ function Thumb({
         body={slideBody}
         className="h-full w-full"
       />
+    </div>
+  );
+}
+
+/* ─────────────────────── L4: LibraryMomentPage ──────────────────────────── */
+
+function LibraryMomentPage({
+  deck,
+  slideIdx,
+  onSlideIdx,
+  onClose,
+}: {
+  deck: Deck;
+  slideIdx: number;
+  onSlideIdx: (i: number) => void;
+  onClose: () => void;
+}) {
+  const total = deck.slides.length;
+  const s = deck.slides[slideIdx];
+
+  return (
+    <SnippetScreenShell
+      onClose={onClose}
+      index={slideIdx}
+      total={Math.max(total, 1)}
+      onPrev={() => onSlideIdx(slideIdx - 1)}
+      onNext={() => onSlideIdx(slideIdx + 1)}
+      nextDisabled={slideIdx >= total - 1}
+      managed={false}
+    >
+      {s ? <MomentCard deck={deck} slide={s} /> : null}
+    </SnippetScreenShell>
+  );
+}
+
+function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
+  const m = slide.moment;
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Slide visual */}
+      <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted">
+        {deck.presentationRef ? (
+          <SlideRender
+            presentationRef={deck.presentationRef}
+            pageIndex={slide.index}
+            title={slide.title}
+            body={slide.body}
+            className="h-full w-full"
+          />
+        ) : slide.title || slide.body ? (
+          <div className="h-full w-full overflow-hidden">
+            <TextSlide title={slide.title} body={slide.body} />
+          </div>
+        ) : (
+          <SlidePlaceholder className="h-full w-full" />
+        )}
+      </div>
+
+      {/* Take label (slim context line) */}
+      {deck.takeTitle ? (
+        <p className="text-[12px] text-muted-foreground">{deck.takeTitle}</p>
+      ) : null}
+
+      {m ? (
+        <>
+          {m.audioRef ? (
+            <MediaPlayer
+              src={m.audioRef}
+              startOffsetMs={m.startOffsetMs ?? 0}
+              durationMs={m.durationMs ?? 0}
+            />
+          ) : null}
+
+          {m.transcript ? (
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {m.transcript}
+            </p>
+          ) : null}
+
+          {m.note ? (
+            <MomentToggle title="Advise">
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                {m.note}
+              </p>
+            </MomentToggle>
+          ) : null}
+
+          {m.features ? (
+            <MomentToggle title="Data">
+              <FeaturesDataBlock features={m.features} />
+            </MomentToggle>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-[15px] text-muted-foreground">
+          No standout moment on this slide yet.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function MomentToggle({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5"
+      >
+        <span className="text-[15px] font-semibold text-foreground">{title}</span>
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open ? <div className="mt-2">{children}</div> : null}
+    </div>
+  );
+}
+
+function FeaturesDataBlock({ features: f }: { features: ReadoutFeatures }) {
+  const hz = (v: number | null) => (v != null ? `${Math.round(v)} Hz` : "-");
+  const pct = (v: number | null) => (v != null ? `${Math.round(v * 100)}%` : "-");
+  const spd = (v: number | null) => (v != null ? `${Math.round(v)} wpm` : "-");
+  const db = (v: number | null) => (v != null ? `${Math.round(v)} dB` : "-");
+  return (
+    <div className="flex flex-col gap-1 text-[15px] leading-relaxed text-foreground">
+      <p>Pitch: F0 mean {hz(f.f0Mean)}, SD {hz(f.f0Sd)}</p>
+      <p>Pace: {spd(f.speechRate)}, pause {pct(f.pauseRatio)}</p>
+      <p>Volume: range {db(f.loudnessRange)}, voiced {pct(f.voicedRatio)}</p>
     </div>
   );
 }
