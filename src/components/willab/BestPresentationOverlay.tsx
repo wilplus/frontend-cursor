@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Pencil, X } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import {
   fetchBestPresentation,
+  patchBestPresentationSlideText,
   type BestPresentationResult,
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
@@ -36,7 +37,6 @@ export default function BestPresentationOverlay({
     };
   }, [arcId]);
 
-  // Pre-shell states: loading, error, not-ready, or empty slides.
   if (status === "loading" || !result) {
     return (
       <PreShellOverlay onClose={onClose}>
@@ -73,6 +73,18 @@ export default function BestPresentationOverlay({
   const total = result.slides.length;
   const atLast = cursor === total - 1;
 
+  function handleTextSaved(slideIndex: number, newText: string) {
+    setResult((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        slides: prev.slides.map((s) =>
+          s.index === slideIndex ? { ...s, text: newText } : s
+        ),
+      };
+    });
+  }
+
   return (
     <SnippetScreenShell
       onClose={onClose}
@@ -87,6 +99,8 @@ export default function BestPresentationOverlay({
       <SlideCard
         slide={result.slides[cursor]}
         presentationRef={result.presentationRef}
+        arcId={arcId}
+        onTextSaved={handleTextSaved}
       />
     </SnippetScreenShell>
   );
@@ -160,66 +174,192 @@ function NotReadyState({
 function SlideCard({
   slide,
   presentationRef,
+  arcId,
+  onTextSaved,
 }: {
   slide: BestPresentationSlide;
   presentationRef: string | null;
+  arcId: string;
+  onTextSaved: (slideIndex: number, text: string) => void;
 }) {
-  const [noteOpen, setNoteOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftText, setDraftText] = useState(slide.text);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [breakthroughOpen, setBreakthroughOpen] = useState(false);
+  const breakthroughRef = useRef<HTMLDivElement>(null);
   const hasContent = slide.text.length > 0 || slide.audioRef !== null;
 
+  function startEdit() {
+    setDraftText(slide.text);
+    setEditing(true);
+    setSaveError(null);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setSaveError(null);
+  }
+
+  async function handleSave() {
+    if (saving) return;
+    setSaving(true);
+    setSaveError(null);
+    const result = await patchBestPresentationSlideText(
+      arcId,
+      slide.index,
+      draftText
+    );
+    setSaving(false);
+    if (result.ok) {
+      onTextSaved(slide.index, draftText);
+      setEditing(false);
+    } else {
+      setSaveError(result.message ?? "Could not save. Try again.");
+    }
+  }
+
+  function toggleBreakthrough() {
+    setBreakthroughOpen((v) => {
+      if (!v) {
+        setTimeout(
+          () =>
+            breakthroughRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "nearest",
+            }),
+          50
+        );
+      }
+      return !v;
+    });
+  }
+
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
-      {/* Slide visual */}
-      <SlideRender
-        presentationRef={presentationRef}
-        pageIndex={slide.index}
-        title={slide.title}
-        body=""
-        className="w-full"
-      />
-
-      {/* Breakthrough badge */}
-      {slide.breakthrough ? (
-        <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={slide.breakthroughNote ? () => setNoteOpen((v) => !v) : undefined}
-            disabled={!slide.breakthroughNote}
-            aria-expanded={slide.breakthroughNote ? noteOpen : undefined}
-            className="flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
-          >
-            <Sparkles className="h-3 w-3" aria-hidden />
-            You turned your stress into charisma.
-          </button>
-          {noteOpen && slide.breakthroughNote ? (
-            <p className="pl-1 text-[12px] leading-snug text-muted-foreground">
-              {slide.breakthroughNote}
-            </p>
-          ) : null}
+    <div className="flex flex-col">
+      {/* Slide — edge-to-edge, pencil overlaid at bottom-left */}
+      <div className="relative">
+        <div className="aspect-video w-full overflow-hidden bg-muted">
+          <SlideRender
+            presentationRef={presentationRef}
+            pageIndex={slide.index}
+            title={slide.title}
+            body=""
+            className="h-full w-full"
+          />
         </div>
-      ) : null}
+        <button
+          type="button"
+          onClick={startEdit}
+          aria-label="Edit composed text"
+          className="absolute bottom-2 left-3 flex h-[26px] w-[26px] items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm"
+        >
+          <Pencil className="h-[13px] w-[13px]" aria-hidden />
+        </button>
+      </div>
 
-      {/* Audio + composed text */}
-      {hasContent ? (
-        <>
-          {slide.audioRef ? (
-            <MediaPlayer src={slide.audioRef} startOffsetMs={0} durationMs={0} />
-          ) : null}
-          {slide.text ? (
-            <p className="text-[15px] leading-relaxed text-foreground">
-              {slide.text}
-            </p>
-          ) : null}
-          {/* provenance */}
-          <p className="text-[11px] text-muted-foreground">
-            from your take {slide.takeIndex}
+      <div className="flex flex-col gap-4 px-4 py-4">
+        {/* Audio player */}
+        {slide.audioRef ? (
+          <MediaPlayer src={slide.audioRef} startOffsetMs={0} durationMs={0} />
+        ) : null}
+
+        {/* Composed text — warm-tint; pencil or click enters edit mode */}
+        {hasContent ? (
+          <>
+            {editing ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={draftText}
+                  onChange={(e) => setDraftText(e.target.value)}
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-primary bg-background px-3 py-2 text-[15px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
+                />
+                {saveError ? (
+                  <p className="text-[13px] text-destructive">{saveError}</p>
+                ) : null}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    disabled={saving}
+                    className="flex-1 rounded-full border border-border py-2 text-[14px] text-foreground disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSave()}
+                    disabled={saving}
+                    className="flex-1 rounded-full bg-primary py-2 text-[14px] font-medium text-primary-foreground disabled:opacity-50"
+                  >
+                    {saving ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            ) : slide.text ? (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={startEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") startEdit();
+                }}
+                className="cursor-pointer rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3"
+              >
+                <p className="text-[15px] leading-relaxed text-foreground">
+                  {slide.text}
+                </p>
+              </div>
+            ) : (
+              <p className="text-[14px] italic text-muted-foreground">
+                No best recording for this slide yet.
+              </p>
+            )}
+
+            {/* Provenance */}
+            {!editing ? (
+              <p className="text-[11px] text-muted-foreground">
+                from your take {slide.takeIndex}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-[14px] italic text-muted-foreground">
+            No best recording for this slide yet.
           </p>
-        </>
-      ) : (
-        <p className="text-[14px] italic text-muted-foreground">
-          No best recording for this slide yet.
-        </p>
-      )}
+        )}
+
+        {/* Breakthrough button */}
+        {slide.breakthrough ? (
+          <>
+            <button
+              type="button"
+              onClick={toggleBreakthrough}
+              className="w-full rounded-xl bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground"
+            >
+              {breakthroughOpen
+                ? "Close breakthrough"
+                : "Explore my breakthrough moment!"}
+            </button>
+            {breakthroughOpen ? (
+              <div
+                ref={breakthroughRef}
+                className="rounded-xl bg-primary/[0.08] px-4 py-4"
+              >
+                <p className="text-[15px] font-semibold text-foreground">
+                  You turned your stress into charisma.
+                </p>
+                {slide.breakthroughNote ? (
+                  <p className="mt-2 text-[15px] leading-relaxed text-foreground">
+                    {slide.breakthroughNote}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, MoreHorizontal, X } from "lucide-react";
+import { Loader2, MoreHorizontal, X } from "lucide-react";
 import {
   deletePresentation,
   deleteTake,
@@ -645,10 +645,13 @@ function LibraryMomentPage({
 
 function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
   const m = slide.moment;
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const hasDetails = !!(m?.note || m?.features);
+
   return (
-    <div className="flex flex-col gap-5">
-      {/* Slide visual */}
-      <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted">
+    <div className="flex flex-col">
+      {/* Slide — edge-to-edge */}
+      <div className="aspect-video w-full overflow-hidden bg-muted">
         {deck.presentationRef ? (
           <SlideRender
             presentationRef={deck.presentationRef}
@@ -666,72 +669,65 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
         )}
       </div>
 
-      {/* Take label (slim context line) */}
-      {deck.takeTitle ? (
-        <p className="text-[12px] text-muted-foreground">{deck.takeTitle}</p>
-      ) : null}
+      <div className="flex flex-col gap-4 px-4 py-4">
+        {/* Take label */}
+        {deck.takeTitle ? (
+          <p className="text-[12px] text-muted-foreground">{deck.takeTitle}</p>
+        ) : null}
 
-      {m ? (
-        <>
-          {m.audioRef ? (
-            <MediaPlayer
-              src={m.audioRef}
-              startOffsetMs={m.startOffsetMs ?? 0}
-              durationMs={m.durationMs ?? 0}
-            />
-          ) : null}
+        {m ? (
+          <>
+            {m.audioRef ? (
+              <MediaPlayer
+                src={m.audioRef}
+                startOffsetMs={m.startOffsetMs ?? 0}
+                durationMs={m.durationMs ?? 0}
+              />
+            ) : null}
 
-          {m.transcript ? (
-            <p className="text-[15px] leading-relaxed text-foreground">
-              {m.transcript}
-            </p>
-          ) : null}
+            {/* Transcript — warm-tint, tap to reveal note + data */}
+            {m.transcript ? (
+              <div
+                role={hasDetails ? "button" : undefined}
+                tabIndex={hasDetails ? 0 : undefined}
+                onClick={hasDetails ? () => setDetailsOpen((v) => !v) : undefined}
+                onKeyDown={
+                  hasDetails
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ")
+                          setDetailsOpen((v) => !v);
+                      }
+                    : undefined
+                }
+                aria-expanded={hasDetails ? detailsOpen : undefined}
+                className={`rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasDetails ? "cursor-pointer" : ""}`}
+              >
+                <p className="text-[15px] leading-relaxed text-foreground">
+                  {m.transcript}
+                </p>
+              </div>
+            ) : null}
 
-          {m.note ? (
-            <MomentToggle title="Advise">
-              <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                {m.note}
-              </p>
-            </MomentToggle>
-          ) : null}
-
-          {m.features ? (
-            <MomentToggle title="Data">
-              <FeaturesDataBlock features={m.features} />
-            </MomentToggle>
-          ) : null}
-        </>
-      ) : (
-        <p className="text-[15px] text-muted-foreground">
-          No standout moment on this slide yet.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function MomentToggle({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex items-center gap-1.5"
-      >
-        <span className="text-[15px] font-semibold text-foreground">{title}</span>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open ? <div className="mt-2">{children}</div> : null}
+            {/* Expanded: coach note + metrics */}
+            {detailsOpen && hasDetails ? (
+              <div className="flex flex-col gap-3">
+                {m.note ? (
+                  <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                    {m.note}
+                  </p>
+                ) : null}
+                {m.features ? (
+                  <FeaturesDataBlock features={m.features} />
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-[15px] text-muted-foreground">
+            No standout moment on this slide yet.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

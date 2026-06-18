@@ -122,6 +122,32 @@ export async function fetchBestPresentationProgress(
   return mapProgress(await res.json().catch(() => null));
 }
 
+/** Patch the user-edited composed text for a single slide.
+ *  Called when the user saves an edit in F1 BestPresentationOverlay. */
+export async function patchBestPresentationSlideText(
+  arcId: string,
+  slideIndex: number,
+  text: string
+): Promise<{ ok: boolean; message?: string }> {
+  const headers = await authHeaders();
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation/slides/${slideIndex}`,
+      {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ text }),
+      }
+    );
+  } catch {
+    return { ok: false, message: "Network error. Try again." };
+  }
+  if (!res.ok) return { ok: false, message: `Failed to save (${res.status}).` };
+  return { ok: true };
+}
+
 /** Full payload — fetched once when the overlay opens.
  *  Soft-fails to null. */
 export async function fetchBestPresentation(

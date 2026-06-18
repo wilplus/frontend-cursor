@@ -15,7 +15,6 @@ export default function SnippetScreenShell({
   nextTone = "primary",
   backDisabled,
   nextDisabled = false,
-  contextStrip,
   /** When false the parent overlay's useBackDismiss handles back — avoids
    *  double history-entry registration. Pass managed={false} when embedded. */
   managed = true,
@@ -30,40 +29,36 @@ export default function SnippetScreenShell({
   nextTone?: "primary" | "terminal";
   backDisabled?: boolean;
   nextDisabled?: boolean;
-  contextStrip?: ReactNode;
   managed?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
-      {/* Only mount the back-dismiss handler when this shell owns history. */}
       {managed ? <BackDismissManager onClose={onClose} /> : null}
 
-      {/* ── ✕ — no bar, no title, no border ── */}
-      <div className="flex shrink-0 justify-end px-3 pb-1 pt-3">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground"
-        >
-          <X className="h-[17px] w-[17px]" aria-hidden />
-        </button>
-      </div>
-
-      {/* ── optional sticky context strip (F3 only, ~24px) ── */}
-      {contextStrip ? (
-        <div className="flex shrink-0 items-center gap-1.5 truncate border-b border-border px-4 pb-2 text-[12px] text-muted-foreground">
-          {contextStrip}
+      {/* ── slide overlay: X + indicator floated over the slide ── */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
+        <div className="mx-auto w-full max-w-2xl">
+          <div className="pointer-events-auto flex items-start justify-between bg-gradient-to-b from-black/40 to-transparent px-3 pb-8 pt-2">
+            <SlideIndicator index={index} total={total} />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm"
+            >
+              <X className="h-[16px] w-[16px]" aria-hidden />
+            </button>
+          </div>
         </div>
-      ) : null}
-
-      {/* ── scrollable card body ── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-4 py-4">{children}</div>
       </div>
 
-      {/* ── pinned navbar: Back | indicator | Next ── */}
+      {/* ── scrollable content — slide first (edge-to-edge), then padded body ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-2xl">{children}</div>
+      </div>
+
+      {/* ── pinned navbar: Back | Next ── */}
       <div className="shrink-0 border-t border-border px-4 py-2.5">
         <div className="flex items-center gap-3">
           <button
@@ -75,8 +70,6 @@ export default function SnippetScreenShell({
             <ArrowLeft className="h-[17px] w-[17px]" aria-hidden />
             Back
           </button>
-
-          <PageIndicator index={index} total={total} />
 
           <button
             type="button"
@@ -98,18 +91,16 @@ export default function SnippetScreenShell({
   );
 }
 
-function PageIndicator({ index, total }: { index: number; total: number }) {
+function SlideIndicator({ index, total }: { index: number; total: number }) {
   if (total <= 7) {
     return (
-      <div className="flex shrink-0 items-center gap-1.5" aria-hidden>
+      <div className="flex items-center gap-1.5 py-1" aria-hidden>
         {Array.from({ length: total }, (_, i) => (
           <span
             key={i}
             className={cn(
               "rounded-full",
-              i === index
-                ? "h-[7px] w-[7px] bg-primary"
-                : "h-[6px] w-[6px] bg-border"
+              i === index ? "h-[7px] w-[7px] bg-white" : "h-[6px] w-[6px] bg-white/40"
             )}
           />
         ))}
@@ -117,7 +108,7 @@ function PageIndicator({ index, total }: { index: number; total: number }) {
     );
   }
   return (
-    <span className="shrink-0 tabular-nums text-[12px] text-muted-foreground">
+    <span className="py-1 tabular-nums text-[12px] text-white">
       {index + 1} / {total}
     </span>
   );
