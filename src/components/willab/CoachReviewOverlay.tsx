@@ -94,7 +94,7 @@ export default function CoachReviewOverlay({
   const floorMet = session
     ? session.snippets.some((s) => {
         const cs = localState[s.id] ?? s.coachState;
-        return cs.surfaced && cs.note.trim() !== "" && cs.tag !== null;
+        return cs.surfaced && cs.note.trim() !== "";
       })
     : false;
 
@@ -107,8 +107,8 @@ export default function CoachReviewOverlay({
     const labels: PublishLabel[] = [];
     for (const s of session.snippets) {
       const cs = localState[s.id] ?? s.coachState;
-      if (cs.surfaced && cs.note.trim() && cs.tag) {
-        notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag });
+      if (cs.surfaced && cs.note.trim()) {
+        notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag ?? "strong" });
       }
       if (cs.directionLabel) {
         labels.push({ snippet_id: s.id, value: cs.directionLabel });

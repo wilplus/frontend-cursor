@@ -133,16 +133,19 @@ export default function CoachSnippetReviewCard({
     };
   }, []);
 
-  // The textarea is pre-filled with aiDraftNote when coachState.note is empty.
-  // That draft is never saved until the coach edits the field, which means
-  // floorMet stays false in the parent even though the note looks filled.
-  // Auto-saving the draft on mount closes the gap.
+  // On mount: surface the snippet and save the AI draft note when not yet persisted.
+  // All snippets default to shown-to-user; coach can unsurface individually.
   useEffect(() => {
-    if (!didAutoSaveRef.current && snippet.aiDraftNote && !snippet.coachState.note) {
-      didAutoSaveRef.current = true;
-      void persist("note", { note: snippet.aiDraftNote });
-    }
-  }, [snippet.aiDraftNote, snippet.coachState.note, persist]);
+    if (didAutoSaveRef.current) return;
+    const needsNote = !!snippet.aiDraftNote && !snippet.coachState.note;
+    const needsSurfaced = !snippet.coachState.surfaced;
+    if (!needsNote && !needsSurfaced) return;
+    didAutoSaveRef.current = true;
+    const patch: { note?: string; surfaced?: boolean } = {};
+    if (needsNote) patch.note = snippet.aiDraftNote!;
+    if (needsSurfaced) patch.surfaced = true;
+    void persist("surfaced", patch);
+  }, [snippet.aiDraftNote, snippet.coachState.note, snippet.coachState.surfaced, persist]);
 
   // Status badge — three states (per §F.3):
   //   "Skipped"        — nothing set
