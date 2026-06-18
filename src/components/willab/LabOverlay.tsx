@@ -441,6 +441,8 @@ export default function LabOverlay({
               }
             }
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
+            onClose={handleClose}
+            managed={false}
           />
         )}
 

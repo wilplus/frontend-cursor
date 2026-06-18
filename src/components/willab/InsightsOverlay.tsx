@@ -87,9 +87,7 @@ export default function InsightsOverlay({
           <AuditInsights payload={data.readout} onClose={onClose} />
         ) : (
           // Pre-publish / untagged — the neutral raw §5 Readout.
-          <div className="mx-auto w-full max-w-2xl px-4 py-6">
-            <ReadoutCard payload={data.readout} />
-          </div>
+          <ReadoutCard payload={data.readout} onClose={onClose} managed={false} />
         )}
       </div>
     </div>
