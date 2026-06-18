@@ -8,7 +8,7 @@ import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import {
   fetchBestPresentation,
-  patchBestPresentationSlideText,
+  saveBestPresentationSlideText,
   type BestPresentationResult,
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
@@ -205,7 +205,7 @@ function SlideCard({
     if (saving) return;
     setSaving(true);
     setSaveError(null);
-    const result = await patchBestPresentationSlideText(
+    const result = await saveBestPresentationSlideText(
       arcId,
       slide.index,
       draftText
