@@ -5,31 +5,12 @@ import { Loader2, Sparkles, X } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import { useBackDismiss } from "./useBackDismiss";
+import SnippetScreenShell from "./SnippetScreenShell";
 import {
   fetchBestPresentation,
   type BestPresentationResult,
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
-
-/* -------------------------------------------------------------------------- */
-/*  BestPresentationOverlay — the per-slide "ideal presentation" view (F2)    */
-/*                                                                            */
-/*  Shows the user their best CHALLENGE delivery of each slide, assembled     */
-/*  across up to 4 explore takes. Replaces the audit as the arc deliverable.  */
-/*                                                                            */
-/*  Anatomy per slide:                                                         */
-/*    - Slide visual (PDF page or B&W text-card fallback)                     */
-/*    - Composed text — the BE's lightly-edited verbatim line                 */
-/*    - Audio player (the actual take's audio window)                         */
-/*    - Breakthrough badge when the slide follows a threat moment (challenge   */
-/*      mindset clicked; threat details NEVER shown to the user)               */
-/*    - Placeholder when no usable take exists for this slide (F5)            */
-/*                                                                            */
-/*  Fences:                                                                   */
-/*    - Renders what the BE sends verbatim; no client-side text generation.   */
-/*    - No scores, no verdicts, no threat-direction data.                     */
-/*    - Empty slide → placeholder, not invented content.                      */
-/* -------------------------------------------------------------------------- */
 
 export default function BestPresentationOverlay({
   arcId,
@@ -41,6 +22,7 @@ export default function BestPresentationOverlay({
   useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [result, setResult] = useState<BestPresentationResult | null>(null);
+  const [cursor, setCursor] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -54,63 +36,91 @@ export default function BestPresentationOverlay({
     };
   }, [arcId]);
 
+  // Pre-shell states: loading, error, not-ready, or empty slides.
+  if (status === "loading" || !result) {
+    return (
+      <PreShellOverlay onClose={onClose}>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </PreShellOverlay>
+    );
+  }
+  if (status === "error") {
+    return (
+      <PreShellOverlay onClose={onClose}>
+        <p className="text-[15px] text-muted-foreground">
+          Couldn&apos;t load your presentation. Try again in a moment.
+        </p>
+      </PreShellOverlay>
+    );
+  }
+  if (!result.ready) {
+    return (
+      <PreShellOverlay onClose={onClose}>
+        <NotReadyState progress={result.progress} />
+      </PreShellOverlay>
+    );
+  }
+  if (result.slides.length === 0) {
+    return (
+      <PreShellOverlay onClose={onClose}>
+        <p className="text-[15px] text-muted-foreground">
+          No slide data found for this presentation.
+        </p>
+      </PreShellOverlay>
+    );
+  }
+
+  const total = result.slides.length;
+  const atLast = cursor === total - 1;
+
+  return (
+    <SnippetScreenShell
+      onClose={onClose}
+      index={cursor}
+      total={total}
+      onPrev={() => setCursor((c) => c - 1)}
+      onNext={atLast ? onClose : () => setCursor((c) => c + 1)}
+      nextLabel={atLast ? "Done" : undefined}
+      nextTone={atLast ? "terminal" : "primary"}
+      managed={false}
+    >
+      <SlideCard
+        slide={result.slides[cursor]}
+        presentationRef={result.presentationRef}
+      />
+    </SnippetScreenShell>
+  );
+}
+
+/* ── minimal fixed overlay for pre-shell states ── */
+
+function PreShellOverlay({
+  onClose,
+  children,
+}: {
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <span className="text-[15px] font-semibold text-foreground">
-          Your best presentation
-        </span>
+      <div className="flex shrink-0 justify-end px-3 pt-3">
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground"
         >
-          <X className="h-5 w-5" aria-hidden />
+          <X className="h-[17px] w-[17px]" aria-hidden />
         </button>
       </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6">
-          {status === "loading" ? (
-            <div className="flex flex-1 items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : status === "error" || !result ? (
-            <p className="py-12 text-center text-[15px] text-muted-foreground">
-              Couldn&apos;t load your presentation. Try again in a moment.
-            </p>
-          ) : !result.ready ? (
-            <NotReadyState progress={result.progress} />
-          ) : result.slides.length === 0 ? (
-            <p className="py-12 text-center text-[15px] text-muted-foreground">
-              No slide data found for this presentation.
-            </p>
-          ) : (
-            <>
-              <p className="text-[13px] text-muted-foreground">
-                Your strongest delivery of each slide across{" "}
-                {result.progress.takesDone} session
-                {result.progress.takesDone !== 1 ? "s" : ""}, lightly stitched
-                into continuous text. Study material — your best words, not a
-                finished performance.
-              </p>
-              {result.slides.map((slide) => (
-                <SlideCard
-                  key={slide.index}
-                  slide={slide}
-                  presentationRef={result.presentationRef}
-                />
-              ))}
-            </>
-          )}
-        </div>
+      <div className="flex flex-1 items-center justify-center px-8 text-center">
+        {children}
       </div>
     </div>
   );
 }
 
-/* ------------------------------ primitives -------------------------------- */
+/* ── not-ready state ── */
 
 function NotReadyState({
   progress,
@@ -118,7 +128,7 @@ function NotReadyState({
   progress: { takesDone: number; takesTarget: number; takesRemaining: number };
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
+    <div className="flex flex-col items-center gap-4">
       <p className="text-[15px] text-foreground">
         Your best presentation needs {progress.takesRemaining} more{" "}
         {progress.takesRemaining === 1 ? "take" : "takes"} — minimum 3.
@@ -145,6 +155,8 @@ function NotReadyState({
   );
 }
 
+/* ── per-slide card body ── */
+
 function SlideCard({
   slide,
   presentationRef,
@@ -157,22 +169,24 @@ function SlideCard({
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
-      {/* Slide header */}
-      <span className="text-[12px] text-muted-foreground">
-        Slide {slide.index + 1}
-      </span>
+      {/* Slide visual */}
+      <SlideRender
+        presentationRef={presentationRef}
+        pageIndex={slide.index}
+        title={slide.title}
+        body=""
+        className="w-full"
+      />
 
-      {/* Breakthrough badge (F3) — tappable when a note is available */}
+      {/* Breakthrough badge */}
       {slide.breakthrough ? (
         <div className="flex flex-col gap-1">
           <button
             type="button"
-            onClick={
-              slide.breakthroughNote ? () => setNoteOpen((v) => !v) : undefined
-            }
+            onClick={slide.breakthroughNote ? () => setNoteOpen((v) => !v) : undefined}
             disabled={!slide.breakthroughNote}
-            className="flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
             aria-expanded={slide.breakthroughNote ? noteOpen : undefined}
+            className="flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
           >
             <Sparkles className="h-3 w-3" aria-hidden />
             You turned your stress into charisma.
@@ -185,16 +199,7 @@ function SlideCard({
         </div>
       ) : null}
 
-      {/* Slide visual — PDF page when ref available, B&W text-card otherwise */}
-      <SlideRender
-        presentationRef={presentationRef}
-        pageIndex={slide.index}
-        title={slide.title}
-        body=""
-        className="w-full"
-      />
-
-      {/* Composed text + audio */}
+      {/* Audio + composed text */}
       {hasContent ? (
         <>
           {slide.audioRef ? (
@@ -205,6 +210,10 @@ function SlideCard({
               {slide.text}
             </p>
           ) : null}
+          {/* provenance */}
+          <p className="text-[11px] text-muted-foreground">
+            from your take {slide.takeIndex}
+          </p>
         </>
       ) : (
         <p className="text-[14px] italic text-muted-foreground">
