@@ -387,7 +387,7 @@ function PresentationDetail({
   return (
     <div className="flex w-full flex-col">
       {coverSlide ? (
-        <div className="w-full bg-muted">
+        <div className="relative w-full bg-muted">
           <SlideRender
             presentationRef={presentation.presentationRef}
             pageIndex={coverSlide.index}
@@ -395,6 +395,15 @@ function PresentationDetail({
             body={coverSlide.body}
             className="w-full"
           />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <button
+              type="button"
+              onClick={onOpenBest}
+              className="rounded-full bg-white px-5 py-2.5 text-[13px] font-medium text-gray-900"
+            >
+              Open your ideal presentation
+            </button>
+          </div>
         </div>
       ) : null}
 
