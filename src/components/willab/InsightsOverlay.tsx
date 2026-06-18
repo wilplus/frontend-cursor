@@ -1,33 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   fetchSessionReadout,
   type SessionReadout,
 } from "@/services/api/sessionReadout";
 import ReadoutCard from "./ReadoutCard";
-import AuditInsights from "./AuditInsights";
 import { useBackDismiss } from "./useBackDismiss";
-
-/* -------------------------------------------------------------------------- */
-/*  InsightsOverlay — the coach's read on a sent recording (§6)               */
-/*                                                                            */
-/*  Opened from an `insight` card in the Lounge. Re-reads the session (which    */
-/*  also triggers the BE's library ingest, §3.11) and renders either:          */
-/*    • AuditInsights (Phase 2) — when at least one snippet is coach-tagged;    */
-/*      edge-to-edge SlideTake with Avoid!/Do more! topBar + "From your         */
-/*      tutor" summary. No extra padding — the slides own their layout.         */
-/*    • ReadoutCard — the neutral raw §5 Readout for untagged sessions.         */
-/* -------------------------------------------------------------------------- */
 
 export default function InsightsOverlay({
   sessionId,
   onClose,
 }: {
   sessionId: string;
-  /** Closing returns to the Lounge thread underneath. */
   onClose: () => void;
 }) {
   useBackDismiss(onClose);
@@ -51,45 +38,27 @@ export default function InsightsOverlay({
     };
   }, [sessionId]);
 
-  return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      {/* Unified X-only header — no title (each page's own heading carries context). */}
-      <div className="flex h-12 shrink-0 items-center justify-end px-4">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close insights"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-5 w-5" />
-        </button>
+  if (status === "loading" || (status === "ready" && data)) {
+    if (status === "ready" && data) {
+      return (
+        <ReadoutCard payload={data.readout} onClose={onClose} managed={false} />
+      );
+    }
+    return (
+      <div className="fixed inset-0 z-30 flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
+    );
+  }
 
-      {/* No outer padding here — AuditInsights renders SlideTake edge-to-edge.
-          Loading / error / ReadoutCard each add their own padding. */}
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        {status === "loading" ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : status === "error" || !data ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
-            <p className="max-w-sm text-[15px] text-muted-foreground">
-              We couldn&apos;t load these insights just now. Try again in a
-              moment.
-            </p>
-            <Button onClick={onClose} variant="outline" className="rounded-full px-6">
-              Back to Lounge
-            </Button>
-          </div>
-        ) : data.readout.snippets.some((s) => s.coach?.tag != null) ? (
-          // Coach-curated — Phase 2 unified SlideTake view.
-          <AuditInsights payload={data.readout} onClose={onClose} />
-        ) : (
-          // Pre-publish / untagged — the neutral raw §5 Readout.
-          <ReadoutCard payload={data.readout} onClose={onClose} managed={false} />
-        )}
-      </div>
+  return (
+    <div className="fixed inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-background px-4 text-center">
+      <p className="max-w-sm text-[15px] text-muted-foreground">
+        We couldn&apos;t load these insights just now. Try again in a moment.
+      </p>
+      <Button onClick={onClose} variant="outline" className="rounded-full px-6">
+        Back to Lounge
+      </Button>
     </div>
   );
 }

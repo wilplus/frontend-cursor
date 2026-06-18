@@ -62,6 +62,11 @@ export interface ReadoutSnippet {
   coach: ReadoutCoach | null;
   /** Phase 2 — the slide delivered during this snippet; null when no deck. */
   slide: ReadoutSlide | null;
+  /** True when this snippet's challenge take followed a threat snippet — the
+   *  moment stress flipped into charisma. Show the breakthrough button. */
+  breakthrough: boolean;
+  /** Short plain-language "why" text; render verbatim. Null until BE sends it. */
+  breakthroughNote: string | null;
 }
 
 export interface ReadoutPayload {
@@ -138,6 +143,11 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
     },
     coach: mapCoach(r.coach),
     slide: mapReadoutSlide(r.slide),
+    breakthrough: typeof r.breakthrough === "boolean" ? r.breakthrough : false,
+    breakthroughNote:
+      typeof r.breakthrough_note === "string" && r.breakthrough_note.length > 0
+        ? r.breakthrough_note
+        : null,
   };
 }
 
@@ -237,6 +247,8 @@ export function mockReadout(topic: string): ReadoutPayload {
     stickiness: { composite: 0.72, comment },
     coach: null,
     slide: null,
+    breakthrough: false,
+    breakthroughNote: null,
   });
   return {
     overallMessage: null,
