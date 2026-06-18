@@ -137,13 +137,13 @@ function SnippetCard({
     <div className="flex flex-col">
       {/* Slide — edge-to-edge */}
       {snippet.slide ? (
-        <div className="aspect-video w-full overflow-hidden bg-muted">
+        <div className="w-full bg-muted">
           <SlideRender
             presentationRef={presentationRef}
             pageIndex={snippet.slide.index}
             title={snippet.slide.title}
             body={snippet.slide.body}
-            className="h-full w-full"
+            className="w-full"
           />
         </div>
       ) : null}
