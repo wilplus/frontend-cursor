@@ -48,7 +48,7 @@ function bestLinesDeck(p: PresentationGroup): Deck {
   return {
     topic: p.topic || "Presentation",
     takeLabel: "best takes",
-    takeTitle: "Best take",
+    takeTitle: "Your ideal presentation",
     presentationRef: p.presentationRef,
     slides: p.bestLines.map((b) => ({
       index: b.index,
@@ -134,11 +134,10 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
       ];
     }
     if (nav.level === "L3") {
-      const goBack =
+      const goBackToL2 =
         nav.deck.takeLabel === "general"
           ? () => setNav({ level: "L2g" })
           : () => {
-              // find the matching presentation to go back to L2
               const p = presentations.find(
                 (pr) => (pr.topic || "Presentation") === nav.topic
               );
@@ -147,15 +146,24 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
             };
       return [
         { label: "Trainings", onClick: goL1 },
-        { label: `${nav.topic}, ${nav.takeLabel}`, onClick: goBack },
+        { label: nav.topic, onClick: goBackToL2 },
+        { label: nav.deck.takeTitle || nav.takeLabel },
       ];
     }
     // L4
     if (nav.level === "L4") {
+      const goBackToL2 = () => {
+        const p = presentations.find(
+          (pr) => (pr.topic || "Presentation") === nav.topic
+        );
+        if (p) setNav({ level: "L2", presentation: p });
+        else goL1();
+      };
       return [
         { label: "Trainings", onClick: goL1 },
+        { label: nav.topic, onClick: goBackToL2 },
         {
-          label: `${nav.topic}, ${nav.takeLabel}`,
+          label: nav.deck.takeTitle || nav.takeLabel,
           onClick: () =>
             setNav({
               level: "L3",
