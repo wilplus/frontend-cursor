@@ -84,6 +84,7 @@ export default function CoachSnippetReviewCard({
     snippet.coachState.note || snippet.aiDraftNote || ""
   );
   const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didAutoSaveRef = useRef(false);
 
   const persist = useCallback(
     async (
@@ -128,13 +129,23 @@ export default function CoachSnippetReviewCard({
 
   useEffect(() => {
     return () => {
-      // Flush any pending note save when the card unmounts (e.g. overlay
-      // closes mid-typing). Drop on the floor if the timer hasn't fired —
-      // the immediate-persist guarantee is on the keystroke loop, and a
-      // closing card is a fine moment to give up the pending edit.
       if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
     };
   }, []);
+
+  // On mount: surface the snippet and save the AI draft note when not yet persisted.
+  // All snippets default to shown-to-user; coach can unsurface individually.
+  useEffect(() => {
+    if (didAutoSaveRef.current) return;
+    const needsNote = !!snippet.aiDraftNote && !snippet.coachState.note;
+    const needsSurfaced = !snippet.coachState.surfaced;
+    if (!needsNote && !needsSurfaced) return;
+    didAutoSaveRef.current = true;
+    const patch: { note?: string; surfaced?: boolean } = {};
+    if (needsNote) patch.note = snippet.aiDraftNote!;
+    if (needsSurfaced) patch.surfaced = true;
+    void persist("surfaced", patch);
+  }, [snippet.aiDraftNote, snippet.coachState.note, snippet.coachState.surfaced, persist]);
 
   // Status badge — three states (per §F.3):
   //   "Skipped"        — nothing set

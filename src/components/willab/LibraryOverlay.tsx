@@ -387,13 +387,13 @@ function PresentationDetail({
   return (
     <div className="flex w-full flex-col">
       {coverSlide ? (
-        <div className="aspect-video w-full overflow-hidden bg-muted">
+        <div className="w-full bg-muted">
           <SlideRender
             presentationRef={presentation.presentationRef}
             pageIndex={coverSlide.index}
             title={coverSlide.title}
             body={coverSlide.body}
-            className="h-full w-full"
+            className="w-full"
           />
         </div>
       ) : null}
