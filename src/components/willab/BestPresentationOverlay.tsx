@@ -33,20 +33,23 @@ export default function BestPresentationOverlay({
   // each internal step so the next swipe is still catchable.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let closedByPopstate = false;
     window.history.pushState({ __willabOverlay: true }, "");
     function handlePop() {
       if (cursorRef.current > 0) {
         setCursor((c) => c - 1);
         window.history.pushState({ __willabOverlay: true }, "");
       } else {
+        closedByPopstate = true;
         onCloseRef.current();
       }
     }
     window.addEventListener("popstate", handlePop);
     return () => {
       window.removeEventListener("popstate", handlePop);
-      const st = window.history.state as { __willabOverlay?: boolean } | null;
-      if (st?.__willabOverlay) window.history.back();
+      // Only balance our entry on a non-Back close; a Back already popped it,
+      // and a second back() would walk past /chat to /login.
+      if (!closedByPopstate) window.history.back();
     };
   }, []);
 

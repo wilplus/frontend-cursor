@@ -112,14 +112,24 @@ export async function fetchBestPresentationProgress(
   arcId: string
 ): Promise<BestPresentationProgress | null> {
   const headers = await authHeaders();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
   let res: Response;
   try {
     res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/progress`,
-      { method: "GET", headers, credentials: "include", cache: "no-store" }
+      {
+        method: "GET",
+        headers,
+        credentials: "include",
+        cache: "no-store",
+        signal: controller.signal,
+      }
     );
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
   if (!res.ok) return null;
   return mapProgress(await res.json().catch(() => null));
@@ -157,14 +167,24 @@ export async function fetchBestPresentation(
   arcId: string
 ): Promise<BestPresentationResult | null> {
   const headers = await authHeaders();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   let res: Response;
   try {
     res = await fetch(
       `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation`,
-      { method: "GET", headers, credentials: "include", cache: "no-store" }
+      {
+        method: "GET",
+        headers,
+        credentials: "include",
+        cache: "no-store",
+        signal: controller.signal,
+      }
     );
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
   if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as Record<
