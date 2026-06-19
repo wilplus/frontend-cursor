@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
 import WillabPendingSend from "@/components/willab/WillabPendingSend";
-import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
+import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
 // Use system fonts instead of Google Fonts to avoid build-time network dependency
 // Inter font will be loaded at runtime if available
@@ -72,7 +72,7 @@ export default function RootLayout({
         <div className="flex-1 overflow-y-auto">{children}</div>
         <Footer />
         <Toaster position="top-center" />
-        <PwaInstallPrompt />
+        <ServiceWorkerRegistrar />
         {/* Side-effect-only: post-OAuth merge-then-send for the unsigned
             send gate (§13). Bridges the OAuth round-trip; renders nothing. */}
         <WillabPendingSend />
