@@ -77,9 +77,34 @@ export function deckFileError(file: File): string | null {
     return "Upload a PDF. Export your slides to PDF first if they aren't already.";
   }
   if (file.size > SLIDE_CAPS.maxFileBytes) {
-    return "That file is over 20 MB. Try a smaller export.";
+    return oversizeDeckMessage();
   }
   return null;
+}
+
+/** The cap in whole MB — derived from the byte cap so there's one source of
+ *  truth for the pre-upload guard's copy. */
+const LOCAL_LIMIT_MB = Math.round(SLIDE_CAPS.maxFileBytes / (1024 * 1024));
+
+/** User-facing oversize copy for the pre-upload guard (uses the local cap). */
+function oversizeDeckMessage(limitMb: number = LOCAL_LIMIT_MB): string {
+  return `That file is over ${limitMb} MB. Try a smaller export.`;
+}
+
+/** Build the oversize message from a backend 413 body. BE (#128) returns a
+ *  single-source-of-truth contract `{ code:"FILE_TOO_LARGE", error, limit_mb }`;
+ *  prefer its message, else its cap. Falls back to the local cap when the 413
+ *  carried no usable JSON (e.g. a platform body-size 413 from the edge — see the
+ *  BFF proxy caveat), so behavior never regresses below today's copy. */
+export function fileTooLargeMessage(body: unknown): string {
+  const b = (body && typeof body === "object" ? body : {}) as {
+    error?: unknown;
+    limit_mb?: unknown;
+  };
+  if (typeof b.error === "string" && b.error.trim()) return b.error.trim();
+  const limitMb =
+    typeof b.limit_mb === "number" && b.limit_mb > 0 ? b.limit_mb : LOCAL_LIMIT_MB;
+  return oversizeDeckMessage(limitMb);
 }
 
 /* ------------------------- parse-response mapping ------------------------- */
