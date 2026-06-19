@@ -11,7 +11,7 @@ import type { ReadoutFeatures, ReadoutStickiness } from "./readout";
 /*  review overlay) so both see the SAME anatomy:                             */
 /*    - "What you said" heading                                               */
 /*    - MediaPlayer                                                           */
-/*    - Transcript blockquote                                                 */
+/*    - Transcript card (warm-tint, matches the library/readout standard)      */
 /*    - Hero pair: speed (`179 wpm (143%)`) + pause ratio                    */
 /*    - "▸ Show details" toggle (button+state, not <details>)                */
 /*    - Topic stickiness                                                      */
@@ -78,9 +78,11 @@ export default function SnippetReadoutBlock({
           />
         </div>
         {transcript ? (
-          <blockquote className="mt-3 border-l-2 border-primary pl-3 text-[17px] font-medium italic leading-relaxed text-foreground">
-            {transcript}
-          </blockquote>
+          <div className="mt-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {transcript}
+            </p>
+          </div>
         ) : null}
       </div>
 

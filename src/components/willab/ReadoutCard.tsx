@@ -116,6 +116,7 @@ function SnippetCard({
     (snippet.coach?.examples && snippet.coach.examples.length > 0) ||
     snippet.features
   );
+  const hasCoachNote = !!snippet.coach?.note;
 
   function toggleBreakthrough() {
     setBreakthroughOpen((v) => {
@@ -185,6 +186,11 @@ function SnippetCard({
             <p className="text-[15px] leading-relaxed text-foreground">
               {snippet.transcript}
             </p>
+            {hasCoachNote && !detailsOpen ? (
+              <p className="mt-2 text-[12px] font-medium text-primary">
+                Tap to see the coach note
+              </p>
+            ) : null}
           </div>
         ) : null}
 

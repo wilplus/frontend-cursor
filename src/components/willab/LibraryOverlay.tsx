@@ -721,6 +721,7 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
   const m = slide.moment;
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasDetails = !!(m?.note || m?.features);
+  const hasCoachNote = !!m?.note;
 
   return (
     <div className="flex flex-col">
@@ -777,6 +778,11 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
                 <p className="text-[15px] leading-relaxed text-foreground">
                   {m.transcript}
                 </p>
+                {hasCoachNote && !detailsOpen ? (
+                  <p className="mt-2 text-[12px] font-medium text-primary">
+                    Tap to see the coach note
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
