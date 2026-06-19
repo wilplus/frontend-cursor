@@ -139,6 +139,7 @@ export default function Lounge({
   // down whenever they'd scrolled up to read history — the non-native feel.
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const atBottomRef = useRef(true);
+  const didInitScrollRef = useRef(false);
   // U3 — baseline of message ids present on first load (historical). A bot
   // message NOT in this set, rendered as the last thread item, is a freshly-
   // arrived reply → it reveals sequentially (animate). Set once, post first load.
@@ -295,6 +296,15 @@ export default function Lounge({
   // Web Speech machinery (`useSpeechInput`) stays in the tree for
   // now in case a future surface (e.g. an accessibility opt-in) wants
   // to bring it back, but the Lounge no longer calls it.
+
+  // Jump to bottom on first paint (scroll restoration can leave the user at
+  // a mid-thread position; always open at the latest message).
+  useEffect(() => {
+    if (didInitScrollRef.current || messages.length === 0) return;
+    didInitScrollRef.current = true;
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length]);
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
