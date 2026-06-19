@@ -111,10 +111,12 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
   // every internal step so the next swipe is interceptable.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let closedByPopstate = false;
     window.history.pushState({ __willabOverlay: true }, "");
     function handlePop() {
       const cur = navRef.current;
       if (cur.level === "L1") {
+        closedByPopstate = true;
         onCloseRef.current();
         return;
       }
@@ -148,8 +150,9 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
     window.addEventListener("popstate", handlePop);
     return () => {
       window.removeEventListener("popstate", handlePop);
-      const st = window.history.state as { __willabOverlay?: boolean } | null;
-      if (st?.__willabOverlay) window.history.back();
+      // Only balance our entry on a non-Back close; a Back already popped it,
+      // and a second back() would walk past /chat to /login.
+      if (!closedByPopstate) window.history.back();
     };
   }, []);
 

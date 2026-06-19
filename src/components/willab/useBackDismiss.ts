@@ -29,16 +29,24 @@ export function useBackDismiss(onClose: () => void): void {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // True once a Back/swipe (popstate) has already popped our entry. The
+    // unmount cleanup must then NOT call back() again — a second pop would walk
+    // PAST /chat (e.g. to /login, which can sit in the stack). Tracking the
+    // close cause is more robust than inspecting window.history.state, which is
+    // unreliable when overlays stack.
+    let closedByPopstate = false;
     window.history.pushState({ __willabOverlay: true }, "");
-    const onPop = () => onCloseRef.current();
+    const onPop = () => {
+      closedByPopstate = true;
+      onCloseRef.current();
+    };
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      // Closed via X / unmount (not via Back): our pushed entry is still the
-      // current one → pop it to keep history balanced. After a Back-close the
-      // current state is the prior entry, so this check is a no-op.
-      const st = window.history.state as { __willabOverlay?: boolean } | null;
-      if (st && st.__willabOverlay) window.history.back();
+      // Closed via X / unmount: our pushed entry is still on top → pop it so we
+      // don't strand a dead entry. After a Back-close the browser already popped
+      // it, so we skip (else we'd over-pop past /chat).
+      if (!closedByPopstate) window.history.back();
     };
   }, []);
 }

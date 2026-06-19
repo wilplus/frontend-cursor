@@ -97,7 +97,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
 
       // If there's an explicit redirect target, honour it
       if (redirectTo) {
-        setTimeout(() => router.push(decodeURIComponent(redirectTo)), 100);
+        // replace, not push — so Back from the destination never returns here.
+        setTimeout(() => router.replace(decodeURIComponent(redirectTo)), 100);
         return;
       }
 
@@ -118,7 +119,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
             | { kind: "processing"; session_id: string }
             | { kind: "completed"; session_id: string };
           if (data.kind === "completed" || data.kind === "processing") {
-            router.push(
+            router.replace(
               `/chat?session=${encodeURIComponent(data.session_id)}`
             );
             return;
@@ -127,7 +128,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
       } catch {
         /* non-fatal — fall through to /chat */
       }
-      router.push("/chat");
+      router.replace("/chat");
     } catch (err) {
       console.error(err);
       toast.error("An unexpected error occurred");

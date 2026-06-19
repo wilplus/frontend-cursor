@@ -45,14 +45,28 @@ export default function ProgressToAuditBubble({
   useEffect(() => {
     if (!arcId) return;
     let active = true;
-    void fetchBestPresentationProgress(arcId).then((p) => {
-      if (active) setArcProgress(p);
-    });
+    const load = () => {
+      void fetchBestPresentationProgress(arcId).then((p) => {
+        // Keep the last good value on a transient null (network blip) so the
+        // bubble never flickers away once shown.
+        if (active && p) setArcProgress(p);
+      });
+    };
+    load();
+    // Refetch when the user returns to the tab / app (e.g. after recording a
+    // take in the lab overlay) so the bubble flips to "ready" without a reload.
+    const onFocus = () => load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [arcId]);
 
   if (!arcId || !arcProgress) return null;
 

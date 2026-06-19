@@ -139,9 +139,10 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             | { kind: "processing"; session_id: string }
             | { kind: "completed"; session_id: string };
           if (data.kind === "completed" || data.kind === "processing") {
-            window.location.href = `/chat?session=${encodeURIComponent(
-              data.session_id
-            )}`;
+            // replace, not assign — keep the signup page out of the back stack.
+            window.location.replace(
+              `/chat?session=${encodeURIComponent(data.session_id)}`
+            );
             return;
           }
         }
@@ -150,7 +151,7 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
       }
 
       setTimeout(() => {
-        window.location.href = "/chat";
+        window.location.replace("/chat");
       }, 100);
 
     } catch (err) {
