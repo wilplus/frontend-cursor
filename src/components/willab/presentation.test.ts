@@ -5,6 +5,7 @@ import {
   clampSlides,
   bulletLines,
   deckFileError,
+  fileTooLargeMessage,
   mapExtractedDeck,
   mapSlide,
   SLIDE_CAPS,
@@ -63,6 +64,31 @@ describe("deckFileError", () => {
     expect(deckFileError(file("deck.pdf", SLIDE_CAPS.maxFileBytes + 1))).toMatch(
       /20 MB/
     );
+  });
+});
+
+describe("fileTooLargeMessage", () => {
+  it("prefers the BE error message when present", () => {
+    expect(
+      fileTooLargeMessage({
+        code: "FILE_TOO_LARGE",
+        error: "Deck is over 20 MB — export a lighter PDF and try again.",
+        limit_mb: 20,
+      })
+    ).toBe("Deck is over 20 MB — export a lighter PDF and try again.");
+  });
+  it("falls back to the BE limit_mb when no error string is given", () => {
+    expect(fileTooLargeMessage({ limit_mb: 25 })).toBe(
+      "That file is over 25 MB. Try a smaller export."
+    );
+  });
+  it("falls back to the local cap when the 413 carried no usable body", () => {
+    const localMb = Math.round(SLIDE_CAPS.maxFileBytes / (1024 * 1024));
+    expect(fileTooLargeMessage(null)).toBe(
+      `That file is over ${localMb} MB. Try a smaller export.`
+    );
+    expect(fileTooLargeMessage({})).toMatch(/20 MB/);
+    expect(fileTooLargeMessage("<html>413</html>")).toMatch(/20 MB/);
   });
 });
 
