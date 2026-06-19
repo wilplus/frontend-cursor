@@ -15,7 +15,6 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender, TextSlide } from "./pdfSlides";
 import { SlidePlaceholder } from "./SlideTake";
 import SnippetScreenShell from "./SnippetScreenShell";
-import { useBackDismiss } from "./useBackDismiss";
 import type { ReadoutFeatures } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -92,12 +91,67 @@ type NavLevel =
   | { level: "L4"; deck: Deck; topic: string; takeLabel: string; slideIdx: number };
 
 export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
-  useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [presentations, setPresentations] = useState<PresentationGroup[]>([]);
   const [general, setGeneral] = useState<StrengthMoment[]>([]);
   const [nav, setNav] = useState<NavLevel>({ level: "L1" });
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Refs for the popstate handler (avoids stale closures in the [] effect).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  const presentationsRef = useRef(presentations);
+  presentationsRef.current = presentations;
+
+  // Back-dismiss with internal nav stack: one history entry kept alive while
+  // the overlay is open. Each popstate either steps back one nav level or,
+  // when already at L1, closes the overlay. A fresh entry is pushed after
+  // every internal step so the next swipe is interceptable.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.history.pushState({ __willabOverlay: true }, "");
+    function handlePop() {
+      const cur = navRef.current;
+      if (cur.level === "L1") {
+        onCloseRef.current();
+        return;
+      }
+      switch (cur.level) {
+        case "L2":
+        case "L2g":
+          setNav({ level: "L1" });
+          break;
+        case "L3":
+          if (cur.deck.takeLabel === "general") {
+            setNav({ level: "L2g" });
+          } else {
+            const p = presentationsRef.current.find(
+              (pr) => (pr.topic || "Presentation") === cur.topic
+            );
+            setNav(p ? { level: "L2", presentation: p } : { level: "L1" });
+          }
+          break;
+        case "L4":
+          setNav({
+            level: "L3",
+            deck: cur.deck,
+            topic: cur.topic,
+            takeLabel: cur.takeLabel,
+          });
+          break;
+      }
+      // Repush so the next swipe is still catchable.
+      window.history.pushState({ __willabOverlay: true }, "");
+    }
+    window.addEventListener("popstate", handlePop);
+    return () => {
+      window.removeEventListener("popstate", handlePop);
+      const st = window.history.state as { __willabOverlay?: boolean } | null;
+      if (st?.__willabOverlay) window.history.back();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -645,14 +699,17 @@ function LibraryMomentPage({
   const total = deck.slides.length;
   const s = deck.slides[slideIdx];
 
+  const atLast = slideIdx >= total - 1;
+
   return (
     <SnippetScreenShell
       onClose={onClose}
       index={slideIdx}
       total={Math.max(total, 1)}
       onPrev={() => onSlideIdx(slideIdx - 1)}
-      onNext={() => onSlideIdx(slideIdx + 1)}
-      nextDisabled={slideIdx >= total - 1}
+      onNext={atLast ? onClose : () => onSlideIdx(slideIdx + 1)}
+      nextLabel={atLast ? "Close" : undefined}
+      nextTone={atLast ? "terminal" : "primary"}
       managed={false}
     >
       {s ? <MomentCard deck={deck} slide={s} /> : null}

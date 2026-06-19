@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Pencil, X } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
-import { useBackDismiss } from "./useBackDismiss";
 import SnippetScreenShell from "./SnippetScreenShell";
 import {
   fetchBestPresentation,
@@ -20,10 +19,36 @@ export default function BestPresentationOverlay({
   arcId: string;
   onClose: () => void;
 }) {
-  useBackDismiss(onClose);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [result, setResult] = useState<BestPresentationResult | null>(null);
   const [cursor, setCursor] = useState(0);
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
+
+  // Back-dismiss with per-slide stepping: swipe-back on slide N goes to N-1;
+  // swipe-back on slide 0 closes the overlay. A fresh entry is pushed after
+  // each internal step so the next swipe is still catchable.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.history.pushState({ __willabOverlay: true }, "");
+    function handlePop() {
+      if (cursorRef.current > 0) {
+        setCursor((c) => c - 1);
+        window.history.pushState({ __willabOverlay: true }, "");
+      } else {
+        onCloseRef.current();
+      }
+    }
+    window.addEventListener("popstate", handlePop);
+    return () => {
+      window.removeEventListener("popstate", handlePop);
+      const st = window.history.state as { __willabOverlay?: boolean } | null;
+      if (st?.__willabOverlay) window.history.back();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -92,7 +117,7 @@ export default function BestPresentationOverlay({
       total={total}
       onPrev={() => setCursor((c) => c - 1)}
       onNext={atLast ? onClose : () => setCursor((c) => c + 1)}
-      nextLabel={atLast ? "Done" : undefined}
+      nextLabel={atLast ? "Close" : undefined}
       nextTone={atLast ? "terminal" : "primary"}
       managed={false}
     >
