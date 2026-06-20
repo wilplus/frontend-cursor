@@ -43,21 +43,6 @@ type Deck = {
   slides: DeckSlide[];
 };
 
-function bestLinesDeck(p: PresentationGroup): Deck {
-  return {
-    topic: p.topic || "Presentation",
-    takeLabel: "best takes",
-    takeTitle: "Your ideal presentation",
-    presentationRef: p.presentationRef,
-    slides: p.bestLines.map((b) => ({
-      index: b.index,
-      title: b.title,
-      body: b.body,
-      moment: b.moment,
-    })),
-  };
-}
-
 function takeDeck(take: PresentationTake, topic: string): Deck {
   return {
     topic: topic || "Presentation",
@@ -90,7 +75,13 @@ type NavLevel =
   | { level: "L3"; deck: Deck; topic: string; takeLabel: string }
   | { level: "L4"; deck: Deck; topic: string; takeLabel: string; slideIdx: number };
 
-export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
+export default function LibraryOverlay({
+  onClose,
+  onOpenBestPresentation,
+}: {
+  onClose: () => void;
+  onOpenBestPresentation: (arcId: string) => void;
+}) {
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [presentations, setPresentations] = useState<PresentationGroup[]>([]);
   const [general, setGeneral] = useState<StrengthMoment[]>([]);
@@ -331,13 +322,14 @@ export default function LibraryOverlay({ onClose }: { onClose: () => void }) {
         ) : nav.level === "L2" ? (
           <PresentationDetail
             presentation={nav.presentation}
-            onOpenBest={() =>
-              openDeck(
-                bestLinesDeck(nav.presentation),
-                nav.presentation.topic || "Presentation",
-                "best takes"
-              )
-            }
+            onOpenBest={() => {
+              // The "ideal presentation" is the composed best-presentation
+              // (built from the takes, available BEFORE coach review). Opens
+              // the z-40 BestPresentationOverlay over this z-30 library.
+              if (nav.presentation.arcId) {
+                onOpenBestPresentation(nav.presentation.arcId);
+              }
+            }}
             onOpenTake={(t) =>
               openDeck(
                 takeDeck(t, nav.presentation.topic),
@@ -449,6 +441,11 @@ function PresentationDetail({
   onDeleteTake: (takeNumber: number) => void;
 }) {
   const coverSlide = presentation.slides[0];
+  // The composed best presentation needs ≥3 takes (built from the recordings,
+  // before any coach review). Below that, show how many more are needed
+  // instead of a button that opens an empty presentation.
+  const takesRemaining = Math.max(0, 3 - presentation.takes.length);
+  const canOpenBest = takesRemaining === 0 && !!presentation.arcId;
   return (
     <div className="flex w-full flex-col">
       {coverSlide ? (
@@ -460,14 +457,22 @@ function PresentationDetail({
             body={coverSlide.body}
             className="w-full"
           />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <button
-              type="button"
-              onClick={onOpenBest}
-              className="rounded-full bg-white px-5 py-2.5 text-[13px] font-medium text-gray-900"
-            >
-              Open your ideal presentation
-            </button>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 px-6">
+            {canOpenBest ? (
+              <button
+                type="button"
+                onClick={onOpenBest}
+                className="rounded-full bg-white px-5 py-2.5 text-[13px] font-medium text-gray-900"
+              >
+                Open your ideal presentation
+              </button>
+            ) : (
+              <p className="rounded-full bg-white/90 px-5 py-2.5 text-center text-[13px] font-medium text-gray-900">
+                {takesRemaining > 0
+                  ? `You need ${takesRemaining} more ${takesRemaining === 1 ? "recording" : "recordings"}!`
+                  : "Your ideal presentation isn’t ready yet."}
+              </p>
+            )}
           </div>
         </div>
       ) : null}
