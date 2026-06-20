@@ -559,7 +559,12 @@ export default function Lounge({
       {activeInsight && (
         <InsightsOverlay sessionId={activeInsight} onClose={handleInsightsClose} />
       )}
-      {libraryOpen && <LibraryOverlay onClose={() => setLibraryOpen(false)} />}
+      {libraryOpen && (
+        <LibraryOverlay
+          onClose={() => setLibraryOpen(false)}
+          onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+        />
+      )}
       {rosterOpen && (
         <StudentRosterOverlay
           onClose={() => setRosterOpen(false)}
