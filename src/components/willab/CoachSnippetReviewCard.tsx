@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Video } from "lucide-react";
 import SnippetReadoutBlock from "./SnippetReadoutBlock";
 import { SlideRender } from "./pdfSlides";
 import {
   saveCoachSnippet,
+  uploadBreakthroughVideo,
   type CoachReviewSnippet,
   type CoachSnippetState,
   type DirectionLabel,
@@ -73,9 +74,11 @@ export default function CoachSnippetReviewCard({
     snippet.coachState
   );
   const [savingField, setSavingField] = useState<
-    "direction" | "note" | "tag" | "surfaced" | null
+    "direction" | "note" | "tag" | "surfaced" | "breakthrough" | null
   >(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Debounced note save. We don't want to fire on every keystroke — that
   // would saturate the BE on a long note. 500 ms after the last edit, we
@@ -88,7 +91,7 @@ export default function CoachSnippetReviewCard({
 
   const persist = useCallback(
     async (
-      field: "direction" | "note" | "tag" | "surfaced",
+      field: "direction" | "note" | "tag" | "surfaced" | "breakthrough",
       patch: Parameters<typeof saveCoachSnippet>[2]
     ) => {
       setSavingField(field);
@@ -117,6 +120,23 @@ export default function CoachSnippetReviewCard({
 
   function toggleSurfaced() {
     void persist("surfaced", { surfaced: !coachState.surfaced });
+  }
+
+  async function handleVideoUpload(file: File) {
+    setUploadingVideo(true);
+    setVideoError(null);
+    const url = await uploadBreakthroughVideo(sessionId, snippet.id, file);
+    if (!url) {
+      setUploadingVideo(false);
+      setVideoError("Couldn't upload the video. Try again.");
+      return;
+    }
+    await persist("breakthrough", { breakthroughVideoRef: url });
+    setUploadingVideo(false);
+  }
+
+  function removeVideo() {
+    void persist("breakthrough", { breakthroughVideoRef: null });
   }
 
   function onNoteChange(value: string) {
@@ -221,6 +241,65 @@ export default function CoachSnippetReviewCard({
             })}
           </div>
         </div>
+
+        {/* Breakthrough video — appears once the snippet is labeled "challenge"
+            so the coach can attach a short clip justifying the breakthrough.
+            (Upload endpoint is Phase 2 BE; until it ships this soft-fails.) */}
+        {coachState.directionLabel === "challenge" ? (
+          <div className="mt-4">
+            <p className="text-sm font-semibold text-foreground">
+              Breakthrough video
+              <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                Shown to user
+              </span>
+            </p>
+            {coachState.breakthroughVideoRef ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="overflow-hidden rounded-xl border border-border">
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                  <video
+                    src={coachState.breakthroughVideoRef}
+                    controls
+                    playsInline
+                    className="w-full bg-black"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={removeVideo}
+                  disabled={savingField === "breakthrough"}
+                  className="self-start text-[13px] text-destructive hover:underline disabled:opacity-50"
+                >
+                  Remove video
+                </button>
+              </div>
+            ) : (
+              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center">
+                <Video className="h-5 w-5 text-primary" aria-hidden />
+                <span className="text-[13px] font-medium text-primary">
+                  {uploadingVideo ? "Uploading…" : "Add a breakthrough video"}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Short clip explaining why this was the breakthrough
+                </span>
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  disabled={uploadingVideo}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handleVideoUpload(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+            {videoError ? (
+              <p className="mt-1 text-[12px] text-destructive">{videoError}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Coach note — user-facing prose */}
         <div className="mt-4">
