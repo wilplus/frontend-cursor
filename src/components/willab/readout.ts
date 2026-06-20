@@ -67,6 +67,11 @@ export interface ReadoutSnippet {
   breakthrough: boolean;
   /** Short plain-language "why" text; render verbatim. Null until BE sends it. */
   breakthroughNote: string | null;
+  /** Per-snippet breakthrough video (`breakthrough_video_ref`). A ready-to-use
+   *  public URL the BE attaches to the breakthrough moment; null until shipped
+   *  (BE field pending — see the BE handoff). Distinct from the session-level
+   *  insights_payload.video_ref. */
+  breakthroughVideoRef: string | null;
 }
 
 export interface ReadoutPayload {
@@ -147,6 +152,11 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
     breakthroughNote:
       typeof r.breakthrough_note === "string" && r.breakthrough_note.length > 0
         ? r.breakthrough_note
+        : null,
+    breakthroughVideoRef:
+      typeof r.breakthrough_video_ref === "string" &&
+      r.breakthrough_video_ref.length > 0
+        ? r.breakthrough_video_ref
         : null,
   };
 }
@@ -255,6 +265,33 @@ export function groupSnippetsBySlide(
   return groups;
 }
 
+/* ------------------------------ back gesture ------------------------------ */
+
+export type ReadoutBackAction =
+  | { type: "collapse"; key: string }
+  | { type: "page" }
+  | { type: "close" };
+
+/** Decide what one Back/swipe-back does inside the readout: collapse the most
+ *  recently expanded moment ON THE CURRENT slide, else page to the previous
+ *  slide, else (first slide, nothing expanded) close. Pure for testability;
+ *  the component applies the action. `expandedOrder` is the open moment keys in
+ *  the order they were opened; `currentKeys` are the keys on the visible slide. */
+export function decideReadoutBack(
+  cursor: number,
+  expandedOrder: string[],
+  currentKeys: string[]
+): ReadoutBackAction {
+  const onPage = new Set(currentKeys);
+  for (let i = expandedOrder.length - 1; i >= 0; i--) {
+    if (onPage.has(expandedOrder[i])) {
+      return { type: "collapse", key: expandedOrder[i] };
+    }
+  }
+  if (cursor > 0) return { type: "page" };
+  return { type: "close" };
+}
+
 /* ------------------------------- dev mock --------------------------------- */
 /*  Walkable sample data until seam ③ returns the real poll payload. Static
  *  values (no random/Date) so renders are deterministic. */
@@ -290,6 +327,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     slide: null,
     breakthrough: false,
     breakthroughNote: null,
+    breakthroughVideoRef: null,
   });
   return {
     overallMessage: null,

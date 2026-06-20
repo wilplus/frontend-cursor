@@ -88,8 +88,13 @@ export default function LabOverlay({
   onClose: () => void;
   onRecordingProgress?: (p: import("@/services/api/recordingProgress").RecordingProgress | null) => void;
 }) {
-  // D-3 — back-gesture / Back exits the Lab instead of routing away.
-  useBackDismiss(onClose);
+  // D-3 — back-gesture / Back exits the Lab instead of routing away. During the
+  // readout phase, Back first steps the readout's own layout (collapse a moment,
+  // page back) before it exits the Lab.
+  const readoutBackRef = useRef<(() => boolean) | null>(null);
+  useBackDismiss(onClose, () =>
+    state === "readout" ? readoutBackRef.current?.() ?? false : false
+  );
   const router = useRouter();
   // T8 — the Lab transcribes server-side (Whisper) and never shows a live
   // transcript, so skip Web Speech: its per-result events would re-render the
@@ -443,6 +448,9 @@ export default function LabOverlay({
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
             onClose={handleClose}
             managed={false}
+            onRegisterBack={(fn) => {
+              readoutBackRef.current = fn;
+            }}
           />
         )}
 

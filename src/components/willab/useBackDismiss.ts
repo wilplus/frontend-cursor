@@ -19,13 +19,23 @@ import { useEffect, useRef } from "react";
 /*                                                                            */
 /*  Call once at the top of an overlay that mounts when open and unmounts when   */
 /*  closed. Stacks correctly (each overlay pushes its own entry, LIFO).         */
+/*                                                                            */
+/*  Optional `onBack`: an overlay with internal layout states (e.g. an expanded */
+/*  section, a paged list) can intercept Back to step ONE state back instead of  */
+/*  closing. Return true to "consume" the Back (we re-arm a history entry so the */
+/*  next Back is still catchable); return false to let it close as usual.        */
 /* -------------------------------------------------------------------------- */
 
-export function useBackDismiss(onClose: () => void): void {
-  // Keep the latest onClose without re-running the effect (a new closure each
+export function useBackDismiss(
+  onClose: () => void,
+  onBack?: () => boolean
+): void {
+  // Keep the latest callbacks without re-running the effect (a new closure each
   // render must NOT push a fresh history entry).
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const onBackRef = useRef(onBack);
+  onBackRef.current = onBack;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -37,6 +47,12 @@ export function useBackDismiss(onClose: () => void): void {
     let closedByPopstate = false;
     window.history.pushState({ __willabOverlay: true }, "");
     const onPop = () => {
+      // Give the overlay a chance to step its own internal layout state back.
+      if (onBackRef.current && onBackRef.current()) {
+        // Consumed → re-arm an entry so the next Back is still interceptable.
+        window.history.pushState({ __willabOverlay: true }, "");
+        return;
+      }
       closedByPopstate = true;
       onCloseRef.current();
     };

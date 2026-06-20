@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { Play, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Play } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
-import { useBackDismiss } from "./useBackDismiss";
 import {
+  decideReadoutBack,
   groupSnippetsBySlide,
   type ReadoutFeatures,
   type ReadoutPayload,
@@ -15,11 +15,18 @@ import {
 } from "./readout";
 
 /* -------------------------------------------------------------------------- */
-/*  ReadoutCard — Design B: one slide per page, its spoken moments stacked     */
-/*  below it chronologically (text only). Playback + the coach comment live in */
-/*  a tap-in detail sheet, opened by tapping a moment or its orange "See        */
-/*  comment" tab. Breakthrough stays inline on the moment it belongs to.       */
+/*  ReadoutCard — one slide per page, its spoken moments stacked below it.      */
+/*  Each moment shows its transcript in the orange card; tapping "Tap to see    */
+/*  the coach insight" expands the rest IN PLACE below it (player + coach        */
+/*  comment + metrics + breakthrough) — no new frame, the navbar is untouched.  */
+/*  Multiple moments can be open at once. Back/swipe-back collapses the most     */
+/*  recently opened moment, then pages to the previous slide, then closes.      */
 /* -------------------------------------------------------------------------- */
+
+/** Stable key for a moment (BE id when present; else slide+offset). */
+function momentKey(s: ReadoutSnippet): string {
+  return s.id || `${s.slide?.index ?? "g"}:${s.startOffsetMs}`;
+}
 
 export default function ReadoutCard({
   payload,
@@ -27,6 +34,7 @@ export default function ReadoutCard({
   onSend,
   onClose,
   managed = true,
+  onRegisterBack,
 }: {
   payload: ReadoutPayload;
   isSample?: boolean;
@@ -35,6 +43,10 @@ export default function ReadoutCard({
    *  InsightsOverlay provide this. Without it the card renders a plain div. */
   onClose?: () => void;
   managed?: boolean;
+  /** Lets the host wire device Back into the readout's internal layout stack
+   *  (collapse → page → close). The host passes this and feeds the returned
+   *  handler to useBackDismiss as its onBack. */
+  onRegisterBack?: (handler: () => boolean) => void;
 }) {
   const groups = useMemo(
     () => groupSnippetsBySlide(payload.snippets),
@@ -42,8 +54,47 @@ export default function ReadoutCard({
   );
   const groupCount = groups.length;
   const [cursor, setCursor] = useState(0);
-  // The moment whose tap-in detail sheet is open (playback + coach comment).
-  const [openSnippet, setOpenSnippet] = useState<ReadoutSnippet | null>(null);
+  // Keys of expanded moments, in open order (newest last) — drives Back.
+  const [expanded, setExpanded] = useState<string[]>([]);
+
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+
+  const toggle = useCallback((key: string) => {
+    setExpanded((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }, []);
+
+  // Device Back: collapse the newest expanded moment on the current slide, else
+  // page back, else (return false) let the host close the overlay.
+  const handleBack = useCallback((): boolean => {
+    const gs = groupsRef.current;
+    const i = Math.min(cursorRef.current, Math.max(gs.length - 1, 0));
+    const currentKeys = (gs[i]?.snippets ?? []).map(momentKey);
+    const action = decideReadoutBack(
+      cursorRef.current,
+      expandedRef.current,
+      currentKeys
+    );
+    if (action.type === "collapse") {
+      setExpanded((prev) => prev.filter((k) => k !== action.key));
+      return true;
+    }
+    if (action.type === "page") {
+      setCursor((c) => Math.max(c - 1, 0));
+      return true;
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    onRegisterBack?.(handleBack);
+  }, [onRegisterBack, handleBack]);
 
   const hasSummaryPage = !!(
     onClose && (payload.overallMessage || payload.videoRef)
@@ -55,14 +106,6 @@ export default function ReadoutCard({
   const atSummary = hasSummaryPage && cursor === shellTotal - 1;
   const atLast = cursor === shellTotal - 1;
   const isLastGroup = !hasSummaryPage && atLast;
-
-  const sheet = openSnippet ? (
-    <SnippetDetailSheet
-      snippet={openSnippet}
-      presentationRef={payload.presentationRef}
-      onClose={() => setOpenSnippet(null)}
-    />
-  ) : null;
 
   if (!onClose) {
     if (groupCount === 0) {
@@ -82,10 +125,10 @@ export default function ReadoutCard({
             group={g}
             presentationRef={payload.presentationRef}
             isSample={isSample && i === 0}
-            onOpenSnippet={setOpenSnippet}
+            expanded={expanded}
+            onToggle={toggle}
           />
         ))}
-        {sheet}
       </div>
     );
   }
@@ -99,54 +142,54 @@ export default function ReadoutCard({
   }
 
   return (
-    <>
-      <SnippetScreenShell
-        onClose={onClose}
-        index={cursor}
-        total={shellTotal}
-        onPrev={() => setCursor((c) => Math.max(c - 1, 0))}
-        onNext={handleNext}
-        nextLabel={isLastGroup && onSend ? "Send for analysis" : undefined}
-        nextTone={isLastGroup && onSend ? "terminal" : "primary"}
-        nextDisabled={isLastGroup && !onSend && groupCount > 0}
-        managed={managed}
-      >
-        {atSummary ? (
-          <SummaryPage payload={payload} />
-        ) : groupCount === 0 ? (
-          <p className="px-4 py-12 text-center text-[15px] text-muted-foreground">
-            No analyzable snippets in this recording.
-          </p>
-        ) : (
-          <SlideGroupPage
-            group={groups[idx]}
-            presentationRef={payload.presentationRef}
-            isSample={isSample && idx === 0}
-            onOpenSnippet={setOpenSnippet}
-          />
-        )}
-      </SnippetScreenShell>
-      {sheet}
-    </>
+    <SnippetScreenShell
+      onClose={onClose}
+      index={cursor}
+      total={shellTotal}
+      onPrev={() => setCursor((c) => Math.max(c - 1, 0))}
+      onNext={handleNext}
+      nextLabel={isLastGroup && onSend ? "Send for analysis" : undefined}
+      nextTone={isLastGroup && onSend ? "terminal" : "primary"}
+      nextDisabled={isLastGroup && !onSend && groupCount > 0}
+      managed={managed}
+    >
+      {atSummary ? (
+        <SummaryPage payload={payload} />
+      ) : groupCount === 0 ? (
+        <p className="px-4 py-12 text-center text-[15px] text-muted-foreground">
+          No analyzable snippets in this recording.
+        </p>
+      ) : (
+        <SlideGroupPage
+          group={groups[idx]}
+          presentationRef={payload.presentationRef}
+          isSample={isSample && idx === 0}
+          expanded={expanded}
+          onToggle={toggle}
+        />
+      )}
+    </SnippetScreenShell>
   );
 }
 
-/* ── one slide + its stacked spoken moments (text only) ── */
+/* ── one slide + its stacked spoken moments ── */
 
 function SlideGroupPage({
   group,
   presentationRef,
   isSample,
-  onOpenSnippet,
+  expanded,
+  onToggle,
 }: {
   group: ReadoutSlideGroup;
   presentationRef: string | null;
   isSample: boolean;
-  onOpenSnippet: (snippet: ReadoutSnippet) => void;
+  expanded: string[];
+  onToggle: (key: string) => void;
 }) {
   return (
     <div className="flex flex-col">
-      {/* Slide — edge-to-edge, once per group */}
+      {/* Slide — edge-to-edge, once per group (never repeated per moment) */}
       {group.slide ? (
         <div className="w-full bg-muted">
           <SlideRender
@@ -167,153 +210,76 @@ function SlideGroupPage({
           </p>
         ) : null}
 
-        {group.snippets.map((s, i) => (
-          <SnippetRow
-            key={s.id || String(i)}
-            snippet={s}
-            onOpen={() => onOpenSnippet(s)}
-          />
-        ))}
+        {group.snippets.map((s) => {
+          const key = momentKey(s);
+          return (
+            <MomentRow
+              key={key}
+              snippet={s}
+              isOpen={expanded.includes(key)}
+              onToggle={() => onToggle(key)}
+            />
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/* ── one spoken moment: transcript + orange "See comment" tab (text only) ── */
+/* ── one spoken moment: transcript card + in-place expand ── */
 
-function SnippetRow({
+function MomentRow({
   snippet,
-  onOpen,
+  isOpen,
+  onToggle,
 }: {
   snippet: ReadoutSnippet;
-  onOpen: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }) {
-  const [breakthroughOpen, setBreakthroughOpen] = useState(false);
-  const breakthroughRef = useRef<HTMLDivElement>(null);
-  const hasCoachNote = !!snippet.coach?.note;
-
-  function toggleBreakthrough() {
-    setBreakthroughOpen((v) => {
-      if (!v) {
-        setTimeout(
-          () =>
-            breakthroughRef.current?.scrollIntoView({
-              behavior: "smooth",
-              block: "nearest",
-            }),
-          50
-        );
-      }
-      return !v;
-    });
-  }
+  const hasMetrics = Object.values(snippet.features).some((v) => v != null);
+  const hasReveal = !!(
+    snippet.audioRef ||
+    snippet.coach?.note ||
+    snippet.coach?.when ||
+    (snippet.coach?.examples && snippet.coach.examples.length > 0) ||
+    hasMetrics ||
+    snippet.breakthrough
+  );
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-      {/* Transcript — the whole moment is the tap target into the detail sheet */}
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full text-left"
-        aria-label="Open this moment"
-      >
-        {snippet.transcript ? (
-          <p className="text-[15px] leading-relaxed text-foreground">
+    <div className="flex flex-col gap-3">
+      {/* Transcript — the orange card; the whole card toggles the reveal */}
+      {snippet.transcript ? (
+        <div
+          role={hasReveal ? "button" : undefined}
+          tabIndex={hasReveal ? 0 : undefined}
+          onClick={hasReveal ? onToggle : undefined}
+          onKeyDown={
+            hasReveal
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") onToggle();
+                }
+              : undefined
+          }
+          aria-expanded={hasReveal ? isOpen : undefined}
+          className={`flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasReveal ? "cursor-pointer" : ""}`}
+        >
+          <p className="flex-1 text-[15px] leading-relaxed text-foreground">
             {snippet.transcript}
           </p>
-        ) : (
-          <p className="text-[14px] text-muted-foreground">View this moment</p>
-        )}
-      </button>
-
-      {/* Orange bold "See comment" tab — only when the coach left a note */}
-      {hasCoachNote ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          className="self-start rounded-full bg-primary px-3.5 py-1.5 text-[13px] font-bold text-primary-foreground"
-        >
-          See comment
-        </button>
+          {hasReveal ? (
+            <ChevronDown
+              className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
+              aria-hidden
+            />
+          ) : null}
+        </div>
       ) : null}
 
-      {/* Breakthrough — unchanged from Design A */}
-      {snippet.breakthrough ? (
-        <>
-          <button
-            type="button"
-            onClick={toggleBreakthrough}
-            className="w-full rounded-xl bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground"
-          >
-            {breakthroughOpen
-              ? "Close breakthrough"
-              : "Explore my breakthrough moment!"}
-          </button>
-          {breakthroughOpen ? (
-            <div
-              ref={breakthroughRef}
-              className="rounded-xl bg-primary/[0.08] px-4 py-4"
-            >
-              <p className="text-[15px] font-semibold text-foreground">
-                You turned your stress into charisma.
-              </p>
-              {snippet.breakthroughNote ? (
-                <p className="mt-2 text-[15px] leading-relaxed text-foreground">
-                  {snippet.breakthroughNote}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-/* ── tap-in detail sheet: playback + coach comment + metrics ── */
-
-function SnippetDetailSheet({
-  snippet,
-  presentationRef,
-  onClose,
-}: {
-  snippet: ReadoutSnippet;
-  presentationRef: string | null;
-  onClose: () => void;
-}) {
-  useBackDismiss(onClose);
-
-  return (
-    <div
-      role="dialog"
-      aria-label="Moment detail"
-      className="fixed inset-0 z-50 flex flex-col bg-background"
-    >
-      <div className="flex shrink-0 justify-end px-3 pt-3">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-[17px] w-[17px]" aria-hidden />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-10">
-          {snippet.slide ? (
-            <div className="w-full overflow-hidden rounded-xl bg-muted">
-              <SlideRender
-                presentationRef={presentationRef}
-                pageIndex={snippet.slide.index}
-                title={snippet.slide.title}
-                body={snippet.slide.body}
-                className="w-full"
-              />
-            </div>
-          ) : null}
-
+      {/* Expanded, in place: player → coach comment → metrics → breakthrough */}
+      {isOpen && hasReveal ? (
+        <div className="flex flex-col gap-4">
           {snippet.audioRef ? (
             <MediaPlayer
               src={snippet.audioRef}
@@ -322,48 +288,86 @@ function SnippetDetailSheet({
             />
           ) : null}
 
-          {snippet.transcript ? (
-            <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
-              <p className="text-[15px] leading-relaxed text-foreground">
-                {snippet.transcript}
-              </p>
-            </div>
-          ) : null}
-
           {snippet.coach?.note ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-[12px] font-bold uppercase tracking-wide text-primary">
-                Coach comment
-              </p>
-              <p className="text-[15px] leading-relaxed text-foreground">
-                {snippet.coach.note}
-              </p>
-              {snippet.coach.when ? (
-                <p className="text-[14px] leading-relaxed text-muted-foreground">
-                  {snippet.coach.when}
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+              {snippet.coach.note}
+            </p>
+          ) : null}
+          {snippet.coach?.when ? (
+            <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
+              {snippet.coach.when}
+            </p>
+          ) : null}
+          {snippet.coach?.examples && snippet.coach.examples.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              {snippet.coach.examples.map((ex, i) => (
+                <p key={i} className="text-[14px] text-foreground">
+                  {ex}
                 </p>
-              ) : null}
-              {snippet.coach.examples && snippet.coach.examples.length > 0 ? (
-                <div className="flex flex-col gap-0.5">
-                  {snippet.coach.examples.map((ex, i) => (
-                    <p key={i} className="text-[14px] text-foreground">
-                      {ex}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
+              ))}
             </div>
           ) : null}
 
-          {snippet.features ? (
-            <MetricsBlock
-              features={snippet.features}
-              transcript={snippet.transcript}
-              durationMs={snippet.durationMs}
-            />
+          {hasMetrics ? <MetricsBlock features={snippet.features} /> : null}
+
+          {snippet.breakthrough ? (
+            <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
           ) : null}
         </div>
-      </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── breakthrough — headline + note + (pending BE) per-snippet video ── */
+
+function BreakthroughBlock({ videoRef }: { videoRef: string | null }) {
+  // The explanation IS the coach comment (shown above in the expanded moment);
+  // this block adds the celebratory headline + the coach's separate video.
+  return (
+    <div className="flex flex-col gap-3 rounded-xl bg-primary/[0.08] px-4 py-4">
+      <p className="text-[15px] font-semibold text-foreground">
+        🥳 Here you turned your stress into charisma!
+      </p>
+      {videoRef ? (
+        <div className="overflow-hidden rounded-2xl border border-border">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video src={videoRef} controls playsInline className="w-full bg-black" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── metrics block (PITCH / PACE & PAUSES / VOLUME & VOICE) ── */
+
+function MetricsBlock({ features: f }: { features: ReadoutFeatures }) {
+  const hz = (v: number | null) => (v != null ? `${Math.round(v)} Hz` : "-");
+  const sec = (v: number | null) => (v != null ? `${v.toFixed(1)}s` : "-");
+  const db = (v: number | null) => (v != null ? `${Math.round(v)} dB` : "-");
+  const pct = (v: number | null) =>
+    v != null ? `${Math.round(v * 100)}%` : "-";
+
+  return (
+    <div className="flex flex-col gap-1.5 text-[15px] leading-relaxed text-foreground">
+      {f.f0Mean != null || f.f0Sd != null ? (
+        <p>
+          <span className="font-semibold">PITCH</span> F0 mean {hz(f.f0Mean)} ·
+          SD {hz(f.f0Sd)}
+        </p>
+      ) : null}
+      {f.meanPause != null ? (
+        <p>
+          <span className="font-semibold">{"PACE & PAUSES"}</span> mean pause{" "}
+          {sec(f.meanPause)}
+        </p>
+      ) : null}
+      {f.loudnessRange != null || f.voicedRatio != null ? (
+        <p>
+          <span className="font-semibold">{"VOLUME & VOICE"}</span> range{" "}
+          {db(f.loudnessRange)} · voiced {pct(f.voicedRatio)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -395,7 +399,7 @@ function SummaryPage({ payload }: { payload: ReadoutPayload }) {
     <div className="flex flex-col gap-5 px-4 py-8">
       {payload.overallMessage ? (
         <div className="rounded-2xl bg-primary/[0.10] p-4">
-          <p className="text-[17px] leading-relaxed text-foreground">
+          <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
             {payload.overallMessage}
           </p>
         </div>
@@ -419,19 +423,10 @@ function SummaryPage({ payload }: { payload: ReadoutPayload }) {
               {payload.snippets
                 .filter((s) => s.breakthrough)
                 .map((s, i) => (
-                  <div
+                  <BreakthroughBlock
                     key={s.id || String(i)}
-                    className="rounded-xl bg-primary/[0.08] px-4 py-4"
-                  >
-                    <p className="text-[15px] font-semibold text-foreground">
-                      You turned your stress into charisma.
-                    </p>
-                    {s.breakthroughNote ? (
-                      <p className="mt-2 text-[15px] leading-relaxed text-foreground">
-                        {s.breakthroughNote}
-                      </p>
-                    ) : null}
-                  </div>
+                    videoRef={s.breakthroughVideoRef}
+                  />
                 ))}
             </div>
           ) : null}
@@ -441,51 +436,7 @@ function SummaryPage({ payload }: { payload: ReadoutPayload }) {
   );
 }
 
-/* ── metrics block (shown in the tap-in detail sheet) ── */
-
-function MetricsBlock({
-  features: f,
-  transcript,
-  durationMs,
-}: {
-  features: ReadoutFeatures;
-  transcript: string;
-  durationMs: number;
-}) {
-  const hz = (v: number | null) => (v != null ? `${Math.round(v)} Hz` : "-");
-  const pct = (v: number | null) =>
-    v != null ? `${Math.round(v * 100)}%` : "-";
-  const db = (v: number | null) => (v != null ? `${Math.round(v)} dB` : "-");
-
-  const wpm =
-    f.speechRate != null
-      ? Math.round(f.speechRate)
-      : (() => {
-          if (durationMs <= 0) return null;
-          const words = transcript.trim().split(/\s+/).filter(Boolean).length;
-          return words > 0 ? Math.round(words / (durationMs / 60000)) : null;
-        })();
-
-  return (
-    <div className="flex flex-col gap-1 text-[14px] leading-relaxed text-muted-foreground">
-      <p>
-        Pitch: F0 mean {hz(f.f0Mean)}, SD {hz(f.f0Sd)}
-      </p>
-      {wpm != null ? (
-        <p>
-          Pace: {wpm} wpm, pause {pct(f.pauseRatio)}
-        </p>
-      ) : null}
-      {f.loudnessRange != null ? (
-        <p>
-          Volume: range {db(f.loudnessRange)}, voiced {pct(f.voicedRatio)}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/* ── coach video card ── */
+/* ── coach video card (session-level) ── */
 
 function CoachVideoCard({ src }: { src: string }) {
   const [open, setOpen] = useState(false);

@@ -31,6 +31,7 @@ function snip(
     slide: slideIndex === null ? null : { index: slideIndex, title: "", body: "" },
     breakthrough: false,
     breakthroughNote: null,
+    breakthroughVideoRef: null,
   };
 }
 
