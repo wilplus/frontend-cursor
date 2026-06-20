@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MoreHorizontal, X } from "lucide-react";
+import { ChevronDown, Loader2, MoreHorizontal, X } from "lucide-react";
 import {
   deletePresentation,
   deleteTake,
@@ -723,8 +723,7 @@ function LibraryMomentPage({
 function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
   const m = slide.moment;
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const hasDetails = !!(m?.note || m?.features);
-  const hasCoachNote = !!m?.note;
+  const hasReveal = !!(m?.audioRef || m?.note || m?.features);
 
   return (
     <div className="flex flex-col">
@@ -753,45 +752,45 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
 
         {m ? (
           <>
-            {m.audioRef ? (
-              <MediaPlayer
-                src={m.audioRef}
-                startOffsetMs={m.startOffsetMs ?? 0}
-                durationMs={m.durationMs ?? 0}
-              />
-            ) : null}
-
-            {/* Transcript — warm-tint, tap to reveal note + data */}
+            {/* Transcript — warm-tint; chevron toggles the in-place expand */}
             {m.transcript ? (
               <div
-                role={hasDetails ? "button" : undefined}
-                tabIndex={hasDetails ? 0 : undefined}
-                onClick={hasDetails ? () => setDetailsOpen((v) => !v) : undefined}
+                role={hasReveal ? "button" : undefined}
+                tabIndex={hasReveal ? 0 : undefined}
+                onClick={hasReveal ? () => setDetailsOpen((v) => !v) : undefined}
                 onKeyDown={
-                  hasDetails
+                  hasReveal
                     ? (e) => {
                         if (e.key === "Enter" || e.key === " ")
                           setDetailsOpen((v) => !v);
                       }
                     : undefined
                 }
-                aria-expanded={hasDetails ? detailsOpen : undefined}
-                className={`rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasDetails ? "cursor-pointer" : ""}`}
+                aria-expanded={hasReveal ? detailsOpen : undefined}
+                className={`flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasReveal ? "cursor-pointer" : ""}`}
               >
-                <p className="text-[15px] leading-relaxed text-foreground">
+                <p className="flex-1 text-[15px] leading-relaxed text-foreground">
                   {m.transcript}
                 </p>
-                {hasCoachNote && !detailsOpen ? (
-                  <p className="mt-2 text-[12px] font-medium text-primary">
-                    Tap to see the coach note
-                  </p>
+                {hasReveal ? (
+                  <ChevronDown
+                    className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${detailsOpen ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
                 ) : null}
               </div>
             ) : null}
 
-            {/* Expanded: coach note + metrics */}
-            {detailsOpen && hasDetails ? (
-              <div className="flex flex-col gap-3">
+            {/* Expanded, in place: player → coach note → metrics */}
+            {detailsOpen && hasReveal ? (
+              <div className="flex flex-col gap-4">
+                {m.audioRef ? (
+                  <MediaPlayer
+                    src={m.audioRef}
+                    startOffsetMs={m.startOffsetMs ?? 0}
+                    durationMs={m.durationMs ?? 0}
+                  />
+                ) : null}
                 {m.note ? (
                   <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
                     {m.note}
