@@ -22,6 +22,19 @@ function deniedMessage(): string {
   return "Microphone permission denied.";
 }
 
+/**
+ * getUserMedia is genuinely absent on this device. Feature-detected (NOT
+ * version-sniffed) so only truly-incapable clients are diverted: the classic
+ * case is an iOS < 14.3 home-screen PWA, where standalone mode exposed no
+ * getUserMedia at all. We keep `display: standalone` for everyone and route
+ * just these clients to Safari (see the `needs_safari` error code), rather
+ * than downgrading the whole app to browser chrome.
+ */
+function captureUnavailable(): boolean {
+  if (typeof navigator === "undefined") return true;
+  return typeof navigator.mediaDevices?.getUserMedia !== "function";
+}
+
 /* -------------------------------------------------------------------------- */
 /*  useDualCaptureMic — Web Speech + MediaRecorder, single stream             */
 /*                                                                            */
@@ -56,7 +69,7 @@ export type DualCaptureState =
   | {
       status: "error";
       message: string;
-      code: "no_support" | "denied" | "stream_failed";
+      code: "no_support" | "denied" | "stream_failed" | "needs_safari";
     };
 
 export interface DualCaptureMic {
@@ -208,6 +221,22 @@ export function useDualCaptureMic(opts?: {
     if (startingRef.current) return;
     startingRef.current = true;
     try {
+      // No getUserMedia at all on this device (the iOS < 14.3 standalone-PWA
+      // case). Don't attempt — on iOS surface a Safari escape hatch (the
+      // `needs_safari` code drives an "Open in Safari" button) instead of a
+      // dead error; elsewhere it's just an unsupported browser.
+      if (captureUnavailable()) {
+        const onIos = isIos();
+        setState({
+          status: "error",
+          code: onIos ? "needs_safari" : "no_support",
+          message: onIos
+            ? "Recording isn't available here. Open WillpowerLab in Safari to record."
+            : "Voice capture isn't supported in this browser.",
+        });
+        return;
+      }
+
       // The Lab (transcript:false) needs only MediaRecorder; Web Speech is
       // optional there, so don't fail when the browser lacks it (e.g. Firefox).
       const Ctor = wantTranscript ? getSpeechRecognitionCtor() : null;
