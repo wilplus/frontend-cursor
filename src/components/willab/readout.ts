@@ -214,6 +214,47 @@ function pickPresentationRef(
   return null;
 }
 
+/* ----------------------------- slide grouping ----------------------------- */
+
+/** Design B — snippets collapsed onto the slide they were delivered on. */
+export interface ReadoutSlideGroup {
+  /** slide.index, or null for the trailing "general" (no-slide) group. */
+  slideIndex: number | null;
+  slide: ReadoutSlide | null;
+  snippets: ReadoutSnippet[];
+}
+
+/** Group snippets by their slide so the readout shows one slide + all of its
+ *  spoken moments stacked chronologically (Design B), instead of one screen per
+ *  snippet. Real slides sort by page index; snippets within a group sort by
+ *  start offset (defensive — BE already returns capture order). Snippets with no
+ *  slide collect into a single trailing null group. Pure for testability. */
+export function groupSnippetsBySlide(
+  snippets: ReadoutSnippet[]
+): ReadoutSlideGroup[] {
+  const byKey = new Map<number | null, ReadoutSlideGroup>();
+  for (const s of snippets) {
+    const key = s.slide ? s.slide.index : null;
+    const existing = byKey.get(key);
+    if (existing) {
+      if (!existing.slide && s.slide) existing.slide = s.slide;
+      existing.snippets.push(s);
+    } else {
+      byKey.set(key, { slideIndex: key, slide: s.slide, snippets: [s] });
+    }
+  }
+  const groups = [...byKey.values()];
+  groups.sort((a, b) => {
+    if (a.slideIndex === null) return 1;
+    if (b.slideIndex === null) return -1;
+    return a.slideIndex - b.slideIndex;
+  });
+  for (const g of groups) {
+    g.snippets.sort((x, y) => x.startOffsetMs - y.startOffsetMs);
+  }
+  return groups;
+}
+
 /* ------------------------------- dev mock --------------------------------- */
 /*  Walkable sample data until seam ③ returns the real poll payload. Static
  *  values (no random/Date) so renders are deterministic. */
