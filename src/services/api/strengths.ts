@@ -50,6 +50,10 @@ export interface PresentationGroup {
   slides: StrengthSlide[];
   bestLines: { index: number; title: string; body: string; moment: StrengthMoment }[];
   takes: PresentationTake[]; // newest-first
+  // The explore arc this deck belongs to — opens the composed best presentation
+  // (`/explore/arc/<arcId>/best-presentation`), which is built from the takes
+  // and works BEFORE coach review (coach later re-ranks + confirms breakthroughs).
+  arcId: string | null;
 }
 
 export interface StrengthsView {
@@ -160,6 +164,7 @@ function mapPresentation(raw: unknown): PresentationGroup | null {
           )
       : [],
     takes,
+    arcId: typeof r.arc_id === "string" && r.arc_id.length > 0 ? r.arc_id : null,
   };
 }
 

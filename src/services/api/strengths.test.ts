@@ -44,6 +44,7 @@ const pres = (over: Partial<PresentationGroup> = {}): PresentationGroup => ({
   slides: [],
   bestLines: [],
   takes: [take()],
+  arcId: null,
   ...over,
 });
 
@@ -64,6 +65,7 @@ describe("mapStrengths", () => {
         {
           presentation_id: "pid1",
           presentation_ref: "u",
+          arc_id: "arc-1",
           topic: "Pitch",
           slides: [
             {
@@ -155,6 +157,16 @@ describe("mapStrengths", () => {
     expect(p.takes[0].takeNumber).toBe(1);
     expect(p.takes[0].sessionId).toBe("s1");
     expect(p.takes[0].slides).toHaveLength(1);
+
+    // arc_id → arcId: opens the composed best-presentation from Trainings.
+    expect(p.arcId).toBe("arc-1");
+  });
+
+  it("arcId is null when the presentation has no arc_id", () => {
+    const v = mapStrengths({
+      presentations: [{ presentation_id: "p", topic: "t", takes: [] }],
+    });
+    expect(v.presentations[0].arcId).toBeNull();
   });
 
   it("defaults to an empty view on a bad / blank body", () => {
