@@ -201,6 +201,17 @@ export default function CoachingPage({ params }: PageProps) {
   // ── Trial — start/stop recording ─────────────────────────────────────
   const startRecording = async () => {
     if (recording || uploading || stage !== "trial") return;
+    // No getUserMedia on this device (the iOS < 14.3 standalone-PWA case):
+    // on iOS point the user to Safari (where the mic works) instead of a
+    // confusing failure; elsewhere it's an unsupported browser.
+    if (typeof navigator.mediaDevices?.getUserMedia !== "function") {
+      toast.error(
+        /iPhone|iPad|iPod/.test(navigator.userAgent)
+          ? "Recording needs Safari on this device — open this page in Safari to record."
+          : "Voice recording isn't supported in this browser.",
+      );
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -224,7 +235,12 @@ export default function CoachingPage({ params }: PageProps) {
       recordTimeoutRef.current = setTimeout(() => stopRecording(), 60_000);
     } catch (err) {
       console.error("startRecording failed:", err);
-      toast.error("Microphone permission denied or unavailable.");
+      const name = err instanceof Error ? err.name : "";
+      toast.error(
+        /NotAllowed|Permission/i.test(name)
+          ? "Microphone blocked — enable mic access in Settings, then try again."
+          : "Couldn't access the microphone.",
+      );
     }
   };
 

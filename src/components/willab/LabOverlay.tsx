@@ -774,23 +774,25 @@ function RecordingPhase({
   }
 
   if (micState.status === "error") {
-    const isPwaIos =
-      micState.code === "denied" &&
-      typeof window !== "undefined" &&
-      (window.matchMedia("(display-mode: standalone)").matches ||
-        (navigator as unknown as { standalone?: boolean }).standalone === true) &&
-      /iPhone|iPad|iPod/.test(navigator.userAgent);
+    // Old-iOS standalone PWAs expose no getUserMedia (code "needs_safari") —
+    // offer a one-tap hop to Safari (target=_blank from standalone opens the
+    // page in Safari, where the mic works). Everyone else just retries.
+    // (The old "Open Settings" app-settings: link was dropped — that scheme
+    // doesn't open app settings from the web, so it was a dead button.)
+    const openInSafari = micState.code === "needs_safari";
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <p className="max-w-sm text-[15px] text-destructive">
           {micState.message}
         </p>
-        {isPwaIos ? (
+        {openInSafari ? (
           <a
-            href="app-settings:"
+            href={typeof window !== "undefined" ? window.location.href : "/"}
+            target="_blank"
+            rel="noopener noreferrer"
             className="rounded-full border border-border px-6 py-2.5 text-[15px] text-foreground"
           >
-            Open Settings
+            Open in Safari
           </a>
         ) : (
           <Button onClick={onRecordAgain} variant="outline" className="rounded-full px-6">
