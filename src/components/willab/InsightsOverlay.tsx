@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,10 @@ export default function InsightsOverlay({
   sessionId: string;
   onClose: () => void;
 }) {
-  useBackDismiss(onClose);
+  // Device Back steps the readout's own layout (collapse a moment, page back)
+  // before closing the overlay.
+  const readoutBackRef = useRef<(() => boolean) | null>(null);
+  useBackDismiss(onClose, () => readoutBackRef.current?.() ?? false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [data, setData] = useState<SessionReadout | null>(null);
 
@@ -41,7 +44,14 @@ export default function InsightsOverlay({
   if (status === "loading" || (status === "ready" && data)) {
     if (status === "ready" && data) {
       return (
-        <ReadoutCard payload={data.readout} onClose={onClose} managed={false} />
+        <ReadoutCard
+          payload={data.readout}
+          onClose={onClose}
+          managed={false}
+          onRegisterBack={(fn) => {
+            readoutBackRef.current = fn;
+          }}
+        />
       );
     }
     return (
