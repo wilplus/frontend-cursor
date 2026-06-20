@@ -36,3 +36,25 @@ The breakthrough explanation is the existing user-facing `coach.note`. **Do not 
 
 ## Open question for BE
 For the coach upload: is the breakthrough video a coach action in the existing review surface (one upload per breakthrough snippet, like the note), or auto-generated? Either is fine for the FE — it only needs the public URL on `breakthrough_video_ref`.
+
+---
+
+## Phase 2 — the upload endpoint the FE now expects (coach authoring is wired)
+
+The coach review card already shows the "Add a breakthrough video" placeholder (it appears once the coach labels a snippet **challenge**) and the FE is fully wired end-to-end: a file upload posts through a BFF proxy to a per-snippet upload endpoint, then saves the returned URL via the existing per-snippet save. **The only missing piece is this BE endpoint** — until it ships, the upload soft-fails and the coach sees a retry (no broken state).
+
+Build it to mirror the session-level coach video upload (`POST /v2/coach/sessions/<sid>/video`):
+
+```
+POST /v2/coach/sessions/<session_id>/snippets/<snippet_id>/breakthrough-video
+Content-Type: multipart/form-data
+  - video_file (binary; same MIME whitelist + size limits as the coach session video)
+
+200 → { "breakthrough_video_ref": "https://media.willpowerlab.com/.../clip.mp4" }
+```
+
+- Reuse the existing coach-video storage pipeline; return a ready-to-use public URL.
+- Auth: same `require_admin_or_coach` + session-ownership check as the session-video upload.
+- The FE then PERSISTs it via `POST /v2/coach/sessions/<sid>/snippets/<nid>` with `{ "breakthrough_video_ref": "<url>" }` (PR #131 contract). So the upload endpoint only needs to store + return the URL; it does **not** need to write `coach_state` itself (though it may, idempotently).
+
+FE pieces already in place: BFF route `src/app/api/v2/coach/sessions/[sessionId]/snippets/[snippetId]/breakthrough-video/route.ts`, service `uploadBreakthroughVideo` (`src/services/api/coachReview.ts`), UI in `CoachSnippetReviewCard.tsx`.

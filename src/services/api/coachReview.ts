@@ -29,6 +29,9 @@ export interface CoachSnippetState {
   note: string;
   tag: CoachTag | null;
   surfaced: boolean;
+  /** Per-snippet breakthrough video (coach upload). Public URL or null. Only
+   *  authored when the coach labels the snippet "challenge". */
+  breakthroughVideoRef: string | null;
 }
 
 /** Identity-stripped snippet payload (§S.4). NO control/salience score, NO
@@ -93,6 +96,8 @@ export interface CoachSnippetSavePatch {
   note?: string;
   tag?: CoachTag | null;
   surfaced?: boolean;
+  /** Set a public URL to attach a breakthrough video; null (or "") to clear. */
+  breakthroughVideoRef?: string | null;
 }
 
 /* ─── parsers (snake → camel) ───────────────────────────────────────────── */
@@ -114,6 +119,11 @@ function pickCoachState(raw: unknown): CoachSnippetState {
     note: typeof r.note === "string" ? r.note : "",
     tag: pickTag(r.tag),
     surfaced: r.surfaced === true,
+    breakthroughVideoRef:
+      typeof r.breakthrough_video_ref === "string" &&
+      r.breakthrough_video_ref.length > 0
+        ? r.breakthrough_video_ref
+        : null,
   };
 }
 
@@ -259,6 +269,37 @@ export async function uploadCoachVideo(
   return typeof ref === "string" ? ref : null;
 }
 
+/** Upload a per-snippet breakthrough video (coach authoring). Mirrors
+ *  uploadCoachVideo: multipart pass-through, returns the persisted public URL
+ *  so the caller can save it via saveCoachSnippet({ breakthroughVideoRef }).
+ *  The BE upload endpoint is Phase 2; until it ships this soft-fails to null
+ *  and the caller surfaces a retry. */
+export async function uploadBreakthroughVideo(
+  sessionId: string,
+  snippetId: string,
+  file: File
+): Promise<string | null> {
+  const form = new FormData();
+  form.append("video_file", file, file.name || "breakthrough.webm");
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/coach/sessions/${encodeURIComponent(
+        sessionId
+      )}/snippets/${encodeURIComponent(snippetId)}/breakthrough-video`,
+      { method: "POST", body: form, credentials: "include" }
+    );
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  const ref = d.breakthrough_video_ref ?? d.video_ref ?? d.public_url;
+  return typeof ref === "string" && ref.length > 0 ? ref : null;
+}
+
 /** Save a per-snippet patch. Returns the persisted state on success
  *  (echo from BE) or null on failure. The two-lane split is preserved:
  *  the BE persists `direction_label` to `training_labels` and
@@ -274,6 +315,8 @@ export async function saveCoachSnippet(
   if (patch.note !== undefined) body.note = patch.note;
   if (patch.tag !== undefined) body.tag = patch.tag;
   if (patch.surfaced !== undefined) body.surfaced = patch.surfaced;
+  if (patch.breakthroughVideoRef !== undefined)
+    body.breakthrough_video_ref = patch.breakthroughVideoRef;
 
   let res: Response;
   try {
