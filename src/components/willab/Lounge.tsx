@@ -31,6 +31,7 @@ import WillabInstallPrompt from "./WillabInstallPrompt";
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
+  deriveRecordCta,
   type ChipAction,
 } from "./loungePrompts";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
@@ -366,7 +367,7 @@ export default function Lounge({
       // B-1 — the one quick-action the BE suggests for this turn (S1). A
       // strong-sides suggestion shows ONLY the in-thread button — no text /
       // note recital. Every other turn renders the reply (+ any foot button).
-      const suggested = coerceSuggestedAction(resp.suggested_action);
+      const { showRecordUi, action: suggested } = deriveRecordCta(resp);
       if (suggested === "strong_sides") {
         setStrongSidesAt(new Date().toISOString());
       } else {
@@ -387,7 +388,7 @@ export default function Lounge({
           metadata: suggested ? { suggested_action: suggested } : null,
         });
         // seam 2 — reveal the composer mic when the BE requests it.
-        setShowRecordUi(resp.show_record_ui === true);
+        setShowRecordUi(showRecordUi);
       }
     } catch {
       await thread.append({

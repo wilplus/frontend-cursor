@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { coerceSuggestedAction, CHIP_LABEL } from "./loungePrompts";
+import {
+  coerceSuggestedAction,
+  deriveRecordCta,
+  CHIP_LABEL,
+} from "./loungePrompts";
 
 describe("coerceSuggestedAction (B-1 / S1)", () => {
   it("passes through the three known actions", () => {
@@ -21,5 +25,43 @@ describe("coerceSuggestedAction (B-1 / S1)", () => {
     for (const a of ["strong_sides", "trainings", "record_again"] as const) {
       expect(CHIP_LABEL[a]).toBeTruthy();
     }
+  });
+});
+
+describe("deriveRecordCta — locks the record-CTA contract", () => {
+  it("record-redirect turn: mic invite + record_again button", () => {
+    expect(
+      deriveRecordCta({ show_record_ui: true, suggested_action: "record_again" })
+    ).toEqual({ showRecordUi: true, action: "record_again" });
+  });
+
+  it("mic invite only (no suggested action)", () => {
+    expect(deriveRecordCta({ show_record_ui: true })).toEqual({
+      showRecordUi: true,
+      action: null,
+    });
+  });
+
+  it("suggested action only (no mic invite)", () => {
+    expect(deriveRecordCta({ suggested_action: "trainings" })).toEqual({
+      showRecordUi: false,
+      action: "trainings",
+    });
+  });
+
+  it("absent / empty turn → neither (default hidden)", () => {
+    expect(deriveRecordCta({})).toEqual({ showRecordUi: false, action: null });
+  });
+
+  it("show_record_ui must be strictly boolean true (no truthy coercion)", () => {
+    expect(
+      deriveRecordCta({ show_record_ui: "true" as unknown as boolean })
+        .showRecordUi
+    ).toBe(false);
+    expect(deriveRecordCta({ show_record_ui: false }).showRecordUi).toBe(false);
+  });
+
+  it("unknown suggested_action → no button", () => {
+    expect(deriveRecordCta({ suggested_action: "nope" }).action).toBeNull();
   });
 });
