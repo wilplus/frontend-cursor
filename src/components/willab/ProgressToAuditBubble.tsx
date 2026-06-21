@@ -95,7 +95,7 @@ export default function ProgressToAuditBubble({
         <>
           <p className="text-[15px] leading-relaxed text-foreground">
             Your best presentation needs {arcProgress.takesRemaining} more{" "}
-            {arcProgress.takesRemaining === 1 ? "take" : "takes"} — minimum 3.
+            {arcProgress.takesRemaining === 1 ? "take" : "takes"}, minimum 3.
           </p>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
             <div

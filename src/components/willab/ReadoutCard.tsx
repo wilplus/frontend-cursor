@@ -246,8 +246,9 @@ function MomentRow({
   onToggle: () => void;
 }) {
   const hasMetrics = Object.values(snippet.features).some((v) => v != null);
+  // The player is always visible (below the transcript); the chevron only
+  // reveals the extra detail (coach comment / metrics / breakthrough).
   const hasReveal = !!(
-    snippet.audioRef ||
     snippet.coach?.note ||
     snippet.coach?.when ||
     (snippet.coach?.examples && snippet.coach.examples.length > 0) ||
@@ -285,17 +286,18 @@ function MomentRow({
         </div>
       ) : null}
 
-      {/* Expanded, in place: player → coach comment → metrics → breakthrough */}
+      {/* Per-slide playback — always visible (play back what you said here) */}
+      {snippet.audioRef ? (
+        <MediaPlayer
+          src={snippet.audioRef}
+          startOffsetMs={snippet.startOffsetMs}
+          durationMs={snippet.durationMs}
+        />
+      ) : null}
+
+      {/* Expanded, in place: coach comment → metrics → breakthrough */}
       {isOpen && hasReveal ? (
         <div className="flex flex-col gap-4">
-          {snippet.audioRef ? (
-            <MediaPlayer
-              src={snippet.audioRef}
-              startOffsetMs={snippet.startOffsetMs}
-              durationMs={snippet.durationMs}
-            />
-          ) : null}
-
           {snippet.coach?.note ? (
             <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
               {snippet.coach.note}
