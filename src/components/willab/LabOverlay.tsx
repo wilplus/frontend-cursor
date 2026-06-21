@@ -527,8 +527,9 @@ function SessionContextForm({
   const [lengthSec, setLengthSec] = useState<number | null>(null);
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
-  // Explore-session toggle: auto-on when continuing an active arc.
-  const [explore, setExplore] = useState<boolean>(activeArcTake !== null);
+  // Every recording is an explore (3-take) session — no user toggle. The "3
+  // takes" is always on; the BE owns the unlock + arc growth.
+  const [explore, setExplore] = useState<boolean>(true);
 
   // Pre-fill once from the arc's deck (record-another-take into a known deck).
   const didPreloadRef = useRef(false);
@@ -594,32 +595,7 @@ function SessionContextForm({
               Start a different recording instead
             </button>
           </div>
-        ) : (
-          <div className="mb-2 flex items-center gap-2 py-2">
-            <button
-              type="button"
-              onClick={() => {
-                const next = !explore;
-                setExplore(next);
-                onExploreChange(next);
-              }}
-              aria-pressed={explore}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-[13px] transition-colors",
-                explore
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-foreground hover:border-primary/50"
-              )}
-            >
-              Explore (3 takes)
-            </button>
-            {explore ? (
-              <span className="text-[12px] text-muted-foreground">
-                Same talk, 3 styles, ~30 min
-              </span>
-            ) : null}
-          </div>
-        )}
+        ) : null}
 
         <Field label="What are you speaking on?" htmlFor="topic">
           <input
