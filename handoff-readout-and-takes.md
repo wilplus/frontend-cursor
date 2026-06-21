@@ -23,6 +23,9 @@ The composed best-presentation repeats text across slides and includes fragments
 **5. (Supports FE #B) Readiness signal after the 3rd take.**
 Confirm `…/best-presentation/progress` flips `ready:true` at ≥3 takes promptly so the FE can show a "view it now" note + button right after the 3rd recording. (Already returns `ready`/`takes_remaining` — just confirming it's correct on the 3rd-take boundary.)
 
+**6. Per-take, per-slide FULL transcript (for the Trainings take viewer).**
+Opening a take in Trainings shows *"No standout moment on this slide yet"* on most slides — the take payload only carries the single "standout moment," not the full transcript. Each take's per-slide data (in `/v2/user/strengths` `presentations[].takes[].slides[]`) should include the **whole transcript spoken on that slide in THAT take** — the take's raw, verbatim words, NOT the best-of composed text. Same per-slide shape as best-presentation, but per-take and verbatim. Include the slide's `audio_ref` + offset (start/duration) so the FE can play that slide back. So each take-slide returns roughly `{ index, title, body, transcript, audio_ref, start_offset_ms, duration_ms }`.
+
 ---
 
 ## 🟩 FE PROMPT
@@ -31,5 +34,13 @@ Confirm `…/best-presentation/progress` flips `ready:true` at ≥3 takes prompt
 
 **B. "Your ideal presentation is ready" note + button after the 3rd take.**
 Right after the 3rd recording, show a short, concise note in the thread (and/or at the end of the readout) — e.g. *"Your ideal presentation is ready."* — with a button that opens it directly (`BestPresentationOverlay` via the arc's `arcId`). The plumbing exists: `ProgressToAuditBubble` already flips to a "View your best presentation" button on `ready`, and `Lounge.onOpenBestPresentation(arcId)` opens the overlay. Make sure it appears promptly after take 3 (refetch progress on return) and the copy is one short line.
+
+**C. Per-take slide transcript (Trainings take viewer).** Render the full per-slide transcript (BE #6) on each slide when viewing a take, replacing *"No standout moment on this slide yet."* Same slide-on-top layout as the readout. `LibraryOverlay` `MomentCard` / the take Deck mapping in `strengths.ts` — map the new per-slide `transcript` + audio fields and show the transcript below the slide.
+
+**D. Per-slide playback in the right-after-recording readout.** Surface the audio player for each slide's text directly (it's currently only inside the tap-to-expand). Each readout snippet already carries `audioRef` + offset — render the `MediaPlayer` per slide so the user can play back what they said on that slide. (`ReadoutCard`.)
+
+**E. Make the "Final" recording cards clickable.** The "Final / Training completed…" cards in the thread (`ReportCard`, `kind: "recording_summary"`/`"insight"`) should open that session's readout (`InsightsOverlay`) on tap. The card already routes via `onViewInsights`; ensure the whole card is tappable and a session id is present (confirm BE returns it on the summary/insight message).
+
+**F. Persist the Trainings / Strong-sides chips.** When the bot sends a `trainings` or `strong_sides` suggested-action button, it must stay in the thread and survive reload / scroll-back — not vanish on the next turn. It's persisted via `message.metadata.suggested_action` and re-rendered by `coerceSuggestedAction`; verify nothing clears it and it renders on every render of that bot message.
 
 Non-goals: don't rebuild the best-presentation rendering (BE #4 handles the text quality); the readout structure is settled (A).
