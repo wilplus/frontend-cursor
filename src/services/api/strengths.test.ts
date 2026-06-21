@@ -28,6 +28,10 @@ const sl = (index: number, moments: StrengthMoment[]): StrengthSlide => ({
   title: `S${index}`,
   body: "",
   moments,
+  transcript: "",
+  audioRef: null,
+  startOffsetMs: 0,
+  durationMs: 0,
 });
 const take = (over: Partial<PresentationTake> = {}): PresentationTake => ({
   takeNumber: 1,
@@ -210,6 +214,68 @@ describe("mapStrengths", () => {
       ],
     });
     expect(v.presentations[0].bestLines).toEqual([]);
+  });
+
+  it("C / BE #6 — maps the per-take, per-slide verbatim transcript + slide audio", () => {
+    const v = mapStrengths({
+      presentations: [
+        {
+          presentation_id: "pid",
+          presentation_ref: "u",
+          topic: "T",
+          slides: [],
+          best_lines: [],
+          takes: [
+            {
+              take_number: 1,
+              session_id: "s1",
+              created_at: "2026-04-01",
+              presentation_ref: "u",
+              slides: [
+                {
+                  index: 0,
+                  title: "Cover",
+                  body: "",
+                  transcript: "the full verbatim words I said on this slide",
+                  audio_ref: "take-audio",
+                  start_offset_ms: 1500,
+                  duration_ms: 8000,
+                  strong_snippets: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const slide = v.presentations[0].takes[0].slides[0];
+    expect(slide.transcript).toBe("the full verbatim words I said on this slide");
+    expect(slide.audioRef).toBe("take-audio");
+    expect(slide.startOffsetMs).toBe(1500);
+    expect(slide.durationMs).toBe(8000);
+    // No standout snippet, but the verbatim transcript is still there → the
+    // take viewer no longer shows "No standout moment on this slide yet."
+    expect(slide.moments).toEqual([]);
+  });
+
+  it("slide transcript/audio default to ''/null when the BE omits them", () => {
+    const v = mapStrengths({
+      presentations: [
+        {
+          presentation_id: "pid",
+          presentation_ref: "u",
+          topic: "T",
+          slides: [{ index: 0, title: "Cover", body: "", strong_snippets: [] }],
+          best_lines: [],
+          takes: [],
+        },
+      ],
+    });
+    const slide = v.presentations[0].slides[0];
+    expect(slide.transcript).toBe("");
+    expect(slide.audioRef).toBeNull();
+    expect(slide.startOffsetMs).toBe(0);
+    expect(slide.durationMs).toBe(0);
   });
 
   it("maps a take with null presentation_ref", () => {

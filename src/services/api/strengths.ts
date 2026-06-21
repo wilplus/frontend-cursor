@@ -33,6 +33,14 @@ export interface StrengthSlide {
   body: string;
   /** Strong moments delivered on this slide, best-first. [] = none yet. */
   moments: StrengthMoment[];
+  /** C / BE #6 — the VERBATIM words spoken on this slide in THIS take (the
+   *  take's raw transcript, not the best-of composed text), with the slide's
+   *  own audio for playback. Take viewer only; "" / null on presentation-level
+   *  and general slides (the BE doesn't stamp them there). */
+  transcript: string;
+  audioRef: string | null;
+  startOffsetMs: number;
+  durationMs: number;
 }
 
 export interface PresentationTake {
@@ -99,6 +107,10 @@ function mapSlide(raw: unknown): StrengthSlide | null {
           .map(mapMoment)
           .filter((m): m is StrengthMoment => m !== null)
       : [],
+    transcript: typeof r.transcript === "string" ? r.transcript : "",
+    audioRef: typeof r.audio_ref === "string" ? r.audio_ref : null,
+    startOffsetMs: num(r.start_offset_ms),
+    durationMs: num(r.duration_ms),
   };
 }
 
