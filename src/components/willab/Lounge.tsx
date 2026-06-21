@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mic, Send, Users } from "lucide-react";
+import { Loader2, Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -31,7 +31,6 @@ import WillabInstallPrompt from "./WillabInstallPrompt";
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
-  deriveRecordCta,
   type ChipAction,
 } from "./loungePrompts";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
@@ -126,9 +125,6 @@ export default function Lounge({
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
-  // show_record_ui (seam 2) — per-turn mic invite. Hidden by default; revealed
-  // when the BE sends show_record_ui=true. Reset on every user send.
-  const [showRecordUi, setShowRecordUi] = useState(false);
   // The "Strong sides" ask surfaces a button anchored IN the thread (not the
   // sticky foot action button). Holds the timestamp it was offered at, so it
   // sorts chronologically right after the bot's reply and stays put. Persists
@@ -254,13 +250,12 @@ export default function Lounge({
     setActiveInsight(null);
   }
 
-  // Quick-action → surface. record_again starts a fresh recording; strong_sides
-  // opens the strong-sides gallery; recordings opens the unified audit view (C-1,
-  // recordings + all moments — supersedes the old recordings-only overlay).
+  // Quick-action → surface. strong_sides / trainings open the Trainings
+  // library; audit opens the unified audit view. No record chip: the bot
+  // points at the permanent "Start official recording" button in words.
   function onChip(action: ChipAction): void {
     if (action === "strong_sides") setLibraryOpen(true);
     else if (action === "trainings") setLibraryOpen(true); // seam 1 — Trainings tab
-    else if (action === "record_again") onStart();
     else if (action === "audit") router.push("/audits");
   }
 
@@ -344,7 +339,6 @@ export default function Lounge({
     const q = draftText.trim();
     if (!q || botThinking) return;
     atBottomRef.current = true; // sending always scrolls to your own message
-    setShowRecordUi(false);  // seam 2 — reset mic invite on every send
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     const botTurns = messages.filter((msg) => msg.role === "bot");
     const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
@@ -367,7 +361,7 @@ export default function Lounge({
       // B-1 — the one quick-action the BE suggests for this turn (S1). A
       // strong-sides suggestion shows ONLY the in-thread button — no text /
       // note recital. Every other turn renders the reply (+ any foot button).
-      const { showRecordUi, action: suggested } = deriveRecordCta(resp);
+      const suggested = coerceSuggestedAction(resp.suggested_action);
       if (suggested === "strong_sides") {
         setStrongSidesAt(new Date().toISOString());
       } else {
@@ -387,8 +381,6 @@ export default function Lounge({
           // scroll-back. metadata round-trips through the server and localStorage.
           metadata: suggested ? { suggested_action: suggested } : null,
         });
-        // seam 2 — reveal the composer mic when the BE requests it.
-        setShowRecordUi(showRecordUi);
       }
     } catch {
       await thread.append({
@@ -506,17 +498,6 @@ export default function Lounge({
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
       <form onSubmit={handleSend} className="relative">
-        {/* seam 2 — mic invite: hidden by default, revealed on show_record_ui. */}
-        {showRecordUi && (
-          <button
-            type="button"
-            onClick={onStart}
-            aria-label="Start recording"
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-primary"
-          >
-            <Mic className="h-5 w-5" />
-          </button>
-        )}
         <input
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
@@ -527,7 +508,7 @@ export default function Lounge({
           autoCorrect="off"
           autoCapitalize="sentences"
           spellCheck
-          className={`h-12 w-full rounded-full border border-border bg-background pr-12 text-[15px] outline-none focus:border-primary ${showRecordUi ? "pl-10" : "pl-4"}`}
+          className="h-12 w-full rounded-full border border-border bg-background pl-4 pr-12 text-[15px] outline-none focus:border-primary"
           aria-label="Message Will"
         />
         <button
