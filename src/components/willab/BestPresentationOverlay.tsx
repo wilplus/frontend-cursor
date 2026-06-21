@@ -128,6 +128,7 @@ export default function BestPresentationOverlay({
         slide={result.slides[cursor]}
         presentationRef={result.presentationRef}
         arcId={arcId}
+        coachReviewed={result.coachReviewed}
         onTextSaved={handleTextSaved}
       />
     </SnippetScreenShell>
@@ -203,11 +204,13 @@ function SlideCard({
   slide,
   presentationRef,
   arcId,
+  coachReviewed,
   onTextSaved,
 }: {
   slide: BestPresentationSlide;
   presentationRef: string | null;
   arcId: string;
+  coachReviewed: boolean;
   onTextSaved: (slideIndex: number, text: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -270,6 +273,14 @@ function SlideCard({
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">
+        {/* BE #141 — draft badge until a human coach has reviewed this
+            composed presentation. */}
+        {!coachReviewed ? (
+          <span className="self-start rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
+            Draft, pending coach review
+          </span>
+        ) : null}
+
         {/* Composed text — warm-tint; pencil (on the slide) enters edit mode,
             the chevron expands the player + breakthrough in place */}
         {hasContent ? (

@@ -47,6 +47,10 @@ export interface BestPresentationResult {
   /** The arc's deck PDF URL, if a presentation was attached. Passed through
    *  SlideRender for PDF page thumbnails; null = TextSlide fallback. */
   presentationRef: string | null;
+  /** BE #141 — false until a human coach has reviewed/confirmed this composed
+   *  presentation. While false the FE shows a "draft, pending coach review"
+   *  badge. Defaults true on an older payload so we never mislabel a real one. */
+  coachReviewed: boolean;
 }
 
 /* ------------------------------- mappers ---------------------------------- */
@@ -205,5 +209,7 @@ export async function fetchBestPresentation(
       typeof body.presentation_ref === "string" && body.presentation_ref.length > 0
         ? body.presentation_ref
         : null,
+    coachReviewed:
+      typeof body.coach_reviewed === "boolean" ? body.coach_reviewed : true,
   };
 }
