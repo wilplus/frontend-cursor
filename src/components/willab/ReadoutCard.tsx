@@ -7,7 +7,6 @@ import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
 import {
   decideReadoutBack,
-  groupSnippetsBySlide,
   type ReadoutFeatures,
   type ReadoutPayload,
   type ReadoutSlideGroup,
@@ -48,8 +47,15 @@ export default function ReadoutCard({
    *  handler to useBackDismiss as its onBack. */
   onRegisterBack?: (handler: () => boolean) => void;
 }) {
+  // One snippet per page (slide-per-slide, not bundled): each snippet is its
+  // own page — its slide on top, its text below, paged via the Back/Next bar.
   const groups = useMemo(
-    () => groupSnippetsBySlide(payload.snippets),
+    (): ReadoutSlideGroup[] =>
+      payload.snippets.map((s) => ({
+        slideIndex: s.slide?.index ?? null,
+        slide: s.slide,
+        snippets: [s],
+      })),
     [payload.snippets]
   );
   const groupCount = groups.length;
@@ -105,7 +111,6 @@ export default function ReadoutCard({
   const idx = Math.min(cursor, Math.max(groupCount - 1, 0));
   const atSummary = hasSummaryPage && cursor === shellTotal - 1;
   const atLast = cursor === shellTotal - 1;
-  const isLastGroup = !hasSummaryPage && atLast;
 
   if (!onClose) {
     if (groupCount === 0) {
@@ -134,10 +139,12 @@ export default function ReadoutCard({
   }
 
   function handleNext() {
-    if (atLast) {
-      if (!hasSummaryPage && onSend) onSend();
-    } else {
+    if (!atLast) {
       setCursor((c) => c + 1);
+    } else if (!hasSummaryPage && onSend) {
+      onSend(); // pre-send readout: last page sends the take
+    } else if (onClose) {
+      onClose(); // viewer: last page closes the layer
     }
   }
 
@@ -148,9 +155,10 @@ export default function ReadoutCard({
       total={shellTotal}
       onPrev={() => setCursor((c) => Math.max(c - 1, 0))}
       onNext={handleNext}
-      nextLabel={isLastGroup && onSend ? "Send for analysis" : undefined}
-      nextTone={isLastGroup && onSend ? "terminal" : "primary"}
-      nextDisabled={isLastGroup && !onSend && groupCount > 0}
+      nextLabel={
+        atLast ? (!hasSummaryPage && onSend ? "Send for analysis" : "Close") : undefined
+      }
+      nextTone={atLast ? "terminal" : "primary"}
       managed={managed}
     >
       {atSummary ? (
