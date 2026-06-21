@@ -29,6 +29,7 @@ import {
   clearExploreArc,
   readExploreArc,
   writeExploreArc,
+  type ExploreArcDeck,
 } from "@/lib/willab/exploreArc";
 import {
   clampSlides,
@@ -203,18 +204,19 @@ export default function LabOverlay({
         if (exploreEnabled) {
           const returnedArcId = result.arcId ?? arcId;
           if (returnedArcId) {
+            // Continue-one-arc: the arc keeps growing (no take cap). Carry the
+            // deck forward so the next take pre-fills the Lab without re-entry.
             const nextIdx = arcTakeIndex + 1;
-            if (nextIdx > 4) {
-              // Arc exhausted (3 takes + optional spark done).
-              clearExploreArc();
-              setArcId(null);
-              setArcTakeIndex(1);
-              setExploreEnabled(false);
-            } else {
-              writeExploreArc(returnedArcId, nextIdx);
-              setArcId(returnedArcId);
-              setArcTakeIndex(nextIdx);
-            }
+            const deck = context
+              ? {
+                  topic: context.topic,
+                  presentationRef: context.presentationRef,
+                  slides: context.slides,
+                }
+              : initArc?.deck;
+            writeExploreArc(returnedArcId, nextIdx, deck);
+            setArcId(returnedArcId);
+            setArcTakeIndex(nextIdx);
           }
         }
         setReadout(result.readout);
@@ -387,6 +389,7 @@ export default function LabOverlay({
             lastSetup={lastSetup}
             applyNonce={applyLastNonce}
             activeArcTake={arcId ? arcTakeIndex : null}
+            preloadDeck={initArc?.deck ?? null}
             onExploreChange={setExploreEnabled}
             onSubmit={(ctx, explore) => {
               setExploreEnabled(explore);
@@ -505,6 +508,7 @@ function SessionContextForm({
   lastSetup,
   applyNonce,
   activeArcTake,
+  preloadDeck,
   onExploreChange,
   onSubmit,
 }: {
@@ -512,6 +516,9 @@ function SessionContextForm({
   applyNonce: number;
   /** Set when continuing an active arc (take 2+). null = no active arc. */
   activeArcTake: number | null;
+  /** When recording another take into a known deck, pre-fill topic + slides +
+   *  the already-served PDF so the user doesn't re-enter them. */
+  preloadDeck: ExploreArcDeck | null;
   onExploreChange: (enabled: boolean) => void;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
 }) {
@@ -522,6 +529,16 @@ function SessionContextForm({
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
   // Explore-session toggle: auto-on when continuing an active arc.
   const [explore, setExplore] = useState<boolean>(activeArcTake !== null);
+
+  // Pre-fill once from the arc's deck (record-another-take into a known deck).
+  const didPreloadRef = useRef(false);
+  useEffect(() => {
+    if (didPreloadRef.current || !preloadDeck) return;
+    didPreloadRef.current = true;
+    if (preloadDeck.topic) setTopic(preloadDeck.topic);
+    if (preloadDeck.slides.length > 0) setSlides(preloadDeck.slides);
+    setPresentationRef(preloadDeck.presentationRef);
+  }, [preloadDeck]);
 
   // "Same as last time" — when the header bumps applyNonce, re-fill every field
   // from the last submitted set-up.
@@ -559,7 +576,8 @@ function SessionContextForm({
         {activeArcTake !== null ? (
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
             <p className="text-[13px] font-medium text-primary">
-              Take {activeArcTake} of 3 — same talk, next style
+              Take {activeArcTake}
+              {activeArcTake <= 3 ? " of 3" : ""}, same talk, next style
             </p>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
               Same topic as before. Record the same talk in the next vibe.

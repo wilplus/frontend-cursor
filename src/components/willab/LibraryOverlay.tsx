@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, MoreHorizontal, X } from "lucide-react";
+import { ChevronDown, Loader2, Mic, MoreHorizontal, X } from "lucide-react";
+import type { ExploreArc } from "@/lib/willab/exploreArc";
 import {
   deletePresentation,
   deleteTake,
@@ -78,9 +79,14 @@ type NavLevel =
 export default function LibraryOverlay({
   onClose,
   onOpenBestPresentation,
+  onRecordAnother,
 }: {
   onClose: () => void;
   onOpenBestPresentation: (arcId: string) => void;
+  /** Record another take INTO an existing deck's arc (continue-one-arc). The
+   *  parent writes the arc + deck to localStorage, closes the library, and
+   *  starts a recording. */
+  onRecordAnother: (arc: ExploreArc) => void;
 }) {
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [presentations, setPresentations] = useState<PresentationGroup[]>([]);
@@ -338,6 +344,22 @@ export default function LibraryOverlay({
               )
             }
             onDeleteTake={(tn) => handleDeleteTake(nav.presentation.presentationId, tn)}
+            onRecordAnother={() => {
+              const p = nav.presentation;
+              if (!p.arcId) return;
+              onRecordAnother({
+                arcId: p.arcId,
+                nextTakeIndex: p.takes.length + 1,
+                deck: {
+                  topic: p.topic || "",
+                  presentationRef: p.presentationRef,
+                  slides: p.slides.map((s) => ({
+                    title: s.title,
+                    body: s.body,
+                  })),
+                },
+              });
+            }}
           />
         ) : nav.level === "L2g" ? (
           <SlideList
@@ -434,11 +456,13 @@ function PresentationDetail({
   onOpenBest,
   onOpenTake,
   onDeleteTake,
+  onRecordAnother,
 }: {
   presentation: PresentationGroup;
   onOpenBest: () => void;
   onOpenTake: (t: PresentationTake) => void;
   onDeleteTake: (takeNumber: number) => void;
+  onRecordAnother: () => void;
 }) {
   const coverSlide = presentation.slides[0];
   // The composed best presentation needs ≥3 takes (built from the recordings,
@@ -478,6 +502,19 @@ function PresentationDetail({
       ) : null}
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-10 pt-4">
+      {/* Record another take INTO this deck — the take accumulates in the same
+          arc (continue-one-arc). Only when the deck has an arc to continue. */}
+      {presentation.arcId ? (
+        <button
+          type="button"
+          onClick={onRecordAnother}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-[14px] font-medium text-primary-foreground"
+        >
+          <Mic className="h-4 w-4" aria-hidden />
+          Record another take
+        </button>
+      ) : null}
+
       {presentation.bestLines.length > 0 ? (
         <>
           <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
