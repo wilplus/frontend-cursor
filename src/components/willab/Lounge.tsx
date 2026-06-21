@@ -20,6 +20,10 @@ import AuditOverlay from "./AuditOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
+import {
+  readStrongSidesAnchor,
+  writeStrongSidesAnchor,
+} from "@/lib/willab/strongSidesAnchor";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
@@ -129,7 +133,21 @@ export default function Lounge({
   // sticky foot action button). Holds the timestamp it was offered at, so it
   // sorts chronologically right after the bot's reply and stays put. Persists
   // (a new ask just re-anchors it); cleared only when the thread resets.
+  // Handoff F: persisted to localStorage so the button survives a reload (the
+  // trainings chip already does, via the message's metadata). Hydrated on
+  // mount via useEffect to avoid an SSR/CSR mismatch.
   const [strongSidesAt, setStrongSidesAt] = useState<string | null>(null);
+  // markStrongSides — set + persist the anchor together (used by both the
+  // local strong-sides shortcut and the BE's suggested_action path).
+  const markStrongSides = (): void => {
+    const ts = new Date().toISOString();
+    setStrongSidesAt(ts);
+    writeStrongSidesAnchor(ts);
+  };
+  useEffect(() => {
+    const ts = readStrongSidesAnchor();
+    if (ts) setStrongSidesAt(ts);
+  }, []);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -351,7 +369,7 @@ export default function Lounge({
     if (isStrongSidesAsk(q, prevBotText)) {
       // Button only — no text bubble. Anchored in the thread after the user's
       // ask, so it stays put like any other bubble (not the sticky foot button).
-      setStrongSidesAt(new Date().toISOString());
+      markStrongSides();
       return;
     }
 
@@ -363,7 +381,7 @@ export default function Lounge({
       // note recital. Every other turn renders the reply (+ any foot button).
       const suggested = coerceSuggestedAction(resp.suggested_action);
       if (suggested === "strong_sides") {
-        setStrongSidesAt(new Date().toISOString());
+        markStrongSides();
       } else {
         const answer = (resp.answer ?? "").trim();
         // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.

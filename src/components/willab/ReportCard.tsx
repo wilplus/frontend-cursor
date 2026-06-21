@@ -73,8 +73,28 @@ export default function ReportCard({
   // the Readout / History surface; this is the conversational confirmation.
   const v = readoutView(message.metadata);
   const date = reportDateLabel(message.client_created_at);
+  const sessionId =
+    typeof message.metadata?.session_id === "string"
+      ? message.metadata.session_id
+      : null;
+  const openable = !!(sessionId && onViewInsights);
   return (
-    <div className="my-1 rounded-2xl bg-chat-bot px-4 py-3">
+    <div
+      role={openable ? "button" : undefined}
+      tabIndex={openable ? 0 : undefined}
+      onClick={openable ? () => onViewInsights!(sessionId!) : undefined}
+      onKeyDown={
+        openable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onViewInsights!(sessionId!);
+              }
+            }
+          : undefined
+      }
+      className={`my-1 rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+    >
       <div className="flex items-center gap-2">
         <FileAudio
           className="h-4 w-4 shrink-0 text-muted-foreground"
@@ -91,6 +111,11 @@ export default function ReportCard({
         Training completed and sent to coach, who will email you when the
         analysis is ready.
       </p>
+      {openable ? (
+        <p className="mt-2 text-[13px] font-medium text-primary">
+          View this recording →
+        </p>
+      ) : null}
     </div>
   );
 }
