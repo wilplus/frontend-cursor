@@ -9,19 +9,20 @@
 /*  no FE intent logic — the classification is BE-owned.                        */
 /* -------------------------------------------------------------------------- */
 
-export type ChipAction = "strong_sides" | "trainings" | "record_again" | "audit";
+export type ChipAction = "strong_sides" | "trainings" | "audit";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
   strong_sides: "★ Strong sides",
   trainings: "Trainings",
-  record_again: "Record again",
   audit: "Open audit",
 };
 
+// `record_again` is intentionally NOT a chip: the bot points at the permanent
+// "Start official recording" button in words instead of rendering an in-app
+// record CTA (#119 / reversal of #4).
 const VALID_ACTIONS: readonly ChipAction[] = [
   "strong_sides",
   "trainings",
-  "record_again",
   "audit",
 ];
 
@@ -38,22 +39,3 @@ export function coerceSuggestedAction(raw: unknown): ChipAction | null {
     : null;
 }
 
-/** The per-turn record CTA the Lounge renders from a chat-query reply: the
- *  composer mic invite (show_record_ui === true) + the single suggested-action
- *  button. Per-turn — never cached. Locks the show_record_ui / suggested_action
- *  → render contract so the CTA fires the moment the BE emits the flags (the FE
- *  wiring is already in place). */
-export interface RecordCta {
-  showRecordUi: boolean;
-  action: ChipAction | null;
-}
-
-export function deriveRecordCta(resp: {
-  show_record_ui?: boolean;
-  suggested_action?: unknown;
-}): RecordCta {
-  return {
-    showRecordUi: resp.show_record_ui === true,
-    action: coerceSuggestedAction(resp.suggested_action),
-  };
-}
