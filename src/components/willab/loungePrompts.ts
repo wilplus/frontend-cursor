@@ -37,3 +37,23 @@ export function coerceSuggestedAction(raw: unknown): ChipAction | null {
     ? (raw as ChipAction)
     : null;
 }
+
+/** The per-turn record CTA the Lounge renders from a chat-query reply: the
+ *  composer mic invite (show_record_ui === true) + the single suggested-action
+ *  button. Per-turn — never cached. Locks the show_record_ui / suggested_action
+ *  → render contract so the CTA fires the moment the BE emits the flags (the FE
+ *  wiring is already in place). */
+export interface RecordCta {
+  showRecordUi: boolean;
+  action: ChipAction | null;
+}
+
+export function deriveRecordCta(resp: {
+  show_record_ui?: boolean;
+  suggested_action?: unknown;
+}): RecordCta {
+  return {
+    showRecordUi: resp.show_record_ui === true,
+    action: coerceSuggestedAction(resp.suggested_action),
+  };
+}
