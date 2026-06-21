@@ -19,6 +19,7 @@ import LibraryOverlay from "./LibraryOverlay";
 import AuditOverlay from "./AuditOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
+import { writeExploreArc } from "@/lib/willab/exploreArc";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
@@ -563,6 +564,14 @@ export default function Lounge({
         <LibraryOverlay
           onClose={() => setLibraryOpen(false)}
           onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+          onRecordAnother={(arc) => {
+            // Continue this deck's arc: seed the explore-arc (id + next index +
+            // deck) so the Lab carries arc_id and pre-fills the deck, then open
+            // the Lab. The BE appends the take to the same arc.
+            writeExploreArc(arc.arcId, arc.nextTakeIndex, arc.deck);
+            setLibraryOpen(false);
+            onStart();
+          }}
         />
       )}
       {rosterOpen && (
