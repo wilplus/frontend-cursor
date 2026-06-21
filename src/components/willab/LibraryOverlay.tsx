@@ -35,6 +35,12 @@ type DeckSlide = {
   title: string;
   body: string;
   moment: StrengthMoment | null;
+  /** C / BE #6 — verbatim slide transcript + slide audio for the take view.
+   *  "" / null on the general deck (which renders the moment instead). */
+  transcript: string;
+  audioRef: string | null;
+  startOffsetMs: number;
+  durationMs: number;
 };
 type Deck = {
   topic: string;
@@ -55,6 +61,10 @@ function takeDeck(take: PresentationTake, topic: string): Deck {
       title: s.title,
       body: s.body,
       moment: s.moments[0] ?? null,
+      transcript: s.transcript,
+      audioRef: s.audioRef,
+      startOffsetMs: s.startOffsetMs,
+      durationMs: s.durationMs,
     })),
   };
 }
@@ -64,7 +74,16 @@ const generalDeck = (moments: StrengthMoment[]): Deck => ({
   takeLabel: "general",
   takeTitle: "",
   presentationRef: null,
-  slides: moments.map((m, i) => ({ index: i, title: "", body: "", moment: m })),
+  slides: moments.map((m, i) => ({
+    index: i,
+    title: "",
+    body: "",
+    moment: m,
+    transcript: "",
+    audioRef: null,
+    startOffsetMs: 0,
+    durationMs: 0,
+  })),
 });
 
 /* ─────────────────────── nav state ────────────────────────────────────── */
@@ -766,6 +785,11 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
   const m = slide.moment;
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasReveal = !!(m?.audioRef || m?.note || m?.features);
+  // C / BE #6 — take view: when the slide carries its verbatim transcript /
+  // own audio, show them directly (transcript + always-visible player, like
+  // the readout) instead of the single best moment. Falls back to the moment
+  // for the general deck and any take that predates the BE field.
+  const showVerbatim = !!(slide.transcript || slide.audioRef);
 
   return (
     <div className="flex flex-col">
@@ -792,7 +816,23 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
           <p className="text-[12px] text-muted-foreground">{deck.takeTitle}</p>
         ) : null}
 
-        {m ? (
+        {showVerbatim ? (
+          <>
+            {/* C — verbatim slide transcript + always-visible slide playback */}
+            {slide.transcript ? (
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                {slide.transcript}
+              </p>
+            ) : null}
+            {slide.audioRef ? (
+              <MediaPlayer
+                src={slide.audioRef}
+                startOffsetMs={slide.startOffsetMs}
+                durationMs={slide.durationMs}
+              />
+            ) : null}
+          </>
+        ) : m ? (
           <>
             {/* Transcript — warm-tint; chevron toggles the in-place expand */}
             {m.transcript ? (
