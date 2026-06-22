@@ -37,6 +37,13 @@ export interface UseLoungeThreadReturn {
   hasMore: boolean;
   /** Append a message (stamped here) to whichever store is active. */
   append: (draft: LoungeMessageDraft) => Promise<LoungeMessage>;
+  /** #2 — show a message in the thread WITHOUT persisting it, used when the
+   *  BACKEND owns persistence for the turn (the bot turn on a signed-in
+   *  persist:true chat call). The authoritative row arrives on the next
+   *  rehydrate (reload / remount). */
+  appendLocalOnly: (draft: LoungeMessageDraft) => LoungeMessage;
+  /** True → server-backed thread (BE can persist). False → localStorage only. */
+  signedIn: boolean;
   /** Page in the next-older window (server only; no-op when unsigned). */
   loadOlder: () => Promise<void>;
   /** Re-fetch the newest window — e.g. to pull a BE-appended insight ping (§6c). */
@@ -100,6 +107,15 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     [signedIn]
   );
 
+  const appendLocalOnly = useCallback(
+    (draft: LoungeMessageDraft): LoungeMessage => {
+      const msg = stampLoungeMessage(draft);
+      setMessages((prev) => [...prev, msg]);
+      return msg;
+    },
+    []
+  );
+
   const loadOlder = useCallback(async () => {
     if (!signedIn || loadingOlder || !hasMore) return;
     const cursor = oldestCursorRef.current;
@@ -148,6 +164,8 @@ export function useLoungeThread(signedIn: boolean): UseLoungeThreadReturn {
     loadingOlder,
     hasMore,
     append,
+    appendLocalOnly,
+    signedIn,
     loadOlder,
     reload,
     clear,
