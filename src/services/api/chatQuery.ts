@@ -37,6 +37,18 @@ export interface ChatQueryArgs {
    * optional because anonymous-funnel callers don't have one.
    */
   sessionId?: string | null;
+  /**
+   * #2 — server-owned persistence. When true the BACKEND writes this turn
+   * (user + bot) into the signed-in lounge thread; the FE then shows the bot
+   * turn optimistically WITHOUT persisting it itself (one writer, no dupes).
+   * Pass the optimistic USER message's client_id + client_created_at so the
+   * BE writes the user turn idempotently (the server dedups on user_id +
+   * client_id). Omit (anonymous) → BE does not persist; the FE keeps its local
+   * thread.
+   */
+  persist?: boolean;
+  clientId?: string | null;
+  clientCreatedAt?: string | null;
 }
 
 /**
@@ -122,6 +134,13 @@ export async function postChatQuery(
     if (args.durationSec != null) {
       form.append("audio_duration_sec", String(args.durationSec));
     }
+    if (args.persist) {
+      form.append("persist", "true");
+      if (args.clientId) form.append("client_id", args.clientId);
+      if (args.clientCreatedAt) {
+        form.append("client_created_at", args.clientCreatedAt);
+      }
+    }
     res = await fetch(ENDPOINT, {
       method: "POST",
       body: form,
@@ -136,6 +155,13 @@ export async function postChatQuery(
         question: args.question,
         history: args.history,
         session_id: args.sessionId,
+        // #2 — server-owned persistence (signed-in only). The BE dedups the
+        // user turn on client_id; absent → BE does not persist this turn.
+        persist: args.persist ? true : undefined,
+        client_id: args.persist ? args.clientId ?? undefined : undefined,
+        client_created_at: args.persist
+          ? args.clientCreatedAt ?? undefined
+          : undefined,
       }),
       credentials: "include",
     });

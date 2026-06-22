@@ -29,6 +29,10 @@ export interface BestPresentationSlide {
    *  Empty string = no usable take for this slide (render a placeholder). */
   text: string;
   audioRef: string | null;
+  /** BE #143 — the line's span within its take's audio, so playback clamps to
+   *  the spoken line instead of replaying the whole take from 0. 0 when absent. */
+  startOffsetMs: number;
+  durationMs: number;
   takeIndex: number;
   /** true when this slide's best take follows a threat snippet in the same
    *  arc — the moment the challenge mindset clicked. Challenge-side only. */
@@ -92,6 +96,14 @@ function mapSlide(raw: unknown): BestPresentationSlide | null {
     title: typeof r.title === "string" ? r.title : "",
     text: typeof r.text === "string" ? r.text : "",
     audioRef: typeof r.audio_ref === "string" && r.audio_ref.length > 0 ? r.audio_ref : null,
+    startOffsetMs:
+      typeof r.start_offset_ms === "number" && Number.isFinite(r.start_offset_ms)
+        ? r.start_offset_ms
+        : 0,
+    durationMs:
+      typeof r.duration_ms === "number" && Number.isFinite(r.duration_ms)
+        ? r.duration_ms
+        : 0,
     takeIndex: typeof r.take_index === "number" ? r.take_index : 1,
     breakthrough:
       typeof r.breakthrough === "boolean" ? r.breakthrough : false,
@@ -211,5 +223,125 @@ export async function fetchBestPresentation(
         : null,
     coachReviewed:
       typeof body.coach_reviewed === "boolean" ? body.coach_reviewed : true,
+  };
+}
+
+/* --------------------------- breakthroughs (#5) --------------------------- */
+
+/** One coach-confirmed breakthrough moment in an arc (BE PR #145), with the
+ *  playback span so the FE clamps to the spoken line. */
+export interface ArcBreakthrough {
+  /** Stable render key. */
+  id: string;
+  /** Slide it was delivered on (for the slide image); null = no deck. */
+  slideIndex: number | null;
+  title: string;
+  /** The spoken line / transcript. Render verbatim. */
+  text: string;
+  /** Coach's short "why this is a breakthrough" note. Render verbatim. */
+  note: string | null;
+  audioRef: string | null;
+  startOffsetMs: number;
+  durationMs: number;
+  takeIndex: number | null;
+}
+
+export interface ArcBreakthroughsResult {
+  /** Newest→oldest (server-ordered). */
+  breakthroughs: ArcBreakthrough[];
+  presentationRef: string | null;
+}
+
+const finiteNum = (v: unknown): number =>
+  typeof v === "number" && Number.isFinite(v) ? v : 0;
+
+/** Tolerant mapper — the BE owns the exact shape; we read the likely snake_case
+ *  fields and drop anything with nothing playable/readable. */
+function mapBreakthrough(raw: unknown, i: number): ArcBreakthrough | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const text =
+    typeof r.text === "string" && r.text.length > 0
+      ? r.text
+      : typeof r.transcript === "string"
+        ? r.transcript
+        : "";
+  const audioRef =
+    typeof r.audio_ref === "string" && r.audio_ref.length > 0 ? r.audio_ref : null;
+  const note =
+    typeof r.breakthrough_note === "string" && r.breakthrough_note.length > 0
+      ? r.breakthrough_note
+      : typeof r.note === "string" && r.note.length > 0
+        ? r.note
+        : null;
+  if (!text && !audioRef && !note) return null;
+  const slideIndex =
+    typeof r.slide_index === "number" && Number.isFinite(r.slide_index)
+      ? r.slide_index
+      : typeof r.index === "number" && Number.isFinite(r.index)
+        ? r.index
+        : null;
+  return {
+    id:
+      typeof r.id === "string" && r.id.length > 0
+        ? r.id
+        : `bt-${slideIndex ?? "g"}-${i}`,
+    slideIndex,
+    title: typeof r.title === "string" ? r.title : "",
+    text,
+    note,
+    audioRef,
+    startOffsetMs: finiteNum(r.start_offset_ms),
+    durationMs: finiteNum(r.duration_ms),
+    takeIndex:
+      typeof r.take_index === "number" && Number.isFinite(r.take_index)
+        ? r.take_index
+        : null,
+  };
+}
+
+/** Fetch the arc's coach-confirmed breakthroughs. Soft-fails to null. */
+export async function fetchArcBreakthroughs(
+  arcId: string
+): Promise<ArcBreakthroughsResult | null> {
+  const headers = await authHeaders();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/breakthroughs`,
+      {
+        method: "GET",
+        headers,
+        credentials: "include",
+        cache: "no-store",
+        signal: controller.signal,
+      }
+    );
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!res.ok) return null;
+  const body: unknown = await res.json().catch(() => null);
+  if (!body || typeof body !== "object") return null;
+  const obj = body as Record<string, unknown>;
+  const rawList: unknown[] = Array.isArray(obj.breakthroughs)
+    ? obj.breakthroughs
+    : Array.isArray(obj.items)
+      ? obj.items
+      : Array.isArray(body)
+        ? (body as unknown[])
+        : [];
+  return {
+    breakthroughs: rawList
+      .map((b, i) => mapBreakthrough(b, i))
+      .filter((b): b is ArcBreakthrough => b !== null),
+    presentationRef:
+      typeof obj.presentation_ref === "string" && obj.presentation_ref.length > 0
+        ? obj.presentation_ref
+        : null,
   };
 }

@@ -343,8 +343,8 @@ function SlideCard({
                     {slide.audioRef ? (
                       <MediaPlayer
                         src={slide.audioRef}
-                        startOffsetMs={0}
-                        durationMs={0}
+                        startOffsetMs={slide.startOffsetMs}
+                        durationMs={slide.durationMs}
                       />
                     ) : null}
                     {slide.breakthrough ? (

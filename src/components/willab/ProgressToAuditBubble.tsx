@@ -26,6 +26,7 @@ import { readExploreArc } from "@/lib/willab/exploreArc";
 export default function ProgressToAuditBubble({
   onOpenAudit,
   onOpenBestPresentation,
+  onOpenBreakthroughs,
   onStartNextTake,
 }: {
   /** Fallback when onOpenBestPresentation is absent. */
@@ -33,6 +34,8 @@ export default function ProgressToAuditBubble({
   /** Called when the user taps "View your best presentation" in arc mode.
    *  Receives the arcId so the parent can mount the right overlay. */
   onOpenBestPresentation?: (arcId: string) => void;
+  /** #5 — opens the arc's coach-confirmed breakthrough moments. */
+  onOpenBreakthroughs?: (arcId: string) => void;
   /** Opens the recording overlay for the next explore take. */
   onStartNextTake?: () => void;
 }) {
@@ -90,6 +93,15 @@ export default function ProgressToAuditBubble({
           >
             View your best presentation
           </button>
+          {onOpenBreakthroughs ? (
+            <button
+              type="button"
+              onClick={() => onOpenBreakthroughs(arcId)}
+              className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+            >
+              View your breakthrough moments
+            </button>
+          ) : null}
         </>
       ) : (
         <>

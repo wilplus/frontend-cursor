@@ -18,6 +18,7 @@ import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import AuditOverlay from "./AuditOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
+import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
 import {
@@ -127,6 +128,8 @@ export default function Lounge({
   const [auditOpen, setAuditOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
+  // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
+  const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // The "Strong sides" ask surfaces a button anchored IN the thread (not the
@@ -361,7 +364,10 @@ export default function Lounge({
     const botTurns = messages.filter((msg) => msg.role === "bot");
     const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
     setDraftText("");
-    await thread.append({ role: "user", kind: "text", body: q });
+    // The user turn always persists (optimistic + FE write); for signed-in the
+    // BE also writes it from the client_id we pass below, and the server dedups
+    // on (user_id, client_id) so it collapses to one row (#2).
+    const userMsg = await thread.append({ role: "user", kind: "text", body: q });
 
     // Strong-sides shortcut: when the user asks to see their strong sides, don't
     // recite the coach notes as text — answer briefly and surface the existing
@@ -375,7 +381,16 @@ export default function Lounge({
 
     setBotThinking(true);
     try {
-      const resp = await postChatQuery({ question: q, history });
+      const resp = await postChatQuery({
+        question: q,
+        history,
+        // #2 — let the BE own persistence for signed-in turns. It writes the
+        // user turn with our client_id (dedup) and the bot turn with the chip
+        // in its metadata; the FE then shows the bot turn optimistically only.
+        persist: thread.signedIn,
+        clientId: userMsg.client_id,
+        clientCreatedAt: userMsg.client_created_at,
+      });
       // B-1 — the one quick-action the BE suggests for this turn (S1). A
       // strong-sides suggestion shows ONLY the in-thread button — no text /
       // note recital. Every other turn renders the reply (+ any foot button).
@@ -391,14 +406,18 @@ export default function Lounge({
           resp.bubbles && resp.bubbles.length > 0
             ? resp.bubbles.join("\n\n")
             : answer || "I know nothing about that, at least yet 😏";
-        await thread.append({
-          role: "bot",
-          kind: "text",
+        const botDraft = {
+          role: "bot" as const,
+          kind: "text" as const,
           body,
-          // B-1 — persist the chip with the message so it survives reload and
-          // scroll-back. metadata round-trips through the server and localStorage.
+          // B-1 — the chip rides in the bot row's metadata so it survives reload
+          // and scroll-back. For signed-in, the BE persists this same row (chip
+          // included) — see #2; we show it optimistically without re-persisting
+          // to avoid a duplicate. Anonymous → the FE persists it locally.
           metadata: suggested ? { suggested_action: suggested } : null,
-        });
+        };
+        if (thread.signedIn) thread.appendLocalOnly(botDraft);
+        else await thread.append(botDraft);
       }
     } catch {
       await thread.append({
@@ -467,6 +486,7 @@ export default function Lounge({
                 key={item.reactKey}
                 onOpenAudit={() => setAuditOpen(true)}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+                onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onStartNextTake={onStart}
               />
             ) : (
@@ -555,6 +575,12 @@ export default function Lounge({
         <BestPresentationOverlay
           arcId={bestPresentationArcId}
           onClose={() => setBestPresentationArcId(null)}
+        />
+      )}
+      {breakthroughsArcId && (
+        <BreakthroughsOverlay
+          arcId={breakthroughsArcId}
+          onClose={() => setBreakthroughsArcId(null)}
         />
       )}
       {activeInsight && (
