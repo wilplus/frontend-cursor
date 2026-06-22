@@ -34,10 +34,20 @@ export function readParked(): ParkedReadout | null {
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<ParkedReadout> | null;
     if (!p || !p.readout || !Array.isArray(p.readout.snippets)) return null;
+    const r = p.readout as ReadoutPayload;
     return {
       sessionId: typeof p.sessionId === "string" ? p.sessionId : null,
       topic: typeof p.topic === "string" ? p.topic : "",
-      readout: p.readout as ReadoutPayload,
+      // Default the per-deck-slide fields so a readout parked by an older app
+      // version (before slides/slideTranscripts existed) doesn't crash
+      // ReadoutCard's .length / iteration on resume.
+      readout: {
+        ...r,
+        slides: Array.isArray(r.slides) ? r.slides : [],
+        slideTranscripts: Array.isArray(r.slideTranscripts)
+          ? r.slideTranscripts
+          : [],
+      },
     };
   } catch {
     return null;
