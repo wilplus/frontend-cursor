@@ -51,6 +51,19 @@ export interface ReadoutSlide {
   body: string;
 }
 
+/** The COMPLETE 1:1 transcript of everything said while a given deck slide was
+ *  on screen (BE slide_transcripts — the whole-recording word list bucketed by
+ *  the tap timeline, one entry per deck slide; empty transcript is valid = the
+ *  slide had no speech). Drives the per-deck-slide readout pagination so the
+ *  quiet first slide is never dropped. start/duration are the slide's span in
+ *  the parent recording, for "play this slide" playback. */
+export interface ReadoutSlideTranscript {
+  index: number;
+  transcript: string;
+  startOffsetMs: number;
+  durationMs: number;
+}
+
 export interface ReadoutSnippet {
   id: string;
   startOffsetMs: number;
@@ -88,6 +101,13 @@ export interface ReadoutPayload {
   /** Phase 2 — the session's served deck PDF (presentation_ref), used to render
    *  the per-snippet slide page. null when no deck was attached. */
   presentationRef: string | null;
+  /** The deck's slides (index/title/body), in deck order. Used so the readout
+   *  can page per DECK SLIDE (incl. slides with no salient snippet). [] = none. */
+  slides: ReadoutSlide[];
+  /** The complete per-slide 1:1 transcripts. Present → the readout paginates
+   *  per deck slide (slide + its full transcript); [] → fall back to the
+   *  per-snippet pagination (older recordings). */
+  slideTranscripts: ReadoutSlideTranscript[];
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -172,6 +192,23 @@ export function mapReadoutSlide(raw: unknown): ReadoutSlide | null {
   return { index, title: str(s.title), body: str(s.body) };
 }
 
+/** Map one complete per-slide transcript entry (BE slide_transcripts). Requires
+ *  a numeric index; transcript may be "" (valid — the slide had no speech). */
+export function mapReadoutSlideTranscript(
+  raw: unknown
+): ReadoutSlideTranscript | null {
+  if (!raw || typeof raw !== "object") return null;
+  const s = raw as Record<string, unknown>;
+  const index = num(s.index);
+  if (index === null) return null;
+  return {
+    index,
+    transcript: str(s.transcript),
+    startOffsetMs: int(s.start_offset_ms),
+    durationMs: int(s.duration_ms),
+  };
+}
+
 /** Map the post-publish coach block; null when absent or empty (pre-publish). */
 function mapCoach(raw: unknown): ReadoutCoach | null {
   if (!raw || typeof raw !== "object") return null;
@@ -193,6 +230,17 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
   const r = obj(raw);
   const snippets = Array.isArray(r.snippets) ? r.snippets : [];
   const insights = obj(r.insights_payload);
+  const slides = Array.isArray(r.slides)
+    ? r.slides
+        .map(mapReadoutSlide)
+        .filter((s): s is ReadoutSlide => s !== null)
+    : [];
+  const slideTranscripts = Array.isArray(r.slide_transcripts)
+    ? r.slide_transcripts
+        .map(mapReadoutSlideTranscript)
+        .filter((s): s is ReadoutSlideTranscript => s !== null)
+        .sort((a, b) => a.index - b.index)
+    : [];
   return {
     snippets: snippets.map(mapReadoutSnippet),
     overallMessage:
@@ -204,6 +252,8 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
         ? insights.video_ref
         : null,
     presentationRef: pickPresentationRef(r, insights),
+    slides,
+    slideTranscripts,
   };
 }
 
@@ -333,6 +383,8 @@ export function mockReadout(topic: string): ReadoutPayload {
     overallMessage: null,
     videoRef: null,
     presentationRef: null,
+    slides: [],
+    slideTranscripts: [],
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(

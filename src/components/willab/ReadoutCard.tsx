@@ -9,9 +9,22 @@ import {
   decideReadoutBack,
   type ReadoutFeatures,
   type ReadoutPayload,
+  type ReadoutSlide,
   type ReadoutSlideGroup,
   type ReadoutSnippet,
 } from "./readout";
+
+/** A readout page. In per-deck-slide mode (BE slide_transcripts present) each
+ *  page is one DECK SLIDE carrying its COMPLETE 1:1 transcript + the slide's
+ *  span in the parent recording; the per-snippet acoustic moments stack below.
+ *  In the legacy fallback (no slide_transcripts) fullTranscript is null and the
+ *  page is a single snippet, exactly as before. */
+type ReadoutPage = ReadoutSlideGroup & {
+  fullTranscript: string | null;
+  fullAudioRef: string | null;
+  fullStartOffsetMs: number;
+  fullDurationMs: number;
+};
 
 /* -------------------------------------------------------------------------- */
 /*  ReadoutCard — one slide per page, its spoken moments stacked below it.      */
@@ -47,17 +60,68 @@ export default function ReadoutCard({
    *  handler to useBackDismiss as its onBack. */
   onRegisterBack?: (handler: () => boolean) => void;
 }) {
-  // One snippet per page (slide-per-slide, not bundled): each snippet is its
-  // own page — its slide on top, its text below, paged via the Back/Next bar.
-  const groups = useMemo(
-    (): ReadoutSlideGroup[] =>
-      payload.snippets.map((s) => ({
-        slideIndex: s.slide?.index ?? null,
-        slide: s.slide,
-        snippets: [s],
-      })),
+  // The deck slide (index/title/body) by index — top-level `slides` first, with
+  // per-snippet `slide` as a fallback for the title/body text-card path.
+  const slidesByIndex = useMemo(() => {
+    const m = new Map<number, ReadoutSlide>();
+    for (const s of payload.slides) m.set(s.index, s);
+    for (const sn of payload.snippets) {
+      if (sn.slide && !m.has(sn.slide.index)) m.set(sn.slide.index, sn.slide);
+    }
+    return m;
+  }, [payload.slides, payload.snippets]);
+
+  // The parent recording's audio — shared across snippets, so a slide with no
+  // salient snippet (e.g. the quiet first slide) can still play its own span.
+  const parentAudioRef = useMemo(
+    () => payload.snippets.find((s) => s.audioRef)?.audioRef ?? null,
     [payload.snippets]
   );
+
+  // Pagination model. When the BE sends complete per-slide transcripts we page
+  // per DECK SLIDE (slide + its full 1:1 transcript + its acoustic moments) —
+  // every slide gets a page, so the quiet first slide is never dropped. Without
+  // them we keep the legacy one-snippet-per-page view.
+  const groups = useMemo((): ReadoutPage[] => {
+    if (payload.slideTranscripts.length > 0) {
+      const txIndices = new Set(payload.slideTranscripts.map((t) => t.index));
+      const pages: ReadoutPage[] = payload.slideTranscripts.map((st) => ({
+        slideIndex: st.index,
+        slide: slidesByIndex.get(st.index) ?? null,
+        snippets: payload.snippets.filter((s) => s.slide?.index === st.index),
+        fullTranscript: st.transcript,
+        fullAudioRef: parentAudioRef,
+        fullStartOffsetMs: st.startOffsetMs,
+        fullDurationMs: st.durationMs,
+      }));
+      // Catch-all so a moment whose slide has no transcript entry (or no slide
+      // at all) is never silently dropped — rendered as a legacy moments page.
+      const leftover = payload.snippets.filter(
+        (s) => !(s.slide && txIndices.has(s.slide.index))
+      );
+      if (leftover.length > 0) {
+        pages.push({
+          slideIndex: null,
+          slide: null,
+          snippets: leftover,
+          fullTranscript: null,
+          fullAudioRef: null,
+          fullStartOffsetMs: 0,
+          fullDurationMs: 0,
+        });
+      }
+      return pages;
+    }
+    return payload.snippets.map((s) => ({
+      slideIndex: s.slide?.index ?? null,
+      slide: s.slide,
+      snippets: [s],
+      fullTranscript: null,
+      fullAudioRef: null,
+      fullStartOffsetMs: 0,
+      fullDurationMs: 0,
+    }));
+  }, [payload.slideTranscripts, payload.snippets, slidesByIndex, parentAudioRef]);
   const groupCount = groups.length;
   const [cursor, setCursor] = useState(0);
   // Keys of expanded moments, in open order (newest last) — drives Back.
@@ -189,22 +253,30 @@ function SlideGroupPage({
   expanded,
   onToggle,
 }: {
-  group: ReadoutSlideGroup;
+  group: ReadoutPage;
   presentationRef: string | null;
   isSample: boolean;
   expanded: string[];
   onToggle: (key: string) => void;
 }) {
+  // Per-deck-slide mode: the page carries the slide's COMPLETE transcript.
+  const perSlide = group.fullTranscript !== null;
+  // The deck page index to render: the slide's own index, or (per-slide mode)
+  // the page's slideIndex even when no `slides` entry carried title/body — the
+  // PDF page renders off presentationRef + index alone, so the quiet first
+  // slide still shows its image.
+  const slidePageIndex =
+    group.slide?.index ?? (perSlide ? group.slideIndex : null);
   return (
     <div className="flex flex-col">
       {/* Slide — edge-to-edge, once per group (never repeated per moment) */}
-      {group.slide ? (
+      {slidePageIndex !== null ? (
         <div className="w-full bg-muted">
           <SlideRender
             presentationRef={presentationRef}
-            pageIndex={group.slide.index}
-            title={group.slide.title}
-            body={group.slide.body}
+            pageIndex={slidePageIndex}
+            title={group.slide?.title ?? ""}
+            body={group.slide?.body ?? ""}
             className="w-full"
           />
         </div>
@@ -216,6 +288,29 @@ function SlideGroupPage({
             Sample data — your real acoustic Training Profile wires in at seam
             ③.
           </p>
+        ) : null}
+
+        {/* The complete 1:1 transcript of everything said on this slide — the
+            text under the slide. Empty = the slide had no speech (still shown). */}
+        {perSlide ? (
+          group.fullTranscript ? (
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+              {group.fullTranscript}
+            </p>
+          ) : (
+            <p className="text-[14px] italic text-muted-foreground">
+              No speech recorded on this slide.
+            </p>
+          )
+        ) : null}
+
+        {/* Play back the whole slide (parent recording, clamped to its span). */}
+        {perSlide && group.fullAudioRef && group.fullDurationMs > 0 ? (
+          <MediaPlayer
+            src={group.fullAudioRef}
+            startOffsetMs={group.fullStartOffsetMs}
+            durationMs={group.fullDurationMs}
+          />
         ) : null}
 
         {group.snippets.map((s) => {
@@ -245,7 +340,15 @@ function MomentRow({
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  const hasMetrics = Object.values(snippet.features).some((v) => v != null);
+  // Only the metrics MetricsBlock actually renders count — else the chevron
+  // could promise a reveal that expands to an empty block.
+  const f = snippet.features;
+  const hasMetrics =
+    f.f0Mean != null ||
+    f.f0Sd != null ||
+    f.meanPause != null ||
+    f.loudnessRange != null ||
+    f.voicedRatio != null;
   // The player is always visible (below the transcript); the chevron only
   // reveals the extra detail (coach comment / metrics / breakthrough).
   const hasReveal = !!(

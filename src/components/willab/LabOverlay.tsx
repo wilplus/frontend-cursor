@@ -446,6 +446,8 @@ export default function LabOverlay({
                 overallMessage: null,
                 videoRef: null,
                 presentationRef: null,
+                slides: [],
+                slideTranscripts: [],
               }
             }
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
