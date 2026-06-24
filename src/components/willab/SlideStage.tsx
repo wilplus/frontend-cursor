@@ -36,8 +36,10 @@ export default function SlideStage({
 
   return (
     <div className="flex w-full flex-col gap-3">
-      {/* The slide. Tapping it also advances (clicker feel); the buttons below
-          are the primary control. */}
+      {/* The slide — rendered exactly like the after-recording views: edge-to-
+          edge `w-full bg-muted`, natural height (no border card, no aspect-video
+          letterboxing). Tapping it also advances (clicker feel); the buttons
+          below are the primary control. */}
       <div
         role="button"
         tabIndex={0}
@@ -49,17 +51,15 @@ export default function SlideStage({
           }
         }}
         aria-label="Next slide"
-        className="w-full cursor-pointer overflow-hidden rounded-2xl border border-border bg-muted/30 p-2"
+        className="w-full cursor-pointer bg-muted"
       >
-        <div className="aspect-video w-full">
-          <SlideRender
-            presentationRef={presentationRef}
-            pageIndex={idx}
-            title={slide.title}
-            body={slide.body}
-            className="h-full w-full"
-          />
-        </div>
+        <SlideRender
+          presentationRef={presentationRef}
+          pageIndex={idx}
+          title={slide.title}
+          body={slide.body}
+          className="w-full"
+        />
       </div>
 
       <p className="text-center text-[12px] tabular-nums text-muted-foreground">
