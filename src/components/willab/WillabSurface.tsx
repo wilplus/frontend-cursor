@@ -2,8 +2,9 @@
 
 import { useCallback, useState } from "react";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
-import { Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
 import { useWillabFlow } from "./useWillabFlow";
 import { useSignedIn } from "./useSignedIn";
@@ -13,8 +14,14 @@ import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
-import LabOverlay from "./LabOverlay";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
+
+// Lazy — the Lab (recorder, PDF.js, slide stage) is heavy and only opens on
+// demand, so keep it out of the initial bundle. Shared full-screen fallback.
+const LabOverlay = dynamic(() => import("./LabOverlay"), {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+});
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
@@ -77,11 +84,7 @@ export default function WillabSurface({
 
   // Resolving the initial state post-mount (hydration-safe).
   if (flow.state === null) {
-    return shell(
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return shell(<LoadingState />);
   }
 
   // First-run, full-screen (no Lounge underneath yet).

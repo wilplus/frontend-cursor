@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Pencil, X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
+import LoadingState from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
@@ -68,7 +69,7 @@ export default function BestPresentationOverlay({
   if (status === "loading" || !result) {
     return (
       <PreShellOverlay onClose={onClose}>
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingState />
       </PreShellOverlay>
     );
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Send, Users } from "lucide-react";
+import { Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -13,25 +13,20 @@ import {
   loungeToHistory,
   splitBotMessage,
 } from "./willabHelpers";
+import dynamic from "next/dynamic";
 import ReportCard from "./ReportCard";
-import InsightsOverlay from "./InsightsOverlay";
-import LibraryOverlay from "./LibraryOverlay";
-import AuditOverlay from "./AuditOverlay";
-import BestPresentationOverlay from "./BestPresentationOverlay";
-import BreakthroughsOverlay from "./BreakthroughsOverlay";
+import LoadingState from "./LoadingState";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
 import {
   readStrongSidesAnchor,
   writeStrongSidesAnchor,
 } from "@/lib/willab/strongSidesAnchor";
-import StudentRosterOverlay from "./StudentRosterOverlay";
 import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
-import CoachReviewOverlay from "./CoachReviewOverlay";
 import WillabInstallPrompt from "./WillabInstallPrompt";
 import {
   CHIP_LABEL,
@@ -39,6 +34,33 @@ import {
   type ChipAction,
 } from "./loungePrompts";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
+
+/* Heavy overlays are lazy-loaded — they're each opened on demand, so keeping
+ * them out of the initial Lounge bundle speeds first paint. The fallback is the
+ * shared full-screen LoadingState while the chunk arrives. */
+const overlayOpts = {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+} as const;
+const InsightsOverlay = dynamic(() => import("./InsightsOverlay"), overlayOpts);
+const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), overlayOpts);
+const AuditOverlay = dynamic(() => import("./AuditOverlay"), overlayOpts);
+const BestPresentationOverlay = dynamic(
+  () => import("./BestPresentationOverlay"),
+  overlayOpts
+);
+const BreakthroughsOverlay = dynamic(
+  () => import("./BreakthroughsOverlay"),
+  overlayOpts
+);
+const StudentRosterOverlay = dynamic(
+  () => import("./StudentRosterOverlay"),
+  overlayOpts
+);
+const CoachReviewOverlay = dynamic(
+  () => import("./CoachReviewOverlay"),
+  overlayOpts
+);
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -451,9 +473,7 @@ export default function Lounge({
         )}
 
         {thread.loading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
+          <LoadingState />
         ) : threadItems.length === 0 ? (
           <LoungeEmptyState />
         ) : (
