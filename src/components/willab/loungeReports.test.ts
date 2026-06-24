@@ -28,6 +28,11 @@ describe("readoutSummaryDraft", () => {
       pause_ratio: 0.2,
     });
   });
+
+  it("carries session_id so the card opens its readout (item 1)", () => {
+    const d = readoutSummaryDraft({ topic: "t", sessionId: "sess-9" });
+    expect(d.metadata).toMatchObject({ session_id: "sess-9" });
+  });
 });
 
 describe("isReportMessage", () => {

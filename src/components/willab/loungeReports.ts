@@ -20,6 +20,9 @@ export function isReportMessage(m: Pick<LoungeMessage, "kind">): boolean {
 export function readoutSummaryDraft(input: {
   topic: string;
   recordingId?: string;
+  /** The take's session id — makes the card open its own readout (slides +
+   *  per-slide transcript) via ReportCard.onOpenReadout, even pre-coach. */
+  sessionId?: string;
   speechRate?: number; // §3.3 features.speech_rate (hero)
   pauseRatio?: number; // §3.3 features.pause_ratio (hero)
 }): LoungeMessageDraft {
@@ -31,6 +34,7 @@ export function readoutSummaryDraft(input: {
     metadata: {
       report_type: "readout",
       recording_id: input.recordingId,
+      session_id: input.sessionId,
       topic: input.topic,
       speech_rate: input.speechRate,
       pause_ratio: input.pauseRatio,

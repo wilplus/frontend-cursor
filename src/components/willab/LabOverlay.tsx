@@ -284,6 +284,7 @@ export default function LabOverlay({
         readoutSummaryDraft({
           topic: context.topic,
           recordingId: labSessionId ?? undefined,
+          sessionId: labSessionId ?? undefined,
           speechRate: hero?.speechRate ?? undefined,
           pauseRatio: hero?.pauseRatio ?? undefined,
         })
