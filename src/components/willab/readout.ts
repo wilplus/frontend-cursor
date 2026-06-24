@@ -72,6 +72,11 @@ export interface ReadoutSnippet {
   audioRef: string | null;
   features: ReadoutFeatures;
   stickiness: ReadoutStickiness;
+  /** Rank within the slide (1 = best); null when the BE doesn't rank readout
+   *  snippets. Used to pick the slide's single top moment. */
+  rank: number | null;
+  /** Blended quality (`power_score`, else `overall_score`); null when absent. */
+  powerScore: number | null;
   coach: ReadoutCoach | null;
   /** Phase 2 — the slide delivered during this snippet; null when no deck. */
   slide: ReadoutSlide | null;
@@ -166,6 +171,8 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
       composite: num(stick.composite),
       comment: typeof stick.comment === "string" ? stick.comment : null,
     },
+    rank: num(r.rank),
+    powerScore: num(r.power_score) ?? num(r.overall_score),
     coach: mapCoach(r.coach),
     slide: mapReadoutSlide(r.slide),
     breakthrough: typeof r.breakthrough === "boolean" ? r.breakthrough : false,
@@ -315,6 +322,39 @@ export function groupSnippetsBySlide(
   return groups;
 }
 
+/** Is `a` a better "top moment" than `b`? Precedence: lower rank, then higher
+ *  powerScore, then higher stickiness, then earlier start. A present value
+ *  always beats a null one at each level. */
+function snippetBetter(a: ReadoutSnippet, b: ReadoutSnippet): boolean {
+  if (a.rank !== b.rank) {
+    if (a.rank === null) return false;
+    if (b.rank === null) return true;
+    return a.rank < b.rank;
+  }
+  if (a.powerScore !== b.powerScore) {
+    if (a.powerScore === null) return false;
+    if (b.powerScore === null) return true;
+    return a.powerScore > b.powerScore;
+  }
+  const ac = a.stickiness.composite;
+  const bc = b.stickiness.composite;
+  if (ac !== bc) {
+    if (ac === null) return false;
+    if (bc === null) return true;
+    return ac > bc;
+  }
+  return a.startOffsetMs < b.startOffsetMs;
+}
+
+/** The single best moment among a slide's snippets — so the readout shows ONE
+ *  coach comment per slide, not one per salient snippet. Pure for testability. */
+export function pickTopSnippet(
+  snippets: ReadoutSnippet[]
+): ReadoutSnippet | null {
+  if (snippets.length === 0) return null;
+  return snippets.reduce((best, s) => (snippetBetter(s, best) ? s : best));
+}
+
 /* ------------------------------ back gesture ------------------------------ */
 
 export type ReadoutBackAction =
@@ -373,6 +413,8 @@ export function mockReadout(topic: string): ReadoutPayload {
       f0MidEndDelta: -8,
     },
     stickiness: { composite: 0.72, comment },
+    rank: null,
+    powerScore: null,
     coach: null,
     slide: null,
     breakthrough: false,

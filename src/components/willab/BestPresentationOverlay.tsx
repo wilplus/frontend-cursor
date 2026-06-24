@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Pencil, X } from "lucide-react";
+import { Loader2, Pencil, X } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
@@ -217,7 +217,6 @@ function SlideCard({
   const [draftText, setDraftText] = useState(slide.text);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const hasContent = slide.text.length > 0 || slide.audioRef !== null;
 
   function startEdit() {
@@ -251,25 +250,15 @@ function SlideCard({
 
   return (
     <div className="flex flex-col">
-      {/* Slide — edge-to-edge, pencil overlaid at bottom-left */}
-      <div className="relative">
-        <div className="w-full bg-muted">
-          <SlideRender
-            presentationRef={presentationRef}
-            pageIndex={slide.index}
-            title={slide.title}
-            body=""
-            className="w-full"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={startEdit}
-          aria-label="Edit composed text"
-          className="absolute bottom-2 left-3 flex h-[26px] w-[26px] items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm"
-        >
-          <Pencil className="h-[13px] w-[13px]" aria-hidden />
-        </button>
+      {/* Slide — edge-to-edge */}
+      <div className="w-full bg-muted">
+        <SlideRender
+          presentationRef={presentationRef}
+          pageIndex={slide.index}
+          title={slide.title}
+          body=""
+          className="w-full"
+        />
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">
@@ -281,8 +270,8 @@ function SlideCard({
           </span>
         ) : null}
 
-        {/* Composed text — warm-tint; pencil (on the slide) enters edit mode,
-            the chevron expands the player + breakthrough in place */}
+        {/* Composed text — warm card with an inline edit pencil; the player +
+            breakthrough sit below it, always visible (no expand toggle). */}
         {hasContent ? (
           <>
             {editing ? (
@@ -317,47 +306,39 @@ function SlideCard({
               </div>
             ) : slide.text ? (
               <>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setDetailsOpen((v) => !v)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ")
-                      setDetailsOpen((v) => !v);
-                  }}
-                  aria-expanded={detailsOpen}
-                  className="flex items-start gap-3 cursor-pointer rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3"
-                >
+                {/* Composed text — warm card. The pencil (where the show-more
+                    chevron used to sit) enters edit mode; no expand toggle. */}
+                <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
                   <p className="flex-1 text-[15px] leading-relaxed text-foreground">
                     {slide.text}
                   </p>
-                  <ChevronDown
-                    className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${detailsOpen ? "rotate-180" : ""}`}
-                    aria-hidden
-                  />
+                  <button
+                    type="button"
+                    onClick={startEdit}
+                    aria-label="Edit composed text"
+                    className="mt-0.5 shrink-0 rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <Pencil className="h-5 w-5" aria-hidden />
+                  </button>
                 </div>
 
-                {/* Expanded, in place: player → breakthrough */}
-                {detailsOpen ? (
-                  <div className="flex flex-col gap-4">
-                    {slide.audioRef ? (
-                      <MediaPlayer
-                        src={slide.audioRef}
-                        startOffsetMs={slide.startOffsetMs}
-                        durationMs={slide.durationMs}
-                      />
-                    ) : null}
-                    {slide.breakthrough ? (
-                      <div className="flex flex-col gap-2 rounded-xl bg-primary/[0.08] px-4 py-4">
-                        <p className="text-[15px] font-semibold text-foreground">
-                          🥳 Here you turned your stress into charisma!
-                        </p>
-                        {slide.breakthroughNote ? (
-                          <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                            {slide.breakthroughNote}
-                          </p>
-                        ) : null}
-                      </div>
+                {/* Player → breakthrough — always visible (no expand toggle). */}
+                {slide.audioRef ? (
+                  <MediaPlayer
+                    src={slide.audioRef}
+                    startOffsetMs={slide.startOffsetMs}
+                    durationMs={slide.durationMs}
+                  />
+                ) : null}
+                {slide.breakthrough ? (
+                  <div className="flex flex-col gap-2 rounded-xl bg-primary/[0.08] px-4 py-4">
+                    <p className="text-[15px] font-semibold text-foreground">
+                      🥳 Here you turned your stress into charisma!
+                    </p>
+                    {slide.breakthroughNote ? (
+                      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                        {slide.breakthroughNote}
+                      </p>
                     ) : null}
                   </div>
                 ) : null}

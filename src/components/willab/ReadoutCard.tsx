@@ -7,6 +7,7 @@ import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
 import {
   decideReadoutBack,
+  pickTopSnippet,
   type ReadoutFeatures,
   type ReadoutPayload,
   type ReadoutSlide,
@@ -425,8 +426,11 @@ function DeckSlideContent({
 }) {
   // Each slide's speech is distinct, so the transcript is shown ONCE here — no
   // per-moment transcript cards repeating it. The chevron reveals the acoustic
-  // detail (metrics / coach / breakthrough) for the slide's moments.
-  const detailSnippets = group.snippets.filter(snippetHasReveal);
+  // detail for the slide's SINGLE top moment (lowest rank → highest power /
+  // stickiness → earliest), so a slide with several salient snippets shows one
+  // coach comment, not a duplicated-looking stack.
+  const top = pickTopSnippet(group.snippets.filter(snippetHasReveal));
+  const detailSnippets = top ? [top] : [];
   const hasReveal = detailSnippets.length > 0;
   return (
     <>

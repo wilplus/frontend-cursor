@@ -27,6 +27,8 @@ function snip(
       f0MidEndDelta: null,
     },
     stickiness: { composite: null, comment: null },
+    rank: null,
+    powerScore: null,
     coach: null,
     slide: slideIndex === null ? null : { index: slideIndex, title: "", body: "" },
     breakthrough: false,
