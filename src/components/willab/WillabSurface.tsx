@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
-import dynamic from "next/dynamic";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
@@ -14,14 +13,8 @@ import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
+import LabOverlay from "./LabOverlay";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
-
-// Lazy — the Lab (recorder, PDF.js, slide stage) is heavy and only opens on
-// demand, so keep it out of the initial bundle. Shared full-screen fallback.
-const LabOverlay = dynamic(() => import("./LabOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
 
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
