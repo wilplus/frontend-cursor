@@ -24,11 +24,16 @@ import { readExploreArc } from "@/lib/willab/exploreArc";
 /* -------------------------------------------------------------------------- */
 
 export default function ProgressToAuditBubble({
+  arcId: arcIdProp = null,
   onOpenAudit,
   onOpenBestPresentation,
   onOpenBreakthroughs,
   onStartNextTake,
 }: {
+  /** Durable arc id (from the persisted recording_summary metadata) so the
+   *  bubble stays clickable across logout/login + any device. When absent,
+   *  falls back to the localStorage explore arc (pre-fix recordings). */
+  arcId?: string | null;
   /** Fallback when onOpenBestPresentation is absent. */
   onOpenAudit: () => void;
   /** Called when the user taps "View your best presentation" in arc mode.
@@ -39,9 +44,9 @@ export default function ProgressToAuditBubble({
   /** Opens the recording overlay for the next explore take. */
   onStartNextTake?: () => void;
 }) {
-  // Arc mode — set once on mount from localStorage.
-  const arcRef = useRef(readExploreArc());
-  const arcId = arcRef.current?.arcId ?? null;
+  // Prefer the durable arc id; fall back to the localStorage arc (read once).
+  const localArcRef = useRef(readExploreArc());
+  const arcId = arcIdProp ?? localArcRef.current?.arcId ?? null;
 
   const [arcProgress, setArcProgress] = useState<BestPresentationProgress | null>(null);
 

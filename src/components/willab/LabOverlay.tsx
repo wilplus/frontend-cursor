@@ -285,12 +285,13 @@ export default function LabOverlay({
           topic: context.topic,
           recordingId: labSessionId ?? undefined,
           sessionId: labSessionId ?? undefined,
+          arcId: arcId ?? undefined,
           speechRate: hero?.speechRate ?? undefined,
           pauseRatio: hero?.pauseRatio ?? undefined,
         })
       );
     }
-  }, [state, context, appendToThread, readout, labSessionId]);
+  }, [state, context, appendToThread, readout, labSessionId, arcId]);
 
   // Park the held Readout (persist + route to the Lounge's parked chip).
   function parkReadout() {
