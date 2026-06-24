@@ -40,6 +40,41 @@ function momentKey(s: ReadoutSnippet): string {
   return s.id || `${s.slide?.index ?? "g"}:${s.startOffsetMs}`;
 }
 
+/** A single toggle key for a per-deck-slide page's transcript card. */
+function slideToggleKey(g: ReadoutPage): string {
+  return `slide:${g.slideIndex ?? "g"}`;
+}
+
+/** Only the metrics MetricsBlock actually renders — so the chevron never
+ *  promises a reveal that expands to an empty block. */
+function snippetHasMetrics(f: ReadoutFeatures): boolean {
+  return (
+    f.f0Mean != null ||
+    f.f0Sd != null ||
+    f.meanPause != null ||
+    f.loudnessRange != null ||
+    f.voicedRatio != null
+  );
+}
+
+/** Does this snippet have anything behind the chevron (coach / metrics / breakthrough)? */
+function snippetHasReveal(s: ReadoutSnippet): boolean {
+  return !!(
+    s.coach?.note ||
+    s.coach?.when ||
+    (s.coach?.examples && s.coach.examples.length > 0) ||
+    snippetHasMetrics(s.features) ||
+    s.breakthrough
+  );
+}
+
+/** The toggle keys present on a page (drives the Back-collapse gesture). One
+ *  key per deck slide in per-slide mode; one per moment in the legacy view. */
+function pageToggleKeys(g: ReadoutPage): string[] {
+  if (g.fullTranscript !== null) return [slideToggleKey(g)];
+  return g.snippets.map(momentKey);
+}
+
 export default function ReadoutCard({
   payload,
   isSample = false,
@@ -145,7 +180,11 @@ export default function ReadoutCard({
   const handleBack = useCallback((): boolean => {
     const gs = groupsRef.current;
     const i = Math.min(cursorRef.current, Math.max(gs.length - 1, 0));
-    const currentKeys = (gs[i]?.snippets ?? []).map(momentKey);
+    // On the summary page the cursor sits PAST the last group (i clamps down),
+    // so there's no on-screen card to collapse — empty keys → Back pages off the
+    // summary instead of silently collapsing a now-offscreen moment.
+    const onRealPage = cursorRef.current === i;
+    const currentKeys = onRealPage && gs[i] ? pageToggleKeys(gs[i]) : [];
     const action = decideReadoutBack(
       cursorRef.current,
       expandedRef.current,
@@ -290,40 +329,27 @@ function SlideGroupPage({
           </p>
         ) : null}
 
-        {/* The complete 1:1 transcript of everything said on this slide — the
-            text under the slide. Empty = the slide had no speech (still shown). */}
         {perSlide ? (
-          group.fullTranscript ? (
-            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-              {group.fullTranscript}
-            </p>
-          ) : (
-            <p className="text-[14px] italic text-muted-foreground">
-              No speech recorded on this slide.
-            </p>
-          )
-        ) : null}
-
-        {/* Play back the whole slide (parent recording, clamped to its span). */}
-        {perSlide && group.fullAudioRef && group.fullDurationMs > 0 ? (
-          <MediaPlayer
-            src={group.fullAudioRef}
-            startOffsetMs={group.fullStartOffsetMs}
-            durationMs={group.fullDurationMs}
+          // Per deck slide: the COMPLETE 1:1 transcript + slide playback shown
+          // exactly once (each slide's speech is distinct — never repeated).
+          <DeckSlideContent
+            group={group}
+            isOpen={expanded.includes(slideToggleKey(group))}
+            onToggle={() => onToggle(slideToggleKey(group))}
           />
-        ) : null}
-
-        {group.snippets.map((s) => {
-          const key = momentKey(s);
-          return (
-            <MomentRow
-              key={key}
-              snippet={s}
-              isOpen={expanded.includes(key)}
-              onToggle={() => onToggle(key)}
-            />
-          );
-        })}
+        ) : (
+          group.snippets.map((s) => {
+            const key = momentKey(s);
+            return (
+              <MomentRow
+                key={key}
+                snippet={s}
+                isOpen={expanded.includes(key)}
+                onToggle={() => onToggle(key)}
+              />
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -340,24 +366,7 @@ function MomentRow({
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  // Only the metrics MetricsBlock actually renders count — else the chevron
-  // could promise a reveal that expands to an empty block.
-  const f = snippet.features;
-  const hasMetrics =
-    f.f0Mean != null ||
-    f.f0Sd != null ||
-    f.meanPause != null ||
-    f.loudnessRange != null ||
-    f.voicedRatio != null;
-  // The player is always visible (below the transcript); the chevron only
-  // reveals the extra detail (coach comment / metrics / breakthrough).
-  const hasReveal = !!(
-    snippet.coach?.note ||
-    snippet.coach?.when ||
-    (snippet.coach?.examples && snippet.coach.examples.length > 0) ||
-    hasMetrics ||
-    snippet.breakthrough
-  );
+  const hasReveal = snippetHasReveal(snippet);
 
   return (
     <div className="flex flex-col gap-3">
@@ -389,7 +398,7 @@ function MomentRow({
         </div>
       ) : null}
 
-      {/* Per-slide playback — always visible (play back what you said here) */}
+      {/* Per-moment playback — always visible (play back what you said here) */}
       {snippet.audioRef ? (
         <MediaPlayer
           src={snippet.audioRef}
@@ -398,35 +407,112 @@ function MomentRow({
         />
       ) : null}
 
-      {/* Expanded, in place: coach comment → metrics → breakthrough */}
-      {isOpen && hasReveal ? (
-        <div className="flex flex-col gap-4">
-          {snippet.coach?.note ? (
-            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-              {snippet.coach.note}
-            </p>
-          ) : null}
-          {snippet.coach?.when ? (
-            <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
-              {snippet.coach.when}
-            </p>
-          ) : null}
-          {snippet.coach?.examples && snippet.coach.examples.length > 0 ? (
-            <div className="flex flex-col gap-0.5">
-              {snippet.coach.examples.map((ex, i) => (
-                <p key={i} className="text-[14px] text-foreground">
-                  {ex}
-                </p>
-              ))}
-            </div>
-          ) : null}
+      {isOpen && hasReveal ? <SnippetDetail snippet={snippet} /> : null}
+    </div>
+  );
+}
 
-          {hasMetrics ? <MetricsBlock features={snippet.features} /> : null}
+/* ── per deck slide: complete transcript (once) + slide playback + detail ── */
 
-          {snippet.breakthrough ? (
-            <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
+function DeckSlideContent({
+  group,
+  isOpen,
+  onToggle,
+}: {
+  group: ReadoutPage;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  // Each slide's speech is distinct, so the transcript is shown ONCE here — no
+  // per-moment transcript cards repeating it. The chevron reveals the acoustic
+  // detail (metrics / coach / breakthrough) for the slide's moments.
+  const detailSnippets = group.snippets.filter(snippetHasReveal);
+  const hasReveal = detailSnippets.length > 0;
+  return (
+    <>
+      {group.fullTranscript ? (
+        <div
+          role={hasReveal ? "button" : undefined}
+          tabIndex={hasReveal ? 0 : undefined}
+          onClick={hasReveal ? onToggle : undefined}
+          onKeyDown={
+            hasReveal
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") onToggle();
+                }
+              : undefined
+          }
+          aria-expanded={hasReveal ? isOpen : undefined}
+          className={`flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasReveal ? "cursor-pointer" : ""}`}
+        >
+          <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+            {group.fullTranscript}
+          </p>
+          {hasReveal ? (
+            <ChevronDown
+              className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
+              aria-hidden
+            />
           ) : null}
         </div>
+      ) : (
+        <p className="text-[14px] italic text-muted-foreground">
+          No speech recorded on this slide.
+        </p>
+      )}
+
+      {/* Play back the whole slide — once (parent recording, clamped to its span). */}
+      {group.fullAudioRef && group.fullDurationMs > 0 ? (
+        <MediaPlayer
+          src={group.fullAudioRef}
+          startOffsetMs={group.fullStartOffsetMs}
+          durationMs={group.fullDurationMs}
+        />
+      ) : null}
+
+      {/* Acoustic detail for the slide's moments — no transcript / player repeat. */}
+      {isOpen && hasReveal ? (
+        <div className="flex flex-col gap-5">
+          {detailSnippets.map((s) => (
+            <SnippetDetail key={momentKey(s)} snippet={s} />
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/* ── the in-place reveal: coach comment → metrics → breakthrough (no transcript) ── */
+
+function SnippetDetail({ snippet }: { snippet: ReadoutSnippet }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {snippet.coach?.note ? (
+        <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+          {snippet.coach.note}
+        </p>
+      ) : null}
+      {snippet.coach?.when ? (
+        <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
+          {snippet.coach.when}
+        </p>
+      ) : null}
+      {snippet.coach?.examples && snippet.coach.examples.length > 0 ? (
+        <div className="flex flex-col gap-0.5">
+          {snippet.coach.examples.map((ex, i) => (
+            <p key={i} className="text-[14px] text-foreground">
+              {ex}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      {snippetHasMetrics(snippet.features) ? (
+        <MetricsBlock features={snippet.features} />
+      ) : null}
+
+      {snippet.breakthrough ? (
+        <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
       ) : null}
     </div>
   );
