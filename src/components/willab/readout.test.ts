@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mapReadoutPayload, mapReadoutSnippet, mockReadout } from "./readout";
+import {
+  mapReadoutPayload,
+  mapReadoutSnippet,
+  mockReadout,
+  pickTopSnippet,
+} from "./readout";
 
 describe("mapReadoutSnippet", () => {
   it("maps the BE snake_case shape to camelCase", () => {
@@ -143,6 +148,55 @@ describe("mapReadoutPayload", () => {
     const p = mapReadoutPayload({ snippets: [{ id: "a" }] });
     expect(p.slides).toEqual([]);
     expect(p.slideTranscripts).toEqual([]);
+  });
+});
+
+describe("pickTopSnippet (one comment per slide)", () => {
+  const snip = (over: Record<string, unknown>) =>
+    mapReadoutSnippet({ transcript: "t", ...over });
+
+  it("returns null for a slide with no snippets", () => {
+    expect(pickTopSnippet([])).toBeNull();
+  });
+
+  it("a slide with 2 snippets collapses to ONE — lowest rank wins", () => {
+    const a = snip({ id: "a", rank: 3 });
+    const b = snip({ id: "b", rank: 1 });
+    expect(pickTopSnippet([a, b])?.id).toBe("b");
+    expect(pickTopSnippet([b, a])?.id).toBe("b"); // order-independent
+  });
+
+  it("no rank → highest power_score (then overall_score)", () => {
+    expect(
+      pickTopSnippet([
+        snip({ id: "a", power_score: 0.4 }),
+        snip({ id: "b", power_score: 0.9 }),
+      ])?.id
+    ).toBe("b");
+    expect(
+      pickTopSnippet([
+        snip({ id: "a", overall_score: 0.2 }),
+        snip({ id: "b", overall_score: 0.7 }),
+      ])?.id
+    ).toBe("b");
+  });
+
+  it("no rank/power → highest stickiness composite", () => {
+    expect(
+      pickTopSnippet([
+        snip({ id: "a", stickiness: { composite: 0.2 } }),
+        snip({ id: "b", stickiness: { composite: 0.8 } }),
+      ])?.id
+    ).toBe("b");
+  });
+
+  it("all equal → earliest start offset", () => {
+    expect(
+      pickTopSnippet([
+        snip({ id: "a", start_offset_ms: 5000 }),
+        snip({ id: "b", start_offset_ms: 1000 }),
+      ])?.id
+    ).toBe("b");
   });
 });
 
