@@ -371,7 +371,16 @@ function MomentRow({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Transcript — the orange card; the whole card toggles the reveal */}
+      {/* Playback FIRST — directly below the slide. */}
+      {snippet.audioRef ? (
+        <MediaPlayer
+          src={snippet.audioRef}
+          startOffsetMs={snippet.startOffsetMs}
+          durationMs={snippet.durationMs}
+        />
+      ) : null}
+
+      {/* Then the transcript — the orange card; the whole card toggles the reveal */}
       {snippet.transcript ? (
         <div
           role={hasReveal ? "button" : undefined}
@@ -397,15 +406,6 @@ function MomentRow({
             />
           ) : null}
         </div>
-      ) : null}
-
-      {/* Per-moment playback — always visible (play back what you said here) */}
-      {snippet.audioRef ? (
-        <MediaPlayer
-          src={snippet.audioRef}
-          startOffsetMs={snippet.startOffsetMs}
-          durationMs={snippet.durationMs}
-        />
       ) : null}
 
       {isOpen && hasReveal ? <SnippetDetail snippet={snippet} /> : null}
@@ -434,6 +434,16 @@ function DeckSlideContent({
   const hasReveal = detailSnippets.length > 0;
   return (
     <>
+      {/* Playback FIRST — directly below the slide (parent recording, clamped). */}
+      {group.fullAudioRef && group.fullDurationMs > 0 ? (
+        <MediaPlayer
+          src={group.fullAudioRef}
+          startOffsetMs={group.fullStartOffsetMs}
+          durationMs={group.fullDurationMs}
+        />
+      ) : null}
+
+      {/* Then the transcript. */}
       {group.fullTranscript ? (
         <div
           role={hasReveal ? "button" : undefined}
@@ -464,15 +474,6 @@ function DeckSlideContent({
           No speech recorded on this slide.
         </p>
       )}
-
-      {/* Play back the whole slide — once (parent recording, clamped to its span). */}
-      {group.fullAudioRef && group.fullDurationMs > 0 ? (
-        <MediaPlayer
-          src={group.fullAudioRef}
-          startOffsetMs={group.fullStartOffsetMs}
-          durationMs={group.fullDurationMs}
-        />
-      ) : null}
 
       {/* Acoustic detail for the slide's moments — no transcript / player repeat. */}
       {isOpen && hasReveal ? (

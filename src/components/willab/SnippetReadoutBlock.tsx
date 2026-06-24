@@ -8,8 +8,8 @@ import type { ReadoutFeatures, ReadoutStickiness } from "./readout";
 /*                                                                            */
 /*  Unified with the user readout's per-slide design, but EVERYTHING is shown */
 /*  (the coach reads the whole snippet without tapping). Anatomy:             */
+/*    - MediaPlayer (FIRST, directly below the slide — readout order)          */
 /*    - Transcript card (warm orange tint, the readout standard)               */
-/*    - MediaPlayer (below the transcript, like the readout)                   */
 /*    - Hero pair: speed (`179 wpm (143%)`) + pause ratio                    */
 /*    - Full acoustic metrics — always visible (no Show-details toggle)        */
 /*    - Topic stickiness                                                      */
@@ -64,9 +64,14 @@ export default function SnippetReadoutBlock({
 
   return (
     <>
-      {/* Transcript (orange card) → playback — same order + look as the user
-          readout. Everything is shown; nothing is behind a tap. */}
+      {/* Playback FIRST (directly below the slide) → then the transcript — same
+          order + look as the user readout. Everything is shown; no tap. */}
       <div className="flex flex-col gap-3">
+        <MediaPlayer
+          src={audioRef}
+          startOffsetMs={startOffsetMs}
+          durationMs={durationMs}
+        />
         {transcript ? (
           <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
             <p className="text-[15px] leading-relaxed text-foreground">
@@ -74,11 +79,6 @@ export default function SnippetReadoutBlock({
             </p>
           </div>
         ) : null}
-        <MediaPlayer
-          src={audioRef}
-          startOffsetMs={startOffsetMs}
-          durationMs={durationMs}
-        />
       </div>
 
       {/* Hero pair */}
