@@ -176,6 +176,21 @@ export default function Lounge({
   // thread underneath with no remount of the queue.
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
 
+  // The arc the best-presentation bubble points at — read from the DURABLE,
+  // server-persisted recording_summary metadata (newest first), so the bubble
+  // stays clickable across logout/login and any device. null → the bubble
+  // falls back to the localStorage arc (pre-fix recordings, same device).
+  const bubbleArcId = useMemo<string | null>(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      const arc = m.metadata?.arc_id;
+      if (m.kind === "recording_summary" && typeof arc === "string" && arc.length > 0) {
+        return arc;
+      }
+    }
+    return null;
+  }, [messages]);
+
   // Interleave the coach's review queue rows with regular Lounge messages so
   // a "new session ready to label" bubble appears chronologically alongside
   // the rest of the chat — that's the §3 design ("message in his chat from
@@ -483,6 +498,7 @@ export default function Lounge({
             ) : item.kind === "auditprogress" ? (
               <ProgressToAuditBubble
                 key={item.reactKey}
+                arcId={bubbleArcId}
                 onOpenAudit={() => setAuditOpen(true)}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}

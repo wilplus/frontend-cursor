@@ -23,6 +23,10 @@ export function readoutSummaryDraft(input: {
   /** The take's session id — makes the card open its own readout (slides +
    *  per-slide transcript) via ReportCard.onOpenReadout, even pre-coach. */
   sessionId?: string;
+  /** The explore arc this take belongs to — persisted on the message so the
+   *  "View your best presentation" bubble stays clickable across logout/login
+   *  (and any other device) without depending on localStorage. */
+  arcId?: string;
   speechRate?: number; // §3.3 features.speech_rate (hero)
   pauseRatio?: number; // §3.3 features.pause_ratio (hero)
 }): LoungeMessageDraft {
@@ -35,6 +39,7 @@ export function readoutSummaryDraft(input: {
       report_type: "readout",
       recording_id: input.recordingId,
       session_id: input.sessionId,
+      arc_id: input.arcId,
       topic: input.topic,
       speech_rate: input.speechRate,
       pause_ratio: input.pauseRatio,
