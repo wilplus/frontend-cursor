@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import LoadingState from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import {
   fetchSessionReadout,
@@ -54,11 +54,7 @@ export default function InsightsOverlay({
         />
       );
     }
-    return (
-      <div className="fixed inset-0 z-30 flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState fullscreen />;
   }
 
   return (

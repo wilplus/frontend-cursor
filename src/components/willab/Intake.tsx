@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import LoadingState from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { fetchUserProfile, saveUserProfile } from "@/services/api/userProfile";
 import { useSignedIn } from "./useSignedIn";
@@ -63,11 +63,7 @@ export default function Intake({ onDone }: { onDone: () => void }) {
   }
 
   if (checking) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (

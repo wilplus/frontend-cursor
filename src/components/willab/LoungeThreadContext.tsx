@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { Loader2 } from "lucide-react";
 import {
   useLoungeThread,
   type UseLoungeThreadReturn,
 } from "./useLoungeThread";
+import LoadingState from "./LoadingState";
 import { useSignedIn } from "./useSignedIn";
 
 /* -------------------------------------------------------------------------- */
@@ -33,11 +33,7 @@ export function useLoungeThreadCtx(): UseLoungeThreadReturn {
 export function LoungeThreadProvider({ children }: { children: React.ReactNode }) {
   const signedIn = useSignedIn();
   if (signedIn === null) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState />;
   }
   return <LoungeThreadInner signedIn={signedIn}>{children}</LoungeThreadInner>;
 }
