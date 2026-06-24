@@ -13,9 +13,15 @@ import {
   loungeToHistory,
   splitBotMessage,
 } from "./willabHelpers";
-import dynamic from "next/dynamic";
 import ReportCard from "./ReportCard";
 import LoadingState from "./LoadingState";
+import InsightsOverlay from "./InsightsOverlay";
+import LibraryOverlay from "./LibraryOverlay";
+import AuditOverlay from "./AuditOverlay";
+import BestPresentationOverlay from "./BestPresentationOverlay";
+import BreakthroughsOverlay from "./BreakthroughsOverlay";
+import StudentRosterOverlay from "./StudentRosterOverlay";
+import CoachReviewOverlay from "./CoachReviewOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { writeExploreArc } from "@/lib/willab/exploreArc";
 import {
@@ -34,40 +40,6 @@ import {
   type ChipAction,
 } from "./loungePrompts";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
-
-/* Heavy overlays are lazy-loaded — they're each opened on demand, so keeping
- * them out of the initial Lounge bundle speeds first paint. The fallback is the
- * shared full-screen LoadingState while the chunk arrives. NOTE: next/dynamic
- * requires the options to be an INLINE object literal (SWC reads `ssr`/`loading`
- * statically) — do not hoist them into a shared const. */
-const InsightsOverlay = dynamic(() => import("./InsightsOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
-const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
-const AuditOverlay = dynamic(() => import("./AuditOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
-const BestPresentationOverlay = dynamic(
-  () => import("./BestPresentationOverlay"),
-  { loading: () => <LoadingState fullscreen />, ssr: false }
-);
-const BreakthroughsOverlay = dynamic(() => import("./BreakthroughsOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
-const StudentRosterOverlay = dynamic(() => import("./StudentRosterOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
-const CoachReviewOverlay = dynamic(() => import("./CoachReviewOverlay"), {
-  loading: () => <LoadingState fullscreen />,
-  ssr: false,
-});
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
