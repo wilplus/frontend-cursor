@@ -818,18 +818,18 @@ function MomentCard({ deck, slide }: { deck: Deck; slide: DeckSlide }) {
 
         {showVerbatim ? (
           <>
-            {/* C — verbatim slide transcript + always-visible slide playback */}
-            {slide.transcript ? (
-              <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                {slide.transcript}
-              </p>
-            ) : null}
+            {/* Playback FIRST — directly below the slide — then the transcript. */}
             {slide.audioRef ? (
               <MediaPlayer
                 src={slide.audioRef}
                 startOffsetMs={slide.startOffsetMs}
                 durationMs={slide.durationMs}
               />
+            ) : null}
+            {slide.transcript ? (
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                {slide.transcript}
+              </p>
             ) : null}
           </>
         ) : m ? (
