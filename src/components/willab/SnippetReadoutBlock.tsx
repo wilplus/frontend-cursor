@@ -1,19 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ReadoutFeatures, ReadoutStickiness } from "./readout";
 
 /* -------------------------------------------------------------------------- */
-/*  SnippetReadoutBlock — shared "What you said" block                        */
+/*  SnippetReadoutBlock — the snippet readout block in the COACH review card.  */
 /*                                                                            */
-/*  Used by ReadoutCard (user Lab readout) and CoachSnippetReviewCard (coach  */
-/*  review overlay) so both see the SAME anatomy:                             */
-/*    - "What you said" heading                                               */
-/*    - MediaPlayer                                                           */
-/*    - Transcript card (warm-tint, matches the library/readout standard)      */
+/*  Unified with the user readout's per-slide design, but EVERYTHING is shown */
+/*  (the coach reads the whole snippet without tapping). Anatomy:             */
+/*    - Transcript card (warm orange tint, the readout standard)               */
+/*    - MediaPlayer (below the transcript, like the readout)                   */
 /*    - Hero pair: speed (`179 wpm (143%)`) + pause ratio                    */
-/*    - "▸ Show details" toggle (button+state, not <details>)                */
+/*    - Full acoustic metrics — always visible (no Show-details toggle)        */
 /*    - Topic stickiness                                                      */
 /*                                                                            */
 /*  Speed display (FE-1d): `{wpm} wpm ({pct}%)`. If BE omits speechRate,     */
@@ -62,28 +60,25 @@ export default function SnippetReadoutBlock({
   stickiness: ReadoutStickiness;
   features: ReadoutFeatures | null;
 }) {
-  const [showDetails, setShowDetails] = useState(false);
   const f = features;
 
   return (
     <>
-      {/* What you said */}
-      <div>
-        <p className="text-sm font-semibold text-foreground">What you said</p>
-        <div className="mt-2">
-          <MediaPlayer
-            src={audioRef}
-            startOffsetMs={startOffsetMs}
-            durationMs={durationMs}
-          />
-        </div>
+      {/* Transcript (orange card) → playback — same order + look as the user
+          readout. Everything is shown; nothing is behind a tap. */}
+      <div className="flex flex-col gap-3">
         {transcript ? (
-          <div className="mt-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+          <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
             <p className="text-[15px] leading-relaxed text-foreground">
               {transcript}
             </p>
           </div>
         ) : null}
+        <MediaPlayer
+          src={audioRef}
+          startOffsetMs={startOffsetMs}
+          durationMs={durationMs}
+        />
       </div>
 
       {/* Hero pair */}
@@ -107,39 +102,28 @@ export default function SnippetReadoutBlock({
         </div>
       </div>
 
-      {/* Show details toggle */}
+      {/* Full metrics — always visible (no toggle); coach sees more than the user. */}
       {f ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowDetails((s) => !s)}
-            className="text-[12px] text-muted-foreground hover:text-foreground"
-          >
-            {showDetails ? "▾" : "▸"} Show details
-          </button>
-          {showDetails && (
-            <div className="mt-2 flex flex-col gap-2">
-              <DetailRow
-                label="Pitch"
-                value={`F0 mean ${hz(f.f0Mean)} · SD ${hz(f.f0Sd)}`}
-              />
-              <DetailRow
-                label="Pace & pauses"
-                value={`mean pause ${sec(f.meanPause)}`}
-              />
-              <DetailRow
-                label="Volume & voice"
-                value={`range ${dB(f.loudnessRange)} · voiced ${pct(f.voicedRatio)}`}
-              />
-              <DetailRow label="F0 slope" value={dec(f.f0Slope)} />
-              <DetailRow label="Pause regularity" value={dec(f.pauseRegularity)} />
-              <DetailRow
-                label="Intensity envelope"
-                value={dec(f.intensityEnvelope)}
-              />
-              <DetailRow label="F0 mid→end Δ" value={dec(f.f0MidEndDelta)} />
-            </div>
-          )}
+        <div className="flex flex-col gap-2">
+          <DetailRow
+            label="Pitch"
+            value={`F0 mean ${hz(f.f0Mean)} · SD ${hz(f.f0Sd)}`}
+          />
+          <DetailRow
+            label="Pace & pauses"
+            value={`mean pause ${sec(f.meanPause)}`}
+          />
+          <DetailRow
+            label="Volume & voice"
+            value={`range ${dB(f.loudnessRange)} · voiced ${pct(f.voicedRatio)}`}
+          />
+          <DetailRow label="F0 slope" value={dec(f.f0Slope)} />
+          <DetailRow label="Pause regularity" value={dec(f.pauseRegularity)} />
+          <DetailRow
+            label="Intensity envelope"
+            value={dec(f.intensityEnvelope)}
+          />
+          <DetailRow label="F0 mid→end Δ" value={dec(f.f0MidEndDelta)} />
         </div>
       ) : null}
 
