@@ -37,30 +37,37 @@ import type { RecordingProgress } from "@/services/api/recordingProgress";
 
 /* Heavy overlays are lazy-loaded — they're each opened on demand, so keeping
  * them out of the initial Lounge bundle speeds first paint. The fallback is the
- * shared full-screen LoadingState while the chunk arrives. */
-const overlayOpts = {
+ * shared full-screen LoadingState while the chunk arrives. NOTE: next/dynamic
+ * requires the options to be an INLINE object literal (SWC reads `ssr`/`loading`
+ * statically) — do not hoist them into a shared const. */
+const InsightsOverlay = dynamic(() => import("./InsightsOverlay"), {
   loading: () => <LoadingState fullscreen />,
   ssr: false,
-} as const;
-const InsightsOverlay = dynamic(() => import("./InsightsOverlay"), overlayOpts);
-const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), overlayOpts);
-const AuditOverlay = dynamic(() => import("./AuditOverlay"), overlayOpts);
+});
+const LibraryOverlay = dynamic(() => import("./LibraryOverlay"), {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+});
+const AuditOverlay = dynamic(() => import("./AuditOverlay"), {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+});
 const BestPresentationOverlay = dynamic(
   () => import("./BestPresentationOverlay"),
-  overlayOpts
+  { loading: () => <LoadingState fullscreen />, ssr: false }
 );
-const BreakthroughsOverlay = dynamic(
-  () => import("./BreakthroughsOverlay"),
-  overlayOpts
-);
-const StudentRosterOverlay = dynamic(
-  () => import("./StudentRosterOverlay"),
-  overlayOpts
-);
-const CoachReviewOverlay = dynamic(
-  () => import("./CoachReviewOverlay"),
-  overlayOpts
-);
+const BreakthroughsOverlay = dynamic(() => import("./BreakthroughsOverlay"), {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+});
+const StudentRosterOverlay = dynamic(() => import("./StudentRosterOverlay"), {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+});
+const CoachReviewOverlay = dynamic(() => import("./CoachReviewOverlay"), {
+  loading: () => <LoadingState fullscreen />,
+  ssr: false,
+});
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
