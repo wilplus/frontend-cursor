@@ -24,6 +24,12 @@ export default function Footer() {
         >
           Science
         </Link>
+        <Link
+          href="/terms"
+          className="no-underline hover:text-foreground transition-colors"
+        >
+          Terms &amp; Policy
+        </Link>
       </div>
     </footer>
   );

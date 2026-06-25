@@ -46,8 +46,11 @@ describe("isReportMessage", () => {
 
 describe("readoutView / insightView", () => {
   it("reads readout metadata", () => {
-    expect(readoutView({ topic: "t", speech_rate: 140, pause_ratio: 0.3 })).toEqual({
+    expect(
+      readoutView({ topic: "t", take_index: 2, speech_rate: 140, pause_ratio: 0.3 })
+    ).toEqual({
       topic: "t",
+      takeIndex: 2,
       speechRate: 140,
       pauseRatio: 0.3,
     });
@@ -56,24 +59,37 @@ describe("readoutView / insightView", () => {
   it("drops bad / absent readout fields to null", () => {
     expect(readoutView({ topic: "", speech_rate: "x" })).toEqual({
       topic: null,
+      takeIndex: null,
       speechRate: null,
       pauseRatio: null,
     });
     expect(readoutView(null)).toEqual({
       topic: null,
+      takeIndex: null,
       speechRate: null,
       pauseRatio: null,
     });
   });
 
   it("reads insight metadata, defaulting absent fields to null", () => {
-    expect(insightView({ overall_message: "nice work", note_count: 3 })).toEqual({
+    expect(
+      insightView({
+        overall_message: "nice work",
+        note_count: 3,
+        topic: "My talk",
+        take_index: 1,
+      })
+    ).toEqual({
       overallMessage: "nice work",
       noteCount: 3,
+      topic: "My talk",
+      takeIndex: 1,
     });
     expect(insightView(undefined)).toEqual({
       overallMessage: null,
       noteCount: null,
+      topic: null,
+      takeIndex: null,
     });
   });
 });

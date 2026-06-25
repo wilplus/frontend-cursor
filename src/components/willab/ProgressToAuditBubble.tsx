@@ -94,7 +94,7 @@ export default function ProgressToAuditBubble({
                 ? onOpenBestPresentation(arcId)
                 : onOpenAudit()
             }
-            className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+            className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
           >
             View your best presentation
           </button>
@@ -102,7 +102,7 @@ export default function ProgressToAuditBubble({
             <button
               type="button"
               onClick={() => onOpenBreakthroughs(arcId)}
-              className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+              className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
             >
               View your breakthrough moments
             </button>
@@ -132,7 +132,7 @@ export default function ProgressToAuditBubble({
             <button
               type="button"
               onClick={onStartNextTake}
-              className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+              className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
             >
               Record next take
             </button>

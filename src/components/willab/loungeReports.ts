@@ -27,6 +27,9 @@ export function readoutSummaryDraft(input: {
    *  "View your best presentation" bubble stays clickable across logout/login
    *  (and any other device) without depending on localStorage. */
   arcId?: string;
+  /** The take number for this recording (explore takes only) — shown on the
+   *  "Your Recording" card. */
+  takeIndex?: number;
   speechRate?: number; // §3.3 features.speech_rate (hero)
   pauseRatio?: number; // §3.3 features.pause_ratio (hero)
 }): LoungeMessageDraft {
@@ -40,6 +43,7 @@ export function readoutSummaryDraft(input: {
       recording_id: input.recordingId,
       session_id: input.sessionId,
       arc_id: input.arcId,
+      take_index: input.takeIndex,
       topic: input.topic,
       speech_rate: input.speechRate,
       pause_ratio: input.pauseRatio,
@@ -59,18 +63,25 @@ function str(v: unknown): string | null {
 
 export interface ReadoutView {
   topic: string | null;
+  takeIndex: number | null;
   speechRate: number | null;
   pauseRatio: number | null;
 }
 export interface InsightView {
   overallMessage: string | null;
   noteCount: number | null;
+  /** topic + takeIndex for the "Feedback on …" card line. The BE must add
+   *  `topic` + `take_index` to the insight message metadata for these to
+   *  populate; null until then (the card omits the missing parts). */
+  topic: string | null;
+  takeIndex: number | null;
 }
 
 export function readoutView(md: Record<string, unknown> | null | undefined): ReadoutView {
   const m = md ?? {};
   return {
     topic: str(m.topic),
+    takeIndex: num(m.take_index),
     speechRate: num(m.speech_rate),
     pauseRatio: num(m.pause_ratio),
   };
@@ -81,5 +92,7 @@ export function insightView(md: Record<string, unknown> | null | undefined): Ins
   return {
     overallMessage: str(m.overall_message),
     noteCount: num(m.note_count),
+    topic: str(m.topic),
+    takeIndex: num(m.take_index),
   };
 }

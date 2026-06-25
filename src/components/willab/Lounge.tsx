@@ -331,14 +331,25 @@ export default function Lounge({
   // now in case a future surface (e.g. an accessibility opt-in) wants
   // to bring it back, but the Lounge no longer calls it.
 
-  // Jump to bottom on first paint (scroll restoration can leave the user at
-  // a mid-thread position; always open at the latest message).
+  // Jump to bottom once the thread finishes loading — always open at the latest
+  // message. Re-pin after the next frame + a short delay so async content
+  // (slide images, report cards) that grows the thread doesn't leave us short
+  // of the true bottom.
   useEffect(() => {
-    if (didInitScrollRef.current || messages.length === 0) return;
+    if (didInitScrollRef.current || thread.loading || messages.length === 0) {
+      return;
+    }
     didInitScrollRef.current = true;
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+    if (!el) return;
+    const toBottom = () => {
+      el.scrollTop = el.scrollHeight;
+    };
+    toBottom();
+    requestAnimationFrame(toBottom);
+    const t = setTimeout(toBottom, 150);
+    return () => clearTimeout(t);
+  }, [thread.loading, messages.length]);
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
@@ -658,7 +669,7 @@ function PostSendOffer({
       <button
         type="button"
         onClick={onReviewStrongSides}
-        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+        className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
       >
         {CHIP_LABEL.strong_sides}
       </button>
@@ -675,7 +686,7 @@ function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => 
       <button
         type="button"
         onClick={onClick}
-        className="self-start rounded-full border border-border px-3 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+        className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
       >
         {CHIP_LABEL[action]}
       </button>
