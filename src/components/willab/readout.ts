@@ -113,6 +113,11 @@ export interface ReadoutPayload {
    *  per deck slide (slide + its full transcript); [] → fall back to the
    *  per-snippet pagination (older recordings). */
   slideTranscripts: ReadoutSlideTranscript[];
+  /** BE `voice_metrics_available` — false when the take had no usable acoustic
+   *  signal (too quiet / empty). The readout then shows a soft notice in place
+   *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
+   *  true (absent → render metrics as today). */
+  voiceMetricsAvailable: boolean;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -261,6 +266,9 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     presentationRef: pickPresentationRef(r, insights),
     slides,
     slideTranscripts,
+    // Only false when the BE explicitly says so; absent / anything else → true
+    // (render metrics as today).
+    voiceMetricsAvailable: r.voice_metrics_available !== false,
   };
 }
 
@@ -427,6 +435,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     presentationRef: null,
     slides: [],
     slideTranscripts: [],
+    voiceMetricsAvailable: true,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(

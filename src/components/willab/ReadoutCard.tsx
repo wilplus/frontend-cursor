@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Play } from "lucide-react";
+import { ChevronDown, Info, Play } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
@@ -234,6 +234,8 @@ export default function ReadoutCard({
             group={g}
             presentationRef={payload.presentationRef}
             isSample={isSample && i === 0}
+            // Take-level note: show once (first group) in the stacked view.
+            voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
             expanded={expanded}
             onToggle={toggle}
           />
@@ -276,6 +278,7 @@ export default function ReadoutCard({
           group={groups[idx]}
           presentationRef={payload.presentationRef}
           isSample={isSample && idx === 0}
+          voiceMetricsAvailable={payload.voiceMetricsAvailable}
           expanded={expanded}
           onToggle={toggle}
         />
@@ -290,12 +293,14 @@ function SlideGroupPage({
   group,
   presentationRef,
   isSample,
+  voiceMetricsAvailable,
   expanded,
   onToggle,
 }: {
   group: ReadoutPage;
   presentationRef: string | null;
   isSample: boolean;
+  voiceMetricsAvailable: boolean;
   expanded: string[];
   onToggle: (key: string) => void;
 }) {
@@ -329,6 +334,10 @@ function SlideGroupPage({
             ③.
           </p>
         ) : null}
+
+        {/* A — voice metrics unavailable for this take (empty acoustic signal):
+            a soft inline note instead of empty metric rows. */}
+        {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
 
         {perSlide ? (
           // Per deck slide: the COMPLETE 1:1 transcript + slide playback shown
@@ -539,6 +548,20 @@ function BreakthroughBlock({ videoRef }: { videoRef: string | null }) {
           <video src={videoRef} controls playsInline className="w-full bg-black" />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/* ── voice metrics unavailable — soft inline note (A), not an error ── */
+
+function VoiceMetricsNotice() {
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-border bg-muted px-3 py-2.5 text-[14px] leading-relaxed text-muted-foreground">
+      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <p>
+        Voice metrics unavailable for this take. For best results, try speaking a
+        bit louder or recording in a calmer, quieter space.
+      </p>
     </div>
   );
 }
