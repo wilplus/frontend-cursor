@@ -36,6 +36,7 @@ import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
 import WillabInstallPrompt from "./WillabInstallPrompt";
+import SymmetricPair from "./SymmetricPair";
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
@@ -586,6 +587,12 @@ export default function Lounge({
         {botThinking && <TypingDots />}
       </div>
 
+      {/* F2 — PWA install as the final post-send beat (the first-run flow's
+          close). An in-thread bubble + the shared SymmetricPair, not a floating
+          popup. Self-gates to installable mobile, post-send only; the
+          always-mounted Lounge captures beforeinstallprompt early. */}
+      <WillabInstallPrompt show={state === "review_pending"} />
+
       {/* E3 — coach-only entry to the student roster (pseudonymized). Coaches
           can still record, so this sits above the record CTA, not instead of it. */}
       {isCoach && (
@@ -718,10 +725,6 @@ export default function Lounge({
         />
       )}
 
-      {/* U10 pt2 — PWA install at the post-send moment (the final beat of the
-          first-run flow). Self-gates to installable mobile, post-send only;
-          captures beforeinstallprompt as early as this always-mounted Lounge. */}
-      <WillabInstallPrompt show={state === "review_pending"} />
     </div>
   );
 }
@@ -817,40 +820,6 @@ function JokeOffer({
         actionLabel="Go on then"
         onAction={onYes}
       />
-    </div>
-  );
-}
-
-/** The symmetric button pair — grey Close (left) + orange action (right), equal
- *  width, matching the record CTA's height. Shared by the credit gate / joke
- *  offer / (later) install bubble. */
-function SymmetricPair({
-  closeLabel,
-  onClose,
-  actionLabel,
-  onAction,
-}: {
-  closeLabel: string;
-  onClose: () => void;
-  actionLabel: string;
-  onAction: () => void;
-}) {
-  return (
-    <div className="flex items-stretch gap-3">
-      <button
-        type="button"
-        onClick={onClose}
-        className="flex-1 rounded-full bg-muted py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-muted/70"
-      >
-        {closeLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onAction}
-        className="flex-1 rounded-full bg-primary py-3 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        {actionLabel}
-      </button>
     </div>
   );
 }

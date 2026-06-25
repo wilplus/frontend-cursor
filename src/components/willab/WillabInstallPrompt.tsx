@@ -1,23 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUpRight, Copy, PlusSquare, Share, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDown, PlusSquare, Share } from "lucide-react";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
+import SymmetricPair from "./SymmetricPair";
 
 /* -------------------------------------------------------------------------- */
-/*  WillabInstallPrompt — U10 pt2: "Add to home screen" at the post-send       */
-/*  moment in the Lounge — the final beat of the first-run flow.               */
+/*  WillabInstallPrompt — F2: "Add to home screen" as an in-thread bubble at    */
+/*  the post-send moment in the Lounge (the final beat of the first-run flow).  */
+/*                                                                            */
+/*  Renders inline in the footer CTA stack (not a floating popup) as a bot      */
+/*  bubble + the shared SymmetricPair — the same grey-outline / orange shape as  */
+/*  the overlay Back | Next nav and the F1/F7 beats.                            */
 /*                                                                            */
 /*  Shows when `show` is true (the user just sent → review_pending) AND the     */
 /*  hook resolves a real install affordance for this platform (installPath !=   */
 /*  "none") AND the user hasn't dismissed it. The single surface for install    */
-/*  across the app (the old /results-gated PwaInstallPrompt was retired).       */
+/*  across the app.                                                             */
 /*                                                                            */
 /*  Branches on `installPath` (platform matrix lives in the hook):              */
-/*    native        → one-tap native prompt (Android/Chromium)                  */
-/*    ios/ipad-safari→ guided manual Share → Add to Home Screen card            */
-/*    open-in-safari → "open in Safari" message (in-app webview / CriOS)        */
+/*    native        → orange button fires the one-tap native prompt             */
+/*    ios/ipad-safari→ guided manual Share → Add to Home Screen steps           */
+/*    open-in-safari → "open in Safari" message + copy-link action              */
 /* -------------------------------------------------------------------------- */
 
 // Shared key so one dismissal / install suppresses the prompt everywhere — we
@@ -37,6 +41,8 @@ export default function WillabInstallPrompt({ show }: { show: boolean }) {
     }
   }, []);
 
+  // Persist-dismiss: never show again (install accepted, or the user confirms
+  // they've added it). Soft-dismiss: hide for now, may offer again next session.
   function persistDismiss() {
     if (typeof window !== "undefined") {
       try {
@@ -47,12 +53,15 @@ export default function WillabInstallPrompt({ show }: { show: boolean }) {
     }
     setDismissed(true);
   }
+  function softDismiss() {
+    setDismissed(true);
+  }
 
   async function onInstall() {
     const outcome = await pwa.promptInstall();
     // Persist only on accept; a cancel hides for this view but may ask again.
     if (outcome === "accepted") persistDismiss();
-    else setDismissed(true);
+    else softDismiss();
   }
 
   const { installPath } = pwa;
@@ -65,54 +74,37 @@ export default function WillabInstallPrompt({ show }: { show: boolean }) {
 
   return (
     <div
-      role="dialog"
+      role="group"
       aria-label="Add WillpowerLab to your home screen"
-      className="fixed inset-x-0 bottom-4 z-40 mx-auto w-[min(92vw,28rem)] rounded-2xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur"
+      className="flex flex-col gap-3"
     >
-      {/* iPad's Share lives top-right — point an arrow up toward it. */}
-      {isIpad ? (
-        <ArrowUpRight
-          className="absolute -right-1 -top-3 h-6 w-6 animate-bounce text-primary"
-          aria-hidden
-        />
-      ) : null}
-
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[15px] font-semibold text-foreground">
-            Keep WillpowerLab one tap away
-          </p>
-          <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
-            Add it to your home screen so your coach&apos;s insights are always
-            with you.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={persistDismiss}
-          aria-label="Dismiss"
-          className="shrink-0 text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
+        {installPath === "open-in-safari"
+          ? "Open this page in Safari to add WillpowerLab to your home screen, so your coach's insights are always one tap away."
+          : "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you."}
       </div>
 
+      {/* iOS / iPadOS Safari can't be invoked programmatically — show the manual
+          Share → Add to Home Screen steps, then a confirm / dismiss pair. */}
+      {isIosCard ? <IosSteps isIpad={isIpad} /> : null}
+
       {installPath === "native" ? (
-        <div className="mt-3 flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void onInstall()}
-            className="rounded-full"
-          >
-            Add to home screen
-          </Button>
-        </div>
-      ) : installPath === "open-in-safari" ? (
-        <OpenInSafariCard />
+        <SymmetricPair
+          closeLabel="Not now"
+          onClose={softDismiss}
+          actionLabel="Add to home screen"
+          onAction={() => void onInstall()}
+        />
       ) : isIosCard ? (
-        <IosSteps isIpad={isIpad} />
-      ) : null}
+        <SymmetricPair
+          closeLabel="Not now"
+          onClose={softDismiss}
+          actionLabel="Got it"
+          onAction={persistDismiss}
+        />
+      ) : (
+        <OpenInSafariPair onDismiss={softDismiss} />
+      )}
     </div>
   );
 }
@@ -120,7 +112,7 @@ export default function WillabInstallPrompt({ show }: { show: boolean }) {
 /* iOS / iPadOS Safari: no install API exists, so guide the manual Share path. */
 function IosSteps({ isIpad }: { isIpad: boolean }) {
   return (
-    <div className="mt-3 rounded-xl bg-muted p-3">
+    <div className="rounded-xl bg-muted p-3">
       <div className="mb-2 flex items-center gap-2">
         <BrandMark />
         <span className="text-[13px] font-medium text-foreground">
@@ -159,8 +151,9 @@ function IosSteps({ isIpad }: { isIpad: boolean }) {
   );
 }
 
-/* In-app webview (Instagram/FB/…) or Chrome-on-iOS: cannot add to home here. */
-function OpenInSafariCard() {
+/* In-app webview (Instagram/FB/…) or Chrome-on-iOS: cannot add to home here.
+   The orange action copies the URL so the user can paste it into Safari. */
+function OpenInSafariPair({ onDismiss }: { onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
 
   function copyLink() {
@@ -174,23 +167,12 @@ function OpenInSafariCard() {
   }
 
   return (
-    <div className="mt-3 rounded-xl bg-muted p-3">
-      <p className="text-[13px] leading-relaxed text-foreground">
-        Open this page in Safari to add it to your Home Screen.
-      </p>
-      <div className="mt-2 flex justify-end">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={copyLink}
-          className="gap-1.5 rounded-full"
-        >
-          <Copy className="h-3.5 w-3.5" aria-hidden />
-          {copied ? "Link copied" : "Copy link"}
-        </Button>
-      </div>
-    </div>
+    <SymmetricPair
+      closeLabel="Not now"
+      onClose={onDismiss}
+      actionLabel={copied ? "Link copied" : "Copy link"}
+      onAction={copyLink}
+    />
   );
 }
 
