@@ -129,6 +129,10 @@ export default function LabOverlay({
   // Upload → Readout (seam ③).
   const [readout, setReadout] = useState<ReadoutPayload | null>(null);
   const [labSessionId, setLabSessionId] = useState<string | null>(null);
+  // The take number for THIS recording, captured at upload time — before the
+  // success handler bumps arcTakeIndex to the next take (avoids an off-by-one
+  // on the "Your Recording" card).
+  const recordedTakeRef = useRef<number | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -179,6 +183,7 @@ export default function LabOverlay({
     }
     if (!blob || !context || uploadStartedRef.current) return;
     uploadStartedRef.current = true;
+    recordedTakeRef.current = exploreEnabled ? arcTakeIndex : null;
     let active = true;
     void (async () => {
       const result = await submitLabRecording({
@@ -286,6 +291,7 @@ export default function LabOverlay({
           recordingId: labSessionId ?? undefined,
           sessionId: labSessionId ?? undefined,
           arcId: arcId ?? undefined,
+          takeIndex: recordedTakeRef.current ?? undefined,
           speechRate: hero?.speechRate ?? undefined,
           pauseRatio: hero?.pauseRatio ?? undefined,
         })
