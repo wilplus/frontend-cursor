@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
-import { getLastFeeling } from "./willabFeelings";
+import { clearFeeling, getLastFeeling } from "./willabFeelings";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -35,8 +35,21 @@ import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
-import WillabInstallPrompt from "./WillabInstallPrompt";
+import {
+  useInstallOffer,
+  InstallOfferActions,
+  type InstallOffer,
+} from "./WillabInstallPrompt";
 import SymmetricPair from "./SymmetricPair";
+import OfferBubble from "./OfferBubble";
+import {
+  offerDraft,
+  readOfferType,
+  hasOffer,
+  readCreditOfferLive,
+  writeCreditOfferLive,
+  type OfferType,
+} from "./loungeOffers";
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
@@ -135,12 +148,13 @@ export default function Lounge({
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
   const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
   // F1 — credit gate. `canStartAnalysis` is server-owned (don't hardcode >=5);
-  // null until /status loads. dismissed → fall back to the record CTA this session.
+  // null until /status loads. Drives the "credit" thread offer.
   const [canStartAnalysis, setCanStartAnalysis] = useState<boolean | null>(null);
-  const [creditGateDismissed, setCreditGateDismissed] = useState(false);
-  // F7 — pre-recording joke offer (shown once per mount when the captured
-  // feeling is nervous / unsure).
-  const [showJokeOffer, setShowJokeOffer] = useState(false);
+  // F1/F2/F7 — the offer (install / joke / credit) whose action pair is open in
+  // the footer (replacing the record button). null → the record button shows.
+  // The offers themselves persist as thread bubbles (loungeOffers); this only
+  // tracks which one is currently "armed".
+  const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // The "Strong sides" ask surfaces a button anchored IN the thread (not the
@@ -388,12 +402,90 @@ export default function Lounge({
     };
   }, [thread.signedIn]);
 
-  // F7 — offer a (deliberately bad) joke once when the captured pre-recording
-  // feeling was nervous / unsure.
-  useEffect(() => {
-    const f = getLastFeeling();
-    if (f === "nervous" || f === "unsure") setShowJokeOffer(true);
+  // F2 — install affordance primitives (platform + dismiss state). Drives both
+  // whether to surface the install offer and the footer action pair.
+  const install = useInstallOffer();
+
+  // Auto-open an offer in the footer, respecting priority so that when several
+  // fire at the same post-send moment the most urgent wins the slot (the others
+  // remain clickable bubbles in the thread). An explicit bubble tap bypasses
+  // this and opens that offer directly.
+  const openOffer = useCallback((type: OfferType) => {
+    const rank: Record<OfferType, number> = { credit: 3, joke: 2, install: 1 };
+    setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
+
+  // F7 — offer a (deliberately bad) joke ONLY after a genuine, in-session
+  // recording: a recording_summary whose client_created_at is AFTER the thread
+  // settled is the "just recorded" signal. Stamping a settle-time (rather than a
+  // set of ids) means a reload, a status reconcile that lands on review_pending,
+  // OR paging in older history ("Load earlier messages") can never re-arm the
+  // joke — only a summary minted this session, after load, counts as fresh.
+  const settleTimeRef = useRef<string | null>(null);
+  const jokeHandledRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (thread.loading) return;
+    if (settleTimeRef.current === null) {
+      settleTimeRef.current = new Date().toISOString();
+      return;
+    }
+    for (const m of messages) {
+      if (m.kind !== "recording_summary") continue;
+      if (m.client_created_at <= settleTimeRef.current) continue; // historical / paged-in
+      if (jokeHandledRef.current.has(m.client_id)) continue;
+      jokeHandledRef.current.add(m.client_id);
+      const f = getLastFeeling();
+      // Consume the feeling: the check-in only runs on the first recording, so a
+      // value left in place would gate every later take on a stale feeling.
+      clearFeeling();
+      if ((f === "nervous" || f === "unsure") && !hasOffer(messages, "joke")) {
+        void thread.append(offerDraft("joke"));
+        openOffer("joke");
+        break; // one joke offer is plenty
+      }
+    }
+  }, [messages, thread.loading, thread.append, openOffer]);
+
+  // F2 — surface the install offer once, post-send, on an installable platform.
+  // Gated on a FRESH in-session recording (a recording_summary minted after the
+  // settle stamp) so a plain reload / status reconcile that lands on
+  // review_pending never auto-opens it. hasOffer (+ the ref) dedups the append.
+  const installHandledRef = useRef(false);
+  useEffect(() => {
+    if (thread.loading || settleTimeRef.current === null) return;
+    if (state !== "review_pending" || !install.canOffer) return;
+    if (installHandledRef.current || hasOffer(messages, "install")) return;
+    const settle = settleTimeRef.current;
+    const freshSend = messages.some(
+      (m) => m.kind === "recording_summary" && m.client_created_at > settle
+    );
+    if (!freshSend) return;
+    installHandledRef.current = true;
+    void thread.append(offerDraft("install"));
+    openOffer("install");
+  }, [state, install.canOffer, thread.loading, messages, thread.append, openOffer]);
+
+  // F1 — surface the credit offer when the server says the user can't start the
+  // next analysis. A localStorage marker (cleared once they can record again)
+  // dedups across reloads + history paging, where hasOffer only sees the loaded
+  // window. We AUTO-OPEN only on a genuine in-session depletion (true → false);
+  // a reload that simply loads an already-depleted status surfaces the saved
+  // bubble without popping the action pair over the record button.
+  const prevCanStartRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (thread.loading) return;
+    const prev = prevCanStartRef.current;
+    prevCanStartRef.current = canStartAnalysis;
+    if (canStartAnalysis === false) {
+      if (!readCreditOfferLive() && !hasOffer(messages, "credit")) {
+        writeCreditOfferLive(true);
+        void thread.append(offerDraft("credit"));
+      }
+      if (prev === true) openOffer("credit"); // in-session depletion only
+    } else if (canStartAnalysis === true) {
+      writeCreditOfferLive(false);
+    }
+  }, [canStartAnalysis, thread.loading, messages, thread.append, openOffer]);
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
@@ -437,9 +529,9 @@ export default function Lounge({
   }
 
   // F7 — the offer's "yes" asks the bot for a dad joke. The BE recognizes the
-  // plain text and replies with a normal chat bubble (B2).
+  // plain text and replies with a normal chat bubble (B2), which is itself the
+  // response registered in the thread. Closing the offer is the caller's job.
   function askForJoke() {
-    setShowJokeOffer(false);
     void runSend("Tell me a dad joke");
   }
 
@@ -548,6 +640,8 @@ export default function Lounge({
                 message={item.message}
                 onViewInsights={handleViewInsights}
                 onChip={onChip}
+                activeOffer={activeOffer}
+                onOpenOffer={setActiveOffer}
                 animate={
                   i === threadItems.length - 1 &&
                   baselineRef.current !== null &&
@@ -587,12 +681,6 @@ export default function Lounge({
         {botThinking && <TypingDots />}
       </div>
 
-      {/* F2 — PWA install as the final post-send beat (the first-run flow's
-          close). An in-thread bubble + the shared SymmetricPair, not a floating
-          popup. Self-gates to installable mobile, post-send only; the
-          always-mounted Lounge captures beforeinstallprompt early. */}
-      <WillabInstallPrompt show={state === "review_pending"} />
-
       {/* E3 — coach-only entry to the student roster (pseudonymized). Coaches
           can still record, so this sits above the record CTA, not instead of it. */}
       {isCoach && (
@@ -607,28 +695,17 @@ export default function Lounge({
         </Button>
       )}
 
-      {/* U2 — record CTA: dark fill + a red record dot, full-width. Deliberately
-          distinct from the orange primary (Send) and the calm text composer so
-          the high-stakes "on-stage" action never reads as just another button.
-          No flanking buttons — the strong-sides / recordings shortcuts moved to
-          quick-reply chips below (U7). */}
-      {/* F7 — pre-recording joke offer (shown when the captured feeling was
-          nervous / unsure). Suppressed while the credit gate is up so the two
-          symmetric pairs don't stack ambiguously. */}
-      {showJokeOffer &&
-      !(canStartAnalysis === false && !creditGateDismissed) ? (
-        <JokeOffer
-          onYes={askForJoke}
-          onDismiss={() => setShowJokeOffer(false)}
-        />
-      ) : null}
-
-      {/* F1 — credit gate: once the user can't afford the next analysis, the
-          record CTA becomes the symmetric pair [ Close · Get more credits ]. */}
-      {canStartAnalysis === false && !creditGateDismissed ? (
-        <CreditGateCta
-          onClose={() => setCreditGateDismissed(true)}
+      {/* The record-button slot. While an offer is "armed" (freshly triggered,
+          or re-opened by tapping its thread bubble) its action pair REPLACES the
+          black record button; resolving it returns the record button (U2). The
+          offer's prompt + outcome live in the thread as durable bubbles. */}
+      {activeOffer ? (
+        <OfferActions
+          type={activeOffer}
+          install={install}
+          onJokeYes={askForJoke}
           onGetCredits={() => router.push("/dashboard/pricing")}
+          onResolve={() => setActiveOffer(null)}
         />
       ) : (
         <Button
@@ -775,52 +852,50 @@ function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => 
   );
 }
 
-/** F1 — credit-gate CTA: an info bubble + the symmetric pair (grey Close on the
- *  left, orange action on the right) that replaces the record button once the
- *  user can't afford the next analysis. */
-function CreditGateCta({
-  onClose,
+/** The footer action pair for the currently-armed offer — it replaces the
+ *  record button. The matching prompt bubble already lives in the thread; here
+ *  we only render the grey/orange pair (install delegates to its platform-aware
+ *  actions) and call onResolve to return the record button once the user picks. */
+function OfferActions({
+  type,
+  install,
+  onJokeYes,
   onGetCredits,
+  onResolve,
 }: {
-  onClose: () => void;
+  type: OfferType;
+  install: InstallOffer;
+  onJokeYes: () => void;
   onGetCredits: () => void;
+  onResolve: () => void;
 }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
-        You&apos;ve used your free analyses. Top up to keep recording.
-      </div>
-      <SymmetricPair
-        closeLabel="Close"
-        onClose={onClose}
-        actionLabel="Get more credits"
-        onAction={onGetCredits}
-      />
-    </div>
-  );
-}
-
-/** F7 — the pre-recording joke offer (same bubble + symmetric pair shape). */
-function JokeOffer({
-  onYes,
-  onDismiss,
-}: {
-  onYes: () => void;
-  onDismiss: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
-        I&apos;m just a simple system, but I noticed you weren&apos;t feeling
-        great, want me to crack a very bad joke that won&apos;t be funny?
-      </div>
+  if (type === "install") {
+    return <InstallOfferActions offer={install} onResolve={onResolve} />;
+  }
+  if (type === "joke") {
+    return (
       <SymmetricPair
         closeLabel="No thanks"
-        onClose={onDismiss}
+        onClose={onResolve}
         actionLabel="Go on then"
-        onAction={onYes}
+        onAction={() => {
+          onJokeYes();
+          onResolve();
+        }}
       />
-    </div>
+    );
+  }
+  // credit
+  return (
+    <SymmetricPair
+      closeLabel="Close"
+      onClose={onResolve}
+      actionLabel="Get more credits"
+      onAction={() => {
+        onGetCredits();
+        onResolve();
+      }}
+    />
   );
 }
 
@@ -898,14 +973,31 @@ function Bubble({
   message,
   onViewInsights,
   onChip,
+  activeOffer,
+  onOpenOffer,
   animate = false,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onChip?: (action: ChipAction) => void;
+  /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
+  activeOffer?: OfferType | null;
+  /** Tap a persisted offer bubble to re-arm its action pair in the footer. */
+  onOpenOffer?: (type: OfferType) => void;
   /** U3 — true only for a freshly-arrived last message → sequential reveal. */
   animate?: boolean;
 }) {
+  const offerType = readOfferType(message.metadata);
+  if (offerType) {
+    return (
+      <OfferBubble
+        type={offerType}
+        body={message.body}
+        active={activeOffer === offerType}
+        onOpen={() => onOpenOffer?.(offerType)}
+      />
+    );
+  }
   if (message.kind === "recording_summary" || message.kind === "insight") {
     return <ReportCard message={message} onViewInsights={onViewInsights} />;
   }

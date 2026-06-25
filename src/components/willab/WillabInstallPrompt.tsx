@@ -1,34 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowDown, PlusSquare, Share } from "lucide-react";
-import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { usePwaInstall, type InstallPath } from "@/hooks/usePwaInstall";
 import SymmetricPair from "./SymmetricPair";
 
 /* -------------------------------------------------------------------------- */
-/*  WillabInstallPrompt — F2: "Add to home screen" as an in-thread bubble at    */
-/*  the post-send moment in the Lounge (the final beat of the first-run flow).  */
+/*  WillabInstallPrompt — F2: "Add to home screen" as a thread offer.          */
 /*                                                                            */
-/*  Renders inline in the footer CTA stack (not a floating popup) as a bot      */
-/*  bubble + the shared SymmetricPair — the same grey-outline / orange shape as  */
-/*  the overlay Back | Next nav and the F1/F7 beats.                            */
-/*                                                                            */
-/*  Shows when `show` is true (the user just sent → review_pending) AND the     */
-/*  hook resolves a real install affordance for this platform (installPath !=   */
-/*  "none") AND the user hasn't dismissed it. The single surface for install    */
-/*  across the app.                                                             */
-/*                                                                            */
-/*  Branches on `installPath` (platform matrix lives in the hook):              */
-/*    native        → orange button fires the one-tap native prompt             */
-/*    ios/ipad-safari→ guided manual Share → Add to Home Screen steps           */
-/*    open-in-safari → "open in Safari" message + copy-link action              */
+/*  The install affordance is now a durable Lounge offer (see loungeOffers):    */
+/*    - useInstallOffer() exposes the platform primitives + dismiss state, so    */
+/*      the Lounge can decide whether to surface an install offer bubble.        */
+/*    - InstallOfferActions renders the footer action pair while that offer is   */
+/*      open (replacing the record button) — native fires the one-tap prompt,    */
+/*      iOS/iPadOS shows the manual Share → Add to Home Screen steps (Apple has  */
+/*      no install API), an in-app webview offers a copy-link to open in Safari. */
 /* -------------------------------------------------------------------------- */
 
-// Shared key so one dismissal / install suppresses the prompt everywhere — we
+// Shared key so one dismissal / install suppresses the offer everywhere — we
 // never nag across surfaces or sessions.
 const DISMISS_KEY = "willab:pwa-install-dismissed:v1";
 
-export default function WillabInstallPrompt({ show }: { show: boolean }) {
+export interface InstallOffer {
+  installPath: InstallPath;
+  ready: boolean;
+  /** May we surface an install offer at all? (installable platform, not yet
+   *  dismissed, detection settled). */
+  canOffer: boolean;
+  promptInstall: () => Promise<"accepted" | "dismissed" | null>;
+  /** Never offer again (install accepted / user confirms they've added it). */
+  persistDismiss: () => void;
+  /** Hide for now; may offer again next session. */
+  softDismiss: () => void;
+}
+
+export function useInstallOffer(): InstallOffer {
   const pwa = usePwaInstall();
   const [dismissed, setDismissed] = useState(false);
 
@@ -41,9 +47,7 @@ export default function WillabInstallPrompt({ show }: { show: boolean }) {
     }
   }, []);
 
-  // Persist-dismiss: never show again (install accepted, or the user confirms
-  // they've added it). Soft-dismiss: hide for now, may offer again next session.
-  function persistDismiss() {
+  const persistDismiss = useCallback(() => {
     if (typeof window !== "undefined") {
       try {
         window.localStorage.setItem(DISMISS_KEY, "1");
@@ -52,61 +56,75 @@ export default function WillabInstallPrompt({ show }: { show: boolean }) {
       }
     }
     setDismissed(true);
+  }, []);
+  const softDismiss = useCallback(() => setDismissed(true), []);
+
+  return {
+    installPath: pwa.installPath,
+    ready: pwa.ready,
+    canOffer: pwa.ready && !dismissed && pwa.installPath !== "none",
+    promptInstall: pwa.promptInstall,
+    persistDismiss,
+    softDismiss,
+  };
+}
+
+/** The footer action pair for an open install offer. `onResolve` closes the
+ *  offer (returns the record button); the bubble stays in the thread. */
+export function InstallOfferActions({
+  offer,
+  onResolve,
+}: {
+  offer: InstallOffer;
+  onResolve: () => void;
+}) {
+  const isIpad = offer.installPath === "ipad-safari";
+  const isIos = offer.installPath === "ios-safari" || isIpad;
+
+  if (offer.installPath === "native") {
+    return (
+      <SymmetricPair
+        closeLabel="Not now"
+        onClose={() => {
+          offer.softDismiss();
+          onResolve();
+        }}
+        actionLabel="Add to home screen"
+        onAction={() => {
+          void offer.promptInstall().then((outcome) => {
+            // Persist only on accept; a cancel may ask again next session.
+            if (outcome === "accepted") offer.persistDismiss();
+            else offer.softDismiss();
+            onResolve();
+          });
+        }}
+      />
+    );
   }
-  function softDismiss() {
-    setDismissed(true);
-  }
 
-  async function onInstall() {
-    const outcome = await pwa.promptInstall();
-    // Persist only on accept; a cancel hides for this view but may ask again.
-    if (outcome === "accepted") persistDismiss();
-    else softDismiss();
-  }
-
-  const { installPath } = pwa;
-  const visible = show && pwa.ready && !dismissed && installPath !== "none";
-
-  if (!visible) return null;
-
-  const isIpad = installPath === "ipad-safari";
-  const isIosCard = installPath === "ios-safari" || isIpad;
-
-  return (
-    <div
-      role="group"
-      aria-label="Add WillpowerLab to your home screen"
-      className="flex flex-col gap-3"
-    >
-      <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
-        {installPath === "open-in-safari"
-          ? "Open this page in Safari to add WillpowerLab to your home screen, so your coach's insights are always one tap away."
-          : "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you."}
-      </div>
-
-      {/* iOS / iPadOS Safari can't be invoked programmatically — show the manual
-          Share → Add to Home Screen steps, then a confirm / dismiss pair. */}
-      {isIosCard ? <IosSteps isIpad={isIpad} /> : null}
-
-      {installPath === "native" ? (
+  if (isIos) {
+    // No install API on iOS/iPadOS — guide the manual Share path, then confirm.
+    return (
+      <div className="flex flex-col gap-3">
+        <IosSteps isIpad={isIpad} />
         <SymmetricPair
           closeLabel="Not now"
-          onClose={softDismiss}
-          actionLabel="Add to home screen"
-          onAction={() => void onInstall()}
-        />
-      ) : isIosCard ? (
-        <SymmetricPair
-          closeLabel="Not now"
-          onClose={softDismiss}
+          onClose={() => {
+            offer.softDismiss();
+            onResolve();
+          }}
           actionLabel="Got it"
-          onAction={persistDismiss}
+          onAction={() => {
+            offer.persistDismiss();
+            onResolve();
+          }}
         />
-      ) : (
-        <OpenInSafariPair onDismiss={softDismiss} />
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  // open-in-safari (in-app webview / Chrome-on-iOS): can't add to home here.
+  return <OpenInSafariActions offer={offer} onResolve={onResolve} />;
 }
 
 /* iOS / iPadOS Safari: no install API exists, so guide the manual Share path. */
@@ -153,7 +171,13 @@ function IosSteps({ isIpad }: { isIpad: boolean }) {
 
 /* In-app webview (Instagram/FB/…) or Chrome-on-iOS: cannot add to home here.
    The orange action copies the URL so the user can paste it into Safari. */
-function OpenInSafariPair({ onDismiss }: { onDismiss: () => void }) {
+function OpenInSafariActions({
+  offer,
+  onResolve,
+}: {
+  offer: InstallOffer;
+  onResolve: () => void;
+}) {
   const [copied, setCopied] = useState(false);
 
   function copyLink() {
@@ -169,7 +193,10 @@ function OpenInSafariPair({ onDismiss }: { onDismiss: () => void }) {
   return (
     <SymmetricPair
       closeLabel="Not now"
-      onClose={onDismiss}
+      onClose={() => {
+        offer.softDismiss();
+        onResolve();
+      }}
       actionLabel={copied ? "Link copied" : "Copy link"}
       onAction={copyLink}
     />

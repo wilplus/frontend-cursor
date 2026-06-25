@@ -39,3 +39,16 @@ export function getLastFeeling(): Feeling | null {
     return null;
   }
 }
+
+/** Consume the captured feeling. The pre-recording check-in only runs on the
+ *  first recording, so a feeling left in place would gate later takes on a stale
+ *  value; clearing it once consumed keeps the signal tied to the take that
+ *  actually named it. Best-effort (Safari private mode fails soft). */
+export function clearFeeling(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(FEELING_KEY);
+  } catch {
+    /* swallow */
+  }
+}
