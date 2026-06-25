@@ -288,6 +288,9 @@ export interface HomeworkSessionStatus {
   ready_for_self_rating?: boolean | null;
   /** Remaining homework credits (from GET status). Charged −5 on completion+report on backend, not on start. Included when has_active_session is true or false. */
   credits?: number | null;
+  /** Willab credit gate (F1): false once the user can't afford the next analysis
+   *  (server-owned; the FE must NOT hardcode the `credits >= 5` threshold). */
+  can_start_analysis?: boolean | null;
   /** Opening-recording prompt pool; first item used when `task` / `task_text` absent. Prefer `tasks_pool` (admin/homework contract). */
   tasks_pool?: Array<string | { id?: string; text?: string }> | null;
   /** @deprecated Prefer `tasks_pool`; still accepted for older responses. */
