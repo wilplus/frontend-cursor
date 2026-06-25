@@ -40,13 +40,16 @@ export function readParked(): ParkedReadout | null {
       topic: typeof p.topic === "string" ? p.topic : "",
       // Default the per-deck-slide fields so a readout parked by an older app
       // version (before slides/slideTranscripts existed) doesn't crash
-      // ReadoutCard's .length / iteration on resume.
+      // ReadoutCard's .length / iteration on resume. voiceMetricsAvailable
+      // mirrors the mapper's rule (absent/undefined → true) so a readout parked
+      // before that field existed doesn't show a spurious "unavailable" notice.
       readout: {
         ...r,
         slides: Array.isArray(r.slides) ? r.slides : [],
         slideTranscripts: Array.isArray(r.slideTranscripts)
           ? r.slideTranscripts
           : [],
+        voiceMetricsAvailable: r.voiceMetricsAvailable !== false,
       },
     };
   } catch {

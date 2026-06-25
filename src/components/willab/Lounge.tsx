@@ -639,6 +639,7 @@ export default function Lounge({
                 key={item.reactKey}
                 message={item.message}
                 onViewInsights={handleViewInsights}
+                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onChip={onChip}
                 activeOffer={activeOffer}
                 onOpenOffer={setActiveOffer}
@@ -972,6 +973,7 @@ function SequentialBotBubbles({
 function Bubble({
   message,
   onViewInsights,
+  onOpenBestPresentation,
   onChip,
   activeOffer,
   onOpenOffer,
@@ -979,6 +981,8 @@ function Bubble({
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
+  /** C — open BestPresentationOverlay from the best_presentation_ready card. */
+  onOpenBestPresentation?: (arcId: string) => void;
   onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -998,8 +1002,18 @@ function Bubble({
       />
     );
   }
-  if (message.kind === "recording_summary" || message.kind === "insight") {
-    return <ReportCard message={message} onViewInsights={onViewInsights} />;
+  if (
+    message.kind === "recording_summary" ||
+    message.kind === "insight" ||
+    message.kind === "best_presentation_ready"
+  ) {
+    return (
+      <ReportCard
+        message={message}
+        onViewInsights={onViewInsights}
+        onOpenBestPresentation={onOpenBestPresentation}
+      />
+    );
   }
   if (message.role === "user") {
     return (

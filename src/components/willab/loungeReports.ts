@@ -96,3 +96,17 @@ export function insightView(md: Record<string, unknown> | null | undefined): Ins
     takeIndex: num(m.take_index),
   };
 }
+
+export interface BestPresentationView {
+  /** The arc to open in BestPresentationOverlay; null → card not openable. */
+  arcId: string | null;
+  topic: string | null;
+}
+
+/** Read the best_presentation_ready card metadata (BE-inserted at the 3rd take). */
+export function bestPresentationView(
+  md: Record<string, unknown> | null | undefined
+): BestPresentationView {
+  const m = md ?? {};
+  return { arcId: str(m.arc_id), topic: str(m.topic) };
+}

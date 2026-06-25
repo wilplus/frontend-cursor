@@ -1,7 +1,7 @@
 "use client";
 
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import { insightView, readoutView } from "./loungeReports";
+import { bestPresentationView, insightView, readoutView } from "./loungeReports";
 
 /* -------------------------------------------------------------------------- */
 /*  ReportCard — a persisted Readout / Insight inside the Lounge thread         */
@@ -44,10 +44,45 @@ function detailLine(
 export default function ReportCard({
   message,
   onViewInsights,
+  onOpenBestPresentation,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
+  onOpenBestPresentation?: (arcId: string) => void;
 }) {
+  // C — "Your best presentation for {topic} is ready." (BE-inserted at the 3rd
+  // take). Whole card opens BestPresentationOverlay(arc_id).
+  if (message.kind === "best_presentation_ready") {
+    const v = bestPresentationView(message.metadata);
+    const openable = !!(v.arcId && onOpenBestPresentation);
+    const open = () => {
+      if (v.arcId && onOpenBestPresentation) onOpenBestPresentation(v.arcId);
+    };
+    return (
+      <div
+        role={openable ? "button" : undefined}
+        tabIndex={openable ? 0 : undefined}
+        onClick={openable ? open : undefined}
+        onKeyDown={
+          openable
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  open();
+                }
+              }
+            : undefined
+        }
+        className={`my-1 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+      >
+        <p className="text-[15px] leading-relaxed text-foreground">
+          <span className="font-semibold">Your best presentation</span>
+          {v.topic ? <span> for {v.topic}</span> : null} is ready.
+        </p>
+      </div>
+    );
+  }
+
   const sessionId =
     typeof message.metadata?.session_id === "string"
       ? message.metadata.session_id

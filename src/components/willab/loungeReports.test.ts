@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bestPresentationView,
   insightView,
   isReportMessage,
   readoutSummaryDraft,
@@ -91,5 +92,16 @@ describe("readoutView / insightView", () => {
       topic: null,
       takeIndex: null,
     });
+  });
+
+  it("reads best_presentation_ready metadata, defaulting to null", () => {
+    expect(
+      bestPresentationView({ arc_id: "arc-7", topic: "Q3 pitch" })
+    ).toEqual({ arcId: "arc-7", topic: "Q3 pitch" });
+    expect(bestPresentationView({ topic: "" })).toEqual({
+      arcId: null,
+      topic: null,
+    });
+    expect(bestPresentationView(null)).toEqual({ arcId: null, topic: null });
   });
 });

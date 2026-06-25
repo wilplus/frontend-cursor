@@ -36,8 +36,9 @@ describe("willabParked.readParked", () => {
     expect(readParked()).toBeNull(); // snippets not an array
   });
 
-  it("defaults slides + slideTranscripts to [] for a readout parked by an older app version", () => {
-    // Simulate a pre-upgrade parked payload: no slides / slideTranscripts.
+  it("defaults slides + slideTranscripts + voiceMetricsAvailable for a readout parked by an older app version", () => {
+    // Simulate a pre-upgrade parked payload: no slides / slideTranscripts /
+    // voiceMetricsAvailable.
     window.localStorage.setItem(
       "willab.parked",
       JSON.stringify({ sessionId: "s1", topic: "T", readout: { snippets: [] } })
@@ -46,6 +47,8 @@ describe("willabParked.readParked", () => {
     expect(p).not.toBeNull();
     expect(p!.readout.slides).toEqual([]);
     expect(p!.readout.slideTranscripts).toEqual([]);
+    // Absent → true, so an old park never shows a spurious "metrics unavailable".
+    expect(p!.readout.voiceMetricsAvailable).toBe(true);
     expect(p!.sessionId).toBe("s1");
   });
 
@@ -62,6 +65,7 @@ describe("willabParked.readParked", () => {
         slideTranscripts: [
           { index: 0, transcript: "hi", startOffsetMs: 0, durationMs: 1000 },
         ],
+        voiceMetricsAvailable: true,
       },
     });
     const p = readParked();
@@ -80,6 +84,7 @@ describe("willabParked.readParked", () => {
         presentationRef: null,
         slides: [],
         slideTranscripts: [],
+        voiceMetricsAvailable: true,
       },
     });
     clearParked();

@@ -21,15 +21,16 @@ export default function OfferBubble({
   active: boolean;
   onOpen: () => void;
 }) {
+  // D — render as a NORMAL grey bot bubble (same as any text bubble), not a
+  // highlighted / orange-framed treatment. It stays tappable to re-open its
+  // action pair, with only a subtle hover for affordance — no ring, no accent.
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-expanded={active}
       aria-label="Reopen this option"
-      className={`mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm px-3 py-2 text-left text-[15px] leading-relaxed text-foreground transition-colors ${
-        active ? "bg-muted ring-1 ring-primary/40" : "bg-muted hover:bg-muted/80"
-      }`}
+      className="mr-auto block max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-left text-[15px] leading-relaxed text-foreground transition-colors hover:bg-muted/80"
     >
       {body || OFFER_PROMPT[type]}
     </button>
