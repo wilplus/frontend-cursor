@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
+import { homeworkApi } from "@/lib/api/homework-client";
+import { getLastFeeling } from "./willabFeelings";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -131,6 +133,13 @@ export default function Lounge({
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
   const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
+  // F1 — credit gate. `canStartAnalysis` is server-owned (don't hardcode >=5);
+  // null until /status loads. dismissed → fall back to the record CTA this session.
+  const [canStartAnalysis, setCanStartAnalysis] = useState<boolean | null>(null);
+  const [creditGateDismissed, setCreditGateDismissed] = useState(false);
+  // F7 — pre-recording joke offer (shown once per mount when the captured
+  // feeling is nervous / unsure).
+  const [showJokeOffer, setShowJokeOffer] = useState(false);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // The "Strong sides" ask surfaces a button anchored IN the thread (not the
@@ -351,6 +360,40 @@ export default function Lounge({
     return () => clearTimeout(t);
   }, [thread.loading, messages.length]);
 
+  // F1 — load the credit gate (signed-in only). `can_start_analysis` is
+  // server-owned; default to "can start" until it explicitly says false, so the
+  // gate never appears spuriously. Refetch on focus so a top-up / a feedback
+  // charge flips it without a reload.
+  useEffect(() => {
+    if (!thread.signedIn) return;
+    let active = true;
+    const load = () => {
+      homeworkApi
+        .getStatus()
+        .then((s) => {
+          if (active && s) setCanStartAnalysis(s.can_start_analysis !== false);
+        })
+        .catch(() => {
+          // Status fetch failed (expired token / 5xx / offline) — leave the gate
+          // in its default "can record" state; never block on a status error.
+        });
+    };
+    load();
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [thread.signedIn]);
+
+  // F7 — offer a (deliberately bad) joke once when the captured pre-recording
+  // feeling was nervous / unsure.
+  useEffect(() => {
+    const f = getLastFeeling();
+    if (f === "nervous" || f === "unsure") setShowJokeOffer(true);
+  }, []);
+
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
     // itself (not a sentinel) so the page/viewport never moves.
@@ -385,12 +428,27 @@ export default function Lounge({
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
     const q = draftText.trim();
+    // Guard BEFORE clearing the input so a send while the bot is busy keeps the
+    // user's text rather than silently dropping it.
+    if (!q || botThinking) return;
+    setDraftText("");
+    await runSend(q);
+  }
+
+  // F7 — the offer's "yes" asks the bot for a dad joke. The BE recognizes the
+  // plain text and replies with a normal chat bubble (B2).
+  function askForJoke() {
+    setShowJokeOffer(false);
+    void runSend("Tell me a dad joke");
+  }
+
+  // The shared send core — used by the composer and the joke offer.
+  async function runSend(q: string) {
     if (!q || botThinking) return;
     atBottomRef.current = true; // sending always scrolls to your own message
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     const botTurns = messages.filter((msg) => msg.role === "bot");
     const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
-    setDraftText("");
     // The user turn always persists (optimistic + FE write); for signed-in the
     // BE also writes it from the client_id we pass below, and the server dedups
     // on (user_id, client_id) so it collapses to one row (#2).
@@ -547,14 +605,34 @@ export default function Lounge({
           the high-stakes "on-stage" action never reads as just another button.
           No flanking buttons — the strong-sides / recordings shortcuts moved to
           quick-reply chips below (U7). */}
-      <Button
-        type="button"
-        onClick={onStart}
-        className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
-      >
-        <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-        Start official recording
-      </Button>
+      {/* F7 — pre-recording joke offer (shown when the captured feeling was
+          nervous / unsure). Suppressed while the credit gate is up so the two
+          symmetric pairs don't stack ambiguously. */}
+      {showJokeOffer &&
+      !(canStartAnalysis === false && !creditGateDismissed) ? (
+        <JokeOffer
+          onYes={askForJoke}
+          onDismiss={() => setShowJokeOffer(false)}
+        />
+      ) : null}
+
+      {/* F1 — credit gate: once the user can't afford the next analysis, the
+          record CTA becomes the symmetric pair [ Close · Get more credits ]. */}
+      {canStartAnalysis === false && !creditGateDismissed ? (
+        <CreditGateCta
+          onClose={() => setCreditGateDismissed(true)}
+          onGetCredits={() => router.push("/dashboard/pricing")}
+        />
+      ) : (
+        <Button
+          type="button"
+          onClick={onStart}
+          className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
+        >
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+          Start official recording
+        </Button>
+      )}
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -689,6 +767,89 @@ function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => 
         className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
       >
         {CHIP_LABEL[action]}
+      </button>
+    </div>
+  );
+}
+
+/** F1 — credit-gate CTA: an info bubble + the symmetric pair (grey Close on the
+ *  left, orange action on the right) that replaces the record button once the
+ *  user can't afford the next analysis. */
+function CreditGateCta({
+  onClose,
+  onGetCredits,
+}: {
+  onClose: () => void;
+  onGetCredits: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
+        You&apos;ve used your free analyses. Top up to keep recording.
+      </div>
+      <SymmetricPair
+        closeLabel="Close"
+        onClose={onClose}
+        actionLabel="Get more credits"
+        onAction={onGetCredits}
+      />
+    </div>
+  );
+}
+
+/** F7 — the pre-recording joke offer (same bubble + symmetric pair shape). */
+function JokeOffer({
+  onYes,
+  onDismiss,
+}: {
+  onYes: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
+        I&apos;m just a simple system, but I noticed you weren&apos;t feeling
+        great, want me to crack a very bad joke that won&apos;t be funny?
+      </div>
+      <SymmetricPair
+        closeLabel="No thanks"
+        onClose={onDismiss}
+        actionLabel="Go on then"
+        onAction={onYes}
+      />
+    </div>
+  );
+}
+
+/** The symmetric button pair — grey Close (left) + orange action (right), equal
+ *  width, matching the record CTA's height. Shared by the credit gate / joke
+ *  offer / (later) install bubble. */
+function SymmetricPair({
+  closeLabel,
+  onClose,
+  actionLabel,
+  onAction,
+}: {
+  closeLabel: string;
+  onClose: () => void;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex items-stretch gap-3">
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex-1 rounded-full bg-muted py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-muted/70"
+      >
+        {closeLabel}
+      </button>
+      <button
+        type="button"
+        onClick={onAction}
+        className="flex-1 rounded-full bg-primary py-3 text-[15px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        {actionLabel}
       </button>
     </div>
   );
