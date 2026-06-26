@@ -6,7 +6,6 @@ import { Send, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
-import { clearFeeling, getLastFeeling } from "./willabFeelings";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -315,13 +314,12 @@ export default function Lounge({
     setActiveInsight(null);
   }
 
-  // Quick-action → surface. strong_sides / trainings open the Trainings
-  // library; audit opens the unified audit view. No record chip: the bot
-  // points at the permanent "Start official recording" button in words.
-  function onChip(action: ChipAction): void {
-    if (action === "strong_sides") setLibraryOpen(true);
-    else if (action === "trainings") setLibraryOpen(true); // seam 1 — Trainings tab
-    else if (action === "audit") router.push("/audits");
+  // C8 — every quick-action CTA lands in ONE place: the Trainings library
+  // (strong_sides / trainings / audit). audit previously routed to /audits; it
+  // now opens the Trainings library like the rest so the chips don't scatter.
+  // No record chip: the bot points at the permanent record button in words.
+  function onChip(_action: ChipAction): void {
+    setLibraryOpen(true);
   }
 
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
@@ -448,10 +446,10 @@ export default function Lounge({
       if (m.client_created_at <= settleTimeRef.current) continue; // historical / paged-in
       if (jokeHandledRef.current.has(m.client_id)) continue;
       jokeHandledRef.current.add(m.client_id);
-      const f = getLastFeeling();
-      // Consume the feeling: the check-in only runs on the first recording, so a
-      // value left in place would gate every later take on a stale feeling.
-      clearFeeling();
+      // C7 — read the feeling stamped on THIS take (per-recording), so a later
+      // calm take is never gated on an earlier nervous one.
+      const f =
+        typeof m.metadata?.feeling === "string" ? m.metadata.feeling : null;
       if ((f === "nervous" || f === "unsure") && !hasOffer(messages, "joke")) {
         void thread.append(offerDraft("joke"));
         openOffer("joke");
@@ -654,6 +652,7 @@ export default function Lounge({
                 message={item.message}
                 onViewInsights={handleViewInsights}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+                onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onChip={onChip}
                 activeOffer={activeOffer}
                 onOpenOffer={setActiveOffer}
@@ -988,6 +987,7 @@ function Bubble({
   message,
   onViewInsights,
   onOpenBestPresentation,
+  onOpenBreakthroughs,
   onChip,
   activeOffer,
   onOpenOffer,
@@ -997,6 +997,8 @@ function Bubble({
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
+  /** C2 — open BreakthroughsOverlay from the ideal-text hero card. */
+  onOpenBreakthroughs?: (arcId: string) => void;
   onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -1026,6 +1028,7 @@ function Bubble({
         message={message}
         onViewInsights={onViewInsights}
         onOpenBestPresentation={onOpenBestPresentation}
+        onOpenBreakthroughs={onOpenBreakthroughs}
       />
     );
   }

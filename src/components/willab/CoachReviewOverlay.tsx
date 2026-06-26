@@ -199,6 +199,7 @@ export default function CoachReviewOverlay({
       nextTone={isAtWrapup ? "terminal" : "primary"}
       nextDisabled={isAtWrapup ? !floorMet || publishing : false}
       managed={false}
+      isCoachMessage={isAtWrapup}
     >
       {/* Snippet pages — all stay mounted for draft preservation. */}
       {session.snippets.map((s, i) => (

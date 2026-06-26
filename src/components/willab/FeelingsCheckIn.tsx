@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { recordFeeling, type Feeling } from "./willabFeelings";
+import {
+  getRememberedFeeling,
+  recordFeeling,
+  type Feeling,
+} from "./willabFeelings";
 
 /* -------------------------------------------------------------------------- */
 /*  FeelingsCheckIn — first-recording onboarding, step 0 (U10)                 */
@@ -42,6 +46,9 @@ const FEELINGS: { key: Feeling; label: string; reply: string }[] = [
 
 export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
   const [picked, setPicked] = useState<Feeling | null>(null);
+  // C7 — the feeling named on a prior take, for the one-tap "same as before".
+  const [remembered] = useState<Feeling | null>(() => getRememberedFeeling());
+  const rememberedLabel = FEELINGS.find((f) => f.key === remembered)?.label;
   const reply = FEELINGS.find((f) => f.key === picked)?.reply ?? null;
 
   function pick(feeling: Feeling) {
@@ -59,6 +66,20 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
           How are you feeling about this one?
         </p>
       </div>
+
+      {/* C7 — one-tap reuse of the prior take's feeling. */}
+      {remembered && rememberedLabel ? (
+        <button
+          type="button"
+          onClick={() => {
+            pick(remembered);
+            onReady();
+          }}
+          className="mt-5 self-start rounded-full border border-primary bg-primary/5 px-4 py-2 text-[15px] text-foreground transition-colors hover:bg-primary/10"
+        >
+          Same as before ({rememberedLabel})
+        </button>
+      ) : null}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {FEELINGS.map((f) => {
