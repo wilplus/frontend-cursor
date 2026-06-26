@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Pencil, X } from "lucide-react";
+import { ChevronDown, Crown, Pencil, X } from "lucide-react";
 import LoadingState from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
@@ -222,6 +222,14 @@ function SlideCard({
   const [draftText, setDraftText] = useState(slide.text);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // C10 — grow the edit box to fit the whole slide text so it's never clipped.
+  const editRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = editRef.current;
+    if (!editing || !el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editing, draftText]);
   const hasContent =
     slide.text.length > 0 || slide.audioRef !== null || slide.breakthrough;
   // Tap-to-reveal: the chevron (on the text card) expands the playback only. The
@@ -272,11 +280,15 @@ function SlideCard({
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">
-        {/* C — the presentation's name (from the arc's session_context.topic). */}
+        {/* C / C2 — the presentation's name, echoing the ideal-text hero
+            identity (gold crown) wherever the best presentation is referenced. */}
         {name ? (
-          <h2 className="text-[17px] font-semibold leading-snug text-foreground">
-            {name}
-          </h2>
+          <div className="flex items-center gap-2">
+            <Crown className="h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+            <h2 className="text-[17px] font-semibold leading-snug text-foreground">
+              {name}
+            </h2>
+          </div>
         ) : null}
 
         {/* BE #141 — draft badge until a human coach has reviewed this
@@ -294,10 +306,11 @@ function SlideCard({
             {editing ? (
               <div className="flex flex-col gap-2">
                 <textarea
+                  ref={editRef}
                   value={draftText}
                   onChange={(e) => setDraftText(e.target.value)}
                   rows={4}
-                  className="w-full resize-none rounded-xl border border-primary bg-background px-3 py-2 text-[15px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
+                  className="max-h-[60vh] w-full resize-none overflow-y-auto rounded-xl border border-primary bg-background px-3 py-2 text-[15px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
                 />
                 {saveError ? (
                   <p className="text-[13px] text-destructive">{saveError}</p>

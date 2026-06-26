@@ -30,6 +30,9 @@ export function readoutSummaryDraft(input: {
   /** The take number for this recording (explore takes only) — shown on the
    *  "Your Recording" card. */
   takeIndex?: number;
+  /** C7 — the feeling named for this take, stamped here so the post-recording
+   *  joke offer reads a per-take value (never a stale global). */
+  feeling?: string;
   speechRate?: number; // §3.3 features.speech_rate (hero)
   pauseRatio?: number; // §3.3 features.pause_ratio (hero)
 }): LoungeMessageDraft {
@@ -45,6 +48,7 @@ export function readoutSummaryDraft(input: {
       arc_id: input.arcId,
       take_index: input.takeIndex,
       topic: input.topic,
+      feeling: input.feeling,
       speech_rate: input.speechRate,
       pause_ratio: input.pauseRatio,
     },

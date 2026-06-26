@@ -18,6 +18,10 @@ export default function SnippetScreenShell({
   /** When false the parent overlay's useBackDismiss handles back — avoids
    *  double history-entry registration. Pass managed={false} when embedded. */
   managed = true,
+  /** C5 — this page is a coach text message, not a slide. Hide the slide-count
+   *  indicator + close X + the dark gradient (there's no slide to dim, and the
+   *  gradient overshadows the coach's text). Closing is via the bottom nav. */
+  isCoachMessage = false,
   children,
 }: {
   onClose: () => void;
@@ -30,28 +34,32 @@ export default function SnippetScreenShell({
   backDisabled?: boolean;
   nextDisabled?: boolean;
   managed?: boolean;
+  isCoachMessage?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       {managed ? <BackDismissManager onClose={onClose} /> : null}
 
-      {/* ── slide overlay: X + indicator floated over the slide ── */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
-        <div className="mx-auto w-full max-w-2xl">
-          <div className="pointer-events-auto flex items-start justify-between bg-gradient-to-b from-black/40 to-transparent px-3 pb-8 pt-2">
-            <SlideIndicator index={index} total={total} />
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm"
-            >
-              <X className="h-[16px] w-[16px]" aria-hidden />
-            </button>
+      {/* ── slide overlay: X + indicator floated over the slide (hidden for a
+          coach message — no slide, and the gradient would overshadow the text) ── */}
+      {!isCoachMessage ? (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
+          <div className="mx-auto w-full max-w-2xl">
+            <div className="pointer-events-auto flex items-start justify-between bg-gradient-to-b from-black/40 to-transparent px-3 pb-8 pt-2">
+              <SlideIndicator index={index} total={total} />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm"
+              >
+                <X className="h-[16px] w-[16px]" aria-hidden />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       {/* ── scrollable content — slide first (edge-to-edge), then padded body ── */}
       <div className="flex-1 overflow-y-auto">

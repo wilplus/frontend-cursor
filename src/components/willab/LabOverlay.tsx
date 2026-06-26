@@ -20,8 +20,8 @@ import type { ReadoutPayload } from "./readout";
 import ReadoutCard from "./ReadoutCard";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
-import { getLastFeeling } from "./willabFeelings";
-import { markFirstRecordingOnboarded, type WillabState } from "./useWillabFlow";
+import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
+import { type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import PresentationInput from "./PresentationInput";
 import SlideStage from "./SlideStage";
@@ -133,6 +133,9 @@ export default function LabOverlay({
   // success handler bumps arcTakeIndex to the next take (avoids an off-by-one
   // on the "Your Recording" card).
   const recordedTakeRef = useRef<number | null>(null);
+  // C7 — the feeling named for THIS take, captured at upload then cleared so a
+  // later take's joke offer can't read a stale value; stamped on the readout.
+  const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -184,6 +187,15 @@ export default function LabOverlay({
     if (!blob || !context || uploadStartedRef.current) return;
     uploadStartedRef.current = true;
     recordedTakeRef.current = exploreEnabled ? arcTakeIndex : null;
+    // C7 — capture the named feeling for this take, then clear the active value
+    // (the remembered value persists for the next take's "same as before"). Only
+    // overwrite when a fresh value is present so a retry / re-record re-running
+    // this effect (the active key is already cleared) can't null out the capture.
+    const capturedFeeling = getLastFeeling();
+    if (capturedFeeling) {
+      recordedFeelingRef.current = capturedFeeling;
+      clearFeeling();
+    }
     let active = true;
     void (async () => {
       const result = await submitLabRecording({
@@ -200,7 +212,7 @@ export default function LabOverlay({
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
-        feeling: getLastFeeling() ?? undefined,
+        feeling: recordedFeelingRef.current ?? undefined,
       });
       if (!active) return;
       if (result.kind === "ok") {
@@ -292,6 +304,7 @@ export default function LabOverlay({
           sessionId: labSessionId ?? undefined,
           arcId: arcId ?? undefined,
           takeIndex: recordedTakeRef.current ?? undefined,
+          feeling: recordedFeelingRef.current ?? undefined,
           speechRate: hero?.speechRate ?? undefined,
           pauseRatio: hero?.pauseRatio ?? undefined,
         })
@@ -384,12 +397,7 @@ export default function LabOverlay({
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {state === "lab_feelings" && (
-          <FeelingsCheckIn
-            onReady={() => {
-              markFirstRecordingOnboarded();
-              goTo("lab_session_context");
-            }}
-          />
+          <FeelingsCheckIn onReady={() => goTo("lab_session_context")} />
         )}
 
         {state === "lab_session_context" && (
@@ -887,6 +895,15 @@ function RecordingPhase({
 
 /* ----------------------- BE seam ③ + tail stubs -------------------------- */
 
+/** C11 — rotate the analyzing line so the wait feels alive (swaps every 3s). */
+const PROCESSING_LINES = [
+  "Transcribing your voice…",
+  "Finding your strongest moments…",
+  "Lining up your slides…",
+  "Measuring your delivery…",
+  "Almost there…",
+];
+
 function Processing({
   error,
   onRetry,
@@ -896,6 +913,16 @@ function Processing({
   onRetry: () => void;
   onClose: () => void;
 }) {
+  const [lineIdx, setLineIdx] = useState(0);
+  useEffect(() => {
+    if (error) return;
+    const id = setInterval(
+      () => setLineIdx((i) => (i + 1) % PROCESSING_LINES.length),
+      3000
+    );
+    return () => clearInterval(id);
+  }, [error]);
+
   if (error) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
@@ -922,9 +949,11 @@ function Processing({
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      <p className="text-[15px] text-foreground">Analyzing your recording…</p>
+      <p className="flex min-h-[1.5rem] items-center text-[15px] text-foreground">
+        {PROCESSING_LINES[lineIdx]}
+      </p>
       <p className="max-w-sm text-[12px] text-muted-foreground">
-        Transcribing and measuring your voice — this takes a few seconds.
+        This usually takes a few seconds.
       </p>
     </div>
   );

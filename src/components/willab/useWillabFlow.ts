@@ -72,8 +72,6 @@ export function initialWillabState(flags: {
  * profile, which later supersedes `intake_done`. */
 const CONSENT_KEY = "willab.consent_accepted";
 const INTAKE_KEY = "willab.intake_done";
-// U10 — set once the user completes the first-recording feelings onboarding.
-const FIRST_RECORDING_KEY = "willab.first_recording_done";
 
 function readFlag(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -90,12 +88,6 @@ function writeFlag(key: string): void {
   } catch {
     /* ignore */
   }
-}
-
-/** U10 — mark the first-recording feelings onboarding complete, so later
- *  recordings skip it and go straight to the session-context form. */
-export function markFirstRecordingOnboarded(): void {
-  writeFlag(FIRST_RECORDING_KEY);
 }
 
 export interface UseWillabFlowReturn {
@@ -141,12 +133,10 @@ export function useWillabFlow(): UseWillabFlowReturn {
   }, []);
   const startRecording = useCallback(() => {
     clearReviewPending();
-    // U10 — the first official recording opens the feelings check-in onboarding
-    // before the setup form (one-time, localStorage-gated). Later recordings go
-    // straight to the session-context form.
-    setState(
-      readFlag(FIRST_RECORDING_KEY) ? "lab_session_context" : "lab_feelings"
-    );
+    // C7 — every official recording opens the feelings check-in before the setup
+    // form (not just the first). The check-in offers "same as before" so a return
+    // take is one tap; the named feeling is stamped on that take.
+    setState("lab_feelings");
   }, []);
   // TODO(slice: Lab): a Readout/parked close should → "parked" (held chip),
   // a pre-recording close should → "lounge_idle". Shell uses idle for both.
