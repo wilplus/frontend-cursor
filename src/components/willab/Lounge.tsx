@@ -120,6 +120,7 @@ export default function Lounge({
   goTo,
   initialReviewSessionId = null,
   initialInsightSessionId = null,
+  initialBestPresentationArcId = null,
   recordingProgress = null,
 }: {
   state: WillabState;
@@ -131,6 +132,9 @@ export default function Lounge({
   /** D3 — when set (from /chat?insight=<id>), open the InsightsOverlay for that
    *  session once on mount (user results email deep-link). */
   initialInsightSessionId?: string | null;
+  /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
+   *  for that arc once on mount. */
+  initialBestPresentationArcId?: string | null;
   /** Seed from the upload response; reserved for future per-take state. */
   recordingProgress?: RecordingProgress | null;
 }) {
@@ -341,6 +345,16 @@ export default function Lounge({
     insightLinkOpenedRef.current = true;
     setActiveInsight(initialInsightSessionId);
   }, [initialInsightSessionId]);
+
+  // C — best-presentation deep-link (/chat?arc=<arc_id>): open the
+  // BestPresentationOverlay for that arc once on mount; fire-once so closing it
+  // doesn't reopen.
+  const bestPresLinkOpenedRef = useRef(false);
+  useEffect(() => {
+    if (bestPresLinkOpenedRef.current || !initialBestPresentationArcId) return;
+    bestPresLinkOpenedRef.current = true;
+    setBestPresentationArcId(initialBestPresentationArcId);
+  }, [initialBestPresentationArcId]);
 
   // Wave-3 — no standing / every-visit offer. The proactive strong-sides nudge
   // fires once at the post-send moment (A-4 / B-2); otherwise the bot stays

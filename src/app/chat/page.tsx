@@ -35,6 +35,10 @@ export default function ChatPage({
   // InsightsOverlay for that session on mount. User-side (the ResultsReadyEmail
   // CTA); distinct from the coach `?review=`.
   const insightSessionId = firstQueryValue(searchParams.insight);
+  // C — best-presentation deep-link: `?arc=<arc_id>` opens the in-Lounge
+  // BestPresentationOverlay for that arc on mount (the "best presentation ready"
+  // card / email CTA).
+  const bestPresentationArcId = firstQueryValue(searchParams.arc);
 
   return (
     <Suspense
@@ -48,6 +52,7 @@ export default function ChatPage({
         sessionId={sessionId}
         reviewSessionId={reviewSessionId}
         insightSessionId={insightSessionId}
+        bestPresentationArcId={bestPresentationArcId}
       />
     </Suspense>
   );
