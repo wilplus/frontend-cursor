@@ -31,6 +31,7 @@ export default function WillabSurface({
   sessionId,
   reviewSessionId,
   insightSessionId,
+  bestPresentationArcId,
 }: {
   sessionId: string | null;
   /** U12 — coach deep-link target from `/chat?review=<id>`; opens the in-Lounge
@@ -39,6 +40,9 @@ export default function WillabSurface({
   /** D3 — user deep-link target from `/chat?insight=<id>`; opens the in-Lounge
    *  InsightsOverlay on mount. */
   insightSessionId: string | null;
+  /** C — best-presentation deep-link target from `/chat?arc=<arc_id>`; opens the
+   *  in-Lounge BestPresentationOverlay on mount. */
+  bestPresentationArcId: string | null;
 }) {
   const flow = useWillabFlow();
   const [recordingProgress, setRecordingProgress] =
@@ -99,6 +103,7 @@ export default function WillabSurface({
         goTo={flow.goTo}
         initialReviewSessionId={reviewSessionId}
         initialInsightSessionId={insightSessionId}
+        initialBestPresentationArcId={bestPresentationArcId}
         recordingProgress={recordingProgress}
       />
       {flow.labOverlayOpen && (

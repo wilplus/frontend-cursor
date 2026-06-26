@@ -14,16 +14,19 @@ export default function ChatPageClient({
   sessionId,
   reviewSessionId,
   insightSessionId,
+  bestPresentationArcId,
 }: {
   sessionId: string | null;
   reviewSessionId: string | null;
   insightSessionId: string | null;
+  bestPresentationArcId: string | null;
 }) {
   return (
     <WillabSurface
       sessionId={sessionId}
       reviewSessionId={reviewSessionId}
       insightSessionId={insightSessionId}
+      bestPresentationArcId={bestPresentationArcId}
     />
   );
 }

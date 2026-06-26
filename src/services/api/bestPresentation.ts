@@ -55,6 +55,9 @@ export interface BestPresentationResult {
    *  presentation. While false the FE shows a "draft, pending coach review"
    *  badge. Defaults true on an older payload so we never mislabel a real one. */
   coachReviewed: boolean;
+  /** C — the presentation's display name (BE sources it from the arc's
+   *  session_context.topic). null on an older payload / when absent. */
+  name: string | null;
 }
 
 /* ------------------------------- mappers ---------------------------------- */
@@ -223,6 +226,8 @@ export async function fetchBestPresentation(
         : null,
     coachReviewed:
       typeof body.coach_reviewed === "boolean" ? body.coach_reviewed : true,
+    name:
+      typeof body.name === "string" && body.name.length > 0 ? body.name : null,
   };
 }
 

@@ -129,6 +129,7 @@ export default function BestPresentationOverlay({
         slide={result.slides[cursor]}
         presentationRef={result.presentationRef}
         arcId={arcId}
+        name={result.name}
         coachReviewed={result.coachReviewed}
         onTextSaved={handleTextSaved}
       />
@@ -205,12 +206,14 @@ function SlideCard({
   slide,
   presentationRef,
   arcId,
+  name,
   coachReviewed,
   onTextSaved,
 }: {
   slide: BestPresentationSlide;
   presentationRef: string | null;
   arcId: string;
+  name: string | null;
   coachReviewed: boolean;
   onTextSaved: (slideIndex: number, text: string) => void;
 }) {
@@ -219,10 +222,12 @@ function SlideCard({
   const [draftText, setDraftText] = useState(slide.text);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const hasContent = slide.text.length > 0 || slide.audioRef !== null;
-  // Tap-to-reveal: the chevron expands the playback + breakthrough (same as the
-  // readout per-slide view). No chevron when there's nothing behind it.
-  const hasDetail = slide.audioRef !== null || slide.breakthrough;
+  const hasContent =
+    slide.text.length > 0 || slide.audioRef !== null || slide.breakthrough;
+  // Tap-to-reveal: the chevron (on the text card) expands the playback only. The
+  // breakthrough badge is NOT behind it — it renders under the slide text,
+  // always visible (C1), as a sibling of the text card / player.
+  const hasDetail = slide.audioRef !== null;
 
   function startEdit() {
     setDraftText(slide.text);
@@ -267,6 +272,13 @@ function SlideCard({
       </div>
 
       <div className="flex flex-col gap-4 px-4 py-4">
+        {/* C — the presentation's name (from the arc's session_context.topic). */}
+        {name ? (
+          <h2 className="text-[17px] font-semibold leading-snug text-foreground">
+            {name}
+          </h2>
+        ) : null}
+
         {/* BE #141 — draft badge until a human coach has reviewed this
             composed presentation. */}
         {!coachReviewed ? (
@@ -309,80 +321,78 @@ function SlideCard({
                   </button>
                 </div>
               </div>
-            ) : slide.text ? (
+            ) : (
               <>
-                {/* Composed text — same as the readout per-slide view: tap the
-                    card to reveal the playback + breakthrough (chevron). The
-                    edit pencil sits beside the chevron and edits without
-                    toggling (stopPropagation). */}
-                <div
-                  role={hasDetail ? "button" : undefined}
-                  tabIndex={hasDetail ? 0 : undefined}
-                  onClick={hasDetail ? () => setDetailsOpen((v) => !v) : undefined}
-                  onKeyDown={
-                    hasDetail
-                      ? (e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setDetailsOpen((v) => !v);
+                {/* Composed text card — tap to reveal the playback (chevron). The
+                    edit pencil edits without toggling (stopPropagation). Rendered
+                    only when there's composed text; the breakthrough + player are
+                    SIBLINGS so an empty-text take never hides them (C1). */}
+                {slide.text ? (
+                  <div
+                    role={hasDetail ? "button" : undefined}
+                    tabIndex={hasDetail ? 0 : undefined}
+                    onClick={hasDetail ? () => setDetailsOpen((v) => !v) : undefined}
+                    onKeyDown={
+                      hasDetail
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setDetailsOpen((v) => !v);
+                            }
                           }
-                        }
-                      : undefined
-                  }
-                  aria-expanded={hasDetail ? detailsOpen : undefined}
-                  className={`flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasDetail ? "cursor-pointer" : ""}`}
-                >
-                  <p className="flex-1 text-[15px] leading-relaxed text-foreground">
-                    {slide.text}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEdit();
-                    }}
-                    aria-label="Edit composed text"
-                    className="mt-0.5 shrink-0 rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"
+                        : undefined
+                    }
+                    aria-expanded={hasDetail ? detailsOpen : undefined}
+                    className={`flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasDetail ? "cursor-pointer" : ""}`}
                   >
-                    <Pencil className="h-5 w-5" aria-hidden />
-                  </button>
-                  {hasDetail ? (
-                    <ChevronDown
-                      className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${detailsOpen ? "rotate-180" : ""}`}
-                      aria-hidden
-                    />
-                  ) : null}
-                </div>
-
-                {/* Expanded on tap: player → breakthrough. */}
-                {detailsOpen && hasDetail ? (
-                  <div className="flex flex-col gap-4">
-                    {slide.audioRef ? (
-                      <MediaPlayer
-                        src={slide.audioRef}
-                        startOffsetMs={slide.startOffsetMs}
-                        durationMs={slide.durationMs}
+                    <p className="flex-1 text-[15px] leading-relaxed text-foreground">
+                      {slide.text}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEdit();
+                      }}
+                      aria-label="Edit composed text"
+                      className="mt-0.5 shrink-0 rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"
+                    >
+                      <Pencil className="h-5 w-5" aria-hidden />
+                    </button>
+                    {hasDetail ? (
+                      <ChevronDown
+                        className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${detailsOpen ? "rotate-180" : ""}`}
+                        aria-hidden
                       />
-                    ) : null}
-                    {slide.breakthrough ? (
-                      <div className="flex flex-col gap-2 rounded-xl bg-primary/[0.08] px-4 py-4">
-                        <p className="text-[15px] font-semibold text-foreground">
-                          🥳 Here you turned your stress into charisma!
-                        </p>
-                        {slide.breakthroughNote ? (
-                          <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                            {slide.breakthroughNote}
-                          </p>
-                        ) : null}
-                      </div>
                     ) : null}
                   </div>
                 ) : null}
+
+                {/* C1 — breakthrough badge under the slide text, ALWAYS visible
+                    (not behind the chevron) when the coach confirmed it. */}
+                {slide.breakthrough ? (
+                  <div className="flex flex-col gap-2 rounded-xl bg-primary/[0.08] px-4 py-4">
+                    <p className="text-[15px] font-semibold text-foreground">
+                      🥳 Here you turned your stress into charisma!
+                    </p>
+                    {slide.breakthroughNote ? (
+                      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                        {slide.breakthroughNote}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* Playback: behind the chevron when there's a text card to tap;
+                    shown directly when there's no text card to host the chevron. */}
+                {slide.audioRef && (!slide.text || detailsOpen) ? (
+                  <MediaPlayer
+                    src={slide.audioRef}
+                    startOffsetMs={slide.startOffsetMs}
+                    durationMs={slide.durationMs}
+                  />
+                ) : null}
               </>
-            ) : (
-              <p className="text-[14px] italic text-muted-foreground">
-                No best recording for this slide yet.
-              </p>
             )}
 
             {/* Provenance */}

@@ -58,14 +58,15 @@ function snippetHasMetrics(f: ReadoutFeatures): boolean {
   );
 }
 
-/** Does this snippet have anything behind the chevron (coach / metrics / breakthrough)? */
+/** Does this snippet have anything behind the chevron (coach / metrics)? The
+ *  breakthrough badge is NOT counted — it renders un-gated under the slide text
+ *  (C1), so it must not, on its own, promise a chevron that expands to nothing. */
 function snippetHasReveal(s: ReadoutSnippet): boolean {
   return !!(
     s.coach?.note ||
     s.coach?.when ||
     (s.coach?.examples && s.coach.examples.length > 0) ||
-    snippetHasMetrics(s.features) ||
-    s.breakthrough
+    snippetHasMetrics(s.features)
   );
 }
 
@@ -417,6 +418,11 @@ function MomentRow({
         </div>
       ) : null}
 
+      {/* C1 — breakthrough under the transcript, always visible. */}
+      {snippet.breakthrough ? (
+        <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
+      ) : null}
+
       {isOpen && hasReveal ? <SnippetDetail snippet={snippet} /> : null}
     </div>
   );
@@ -441,6 +447,9 @@ function DeckSlideContent({
   const top = pickTopSnippet(group.snippets.filter(snippetHasReveal));
   const detailSnippets = top ? [top] : [];
   const hasReveal = detailSnippets.length > 0;
+  // C1 — the slide's breakthrough shows under the transcript, always visible
+  // (not behind the chevron) when the coach confirmed it.
+  const breakthroughSnippet = group.snippets.find((s) => s.breakthrough);
   return (
     <>
       {/* Playback FIRST — directly below the slide (parent recording, clamped). */}
@@ -484,6 +493,11 @@ function DeckSlideContent({
         </p>
       )}
 
+      {/* C1 — breakthrough under the transcript, always visible. */}
+      {breakthroughSnippet ? (
+        <BreakthroughBlock videoRef={breakthroughSnippet.breakthroughVideoRef} />
+      ) : null}
+
       {/* Acoustic detail for the slide's moments — no transcript / player repeat. */}
       {isOpen && hasReveal ? (
         <div className="flex flex-col gap-5">
@@ -496,7 +510,7 @@ function DeckSlideContent({
   );
 }
 
-/* ── the in-place reveal: coach comment → metrics → breakthrough (no transcript) ── */
+/* ── the in-place reveal: coach comment → metrics (no transcript / breakthrough) ── */
 
 function SnippetDetail({ snippet }: { snippet: ReadoutSnippet }) {
   return (
@@ -523,10 +537,6 @@ function SnippetDetail({ snippet }: { snippet: ReadoutSnippet }) {
 
       {snippetHasMetrics(snippet.features) ? (
         <MetricsBlock features={snippet.features} />
-      ) : null}
-
-      {snippet.breakthrough ? (
-        <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
       ) : null}
     </div>
   );
