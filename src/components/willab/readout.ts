@@ -118,6 +118,10 @@ export interface ReadoutPayload {
    *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
    *  true (absent → render metrics as today). */
   voiceMetricsAvailable: boolean;
+  /** Phase-1 pricing — false on an unpaid arc (teaser scope: the BE withholds
+   *  written commentary + extra videos + ideal text). The readout then shows the
+   *  "unlock the full audit" CTA. Defaults to true (absent → full, unlocked). */
+  auditPaid: boolean;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -269,6 +273,8 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     // Only false when the BE explicitly says so; absent / anything else → true
     // (render metrics as today).
     voiceMetricsAvailable: r.voice_metrics_available !== false,
+    // Only false on an explicitly unpaid arc; absent → true (full/unlocked).
+    auditPaid: r.audit_paid !== false,
   };
 }
 
@@ -436,6 +442,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     slides: [],
     slideTranscripts: [],
     voiceMetricsAvailable: true,
+    auditPaid: true,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(

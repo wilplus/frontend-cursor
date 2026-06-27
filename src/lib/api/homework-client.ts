@@ -227,7 +227,12 @@ export const homeworkApi = {
   /** Get current session status (for resuming). Returns session_id, optional status, recording IDs, and restored payload to derive step. */
   async getStatus(): Promise<HomeworkSessionStatus | null> {
     const { headers, credentials } = await getAuthFetchOptions();
-    const res = await fetch(`${BASE}/session/status`, { method: "GET", headers, credentials });
+    // The willab status lives at the BFF `/api/session/status` (→ BE
+    // `/v2/session/status`), NOT under `/api/homework/*` — that legacy BFF tree
+    // was cleared in Phase 5, so the old path 404'd and the credit gate was
+    // dormant. Until the BE ships `/v2/session/status` this still 404s → null →
+    // gate stays inert (safe to deploy ahead of the BE).
+    const res = await fetch("/api/session/status", { method: "GET", headers, credentials });
     if (res.status === 404) return null;
     if (!res.ok) {
       const { message, code, reason } = await parseErrorBody(res);

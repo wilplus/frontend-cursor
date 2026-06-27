@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Info, Play } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Info, Lock, Play } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
@@ -237,6 +238,8 @@ export default function ReadoutCard({
             isSample={isSample && i === 0}
             // Take-level note: show once (first group) in the stacked view.
             voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
+            // Take-level notice: show the unlock CTA once (first group).
+            auditPaid={i === 0 ? payload.auditPaid : true}
             expanded={expanded}
             onToggle={toggle}
           />
@@ -280,6 +283,7 @@ export default function ReadoutCard({
           presentationRef={payload.presentationRef}
           isSample={isSample && idx === 0}
           voiceMetricsAvailable={payload.voiceMetricsAvailable}
+          auditPaid={payload.auditPaid}
           expanded={expanded}
           onToggle={toggle}
         />
@@ -295,6 +299,7 @@ function SlideGroupPage({
   presentationRef,
   isSample,
   voiceMetricsAvailable,
+  auditPaid,
   expanded,
   onToggle,
 }: {
@@ -302,6 +307,7 @@ function SlideGroupPage({
   presentationRef: string | null;
   isSample: boolean;
   voiceMetricsAvailable: boolean;
+  auditPaid: boolean;
   expanded: string[];
   onToggle: (key: string) => void;
 }) {
@@ -339,6 +345,10 @@ function SlideGroupPage({
         {/* A — voice metrics unavailable for this take (empty acoustic signal):
             a soft inline note instead of empty metric rows. */}
         {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
+
+        {/* Phase-1 pricing — unpaid (teaser) arc: written feedback + extra
+            videos + ideal text are withheld; offer the $50 unlock. */}
+        {!auditPaid ? <AuditLockedNotice /> : null}
 
         {perSlide ? (
           // Per deck slide: the COMPLETE 1:1 transcript + slide playback shown
@@ -563,6 +573,32 @@ function BreakthroughBlock({ videoRef }: { videoRef: string | null }) {
 }
 
 /* ── voice metrics unavailable — soft inline note (A), not an error ── */
+
+/* ── unpaid-arc unlock CTA (Phase-1 pricing teaser boundary) ── */
+
+function AuditLockedNotice() {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-4">
+      <div className="flex items-center gap-2">
+        <Lock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        <p className="text-[15px] font-semibold text-foreground">
+          This is your free take
+        </p>
+      </div>
+      <p className="text-[14px] leading-relaxed text-muted-foreground">
+        Unlock the full audit for $50: all 3 takes, written feedback on every
+        moment, a coach video on each breakthrough, and your ideal text.
+        Money-back guaranteed.
+      </p>
+      <Link
+        href="/dashboard/pricing"
+        className="mt-1 self-start rounded-full bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        Unlock the full audit
+      </Link>
+    </div>
+  );
+}
 
 function VoiceMetricsNotice() {
   return (

@@ -904,7 +904,7 @@ function OfferActions({
     <SymmetricPair
       closeLabel="Close"
       onClose={onResolve}
-      actionLabel="Get more credits"
+      actionLabel="Unlock the full audit"
       onAction={() => {
         onGetCredits();
         onResolve();

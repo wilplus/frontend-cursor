@@ -16,6 +16,9 @@ export default function PricingPage() {
         <p className="text-sm text-muted-foreground sm:text-base">
           Choose a pack. You&apos;ll complete payment securely on Stripe, then return to your dashboard.
         </p>
+        <p className="text-xs text-muted-foreground">
+          Money-back guarantee on your first audit.
+        </p>
       </div>
       <div className="w-full max-w-4xl">
         <CreditPricingCards packs={packs} />
