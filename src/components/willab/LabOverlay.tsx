@@ -597,10 +597,10 @@ function SessionContextForm({
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
             <p className="text-[13px] font-medium text-primary">
               Take {activeArcTake}
-              {activeArcTake <= 3 ? " of 3" : ""}, same talk, next style
+              {activeArcTake <= 3 ? " of 3" : ""}, same topic
             </p>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Same topic as before. Record the same talk in the next vibe.
+              Same topic as before. Set it up fresh for this take.
             </p>
             <button
               type="button"
