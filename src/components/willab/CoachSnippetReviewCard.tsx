@@ -12,6 +12,7 @@ import {
   type DirectionLabel,
   type CoachTag,
 } from "@/services/api/coachReview";
+import { useCoachVideoCapture } from "./useCoachVideoCapture";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachSnippetReviewCard — one snippet's full coach view (§F.3 + §F.4)       */
@@ -77,8 +78,6 @@ export default function CoachSnippetReviewCard({
     "direction" | "note" | "tag" | "surfaced" | "breakthrough" | null
   >(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Debounced note save. We don't want to fire on every keystroke — that
   // would saturate the BE on a long note. 500 ms after the last edit, we
@@ -108,6 +107,30 @@ export default function CoachSnippetReviewCard({
     [sessionId, snippet.id, onStateChange]
   );
 
+  // Post-upload save of the breakthrough ref. Returns a boolean so the capture
+  // hook keeps the idempotency key if THIS save fails (retry re-runs under the
+  // same key → deduped re-upload, no phantom take). Surfaces its own error via
+  // the hook (videoCap.error + Retry), so it doesn't set the shared saveError.
+  const saveBreakthroughRef = useCallback(
+    async (url: string): Promise<boolean> => {
+      const next = await saveCoachSnippet(sessionId, snippet.id, {
+        breakthroughVideoRef: url,
+      });
+      if (!next) return false;
+      setCoachState(next);
+      onStateChange?.(snippet.id, next);
+      return true;
+    },
+    [sessionId, snippet.id, onStateChange]
+  );
+
+  // Subsystem V: the breakthrough video upload owns its idempotency key +
+  // provenance via the shared hook (retry dedupes, re-record is a new take).
+  const videoCap = useCoachVideoCapture(
+    (file, meta) => uploadBreakthroughVideo(sessionId, snippet.id, file, meta),
+    saveBreakthroughRef
+  );
+
   function pickDirection(value: DirectionLabel) {
     void persist("direction", { directionLabel: value });
   }
@@ -120,19 +143,6 @@ export default function CoachSnippetReviewCard({
 
   function toggleSurfaced() {
     void persist("surfaced", { surfaced: !coachState.surfaced });
-  }
-
-  async function handleVideoUpload(file: File) {
-    setUploadingVideo(true);
-    setVideoError(null);
-    const url = await uploadBreakthroughVideo(sessionId, snippet.id, file);
-    if (!url) {
-      setUploadingVideo(false);
-      setVideoError("Couldn't upload the video. Try again.");
-      return;
-    }
-    await persist("breakthrough", { breakthroughVideoRef: url });
-    setUploadingVideo(false);
   }
 
   function removeVideo() {
@@ -277,7 +287,7 @@ export default function CoachSnippetReviewCard({
               <label className="mt-2 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center">
                 <Video className="h-5 w-5 text-primary" aria-hidden />
                 <span className="text-[13px] font-medium text-primary">
-                  {uploadingVideo ? "Uploading…" : "Add a breakthrough video"}
+                  {videoCap.uploading ? "Uploading…" : "Add a breakthrough video"}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
                   Short clip explaining why this was the breakthrough
@@ -286,17 +296,29 @@ export default function CoachSnippetReviewCard({
                   type="file"
                   accept="video/*"
                   className="hidden"
-                  disabled={uploadingVideo}
+                  disabled={videoCap.uploading}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) void handleVideoUpload(f);
+                    // New selection → new record action / key.
+                    if (f) videoCap.submit(f);
                     e.target.value = "";
                   }}
                 />
               </label>
             )}
-            {videoError ? (
-              <p className="mt-1 text-[12px] text-destructive">{videoError}</p>
+            {videoCap.error ? (
+              <p className="mt-1 flex items-center gap-2 text-[12px] text-destructive">
+                <span>{videoCap.error}</span>
+                {videoCap.retryable ? (
+                  <button
+                    type="button"
+                    onClick={videoCap.retry}
+                    className="font-medium text-foreground underline underline-offset-2"
+                  >
+                    Retry
+                  </button>
+                ) : null}
+              </p>
             ) : null}
           </div>
         ) : null}

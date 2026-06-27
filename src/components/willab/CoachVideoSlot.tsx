@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Loader2, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadCoachVideo } from "@/services/api/coachReview";
+import { useCoachVideoCapture } from "./useCoachVideoCapture";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachVideoSlot — session-level coach video upload (§F.6)                   */
@@ -32,21 +33,13 @@ export default function CoachVideoSlot({
   onUploaded: (nextRef: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleFile(file: File | null) {
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    const next = await uploadCoachVideo(sessionId, file);
-    setUploading(false);
-    if (!next) {
-      setError("Upload failed. Try again.");
-      return;
-    }
-    onUploaded(next);
-  }
+  // Subsystem V: idempotency key + provenance are owned by the hook so a retry
+  // dedupes and a re-record is a new take.
+  const cap = useCoachVideoCapture(
+    (file, meta) => uploadCoachVideo(sessionId, file, meta),
+    onUploaded
+  );
+  const uploading = cap.uploading;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
@@ -100,10 +93,19 @@ export default function CoachVideoSlot({
         </div>
       )}
 
-      {error ? (
-        <div className="mt-2 flex items-center gap-1.5 text-[12px] text-destructive">
-          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-          <span>{error}</span>
+      {cap.error ? (
+        <div className="mt-2 flex items-center gap-2 text-[12px] text-destructive">
+          <Trash2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span>{cap.error}</span>
+          {cap.retryable ? (
+            <button
+              type="button"
+              onClick={cap.retry}
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              Retry
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -116,8 +118,9 @@ export default function CoachVideoSlot({
         capture="environment"
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0] ?? null;
-          void handleFile(file);
+          const file = e.target.files?.[0];
+          // A new selection is a new record action → new idempotency key.
+          if (file) cap.submit(file);
           // Reset so picking the same file twice still fires onChange.
           if (inputRef.current) inputRef.current.value = "";
         }}

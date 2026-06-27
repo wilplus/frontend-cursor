@@ -19,6 +19,16 @@ import {
   type ReadoutSlide,
 } from "@/components/willab/readout";
 import { type Feeling } from "@/components/willab/willabFeelings";
+import { type CoachVideoMeta } from "@/services/api/coachVideoMeta";
+
+/** Append the Subsystem V capture fields to a coach-video upload form. The BFF
+ *  re-emits every multipart entry, so these flow through to the BE untouched. */
+function appendVideoMeta(form: FormData, meta: CoachVideoMeta): void {
+  form.append("upload_idempotency_key", meta.idempotencyKey);
+  if (meta.device) form.append("device", meta.device);
+  if (meta.source) form.append("source", meta.source);
+  if (meta.durationSec != null) form.append("duration", String(meta.durationSec));
+}
 
 export type DirectionLabel = "threat" | "ambiguous" | "challenge";
 export type CoachTag = "strong" | "to_work_on";
@@ -245,10 +255,12 @@ export async function fetchCoachReviewSession(
  *  preview without a session refetch. */
 export async function uploadCoachVideo(
   sessionId: string,
-  file: File
+  file: File,
+  meta: CoachVideoMeta
 ): Promise<string | null> {
   const form = new FormData();
   form.append("video_file", file, file.name || "video.webm");
+  appendVideoMeta(form, meta);
   let res: Response;
   try {
     res = await fetch(
@@ -277,10 +289,12 @@ export async function uploadCoachVideo(
 export async function uploadBreakthroughVideo(
   sessionId: string,
   snippetId: string,
-  file: File
+  file: File,
+  meta: CoachVideoMeta
 ): Promise<string | null> {
   const form = new FormData();
   form.append("video_file", file, file.name || "breakthrough.webm");
+  appendVideoMeta(form, meta);
   let res: Response;
   try {
     res = await fetch(
