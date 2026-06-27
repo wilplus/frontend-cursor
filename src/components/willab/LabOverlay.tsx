@@ -465,6 +465,7 @@ export default function LabOverlay({
                 slides: [],
                 slideTranscripts: [],
                 voiceMetricsAvailable: true,
+                auditPaid: true,
               }
             }
             onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}

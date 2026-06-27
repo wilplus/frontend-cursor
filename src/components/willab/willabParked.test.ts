@@ -49,6 +49,8 @@ describe("willabParked.readParked", () => {
     expect(p!.readout.slideTranscripts).toEqual([]);
     // Absent → true, so an old park never shows a spurious "metrics unavailable".
     expect(p!.readout.voiceMetricsAvailable).toBe(true);
+    // Absent → true (paid), so an old park never shows a spurious "$50 unlock".
+    expect(p!.readout.auditPaid).toBe(true);
     expect(p!.sessionId).toBe("s1");
   });
 
@@ -66,6 +68,7 @@ describe("willabParked.readParked", () => {
           { index: 0, transcript: "hi", startOffsetMs: 0, durationMs: 1000 },
         ],
         voiceMetricsAvailable: true,
+        auditPaid: true,
       },
     });
     const p = readParked();
@@ -85,6 +88,7 @@ describe("willabParked.readParked", () => {
         slides: [],
         slideTranscripts: [],
         voiceMetricsAvailable: true,
+        auditPaid: true,
       },
     });
     clearParked();

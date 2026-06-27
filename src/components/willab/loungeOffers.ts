@@ -25,7 +25,8 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
     "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you.",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a very bad joke that won't be funny?",
-  credit: "You've used your free analyses. Top up to keep recording.",
+  credit:
+    "That was your free take. The full audit is $50: all 3 takes, your ideal text, a coach video on every breakthrough, and written feedback. Money-back guaranteed.",
 };
 
 /** Build the persisted offer message. role "bot" so a fallback render (if the
