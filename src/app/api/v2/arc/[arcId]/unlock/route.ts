@@ -11,12 +11,12 @@ export const runtime = "nodejs";
  * conditional credit deduct; this route just forwards the call + preserves the
  * status so the FE can branch:
  *   200 { unlocked, arc_id, credits_remaining } — success
- *   409 ARC_ALREADY_PAID                        — already unlocked (a success)
- *   402 { code: INSUFFICIENT_CREDITS, required, current, checkout_endpoint }
- *                                               — a clean paywall, NEVER an error
+ *   200 { already_entitled: true, arc_id }      — pre-check: already paid (a success)
+ *   409 ARC_ALREADY_PAID                        — raced double-tap (a success)
+ *   402 { code: INSUFFICIENT_CREDITS, required, current } — a clean paywall, NEVER an error
  *
- * Safe ahead of the BE: until the backend ships /v2/arc/<id>/unlock this simply
- * relays whatever status it returns (404 → the FE keeps the pricing-page fallback).
+ * This forwards status + body faithfully; a 404 → the FE shows a soft retry
+ * notice and keeps the pricing-page top-up fallback.
  */
 export async function POST(
   req: NextRequest,

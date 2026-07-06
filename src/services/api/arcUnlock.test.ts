@@ -22,44 +22,45 @@ afterEach(() => {
 });
 
 describe("unlockArc", () => {
-  it("200 → success with credits_remaining", async () => {
+  it("200 fresh unlock → success with credits_remaining", async () => {
     mockFetch(200, { unlocked: true, arc_id: "a", credits_remaining: 12 });
     const r = await unlockArc("a");
     expect(r).toEqual({ ok: true, alreadyPaid: false, creditsRemaining: 12 });
   });
 
-  it("409 already-paid → treated as success (idempotent double-tap)", async () => {
-    mockFetch(409, { code: "ARC_ALREADY_PAID" });
+  it("200 already_entitled pre-check → success, alreadyPaid, no credits charged", async () => {
+    mockFetch(200, { already_entitled: true, arc_id: "a" });
     const r = await unlockArc("a");
     expect(r).toEqual({ ok: true, alreadyPaid: true, creditsRemaining: null });
   });
 
-  it("402 → insufficient, with required/current/checkout_endpoint", async () => {
-    mockFetch(402, {
-      code: "INSUFFICIENT_CREDITS",
-      required: 25,
-      current: 4,
-      checkout_endpoint: "/api/stripe/checkout",
-    });
+  it("409 already-paid (raced) → treated as success", async () => {
+    mockFetch(409, { code: "ARC_ALREADY_PAID", arc_id: "a" });
+    const r = await unlockArc("a");
+    expect(r).toEqual({ ok: true, alreadyPaid: true, creditsRemaining: null });
+  });
+
+  it("402 → insufficient with required/current (no checkout_endpoint key ever)", async () => {
+    mockFetch(402, { code: "INSUFFICIENT_CREDITS", required: 25, current: 4 });
     const r = await unlockArc("a");
     expect(r).toEqual({
       ok: false,
       reason: "insufficient",
       required: 25,
       current: 4,
-      checkoutEndpoint: "/api/stripe/checkout",
     });
+    // The BE never sends checkout_endpoint; the result must not surface one.
+    expect("checkoutEndpoint" in (r as object)).toBe(false);
   });
 
-  it("402 missing fields → falls back to the credits peg + null endpoint", async () => {
+  it("402 missing fields → falls back to the credits peg", async () => {
     mockFetch(402, {});
     const r = await unlockArc("a");
-    expect(r).toMatchObject({
+    expect(r).toEqual({
       ok: false,
       reason: "insufficient",
       required: ARC_UNLOCK_CREDITS,
       current: null,
-      checkoutEndpoint: null,
     });
   });
 
