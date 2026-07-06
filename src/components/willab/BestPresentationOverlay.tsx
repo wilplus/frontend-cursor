@@ -63,9 +63,9 @@ export default function BestPresentationOverlay({
       return;
     }
     if (r.reason === "insufficient") {
-      // Top up, then return to unlock. (When the BE's checkout_endpoint returns
-      // a ready-to-redirect Stripe URL we can mint one inline; for now the
-      // pricing page is the credits store the FE already ships.)
+      // Top up, then return to unlock. Single-use Stripe sessions can't be
+      // pre-minted into the 402, so the pricing page (the FE's credits store) is
+      // where a fresh session gets created.
       leftViaNavRef.current = true;
       router.push("/dashboard/pricing");
       return;

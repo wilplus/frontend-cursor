@@ -189,12 +189,14 @@ export interface BestPresentationPaywall {
   paymentRequired: true;
 }
 
-/** "Still being prepared" sentinel — the arc is PAID and its takes are done, but
- *  the coach hasn't finished editing the ideal text yet. Distinct from the
- *  paywall (a money state) and from the not-ready progress state (takes still
- *  owed): the FE shows a calm "your coach is putting this together" panel and
- *  NEVER the raw auto-draft. Detected via HTTP 202 or a { status:"preparing" }
- *  / { preparing:true } body marker (BE shape not fully pinned → read both). */
+/** "Still being prepared" sentinel — the arc is PAID (past the 402 gate) and its
+ *  takes are done, but the coach hasn't finalized every slide's ideal text yet.
+ *  Distinct from the paywall (a money state) and from the not-ready progress
+ *  state (takes still owed): the FE shows a calm "your coach is putting this
+ *  together" panel and NEVER the raw auto-draft. Detected on a 200 body via
+ *  `ready === true && coach_finalized === false` (the BE serves empty slide text
+ *  until then). There is NO 202 / sentinel field — this endpoint only 402s or
+ *  200s (confirmed against the BE route). */
 export interface BestPresentationPreparing {
   preparing: true;
 }
@@ -228,23 +230,26 @@ export async function fetchBestPresentation(
     clearTimeout(timeout);
   }
   if (res.status === 402) return { paymentRequired: true };
-  // 202 Accepted → the coach is still preparing the ideal text (paid arc).
-  if (res.status === 202) return { preparing: true };
   if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
   if (!body) return null;
-  // A 2xx body can also flag the preparing state inline (no draft content).
-  if (body.status === "preparing" || body.preparing === true) {
-    return { preparing: true };
-  }
   const progress = mapProgress(body.progress);
   if (!progress) return null;
+  const ready = typeof body.ready === "boolean" ? body.ready : progress.ready;
+  // "Still being prepared by your coach": past the 402 gate (this IS a 200) and
+  // the takes are done, but the coach hasn't finalized every slide — the BE
+  // serves empty slide text until then, never the raw auto-draft. Absent
+  // coach_finalized → true (an older payload serves its content as before, so
+  // no spurious "preparing"). Guarded on `ready` so a <3-takes arc still shows
+  // the "need N more takes" state, not "preparing".
+  const coachFinalized = body.coach_finalized !== false;
+  if (ready && !coachFinalized) return { preparing: true };
   const rawSlides = Array.isArray(body.slides) ? body.slides : [];
   return {
-    ready: typeof body.ready === "boolean" ? body.ready : progress.ready,
+    ready,
     progress,
     slides: rawSlides
       .map(mapSlide)
