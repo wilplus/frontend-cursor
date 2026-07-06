@@ -119,9 +119,14 @@ export interface ReadoutPayload {
    *  true (absent → render metrics as today). */
   voiceMetricsAvailable: boolean;
   /** Phase-1 pricing — false on an unpaid arc (teaser scope: the BE withholds
-   *  written commentary + extra videos + ideal text). The readout then shows the
-   *  "unlock the full audit" CTA. Defaults to true (absent → full, unlocked). */
+   *  written commentary + extra videos + ideal text). Defaults to true (absent
+   *  → full, unlocked). */
   auditPaid: boolean;
+  /** TAKE-AWARE human layer (covers the one-time free-intro take 1): false when
+   *  this take's coach feedback is withheld pending the $50 unlock — the readout
+   *  then shows the unlock CTA. Defaults to true (absent → visible). This, not
+   *  auditPaid, drives the locked affordance. */
+  humanFeedbackVisible: boolean;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -275,6 +280,7 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     voiceMetricsAvailable: r.voice_metrics_available !== false,
     // Only false on an explicitly unpaid arc; absent → true (full/unlocked).
     auditPaid: r.audit_paid !== false,
+    humanFeedbackVisible: r.human_feedback_visible !== false,
   };
 }
 
@@ -443,6 +449,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     slideTranscripts: [],
     voiceMetricsAvailable: true,
     auditPaid: true,
+    humanFeedbackVisible: true,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(

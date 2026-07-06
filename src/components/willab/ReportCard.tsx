@@ -49,12 +49,43 @@ export default function ReportCard({
   onViewInsights,
   onOpenBestPresentation,
   onOpenBreakthroughs,
+  onOpenTranscripts,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
   onOpenBestPresentation?: (arcId: string) => void;
   onOpenBreakthroughs?: (arcId: string) => void;
+  /** transcript_ready — opens the Trainings library (where transcripts live). */
+  onOpenTranscripts?: () => void;
 }) {
+  // The unpaid/unreviewed >=3-takes card: the BE-written body ("Your full
+  // transcript for X is ready.") as a grey clickable card → the Trainings
+  // library. Never claims a "best presentation".
+  if (message.kind === "transcript_ready") {
+    const openable = !!onOpenTranscripts;
+    return (
+      <div
+        role={openable ? "button" : undefined}
+        tabIndex={openable ? 0 : undefined}
+        onClick={openable ? onOpenTranscripts : undefined}
+        onKeyDown={
+          openable
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenTranscripts!();
+                }
+              }
+            : undefined
+        }
+        className={`my-1 rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+      >
+        <p className="text-[15px] leading-relaxed text-foreground">
+          {message.body}
+        </p>
+      </div>
+    );
+  }
   // C2 — the HERO: "Ideal Text for {name} is ready!" (BE-inserted at the 3rd
   // take). The single ready card; both CTAs live here.
   if (message.kind === "best_presentation_ready") {

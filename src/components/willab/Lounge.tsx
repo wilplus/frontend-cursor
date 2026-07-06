@@ -18,7 +18,6 @@ import ReportCard from "./ReportCard";
 import LoadingState from "./LoadingState";
 import InsightsOverlay from "./InsightsOverlay";
 import LibraryOverlay from "./LibraryOverlay";
-import AuditOverlay from "./AuditOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
@@ -144,8 +143,6 @@ export default function Lounge({
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // C-1 — the unified audit / history view (recordings + all moments).
-  const [auditOpen, setAuditOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
@@ -349,8 +346,11 @@ export default function Lounge({
   // (strong_sides / trainings / audit). audit previously routed to /audits; it
   // now opens the Trainings library like the rest so the chips don't scatter.
   // No record chip: the bot points at the permanent record button in words.
-  function onChip(_action: ChipAction): void {
-    setLibraryOpen(true);
+  // The ONE exception: the BE pay note's arc_checkout taps into the audit
+  // checkout (clean paywall — never an error).
+  function onChip(action: ChipAction): void {
+    if (action === "arc_checkout") router.push("/dashboard/pricing");
+    else setLibraryOpen(true);
   }
 
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
@@ -695,6 +695,7 @@ export default function Lounge({
                 onViewInsights={handleViewInsights}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
+                onOpenTranscripts={() => setLibraryOpen(true)}
                 onChip={onChip}
                 activeOffer={activeOffer}
                 onOpenOffer={setActiveOffer}
@@ -716,13 +717,7 @@ export default function Lounge({
                 onReviewStrongSides={() => onChip("strong_sides")}
               />
             ) : item.kind === "auditprogress" ? (
-              <ProgressToAuditBubble
-                key={item.reactKey}
-                arcId={bubbleArcId}
-                onOpenAudit={() => setAuditOpen(true)}
-                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
-                onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
-              />
+              <ProgressToAuditBubble key={item.reactKey} arcId={bubbleArcId} />
             ) : (
               <ActionButton
                 key={item.reactKey}
@@ -804,16 +799,9 @@ export default function Lounge({
         </button>
       </form>
 
-      {/* C-1 — the unified audit view. Rendered BEFORE the insights overlay so
-          opening a session from here paints the read ON TOP; closing the read
-          returns to the audit (it stays mounted underneath). */}
-      {auditOpen && (
-        <AuditOverlay
-          onClose={() => setAuditOpen(false)}
-          onOpenSession={(sid) => setActiveInsight(sid)}
-        />
-      )}
-      {/* F2 — best-presentation overlay (replaces the audit as the arc deliverable). */}
+      {/* F2 — best-presentation overlay (the arc deliverable). Rendered BEFORE
+          the insights overlay so opening a session from here paints the read ON
+          TOP; closing the read returns to this (it stays mounted underneath). */}
       {bestPresentationArcId && (
         <BestPresentationOverlay
           arcId={bestPresentationArcId}
@@ -1029,6 +1017,7 @@ function Bubble({
   onViewInsights,
   onOpenBestPresentation,
   onOpenBreakthroughs,
+  onOpenTranscripts,
   onChip,
   activeOffer,
   onOpenOffer,
@@ -1040,6 +1029,8 @@ function Bubble({
   onOpenBestPresentation?: (arcId: string) => void;
   /** C2 — open BreakthroughsOverlay from the ideal-text hero card. */
   onOpenBreakthroughs?: (arcId: string) => void;
+  /** transcript_ready card — opens the Trainings library. */
+  onOpenTranscripts?: () => void;
   onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -1062,7 +1053,8 @@ function Bubble({
   if (
     message.kind === "recording_summary" ||
     message.kind === "insight" ||
-    message.kind === "best_presentation_ready"
+    message.kind === "best_presentation_ready" ||
+    message.kind === "transcript_ready"
   ) {
     return (
       <ReportCard
@@ -1070,6 +1062,7 @@ function Bubble({
         onViewInsights={onViewInsights}
         onOpenBestPresentation={onOpenBestPresentation}
         onOpenBreakthroughs={onOpenBreakthroughs}
+        onOpenTranscripts={onOpenTranscripts}
       />
     );
   }
