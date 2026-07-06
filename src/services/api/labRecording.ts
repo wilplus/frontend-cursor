@@ -137,14 +137,12 @@ export async function submitLabRecording(
   // BE A2 (verified live): 201 = { status, session_id, recording_id, state,
   // session_context, readout:{ snippets[] } }. Snippets sit at readout.snippets;
   // state defaults to readout_ready per the BE note.
-  // Fold the BE's TOP-LEVEL audit_paid + human_feedback_visible mirrors into
-  // the readout object so the take-aware gating survives the extraction.
+  // Fold the BE's TOP-LEVEL audit_paid mirror into the readout object so the
+  // arc-paid echo survives the extraction. (The coach layer is unconditionally
+  // free now — no per-take withholding to thread through.)
   const readoutObj = {
     ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
     ...("audit_paid" in body ? { audit_paid: body.audit_paid } : {}),
-    ...("human_feedback_visible" in body
-      ? { human_feedback_visible: body.human_feedback_visible }
-      : {}),
   };
   return {
     kind: "ok",

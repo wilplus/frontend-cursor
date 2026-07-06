@@ -35,15 +35,12 @@ export async function fetchSessionReadout(
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return null;
 
-  // The BE mirrors audit_paid + human_feedback_visible TOP-LEVEL (siblings of
-  // "readout"); fold them into the mapped payload so the take-aware gating
-  // survives the body.readout extraction.
+  // The BE mirrors audit_paid TOP-LEVEL (sibling of "readout"); fold it into the
+  // mapped payload so the arc-paid echo survives the body.readout extraction.
+  // (The coach layer is unconditionally free now — no per-take withholding.)
   const readoutObj = {
     ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
     ...("audit_paid" in body ? { audit_paid: body.audit_paid } : {}),
-    ...("human_feedback_visible" in body
-      ? { human_feedback_visible: body.human_feedback_visible }
-      : {}),
   };
   return {
     state: typeof body.state === "string" ? body.state : null,

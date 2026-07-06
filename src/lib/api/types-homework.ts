@@ -291,9 +291,9 @@ export interface HomeworkSessionStatus {
   /** Willab credit gate (F1): false once the user can't afford the next analysis
    *  (server-owned; the FE must NOT hardcode the `credits >= 5` threshold). */
   can_start_analysis?: boolean | null;
-  /** Phase-1 pricing: true once the $50 full audit is purchased for the active
-   *  arc (per-arc entitlement). Drives the free→paid locked rendering. Absent /
-   *  null on an older payload → treated as paid (no spurious lock). */
+  /** Pricing: true once the $25 full audit is purchased for the active arc
+   *  (per-arc entitlement). Gates the ideal-text / breakthroughs deliverables.
+   *  Absent / null on an older payload → treated as paid (no spurious lock). */
   audit_paid?: boolean | null;
   /** The full-audit price in minor units + currency (for the paywall copy). */
   audit_price?: { amount_minor: number; currency: string } | null;

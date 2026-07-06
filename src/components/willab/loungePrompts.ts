@@ -13,7 +13,7 @@ export type ChipAction =
   | "strong_sides"
   | "trainings"
   | "audit"
-  /** The $50 pay note (BE arc_notifications) — taps into the audit checkout. */
+  /** The $25 pay note (BE arc_notifications) — taps into the audit checkout. */
   | "arc_checkout";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {

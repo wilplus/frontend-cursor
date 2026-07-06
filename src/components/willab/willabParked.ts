@@ -50,10 +50,9 @@ export function readParked(): ParkedReadout | null {
           ? r.slideTranscripts
           : [],
         voiceMetricsAvailable: r.voiceMetricsAvailable !== false,
-        // Absent/undefined → true (paid/visible) so a readout parked before
-        // these fields existed doesn't show a spurious "$50 unlock" on resume.
+        // Absent/undefined → true (paid) so a readout parked before this field
+        // existed doesn't misreport the arc's paid state on resume.
         auditPaid: r.auditPaid !== false,
-        humanFeedbackVisible: r.humanFeedbackVisible !== false,
       },
     };
   } catch {

@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { ChevronDown, Info, Lock, Play } from "lucide-react";
+import { ChevronDown, Info, Play } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
 import SnippetScreenShell from "./SnippetScreenShell";
@@ -238,8 +237,6 @@ export default function ReadoutCard({
             isSample={isSample && i === 0}
             // Take-level note: show once (first group) in the stacked view.
             voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
-            // Take-level notice: show the unlock CTA once (first group).
-            humanFeedbackVisible={i === 0 ? payload.humanFeedbackVisible : true}
             expanded={expanded}
             onToggle={toggle}
           />
@@ -283,7 +280,6 @@ export default function ReadoutCard({
           presentationRef={payload.presentationRef}
           isSample={isSample && idx === 0}
           voiceMetricsAvailable={payload.voiceMetricsAvailable}
-          humanFeedbackVisible={payload.humanFeedbackVisible}
           expanded={expanded}
           onToggle={toggle}
         />
@@ -299,7 +295,6 @@ function SlideGroupPage({
   presentationRef,
   isSample,
   voiceMetricsAvailable,
-  humanFeedbackVisible,
   expanded,
   onToggle,
 }: {
@@ -307,8 +302,6 @@ function SlideGroupPage({
   presentationRef: string | null;
   isSample: boolean;
   voiceMetricsAvailable: boolean;
-  /** Take-aware: false when THIS take's coach feedback awaits the $50 unlock. */
-  humanFeedbackVisible: boolean;
   expanded: string[];
   onToggle: (key: string) => void;
 }) {
@@ -346,10 +339,6 @@ function SlideGroupPage({
         {/* A — voice metrics unavailable for this take (empty acoustic signal):
             a soft inline note instead of empty metric rows. */}
         {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
-
-        {/* Phase-1 pricing — this take's coach feedback is withheld pending
-            the $50 unlock (take-aware: the free-intro take 1 shows it free). */}
-        {!humanFeedbackVisible ? <AuditLockedNotice /> : null}
 
         {perSlide ? (
           // Per deck slide: the COMPLETE 1:1 transcript + slide playback shown
@@ -429,12 +418,33 @@ function MomentRow({
         </div>
       ) : null}
 
+      {/* Coach-corrected transcript — free + always visible when the coach
+          saved one, alongside the raw transcript above it. */}
+      {snippet.coach?.transcriptCorrected ? (
+        <CoachTranscript text={snippet.coach.transcriptCorrected} />
+      ) : null}
+
       {/* C1 — breakthrough under the transcript, always visible. */}
       {snippet.breakthrough ? (
         <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
       ) : null}
 
       {isOpen && hasReveal ? <SnippetDetail snippet={snippet} /> : null}
+    </div>
+  );
+}
+
+/* ── coach-corrected transcript — a calm, labelled card (free, unconditional) ── */
+
+function CoachTranscript({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted px-4 py-3">
+      <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+        Coach&apos;s corrected version
+      </p>
+      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+        {text}
+      </p>
     </div>
   );
 }
@@ -503,6 +513,15 @@ function DeckSlideContent({
           No speech recorded on this slide.
         </p>
       )}
+
+      {/* Coach-corrected transcript(s) for this slide's moments — free + always
+          visible when saved, alongside the raw slide transcript above. */}
+      {group.snippets
+        .map((s) => s.coach?.transcriptCorrected)
+        .filter((t): t is string => !!t)
+        .map((t, i) => (
+          <CoachTranscript key={i} text={t} />
+        ))}
 
       {/* C1 — breakthrough under the transcript, always visible. */}
       {breakthroughSnippet ? (
@@ -574,32 +593,6 @@ function BreakthroughBlock({ videoRef }: { videoRef: string | null }) {
 }
 
 /* ── voice metrics unavailable — soft inline note (A), not an error ── */
-
-/* ── unpaid-arc unlock CTA (Phase-1 pricing teaser boundary) ── */
-
-function AuditLockedNotice() {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-4">
-      <div className="flex items-center gap-2">
-        <Lock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-        <p className="text-[15px] font-semibold text-foreground">
-          Your automatic overview is in
-        </p>
-      </div>
-      <p className="text-[14px] leading-relaxed text-muted-foreground">
-        Coach feedback on this take is part of the full audit. $50 unlocks the
-        coach&apos;s personal feedback on all takes, a video on every
-        breakthrough, and your ideal text. Money-back guaranteed.
-      </p>
-      <Link
-        href="/dashboard/pricing"
-        className="mt-1 self-start rounded-full bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        Unlock the full audit
-      </Link>
-    </div>
-  );
-}
 
 function VoiceMetricsNotice() {
   return (
