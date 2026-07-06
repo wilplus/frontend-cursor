@@ -239,7 +239,7 @@ export default function ReadoutCard({
             // Take-level note: show once (first group) in the stacked view.
             voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
             // Take-level notice: show the unlock CTA once (first group).
-            auditPaid={i === 0 ? payload.auditPaid : true}
+            humanFeedbackVisible={i === 0 ? payload.humanFeedbackVisible : true}
             expanded={expanded}
             onToggle={toggle}
           />
@@ -283,7 +283,7 @@ export default function ReadoutCard({
           presentationRef={payload.presentationRef}
           isSample={isSample && idx === 0}
           voiceMetricsAvailable={payload.voiceMetricsAvailable}
-          auditPaid={payload.auditPaid}
+          humanFeedbackVisible={payload.humanFeedbackVisible}
           expanded={expanded}
           onToggle={toggle}
         />
@@ -299,7 +299,7 @@ function SlideGroupPage({
   presentationRef,
   isSample,
   voiceMetricsAvailable,
-  auditPaid,
+  humanFeedbackVisible,
   expanded,
   onToggle,
 }: {
@@ -307,7 +307,8 @@ function SlideGroupPage({
   presentationRef: string | null;
   isSample: boolean;
   voiceMetricsAvailable: boolean;
-  auditPaid: boolean;
+  /** Take-aware: false when THIS take's coach feedback awaits the $50 unlock. */
+  humanFeedbackVisible: boolean;
   expanded: string[];
   onToggle: (key: string) => void;
 }) {
@@ -346,9 +347,9 @@ function SlideGroupPage({
             a soft inline note instead of empty metric rows. */}
         {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
 
-        {/* Phase-1 pricing — unpaid (teaser) arc: written feedback + extra
-            videos + ideal text are withheld; offer the $50 unlock. */}
-        {!auditPaid ? <AuditLockedNotice /> : null}
+        {/* Phase-1 pricing — this take's coach feedback is withheld pending
+            the $50 unlock (take-aware: the free-intro take 1 shows it free). */}
+        {!humanFeedbackVisible ? <AuditLockedNotice /> : null}
 
         {perSlide ? (
           // Per deck slide: the COMPLETE 1:1 transcript + slide playback shown
@@ -582,13 +583,13 @@ function AuditLockedNotice() {
       <div className="flex items-center gap-2">
         <Lock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
         <p className="text-[15px] font-semibold text-foreground">
-          This is your free take
+          Your automatic overview is in
         </p>
       </div>
       <p className="text-[14px] leading-relaxed text-muted-foreground">
-        Unlock the full audit for $50: all 3 takes, written feedback on every
-        moment, a coach video on each breakthrough, and your ideal text.
-        Money-back guaranteed.
+        Coach feedback on this take is part of the full audit. $50 unlocks the
+        coach&apos;s personal feedback on all takes, a video on every
+        breakthrough, and your ideal text. Money-back guaranteed.
       </p>
       <Link
         href="/dashboard/pricing"

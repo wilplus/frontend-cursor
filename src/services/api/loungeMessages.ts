@@ -23,10 +23,14 @@ export type LoungeKind =
   /** BE-rendered cadence beat (explore-session multi-take arc). Already
    *  localized server-side — rendered as a plain bot bubble, same as "text". */
   | "cadence"
-  /** BE-inserted when an arc's best presentation becomes ready (3rd take). A
-   *  durable, tappable card → opens BestPresentationOverlay(arc_id). Metadata
-   *  carries { arc_id, topic }. */
-  | "best_presentation_ready";
+  /** BE-inserted when an arc's best presentation becomes ready (>=3 takes +
+   *  coach-published + paid). A durable, tappable card → opens
+   *  BestPresentationOverlay(arc_id). Metadata carries { arc_id, topic }. */
+  | "best_presentation_ready"
+  /** The unpaid/unreviewed >=3-takes counterpart: the full transcript is ready
+   *  (transcript text + strong sides — never a premature "best presentation").
+   *  Metadata carries { arc_id, topic }. */
+  | "transcript_ready";
 
 /** Server-shared limits (keep in lockstep with the BE contract). */
 export const LOUNGE_BODY_MAX = 16_000;

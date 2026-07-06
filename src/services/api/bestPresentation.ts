@@ -17,12 +17,6 @@ export interface BestPresentationProgress {
   takesTarget: number;
   takesRemaining: number;
   ready: boolean;
-  /** #1 — the paid-deliverable CTAs ("View your best presentation" /
-   *  breakthroughs) show only when the BE marks the arc coach-reviewed AND
-   *  paid. Absent on an older payload → true (no spurious gating until the BE
-   *  sends the fields). */
-  coachReviewed: boolean;
-  auditPaid: boolean;
 }
 
 /** One slide in the assembled best presentation. text is the BE-composed,
@@ -91,9 +85,6 @@ function mapProgress(raw: unknown): BestPresentationProgress | null {
     takesTarget: target,
     takesRemaining: remaining,
     ready: typeof r.ready === "boolean" ? r.ready : done >= target,
-    // Only false when the BE explicitly says so; absent → true (ungated).
-    coachReviewed: r.coach_reviewed !== false,
-    auditPaid: r.audit_paid !== false,
   };
 }
 

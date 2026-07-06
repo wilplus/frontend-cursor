@@ -9,12 +9,18 @@
 /*  no FE intent logic — the classification is BE-owned.                        */
 /* -------------------------------------------------------------------------- */
 
-export type ChipAction = "strong_sides" | "trainings" | "audit";
+export type ChipAction =
+  | "strong_sides"
+  | "trainings"
+  | "audit"
+  /** The $50 pay note (BE arc_notifications) — taps into the audit checkout. */
+  | "arc_checkout";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
   strong_sides: "★ Strong sides",
   trainings: "Trainings",
   audit: "Open audit",
+  arc_checkout: "Unlock the full audit",
 };
 
 // `record_again` is intentionally NOT a chip: the bot points at the permanent
@@ -24,6 +30,7 @@ const VALID_ACTIONS: readonly ChipAction[] = [
   "strong_sides",
   "trainings",
   "audit",
+  "arc_checkout",
 ];
 
 /**

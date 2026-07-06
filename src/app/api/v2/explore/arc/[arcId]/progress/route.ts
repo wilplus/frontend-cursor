@@ -7,7 +7,9 @@ export const runtime = "nodejs";
  * GET /api/v2/explore/arc/[arcId]/progress
  *
  * BFF proxy — cheap progress poll: { takes_done, takes_target, takes_remaining, ready }.
- * Polled by ProgressToAuditBubble to gate the "View best presentation" CTA.
+ * Polled by ProgressToAuditBubble for the take counter; the deliverable
+ * affordances live on the BE terminal Lounge card (best_presentation_ready /
+ * transcript_ready), not here.
  */
 export async function GET(
   req: NextRequest,

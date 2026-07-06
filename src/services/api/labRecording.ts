@@ -137,8 +137,15 @@ export async function submitLabRecording(
   // BE A2 (verified live): 201 = { status, session_id, recording_id, state,
   // session_context, readout:{ snippets[] } }. Snippets sit at readout.snippets;
   // state defaults to readout_ready per the BE note.
-  const readoutObj =
-    body.readout && typeof body.readout === "object" ? body.readout : {};
+  // Fold the BE's TOP-LEVEL audit_paid + human_feedback_visible mirrors into
+  // the readout object so the take-aware gating survives the extraction.
+  const readoutObj = {
+    ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
+    ...("audit_paid" in body ? { audit_paid: body.audit_paid } : {}),
+    ...("human_feedback_visible" in body
+      ? { human_feedback_visible: body.human_feedback_visible }
+      : {}),
+  };
   return {
     kind: "ok",
     sessionId: typeof body.session_id === "string" ? body.session_id : null,

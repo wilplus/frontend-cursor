@@ -8,38 +8,27 @@ import {
 import { readExploreArc } from "@/lib/willab/exploreArc";
 
 /* -------------------------------------------------------------------------- */
-/*  ProgressToAuditBubble — progress toward the arc deliverable (C-2 / F1)   */
+/*  ProgressToAuditBubble — the take counter toward the full training (#6)     */
 /*                                                                            */
 /*  Arc mode only (explore takes in progress):                                */
 /*    Polls GET /api/v2/explore/arc/<arc_id>/progress → takes_done / target.  */
-/*    ready === false → "Your best presentation needs N more takes — min 3."  */
-/*                     + "Record next take" CTA (calls onStartNextTake).      */
-/*    ready === true  → "Your best presentation is ready." + view button.     */
+/*    ready === false → "To complete the full training you need N more takes" */
+/*                      + the progress bar. NOTHING else (#6 exact copy).      */
+/*    ready === true  → renders null: the BE's terminal card                   */
+/*                      (best_presentation_ready / transcript_ready) is the    */
+/*                      single source of the deliverable affordances (#1).     */
 /*                                                                            */
 /*  Hides entirely when there is no active arc (no localStorage entry) or     */
 /*  when the progress endpoint returns null (not shipped yet / error).        */
-/*                                                                            */
-/*  The legacy seconds-based audit progress path is retired — the audit       */
-/*  deliverable no longer surfaces to users.                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function ProgressToAuditBubble({
   arcId: arcIdProp = null,
-  onOpenAudit,
-  onOpenBestPresentation,
-  onOpenBreakthroughs,
 }: {
   /** Durable arc id (from the persisted recording_summary metadata) so the
    *  bubble stays clickable across logout/login + any device. When absent,
    *  falls back to the localStorage explore arc (pre-fix recordings). */
   arcId?: string | null;
-  /** Fallback when onOpenBestPresentation is absent. */
-  onOpenAudit: () => void;
-  /** Called when the user taps "View your best presentation" in arc mode.
-   *  Receives the arcId so the parent can mount the right overlay. */
-  onOpenBestPresentation?: (arcId: string) => void;
-  /** #5 — opens the arc's coach-confirmed breakthrough moments. */
-  onOpenBreakthroughs?: (arcId: string) => void;
 }) {
   // Prefer the durable arc id; fall back to the localStorage arc (read once).
   const localArcRef = useRef(readExploreArc());
@@ -75,64 +64,33 @@ export default function ProgressToAuditBubble({
 
   if (!arcId || !arcProgress) return null;
 
-  const pct = Math.round((arcProgress.takesDone / arcProgress.takesTarget) * 100);
-  // #1 — the paid-deliverable CTAs only when coach-reviewed AND paid (absent
-  // fields on an older BE payload map to true, so nothing gates spuriously).
-  const entitled = arcProgress.coachReviewed && arcProgress.auditPaid;
+  // #1 — once the arc is ready (>=3 takes) this bubble steps ASIDE entirely:
+  // the BE fires exactly one terminal card (best_presentation_ready when
+  // coach-published AND paid, transcript_ready otherwise) and THAT card is the
+  // single source of the affordances. Rendering buttons here too would either
+  // duplicate them or claim a "ready" best presentation prematurely.
+  if (arcProgress.ready) return null;
 
-  // Ready but not yet reviewed/paid → the BE-emitted "transcript ready" card
-  // carries the affordance (transcript text + strong sides); this bubble stays
-  // out of the way rather than claiming a "ready" best presentation.
-  if (arcProgress.ready && !entitled) return null;
+  const pct = Math.round((arcProgress.takesDone / arcProgress.takesTarget) * 100);
 
   return (
     <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5">
-      {arcProgress.ready ? (
-        <>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            Your best presentation is ready.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              onOpenBestPresentation
-                ? onOpenBestPresentation(arcId)
-                : onOpenAudit()
-            }
-            className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
-          >
-            View your best presentation
-          </button>
-          {onOpenBreakthroughs ? (
-            <button
-              type="button"
-              onClick={() => onOpenBreakthroughs(arcId)}
-              className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
-            >
-              View your breakthrough moments
-            </button>
-          ) : null}
-        </>
-      ) : (
-        <>
-          {/* #6 — the counter is the ONE source of truth; exactly this copy. */}
-          <p className="text-[15px] leading-relaxed text-foreground">
-            To complete the full training you need {arcProgress.takesRemaining}{" "}
-            more {arcProgress.takesRemaining === 1 ? "take" : "takes"}
-          </p>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${pct}%` }}
-              role="progressbar"
-              aria-valuenow={pct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Progress to the full training"
-            />
-          </div>
-        </>
-      )}
+      {/* #6 — the counter is the ONE source of truth; exactly this copy. */}
+      <p className="text-[15px] leading-relaxed text-foreground">
+        To complete the full training you need {arcProgress.takesRemaining}{" "}
+        more {arcProgress.takesRemaining === 1 ? "take" : "takes"}
+      </p>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${pct}%` }}
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Progress to the full training"
+        />
+      </div>
     </div>
   );
 }
