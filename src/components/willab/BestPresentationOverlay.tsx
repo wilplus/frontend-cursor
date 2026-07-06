@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { ChevronDown, Crown, Pencil, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Crown, Loader2, Pencil, X } from "lucide-react";
 import LoadingState from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
@@ -13,6 +13,7 @@ import {
   type BestPresentationResult,
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
+import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 
 export default function BestPresentationOverlay({
   arcId,
@@ -21,21 +22,58 @@ export default function BestPresentationOverlay({
   arcId: string;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [status, setStatus] = useState<
-    "loading" | "ready" | "error" | "paywall"
+    "loading" | "ready" | "error" | "paywall" | "preparing"
   >("loading");
   const [result, setResult] = useState<BestPresentationResult | null>(null);
   const [cursor, setCursor] = useState(0);
+  // Bumped after a successful unlock to re-run the fetch (now entitled).
+  const [refetchNonce, setRefetchNonce] = useState(0);
+  // Unlock in flight — disables the button + swaps its label to a spinner.
+  const [unlocking, setUnlocking] = useState(false);
+  // Soft, retryable notice under the button when a tap couldn't go through
+  // (transient blip, BE 5xx, or the /unlock route not shipped yet → 404). Never
+  // an error screen; the next tap clears it. Keeps the tap from being a silent
+  // dead-tap on the revenue path.
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
-  // True when the user leaves via an internal navigation (the paywall's
-  // pricing Link). The cleanup must NOT balance the history entry then — the
-  // queued back() would pop the freshly pushed route and bounce the user
-  // straight back to /chat, self-cancelling the unlock CTA.
+  // True when the user leaves via an internal navigation (the pricing top-up on
+  // insufficient credits). The cleanup must NOT balance the history entry then —
+  // the queued back() would pop the freshly pushed route and bounce the user
+  // straight back to /chat, self-cancelling the top-up.
   const leftViaNavRef = useRef(false);
+
+  // Spend credits to unlock this arc. A paywall is never an error: on success we
+  // refetch the now-open deliverable; if the user is short on credits we send
+  // them to the pricing page to top up (their balance survives, they come back).
+  async function handleUnlock() {
+    if (unlocking) return;
+    setUnlockError(null);
+    setUnlocking(true);
+    const r = await unlockArc(arcId);
+    setUnlocking(false);
+    if (r.ok) {
+      setStatus("loading");
+      setRefetchNonce((n) => n + 1);
+      return;
+    }
+    if (r.reason === "insufficient") {
+      // Top up, then return to unlock. (When the BE's checkout_endpoint returns
+      // a ready-to-redirect Stripe URL we can mint one inline; for now the
+      // pricing page is the credits store the FE already ships.)
+      leftViaNavRef.current = true;
+      router.push("/dashboard/pricing");
+      return;
+    }
+    // Transient / not-yet-built (404) → a soft retry notice under the button, so
+    // the tap is never a silent dead-end. The next tap clears it and retries.
+    setUnlockError(r.message);
+  }
 
   // Back-dismiss with per-slide stepping: swipe-back on slide N goes to N-1;
   // swipe-back on slide 0 closes the overlay. A fresh entry is pushed after
@@ -74,13 +112,19 @@ export default function BestPresentationOverlay({
         setStatus("paywall");
         return;
       }
+      // Paid + takes done, but the coach is still editing → a calm wait state,
+      // NOT the paywall and NOT the raw auto-draft.
+      if (r && "preparing" in r) {
+        setStatus("preparing");
+        return;
+      }
       setResult(r);
       setStatus(r ? "ready" : "error");
     });
     return () => {
       active = false;
     };
-  }, [arcId]);
+  }, [arcId, refetchNonce]);
 
   // Paywall FIRST — result is null here, so the loading/!result branch below
   // would otherwise swallow it into an endless spinner.
@@ -93,18 +137,43 @@ export default function BestPresentationOverlay({
             This is part of the full audit
           </p>
           <p className="text-[14px] leading-relaxed text-muted-foreground">
-            Unlock it for $50: coach feedback on all takes, a video on every
-            breakthrough, and your ideal text. Money-back guaranteed.
+            Unlock it for ${ARC_UNLOCK_CREDITS}: your coach-corrected ideal text,
+            every breakthrough moment, and more. Money-back guaranteed.
           </p>
-          <Link
-            href="/dashboard/pricing"
-            onClick={() => {
-              leftViaNavRef.current = true;
-            }}
-            className="rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          <button
+            type="button"
+            onClick={() => void handleUnlock()}
+            disabled={unlocking}
+            className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
-            Unlock the full audit
-          </Link>
+            {unlocking ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Unlocking...
+              </>
+            ) : (
+              `Unlock for ${ARC_UNLOCK_CREDITS} credits`
+            )}
+          </button>
+          {unlockError ? (
+            <p className="text-[13px] text-muted-foreground">{unlockError}</p>
+          ) : null}
+        </div>
+      </PreShellOverlay>
+    );
+  }
+  if (status === "preparing") {
+    return (
+      <PreShellOverlay onClose={onClose}>
+        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+          <Crown className="h-6 w-6 text-amber-500" aria-hidden />
+          <p className="text-[15px] font-semibold text-foreground">
+            Your coach is putting this together
+          </p>
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
+            Your ideal text is being prepared by your coach. We&apos;ll let you
+            know the moment it&apos;s ready.
+          </p>
         </div>
       </PreShellOverlay>
     );

@@ -40,6 +40,10 @@ export interface ReadoutCoach {
    *  null / [] until the coach authors them. */
   when: string | null;
   examples: string[];
+  /** The coach's corrected version of this moment's spoken transcript
+   *  (`coach_snippet_drafts.transcript_corrected`). Free + unconditional, shown
+   *  alongside the raw transcript once saved; null until the coach edits it. */
+  transcriptCorrected: string | null;
 }
 
 /** Phase 2 — the slide on screen during this snippet, mapped BE-side from the
@@ -118,15 +122,11 @@ export interface ReadoutPayload {
    *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
    *  true (absent → render metrics as today). */
   voiceMetricsAvailable: boolean;
-  /** Phase-1 pricing — false on an unpaid arc (teaser scope: the BE withholds
-   *  written commentary + extra videos + ideal text). Defaults to true (absent
-   *  → full, unlocked). */
+  /** Arc-paid echo — false on an unpaid arc. The readout NO LONGER withholds
+   *  anything on this (the coach layer is unconditionally free); it survives only
+   *  so the FE knows the arc's paid state for the ideal-text / breakthroughs
+   *  CTAs. Defaults to true (absent → treated as unlocked). */
   auditPaid: boolean;
-  /** TAKE-AWARE human layer (covers the one-time free-intro take 1): false when
-   *  this take's coach feedback is withheld pending the $50 unlock — the readout
-   *  then shows the unlock CTA. Defaults to true (absent → visible). This, not
-   *  auditPaid, drives the locked affordance. */
-  humanFeedbackVisible: boolean;
 }
 
 /* ------------------------------- mapper ----------------------------------- */
@@ -243,8 +243,14 @@ function mapCoach(raw: unknown): ReadoutCoach | null {
         (e): e is string => typeof e === "string" && e.length > 0
       )
     : [];
-  if (!note && !tag && !when && examples.length === 0) return null;
-  return { note, tag, when, examples };
+  const transcriptCorrected =
+    typeof c.transcript_corrected === "string" &&
+    c.transcript_corrected.length > 0
+      ? c.transcript_corrected
+      : null;
+  if (!note && !tag && !when && examples.length === 0 && !transcriptCorrected)
+    return null;
+  return { note, tag, when, examples, transcriptCorrected };
 }
 
 export function mapReadoutPayload(raw: unknown): ReadoutPayload {
@@ -280,7 +286,6 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     voiceMetricsAvailable: r.voice_metrics_available !== false,
     // Only false on an explicitly unpaid arc; absent → true (full/unlocked).
     auditPaid: r.audit_paid !== false,
-    humanFeedbackVisible: r.human_feedback_visible !== false,
   };
 }
 
@@ -449,7 +454,6 @@ export function mockReadout(topic: string): ReadoutPayload {
     slideTranscripts: [],
     voiceMetricsAvailable: true,
     auditPaid: true,
-    humanFeedbackVisible: true,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),
       snippet(

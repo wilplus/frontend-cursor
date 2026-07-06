@@ -69,7 +69,6 @@ describe("willabParked.readParked", () => {
         ],
         voiceMetricsAvailable: true,
         auditPaid: true,
-        humanFeedbackVisible: true,
       },
     });
     const p = readParked();
@@ -90,7 +89,6 @@ describe("willabParked.readParked", () => {
         slideTranscripts: [],
         voiceMetricsAvailable: true,
         auditPaid: true,
-        humanFeedbackVisible: true,
       },
     });
     clearParked();

@@ -88,6 +88,7 @@ describe("mapReadoutPayload", () => {
       tag: "strong",
       when: null,
       examples: [],
+      transcriptCorrected: null,
     });
     expect(p.snippets[1]?.coach?.tag).toBe("to_work_on");
     expect(p.snippets[2]?.coach).toBeNull();
@@ -114,6 +115,30 @@ describe("mapReadoutPayload", () => {
       "Why should you care?",
       "Why us?",
     ]);
+  });
+
+  it("maps the coach-corrected transcript (free, unconditional)", () => {
+    const p = mapReadoutPayload({
+      snippets: [
+        // A corrected transcript alone makes the coach object non-null even
+        // with no note/tag (it's free coach content, always surfaced).
+        { id: "a", coach: { transcript_corrected: "The corrected line." } },
+        { id: "b", coach: { note: "n", transcript_corrected: "" } }, // blank → null
+        { id: "c", coach: { note: "n" } }, // absent → null
+      ],
+    });
+    expect(p.snippets[0]?.coach?.transcriptCorrected).toBe("The corrected line.");
+    expect(p.snippets[1]?.coach?.transcriptCorrected).toBeNull();
+    expect(p.snippets[2]?.coach?.transcriptCorrected).toBeNull();
+  });
+
+  it("no longer carries the retired humanFeedbackVisible field", () => {
+    const p = mapReadoutPayload({ snippets: [], human_feedback_visible: false });
+    expect("humanFeedbackVisible" in p).toBe(false);
+    // audit_paid still echoes through for the deliverable CTAs.
+    expect(mapReadoutPayload({ snippets: [], audit_paid: false }).auditPaid).toBe(
+      false
+    );
   });
 
   it("defaults overall_message to null pre-publish", () => {

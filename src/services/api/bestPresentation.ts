@@ -182,16 +182,31 @@ export async function saveBestPresentationSlideText(
 
 /** Full payload — fetched once when the overlay opens.
  *  Soft-fails to null. */
-/** 402 sentinel — the deliverable exists but is behind the $50 audit paywall.
+/** 402 sentinel — the deliverable exists but is behind the $25 audit paywall.
  *  The overlay renders a clean unlock CTA, NEVER an error (founder rule: a
  *  paid-but-unpurchased open is a paywall, not a failure). */
 export interface BestPresentationPaywall {
   paymentRequired: true;
 }
 
+/** "Still being prepared" sentinel — the arc is PAID and its takes are done, but
+ *  the coach hasn't finished editing the ideal text yet. Distinct from the
+ *  paywall (a money state) and from the not-ready progress state (takes still
+ *  owed): the FE shows a calm "your coach is putting this together" panel and
+ *  NEVER the raw auto-draft. Detected via HTTP 202 or a { status:"preparing" }
+ *  / { preparing:true } body marker (BE shape not fully pinned → read both). */
+export interface BestPresentationPreparing {
+  preparing: true;
+}
+
 export async function fetchBestPresentation(
   arcId: string
-): Promise<BestPresentationResult | BestPresentationPaywall | null> {
+): Promise<
+  | BestPresentationResult
+  | BestPresentationPaywall
+  | BestPresentationPreparing
+  | null
+> {
   const headers = await authHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -213,12 +228,18 @@ export async function fetchBestPresentation(
     clearTimeout(timeout);
   }
   if (res.status === 402) return { paymentRequired: true };
+  // 202 Accepted → the coach is still preparing the ideal text (paid arc).
+  if (res.status === 202) return { preparing: true };
   if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
   if (!body) return null;
+  // A 2xx body can also flag the preparing state inline (no draft content).
+  if (body.status === "preparing" || body.preparing === true) {
+    return { preparing: true };
+  }
   const progress = mapProgress(body.progress);
   if (!progress) return null;
   const rawSlides = Array.isArray(body.slides) ? body.slides : [];

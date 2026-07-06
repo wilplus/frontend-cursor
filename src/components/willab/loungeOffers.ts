@@ -26,7 +26,7 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a very bad joke that won't be funny?",
   credit:
-    "That was your free take. The full audit is $50: all 3 takes, your ideal text, a coach video on every breakthrough, and written feedback. Money-back guaranteed.",
+    "Unlock the full audit for $25: your coach-corrected ideal text and every breakthrough moment. Your automatic overview stays free on every take. Money-back guaranteed.",
 };
 
 /** Build the persisted offer message. role "bot" so a fallback render (if the
