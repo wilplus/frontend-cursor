@@ -110,6 +110,17 @@ export async function submitLabRecording(
         "That take was too short or had no clear speech — let's try again.",
     };
   }
+  if (res.status === 402) {
+    // Founder rule: a paywall is never an "analysis failed" error. The BE is
+    // removing the 402 from the record path entirely; until that lands, keep
+    // the copy calm and point at the unlock instead of a scary failure.
+    return {
+      kind: "error",
+      status: 402,
+      message:
+        "Your recording is safe. This take is part of the full audit. Unlock it on the pricing page to continue.",
+    };
+  }
   if (!res.ok) {
     return {
       kind: "error",

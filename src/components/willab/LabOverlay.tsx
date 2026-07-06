@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Mic, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,9 @@ export default function LabOverlay({
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // True when the upload failure was a 402 — Processing then shows a neutral
+  // paywall panel (unlock link, no retry) instead of the destructive error.
+  const [uploadPaywall, setUploadPaywall] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
   const durationRef = useRef(0);
   const uploadStartedRef = useRef(false);
@@ -239,6 +243,7 @@ export default function LabOverlay({
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
+        setUploadPaywall(false);
         onRecordingProgress?.(result.recordingProgress);
         goTo("readout");
       } else if (result.kind === "rejected") {
@@ -247,6 +252,7 @@ export default function LabOverlay({
         goTo("lab_prerecord");
       } else {
         setUploadError(result.message);
+        setUploadPaywall(result.status === 402);
       }
     })();
     return () => {
@@ -445,8 +451,10 @@ export default function LabOverlay({
         {state === "lab_processing" && (
           <Processing
             error={uploadError}
+            paywall={uploadPaywall}
             onRetry={() => {
               setUploadError(null);
+              setUploadPaywall(false);
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
             }}
@@ -907,10 +915,14 @@ const PROCESSING_LINES = [
 
 function Processing({
   error,
+  paywall,
   onRetry,
   onClose,
 }: {
   error: string | null;
+  /** True when the failure was a 402 — a paywall is never an error: neutral
+   *  styling, no retry (it would just 402 again), a route to the unlock. */
+  paywall: boolean;
   onRetry: () => void;
   onClose: () => void;
 }) {
@@ -924,12 +936,36 @@ function Processing({
     return () => clearInterval(id);
   }, [error]);
 
+  if (error && paywall) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+          {error}
+        </p>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard/pricing"
+            className="flex items-center rounded-full bg-primary px-6 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Unlock the full audit
+          </Link>
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            Back to Lounge
+          </Button>
+        </div>
+      </div>
+    );
+  }
   if (error) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <p className="max-w-sm text-[15px] text-destructive">{error}</p>
         <p className="max-w-sm text-[12px] text-muted-foreground">
-          Your recording isn&apos;t lost — try the analysis again, or step back
+          Your recording isn&apos;t lost. Try the analysis again, or step back
           to the Lounge and resume later.
         </p>
         <div className="flex gap-2">

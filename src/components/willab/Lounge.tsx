@@ -24,7 +24,7 @@ import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
-import { writeExploreArc } from "@/lib/willab/exploreArc";
+import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
 import {
   readStrongSidesAnchor,
   writeStrongSidesAnchor,
@@ -179,6 +179,26 @@ export default function Lounge({
     const ts = readStrongSidesAnchor();
     if (ts) setStrongSidesAt(ts);
   }, []);
+  // #9 fallback — the localStorage anchor is per-device, but a signed-in bot
+  // turn carrying suggested_action=strong_sides is server-persisted. On another
+  // device / cleared storage the anchor is empty, and since the in-bubble
+  // ActionButton is suppressed for strong_sides (the anchor is the single
+  // render), the affordance would vanish entirely. Derive the anchor from the
+  // newest such message instead (not written back — the thread stays the
+  // source of truth).
+  useEffect(() => {
+    if (strongSidesAt) return;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (
+        m.role === "bot" &&
+        coerceSuggestedAction(m.metadata?.suggested_action) === "strong_sides"
+      ) {
+        setStrongSidesAt(m.client_created_at);
+        return;
+      }
+    }
+  }, [messages, strongSidesAt]);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -225,12 +245,23 @@ export default function Lounge({
   // the top and newest at the bottom (matching how the existing thread
   // already reads).
   const threadItems = useMemo<ThreadItem[]>(() => {
-    const items: ThreadItem[] = messages.map((m) => ({
-      kind: "message",
-      sortKey: m.client_created_at,
-      reactKey: m.client_id,
-      message: m,
-    }));
+    // #10 — dedupe by client_id: the BE thread is the source of truth and its
+    // idempotent client_ids are the identity. A double-insert (retry, optimistic
+    // + server echo) must never render twice (also keeps React keys unique).
+    const seenIds = new Set<string>();
+    const items: ThreadItem[] = [];
+    for (const m of messages) {
+      if (m.client_id) {
+        if (seenIds.has(m.client_id)) continue;
+        seenIds.add(m.client_id);
+      }
+      items.push({
+        kind: "message",
+        sortKey: m.client_created_at,
+        reactKey: m.client_id,
+        message: m,
+      });
+    }
     if (isCoach) {
       for (const row of reviewQueue.rows) {
         items.push({
@@ -417,6 +448,17 @@ export default function Lounge({
   // F2 — install affordance primitives (platform + dismiss state). Drives both
   // whether to surface the install offer and the footer action pair.
   const install = useInstallOffer();
+
+  // #7 — practice mode: while a 3-take practice arc is active and has at least
+  // one take banked, the big record button reads "Record the next take" (the
+  // small in-card button is gone; this is the ONE record affordance). Post-mount
+  // effect (localStorage) so SSR/hydration stay clean; re-checked as the flow
+  // state / thread move (a take completing flips both).
+  const [practiceArcActive, setPracticeArcActive] = useState(false);
+  useEffect(() => {
+    const arc = readExploreArc();
+    setPracticeArcActive(!!arc && arc.nextTakeIndex >= 2);
+  }, [state, messages.length]);
 
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
@@ -680,7 +722,6 @@ export default function Lounge({
                 onOpenAudit={() => setAuditOpen(true)}
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
-                onStartNextTake={onStart}
               />
             ) : (
               <ActionButton
@@ -728,7 +769,7 @@ export default function Lounge({
           className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
         >
           <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-          Start official recording
+          {practiceArcActive ? "Record the next take" : "Start official recording"}
         </Button>
       )}
 
@@ -1041,10 +1082,14 @@ function Bubble({
   }
   if (message.role === "bot") {
     // B-1 — read the persisted action from metadata; render below the bubbles.
-    const action =
+    // #9 — strong_sides is EXCLUDED here: its single render is the anchored
+    // in-thread button (the "strongsides" ThreadItem, set via markStrongSides),
+    // so a suggested_action=strong_sides reply never draws a duplicate.
+    const suggested =
       onChip && message.metadata
         ? coerceSuggestedAction(message.metadata.suggested_action)
         : null;
+    const action = suggested === "strong_sides" ? null : suggested;
     return (
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}

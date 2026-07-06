@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ChevronDown, Crown, Pencil, X } from "lucide-react";
 import LoadingState from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -20,7 +21,9 @@ export default function BestPresentationOverlay({
   arcId: string;
   onClose: () => void;
 }) {
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "error" | "paywall"
+  >("loading");
   const [result, setResult] = useState<BestPresentationResult | null>(null);
   const [cursor, setCursor] = useState(0);
 
@@ -28,6 +31,11 @@ export default function BestPresentationOverlay({
   onCloseRef.current = onClose;
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
+  // True when the user leaves via an internal navigation (the paywall's
+  // pricing Link). The cleanup must NOT balance the history entry then — the
+  // queued back() would pop the freshly pushed route and bounce the user
+  // straight back to /chat, self-cancelling the unlock CTA.
+  const leftViaNavRef = useRef(false);
 
   // Back-dismiss with per-slide stepping: swipe-back on slide N goes to N-1;
   // swipe-back on slide 0 closes the overlay. A fresh entry is pushed after
@@ -49,8 +57,11 @@ export default function BestPresentationOverlay({
     return () => {
       window.removeEventListener("popstate", handlePop);
       // Only balance our entry on a non-Back close; a Back already popped it,
-      // and a second back() would walk past /chat to /login.
-      if (!closedByPopstate) window.history.back();
+      // and a second back() would walk past /chat to /login. Same for leaving
+      // via the paywall's pricing Link: back() would pop the new route and
+      // bounce the user off the pricing page (the stale /chat entry it leaves
+      // behind is harmless).
+      if (!closedByPopstate && !leftViaNavRef.current) window.history.back();
     };
   }, []);
 
@@ -58,6 +69,11 @@ export default function BestPresentationOverlay({
     let active = true;
     void fetchBestPresentation(arcId).then((r) => {
       if (!active) return;
+      // 402 = paid-but-unpurchased deliverable → a clean paywall, never an error.
+      if (r && "paymentRequired" in r) {
+        setStatus("paywall");
+        return;
+      }
       setResult(r);
       setStatus(r ? "ready" : "error");
     });
@@ -66,10 +82,30 @@ export default function BestPresentationOverlay({
     };
   }, [arcId]);
 
-  if (status === "loading" || !result) {
+  // Paywall FIRST — result is null here, so the loading/!result branch below
+  // would otherwise swallow it into an endless spinner.
+  if (status === "paywall") {
     return (
       <PreShellOverlay onClose={onClose}>
-        <LoadingState />
+        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+          <Crown className="h-6 w-6 text-amber-500" aria-hidden />
+          <p className="text-[15px] font-semibold text-foreground">
+            This is part of the full audit
+          </p>
+          <p className="text-[14px] leading-relaxed text-muted-foreground">
+            Unlock it for $50: coach feedback on all takes, a video on every
+            breakthrough, and your ideal text. Money-back guaranteed.
+          </p>
+          <Link
+            href="/dashboard/pricing"
+            onClick={() => {
+              leftViaNavRef.current = true;
+            }}
+            className="rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Unlock the full audit
+          </Link>
+        </div>
       </PreShellOverlay>
     );
   }
@@ -79,6 +115,13 @@ export default function BestPresentationOverlay({
         <p className="text-[15px] text-muted-foreground">
           Couldn&apos;t load your presentation. Try again in a moment.
         </p>
+      </PreShellOverlay>
+    );
+  }
+  if (status === "loading" || !result) {
+    return (
+      <PreShellOverlay onClose={onClose}>
+        <LoadingState />
       </PreShellOverlay>
     );
   }
@@ -174,9 +217,10 @@ function NotReadyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-4">
+      {/* #6 — the canonical counter copy, same as the progress card. */}
       <p className="text-[15px] text-foreground">
-        Your best presentation needs {progress.takesRemaining} more{" "}
-        {progress.takesRemaining === 1 ? "take" : "takes"} — minimum 3.
+        To complete the full training you need {progress.takesRemaining} more{" "}
+        {progress.takesRemaining === 1 ? "take" : "takes"}
       </p>
       <div className="h-1.5 w-48 overflow-hidden rounded-full bg-border">
         <div
@@ -190,12 +234,9 @@ function NotReadyState({
           aria-valuenow={progress.takesDone}
           aria-valuemin={0}
           aria-valuemax={progress.takesTarget}
-          aria-label="Sessions complete"
+          aria-label="Progress to the full training"
         />
       </div>
-      <p className="text-[12px] text-muted-foreground">
-        {progress.takesDone} of {progress.takesTarget} sessions complete
-      </p>
     </div>
   );
 }

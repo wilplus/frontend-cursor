@@ -28,7 +28,6 @@ export default function ProgressToAuditBubble({
   onOpenAudit,
   onOpenBestPresentation,
   onOpenBreakthroughs,
-  onStartNextTake,
 }: {
   /** Durable arc id (from the persisted recording_summary metadata) so the
    *  bubble stays clickable across logout/login + any device. When absent,
@@ -41,8 +40,6 @@ export default function ProgressToAuditBubble({
   onOpenBestPresentation?: (arcId: string) => void;
   /** #5 — opens the arc's coach-confirmed breakthrough moments. */
   onOpenBreakthroughs?: (arcId: string) => void;
-  /** Opens the recording overlay for the next explore take. */
-  onStartNextTake?: () => void;
 }) {
   // Prefer the durable arc id; fall back to the localStorage arc (read once).
   const localArcRef = useRef(readExploreArc());
@@ -79,6 +76,14 @@ export default function ProgressToAuditBubble({
   if (!arcId || !arcProgress) return null;
 
   const pct = Math.round((arcProgress.takesDone / arcProgress.takesTarget) * 100);
+  // #1 — the paid-deliverable CTAs only when coach-reviewed AND paid (absent
+  // fields on an older BE payload map to true, so nothing gates spuriously).
+  const entitled = arcProgress.coachReviewed && arcProgress.auditPaid;
+
+  // Ready but not yet reviewed/paid → the BE-emitted "transcript ready" card
+  // carries the affordance (transcript text + strong sides); this bubble stays
+  // out of the way rather than claiming a "ready" best presentation.
+  if (arcProgress.ready && !entitled) return null;
 
   return (
     <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5">
@@ -110,9 +115,10 @@ export default function ProgressToAuditBubble({
         </>
       ) : (
         <>
+          {/* #6 — the counter is the ONE source of truth; exactly this copy. */}
           <p className="text-[15px] leading-relaxed text-foreground">
-            Your best presentation needs {arcProgress.takesRemaining} more{" "}
-            {arcProgress.takesRemaining === 1 ? "take" : "takes"}, minimum 3.
+            To complete the full training you need {arcProgress.takesRemaining}{" "}
+            more {arcProgress.takesRemaining === 1 ? "take" : "takes"}
           </p>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
             <div
@@ -122,21 +128,9 @@ export default function ProgressToAuditBubble({
               aria-valuenow={pct}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label="Progress to your best presentation"
+              aria-label="Progress to the full training"
             />
           </div>
-          <p className="text-[12px] text-muted-foreground">
-            {arcProgress.takesDone} of {arcProgress.takesTarget} takes done
-          </p>
-          {onStartNextTake ? (
-            <button
-              type="button"
-              onClick={onStartNextTake}
-              className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
-            >
-              Record next take
-            </button>
-          ) : null}
         </>
       )}
     </div>
