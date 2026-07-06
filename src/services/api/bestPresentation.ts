@@ -17,6 +17,12 @@ export interface BestPresentationProgress {
   takesTarget: number;
   takesRemaining: number;
   ready: boolean;
+  /** #1 — the paid-deliverable CTAs ("View your best presentation" /
+   *  breakthroughs) show only when the BE marks the arc coach-reviewed AND
+   *  paid. Absent on an older payload → true (no spurious gating until the BE
+   *  sends the fields). */
+  coachReviewed: boolean;
+  auditPaid: boolean;
 }
 
 /** One slide in the assembled best presentation. text is the BE-composed,
@@ -85,6 +91,9 @@ function mapProgress(raw: unknown): BestPresentationProgress | null {
     takesTarget: target,
     takesRemaining: remaining,
     ready: typeof r.ready === "boolean" ? r.ready : done >= target,
+    // Only false when the BE explicitly says so; absent → true (ungated).
+    coachReviewed: r.coach_reviewed !== false,
+    auditPaid: r.audit_paid !== false,
   };
 }
 
@@ -182,9 +191,16 @@ export async function saveBestPresentationSlideText(
 
 /** Full payload — fetched once when the overlay opens.
  *  Soft-fails to null. */
+/** 402 sentinel — the deliverable exists but is behind the $50 audit paywall.
+ *  The overlay renders a clean unlock CTA, NEVER an error (founder rule: a
+ *  paid-but-unpurchased open is a paywall, not a failure). */
+export interface BestPresentationPaywall {
+  paymentRequired: true;
+}
+
 export async function fetchBestPresentation(
   arcId: string
-): Promise<BestPresentationResult | null> {
+): Promise<BestPresentationResult | BestPresentationPaywall | null> {
   const headers = await authHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -205,6 +221,7 @@ export async function fetchBestPresentation(
   } finally {
     clearTimeout(timeout);
   }
+  if (res.status === 402) return { paymentRequired: true };
   if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as Record<
     string,
