@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchBestPresentation } from "./bestPresentation";
+import {
+  fetchBestPresentation,
+  fetchArcBreakthroughs,
+} from "./bestPresentation";
 
 vi.mock("@/lib/api/auth-client", () => ({
   getAuthToken: async () => "tok",
@@ -73,5 +76,23 @@ describe("fetchBestPresentation — paywall / preparing / ready state machine", 
     mockFetch(200, { arc_id: "a", ready: true, progress, slides: [] });
     const r = await fetchBestPresentation("a");
     expect(r && "preparing" in r).toBe(false);
+  });
+});
+
+describe("fetchArcBreakthroughs — paid deliverable, same $25 gate", () => {
+  it("402 → paywall sentinel (never an error)", async () => {
+    mockFetch(402, { code: "PAYMENT_REQUIRED" });
+    expect(await fetchArcBreakthroughs("a")).toEqual({ paymentRequired: true });
+  });
+
+  it("200 → the breakthroughs list", async () => {
+    mockFetch(200, {
+      arc_id: "a",
+      count: 1,
+      breakthroughs: [{ snippet_id: "s1", transcript: "The line.", note: "why" }],
+    });
+    const r = await fetchArcBreakthroughs("a");
+    expect(r && "paymentRequired" in r).toBe(false);
+    expect(r && "breakthroughs" in r && r.breakthroughs).toHaveLength(1);
   });
 });
