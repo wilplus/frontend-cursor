@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   fmtClock,
   isStrongSidesAsk,
+  isUploadAsk,
   loungeToHistory,
   parseVocabulary,
   splitBotMessage,
@@ -129,5 +130,28 @@ describe("isStrongSidesAsk", () => {
   it("ignores unrelated questions", () => {
     expect(isStrongSidesAsk("how does communication work?")).toBe(false);
     expect(isStrongSidesAsk("what's the weather")).toBe(false);
+  });
+});
+
+describe("isUploadAsk", () => {
+  it("matches explicit upload / attach / import asks", () => {
+    expect(isUploadAsk("can I upload an audio file here?")).toBe(true);
+    expect(isUploadAsk("can I upload now?")).toBe(true);
+    expect(isUploadAsk("let me attach a recording")).toBe(true);
+    expect(isUploadAsk("import my mp3")).toBe(true);
+  });
+
+  it("matches send/use a file/recording phrasings + Polish", () => {
+    expect(isUploadAsk("can I use a file I already have?")).toBe(true);
+    expect(isUploadAsk("submit an existing recording")).toBe(true);
+    expect(isUploadAsk("add my own audio")).toBe(true);
+    expect(isUploadAsk("wgraj plik")).toBe(true);
+    expect(isUploadAsk("prześlij nagranie")).toBe(true);
+  });
+
+  it("ignores unrelated questions", () => {
+    expect(isUploadAsk("how do I sound more confident?")).toBe(false);
+    expect(isUploadAsk("what are my strong sides?")).toBe(false);
+    expect(isUploadAsk("start recording")).toBe(false);
   });
 });
