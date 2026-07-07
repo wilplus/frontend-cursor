@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
 
 /**
  * LinkedIn OIDC sign-in button.
@@ -31,6 +32,11 @@ export default function LinkedInAuthButton({
       // Clear any existing session so OAuth flow starts fresh
       // (prevents instant redirect when user already has a stale session)
       await supabase.auth.signOut();
+
+      // If we're launching OAuth from the installed PWA, drop a marker cookie so
+      // the callback page (which can land in a separate browser tab) can tell
+      // the user they can head back to the app. No-op for plain web sign-in.
+      if (isStandalonePwa()) markOAuthFromPwa();
 
       // Build the callback URL — after OAuth, Supabase redirects here.
       //

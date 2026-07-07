@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { isStandalonePwa, markOAuthFromPwa } from "@/lib/pwa";
 
 /**
  * Google OAuth sign-in button.
@@ -34,6 +35,11 @@ export default function GoogleAuthButton({
 
       // Clear any stale session so the OAuth flow starts fresh (mirrors LinkedIn).
       await supabase.auth.signOut();
+
+      // If we're launching OAuth from the installed PWA, drop a marker cookie so
+      // the callback page (which can land in a separate browser tab) can tell
+      // the user they can head back to the app. No-op for plain web sign-in.
+      if (isStandalonePwa()) markOAuthFromPwa();
 
       // No query string on the callback — Supabase's redirect allow-list can drop
       // query strings even with wildcards; /auth/callback defaults `next` to
