@@ -339,10 +339,12 @@ function mapBreakthrough(raw: unknown, i: number): ArcBreakthrough | null {
   };
 }
 
-/** Fetch the arc's coach-confirmed breakthroughs. Soft-fails to null. */
+/** Fetch the arc's coach-confirmed breakthroughs. The list is a PAID deliverable
+ *  (same $25 gate as the ideal text), so a 402 returns the paywall sentinel — a
+ *  clean unlock, never an error. Anything else soft-fails to null. */
 export async function fetchArcBreakthroughs(
   arcId: string
-): Promise<ArcBreakthroughsResult | null> {
+): Promise<ArcBreakthroughsResult | BestPresentationPaywall | null> {
   const headers = await authHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -363,6 +365,7 @@ export async function fetchArcBreakthroughs(
   } finally {
     clearTimeout(timeout);
   }
+  if (res.status === 402) return { paymentRequired: true };
   if (!res.ok) return null;
   const body: unknown = await res.json().catch(() => null);
   if (!body || typeof body !== "object") return null;
