@@ -58,16 +58,37 @@ export default function WillabPendingSend() {
       }
     };
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.access_token) void run();
-    });
+    // Re-check the session + pending send. Cheap + safe to call repeatedly:
+    // run() bails instantly when nothing is pending or a send is in flight.
+    const recheck = () => {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.access_token) void run();
+      });
+    };
+
+    recheck();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.access_token) void run();
     });
 
-    return () => subscription.unsubscribe();
+    // OAuth on an installed PWA opens a real system-browser tab (an iOS / Google
+    // / LinkedIn requirement), so this instance can be backgrounded for the whole
+    // round-trip and never observe SIGNED_IN when the user reopens the app. Also
+    // re-check whenever the tab becomes visible / regains focus, so returning to
+    // the app reliably completes the parked send.
+    const onForeground = () => {
+      if (document.visibilityState === "visible") recheck();
+    };
+    document.addEventListener("visibilitychange", onForeground);
+    window.addEventListener("focus", onForeground);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onForeground);
+      window.removeEventListener("focus", onForeground);
+    };
   }, []);
 
   return null;

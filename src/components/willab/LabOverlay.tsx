@@ -355,6 +355,11 @@ export default function LabOverlay({
       writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
       setPendingSend(labSessionId);
     }
+    // Close the overlay FIRST: LabOverlay renders as `fixed inset-0 z-30`, so
+    // without this the /signup route navigates invisibly UNDER the still-mounted
+    // full-screen layer and the button reads as dead. The park + pending-send
+    // stash above already ran synchronously, so nothing is lost by closing now.
+    onClose();
     router.push("/signup");
   }
 
