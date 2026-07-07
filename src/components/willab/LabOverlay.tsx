@@ -10,6 +10,7 @@ import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { readVideoDurationSec } from "@/services/api/coachVideoMeta";
+import { takeLabUpload } from "./labUploadStage";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { fmtClock } from "./willabHelpers";
@@ -156,6 +157,10 @@ export default function LabOverlay({
   useEffect(() => () => {
     mountedRef.current = false;
   }, []);
+  // A file the user picked from the Lounge footer ("Upload a recording"),
+  // consumed once on mount. When present, the context form collects the topic
+  // then submits this file straight through (deckless) instead of live-record.
+  const stagedUploadRef = useRef<File | null>(takeLabUpload());
 
   const profile = useRef(readWillabProfile()).current;
   // "Same as last time" — the last set-up, sourced from the BE (cross-device,
@@ -420,11 +425,37 @@ export default function LabOverlay({
         {state === "lab_session_context" && (
           <SessionContextForm
             lastSetup={lastSetup}
+            // A staged footer upload is an ad-hoc STANDALONE file — never a take
+            // of a persisted arc. Suppress the "Take N of 3" banner + the deck
+            // pre-fill (and hide the deck field) so no prior arc bleeds into it.
             applyNonce={applyLastNonce}
-            activeArcTake={arcId ? arcTakeIndex : null}
-            preloadDeck={initArc?.deck ?? null}
+            activeArcTake={
+              stagedUploadRef.current ? null : arcId ? arcTakeIndex : null
+            }
+            preloadDeck={stagedUploadRef.current ? null : initArc?.deck ?? null}
+            hideDeck={stagedUploadRef.current !== null}
             onExploreChange={setExploreEnabled}
             onSubmit={(ctx, explore) => {
+              const staged = stagedUploadRef.current;
+              if (staged) {
+                // Footer-picked upload: topic now set → submit the file straight
+                // through, forced deckless AND standalone, bypassing live-record.
+                // Detaching from the arc (exploreEnabled=false, arcId=null) both
+                // stops it being filed as a take of a prior/decked arc and makes
+                // the success handler skip writeExploreArc, so that arc's cached
+                // deck is preserved. The BE gates min content (too-short → 422 →
+                // rejected → prerecord).
+                stagedUploadRef.current = null;
+                setRejectedMsg(null);
+                setExploreEnabled(false);
+                setArcId(null);
+                setContext({ ...ctx, slides: [], presentationRef: null });
+                slideAdvancesRef.current = [];
+                durationRef.current = 0; // the BE backfills duration from the file
+                setBlob(staged);
+                goTo("lab_processing");
+                return;
+              }
               setExploreEnabled(explore);
               setContext(ctx);
               goTo("lab_prerecord");
@@ -586,6 +617,7 @@ function SessionContextForm({
   applyNonce,
   activeArcTake,
   preloadDeck,
+  hideDeck = false,
   onExploreChange,
   onSubmit,
 }: {
@@ -596,6 +628,8 @@ function SessionContextForm({
   /** When recording another take into a known deck, pre-fill topic + slides +
    *  the already-served PDF so the user doesn't re-enter them. */
   preloadDeck: ExploreArcDeck | null;
+  /** Hide the slide-deck field (deckless-only flows, e.g. a footer upload). */
+  hideDeck?: boolean;
   onExploreChange: (enabled: boolean) => void;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
 }) {
@@ -719,16 +753,18 @@ function SessionContextForm({
           </div>
         </Field>
 
-        <Field label="Your slides">
-          <PresentationInput
-            slides={slides}
-            presentationRef={presentationRef}
-            onChange={(s, ref) => {
-              setSlides(s);
-              setPresentationRef(ref);
-            }}
-          />
-        </Field>
+        {hideDeck ? null : (
+          <Field label="Your slides">
+            <PresentationInput
+              slides={slides}
+              presentationRef={presentationRef}
+              onChange={(s, ref) => {
+                setSlides(s);
+                setPresentationRef(ref);
+              }}
+            />
+          </Field>
+        )}
       </div>
 
       {/* Sticky CTA (design spec) — disabled until there's a topic. */}

@@ -77,6 +77,24 @@ export function isStrongSidesAsk(text: string, context = ""): boolean {
   return refersBack && /\bstrong\s*sides?\b/.test(context.toLowerCase());
 }
 
+/** True when the user is asking to upload / submit a file they already have,
+ *  rather than record live. Drives the footer's record button → upload picker
+ *  swap. Deliberately broad (upload / attach / import / a file/recording/audio),
+ *  incl. a PL "wgraj/prześlij plik" nod. */
+export function isUploadAsk(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    /\b(upload|attach|import)\b/.test(t) ||
+    /\b(send|submit|use|add)\b[^.?!]*\b(file|recording|audio|mp3|m4a|wav|clip)\b/.test(
+      t
+    ) ||
+    /\b(existing|already|pre-?recorded|previous)\b[^.?!]*\b(recording|file|audio)\b/.test(
+      t
+    ) ||
+    /\b(wgraj|prze[sś]lij|za[lł]aduj)\b/.test(t) // PL: upload
+  );
+}
+
 /** Parse a comma-separated vocabulary field into clean terms (§4). */
 export function parseVocabulary(text: string): string[] {
   return text

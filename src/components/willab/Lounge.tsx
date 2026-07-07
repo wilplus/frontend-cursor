@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Users } from "lucide-react";
+import { Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
@@ -11,9 +11,11 @@ import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   isStrongSidesAsk,
+  isUploadAsk,
   loungeToHistory,
   splitBotMessage,
 } from "./willabHelpers";
+import { stageLabUpload } from "./labUploadStage";
 import ReportCard from "./ReportCard";
 import LoadingState from "./LoadingState";
 import InsightsOverlay from "./InsightsOverlay";
@@ -460,6 +462,12 @@ export default function Lounge({
     setPracticeArcActive(!!arc && arc.nextTakeIndex >= 2);
   }, [state, messages.length]);
 
+  // When the user asks to upload a file, the footer's record button becomes a
+  // file picker (deckless upload). Tracks the LATEST intent so it reverts once
+  // the user moves on. Detection is FE-side (the bot doesn't classify it).
+  const [uploadAskActive, setUploadAskActive] = useState(false);
+  const uploadFileRef = useRef<HTMLInputElement | null>(null);
+
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
   // remain clickable bubbles in the thread). An explicit bubble tap bypasses
@@ -592,6 +600,9 @@ export default function Lounge({
   // The shared send core — used by the composer and the joke offer.
   async function runSend(q: string) {
     if (!q || botThinking) return;
+    // Track upload intent so the footer record button swaps to a file picker
+    // (and reverts the moment the user's next message is about something else).
+    setUploadAskActive(isUploadAsk(q));
     atBottomRef.current = true; // sending always scrolls to your own message
     const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
     const botTurns = messages.filter((msg) => msg.role === "bot");
@@ -757,6 +768,34 @@ export default function Lounge({
           onGetCredits={() => router.push("/dashboard/pricing")}
           onResolve={() => setActiveOffer(null)}
         />
+      ) : uploadAskActive ? (
+        // The user asked to upload — the record button becomes a file picker.
+        // Picking a file stashes it and opens the Lab, which collects the topic
+        // (analysis needs it) then submits the upload (deckless).
+        <>
+          <input
+            ref={uploadFileRef}
+            type="file"
+            accept="audio/*,video/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              stageLabUpload(f);
+              setUploadAskActive(false);
+              onStart();
+            }}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            onClick={() => uploadFileRef.current?.click()}
+            className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
+          >
+            <Upload className="h-4 w-4" aria-hidden />
+            Upload a recording
+          </Button>
+        </>
       ) : (
         <Button
           type="button"
