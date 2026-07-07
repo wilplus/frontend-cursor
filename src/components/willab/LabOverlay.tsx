@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
+import { readVideoDurationSec } from "@/services/api/coachVideoMeta";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { fmtClock } from "./willabHelpers";
@@ -145,6 +146,16 @@ export default function LabOverlay({
   const [retryNonce, setRetryNonce] = useState(0);
   const durationRef = useRef(0);
   const uploadStartedRef = useRef(false);
+  // Guards for the deckless file-upload path. uploadSeqRef is bumped on every
+  // upload pick AND on mic start, so a slow duration read (up to 4s) that
+  // resolves after the user changed their mind (tapped record, or picked a
+  // different file) is stale and bails — it can't yank the flow into processing
+  // mid-recording. mountedRef bails if the overlay closed during that window.
+  const uploadSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const profile = useRef(readWillabProfile()).current;
   // "Same as last time" — the last set-up, sourced from the BE (cross-device,
@@ -428,7 +439,45 @@ export default function LabOverlay({
             arcTake={exploreEnabled ? arcTakeIndex : null}
             onRecord={() => {
               setRejectedMsg(null);
+              // Invalidate any in-flight upload duration read — the user chose to
+              // record instead, so a late resolution must not hijack the flow.
+              uploadSeqRef.current += 1;
               void mic.start();
+            }}
+            onUploadFile={(file) => {
+              // Deckless-only alternative to live recording: submit a file the
+              // user already has. Skips the mic (no getUserMedia prompt) and the
+              // live-record phase; sets the same two things the mic path sets
+              // (blob + the already-set context) and jumps to processing, where
+              // the existing upload effect fires unchanged. slide_advances stays
+              // [] (correct for deckless), so per-slide sync is never faked.
+              setRejectedMsg(null);
+              const seq = (uploadSeqRef.current += 1);
+              // Best-effort local duration pre-check. On failure / non-finite we
+              // skip it and let the BE min-content gate be the sole judge (it
+              // 422s the same as a too-short live take, surfaced via
+              // rejectedMsg). A <video> element reads audio-only files' duration
+              // too, so this one reader covers audio + video uploads.
+              void readVideoDurationSec(file).then((sec) => {
+                // Bail if superseded (newer pick / mic start) or unmounted — a
+                // stale read must never force the state machine.
+                if (!mountedRef.current || uploadSeqRef.current !== seq) return;
+                if (sec != null && sec < MIN_RECORDING_SEC) {
+                  setRejectedMsg(
+                    `That file is only ${fmtClock(sec)}. We need at least ${fmtClock(
+                      MIN_RECORDING_SEC
+                    )} of speech for a useful read.`
+                  );
+                  return;
+                }
+                // Reset the tap-timeline so a prior live-record attempt in this
+                // same overlay session can't leak a fabricated slide_advance
+                // into a deckless file upload (submitLabRecording omits []).
+                slideAdvancesRef.current = [];
+                durationRef.current = sec ?? 0; // 0 is fine — the BE backfills it
+                setBlob(file);
+                goTo("lab_processing");
+              });
             }}
             micState={mic.state}
           />
@@ -706,6 +755,7 @@ function PreRecord({
   rejectedMsg,
   arcTake,
   onRecord,
+  onUploadFile,
   micState,
 }: {
   context: LabSessionContext | null;
@@ -713,8 +763,15 @@ function PreRecord({
   /** Current take number when in an explore arc; null for standalone. */
   arcTake: number | null;
   onRecord: () => void;
+  /** Deckless-only: supply a pre-made audio/video file instead of recording. */
+  onUploadFile: (file: File) => void;
   micState: ReturnType<typeof useDualCaptureMic>["state"];
 }) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  // Decked talks depend on the live tap-timeline for per-slide word bucketing,
+  // which a pre-made file can't produce — so the upload affordance is deckless
+  // only (no half-measure / faked slide sync).
+  const deckless = context?.slides?.length === 0;
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
       <div>
@@ -753,6 +810,29 @@ function PreRecord({
       >
         <Mic className="h-8 w-8" />
       </button>
+
+      {deckless ? (
+        <>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="audio/*,video/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) onUploadFile(f);
+            }}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            or upload a recording instead
+          </button>
+        </>
+      ) : null}
 
       {micState.status === "error" ? (
         <p className="text-[13px] text-destructive">{micState.message}</p>
