@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { consumeOAuthFromPwa, isStandalonePwa } from "@/lib/pwa";
 
 /**
  * Client-side OAuth callback completer.
@@ -33,6 +34,10 @@ function OAuthCompleteInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Bug 3: an OAuth launched from the installed PWA can complete here in a
+  // SEPARATE browser tab. When so, show a "head back to the app" message instead
+  // of silently redirecting to /chat in the wrong context.
+  const [returnToApp, setReturnToApp] = useState(false);
 
   // Guard against double-fire. React StrictMode mounts effects twice
   // in development, and Next.js Suspense + force-dynamic can produce
@@ -121,11 +126,37 @@ function OAuthCompleteInner() {
       // fetch fires. 200ms matches what LoginForm uses.
       await new Promise((r) => setTimeout(r, 200));
 
+      // Bug 3: if this OAuth was launched from the installed PWA (marker cookie)
+      // AND we're now in a browser TAB (not standalone), the user was bounced out
+      // of the app for sign-in — tell them they can head back instead of
+      // redirecting to /chat in the wrong context. Every other case (plain web,
+      // or OAuth that returned inside the PWA) auto-redirects as before.
+      if (consumeOAuthFromPwa() && !isStandalonePwa()) {
+        setReturnToApp(true);
+        return;
+      }
+
       router.replace(next);
     };
 
     void run();
   }, [router, searchParams]);
+
+  if (returnToApp) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="max-w-sm text-center">
+          <p className="text-base font-semibold text-foreground">
+            You&apos;re signed in
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You can head back to the WillpowerLab app now to pick up where you
+            left off.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
