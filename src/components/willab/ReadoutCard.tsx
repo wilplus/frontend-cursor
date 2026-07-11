@@ -109,6 +109,10 @@ const NOOP_EDIT: ReadoutEditApi = {
 const ReadoutEditContext = createContext<ReadoutEditApi>(NOOP_EDIT);
 const useReadoutEdit = () => useContext(ReadoutEditContext);
 
+/** The training-setup audience (B4) — suffixed onto Say-It-Stronger insight
+ *  lines as "(audience: X)". Render-only; null hides the suffix. */
+const ReadoutAudienceContext = createContext<string | null>(null);
+
 export default function ReadoutCard({
   payload,
   sessionId = null,
@@ -326,6 +330,7 @@ export default function ReadoutCard({
     }
     return (
       <ReadoutEditContext.Provider value={editApi}>
+        <ReadoutAudienceContext.Provider value={payload.audience}>
         <div className="flex flex-1 flex-col overflow-y-auto">
           {groups.map((g, i) => (
             <SlideGroupPage
@@ -340,6 +345,7 @@ export default function ReadoutCard({
             />
           ))}
         </div>
+        </ReadoutAudienceContext.Provider>
       </ReadoutEditContext.Provider>
     );
   }
@@ -356,6 +362,7 @@ export default function ReadoutCard({
 
   return (
     <ReadoutEditContext.Provider value={editApi}>
+      <ReadoutAudienceContext.Provider value={payload.audience}>
       <SnippetScreenShell
         onClose={onClose}
         index={cursor}
@@ -385,6 +392,7 @@ export default function ReadoutCard({
           />
         )}
       </SnippetScreenShell>
+      </ReadoutAudienceContext.Provider>
     </ReadoutEditContext.Provider>
   );
 }
@@ -1041,6 +1049,7 @@ function SnippetDetail({ snippet }: { snippet: ReadoutSnippet }) {
 /* ── Say It Stronger suggestion card ── */
 
 function SayItStrongerCard({ data }: { data: SayItStronger }) {
+  const audience = useContext(ReadoutAudienceContext);
   if (data.alreadyStrong) {
     return (
       <div className="flex items-center gap-2 rounded-xl bg-primary/[0.06] px-4 py-3">
@@ -1081,6 +1090,12 @@ function SayItStrongerCard({ data }: { data: SayItStronger }) {
                 </span>{" "}
                 <span aria-hidden>&rarr;</span>{" "}
                 <span className="font-medium text-foreground">{u.upgrade}</span>
+                {audience ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    (audience: {audience})
+                  </span>
+                ) : null}
               </p>
               {u.reason ? (
                 <p className="text-[12px] leading-relaxed text-muted-foreground">

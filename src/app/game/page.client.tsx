@@ -247,7 +247,7 @@ function GameRounds({
             type="button"
             onClick={() => void handleSave()}
             disabled={saveState === "saving" || saveState === "saved"}
-            className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            className="flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-60"
           >
             {saveState === "saved" ? (
               <>
@@ -344,9 +344,9 @@ function RoundCard({
             type="button"
             onClick={() => void answer(false)}
             disabled={submitting !== null}
-            className="flex-1 rounded-full border border-border py-2.5 text-[14px] text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+            className="flex-1 rounded-full bg-muted py-2.5 text-[14px] font-medium text-foreground transition-colors hover:bg-muted/80 disabled:opacity-60"
           >
-            {submitting === false ? "Checking..." : "Just a moment"}
+            {submitting === false ? "Checking..." : "Neutral"}
           </button>
         </div>
       ) : (
@@ -369,8 +369,8 @@ function VerdictReveal({ verdict }: { verdict: GameVerdict }) {
       <span
         className={`self-start rounded-full px-3 py-1 text-[13px] font-semibold ${
           verdict.correct
-            ? "bg-primary/15 text-primary"
-            : "bg-muted text-muted-foreground"
+            ? "bg-green-600/15 text-green-700 dark:text-green-400"
+            : "bg-red-500/15 text-red-600 dark:text-red-400"
         }`}
       >
         {verdict.correct ? "Correct" : "Not quite"}

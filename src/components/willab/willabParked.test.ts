@@ -69,6 +69,7 @@ describe("willabParked.readParked", () => {
         ],
         fullTranscriptChunks: [],
         voiceMetricsAvailable: true,
+        audience: null,
         auditPaid: true,
       },
     });
@@ -90,6 +91,7 @@ describe("willabParked.readParked", () => {
         slideTranscripts: [],
         fullTranscriptChunks: [],
         voiceMetricsAvailable: true,
+        audience: null,
         auditPaid: true,
       },
     });

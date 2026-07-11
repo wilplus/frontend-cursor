@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -25,9 +25,6 @@ const MENU_ITEM_CLASS =
 
 export default function DashboardHeader() {
   const router = useRouter();
-  // C5 — WillpowerLab (/chat) is a payments-free surface: hide the (homework)
-  // credits row there. The homework/dashboard pages keep it, untouched.
-  const onChat = usePathname()?.startsWith("/chat") ?? false;
   const supabase = createClient();
   const [authState, setAuthState] = useState<AuthState>("unknown");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -251,10 +248,10 @@ export default function DashboardHeader() {
                         >
                           Support
                         </a>
-                        {/* C5 — credits count → checkout (homework credits).
-                            HIDDEN on /chat (WillpowerLab is payments-free);
-                            shown on the homework/dashboard pages, untouched. */}
-                        {credits !== null && !onChat && (
+                        {/* Credits count → checkout. Shown EVERYWHERE incl.
+                            /chat since the $25-per-analysis credit model
+                            (the old "payments-free /chat" C5 rule is retired). */}
+                        {credits !== null && (
                           <Link
                             href="/dashboard/pricing"
                             className={cn(

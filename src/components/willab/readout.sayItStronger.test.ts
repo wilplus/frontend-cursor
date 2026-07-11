@@ -83,10 +83,22 @@ describe("mapFullTranscriptChunk + payload fold", () => {
     expect(mapFullTranscriptChunk({ transcript: "hi" })).toBeNull();
     expect(
       mapFullTranscriptChunk({ index: 0, transcript: "hi", user_edited_text: "hey" })
-    ).toEqual({ index: 0, transcript: "hi", userEditedText: "hey" });
+    ).toEqual({
+      index: 0,
+      transcript: "hi",
+      userEditedText: "hey",
+      startOffsetMs: 0,
+      durationMs: 0,
+    });
     expect(
       mapFullTranscriptChunk({ index: 1, transcript: "", user_edited_text: "" })
-    ).toEqual({ index: 1, transcript: "", userEditedText: null });
+    ).toEqual({
+      index: 1,
+      transcript: "",
+      userEditedText: null,
+      startOffsetMs: 0,
+      durationMs: 0,
+    });
   });
 
   it("folds + sorts full_transcript_chunks onto the payload", () => {
@@ -101,6 +113,39 @@ describe("mapFullTranscriptChunk + payload fold", () => {
       "first",
       "second",
     ]);
+  });
+
+  it("picks the audience from session_context or top-level; blank → null", () => {
+    expect(
+      mapReadoutPayload({ snippets: [], session_context: { audience: "investors" } })
+        .audience
+    ).toBe("investors");
+    expect(
+      mapReadoutPayload({ snippets: [], audience: " the board " }).audience
+    ).toBe("the board");
+    expect(
+      mapReadoutPayload({ snippets: [], session_context: { audience: "  " } })
+        .audience
+    ).toBeNull();
+    expect(mapReadoutPayload({ snippets: [] }).audience).toBeNull();
+  });
+
+  it("maps chunk audio spans (absent → 0/0, play control hidden)", () => {
+    const p = mapReadoutPayload({
+      snippets: [],
+      full_transcript_chunks: [
+        { index: 0, transcript: "a", start_offset_ms: 500, duration_ms: 4000 },
+        { index: 1, transcript: "b" },
+      ],
+    });
+    expect(p.fullTranscriptChunks[0]).toMatchObject({
+      startOffsetMs: 500,
+      durationMs: 4000,
+    });
+    expect(p.fullTranscriptChunks[1]).toMatchObject({
+      startOffsetMs: 0,
+      durationMs: 0,
+    });
   });
 
   it("maps a snippet's say_it_stronger + user_edited_text", () => {

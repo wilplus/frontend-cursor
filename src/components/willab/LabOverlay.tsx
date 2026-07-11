@@ -13,7 +13,7 @@ import { readVideoDurationSec } from "@/services/api/coachVideoMeta";
 import { takeLabUpload } from "./labUploadStage";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
-import { fmtClock } from "./willabHelpers";
+import { batchTake, fmtClock } from "./willabHelpers";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
@@ -241,9 +241,15 @@ export default function LabOverlay({
         if (exploreEnabled) {
           const returnedArcId = result.arcId ?? arcId;
           if (returnedArcId) {
-            // Continue-one-arc: the arc keeps growing (no take cap). Carry the
-            // deck forward so the next take pre-fills the Lab without re-entry.
-            const nextIdx = arcTakeIndex + 1;
+            // 3-take batch cycle (founder 2026-07-11): the BE stops joining an
+            // arc at 3 takes and returns a FRESH arc (take_index resets). Trust
+            // the BE's take_index when present so the local counter follows the
+            // batch; fall back to the local increment for older payloads. Carry
+            // the deck forward so the next take pre-fills the Lab.
+            const nextIdx =
+              (typeof result.takeIndex === "number" && result.takeIndex > 0
+                ? result.takeIndex
+                : arcTakeIndex) + 1;
             const deck = context
               ? {
                   topic: context.topic,
@@ -560,6 +566,7 @@ export default function LabOverlay({
                 slideTranscripts: [],
                 fullTranscriptChunks: [],
                 voiceMetricsAvailable: true,
+                audience: null,
                 auditPaid: true,
               }
             }
@@ -695,8 +702,7 @@ function SessionContextForm({
         {activeArcTake !== null ? (
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
             <p className="text-[13px] font-medium text-primary">
-              Take {activeArcTake}
-              {activeArcTake <= 3 ? " of 3" : ""}, same topic
+              Take {batchTake(activeArcTake)} of 3, same topic
             </p>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
               Same topic as before. Set it up fresh for this take.
@@ -820,7 +826,7 @@ function PreRecord({
       <div>
         {arcTake !== null ? (
           <p className="text-[11px] font-medium uppercase tracking-wider text-primary">
-            Take {arcTake} of 3
+            Take {batchTake(arcTake)} of 3
           </p>
         ) : null}
         <p className="text-[12px] uppercase tracking-wide text-muted-foreground">
@@ -984,7 +990,7 @@ function RecordingPhase({
         </div>
         {arcTake !== null ? (
           <span className="text-[11px] font-medium uppercase tracking-wider text-primary">
-            Take {arcTake} of 3
+            Take {batchTake(arcTake)} of 3
           </span>
         ) : null}
       </div>
