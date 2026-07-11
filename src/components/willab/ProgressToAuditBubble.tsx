@@ -64,33 +64,42 @@ export default function ProgressToAuditBubble({
 
   if (!arcId || !arcProgress) return null;
 
-  // #1 — once the arc is ready (>=3 takes) this bubble steps ASIDE entirely:
-  // the BE fires exactly one terminal card (best_presentation_ready when
-  // coach-published AND paid, transcript_ready otherwise) and THAT card is the
-  // single source of the affordances. Rendering buttons here too would either
-  // duplicate them or claim a "ready" best presentation prematurely.
-  if (arcProgress.ready) return null;
+  const { takesDone, takesTarget, ready, coachFinalized } = arcProgress;
 
-  const pct = Math.round((arcProgress.takesDone / arcProgress.takesTarget) * 100);
+  // Once the coach has assembled the ideal text, the BE's terminal card
+  // (best_presentation_ready) owns the affordance — the bubble steps aside.
+  if (ready && coachFinalized) return null;
+
+  const pct = Math.round((takesDone / takesTarget) * 100);
+  // F8 — strong-sides styling: white card + fleur-de-lis. At 3/3 with the coach
+  // not yet finished, add the "waiting for the coach" line (no bar, it's full).
+  const waitingForCoach = ready && !coachFinalized;
 
   return (
-    <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5">
-      {/* #6 — the counter is the ONE source of truth; exactly this copy. */}
-      <p className="text-[15px] leading-relaxed text-foreground">
-        To complete the full training you need {arcProgress.takesRemaining}{" "}
-        more {arcProgress.takesRemaining === 1 ? "take" : "takes"}
+    <div className="mr-auto flex max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm border border-border bg-background px-3 py-2.5">
+      <p className="flex items-center gap-1.5 text-[15px] leading-relaxed text-foreground">
+        <span className="shrink-0 text-primary" aria-hidden>
+          ⚜︎
+        </span>
+        {takesDone}/{takesTarget} takes to complete
       </p>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-        <div
-          className="h-full rounded-full bg-primary transition-all"
-          style={{ width: `${pct}%` }}
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Progress to the full training"
-        />
-      </div>
+      {waitingForCoach ? (
+        <p className="text-[14px] leading-relaxed text-muted-foreground">
+          Now we are waiting for the coach to assemble your speech!
+        </p>
+      ) : (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${pct}%` }}
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Progress to the full training"
+          />
+        </div>
+      )}
     </div>
   );
 }

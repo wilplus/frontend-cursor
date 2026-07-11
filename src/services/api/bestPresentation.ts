@@ -17,6 +17,11 @@ export interface BestPresentationProgress {
   takesTarget: number;
   takesRemaining: number;
   ready: boolean;
+  /** BE `coach_finalized` (B8) — true once the coach has assembled the ideal
+   *  text. At 3/3 with this still false, the bubble shows the "waiting for the
+   *  coach" state. Absent → false (so a ready-but-unfinalized arc shows the wait
+   *  rather than nothing). */
+  coachFinalized: boolean;
 }
 
 /** One slide in the assembled best presentation. text is the BE-composed,
@@ -85,6 +90,7 @@ function mapProgress(raw: unknown): BestPresentationProgress | null {
     takesTarget: target,
     takesRemaining: remaining,
     ready: typeof r.ready === "boolean" ? r.ready : done >= target,
+    coachFinalized: r.coach_finalized === true,
   };
 }
 
