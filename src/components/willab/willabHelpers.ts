@@ -95,6 +95,17 @@ export function isUploadAsk(text: string): boolean {
   );
 }
 
+/** One analysis = exactly 3 takes (founder 2026-07-11). Map an absolute take
+ *  index onto its position within the current 3-take batch, so the UI shows
+ *  "Take 1 of 3", never "Take 24 of 3". The BE resets take_index per fresh arc
+ *  (batch); this also guards legacy unbounded arcs recorded before that. */
+export const BATCH_TAKES = 3;
+
+export function batchTake(takeIndex: number): number {
+  if (!Number.isFinite(takeIndex) || takeIndex < 1) return 1;
+  return ((Math.floor(takeIndex) - 1) % BATCH_TAKES) + 1;
+}
+
 /** Parse a comma-separated vocabulary field into clean terms (§4). */
 export function parseVocabulary(text: string): string[] {
   return text

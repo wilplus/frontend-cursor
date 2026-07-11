@@ -140,6 +140,10 @@ export interface FullTranscriptChunk {
   transcript: string;
   /** The user's edited version of this chunk; null until edited. */
   userEditedText: string | null;
+  /** The chunk's span in the parent recording (BE B2, from word timestamps).
+   *  0/0 on pre-span payloads → the FE hides the per-chunk play control. */
+  startOffsetMs: number;
+  durationMs: number;
 }
 
 export interface ReadoutPayload {
@@ -172,6 +176,10 @@ export interface ReadoutPayload {
    *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
    *  true (absent → render metrics as today). */
   voiceMetricsAvailable: boolean;
+  /** The training-setup audience (B4: session_context.audience or top-level),
+   *  suffixed onto Say-It-Stronger insight lines as "(audience: X)". null when
+   *  the user left the field blank / older payloads. */
+  audience: string | null;
   /** Arc-paid echo — false on an unpaid arc. The readout NO LONGER withholds
    *  anything on this (the coach layer is unconditionally free); it survives only
    *  so the FE knows the arc's paid state for the ideal-text / breakthroughs
@@ -311,6 +319,8 @@ export function mapFullTranscriptChunk(raw: unknown): FullTranscriptChunk | null
       typeof c.user_edited_text === "string" && c.user_edited_text.length > 0
         ? c.user_edited_text
         : null,
+    startOffsetMs: int(c.start_offset_ms),
+    durationMs: int(c.duration_ms),
   };
 }
 
@@ -403,9 +413,18 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     // Only false when the BE explicitly says so; absent / anything else → true
     // (render metrics as today).
     voiceMetricsAvailable: r.voice_metrics_available !== false,
+    audience: pickAudience(r),
     // Only false on an explicitly unpaid arc; absent → true (full/unlocked).
     auditPaid: r.audit_paid !== false,
   };
+}
+
+/** B4 — the setup audience; the BE may expose it top-level or inside
+ *  session_context. Blank → null. */
+function pickAudience(r: Record<string, unknown>): string | null {
+  const ctx = obj(r.session_context);
+  const v = typeof r.audience === "string" ? r.audience : ctx.audience;
+  return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
 }
 
 /** Phase 2 — the session deck PDF. The BE may surface it top-level, under
@@ -575,6 +594,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     slideTranscripts: [],
     fullTranscriptChunks: [],
     voiceMetricsAvailable: true,
+    audience: null,
     auditPaid: true,
     snippets: [
       snippet(1, `Opening on ${topic}…`, 152, 0.28, "You set the frame and stayed on it."),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  batchTake,
   fmtClock,
   isStrongSidesAsk,
   isUploadAsk,
@@ -130,6 +131,23 @@ describe("isStrongSidesAsk", () => {
   it("ignores unrelated questions", () => {
     expect(isStrongSidesAsk("how does communication work?")).toBe(false);
     expect(isStrongSidesAsk("what's the weather")).toBe(false);
+  });
+});
+
+describe("batchTake", () => {
+  it("maps absolute take indexes onto the 3-take batch (never 'Take 24 of 3')", () => {
+    expect(batchTake(1)).toBe(1);
+    expect(batchTake(2)).toBe(2);
+    expect(batchTake(3)).toBe(3);
+    expect(batchTake(4)).toBe(1); // next batch starts
+    expect(batchTake(24)).toBe(3);
+    expect(batchTake(25)).toBe(1);
+  });
+
+  it("guards junk input", () => {
+    expect(batchTake(0)).toBe(1);
+    expect(batchTake(-2)).toBe(1);
+    expect(batchTake(NaN)).toBe(1);
   });
 });
 

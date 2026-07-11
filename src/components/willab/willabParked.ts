@@ -53,6 +53,7 @@ export function readParked(): ParkedReadout | null {
           ? r.fullTranscriptChunks
           : [],
         voiceMetricsAvailable: r.voiceMetricsAvailable !== false,
+        audience: typeof r.audience === "string" ? r.audience : null,
         // Absent/undefined → true (paid) so a readout parked before this field
         // existed doesn't misreport the arc's paid state on resume.
         auditPaid: r.auditPaid !== false,

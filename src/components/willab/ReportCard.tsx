@@ -196,7 +196,8 @@ export function IdealTextHeroCard({
             <button
               type="button"
               onClick={() => onOpenBestPresentation!(arcId!)}
-              className="w-full rounded-full bg-white px-4 py-2 text-[14px] font-medium text-indigo-700 transition-colors hover:bg-white/90"
+              // P11 — royal purple (founder 2026-07-11).
+              className="w-full rounded-full bg-purple-700 px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-purple-600"
             >
               View your best presentation
             </button>
