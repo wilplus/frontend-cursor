@@ -34,6 +34,8 @@ function snip(
     breakthrough: false,
     breakthroughNote: null,
     breakthroughVideoRef: null,
+    sayItStronger: null,
+    userEditedText: null,
   };
 }
 

@@ -46,6 +46,7 @@ export default function InsightsOverlay({
       return (
         <ReadoutCard
           payload={data.readout}
+          sessionId={sessionId}
           onClose={onClose}
           managed={false}
           onRegisterBack={(fn) => {
