@@ -1065,6 +1065,17 @@ function SayItStrongerCard({ data }: { data: SayItStronger }) {
           {data.upgrades.map((u, i) => (
             <div key={i} className="flex flex-col gap-0.5">
               <p className="text-[14px] leading-relaxed">
+                {/* E1 — filler/overuse carry a subtle amber caution tag: the
+                    model judged the word against this speaker's own take. */}
+                {u.kind !== "upgrade" ? (
+                  <span className="mr-1.5 inline-flex -translate-y-px items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 align-middle text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-amber-500"
+                      aria-hidden
+                    />
+                    {u.kind === "filler" ? "filler" : "overused"}
+                  </span>
+                ) : null}
                 <span className="text-muted-foreground line-through">
                   {u.original}
                 </span>{" "}
