@@ -549,6 +549,7 @@ export default function LabOverlay({
 
         {state === "readout" && (
           <ReadoutCard
+            sessionId={labSessionId}
             payload={
               readout ?? {
                 snippets: [],
@@ -557,6 +558,7 @@ export default function LabOverlay({
                 presentationRef: null,
                 slides: [],
                 slideTranscripts: [],
+                fullTranscriptChunks: [],
                 voiceMetricsAvailable: true,
                 auditPaid: true,
               }

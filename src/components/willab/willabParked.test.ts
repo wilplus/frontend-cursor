@@ -67,6 +67,7 @@ describe("willabParked.readParked", () => {
         slideTranscripts: [
           { index: 0, transcript: "hi", startOffsetMs: 0, durationMs: 1000 },
         ],
+        fullTranscriptChunks: [],
         voiceMetricsAvailable: true,
         auditPaid: true,
       },
@@ -87,6 +88,7 @@ describe("willabParked.readParked", () => {
         presentationRef: null,
         slides: [],
         slideTranscripts: [],
+        fullTranscriptChunks: [],
         voiceMetricsAvailable: true,
         auditPaid: true,
       },

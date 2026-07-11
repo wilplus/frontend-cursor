@@ -94,6 +94,47 @@ export interface ReadoutSnippet {
    *  (BE field pending — see the BE handoff). Distinct from the session-level
    *  insights_payload.video_ref. */
   breakthroughVideoRef: string | null;
+  /** "Say It Stronger" — an LLM suggestion OVERLAY for this moment (word-level
+   *  upgrades + two rewrites + a qualitative why). Generated async, so null on
+   *  the immediate post-upload readout and populated on a later re-read. A
+   *  SUGGESTION only: it never replaces the transcript and never feeds the
+   *  best-presentation pipeline (L1). */
+  sayItStronger: SayItStronger | null;
+  /** The user's own edited version of this moment's transcript (their layer;
+   *  the coach still reviews the original). null until the user edits it. */
+  userEditedText: string | null;
+}
+
+/** One word-level upgrade suggestion. */
+export interface SayItStrongerUpgrade {
+  original: string;
+  upgrade: string;
+  /** Qualitative reason; null when the BE output-guard stripped it (AC-9). */
+  reason: string | null;
+}
+
+export interface SayItStronger {
+  /** True when the moment was already strong: upgrades empty, both rewrites = the
+   *  original. The FE then shows a single affirming line. */
+  alreadyStrong: boolean;
+  upgrades: SayItStrongerUpgrade[];
+  /** Option A — hedges/fillers/weak closers removed, in the speaker's own voice. */
+  rewriteYourVoice: string;
+  /** Option B — slightly more formal / polished. */
+  rewritePolished: string;
+  /** 2-3 sentence "why this matters"; qualitative, self-referential. null when
+   *  the BE output-guard nulled it (leaked a number / retired construct word). */
+  why: string | null;
+}
+
+/** One entry of a deckless take's full transcript, split into ordered chunks.
+ *  Deckless takes have no deck to bucket against, so these stack under one
+ *  artificial "slide" card in the readout. */
+export interface FullTranscriptChunk {
+  index: number;
+  transcript: string;
+  /** The user's edited version of this chunk; null until edited. */
+  userEditedText: string | null;
 }
 
 export interface ReadoutPayload {
@@ -117,6 +158,10 @@ export interface ReadoutPayload {
    *  per deck slide (slide + its full transcript); [] → fall back to the
    *  per-snippet pagination (older recordings). */
   slideTranscripts: ReadoutSlideTranscript[];
+  /** Deckless takes only (BE `full_transcript_chunks`) — the whole transcript
+   *  split into ordered chunks. Stacked under one artificial slide card in the
+   *  deckless readout. [] for decked takes (they page per deck slide instead). */
+  fullTranscriptChunks: FullTranscriptChunk[];
   /** BE `voice_metrics_available` — false when the take had no usable acoustic
    *  signal (too quiet / empty). The readout then shows a soft notice in place
    *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
@@ -199,6 +244,65 @@ export function mapReadoutSnippet(raw: unknown): ReadoutSnippet {
       r.breakthrough_video_ref.length > 0
         ? r.breakthrough_video_ref
         : null,
+    sayItStronger: mapSayItStronger(r.say_it_stronger),
+    userEditedText:
+      typeof r.user_edited_text === "string" && r.user_edited_text.length > 0
+        ? r.user_edited_text
+        : null,
+  };
+}
+
+/** Map the async "Say It Stronger" suggestion; null when absent (not generated
+ *  yet) or malformed. `why` / `reason` may be null (BE output-guard). */
+export function mapSayItStronger(raw: unknown): SayItStronger | null {
+  if (!raw || typeof raw !== "object") return null;
+  const s = raw as Record<string, unknown>;
+  const upgrades = Array.isArray(s.upgrades)
+    ? s.upgrades
+        .map((u): SayItStrongerUpgrade | null => {
+          if (!u || typeof u !== "object") return null;
+          const o = u as Record<string, unknown>;
+          const original = str(o.original);
+          const upgrade = str(o.upgrade);
+          if (!original && !upgrade) return null;
+          return {
+            original,
+            upgrade,
+            reason:
+              typeof o.reason === "string" && o.reason.length > 0
+                ? o.reason
+                : null,
+          };
+        })
+        .filter((u): u is SayItStrongerUpgrade => u !== null)
+    : [];
+  const rewriteYourVoice = str(s.rewrite_your_voice);
+  const rewritePolished = str(s.rewrite_polished);
+  // Nothing usable → treat as not-ready (null) rather than an empty card.
+  if (!rewriteYourVoice && !rewritePolished && upgrades.length === 0) return null;
+  return {
+    alreadyStrong: s.already_strong === true,
+    upgrades,
+    rewriteYourVoice,
+    rewritePolished,
+    why: typeof s.why === "string" && s.why.length > 0 ? s.why : null,
+  };
+}
+
+/** Map one deckless full-transcript chunk. Requires a numeric index; transcript
+ *  may be "" (valid). */
+export function mapFullTranscriptChunk(raw: unknown): FullTranscriptChunk | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  const index = num(c.index);
+  if (index === null) return null;
+  return {
+    index,
+    transcript: str(c.transcript),
+    userEditedText:
+      typeof c.user_edited_text === "string" && c.user_edited_text.length > 0
+        ? c.user_edited_text
+        : null,
   };
 }
 
@@ -268,8 +372,15 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
         .filter((s): s is ReadoutSlideTranscript => s !== null)
         .sort((a, b) => a.index - b.index)
     : [];
+  const fullTranscriptChunks = Array.isArray(r.full_transcript_chunks)
+    ? r.full_transcript_chunks
+        .map(mapFullTranscriptChunk)
+        .filter((c): c is FullTranscriptChunk => c !== null)
+        .sort((a, b) => a.index - b.index)
+    : [];
   return {
     snippets: snippets.map(mapReadoutSnippet),
+    fullTranscriptChunks,
     overallMessage:
       typeof insights.overall_message === "string"
         ? insights.overall_message
@@ -445,6 +556,8 @@ export function mockReadout(topic: string): ReadoutPayload {
     breakthrough: false,
     breakthroughNote: null,
     breakthroughVideoRef: null,
+    sayItStronger: null,
+    userEditedText: null,
   });
   return {
     overallMessage: null,
@@ -452,6 +565,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     presentationRef: null,
     slides: [],
     slideTranscripts: [],
+    fullTranscriptChunks: [],
     voiceMetricsAvailable: true,
     auditPaid: true,
     snippets: [

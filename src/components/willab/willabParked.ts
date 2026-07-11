@@ -49,6 +49,9 @@ export function readParked(): ParkedReadout | null {
         slideTranscripts: Array.isArray(r.slideTranscripts)
           ? r.slideTranscripts
           : [],
+        fullTranscriptChunks: Array.isArray(r.fullTranscriptChunks)
+          ? r.fullTranscriptChunks
+          : [],
         voiceMetricsAvailable: r.voiceMetricsAvailable !== false,
         // Absent/undefined → true (paid) so a readout parked before this field
         // existed doesn't misreport the arc's paid state on resume.
