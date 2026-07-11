@@ -24,6 +24,7 @@ describe("mapSayItStronger", () => {
       original: "kind of",
       upgrade: "clearly",
       reason: "hedge removed",
+      kind: "upgrade",
     });
     expect(s!.rewriteYourVoice).toBe("Say it plainly.");
     expect(s!.why).toBe("Tighter than your average line here.");
@@ -38,6 +39,23 @@ describe("mapSayItStronger", () => {
     });
     expect(s!.why).toBeNull();
     expect(s!.upgrades[0]?.reason).toBeNull();
+  });
+
+  it("maps the E1 kind discriminator (filler/overuse; absent/unknown → upgrade)", () => {
+    const s = mapSayItStronger({
+      upgrades: [
+        { original: "um", upgrade: "(pause)", kind: "filler" },
+        { original: "great", upgrade: "compelling", kind: "overuse" },
+        { original: "a", upgrade: "b", kind: "nonsense" },
+      ],
+      rewrite_your_voice: "x",
+      rewrite_polished: "y",
+    });
+    expect(s!.upgrades.map((u) => u.kind)).toEqual([
+      "filler",
+      "overuse",
+      "upgrade",
+    ]);
   });
 
   it("carries already_strong", () => {

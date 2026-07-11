@@ -105,12 +105,17 @@ export interface ReadoutSnippet {
   userEditedText: string | null;
 }
 
-/** One word-level upgrade suggestion. */
+/** One word-level upgrade suggestion. `kind` is E1's additive discriminator:
+ *  "filler" / "overuse" carry a caution treatment (the model judged the word
+ *  against the speaker's own full take); absent → "upgrade" (plain swap). */
+export type SayItStrongerUpgradeKind = "upgrade" | "filler" | "overuse";
+
 export interface SayItStrongerUpgrade {
   original: string;
   upgrade: string;
   /** Qualitative reason; null when the BE output-guard stripped it (AC-9). */
   reason: string | null;
+  kind: SayItStrongerUpgradeKind;
 }
 
 export interface SayItStronger {
@@ -272,6 +277,9 @@ export function mapSayItStronger(raw: unknown): SayItStronger | null {
               typeof o.reason === "string" && o.reason.length > 0
                 ? o.reason
                 : null,
+            // Additive E1 discriminator; absent / unknown → plain "upgrade".
+            kind:
+              o.kind === "filler" || o.kind === "overuse" ? o.kind : "upgrade",
           };
         })
         .filter((u): u is SayItStrongerUpgrade => u !== null)
