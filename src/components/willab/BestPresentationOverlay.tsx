@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Crown, Loader2, Pencil, X } from "lucide-react";
+import { Crown, FileDown, Loader2, Pencil, Sparkles, X } from "lucide-react";
 import LoadingState from "./LoadingState";
-import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
-import SnippetScreenShell from "./SnippetScreenShell";
 import {
   fetchBestPresentation,
   saveBestPresentationSlideText,
@@ -14,6 +12,25 @@ import {
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
 import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
+import {
+  parseRichMarkers,
+  richMarkersToHtml,
+  wrapSelection,
+  type RichMark,
+} from "@/lib/willab/richMarkers";
+
+/* -------------------------------------------------------------------------- */
+/*  BestPresentationOverlay — the IDEAL TEXT view (Lovable P8).                */
+/*                                                                            */
+/*  Same scroll skeleton as Recording/Feedback, with the P8 deltas: no          */
+/*  playback (text only); font one step bigger; each section under its slide    */
+/*  (or the single mock slide); key phrases under each section for glancing     */
+/*  while presenting; navbar = counter + Export (print → PDF) + Edit + X;       */
+/*  Edit switches the text into a marker editor (bold / italic / underline /    */
+/*  orange highlight — the B6 subset, persisted via the existing pencil-edit    */
+/*  PUT); read-only by default. Bottom of scroll: "One last step" → /game.      */
+/*  (Ticket 1.7's button wins over global decision #2 — flagged.)              */
+/* -------------------------------------------------------------------------- */
 
 export default function BestPresentationOverlay({
   arcId,
@@ -32,30 +49,22 @@ export default function BestPresentationOverlay({
     "loading" | "ready" | "error" | "paywall" | "preparing"
   >("loading");
   const [result, setResult] = useState<BestPresentationResult | null>(null);
-  const [cursor, setCursor] = useState(0);
   // Bumped after a successful unlock to re-run the fetch (now entitled).
   const [refetchNonce, setRefetchNonce] = useState(0);
-  // Unlock in flight — disables the button + swaps its label to a spinner.
   const [unlocking, setUnlocking] = useState(false);
-  // Soft, retryable notice under the button when a tap couldn't go through
-  // (transient blip, BE 5xx, or the /unlock route not shipped yet → 404). Never
-  // an error screen; the next tap clears it. Keeps the tap from being a silent
-  // dead-tap on the revenue path.
+  // Soft, retryable notice under the unlock button — never an error screen.
   const [unlockError, setUnlockError] = useState<string | null>(null);
+  // P8 — read-only by default; the navbar Edit button toggles the editor.
+  const [editMode, setEditMode] = useState(false);
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const cursorRef = useRef(cursor);
-  cursorRef.current = cursor;
-  // True when the user leaves via an internal navigation (the pricing top-up on
-  // insufficient credits). The cleanup must NOT balance the history entry then —
-  // the queued back() would pop the freshly pushed route and bounce the user
-  // straight back to /chat, self-cancelling the top-up.
+  // True when the user leaves via an internal navigation (pricing top-up, the
+  // "One last step" game link). The cleanup must NOT balance the history entry
+  // then — the queued back() would pop the freshly pushed route and bounce the
+  // user straight back to /chat.
   const leftViaNavRef = useRef(false);
 
-  // Spend credits to unlock this arc. A paywall is never an error: on success we
-  // refetch the now-open deliverable; if the user is short on credits we send
-  // them to the pricing page to top up (their balance survives, they come back).
   async function handleUnlock() {
     if (unlocking) return;
     setUnlockError(null);
@@ -68,42 +77,26 @@ export default function BestPresentationOverlay({
       return;
     }
     if (r.reason === "insufficient") {
-      // Top up, then return to unlock. Single-use Stripe sessions can't be
-      // pre-minted into the 402, so the pricing page (the FE's credits store) is
-      // where a fresh session gets created.
       leftViaNavRef.current = true;
       router.push("/dashboard/pricing");
       return;
     }
-    // Transient / not-yet-built (404) → a soft retry notice under the button, so
-    // the tap is never a silent dead-end. The next tap clears it and retries.
     setUnlockError(r.message);
   }
 
-  // Back-dismiss with per-slide stepping: swipe-back on slide N goes to N-1;
-  // swipe-back on slide 0 closes the overlay. A fresh entry is pushed after
-  // each internal step so the next swipe is still catchable.
+  // Back-dismiss: one throwaway history entry; Back closes the overlay (the
+  // scroll view has no internal pages to step).
   useEffect(() => {
     if (typeof window === "undefined") return;
     let closedByPopstate = false;
     window.history.pushState({ __willabOverlay: true }, "");
     function handlePop() {
-      if (cursorRef.current > 0) {
-        setCursor((c) => c - 1);
-        window.history.pushState({ __willabOverlay: true }, "");
-      } else {
-        closedByPopstate = true;
-        onCloseRef.current();
-      }
+      closedByPopstate = true;
+      onCloseRef.current();
     }
     window.addEventListener("popstate", handlePop);
     return () => {
       window.removeEventListener("popstate", handlePop);
-      // Only balance our entry on a non-Back close; a Back already popped it,
-      // and a second back() would walk past /chat to /login. Same for leaving
-      // via the paywall's pricing Link: back() would pop the new route and
-      // bounce the user off the pricing page (the stale /chat entry it leaves
-      // behind is harmless).
       if (!closedByPopstate && !leftViaNavRef.current) window.history.back();
     };
   }, []);
@@ -112,13 +105,10 @@ export default function BestPresentationOverlay({
     let active = true;
     void fetchBestPresentation(arcId).then((r) => {
       if (!active) return;
-      // 402 = paid-but-unpurchased deliverable → a clean paywall, never an error.
       if (r && "paymentRequired" in r) {
         setStatus("paywall");
         return;
       }
-      // Paid + takes done, but the coach is still editing → a calm wait state,
-      // NOT the paywall and NOT the raw auto-draft.
       if (r && "preparing" in r) {
         setStatus("preparing");
         return;
@@ -131,8 +121,87 @@ export default function BestPresentationOverlay({
     };
   }, [arcId, refetchNonce]);
 
-  // Paywall FIRST — result is null here, so the loading/!result branch below
-  // would otherwise swallow it into an endless spinner.
+  // ── "2/12" — scroll-following section counter (same pattern as the readout).
+  const [current, setCurrent] = useState(0);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const sectionNodes = useRef<(HTMLElement | null)[]>([]);
+  const slideCount = result?.slides.length ?? 0;
+  useEffect(() => {
+    const root = scrollRootRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const idx = sectionNodes.current.indexOf(e.target as HTMLElement);
+          if (idx >= 0) setCurrent(idx);
+        }
+      },
+      { root, rootMargin: "-30% 0px -65% 0px", threshold: 0 }
+    );
+    sectionNodes.current
+      .filter((n): n is HTMLElement => n !== null)
+      .forEach((n) => io.observe(n));
+    const onScroll = () => {
+      if (root.scrollTop + root.clientHeight >= root.scrollHeight - 2) {
+        setCurrent(Math.max(slideCount - 1, 0));
+      }
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      io.disconnect();
+      root.removeEventListener("scroll", onScroll);
+    };
+  }, [slideCount, status]);
+
+  function handleTextSaved(slideIndex: number, newText: string) {
+    setResult((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        slides: prev.slides.map((s) =>
+          s.index === slideIndex ? { ...s, text: newText, edited: true } : s
+        ),
+      };
+    });
+  }
+
+  // ── Export: a print window (browser Save as PDF) preserving the marker
+  // formatting + key phrases + game deep links. Client-side, zero deps.
+  function handleExport() {
+    if (!result) return;
+    const w = window.open("", "_blank", "noopener,noreferrer");
+    if (!w) return; // popup blocked — nothing to break
+    const esc = (t: string) =>
+      t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const gameUrl = `${window.location.origin}/game?arc=${encodeURIComponent(arcId)}`;
+    const sectionsHtml = result.slides
+      .map((s) => {
+        const phrases = s.keyPhrases.length
+          ? `<p style="margin:6px 0 0;color:#666;font-size:12px">${s.keyPhrases
+              .map(esc)
+              .join(" · ")}</p>`
+          : "";
+        const key = s.breakthrough
+          ? `<p style="margin:6px 0 0"><a href="${gameUrl}" style="color:#ee7a2b;font-weight:600;text-decoration:none">Key moment →</a></p>`
+          : "";
+        return `<section style="margin:0 0 22px">
+          ${s.title ? `<h2 style="font-size:14px;margin:0 0 6px;color:#999;font-weight:600">${esc(s.title)}</h2>` : ""}
+          <p style="font-size:16px;line-height:1.6;margin:0">${richMarkersToHtml(s.text)}</p>
+          ${phrases}${key}
+        </section>`;
+      })
+      .join("");
+    w.document.write(`<!doctype html><html><head><title>${esc(
+      result.name ?? "Ideal Text"
+    )}</title></head><body style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:32px auto;padding:0 20px;color:#111">
+      <h1 style="font-size:20px;margin:0 0 20px">${esc(result.name ?? "Ideal Text")}</h1>
+      ${sectionsHtml}
+      <script>window.onload = function () { window.print(); };</script>
+    </body></html>`);
+    w.document.close();
+  }
+
   if (status === "paywall") {
     return (
       <PreShellOverlay onClose={onClose}>
@@ -223,41 +292,300 @@ export default function BestPresentationOverlay({
     );
   }
 
-  const total = result.slides.length;
-  const atLast = cursor === total - 1;
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-background">
+      {/* Shaded top navbar: counter · Export · Edit · X (P8). */}
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
+        <span className="text-[13px] font-medium tabular-nums text-foreground">
+          {Math.min(current + 1, result.slides.length)}/{result.slides.length}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            aria-label="Export to PDF"
+            className="flex h-[28px] items-center gap-1.5 rounded-full border border-border px-3 text-[12px] font-medium text-foreground"
+          >
+            <FileDown className="h-[14px] w-[14px]" aria-hidden />
+            Export
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditMode((v) => !v)}
+            aria-pressed={editMode}
+            aria-label={editMode ? "Done editing" : "Edit text"}
+            className={`flex h-[28px] items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium ${
+              editMode
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-foreground"
+            }`}
+          >
+            <Pencil className="h-[14px] w-[14px]" aria-hidden />
+            {editMode ? "Done" : "Edit"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-[28px] w-[28px] items-center justify-center rounded-full border border-border text-muted-foreground"
+          >
+            <X className="h-[16px] w-[16px]" aria-hidden />
+          </button>
+        </div>
+      </div>
 
-  function handleTextSaved(slideIndex: number, newText: string) {
-    setResult((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        slides: prev.slides.map((s) =>
-          s.index === slideIndex ? { ...s, text: newText } : s
-        ),
-      };
+      <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-2xl">
+          {/* Name header (crown identity). */}
+          {result.name ? (
+            <div className="flex items-center gap-2 px-4 pt-4">
+              <Crown className="h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+              <h2 className="text-[17px] font-semibold leading-snug text-foreground">
+                {result.name}
+              </h2>
+            </div>
+          ) : null}
+          {!result.coachReviewed ? (
+            <span className="ml-4 mt-2 inline-block rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
+              Draft, pending coach review
+            </span>
+          ) : null}
+
+          {result.slides.map((slide, i) => (
+            <IdealTextSection
+              key={slide.index}
+              refCallback={(el) => {
+                sectionNodes.current[i] = el;
+              }}
+              slide={slide}
+              presentationRef={result.presentationRef}
+              arcId={arcId}
+              editMode={editMode}
+              onTextSaved={handleTextSaved}
+            />
+          ))}
+
+          {/* Bottom of scroll — 1.7's button (wins over global #2, flagged). */}
+          <div className="px-4 pb-10 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                leftViaNavRef.current = true;
+                router.push(`/game?arc=${encodeURIComponent(arcId)}`);
+              }}
+              className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background transition hover:bg-foreground/90"
+            >
+              One last step
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── one ideal-text section: slide image → text (font +1) → key phrases ── */
+
+function IdealTextSection({
+  refCallback,
+  slide,
+  presentationRef,
+  arcId,
+  editMode,
+  onTextSaved,
+}: {
+  refCallback: (el: HTMLElement | null) => void;
+  slide: BestPresentationSlide;
+  presentationRef: string | null;
+  arcId: string;
+  editMode: boolean;
+  onTextSaved: (slideIndex: number, text: string) => void;
+}) {
+  const hasSlideVisual = !!presentationRef || !!slide.title;
+  return (
+    <section ref={refCallback} className="flex flex-col">
+      {hasSlideVisual ? (
+        <div className="mt-4 w-full bg-muted">
+          <SlideRender
+            presentationRef={presentationRef}
+            pageIndex={slide.index}
+            title={slide.title}
+            body=""
+            className="w-full"
+          />
+        </div>
+      ) : (
+        <PlaceholderSlide />
+      )}
+
+      <div className="flex flex-col gap-3 px-4 py-4">
+        {slide.text || editMode ? (
+          editMode ? (
+            <MarkerEditor arcId={arcId} slide={slide} onSaved={onTextSaved} />
+          ) : (
+            // Read view: font one step bigger than the readout (16 vs 15).
+            <p className="whitespace-pre-line text-[16px] leading-relaxed text-foreground">
+              {parseRichMarkers(slide.text).map((seg, i) => (
+                <span
+                  key={i}
+                  className={[
+                    seg.bold ? "font-semibold" : "",
+                    seg.italic ? "italic" : "",
+                    seg.underline ? "underline underline-offset-2" : "",
+                    seg.highlight ? "rounded bg-primary/20 px-0.5" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {seg.text}
+                </span>
+              ))}
+            </p>
+          )
+        ) : (
+          <p className="text-[14px] italic text-muted-foreground">
+            No best recording for this slide yet.
+          </p>
+        )}
+
+        {/* Key phrases — the glance layer while presenting (P8/B5). */}
+        {slide.keyPhrases.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {slide.keyPhrases.map((k, i) => (
+              <span
+                key={i}
+                className="rounded-full bg-primary/10 px-2.5 py-1 text-[12px] font-medium text-primary"
+              >
+                {k}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {slide.breakthrough ? (
+          <p className="text-[13px] font-medium text-primary">
+            <Sparkles className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+            Key moment{slide.breakthroughNote ? `: ${slide.breakthroughNote}` : ""}
+          </p>
+        ) : null}
+
+        {!editMode && slide.text ? (
+          <p className="text-[11px] text-muted-foreground">
+            from your take {slide.takeIndex}
+            {slide.edited ? ", edited" : ""}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+/* ── the marker editor: textarea + B / I / U / highlight, per section ── */
+
+function MarkerEditor({
+  arcId,
+  slide,
+  onSaved,
+}: {
+  arcId: string;
+  slide: BestPresentationSlide;
+  onSaved: (slideIndex: number, text: string) => void;
+}) {
+  const [draft, setDraft] = useState(slide.text);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
+
+  function applyMark(mark: RichMark) {
+    const el = ref.current;
+    if (!el) return;
+    const r = wrapSelection(draft, el.selectionStart, el.selectionEnd, mark);
+    if (r.text === draft) return; // collapsed selection
+    setDraft(r.text);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(r.selStart, r.selEnd);
     });
   }
 
+  async function save() {
+    const t = draft.trim();
+    if (!t || saving) return;
+    setSaving(true);
+    setError(null);
+    const r = await saveBestPresentationSlideText(arcId, slide.index, t);
+    setSaving(false);
+    if (r.ok) {
+      onSaved(slide.index, t);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1500);
+    } else {
+      setError(r.message ?? "Could not save. Try again.");
+    }
+  }
+
+  const marks: { mark: RichMark; label: string; cls: string }[] = [
+    { mark: "bold", label: "B", cls: "font-bold" },
+    { mark: "italic", label: "I", cls: "italic" },
+    { mark: "underline", label: "U", cls: "underline underline-offset-2" },
+    { mark: "highlight", label: "HL", cls: "text-primary" },
+  ];
+
   return (
-    <SnippetScreenShell
-      onClose={onClose}
-      index={cursor}
-      total={total}
-      onPrev={() => setCursor((c) => c - 1)}
-      onNext={atLast ? onClose : () => setCursor((c) => c + 1)}
-      nextLabel={atLast ? "Close" : undefined}
-      nextTone={atLast ? "terminal" : "primary"}
-      managed={false}
-    >
-      <SlideCard
-        slide={result.slides[cursor]}
-        presentationRef={result.presentationRef}
-        arcId={arcId}
-        name={result.name}
-        coachReviewed={result.coachReviewed}
-        onTextSaved={handleTextSaved}
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1.5">
+        {marks.map((m) => (
+          <button
+            key={m.mark}
+            type="button"
+            onClick={() => applyMark(m.mark)}
+            aria-label={`Mark selection ${m.mark}`}
+            className={`flex h-8 w-9 items-center justify-center rounded-lg border border-border text-[13px] text-foreground hover:bg-muted ${m.cls}`}
+          >
+            {m.label}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving || !draft.trim()}
+          className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {saving ? "Saving..." : savedFlash ? "Saved" : "Save"}
+        </button>
+      </div>
+      <textarea
+        ref={ref}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={4}
+        className="max-h-[60vh] w-full resize-none overflow-y-auto rounded-xl border border-primary bg-background px-3 py-2 text-[16px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
       />
-    </SnippetScreenShell>
+      {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+/* ── deckless mock slide ── */
+
+function PlaceholderSlide() {
+  return (
+    <div className="mt-4 flex aspect-video w-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
+      <div className="flex flex-col items-center gap-2 text-muted-foreground/50">
+        <Sparkles className="h-8 w-8" aria-hidden />
+        <p className="text-[12px] font-medium uppercase tracking-wider">
+          Audio only
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -330,232 +658,6 @@ function NotReadyState({
           Record the next take
         </button>
       ) : null}
-    </div>
-  );
-}
-
-/* ── per-slide card body ── */
-
-function SlideCard({
-  slide,
-  presentationRef,
-  arcId,
-  name,
-  coachReviewed,
-  onTextSaved,
-}: {
-  slide: BestPresentationSlide;
-  presentationRef: string | null;
-  arcId: string;
-  name: string | null;
-  coachReviewed: boolean;
-  onTextSaved: (slideIndex: number, text: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [draftText, setDraftText] = useState(slide.text);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  // C10 — grow the edit box to fit the whole slide text so it's never clipped.
-  const editRef = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const el = editRef.current;
-    if (!editing || !el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [editing, draftText]);
-  const hasContent =
-    slide.text.length > 0 || slide.audioRef !== null || slide.breakthrough;
-  // Tap-to-reveal: the chevron (on the text card) expands the playback only. The
-  // breakthrough badge is NOT behind it — it renders under the slide text,
-  // always visible (C1), as a sibling of the text card / player.
-  const hasDetail = slide.audioRef !== null;
-
-  function startEdit() {
-    setDraftText(slide.text);
-    setEditing(true);
-    setSaveError(null);
-  }
-
-  function cancelEdit() {
-    setEditing(false);
-    setSaveError(null);
-  }
-
-  async function handleSave() {
-    if (saving) return;
-    setSaving(true);
-    setSaveError(null);
-    const result = await saveBestPresentationSlideText(
-      arcId,
-      slide.index,
-      draftText
-    );
-    setSaving(false);
-    if (result.ok) {
-      onTextSaved(slide.index, draftText);
-      setEditing(false);
-    } else {
-      setSaveError(result.message ?? "Could not save. Try again.");
-    }
-  }
-
-  return (
-    <div className="flex flex-col">
-      {/* Slide — edge-to-edge */}
-      <div className="w-full bg-muted">
-        <SlideRender
-          presentationRef={presentationRef}
-          pageIndex={slide.index}
-          title={slide.title}
-          body=""
-          className="w-full"
-        />
-      </div>
-
-      <div className="flex flex-col gap-4 px-4 py-4">
-        {/* C / C2 — the presentation's name, echoing the ideal-text hero
-            identity (gold crown) wherever the best presentation is referenced. */}
-        {name ? (
-          <div className="flex items-center gap-2">
-            <Crown className="h-5 w-5 shrink-0 text-amber-500" aria-hidden />
-            <h2 className="text-[17px] font-semibold leading-snug text-foreground">
-              {name}
-            </h2>
-          </div>
-        ) : null}
-
-        {/* BE #141 — draft badge until a human coach has reviewed this
-            composed presentation. */}
-        {!coachReviewed ? (
-          <span className="self-start rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
-            Draft, pending coach review
-          </span>
-        ) : null}
-
-        {/* Composed text — warm card with an inline edit pencil; the player +
-            breakthrough sit below it, always visible (no expand toggle). */}
-        {hasContent ? (
-          <>
-            {editing ? (
-              <div className="flex flex-col gap-2">
-                <textarea
-                  ref={editRef}
-                  value={draftText}
-                  onChange={(e) => setDraftText(e.target.value)}
-                  rows={4}
-                  className="max-h-[60vh] w-full resize-none overflow-y-auto rounded-xl border border-primary bg-background px-3 py-2 text-[15px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
-                />
-                {saveError ? (
-                  <p className="text-[13px] text-destructive">{saveError}</p>
-                ) : null}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    disabled={saving}
-                    className="flex-1 rounded-full border border-border py-2 text-[14px] text-foreground disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleSave()}
-                    disabled={saving}
-                    className="flex-1 rounded-full bg-primary py-2 text-[14px] font-medium text-primary-foreground disabled:opacity-50"
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Composed text card — tap to reveal the playback (chevron). The
-                    edit pencil edits without toggling (stopPropagation). Rendered
-                    only when there's composed text; the breakthrough + player are
-                    SIBLINGS so an empty-text take never hides them (C1). */}
-                {slide.text ? (
-                  <div
-                    role={hasDetail ? "button" : undefined}
-                    tabIndex={hasDetail ? 0 : undefined}
-                    onClick={hasDetail ? () => setDetailsOpen((v) => !v) : undefined}
-                    onKeyDown={
-                      hasDetail
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setDetailsOpen((v) => !v);
-                            }
-                          }
-                        : undefined
-                    }
-                    aria-expanded={hasDetail ? detailsOpen : undefined}
-                    className={`flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasDetail ? "cursor-pointer" : ""}`}
-                  >
-                    <p className="flex-1 text-[15px] leading-relaxed text-foreground">
-                      {slide.text}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEdit();
-                      }}
-                      aria-label="Edit composed text"
-                      className="mt-0.5 shrink-0 rounded-full p-0.5 text-primary transition-colors hover:bg-primary/10"
-                    >
-                      <Pencil className="h-5 w-5" aria-hidden />
-                    </button>
-                    {hasDetail ? (
-                      <ChevronDown
-                        className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${detailsOpen ? "rotate-180" : ""}`}
-                        aria-hidden
-                      />
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {/* C1 — breakthrough badge under the slide text, ALWAYS visible
-                    (not behind the chevron) when the coach confirmed it. */}
-                {slide.breakthrough ? (
-                  <div className="flex flex-col gap-2 rounded-xl bg-primary/[0.08] px-4 py-4">
-                    <p className="text-[15px] font-semibold text-foreground">
-                      🥳 Here you turned your stress into charisma!
-                    </p>
-                    {slide.breakthroughNote ? (
-                      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                        {slide.breakthroughNote}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {/* Playback: behind the chevron when there's a text card to tap;
-                    shown directly when there's no text card to host the chevron. */}
-                {slide.audioRef && (!slide.text || detailsOpen) ? (
-                  <MediaPlayer
-                    src={slide.audioRef}
-                    startOffsetMs={slide.startOffsetMs}
-                    durationMs={slide.durationMs}
-                  />
-                ) : null}
-              </>
-            )}
-
-            {/* Provenance */}
-            {!editing ? (
-              <p className="text-[11px] text-muted-foreground">
-                from your take {slide.takeIndex}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-[14px] italic text-muted-foreground">
-            No best recording for this slide yet.
-          </p>
-        )}
-
-      </div>
     </div>
   );
 }
