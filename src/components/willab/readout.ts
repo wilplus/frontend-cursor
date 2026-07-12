@@ -176,6 +176,10 @@ export interface ReadoutPayload {
    *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
    *  true (absent → render metrics as today). */
   voiceMetricsAvailable: boolean;
+  /** B3 — the full take's playable audio URL, top-level. The FE's section
+   *  playback seeks spans of this one file. Falls back to the snippets' shared
+   *  parent audio when absent (older payloads). */
+  parentAudioRef: string | null;
   /** The training-setup audience (B4: session_context.audience or top-level),
    *  suffixed onto Say-It-Stronger insight lines as "(audience: X)". null when
    *  the user left the field blank / older payloads. */
@@ -413,6 +417,10 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
     // Only false when the BE explicitly says so; absent / anything else → true
     // (render metrics as today).
     voiceMetricsAvailable: r.voice_metrics_available !== false,
+    parentAudioRef:
+      typeof r.parent_audio_ref === "string" && r.parent_audio_ref.length > 0
+        ? r.parent_audio_ref
+        : null,
     audience: pickAudience(r),
     // Only false on an explicitly unpaid arc; absent → true (full/unlocked).
     auditPaid: r.audit_paid !== false,
@@ -594,6 +602,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     slideTranscripts: [],
     fullTranscriptChunks: [],
     voiceMetricsAvailable: true,
+    parentAudioRef: null,
     audience: null,
     auditPaid: true,
     snippets: [

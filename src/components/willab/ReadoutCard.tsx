@@ -9,16 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { Check, ChevronDown, Copy, Info, Pencil, Play, Sparkles } from "lucide-react";
-import MediaPlayer from "@/components/results/MediaPlayer";
+import Link from "next/link";
+import { Check, Copy, Info, Pause, Play, Sparkles, X } from "lucide-react";
 import { SlideRender } from "./pdfSlides";
-import SnippetScreenShell from "./SnippetScreenShell";
 import {
-  saveTranscriptEdit,
-  type TranscriptEditTarget,
-} from "@/services/api/transcriptEdits";
-import {
-  decideReadoutBack,
   pickTopSnippet,
   type FullTranscriptChunk,
   type ReadoutPayload,
@@ -28,46 +22,38 @@ import {
   type ReadoutSnippet,
 } from "./readout";
 
-/** A readout page. In per-deck-slide mode (BE slide_transcripts present) each
- *  page is one DECK SLIDE carrying its COMPLETE 1:1 transcript + the slide's
- *  span in the parent recording; the per-snippet acoustic moments stack below.
- *  In the legacy fallback (no slide_transcripts) fullTranscript is null and the
- *  page is a single snippet, exactly as before. */
-type ReadoutPage = ReadoutSlideGroup & {
+/* -------------------------------------------------------------------------- */
+/*  ReadoutCard — ONE vertical scroll (P4, founder 2026-07-11): every slide     */
+/*  section stacked top-to-bottom (slide image → small orange playback →        */
+/*  transcript → grey divider → always-visible comment), a shaded top navbar    */
+/*  whose "2/12" counter follows the scroll (IntersectionObserver), and a       */
+/*  single terminal button at the end of the scroll. No Back/Next pagination.   */
+/*                                                                            */
+/*  The transcript is NOT editable here (editing lives on the Ideal Text        */
+/*  view); user_edited_text still wins for display when present. Comments are   */
+/*  always visible (P6) — no expand/collapse. A coach-assigned breakthrough     */
+/*  adds a "Key moment" button deep-linking /game?snippet=<id> (P7).           */
+/* -------------------------------------------------------------------------- */
+
+/** One scroll section: a deck slide (with its complete transcript), the single
+ *  deckless mock-slide page (chunks), or a legacy per-snippet block. */
+type ReadoutSection = ReadoutSlideGroup & {
   fullTranscript: string | null;
   fullAudioRef: string | null;
   fullStartOffsetMs: number;
   fullDurationMs: number;
-  /** Deckless-only: the whole transcript split into ordered chunks, rendered as
-   *  one artificial-slide page (placeholder image + stacked paragraphs). null in
-   *  every decked / legacy path. */
+  /** Deckless-only: the whole transcript split into ordered chunks. */
   chunks: FullTranscriptChunk[] | null;
 };
-
-/* -------------------------------------------------------------------------- */
-/*  ReadoutCard — one slide per page, its spoken moments stacked below it.      */
-/*  Each moment shows its transcript in the orange card; tapping "Tap to see    */
-/*  the coach insight" expands the rest IN PLACE below it (player + coach        */
-/*  comment + metrics + breakthrough) — no new frame, the navbar is untouched.  */
-/*  Multiple moments can be open at once. Back/swipe-back collapses the most     */
-/*  recently opened moment, then pages to the previous slide, then closes.      */
-/* -------------------------------------------------------------------------- */
 
 /** Stable key for a moment (BE id when present; else slide+offset). */
 function momentKey(s: ReadoutSnippet): string {
   return s.id || `${s.slide?.index ?? "g"}:${s.startOffsetMs}`;
 }
 
-/** A single toggle key for a per-deck-slide page's transcript card. */
-function slideToggleKey(g: ReadoutPage): string {
-  return `slide:${g.slideIndex ?? "g"}`;
-}
-
-/** Does this snippet have anything behind the chevron (coach note or a "Say It
- *  Stronger" suggestion)? Acoustic numbers left the user view entirely
- *  (2026-07-07) — the reveal now carries coaching, not metrics. The breakthrough
- *  badge is NOT counted (it renders un-gated under the transcript, C1). */
-function snippetHasReveal(s: ReadoutSnippet): boolean {
+/** Does this snippet contribute comment content (coach note or a Say It
+ *  Stronger suggestion)? Acoustic numbers left the user view entirely. */
+function hasCommentContent(s: ReadoutSnippet): boolean {
   return !!(
     s.coach?.note ||
     s.coach?.when ||
@@ -76,42 +62,109 @@ function snippetHasReveal(s: ReadoutSnippet): boolean {
   );
 }
 
-/** The toggle keys present on a page (drives the Back-collapse gesture). One
- *  key per deck slide in per-slide mode; one per moment in the legacy view. */
-function pageToggleKeys(g: ReadoutPage): string[] {
-  if (g.fullTranscript !== null) return [slideToggleKey(g)];
-  return g.snippets.map(momentKey);
-}
-
-/* ── transcript-edit context (avoids drilling the handlers 4 levels deep) ── */
-
-interface ReadoutEditApi {
-  /** Display text for a snippet: local optimistic edit → server edit → original. */
-  snippetText: (s: ReadoutSnippet) => string;
-  chunkText: (c: FullTranscriptChunk) => string;
-  isSnippetEdited: (s: ReadoutSnippet) => boolean;
-  isChunkEdited: (c: FullTranscriptChunk) => boolean;
-  /** Optimistic save; resolves false on failure so the editor can surface it. */
-  save: (target: TranscriptEditTarget, text: string) => Promise<boolean>;
-  /** False for the sample readout / when there's no session to persist to. */
-  canEdit: boolean;
-}
-
-const NOOP_EDIT: ReadoutEditApi = {
-  snippetText: (s) => s.userEditedText ?? s.transcript,
-  chunkText: (c) => c.userEditedText ?? c.transcript,
-  isSnippetEdited: (s) => s.userEditedText !== null,
-  isChunkEdited: (c) => c.userEditedText !== null,
-  save: async () => false,
-  canEdit: false,
-};
-
-const ReadoutEditContext = createContext<ReadoutEditApi>(NOOP_EDIT);
-const useReadoutEdit = () => useContext(ReadoutEditContext);
+/** Display text: the user's saved edit wins over the raw transcript. */
+const snippetText = (s: ReadoutSnippet) => s.userEditedText ?? s.transcript;
+const chunkText = (c: FullTranscriptChunk) => c.userEditedText ?? c.transcript;
 
 /** The training-setup audience (B4) — suffixed onto Say-It-Stronger insight
  *  lines as "(audience: X)". Render-only; null hides the suffix. */
 const ReadoutAudienceContext = createContext<string | null>(null);
+
+/* ── shared section audio: ONE element, seek + stop per section span ── */
+
+interface SectionAudioApi {
+  playingKey: string | null;
+  toggle: (key: string, src: string, startMs: number, durationMs: number) => void;
+}
+
+const SectionAudioContext = createContext<SectionAudioApi>({
+  playingKey: null,
+  toggle: () => {},
+});
+
+function useSectionAudioController(): SectionAudioApi {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const endAtRef = useRef<number | null>(null);
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
+  const playingKeyRef = useRef<string | null>(null);
+  playingKeyRef.current = playingKey;
+
+  const stop = useCallback(() => {
+    audioRef.current?.pause();
+    endAtRef.current = null;
+    setPlayingKey(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  const toggle = useCallback(
+    (key: string, src: string, startMs: number, durationMs: number) => {
+      if (playingKeyRef.current === key) {
+        stop();
+        return;
+      }
+      let el = audioRef.current;
+      if (!el) {
+        el = new Audio();
+        el.preload = "none";
+        // Stop exactly at the section's end (timeupdate beats a setTimeout —
+        // it follows pauses/buffering instead of wall-clock drift).
+        el.addEventListener("timeupdate", () => {
+          const endAt = endAtRef.current;
+          if (endAt !== null && el!.currentTime >= endAt) stop();
+        });
+        el.addEventListener("ended", stop);
+        audioRef.current = el;
+      }
+      if (el.src !== src) el.src = src;
+      el.currentTime = startMs / 1000;
+      endAtRef.current = durationMs > 0 ? (startMs + durationMs) / 1000 : null;
+      void el.play().catch(() => setPlayingKey(null));
+      setPlayingKey(key);
+    },
+    [stop]
+  );
+
+  return useMemo(() => ({ playingKey, toggle }), [playingKey, toggle]);
+}
+
+/** P5 restyle — the small orange play control: no grey card, less prominent
+ *  than the old black-button player. */
+function SectionPlay({
+  playKey,
+  src,
+  startMs,
+  durationMs,
+}: {
+  playKey: string;
+  src: string;
+  startMs: number;
+  durationMs: number;
+}) {
+  const { playingKey, toggle } = useContext(SectionAudioContext);
+  const playing = playingKey === playKey;
+  return (
+    <button
+      type="button"
+      onClick={() => toggle(playKey, src, startMs, durationMs)}
+      aria-label={playing ? "Pause this section" : "Play this section"}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+    >
+      {playing ? (
+        <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
+      ) : (
+        <Play className="ml-0.5 h-3.5 w-3.5 fill-current" aria-hidden />
+      )}
+    </button>
+  );
+}
+
+/* ============================== the overlay =============================== */
 
 export default function ReadoutCard({
   payload,
@@ -119,11 +172,14 @@ export default function ReadoutCard({
   isSample = false,
   onSend,
   onClose,
-  managed = true,
+  // Kept for call-site compatibility; the scroll view needs no history paging.
+  managed: _managed = true,
   onRegisterBack,
 }: {
   payload: ReadoutPayload;
-  /** The session whose transcript edits persist to. null → editing disabled. */
+  /** Present for parity with the transcript-edit era; editing moved to the
+   *  Ideal Text view, so this is currently unused (display still prefers
+   *  user_edited_text off the payload itself). */
   sessionId?: string | null;
   isSample?: boolean;
   onSend?: () => void;
@@ -131,48 +187,11 @@ export default function ReadoutCard({
    *  InsightsOverlay provide this. Without it the card renders a plain div. */
   onClose?: () => void;
   managed?: boolean;
-  /** Lets the host wire device Back into the readout's internal layout stack
-   *  (collapse → page → close). The host passes this and feeds the returned
-   *  handler to useBackDismiss as its onBack. */
+  /** Back-gesture hook: the scroll view has no internal layout stack, so the
+   *  handler always defers (returns false) and the host closes. */
   onRegisterBack?: (handler: () => boolean) => void;
 }) {
-  // Optimistic transcript edits, keyed by target. Merged over the payload's
-  // user_edited_text (which itself overrides the original) for display.
-  const [localEdits, setLocalEdits] = useState<Record<string, string>>({});
-  const editApi = useMemo<ReadoutEditApi>(() => {
-    const snipKey = (id: string) => `snip:${id}`;
-    const chunkKey = (i: number) => `chunk:${i}`;
-    return {
-      snippetText: (s) =>
-        localEdits[snipKey(s.id)] ?? s.userEditedText ?? s.transcript,
-      chunkText: (c) =>
-        localEdits[chunkKey(c.index)] ?? c.userEditedText ?? c.transcript,
-      isSnippetEdited: (s) =>
-        localEdits[snipKey(s.id)] !== undefined || s.userEditedText !== null,
-      isChunkEdited: (c) =>
-        localEdits[chunkKey(c.index)] !== undefined || c.userEditedText !== null,
-      canEdit: !isSample && !!sessionId,
-      save: async (target, text) => {
-        const key =
-          "snippetId" in target
-            ? snipKey(target.snippetId)
-            : chunkKey(target.chunkIndex);
-        setLocalEdits((prev) => ({ ...prev, [key]: text })); // optimistic
-        if (isSample || !sessionId) return true; // local-only preview
-        const r = await saveTranscriptEdit(sessionId, target, text);
-        if (!r.ok) {
-          // Revert the optimistic edit so the display never shows text that
-          // didn't persist (the editor stays open with its error for a retry).
-          setLocalEdits((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-        }
-        return r.ok;
-      },
-    };
-  }, [localEdits, sessionId, isSample]);
+  void sessionId; // reserved (see prop doc)
   // The deck slide (index/title/body) by index — top-level `slides` first, with
   // per-snippet `slide` as a fallback for the title/body text-card path.
   const slidesByIndex = useMemo(() => {
@@ -184,21 +203,23 @@ export default function ReadoutCard({
     return m;
   }, [payload.slides, payload.snippets]);
 
-  // The parent recording's audio — shared across snippets, so a slide with no
+  // The parent recording's audio — shared across sections, so a slide with no
   // salient snippet (e.g. the quiet first slide) can still play its own span.
   const parentAudioRef = useMemo(
-    () => payload.snippets.find((s) => s.audioRef)?.audioRef ?? null,
-    [payload.snippets]
+    () =>
+      payload.parentAudioRef ??
+      payload.snippets.find((s) => s.audioRef)?.audioRef ??
+      null,
+    [payload.parentAudioRef, payload.snippets]
   );
 
-  // Pagination model. When the BE sends complete per-slide transcripts we page
-  // per DECK SLIDE (slide + its full 1:1 transcript + its acoustic moments) —
-  // every slide gets a page, so the quiet first slide is never dropped. Without
-  // them we keep the legacy one-snippet-per-page view.
-  const groups = useMemo((): ReadoutPage[] => {
+  // Section model. Per-deck-slide when the BE sends complete slide transcripts
+  // (every slide gets a section, quiet first slide included); ONE mock-slide
+  // section for deckless chunked takes; legacy per-snippet sections otherwise.
+  const sections = useMemo((): ReadoutSection[] => {
     if (payload.slideTranscripts.length > 0) {
       const txIndices = new Set(payload.slideTranscripts.map((t) => t.index));
-      const pages: ReadoutPage[] = payload.slideTranscripts.map((st) => ({
+      const list: ReadoutSection[] = payload.slideTranscripts.map((st) => ({
         slideIndex: st.index,
         slide: slidesByIndex.get(st.index) ?? null,
         snippets: payload.snippets.filter((s) => s.slide?.index === st.index),
@@ -209,12 +230,12 @@ export default function ReadoutCard({
         chunks: null,
       }));
       // Catch-all so a moment whose slide has no transcript entry (or no slide
-      // at all) is never silently dropped — rendered as a legacy moments page.
+      // at all) is never silently dropped.
       const leftover = payload.snippets.filter(
         (s) => !(s.slide && txIndices.has(s.slide.index))
       );
       if (leftover.length > 0) {
-        pages.push({
+        list.push({
           slideIndex: null,
           slide: null,
           snippets: leftover,
@@ -225,10 +246,8 @@ export default function ReadoutCard({
           chunks: null,
         });
       }
-      return pages;
+      return list;
     }
-    // Deckless take with a chunked full transcript → ONE artificial-slide page
-    // (placeholder image + the chunks stacked as paragraphs, no pagination).
     if (payload.fullTranscriptChunks.length > 0) {
       return [
         {
@@ -260,180 +279,149 @@ export default function ReadoutCard({
     slidesByIndex,
     parentAudioRef,
   ]);
-  const groupCount = groups.length;
-  const [cursor, setCursor] = useState(0);
-  // Keys of expanded moments, in open order (newest last) — drives Back.
-  const [expanded, setExpanded] = useState<string[]>([]);
 
-  const cursorRef = useRef(cursor);
-  cursorRef.current = cursor;
-  const expandedRef = useRef(expanded);
-  expandedRef.current = expanded;
-  const groupsRef = useRef(groups);
-  groupsRef.current = groups;
-
-  const toggle = useCallback((key: string) => {
-    setExpanded((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
-  }, []);
-
-  // Device Back: collapse the newest expanded moment on the current slide, else
-  // page back, else (return false) let the host close the overlay.
-  const handleBack = useCallback((): boolean => {
-    const gs = groupsRef.current;
-    const i = Math.min(cursorRef.current, Math.max(gs.length - 1, 0));
-    // On the summary page the cursor sits PAST the last group (i clamps down),
-    // so there's no on-screen card to collapse — empty keys → Back pages off the
-    // summary instead of silently collapsing a now-offscreen moment.
-    const onRealPage = cursorRef.current === i;
-    const currentKeys = onRealPage && gs[i] ? pageToggleKeys(gs[i]) : [];
-    const action = decideReadoutBack(
-      cursorRef.current,
-      expandedRef.current,
-      currentKeys
-    );
-    if (action.type === "collapse") {
-      setExpanded((prev) => prev.filter((k) => k !== action.key));
-      return true;
-    }
-    if (action.type === "page") {
-      setCursor((c) => Math.max(c - 1, 0));
-      return true;
-    }
-    return false;
-  }, []);
-
+  // The scroll view has no internal Back stack — the host's close handles it.
   useEffect(() => {
-    onRegisterBack?.(handleBack);
-  }, [onRegisterBack, handleBack]);
+    onRegisterBack?.(() => false);
+  }, [onRegisterBack]);
 
-  const hasSummaryPage = !!(
-    onClose && (payload.overallMessage || payload.videoRef)
+  // "2/12" — which section is on screen. Sections register their nodes; the
+  // observer marks the one crossing a band around the upper third of the
+  // viewport (scrolling down increments as each new slide enters).
+  const [current, setCurrent] = useState(0);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const sectionNodes = useRef<(HTMLElement | null)[]>([]);
+  const registerSection = useCallback(
+    (idx: number) => (el: HTMLElement | null) => {
+      sectionNodes.current[idx] = el;
+    },
+    []
   );
-  const shellTotal = hasSummaryPage
-    ? Math.max(groupCount, 1) + 1
-    : Math.max(groupCount, 1);
-  const idx = Math.min(cursor, Math.max(groupCount - 1, 0));
-  const atSummary = hasSummaryPage && cursor === shellTotal - 1;
-  const atLast = cursor === shellTotal - 1;
-
-  if (!onClose) {
-    if (groupCount === 0) {
-      return (
-        <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <p className="text-[15px] text-muted-foreground">
-            No analyzable snippets in this recording.
-          </p>
-        </div>
-      );
-    }
-    return (
-      <ReadoutEditContext.Provider value={editApi}>
-        <ReadoutAudienceContext.Provider value={payload.audience}>
-        <div className="flex flex-1 flex-col overflow-y-auto">
-          {groups.map((g, i) => (
-            <SlideGroupPage
-              key={g.slideIndex ?? `general-${i}`}
-              group={g}
-              presentationRef={payload.presentationRef}
-              isSample={isSample && i === 0}
-              // Take-level note: show once (first group) in the stacked view.
-              voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
-              expanded={expanded}
-              onToggle={toggle}
-            />
-          ))}
-        </div>
-        </ReadoutAudienceContext.Provider>
-      </ReadoutEditContext.Provider>
-    );
-  }
-
-  function handleNext() {
-    if (!atLast) {
-      setCursor((c) => c + 1);
-    } else if (!hasSummaryPage && onSend) {
-      onSend(); // pre-send readout: last page sends the take
-    } else if (onClose) {
-      onClose(); // viewer: last page closes the layer
-    }
-  }
-
-  return (
-    <ReadoutEditContext.Provider value={editApi}>
-      <ReadoutAudienceContext.Provider value={payload.audience}>
-      <SnippetScreenShell
-        onClose={onClose}
-        index={cursor}
-        total={shellTotal}
-        onPrev={() => setCursor((c) => Math.max(c - 1, 0))}
-        onNext={handleNext}
-        nextLabel={
-          atLast ? (!hasSummaryPage && onSend ? "Send for analysis" : "Close") : undefined
+  useEffect(() => {
+    const root = scrollRootRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const idx = sectionNodes.current.indexOf(e.target as HTMLElement);
+          if (idx >= 0) setCurrent(idx);
         }
-        nextTone={atLast ? "terminal" : "primary"}
-        managed={managed}
-      >
-        {atSummary ? (
-          <SummaryPage payload={payload} />
-        ) : groupCount === 0 ? (
+      },
+      // A thin horizontal band ~1/3 down the viewport: the section crossing it
+      // is "the one you're on". Deterministic, no tie-breaking needed.
+      { root, rootMargin: "-30% 0px -65% 0px", threshold: 0 }
+    );
+    const nodes = sectionNodes.current.filter(
+      (n): n is HTMLElement => n !== null
+    );
+    nodes.forEach((n) => io.observe(n));
+    return () => io.disconnect();
+  }, [sections.length]);
+
+  const audio = useSectionAudioController();
+  const sectionCount = Math.max(sections.length, 1);
+  const hasSummary = !!(payload.overallMessage || payload.videoRef);
+
+  const body = (
+    <ReadoutAudienceContext.Provider value={payload.audience}>
+      <SectionAudioContext.Provider value={audio}>
+        {sections.length === 0 ? (
           <p className="px-4 py-12 text-center text-[15px] text-muted-foreground">
             No analyzable snippets in this recording.
           </p>
         ) : (
-          <SlideGroupPage
-            group={groups[idx]}
-            presentationRef={payload.presentationRef}
-            isSample={isSample && idx === 0}
-            voiceMetricsAvailable={payload.voiceMetricsAvailable}
-            expanded={expanded}
-            onToggle={toggle}
-          />
+          sections.map((sec, i) => (
+            <Section
+              key={sec.slideIndex ?? `general-${i}`}
+              refCallback={registerSection(i)}
+              section={sec}
+              presentationRef={payload.presentationRef}
+              isSample={isSample && i === 0}
+              voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
+            />
+          ))
         )}
-      </SnippetScreenShell>
-      </ReadoutAudienceContext.Provider>
-    </ReadoutEditContext.Provider>
+
+        {hasSummary ? <SummaryBlock payload={payload} /> : null}
+
+        {/* End of scroll — ONE terminal button (P4). The pre-send Lab readout
+            keeps its send CTA: the guest sign-in-and-send flow hangs off it
+            (LIVE LOOP), and signed-in sends ride the same step. */}
+        {onClose || onSend ? (
+          <div className="px-4 pb-10 pt-2">
+            <button
+              type="button"
+              onClick={() => (onSend ? onSend() : onClose?.())}
+              className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background transition hover:bg-foreground/90"
+            >
+              {onSend ? "Send for analysis" : "Exit the training"}
+            </button>
+          </div>
+        ) : null}
+      </SectionAudioContext.Provider>
+    </ReadoutAudienceContext.Provider>
+  );
+
+  // Plain-div mode (no host overlay): just the stacked sections.
+  if (!onClose) {
+    return <div className="flex flex-1 flex-col overflow-y-auto">{body}</div>;
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-background">
+      {/* Shaded top navbar: slide counter + X (P4). */}
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
+        <span className="text-[13px] font-medium tabular-nums text-foreground">
+          {Math.min(current + 1, sectionCount)}/{sectionCount}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="flex h-[28px] w-[28px] items-center justify-center rounded-full border border-border text-muted-foreground"
+        >
+          <X className="h-[16px] w-[16px]" aria-hidden />
+        </button>
+      </div>
+
+      <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-2xl">{body}</div>
+      </div>
+    </div>
   );
 }
 
-/* ── one slide + its stacked spoken moments ── */
+/* ── one scroll section: slide → playback → transcript → divider → comment ── */
 
-function SlideGroupPage({
-  group,
+function Section({
+  refCallback,
+  section,
   presentationRef,
   isSample,
   voiceMetricsAvailable,
-  expanded,
-  onToggle,
 }: {
-  group: ReadoutPage;
+  refCallback: (el: HTMLElement | null) => void;
+  section: ReadoutSection;
   presentationRef: string | null;
   isSample: boolean;
   voiceMetricsAvailable: boolean;
-  expanded: string[];
-  onToggle: (key: string) => void;
 }) {
-  // Per-deck-slide mode: the page carries the slide's COMPLETE transcript.
-  const perSlide = group.fullTranscript !== null;
-  // The deck page index to render: the slide's own index, or (per-slide mode)
-  // the page's slideIndex even when no `slides` entry carried title/body — the
-  // PDF page renders off presentationRef + index alone, so the quiet first
-  // slide still shows its image.
+  const perSlide = section.fullTranscript !== null;
+  const deckless = section.chunks !== null;
   const slidePageIndex =
-    group.slide?.index ?? (perSlide ? group.slideIndex : null);
-  const deckless = group.chunks !== null;
+    section.slide?.index ?? (perSlide ? section.slideIndex : null);
+
   return (
-    <div className="flex flex-col">
-      {/* Slide — edge-to-edge, once per group (never repeated per moment). A
-          deckless take has no deck, so it gets one artificial placeholder card. */}
+    <section ref={refCallback} className="flex flex-col">
+      {/* Slide image — edge-to-edge; deckless gets the one mock slide. */}
       {slidePageIndex !== null ? (
         <div className="w-full bg-muted">
           <SlideRender
             presentationRef={presentationRef}
             pageIndex={slidePageIndex}
-            title={group.slide?.title ?? ""}
-            body={group.slide?.body ?? ""}
+            title={section.slide?.title ?? ""}
+            body={section.slide?.body ?? ""}
             className="w-full"
           />
         </div>
@@ -448,35 +436,250 @@ function SlideGroupPage({
             ③.
           </p>
         ) : null}
-
-        {/* A — voice metrics unavailable for this take (empty acoustic signal):
-            a soft inline note instead of empty metric rows. */}
         {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
 
         {deckless ? (
-          <DecklessContent group={group} expanded={expanded} onToggle={onToggle} />
+          <DecklessSection section={section} />
         ) : perSlide ? (
-          // Per deck slide: the COMPLETE 1:1 transcript + slide playback shown
-          // exactly once (each slide's speech is distinct — never repeated).
-          <DeckSlideContent
-            group={group}
-            isOpen={expanded.includes(slideToggleKey(group))}
-            onToggle={() => onToggle(slideToggleKey(group))}
-          />
+          <DeckSlideSection section={section} />
         ) : (
-          group.snippets.map((s) => {
-            const key = momentKey(s);
-            return (
-              <MomentRow
-                key={key}
-                snippet={s}
-                isOpen={expanded.includes(key)}
-                onToggle={() => onToggle(key)}
-              />
-            );
-          })
+          section.snippets.map((s) => <MomentBlock key={momentKey(s)} snippet={s} />)
         )}
       </div>
+    </section>
+  );
+}
+
+/* ── decked per-slide section ── */
+
+function DeckSlideSection({ section }: { section: ReadoutSection }) {
+  // One comment per slide: the slide's single top moment (lowest rank →
+  // highest quality → earliest) so several salient snippets don't stack
+  // duplicated-looking comments.
+  const top = pickTopSnippet(section.snippets.filter(hasCommentContent));
+  const breakthroughSnippet = section.snippets.find((s) => s.breakthrough);
+  const playable = !!section.fullAudioRef && section.fullDurationMs > 0;
+  return (
+    <>
+      {section.fullTranscript ? (
+        <TranscriptBlock
+          text={section.fullTranscript}
+          play={
+            playable ? (
+              <SectionPlay
+                playKey={`slide:${section.slideIndex ?? "g"}`}
+                src={section.fullAudioRef!}
+                startMs={section.fullStartOffsetMs}
+                durationMs={section.fullDurationMs}
+              />
+            ) : null
+          }
+        />
+      ) : (
+        <p className="text-[14px] italic text-muted-foreground">
+          No speech recorded on this slide.
+        </p>
+      )}
+
+      <CommentBlock
+        snippet={top}
+        transcriptCorrected={section.snippets
+          .map((s) => s.coach?.transcriptCorrected)
+          .filter((t): t is string => !!t)}
+        breakthroughSnippet={breakthroughSnippet ?? null}
+      />
+    </>
+  );
+}
+
+/* ── deckless section: mock slide already above; chunks + moments ── */
+
+function DecklessSection({ section }: { section: ReadoutSection }) {
+  const chunks = section.chunks ?? [];
+  const fullText = chunks.map(chunkText).join("\n\n");
+  const moments = section.snippets.filter(
+    (s) => hasCommentContent(s) || s.breakthrough
+  );
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+          Your transcript
+        </p>
+        {fullText ? <CopyButton text={fullText} /> : null}
+      </div>
+
+      {/* The 200-char chunks: playback + text, stacked (P5). */}
+      <div className="flex flex-col gap-3">
+        {chunks.map((c) => (
+          <div key={c.index} className="flex items-start gap-3">
+            {section.fullAudioRef && c.durationMs > 0 ? (
+              <SectionPlay
+                playKey={`chunk:${c.index}`}
+                src={section.fullAudioRef}
+                startMs={c.startOffsetMs}
+                durationMs={c.durationMs}
+              />
+            ) : null}
+            <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+              {chunkText(c)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {moments.length > 0 ? (
+        <div className="mt-2 flex flex-col gap-5">
+          {moments.map((s) => (
+            <MomentBlock key={momentKey(s)} snippet={s} skipTranscript />
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/* ── legacy per-snippet block (also the deckless "moments" cards) ── */
+
+function MomentBlock({
+  snippet,
+  skipTranscript = false,
+}: {
+  snippet: ReadoutSnippet;
+  skipTranscript?: boolean;
+}) {
+  const text = snippetText(snippet);
+  return (
+    <div className="flex flex-col gap-3">
+      {!skipTranscript && text ? (
+        <TranscriptBlock
+          text={text}
+          play={
+            snippet.audioRef ? (
+              <SectionPlay
+                playKey={`moment:${momentKey(snippet)}`}
+                src={snippet.audioRef}
+                startMs={snippet.startOffsetMs}
+                durationMs={snippet.durationMs}
+              />
+            ) : null
+          }
+        />
+      ) : skipTranscript && snippet.audioRef ? (
+        <SectionPlay
+          playKey={`moment:${momentKey(snippet)}`}
+          src={snippet.audioRef}
+          startMs={snippet.startOffsetMs}
+          durationMs={snippet.durationMs}
+        />
+      ) : null}
+
+      <CommentBlock
+        snippet={hasCommentContent(snippet) ? snippet : null}
+        transcriptCorrected={
+          snippet.coach?.transcriptCorrected
+            ? [snippet.coach.transcriptCorrected]
+            : []
+        }
+        breakthroughSnippet={snippet.breakthrough ? snippet : null}
+      />
+    </div>
+  );
+}
+
+/* ── transcript: small orange play directly above the text (P4) ── */
+
+function TranscriptBlock({
+  text,
+  play,
+}: {
+  text: string;
+  play: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {play ? (
+        <div className="flex items-center gap-2">
+          {play}
+          <CopyButton text={text} iconOnly />
+        </div>
+      ) : (
+        <div className="flex items-center">
+          <CopyButton text={text} iconOnly />
+        </div>
+      )}
+      {/* Black on white, plain — no card, not editable, no toggle (P4). */}
+      <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+/* ── the always-visible comment under its transcript (P6) ── */
+
+function CommentBlock({
+  snippet,
+  transcriptCorrected,
+  breakthroughSnippet,
+}: {
+  /** The moment whose coach note + Say It Stronger render; null → no comment. */
+  snippet: ReadoutSnippet | null;
+  transcriptCorrected: string[];
+  breakthroughSnippet: ReadoutSnippet | null;
+}) {
+  const empty =
+    !snippet && transcriptCorrected.length === 0 && !breakthroughSnippet;
+  if (empty) return null;
+  return (
+    <div className="flex flex-col gap-4 border-t border-border pt-3">
+      {transcriptCorrected.map((t, i) => (
+        <CoachTranscript key={i} text={t} />
+      ))}
+
+      {snippet ? (
+        <>
+          {snippet.coach?.note ? (
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+              {snippet.coach.note}
+            </p>
+          ) : null}
+          {snippet.coach?.when ? (
+            <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
+              {snippet.coach.when}
+            </p>
+          ) : null}
+          {snippet.coach?.examples && snippet.coach.examples.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              {snippet.coach.examples.map((ex, i) => (
+                <p key={i} className="text-[14px] text-foreground">
+                  {ex}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {snippet.sayItStronger ? (
+            <SayItStrongerCard data={snippet.sayItStronger} />
+          ) : !snippet.coach?.note ? (
+            <SuggestionShimmer />
+          ) : null}
+        </>
+      ) : null}
+
+      {breakthroughSnippet ? (
+        <>
+          <BreakthroughBlock videoRef={breakthroughSnippet.breakthroughVideoRef} />
+          {/* P7 — coach-assigned breakthrough → deep-link into the game. */}
+          {breakthroughSnippet.id ? (
+            <Link
+              href={`/game?snippet=${encodeURIComponent(breakthroughSnippet.id)}`}
+              className="self-start rounded-full bg-primary px-4 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Key moment
+            </Link>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -496,343 +699,7 @@ function PlaceholderSlide() {
   );
 }
 
-/* ── deckless page body: whole transcript as editable chunks + moment upgrades ── */
-
-function DecklessContent({
-  group,
-  expanded,
-  onToggle,
-}: {
-  group: ReadoutPage;
-  expanded: string[];
-  onToggle: (key: string) => void;
-}) {
-  const edit = useReadoutEdit();
-  const chunks = group.chunks ?? [];
-  // The whole transcript, joined from the (possibly edited) chunks, for Copy.
-  const fullText = chunks.map((c) => edit.chunkText(c)).join("\n\n");
-  // Moments that have something to reveal (a Say It Stronger suggestion or a
-  // coach note) — shown below the transcript as "sharpen these" cards, each with
-  // its own playback (the snippet's clamped span is valid even deckless).
-  const moments = group.snippets.filter(snippetHasReveal);
-  return (
-    <>
-      <div className="flex items-center justify-between">
-        <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-          Your transcript
-        </p>
-        {fullText ? <CopyButton text={fullText} /> : null}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {chunks.map((c) => (
-          <EditableParagraph
-            key={c.index}
-            text={edit.chunkText(c)}
-            edited={edit.isChunkEdited(c)}
-            canEdit={edit.canEdit}
-            onSave={(t) => edit.save({ chunkIndex: c.index }, t)}
-          />
-        ))}
-      </div>
-
-      {moments.length > 0 ? (
-        <div className="mt-2 flex flex-col gap-4">
-          <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-            Moments to sharpen
-          </p>
-          {moments.map((s) => (
-            <div key={momentKey(s)} className="flex flex-col gap-3">
-              {s.audioRef ? (
-                <MediaPlayer
-                  src={s.audioRef}
-                  startOffsetMs={s.startOffsetMs}
-                  durationMs={s.durationMs}
-                />
-              ) : null}
-              {s.breakthrough ? (
-                <BreakthroughBlock videoRef={s.breakthroughVideoRef} />
-              ) : null}
-              <SnippetDetail snippet={s} />
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-/* ── one spoken moment: transcript card + in-place expand ── */
-
-function MomentRow({
-  snippet,
-  isOpen,
-  onToggle,
-}: {
-  snippet: ReadoutSnippet;
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
-  const edit = useReadoutEdit();
-  const hasReveal = snippetHasReveal(snippet);
-  const text = edit.snippetText(snippet);
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Playback FIRST — directly below the slide. */}
-      {snippet.audioRef ? (
-        <MediaPlayer
-          src={snippet.audioRef}
-          startOffsetMs={snippet.startOffsetMs}
-          durationMs={snippet.durationMs}
-        />
-      ) : null}
-
-      {/* Then the transcript — copy + edit affordances; tapping toggles the reveal. */}
-      {text ? (
-        <TranscriptCard
-          text={text}
-          edited={edit.isSnippetEdited(snippet)}
-          canEdit={edit.canEdit}
-          onSaveEdit={(t) => edit.save({ snippetId: snippet.id }, t)}
-          hasReveal={hasReveal}
-          isOpen={isOpen}
-          onToggle={onToggle}
-        />
-      ) : null}
-
-      {/* Coach-corrected transcript — free + always visible when the coach
-          saved one, alongside the raw transcript above it. */}
-      {snippet.coach?.transcriptCorrected ? (
-        <CoachTranscript text={snippet.coach.transcriptCorrected} />
-      ) : null}
-
-      {/* C1 — breakthrough under the transcript, always visible. */}
-      {snippet.breakthrough ? (
-        <BreakthroughBlock videoRef={snippet.breakthroughVideoRef} />
-      ) : null}
-
-      {/* Suggestions are still generating (async) — a subtle hint, never blocking. */}
-      {!snippet.sayItStronger && !snippet.coach?.note ? <SuggestionShimmer /> : null}
-
-      {isOpen && hasReveal ? <SnippetDetail snippet={snippet} /> : null}
-    </div>
-  );
-}
-
-/* ── transcript card: display text + copy + inline edit + reveal chevron ── */
-
-function TranscriptCard({
-  text,
-  edited,
-  canEdit,
-  onSaveEdit,
-  hasReveal,
-  isOpen,
-  onToggle,
-}: {
-  text: string;
-  edited: boolean;
-  canEdit: boolean;
-  onSaveEdit: (text: string) => Promise<boolean>;
-  hasReveal: boolean;
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-
-  if (editing) {
-    return (
-      <InlineEditor
-        initial={text}
-        onCancel={() => setEditing(false)}
-        onSaved={() => setEditing(false)}
-        onSave={onSaveEdit}
-      />
-    );
-  }
-
-  return (
-    <div
-      role={hasReveal ? "button" : undefined}
-      tabIndex={hasReveal ? 0 : undefined}
-      onClick={hasReveal ? onToggle : undefined}
-      onKeyDown={
-        hasReveal
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") onToggle();
-            }
-          : undefined
-      }
-      aria-expanded={hasReveal ? isOpen : undefined}
-      className={`flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasReveal ? "cursor-pointer" : ""}`}
-    >
-      <p className="flex-1 text-[15px] leading-relaxed text-foreground">
-        {text}
-        {edited ? (
-          <span className="ml-2 align-middle text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            edited
-          </span>
-        ) : null}
-      </p>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <CopyButton text={text} iconOnly />
-        {canEdit ? (
-          <IconAction
-            label="Edit text"
-            onClick={() => setEditing(true)}
-          >
-            <Pencil className="h-4 w-4" aria-hidden />
-          </IconAction>
-        ) : null}
-        {hasReveal ? (
-          <ChevronDown
-            className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
-            aria-hidden
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-/* ── a deckless transcript chunk: a plain editable paragraph ── */
-
-function EditableParagraph({
-  text,
-  edited,
-  canEdit,
-  onSave,
-}: {
-  text: string;
-  edited: boolean;
-  canEdit: boolean;
-  onSave: (text: string) => Promise<boolean>;
-}) {
-  const [editing, setEditing] = useState(false);
-  if (editing) {
-    return (
-      <InlineEditor
-        initial={text}
-        onCancel={() => setEditing(false)}
-        onSaved={() => setEditing(false)}
-        onSave={onSave}
-      />
-    );
-  }
-  return (
-    <div className="flex items-start gap-2">
-      <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-        {text}
-        {edited ? (
-          <span className="ml-2 align-middle text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            edited
-          </span>
-        ) : null}
-      </p>
-      {canEdit ? (
-        <IconAction label="Edit text" onClick={() => setEditing(true)}>
-          <Pencil className="h-4 w-4" aria-hidden />
-        </IconAction>
-      ) : null}
-    </div>
-  );
-}
-
-/* ── shared inline textarea editor (optimistic; surfaces a save failure) ── */
-
-function InlineEditor({
-  initial,
-  onSave,
-  onCancel,
-  onSaved,
-}: {
-  initial: string;
-  onSave: (text: string) => Promise<boolean>;
-  onCancel: () => void;
-  onSaved: () => void;
-}) {
-  const [draft, setDraft] = useState(initial);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-    el.focus();
-  }, [draft]);
-
-  async function save() {
-    const t = draft.trim();
-    if (!t || saving) return;
-    setSaving(true);
-    setError(null);
-    const ok = await onSave(t);
-    setSaving(false);
-    if (ok) onSaved();
-    else setError("Couldn't save that edit. Try again.");
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <textarea
-        ref={ref}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={3}
-        maxLength={2000}
-        className="max-h-[50vh] w-full resize-none overflow-y-auto rounded-xl border border-primary bg-background px-3 py-2 text-[15px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
-      />
-      {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={saving}
-          className="flex-1 rounded-full border border-border py-2 text-[14px] text-foreground disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving || !draft.trim()}
-          className="flex-1 rounded-full bg-primary py-2 text-[14px] font-medium text-primary-foreground disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ── small icon button + a copy-to-clipboard control ── */
-
-function IconAction({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    >
-      {children}
-    </button>
-  );
-}
+/* ── copy-to-clipboard control ── */
 
 function CopyButton({ text, iconOnly = false }: { text: string; iconOnly?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -917,135 +784,6 @@ function CoachTranscript({ text }: { text: string }) {
   );
 }
 
-/* ── per deck slide: complete transcript (once) + slide playback + detail ── */
-
-function DeckSlideContent({
-  group,
-  isOpen,
-  onToggle,
-}: {
-  group: ReadoutPage;
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
-  // Each slide's speech is distinct, so the transcript is shown ONCE here — no
-  // per-moment transcript cards repeating it. The chevron reveals the acoustic
-  // detail for the slide's SINGLE top moment (lowest rank → highest power /
-  // stickiness → earliest), so a slide with several salient snippets shows one
-  // coach comment, not a duplicated-looking stack.
-  const top = pickTopSnippet(group.snippets.filter(snippetHasReveal));
-  const detailSnippets = top ? [top] : [];
-  const hasReveal = detailSnippets.length > 0;
-  // C1 — the slide's breakthrough shows under the transcript, always visible
-  // (not behind the chevron) when the coach confirmed it.
-  const breakthroughSnippet = group.snippets.find((s) => s.breakthrough);
-  return (
-    <>
-      {/* Playback FIRST — directly below the slide (parent recording, clamped). */}
-      {group.fullAudioRef && group.fullDurationMs > 0 ? (
-        <MediaPlayer
-          src={group.fullAudioRef}
-          startOffsetMs={group.fullStartOffsetMs}
-          durationMs={group.fullDurationMs}
-        />
-      ) : null}
-
-      {/* Then the transcript. */}
-      {group.fullTranscript ? (
-        <div
-          role={hasReveal ? "button" : undefined}
-          tabIndex={hasReveal ? 0 : undefined}
-          onClick={hasReveal ? onToggle : undefined}
-          onKeyDown={
-            hasReveal
-              ? (e) => {
-                  if (e.key === "Enter" || e.key === " ") onToggle();
-                }
-              : undefined
-          }
-          aria-expanded={hasReveal ? isOpen : undefined}
-          className={`flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 ${hasReveal ? "cursor-pointer" : ""}`}
-        >
-          <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-            {group.fullTranscript}
-          </p>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <CopyButton text={group.fullTranscript} iconOnly />
-            {hasReveal ? (
-              <ChevronDown
-                className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? "rotate-180" : ""}`}
-                aria-hidden
-              />
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <p className="text-[14px] italic text-muted-foreground">
-          No speech recorded on this slide.
-        </p>
-      )}
-
-      {/* Coach-corrected transcript(s) for this slide's moments — free + always
-          visible when saved, alongside the raw slide transcript above. */}
-      {group.snippets
-        .map((s) => s.coach?.transcriptCorrected)
-        .filter((t): t is string => !!t)
-        .map((t, i) => (
-          <CoachTranscript key={i} text={t} />
-        ))}
-
-      {/* C1 — breakthrough under the transcript, always visible. */}
-      {breakthroughSnippet ? (
-        <BreakthroughBlock videoRef={breakthroughSnippet.breakthroughVideoRef} />
-      ) : null}
-
-      {/* Acoustic detail for the slide's moments — no transcript / player repeat. */}
-      {isOpen && hasReveal ? (
-        <div className="flex flex-col gap-5">
-          {detailSnippets.map((s) => (
-            <SnippetDetail key={momentKey(s)} snippet={s} />
-          ))}
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-/* ── the in-place reveal: coach comment → metrics (no transcript / breakthrough) ── */
-
-function SnippetDetail({ snippet }: { snippet: ReadoutSnippet }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {snippet.coach?.note ? (
-        <p className="whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-          {snippet.coach.note}
-        </p>
-      ) : null}
-      {snippet.coach?.when ? (
-        <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted-foreground">
-          {snippet.coach.when}
-        </p>
-      ) : null}
-      {snippet.coach?.examples && snippet.coach.examples.length > 0 ? (
-        <div className="flex flex-col gap-0.5">
-          {snippet.coach.examples.map((ex, i) => (
-            <p key={i} className="text-[14px] text-foreground">
-              {ex}
-            </p>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Say It Stronger — the LLM suggestion overlay (replaces the acoustic
-          numbers that used to live here). A suggestion only; never the
-          transcript, never fed to the best-presentation pipeline (L1). */}
-      {snippet.sayItStronger ? (
-        <SayItStrongerCard data={snippet.sayItStronger} />
-      ) : null}
-    </div>
-  );
-}
-
 /* ── Say It Stronger suggestion card ── */
 
 function SayItStrongerCard({ data }: { data: SayItStronger }) {
@@ -1061,14 +799,7 @@ function SayItStrongerCard({ data }: { data: SayItStronger }) {
     );
   }
   return (
-    <div className="flex flex-col gap-4 rounded-xl bg-primary/[0.06] px-4 py-4">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-        <p className="text-[13px] font-semibold uppercase tracking-wide text-primary">
-          Say it stronger
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-4">
       {data.upgrades.length > 0 ? (
         <div className="flex flex-col gap-2">
           {data.upgrades.map((u, i) => (
@@ -1140,8 +871,6 @@ function RewriteBlock({ label, text }: { label: string; text: string }) {
 /* ── breakthrough — headline + note + (pending BE) per-snippet video ── */
 
 function BreakthroughBlock({ videoRef }: { videoRef: string | null }) {
-  // The explanation IS the coach comment (shown above in the expanded moment);
-  // this block adds the celebratory headline + the coach's separate video.
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-primary/[0.08] px-4 py-4">
       <p className="text-[15px] font-semibold text-foreground">
@@ -1171,9 +900,9 @@ function VoiceMetricsNotice() {
   );
 }
 
-/* ── summary page (post-coach, after all slides) ── */
+/* ── post-coach summary (overall message + coach video + breakthroughs) ── */
 
-function SummaryPage({ payload }: { payload: ReadoutPayload }) {
+function SummaryBlock({ payload }: { payload: ReadoutPayload }) {
   const [breakthroughOpen, setBreakthroughOpen] = useState(false);
   const breakthroughRef = useRef<HTMLDivElement>(null);
   const hasBreakthrough = payload.snippets.some((s) => s.breakthrough);
@@ -1195,7 +924,7 @@ function SummaryPage({ payload }: { payload: ReadoutPayload }) {
   }
 
   return (
-    <div className="flex flex-col gap-5 px-4 py-8">
+    <div className="flex flex-col gap-5 px-4 py-6">
       {payload.overallMessage ? (
         <div className="rounded-2xl bg-primary/[0.10] p-4">
           <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
