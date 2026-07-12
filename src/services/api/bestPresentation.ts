@@ -47,6 +47,10 @@ export interface BestPresentationSlide {
   breakthroughNote: string | null;
   /** True when the user has saved a custom edit to this slide's text. */
   edited: boolean;
+  /** P8/B5 — short key phrases for at-a-glance reading while presenting
+   *  (coach-corrected when present, auto-derived otherwise; BE folds). [] until
+   *  the BE ships them. */
+  keyPhrases: string[];
 }
 
 export interface BestPresentationResult {
@@ -121,6 +125,11 @@ function mapSlide(raw: unknown): BestPresentationSlide | null {
         ? r.breakthrough_note
         : null,
     edited: typeof r.edited === "boolean" ? r.edited : false,
+    keyPhrases: Array.isArray(r.key_phrases)
+      ? r.key_phrases.filter(
+          (k): k is string => typeof k === "string" && k.length > 0
+        )
+      : [],
   };
 }
 
