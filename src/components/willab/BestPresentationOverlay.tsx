@@ -23,8 +23,9 @@ export default function BestPresentationOverlay({
   arcId: string;
   onClose: () => void;
   /** P9 — the not-ready progress state gains a start button; the host closes
-   *  this overlay and opens the Lab. */
-  onRecordNext?: () => void;
+   *  this overlay and opens the Lab. Receives takesDone so the host can seed
+   *  the explore arc THIS overlay shows (not whatever localStorage holds). */
+  onRecordNext?: (takesDone: number) => void;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<
@@ -201,7 +202,14 @@ export default function BestPresentationOverlay({
   if (!result.ready) {
     return (
       <PreShellOverlay onClose={onClose}>
-        <NotReadyState progress={result.progress} onRecordNext={onRecordNext} />
+        <NotReadyState
+          progress={result.progress}
+          onRecordNext={
+            onRecordNext
+              ? () => onRecordNext(result.progress.takesDone)
+              : undefined
+          }
+        />
       </PreShellOverlay>
     );
   }

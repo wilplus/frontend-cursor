@@ -96,8 +96,19 @@ export default function LabOverlay({
   // readout phase, Back first steps the readout's own layout (collapse a moment,
   // page back) before it exits the Lab.
   const readoutBackRef = useRef<(() => boolean) | null>(null);
-  useBackDismiss(onClose, () =>
-    state === "readout" ? readoutBackRef.current?.() ?? false : false
+  // Device Back must agree with the X: closing DURING the readout PARKS the
+  // recording (hold, don't discard — §4), never a raw close that loses it.
+  // useBackDismiss stores the latest closure in a ref, so this is safe.
+  useBackDismiss(
+    () => {
+      if (state === "readout") {
+        parkReadout();
+        return;
+      }
+      mic.cancel();
+      onClose();
+    },
+    () => (state === "readout" ? readoutBackRef.current?.() ?? false : false)
   );
   const router = useRouter();
   // T8 — the Lab transcribes server-side (Whisper) and never shows a live
@@ -563,7 +574,14 @@ export default function LabOverlay({
               !exploreEnabled || batchTake(arcTakeIndex) % 2 === 1
             }
             onStop={() => void mic.stop()}
-            onRecordAgain={() => void mic.start()}
+            onRecordAgain={() => {
+              // A retake restarts the clock: reset the tap timeline so a decked
+              // retake (mic self-stop) can't ship stale slide timestamps.
+              recordStartRef.current = performance.now();
+              setCurrentSlide(0);
+              slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
+              void mic.start();
+            }}
             slides={context?.slides ?? []}
             presentationRef={context?.presentationRef ?? null}
             currentSlide={currentSlide}

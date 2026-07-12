@@ -845,7 +845,16 @@ export default function Lounge({
         <BestPresentationOverlay
           arcId={bestPresentationArcId}
           onClose={() => setBestPresentationArcId(null)}
-          onRecordNext={() => {
+          onRecordNext={(takesDone) => {
+            // Seed the arc THIS progress bar belongs to, so the take lands in
+            // it (and "Take N of 3" + the interstitial parity read true) even
+            // when localStorage holds a different / no arc.
+            if (
+              bestPresentationArcId &&
+              readExploreArc()?.arcId !== bestPresentationArcId
+            ) {
+              writeExploreArc(bestPresentationArcId, takesDone + 1);
+            }
             setBestPresentationArcId(null);
             onStart();
           }}

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Check, Copy, Info, Pause, Play, Sparkles, X } from "lucide-react";
 import { SlideRender } from "./pdfSlides";
 import {
+  groupSnippetsBySlide,
   pickTopSnippet,
   type FullTranscriptChunk,
   type ReadoutPayload,
@@ -119,12 +120,17 @@ function useSectionAudioController(): SectionAudioApi {
           if (endAt !== null && el!.currentTime >= endAt) stop();
         });
         el.addEventListener("ended", stop);
+        el.addEventListener("error", stop);
         audioRef.current = el;
       }
       if (el.src !== src) el.src = src;
       el.currentTime = startMs / 1000;
       endAtRef.current = durationMs > 0 ? (startMs + durationMs) / 1000 : null;
-      void el.play().catch(() => setPlayingKey(null));
+      // Key-guard the rejection: a superseded play() (user already tapped the
+      // next section) must not clear the NEW section's playing state.
+      void el.play().catch(() => {
+        if (playingKeyRef.current === key) setPlayingKey(null);
+      });
       setPlayingKey(key);
     },
     [stop]
@@ -262,10 +268,10 @@ export default function ReadoutCard({
         },
       ];
     }
-    return payload.snippets.map((s) => ({
-      slideIndex: s.slide?.index ?? null,
-      slide: s.slide,
-      snippets: [s],
+    // Legacy payloads (no slide transcripts, no chunks): ONE section per deck
+    // slide group — unique keys, one slide image per slide (not per snippet).
+    return groupSnippetsBySlide(payload.snippets).map((g) => ({
+      ...g,
       fullTranscript: null,
       fullAudioRef: null,
       fullStartOffsetMs: 0,
@@ -316,7 +322,18 @@ export default function ReadoutCard({
       (n): n is HTMLElement => n !== null
     );
     nodes.forEach((n) => io.observe(n));
-    return () => io.disconnect();
+    // A short trailing section can sit below the observer band even at full
+    // scroll — snap the counter to the last section at the bottom.
+    const onScroll = () => {
+      if (root.scrollTop + root.clientHeight >= root.scrollHeight - 2) {
+        setCurrent(sections.length - 1);
+      }
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      io.disconnect();
+      root.removeEventListener("scroll", onScroll);
+    };
   }, [sections.length]);
 
   const audio = useSectionAudioController();
