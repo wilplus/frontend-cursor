@@ -18,9 +18,13 @@ import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 export default function BestPresentationOverlay({
   arcId,
   onClose,
+  onRecordNext,
 }: {
   arcId: string;
   onClose: () => void;
+  /** P9 — the not-ready progress state gains a start button; the host closes
+   *  this overlay and opens the Lab. */
+  onRecordNext?: () => void;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<
@@ -197,7 +201,7 @@ export default function BestPresentationOverlay({
   if (!result.ready) {
     return (
       <PreShellOverlay onClose={onClose}>
-        <NotReadyState progress={result.progress} />
+        <NotReadyState progress={result.progress} onRecordNext={onRecordNext} />
       </PreShellOverlay>
     );
   }
@@ -281,8 +285,10 @@ function PreShellOverlay({
 
 function NotReadyState({
   progress,
+  onRecordNext,
 }: {
   progress: { takesDone: number; takesTarget: number; takesRemaining: number };
+  onRecordNext?: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-4">
@@ -306,6 +312,16 @@ function NotReadyState({
           aria-label="Progress to the full training"
         />
       </div>
+      {/* P9 — the missing start button on the progress interstitial. */}
+      {onRecordNext ? (
+        <button
+          type="button"
+          onClick={onRecordNext}
+          className="mt-1 rounded-full bg-foreground px-6 py-2.5 text-[14px] font-medium text-background transition hover:bg-foreground/90"
+        >
+          Record the next take
+        </button>
+      ) : null}
     </div>
   );
 }

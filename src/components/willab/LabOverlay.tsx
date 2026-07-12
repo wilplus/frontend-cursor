@@ -140,6 +140,10 @@ export default function LabOverlay({
   // later take's joke offer can't read a stale value; stamped on the readout.
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
+  // P9 — the pre-take encouragement layer: shown after the user taps the record
+  // control, before the mic starts. Copy + timer visibility follow the take's
+  // parity WITHIN the 3-take batch (odd → timer shown, even → timer hidden).
+  const [interstitial, setInterstitial] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // True when the upload failure was a 402 — Processing then shows a neutral
   // paywall panel (unlock link, no retry) instead of the destructive error.
@@ -296,6 +300,10 @@ export default function LabOverlay({
     return () => clearInterval(id);
   }, [mic.state.status]);
 
+  useEffect(() => {
+    if (state !== "lab_prerecord") setInterstitial(false);
+  }, [state]);
+
   // Resume a parked Readout: restore the held payload on (re)entry to the
   // Readout with nothing loaded (e.g. after reload, via the Lounge's "Resume
   // Readout"). reportedRef is set so the history entry isn't re-added.
@@ -337,8 +345,21 @@ export default function LabOverlay({
           pauseRatio: hero?.pauseRatio ?? undefined,
         })
       );
+      // P9 — after the batch's FIRST take, one short informational bubble that
+      // the next take is up (no pep talk — that lives in the interstitial).
+      if (
+        exploreEnabled &&
+        recordedTakeRef.current !== null &&
+        batchTake(recordedTakeRef.current) === 1
+      ) {
+        void appendToThread({
+          role: "bot",
+          kind: "text",
+          body: "When you're ready, record the next take.",
+        });
+      }
     }
-  }, [state, context, appendToThread, readout, labSessionId, arcId]);
+  }, [state, context, appendToThread, readout, labSessionId, arcId, exploreEnabled]);
 
   // Park the held Readout (persist + route to the Lounge's parked chip).
   function parkReadout() {
@@ -474,7 +495,15 @@ export default function LabOverlay({
           />
         )}
 
-        {state === "lab_prerecord" && (
+        {state === "lab_prerecord" && interstitial ? (
+          <PreTakeInterstitial
+            take={exploreEnabled ? arcTakeIndex : 1}
+            onStart={() => {
+              setInterstitial(false);
+              void mic.start();
+            }}
+          />
+        ) : state === "lab_prerecord" && (
           <PreRecord
             context={context}
             rejectedMsg={rejectedMsg}
@@ -484,7 +513,8 @@ export default function LabOverlay({
               // Invalidate any in-flight upload duration read — the user chose to
               // record instead, so a late resolution must not hijack the flow.
               uploadSeqRef.current += 1;
-              void mic.start();
+              // P9 — the encouragement layer sits between this tap and the mic.
+              setInterstitial(true);
             }}
             onUploadFile={(file) => {
               // Deckless-only alternative to live recording: submit a file the
@@ -529,6 +559,9 @@ export default function LabOverlay({
           <RecordingPhase
             micState={mic.state}
             elapsed={elapsed}
+            showTimer={
+              !exploreEnabled || batchTake(arcTakeIndex) % 2 === 1
+            }
             onStop={() => void mic.stop()}
             onRecordAgain={() => void mic.start()}
             slides={context?.slides ?? []}
@@ -566,6 +599,7 @@ export default function LabOverlay({
                 slideTranscripts: [],
                 fullTranscriptChunks: [],
                 voiceMetricsAvailable: true,
+                parentAudioRef: null,
                 audience: null,
                 auditPaid: true,
               }
@@ -799,6 +833,39 @@ function SessionContextForm({
 
 /* ------------------------- §4 step B: pre-record -------------------------- */
 
+/* ── P9: the pre-take encouragement layer (between the tap and the mic) ──
+ *  Odd takes in the batch (1, 3, ...) push time discipline and record WITH the
+ *  visible timer; even takes (2, ...) encourage and record with the timer UI
+ *  hidden (it still runs internally — the min-duration gate is unchanged).
+ *  Same design either way; only copy + timer visibility differ. */
+
+function PreTakeInterstitial({
+  take,
+  onStart,
+}: {
+  /** Absolute take index; parity is judged within the 3-take batch. */
+  take: number;
+  onStart: () => void;
+}) {
+  const odd = batchTake(take) % 2 === 1;
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+      <p className="max-w-sm text-[20px] font-semibold leading-snug text-foreground">
+        {odd
+          ? "Please make sure you got in within the time frame"
+          : "You've got all it takes to make it work!"}
+      </p>
+      <Button
+        type="button"
+        onClick={onStart}
+        className="h-12 rounded-full bg-foreground px-8 text-[15px] font-medium text-background hover:bg-foreground/90"
+      >
+        Start the take
+      </Button>
+    </div>
+  );
+}
+
 function PreRecord({
   context,
   rejectedMsg,
@@ -895,6 +962,7 @@ function PreRecord({
 function RecordingPhase({
   micState,
   elapsed,
+  showTimer = true,
   onStop,
   onRecordAgain,
   slides,
@@ -905,6 +973,8 @@ function RecordingPhase({
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
+  /** P9 — even takes hide the timer UI (it still runs internally). */
+  showTimer?: boolean;
   onStop: () => void;
   onRecordAgain: () => void;
   slides: PresentationSlide[];
@@ -995,15 +1065,19 @@ function RecordingPhase({
         ) : null}
       </div>
 
-      <div className="flex flex-col items-center gap-1">
-        <p className="text-[40px] font-semibold tabular-nums text-foreground">
-          {fmtClock(elapsed)}
-        </p>
-      </div>
+      {showTimer ? (
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-[40px] font-semibold tabular-nums text-foreground">
+            {fmtClock(elapsed)}
+          </p>
+        </div>
+      ) : null}
       <p className="text-[12px] text-muted-foreground">
         {reachedMin
           ? "Minimum reached. Stop whenever you're ready."
-          : `Keep going, ${fmtClock(remaining)} until you can stop.`}
+          : showTimer
+            ? `Keep going, ${fmtClock(remaining)} until you can stop.`
+            : "Keep going a little longer."}
       </p>
 
       {/* U11 — the stop control is LOCKED until the minimum is reached, so a
@@ -1017,7 +1091,9 @@ function RecordingPhase({
         aria-label={
           reachedMin
             ? "Stop recording"
-            : `Keep recording, ${fmtClock(remaining)} until you can stop`
+            : showTimer
+              ? `Keep recording, ${fmtClock(remaining)} until you can stop`
+              : "Keep recording a little longer"
         }
         className={`flex h-20 w-20 items-center justify-center rounded-full border-2 transition-transform ${
           reachedMin

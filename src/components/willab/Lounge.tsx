@@ -845,6 +845,10 @@ export default function Lounge({
         <BestPresentationOverlay
           arcId={bestPresentationArcId}
           onClose={() => setBestPresentationArcId(null)}
+          onRecordNext={() => {
+            setBestPresentationArcId(null);
+            onStart();
+          }}
         />
       )}
       {breakthroughsArcId && (
