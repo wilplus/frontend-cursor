@@ -101,7 +101,7 @@ export default function LabOverlay({
   // Device Back must agree with the X: closing DURING the readout PARKS the
   // recording (hold, don't discard — §4), never a raw close that loses it.
   // useBackDismiss stores the latest closure in a ref, so this is safe.
-  useBackDismiss(
+  const suppressBackOnClose = useBackDismiss(
     () => {
       if (state === "readout") {
         parkReadout();
@@ -399,10 +399,13 @@ export default function LabOverlay({
       writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
       setPendingSend(labSessionId);
     }
-    // Close the overlay FIRST: LabOverlay renders as `fixed inset-0 z-30`, so
-    // without this the /signup route navigates invisibly UNDER the still-mounted
-    // full-screen layer and the button reads as dead. The park + pending-send
-    // stash above already ran synchronously, so nothing is lost by closing now.
+    // Suppress useBackDismiss's unmount history.back() BEFORE we close +
+    // navigate. LabOverlay pushes a throwaway history entry while open and
+    // pops it on unmount; without this suppressor that pop fires right after
+    // router.push("/signup") and reverses it, landing the user back on /chat
+    // (the "sign-in goes to chat, not sign-up" bug). onClose() still runs so
+    // the flow state resets (the overlay won't re-open when they return).
+    suppressBackOnClose();
     onClose();
     router.push("/signup");
   }
