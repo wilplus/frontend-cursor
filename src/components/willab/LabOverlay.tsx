@@ -387,13 +387,16 @@ export default function LabOverlay({
   }
 
   // Unsigned send (§13 Path 2, amended): park + stash the id, then navigate
-  // to the /signup picker so the user can choose LinkedIn OR email/password
-  // — the original spec went straight to LinkedIn OAuth ("one tap to ship"),
-  // but that dead-ends users who don't have LinkedIn or who prefer email.
-  // The picker costs one extra tap for LinkedIn users; gains a real path for
-  // everyone else. The resume mechanism is unchanged: the global
-  // <WillabPendingSend> reads the pending id on any post-auth landing
-  // (SIGNED_IN event from either provider) and runs merge-then-send.
+  // to the /login screen so the user can choose LinkedIn/Google OAuth OR
+  // email/password — the original spec went straight to LinkedIn OAuth ("one
+  // tap to ship"), but that dead-ends users who don't have LinkedIn or who
+  // prefer email. /login leads with the OAuth buttons (fastest onboarding for
+  // a new user) and still carries a "Sign up" link for the email path, so it
+  // serves both first-time and returning guests from one screen. The resume
+  // mechanism is unchanged: the global <WillabPendingSend> reads the pending
+  // id on any post-auth landing (SIGNED_IN event from either provider, and
+  // whether they sign in here or bounce to /signup for email) and runs
+  // merge-then-send.
   function startUnsignedSend() {
     if (readout && labSessionId) {
       writeParked({ sessionId: labSessionId, topic: context?.topic ?? "", readout });
@@ -402,12 +405,13 @@ export default function LabOverlay({
     // Suppress useBackDismiss's unmount history.back() BEFORE we close +
     // navigate. LabOverlay pushes a throwaway history entry while open and
     // pops it on unmount; without this suppressor that pop fires right after
-    // router.push("/signup") and reverses it, landing the user back on /chat
-    // (the "sign-in goes to chat, not sign-up" bug). onClose() still runs so
-    // the flow state resets (the overlay won't re-open when they return).
+    // router.push("/login") and reverses it, landing the user back on /chat
+    // (the "sign-in goes to chat, not the auth screen" bug). onClose() still
+    // runs so the flow state resets (the overlay won't re-open when they
+    // return).
     suppressBackOnClose();
     onClose();
-    router.push("/signup");
+    router.push("/login");
   }
 
   // T8 — advance the deck during recording, logging the tap timeline. Any change
