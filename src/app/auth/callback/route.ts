@@ -132,8 +132,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(target);
   }
 
-  // No code in the URL — could be a stale callback hit. Bounce to
-  // /chat; the chat page's session-route guard handles the rest
-  // (no_session → onboarding, processing/completed → review loop).
+  // No code in the URL. Two very different cases share this branch:
+  //   1. A genuine OAuth failure — the provider (Google, LinkedIn) or
+  //      Supabase itself rejected the request before issuing a code, e.g.
+  //      the provider isn't enabled/configured in the Supabase dashboard,
+  //      or the user cancelled consent. Supabase appends `error` /
+  //      `error_description` in this case.
+  //   2. A stale callback hit with no error at all (e.g. a bookmarked or
+  //      reloaded URL) — safe to just bounce to /chat.
+  // Previously both cases silently redirected to /chat, so a real OAuth
+  // failure looked to the user like "nothing happened, I'm back on the
+  // main screen" with zero indication of what went wrong.
+  const oauthError = requestUrl.searchParams.get("error");
+  if (oauthError) {
+    const detail = requestUrl.searchParams.get("error_description") || oauthError;
+    const errorUrl = new URL("/login", req.url);
+    errorUrl.searchParams.set("error", "oauth_failed");
+    errorUrl.searchParams.set("detail", detail.slice(0, 200));
+    console.error("[Auth Callback] OAuth provider error:", oauthError, detail);
+    return NextResponse.redirect(errorUrl);
+  }
+
   return NextResponse.redirect(new URL(next || "/chat", req.url));
 }
