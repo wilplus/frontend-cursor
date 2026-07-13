@@ -188,6 +188,21 @@ export function SlideRender({
   return (
     <div className={className}>
       <TextSlide title={title} body={body} />
+      {/* FE-1 — the deck already degrades to this text floor, so the user is
+          never blocked; when a served PDF failed to load (404 / CORS / network)
+          offer a retry. Clearing pdfFailed remounts PdfPage, and loadPdf evicts
+          the failed promise on error, so this actually re-fetches. */}
+      {presentationRef && pdfFailed ? (
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setPdfFailed(false)}
+            className="rounded-full border border-border px-3 py-1 text-[12px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            Retry loading slides
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

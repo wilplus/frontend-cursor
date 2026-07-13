@@ -10,7 +10,8 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { Check, Copy, Info, Pause, Play, Sparkles, X } from "lucide-react";
+import { Check, Copy, Info, Pause, Play, Sparkles } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import { SlideRender } from "./pdfSlides";
 import {
   groupSnippetsBySlide,
@@ -392,14 +393,7 @@ export default function ReadoutCard({
         <span className="text-[13px] font-medium tabular-nums text-foreground">
           {Math.min(current + 1, sectionCount)}/{sectionCount}
         </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-[28px] w-[28px] items-center justify-center rounded-full border border-border text-muted-foreground"
-        >
-          <X className="h-[16px] w-[16px]" aria-hidden />
-        </button>
+        <OverlayCloseButton onClick={onClose} />
       </div>
 
       <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
@@ -449,7 +443,7 @@ function Section({
       <div className="flex flex-col gap-3 px-4 py-4">
         {isSample ? (
           <p className="rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-[12px] text-primary">
-            Sample data — your real acoustic Training Profile wires in at seam
+            Sample data. Your real acoustic Training Profile wires in at seam
             ③.
           </p>
         ) : null}

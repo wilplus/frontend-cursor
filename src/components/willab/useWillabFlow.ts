@@ -134,8 +134,8 @@ export function useWillabFlow(): UseWillabFlowReturn {
   const startRecording = useCallback(() => {
     clearReviewPending();
     // C7 — every official recording opens the feelings check-in before the setup
-    // form (not just the first). The check-in offers "same as before" so a return
-    // take is one tap; the named feeling is stamped on that take.
+    // form (not just the first); the user names how they feel fresh each time
+    // and the named feeling is stamped on that take.
     setState("lab_feelings");
   }, []);
   // TODO(slice: Lab): a Readout/parked close should → "parked" (held chip),

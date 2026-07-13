@@ -13,38 +13,20 @@
 
 export type Feeling = "nervous" | "excited" | "calm" | "unsure";
 
-// The ACTIVE feeling for the current take (consumed + cleared on upload). The
-// REMEMBERED feeling persists across takes so the per-take check-in (C7) can
-// offer "same as before".
+// The ACTIVE feeling for the current take (consumed + cleared on upload).
 const FEELING_KEY = "willab.last_feeling";
-const REMEMBERED_KEY = "willab.remembered_feeling";
 
 function isFeeling(v: unknown): v is Feeling {
   return v === "nervous" || v === "excited" || v === "calm" || v === "unsure";
 }
 
-/** Capture the user's pre-recording feeling (FE-local under the freeze). Writes
- *  both the active value (for this take) and the remembered value (for the next
- *  take's "same as before"). */
+/** Capture the user's pre-recording feeling (FE-local under the freeze). */
 export function recordFeeling(feeling: Feeling): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(FEELING_KEY, feeling);
-    window.localStorage.setItem(REMEMBERED_KEY, feeling);
   } catch {
     /* swallow — Safari private mode etc. */
-  }
-}
-
-/** The feeling named on a PRIOR take, for the "same as before" shortcut. Unlike
- *  the active value, this is never cleared on upload. */
-export function getRememberedFeeling(): Feeling | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const v = window.localStorage.getItem(REMEMBERED_KEY);
-    return isFeeling(v) ? v : null;
-  } catch {
-    return null;
   }
 }
 
@@ -60,9 +42,8 @@ export function getLastFeeling(): Feeling | null {
 }
 
 /** Consume the ACTIVE feeling for this take (cleared after the upload captures
- *  it) so a later take can't be gated on a stale value. The REMEMBERED value is
- *  intentionally left intact for the next take's "same as before" shortcut.
- *  Best-effort (Safari private mode fails soft). */
+ *  it) so a later take can't be gated on a stale value. Best-effort (Safari
+ *  private mode fails soft). */
 export function clearFeeling(): void {
   if (typeof window === "undefined") return;
   try {

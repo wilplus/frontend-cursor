@@ -158,6 +158,10 @@ export default function Lounge({
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
   const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
+  // FE-4 — the joke is a two-step quick-answer: "offer" shows Yes / No thanks,
+  // then after the joke lands "feedback" shows Funny / Not funny. Both steps are
+  // tappable pills in the footer; every tap posts the user's answer as a bubble.
+  const [jokeStep, setJokeStep] = useState<"offer" | "feedback" | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // The "Strong sides" ask surfaces a button anchored IN the thread (not the
@@ -479,7 +483,28 @@ export default function Lounge({
   const openOffer = useCallback((type: OfferType) => {
     const rank: Record<OfferType, number> = { credit: 3, joke: 2, install: 1 };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
+    // FE-4 — (re)opening the joke offer always starts at step 1 (Yes / No thanks).
+    if (type === "joke") setJokeStep("offer");
   }, []);
+
+  // FE-1 — the eviction-proof source of an arc's prior session id: the newest
+  // recording-summary bubble for that arc (server-backed for signed-in). Seeded
+  // into the explore arc at the "record next take" sites so the Lab can restore
+  // the deck from the server when localStorage lost it.
+  const latestArcSessionId = useCallback(
+    (arcId: string): string | undefined => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m.kind !== "recording_summary") continue;
+        const md = m.metadata as Record<string, unknown> | null | undefined;
+        if (md && md.arc_id === arcId && typeof md.session_id === "string") {
+          return md.session_id;
+        }
+      }
+      return undefined;
+    },
+    [messages]
+  );
 
   // F7 — offer a (deliberately bad) joke ONLY after a genuine, in-session
   // recording: a recording_summary whose client_created_at is AFTER the thread
@@ -489,6 +514,11 @@ export default function Lounge({
   // joke — only a summary minted this session, after load, counts as fresh.
   const settleTimeRef = useRef<string | null>(null);
   const jokeHandledRef = useRef<Set<string>>(new Set());
+  // FE-4 fix — a synchronous in-flight guard for runSend. botThinking only arms
+  // AFTER the awaited user-turn append (a network POST when signed in), leaving
+  // a window where a fast double-tap of the joke "Yes" pill re-enters and
+  // double-sends. This closes that window regardless of when botThinking commits.
+  const sendingRef = useRef(false);
   useEffect(() => {
     if (thread.loading) return;
     if (settleTimeRef.current === null) {
@@ -594,11 +624,19 @@ export default function Lounge({
     await runSend(q);
   }
 
-  // F7 — the offer's "yes" asks the bot for a dad joke. The BE recognizes the
-  // plain text and replies with a normal chat bubble (B2), which is itself the
-  // response registered in the thread. Closing the offer is the caller's job.
-  function askForJoke() {
-    void runSend("Tell me a dad joke");
+  // F7 / FE-4 — tapping "Yes" posts a "Yes" user bubble, then asks the bot for a
+  // dad joke. The BE keys on the plain "Tell me a dad joke" query, so we send
+  // that under the hood while the visible bubble reads "Yes" (displayAs). Once
+  // the joke lands we advance the offer to its "feedback" step (Funny / Not
+  // funny); we deliberately do NOT resolve the offer here so the footer stays
+  // armed for step 2. The post-await guard skips the advance if the user
+  // declined mid-fetch (jokeStep no longer "offer").
+  async function askForJoke() {
+    // Only advance to the feedback step if this tap actually sent the joke — a
+    // guarded no-op (double-tap / mid-send) returns false and must not flip the
+    // footer to Funny / Not funny before the joke arrives.
+    const sent = await runSend("Tell me a dad joke", "Yes");
+    if (sent) setJokeStep((s) => (s === "offer" ? "feedback" : s));
   }
 
   // Bug 3 — decline mirrors accept: the user's choice posts as a real user
@@ -610,79 +648,108 @@ export default function Lounge({
     void thread.append({ role: "bot", kind: "text", body: "No worries!" });
   }
 
-  // The shared send core — used by the composer and the joke offer.
-  async function runSend(q: string) {
-    if (!q || botThinking) return;
-    // Track upload intent so the footer record button swaps to a file picker
-    // (and reverts the moment the user's next message is about something else).
-    setUploadAskActive(isUploadAsk(q));
-    atBottomRef.current = true; // sending always scrolls to your own message
-    const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
-    const botTurns = messages.filter((msg) => msg.role === "bot");
-    const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
-    // The user turn always persists (optimistic + FE write); for signed-in the
-    // BE also writes it from the client_id we pass below, and the server dedups
-    // on (user_id, client_id) so it collapses to one row (#2).
-    const userMsg = await thread.append({ role: "user", kind: "text", body: q });
+  // FE-4 — the post-joke feedback tap (Funny / Not funny). Pure chat bubbles,
+  // no BE round-trip (mirrors declineJoke): the answer posts as the user's
+  // bubble with a light bot acknowledgement.
+  function jokeFeedback(good: boolean) {
+    void thread.append({
+      role: "user",
+      kind: "text",
+      body: good ? "Funny" : "Not funny",
+    });
+    void thread.append({
+      role: "bot",
+      kind: "text",
+      body: good ? "Glad it landed 😄" : "Told you it was bad 😅",
+    });
+  }
 
-    // Strong-sides shortcut: when the user asks to see their strong sides, don't
-    // recite the coach notes as text — answer briefly and surface the existing
-    // Strong sides bubble (it opens the library). Skips the LLM round-trip.
-    if (isStrongSidesAsk(q, prevBotText)) {
-      // Button only — no text bubble. Anchored in the thread after the user's
-      // ask, so it stays put like any other bubble (not the sticky foot button).
-      markStrongSides();
-      return;
-    }
-
-    setBotThinking(true);
+  // The shared send core — used by the composer and the joke offer. `displayAs`
+  // overrides the text shown in the user's bubble while `q` is still the query
+  // sent to the BE (FE-4: the joke "Yes" pill shows "Yes" but queries the joke).
+  // Returns true when this call actually sent, false when it was a guarded
+  // no-op — the joke flow relies on this so a double-tapped "Yes" doesn't
+  // advance to the feedback step on the ignored second tap.
+  async function runSend(q: string, displayAs?: string): Promise<boolean> {
+    if (!q || botThinking || sendingRef.current) return false;
+    sendingRef.current = true;
+    // finally guarantees the guard clears on every exit, including a rejected
+    // append (else a throw would wedge sendingRef=true and block all sends).
     try {
-      const resp = await postChatQuery({
-        question: q,
-        history,
-        // #2 — let the BE own persistence for signed-in turns. It writes the
-        // user turn with our client_id (dedup) and the bot turn with the chip
-        // in its metadata; the FE then shows the bot turn optimistically only.
-        persist: thread.signedIn,
-        clientId: userMsg.client_id,
-        clientCreatedAt: userMsg.client_created_at,
-      });
-      // B-1 — the one quick-action the BE suggests for this turn (S1). A
-      // strong-sides suggestion shows ONLY the in-thread button — no text /
-      // note recital. Every other turn renders the reply (+ any foot button).
-      const suggested = coerceSuggestedAction(resp.suggested_action);
-      if (suggested === "strong_sides") {
+      // Track upload intent so the footer record button swaps to a file picker
+      // (and reverts the moment the user's next message is about something else).
+      setUploadAskActive(isUploadAsk(q));
+      atBottomRef.current = true; // sending always scrolls to your own message
+      const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
+      const botTurns = messages.filter((msg) => msg.role === "bot");
+      const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
+      // The user turn always persists (optimistic + FE write); for signed-in the
+      // BE also writes it from the client_id we pass below, and the server dedups
+      // on (user_id, client_id) so it collapses to one row (#2).
+      const userMsg = await thread.append({ role: "user", kind: "text", body: displayAs ?? q });
+
+      // Strong-sides shortcut: when the user asks to see their strong sides, don't
+      // recite the coach notes as text — answer briefly and surface the existing
+      // Strong sides bubble (it opens the library). Skips the LLM round-trip.
+      if (isStrongSidesAsk(q, prevBotText)) {
+        // Button only — no text bubble. Anchored in the thread after the user's
+        // ask, so it stays put like any other bubble (not the sticky foot button).
         markStrongSides();
-      } else {
-        const answer = (resp.answer ?? "").trim();
-        // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
-        // We persist the joined body and the thread re-splits on the same
-        // blank-line marker, so a reload shows exactly the bubbles that were sent.
-        const body =
-          resp.bubbles && resp.bubbles.length > 0
-            ? resp.bubbles.join("\n\n")
-            : answer || "I know nothing about that, at least yet 😏";
-        const botDraft = {
-          role: "bot" as const,
-          kind: "text" as const,
-          body,
-          // B-1 — the chip rides in the bot row's metadata so it survives reload
-          // and scroll-back. For signed-in, the BE persists this same row (chip
-          // included) — see #2; we show it optimistically without re-persisting
-          // to avoid a duplicate. Anonymous → the FE persists it locally.
-          metadata: suggested ? { suggested_action: suggested } : null,
-        };
-        if (thread.signedIn) thread.appendLocalOnly(botDraft);
-        else await thread.append(botDraft);
+        return true;
       }
-    } catch {
-      await thread.append({
-        role: "bot",
-        kind: "text",
-        body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
-      });
+
+      setBotThinking(true);
+      try {
+        const resp = await postChatQuery({
+          question: q,
+          history,
+          // #2 — let the BE own persistence for signed-in turns. It writes the
+          // user turn with our client_id (dedup) and the bot turn with the chip
+          // in its metadata; the FE then shows the bot turn optimistically only.
+          persist: thread.signedIn,
+          clientId: userMsg.client_id,
+          clientCreatedAt: userMsg.client_created_at,
+        });
+        // B-1 — the one quick-action the BE suggests for this turn (S1). A
+        // strong-sides suggestion shows ONLY the in-thread button — no text /
+        // note recital. Every other turn renders the reply (+ any foot button).
+        const suggested = coerceSuggestedAction(resp.suggested_action);
+        if (suggested === "strong_sides") {
+          markStrongSides();
+        } else {
+          const answer = (resp.answer ?? "").trim();
+          // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
+          // We persist the joined body and the thread re-splits on the same
+          // blank-line marker, so a reload shows exactly the bubbles that were sent.
+          const body =
+            resp.bubbles && resp.bubbles.length > 0
+              ? resp.bubbles.join("\n\n")
+              : answer || "I know nothing about that, at least yet 😏";
+          const botDraft = {
+            role: "bot" as const,
+            kind: "text" as const,
+            body,
+            // B-1 — the chip rides in the bot row's metadata so it survives reload
+            // and scroll-back. For signed-in, the BE persists this same row (chip
+            // included) — see #2; we show it optimistically without re-persisting
+            // to avoid a duplicate. Anonymous → the FE persists it locally.
+            metadata: suggested ? { suggested_action: suggested } : null,
+          };
+          if (thread.signedIn) thread.appendLocalOnly(botDraft);
+          else await thread.append(botDraft);
+        }
+      } catch {
+        await thread.append({
+          role: "bot",
+          kind: "text",
+          body: "I'm having trouble reaching the lab right now. Give it another try in a moment.",
+        });
+      } finally {
+        setBotThinking(false);
+      }
+      return true;
     } finally {
-      setBotThinking(false);
+      sendingRef.current = false;
     }
   }
 
@@ -777,10 +844,15 @@ export default function Lounge({
         <OfferActions
           type={activeOffer}
           install={install}
+          jokeStep={jokeStep}
           onJokeYes={askForJoke}
           onJokeDecline={declineJoke}
+          onJokeFeedback={jokeFeedback}
           onGetCredits={() => router.push("/dashboard/pricing")}
-          onResolve={() => setActiveOffer(null)}
+          onResolve={() => {
+            setActiveOffer(null);
+            setJokeStep(null);
+          }}
         />
       ) : uploadAskActive ? (
         // The user asked to upload — the record button becomes a file picker.
@@ -878,7 +950,15 @@ export default function Lounge({
               bestPresentationArcId &&
               readExploreArc()?.arcId !== bestPresentationArcId
             ) {
-              writeExploreArc(bestPresentationArcId, takesDone + 1);
+              // FE-1 — carry the arc's session id so the Lab can restore its
+              // deck from the server (this seed omits the deck; localStorage was
+              // lost or holds a different arc).
+              writeExploreArc(
+                bestPresentationArcId,
+                takesDone + 1,
+                undefined,
+                latestArcSessionId(bestPresentationArcId)
+              );
             }
             setBestPresentationArcId(null);
             onStart();
@@ -901,8 +981,15 @@ export default function Lounge({
           onRecordAnother={(arc) => {
             // Continue this deck's arc: seed the explore-arc (id + next index +
             // deck) so the Lab carries arc_id and pre-fills the deck, then open
-            // the Lab. The BE appends the take to the same arc.
-            writeExploreArc(arc.arcId, arc.nextTakeIndex, arc.deck);
+            // the Lab. The BE appends the take to the same arc. The session id
+            // (FE-1) lets the Lab re-fetch the deck from the server if the
+            // cached one is stale/incomplete.
+            writeExploreArc(
+              arc.arcId,
+              arc.nextTakeIndex,
+              arc.deck,
+              latestArcSessionId(arc.arcId)
+            );
             setLibraryOpen(false);
             onStart();
           }}
@@ -979,15 +1066,19 @@ function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => 
 function OfferActions({
   type,
   install,
+  jokeStep,
   onJokeYes,
   onJokeDecline,
+  onJokeFeedback,
   onGetCredits,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
+  jokeStep: "offer" | "feedback" | null;
   onJokeYes: () => void;
   onJokeDecline: () => void;
+  onJokeFeedback: (good: boolean) => void;
   onGetCredits: () => void;
   onResolve: () => void;
 }) {
@@ -995,19 +1086,34 @@ function OfferActions({
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
   if (type === "joke") {
+    // FE-4 — step 2: rate the joke. Each pill posts a user bubble, then resolves.
+    if (jokeStep === "feedback") {
+      return (
+        <SymmetricPair
+          closeLabel="Not funny"
+          onClose={() => {
+            onJokeFeedback(false);
+            onResolve();
+          }}
+          actionLabel="Funny"
+          onAction={() => {
+            onJokeFeedback(true);
+            onResolve();
+          }}
+        />
+      );
+    }
+    // Step 1: accept / decline. "Yes" advances to the feedback step (it does NOT
+    // resolve — askForJoke keeps the footer armed); "No thanks" posts + resolves.
     return (
       <SymmetricPair
         closeLabel="No thanks"
         onClose={() => {
-          // Bug 3 — decline posts a bubble too, mirroring accept.
           onJokeDecline();
           onResolve();
         }}
-        actionLabel="Go on then"
-        onAction={() => {
-          onJokeYes();
-          onResolve();
-        }}
+        actionLabel="Yes"
+        onAction={onJokeYes}
       />
     );
   }

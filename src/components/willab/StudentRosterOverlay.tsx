@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Loader2, X } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudents,
   type CoachStudent,
@@ -83,14 +84,7 @@ export default function StudentRosterOverlay({
         <span className="text-[13px] font-semibold text-foreground">
           Your students
         </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close roster"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <OverlayCloseButton onClick={onClose} ariaLabel="Close roster" />
       </div>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">

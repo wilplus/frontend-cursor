@@ -1,5 +1,7 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/readout";
+import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
+import { type LabSessionContext } from "@/components/willab/LabOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  sessionReadout — re-read a session's Readout (§3.0 park / §6 insights)     */
@@ -13,6 +15,10 @@ import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/read
 export interface SessionReadout {
   state: string | null;
   readout: ReadoutPayload;
+  /** FE-1 — top-level `setup` block (BE-1): the take's original intake context,
+   *  used to restore setup for the next take when localStorage lost it. null
+   *  until the BE ships it (safe-ahead). */
+  setup: LabSessionContext | null;
 }
 
 export async function fetchSessionReadout(
@@ -45,5 +51,6 @@ export async function fetchSessionReadout(
   return {
     state: typeof body.state === "string" ? body.state : null,
     readout: mapReadoutPayload(readoutObj),
+    setup: mapReadoutSetup(body.setup),
   };
 }

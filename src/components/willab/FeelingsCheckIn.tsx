@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  getRememberedFeeling,
-  recordFeeling,
-  type Feeling,
-} from "./willabFeelings";
+import { recordFeeling, type Feeling } from "./willabFeelings";
 
 /* -------------------------------------------------------------------------- */
 /*  FeelingsCheckIn — first-recording onboarding, step 0 (U10)                 */
@@ -30,7 +26,7 @@ const FEELINGS: { key: Feeling; label: string; reply: string }[] = [
   {
     key: "excited",
     label: "Excited",
-    reply: "Love that energy — let's catch it on the record.",
+    reply: "Love that energy. Let's catch it on the record.",
   },
   {
     key: "calm",
@@ -40,15 +36,14 @@ const FEELINGS: { key: Feeling; label: string; reply: string }[] = [
   {
     key: "unsure",
     label: "Not sure",
-    reply: "That's fine — the recorder doesn't judge. Just talk; we'll find the signal.",
+    reply: "That's fine. The recorder doesn't judge. Just talk; we'll find the signal.",
   },
 ];
 
 export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
+  // FE-3 — nothing is pre-selected; the user names how they feel fresh every
+  // time (the old one-tap "same as before" shortcut was removed).
   const [picked, setPicked] = useState<Feeling | null>(null);
-  // C7 — the feeling named on a prior take, for the one-tap "same as before".
-  const [remembered] = useState<Feeling | null>(() => getRememberedFeeling());
-  const rememberedLabel = FEELINGS.find((f) => f.key === remembered)?.label;
   const reply = FEELINGS.find((f) => f.key === picked)?.reply ?? null;
 
   function pick(feeling: Feeling) {
@@ -66,20 +61,6 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
           How are you feeling about this one?
         </p>
       </div>
-
-      {/* C7 — one-tap reuse of the prior take's feeling. */}
-      {remembered && rememberedLabel ? (
-        <button
-          type="button"
-          onClick={() => {
-            pick(remembered);
-            onReady();
-          }}
-          className="mt-5 self-start rounded-full border border-primary bg-primary/5 px-4 py-2 text-[15px] text-foreground transition-colors hover:bg-primary/10"
-        >
-          Same as before ({rememberedLabel})
-        </button>
-      ) : null}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {FEELINGS.map((f) => {

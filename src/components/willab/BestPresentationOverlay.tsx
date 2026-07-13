@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Crown, FileDown, Loader2, Pencil, Sparkles, X } from "lucide-react";
+import { Crown, FileDown, Loader2, Pencil, Sparkles } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import { SlideRender } from "./pdfSlides";
 import {
@@ -12,6 +13,7 @@ import {
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
 import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
+import { readExploreArc } from "@/lib/willab/exploreArc";
 import {
   parseRichMarkers,
   richMarkersToHtml,
@@ -253,11 +255,52 @@ export default function BestPresentationOverlay({
     );
   }
   if (status === "error") {
+    // FE-1 — never a dead-end: the load can fail transiently (the presentation
+    // is still coming together, or a network blip), so offer a retry, plus a
+    // forward path to record the next take so the user is never stuck here.
+    // takesDone is derived from the cached arc (nextTakeIndex - 1) since there's
+    // no fetched result to read it from; the host ignores it when localStorage
+    // already holds this arc.
     return (
       <PreShellOverlay onClose={onClose}>
-        <p className="text-[15px] text-muted-foreground">
-          Couldn&apos;t load your presentation. Try again in a moment.
-        </p>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="max-w-sm text-[15px] text-muted-foreground">
+            We couldn&apos;t load your presentation just now. It may still be
+            coming together.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setStatus("loading");
+                setRefetchNonce((n) => n + 1);
+              }}
+              className="rounded-full bg-foreground px-6 py-2.5 text-[14px] font-medium text-background transition hover:bg-foreground/90"
+            >
+              Try again
+            </button>
+            {onRecordNext ? (
+              <button
+                type="button"
+                onClick={() => {
+                  // Only trust the cached take counter when it belongs to THIS
+                  // arc; otherwise (a different arc, or evicted) pass 0 so the
+                  // host doesn't seed a take number from an unrelated arc. The
+                  // BE reconciles the real take_index on the POST regardless.
+                  const cached = readExploreArc();
+                  const takesDone =
+                    cached?.arcId === arcId
+                      ? Math.max(0, cached.nextTakeIndex - 1)
+                      : 0;
+                  onRecordNext(takesDone);
+                }}
+                className="rounded-full border border-border px-6 py-2.5 text-[14px] font-medium text-foreground transition hover:bg-muted"
+              >
+                Record the next take
+              </button>
+            ) : null}
+          </div>
+        </div>
       </PreShellOverlay>
     );
   }
@@ -323,14 +366,7 @@ export default function BestPresentationOverlay({
             <Pencil className="h-[14px] w-[14px]" aria-hidden />
             {editMode ? "Done" : "Edit"}
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-[28px] w-[28px] items-center justify-center rounded-full border border-border text-muted-foreground"
-          >
-            <X className="h-[16px] w-[16px]" aria-hidden />
-          </button>
+          <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
 
@@ -601,14 +637,7 @@ function PreShellOverlay({
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 justify-end px-3 pt-3">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground"
-        >
-          <X className="h-[17px] w-[17px]" aria-hidden />
-        </button>
+        <OverlayCloseButton onClick={onClose} />
       </div>
       <div className="flex flex-1 items-center justify-center px-8 text-center">
         {children}
