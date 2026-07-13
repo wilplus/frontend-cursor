@@ -16,6 +16,7 @@ import {
   splitBotMessage,
 } from "./willabHelpers";
 import { stageLabUpload } from "./labUploadStage";
+import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard from "./ReportCard";
 import LoadingState from "./LoadingState";
 import InsightsOverlay from "./InsightsOverlay";
@@ -467,6 +468,9 @@ export default function Lounge({
   // the user moves on. Detection is FE-side (the bot doesn't classify it).
   const [uploadAskActive, setUploadAskActive] = useState(false);
   const uploadFileRef = useRef<HTMLInputElement | null>(null);
+  // Bug 1 — a picked file that fails the audio/size guard shows inline under
+  // the button instead of silently opening the Lab with a doomed upload.
+  const [uploadPickError, setUploadPickError] = useState<string | null>(null);
 
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
@@ -595,6 +599,15 @@ export default function Lounge({
   // response registered in the thread. Closing the offer is the caller's job.
   function askForJoke() {
     void runSend("Tell me a dad joke");
+  }
+
+  // Bug 3 — decline mirrors accept: the user's choice posts as a real user
+  // bubble (not a silent dismiss), with a short bot acknowledgement. Posted
+  // directly (not through runSend/postChatQuery) — "No thanks" isn't a
+  // question for the librarian.
+  function declineJoke() {
+    void thread.append({ role: "user", kind: "text", body: "No thanks" });
+    void thread.append({ role: "bot", kind: "text", body: "No worries!" });
   }
 
   // The shared send core — used by the composer and the joke offer.
@@ -765,6 +778,7 @@ export default function Lounge({
           type={activeOffer}
           install={install}
           onJokeYes={askForJoke}
+          onJokeDecline={declineJoke}
           onGetCredits={() => router.push("/dashboard/pricing")}
           onResolve={() => setActiveOffer(null)}
         />
@@ -776,11 +790,17 @@ export default function Lounge({
           <input
             ref={uploadFileRef}
             type="file"
-            accept="audio/*,video/*"
+            accept="audio/*"
             onChange={(e) => {
               const f = e.target.files?.[0];
               e.target.value = "";
               if (!f) return;
+              const err = validateAudioUpload(f);
+              if (err) {
+                setUploadPickError(err);
+                return;
+              }
+              setUploadPickError(null);
               stageLabUpload(f);
               setUploadAskActive(false);
               onStart();
@@ -795,6 +815,11 @@ export default function Lounge({
             <Upload className="h-4 w-4" aria-hidden />
             Upload a recording
           </Button>
+          {uploadPickError ? (
+            <p className="mt-1.5 text-center text-[13px] text-destructive">
+              {uploadPickError}
+            </p>
+          ) : null}
         </>
       ) : (
         <Button
@@ -955,12 +980,14 @@ function OfferActions({
   type,
   install,
   onJokeYes,
+  onJokeDecline,
   onGetCredits,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
   onJokeYes: () => void;
+  onJokeDecline: () => void;
   onGetCredits: () => void;
   onResolve: () => void;
 }) {
@@ -971,7 +998,11 @@ function OfferActions({
     return (
       <SymmetricPair
         closeLabel="No thanks"
-        onClose={onResolve}
+        onClose={() => {
+          // Bug 3 — decline posts a bubble too, mirroring accept.
+          onJokeDecline();
+          onResolve();
+        }}
         actionLabel="Go on then"
         onAction={() => {
           onJokeYes();

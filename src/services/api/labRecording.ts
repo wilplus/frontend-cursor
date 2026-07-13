@@ -121,6 +121,17 @@ export async function submitLabRecording(
         "Your recording is safe. This take is part of the full audit. Unlock it on the pricing page to continue.",
     };
   }
+  if (res.status === 413) {
+    // Bug 1 — the FE guard (validateAudioUpload) should catch this before the
+    // request goes out; this is the fallback for anything that slips through
+    // (a raw 413 from Vercel's ~4.5MB serverless body limit reads as a scary
+    // generic failure otherwise).
+    return {
+      kind: "error",
+      status: 413,
+      message: "That file is too large to upload. Try a shorter audio file.",
+    };
+  }
   if (!res.ok) {
     return {
       kind: "error",
@@ -152,5 +163,50 @@ export async function submitLabRecording(
     arcId: typeof body.arc_id === "string" ? body.arc_id : null,
     takeIndex: typeof body.take_index === "number" ? body.take_index : null,
     recordingProgress: mapRecordingProgress(body.recording_progress),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  guest readout re-read (bugs 4 & 6, BE-1) — GET /v2/lab/recordings/<id>/     */
+/*  readout via the optional-auth BFF. Unlike the authed sessionReadout.ts      */
+/*  service, this needs no token: an unclaimed session's own unguessable UUID   */
+/*  is the capability. Used for (a) polling a fresh guest recording until its   */
+/*  async Say It Stronger cards land, and (b) re-opening a guest's "Your        */
+/*  Recording" bubble, which the authed re-read 401s on.                        */
+/* -------------------------------------------------------------------------- */
+
+export interface LabReadoutReread {
+  state: string | null;
+  readout: ReadoutPayload;
+}
+
+export async function fetchGuestLabReadout(
+  sessionId: string
+): Promise<LabReadoutReread | null> {
+  const token = await getAuthToken(); // forwarded when present; never required
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/lab/recordings/${encodeURIComponent(sessionId)}/readout`,
+      { headers, cache: "no-store" }
+    );
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return null;
+
+  const readoutObj = {
+    ...(body.readout && typeof body.readout === "object" ? body.readout : {}),
+    ...("audit_paid" in body ? { audit_paid: body.audit_paid } : {}),
+  };
+  return {
+    state: typeof body.state === "string" ? body.state : null,
+    readout: mapReadoutPayload(readoutObj),
   };
 }
