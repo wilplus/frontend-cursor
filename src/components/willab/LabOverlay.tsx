@@ -11,6 +11,8 @@ import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { readVideoDurationSec } from "@/services/api/coachVideoMeta";
 import { takeLabUpload } from "./labUploadStage";
+import { validateAudioUpload } from "./audioUploadValidation";
+import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { batchTake, fmtClock } from "./willabHelpers";
@@ -143,6 +145,10 @@ export default function LabOverlay({
   // Upload → Readout (seam ③).
   const [readout, setReadout] = useState<ReadoutPayload | null>(null);
   const [labSessionId, setLabSessionId] = useState<string | null>(null);
+  // Bug 4 — the Say It Stronger cards generate a few seconds after the readout
+  // loads; poll until they land (no-ops once every snippet has resolved, or
+  // outside the readout state since labSessionId/readout are both null then).
+  useSayItStrongerPolling(labSessionId, signedIn, readout, setReadout);
   // The take number for THIS recording, captured at upload time — before the
   // success handler bumps arcTakeIndex to the next take (avoids an off-by-one
   // on the "Your Recording" card).
@@ -535,6 +541,14 @@ export default function LabOverlay({
               // the existing upload effect fires unchanged. slide_advances stays
               // [] (correct for deckless), so per-slide sync is never faked.
               setRejectedMsg(null);
+              // Bug 1 — reject video / oversize files before the network call:
+              // a video file used to reach the Vercel BFF and die as a raw 413
+              // (the platform's ~4.5MB body limit), which read as a dead upload.
+              const uploadError = validateAudioUpload(file);
+              if (uploadError) {
+                setRejectedMsg(uploadError);
+                return;
+              }
               const seq = (uploadSeqRef.current += 1);
               // Best-effort local duration pre-check. On failure / non-finite we
               // skip it and let the BE min-content gate be the sole judge (it
@@ -950,7 +964,7 @@ function PreRecord({
           <input
             ref={fileRef}
             type="file"
-            accept="audio/*,video/*"
+            accept="audio/*"
             onChange={(e) => {
               const f = e.target.files?.[0];
               e.target.value = "";
@@ -1083,10 +1097,14 @@ function RecordingPhase({
         ) : null}
       </div>
 
+      {/* FE-2 — the big number counts DOWN (time left to the minimum), not up.
+          Folding the "until you can stop" number into the countdown itself
+          means the subtitle no longer repeats it. Once the minimum is reached
+          there's no more "left" to show, so it switches to counting elapsed. */}
       {showTimer ? (
         <div className="flex flex-col items-center gap-1">
           <p className="text-[40px] font-semibold tabular-nums text-foreground">
-            {fmtClock(elapsed)}
+            {fmtClock(reachedMin ? elapsed : remaining)}
           </p>
         </div>
       ) : null}
@@ -1094,7 +1112,7 @@ function RecordingPhase({
         {reachedMin
           ? "Minimum reached. Stop whenever you're ready."
           : showTimer
-            ? `Keep going, ${fmtClock(remaining)} until you can stop.`
+            ? "until you can stop"
             : "Keep going a little longer."}
       </p>
 

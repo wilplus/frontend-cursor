@@ -7,8 +7,11 @@ import {
   fetchSessionReadout,
   type SessionReadout,
 } from "@/services/api/sessionReadout";
+import { fetchGuestLabReadout } from "@/services/api/labRecording";
 import ReadoutCard from "./ReadoutCard";
 import { useBackDismiss } from "./useBackDismiss";
+import { useSignedIn } from "./useSignedIn";
+import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
 
 export default function InsightsOverlay({
   sessionId,
@@ -23,11 +26,19 @@ export default function InsightsOverlay({
   useBackDismiss(onClose, () => readoutBackRef.current?.() ?? false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [data, setData] = useState<SessionReadout | null>(null);
+  // Bug 6 — a guest re-opening their "Your Recording" bubble used to call the
+  // authed re-read (401 → "couldn't load these insights"). fetchSessionReadout
+  // itself bails to null with no auth token, so branch on signed-in and use
+  // the guest endpoint (BE-1) instead; it also serves an authed owner's OWN
+  // session, but the explicit authed path stays for the signed-in case.
+  const signedIn = useSignedIn();
 
   useEffect(() => {
+    if (signedIn === null) return; // auth still resolving
     let active = true;
     setStatus("loading");
-    void fetchSessionReadout(sessionId).then((r) => {
+    const fetcher = signedIn ? fetchSessionReadout : fetchGuestLabReadout;
+    void fetcher(sessionId).then((r) => {
       if (!active) return;
       if (r) {
         setData(r);
@@ -39,7 +50,14 @@ export default function InsightsOverlay({
     return () => {
       active = false;
     };
-  }, [sessionId]);
+  }, [sessionId, signedIn]);
+
+  // Bug 4 — poll until the Say It Stronger cards land (they generate a few
+  // seconds after the session was first read; a re-open shortly after
+  // recording can still catch them mid-generation).
+  useSayItStrongerPolling(sessionId, signedIn, data?.readout ?? null, (next) =>
+    setData((prev) => (prev ? { ...prev, readout: next } : prev))
+  );
 
   if (status === "loading" || (status === "ready" && data)) {
     if (status === "ready" && data) {
