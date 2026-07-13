@@ -29,13 +29,20 @@ import { useEffect, useRef } from "react";
 export function useBackDismiss(
   onClose: () => void,
   onBack?: () => boolean
-): void {
+): () => void {
   // Keep the latest callbacks without re-running the effect (a new closure each
   // render must NOT push a fresh history entry).
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
+  // Set true by the returned suppressor RIGHT BEFORE the overlay unmounts
+  // because we're navigating FORWARD (e.g. to /signup). Without this, the
+  // cleanup's history.back() (below) would immediately reverse that forward
+  // navigation and dump the user back on /chat — the "sign-in goes to chat,
+  // not sign-up" bug. Ref (not state) so the flag is readable synchronously
+  // inside the cleanup on the same tick the caller sets it.
+  const navigatingAwayRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -61,8 +68,19 @@ export function useBackDismiss(
       window.removeEventListener("popstate", onPop);
       // Closed via X / unmount: our pushed entry is still on top → pop it so we
       // don't strand a dead entry. After a Back-close the browser already popped
-      // it, so we skip (else we'd over-pop past /chat).
-      if (!closedByPopstate) window.history.back();
+      // it, so we skip (else we'd over-pop past /chat). And when we're
+      // navigating FORWARD (suppressor called), skip too — else we'd cancel the
+      // very navigation that just fired.
+      if (!closedByPopstate && !navigatingAwayRef.current) {
+        window.history.back();
+      }
     };
   }, []);
+
+  // Call this immediately before triggering a forward navigation that will
+  // unmount the overlay (e.g. router.push("/signup")), so the unmount cleanup
+  // does NOT history.back() over it.
+  return () => {
+    navigatingAwayRef.current = true;
+  };
 }
