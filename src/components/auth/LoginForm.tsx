@@ -26,7 +26,8 @@ export default function LoginForm({ onSuccess }: LoginFormProps = {}) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "oauth_failed") {
-      toast.error("LinkedIn sign-in failed. Please try again.");
+      console.error("[OAuth] failed:", params.get("detail"));
+      toast.error("Sign-in failed. Please try again.");
     }
   }, []);
 
