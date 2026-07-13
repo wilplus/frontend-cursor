@@ -3,6 +3,8 @@ import { mapReadoutPayload, type ReadoutPayload } from "@/components/willab/read
 import { mapRecordingProgress, type RecordingProgress } from "./recordingProgress";
 import { type PresentationSlide } from "@/components/willab/presentation";
 import { type Feeling } from "@/components/willab/willabFeelings";
+import { mapReadoutSetup } from "@/components/willab/willabLastSetup";
+import { type LabSessionContext } from "@/components/willab/LabOverlay";
 
 /* -------------------------------------------------------------------------- */
 /*  labRecording — the Lab upload client (seam ③, §3.3)                        */
@@ -97,7 +99,7 @@ export async function submitLabRecording(
     return {
       kind: "error",
       status: 0,
-      message: "Couldn't reach the lab — check your connection and try again.",
+      message: "Couldn't reach the lab. Check your connection and try again.",
     };
   }
 
@@ -107,7 +109,7 @@ export async function submitLabRecording(
       kind: "rejected",
       message:
         body?.error ??
-        "That take was too short or had no clear speech — let's try again.",
+        "That take was too short or had no clear speech, so let's try again.",
     };
   }
   if (res.status === 402) {
@@ -178,6 +180,10 @@ export async function submitLabRecording(
 export interface LabReadoutReread {
   state: string | null;
   readout: ReadoutPayload;
+  /** FE-1 — top-level `setup` block (BE-1): the take's original intake context,
+   *  used to restore setup for the next take (the guest endpoint is what
+   *  unblocks a signed-out tester's take 2). null until the BE ships it. */
+  setup: LabSessionContext | null;
 }
 
 export async function fetchGuestLabReadout(
@@ -208,5 +214,6 @@ export async function fetchGuestLabReadout(
   return {
     state: typeof body.state === "string" ? body.state : null,
     readout: mapReadoutPayload(readoutObj),
+    setup: mapReadoutSetup(body.setup),
   };
 }

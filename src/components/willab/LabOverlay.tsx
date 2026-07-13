@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Mic, Square, X } from "lucide-react";
+import { Loader2, Mic, Square } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
-import { submitLabRecording } from "@/services/api/labRecording";
+import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
+import { fetchSessionReadout } from "@/services/api/sessionReadout";
 import { readVideoDurationSec } from "@/services/api/coachVideoMeta";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
@@ -31,7 +33,6 @@ import { useBackDismiss } from "./useBackDismiss";
 import PresentationInput from "./PresentationInput";
 import SlideStage from "./SlideStage";
 import {
-  clearExploreArc,
   readExploreArc,
   writeExploreArc,
   type ExploreArcDeck,
@@ -79,6 +80,9 @@ const LENGTH_PRESETS = [
   { label: "2 min", sec: 120 },
   { label: "3 min", sec: 180 },
   { label: "5 min", sec: 300 },
+  { label: "30 min", sec: 1800 },
+  { label: "45 min", sec: 2700 },
+  { label: "60 min", sec: 3600 },
 ];
 
 export default function LabOverlay({
@@ -141,6 +145,37 @@ export default function LabOverlay({
     initArc?.nextTakeIndex ?? 1
   );
   const [exploreEnabled, setExploreEnabled] = useState<boolean>(!!initArc);
+  // FE-1 — the deck to pre-fill the setup form with. Starts from localStorage
+  // (initArc.deck) and is backfilled from the server below when the cache lost
+  // it, so take 2+ restores its slides instead of dead-ending / going deckless.
+  const [preloadDeck, setPreloadDeck] = useState<ExploreArcDeck | null>(
+    initArc?.deck ?? null
+  );
+
+  // FE-1 — restore a continuing arc's deck from the server when localStorage
+  // lost it: if we have the arc's session id but no cached deck, re-read that
+  // session and adopt its `setup` (slides + served PDF). Inert until the BE
+  // ships `setup` (r.setup is null → no-op → today's deckless behavior).
+  useEffect(() => {
+    const sid = initArc?.sessionId;
+    if (!sid || preloadDeck || signedIn === null) return;
+    let active = true;
+    const fetcher = signedIn ? fetchSessionReadout : fetchGuestLabReadout;
+    void fetcher(sid).then((r) => {
+      if (!active || !r?.setup) return;
+      setPreloadDeck({
+        topic: r.setup.topic,
+        presentationRef: r.setup.presentationRef,
+        slides: r.setup.slides,
+      });
+    });
+    return () => {
+      active = false;
+    };
+    // preloadDeck intentionally excluded: this runs once auth resolves, and the
+    // guard reads the initial (null) value — backfilling it must not re-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initArc?.sessionId, signedIn]);
 
   // Upload → Readout (seam ③).
   const [readout, setReadout] = useState<ReadoutPayload | null>(null);
@@ -157,10 +192,6 @@ export default function LabOverlay({
   // later take's joke offer can't read a stale value; stamped on the readout.
   const recordedFeelingRef = useRef<Feeling | null>(null);
   const [rejectedMsg, setRejectedMsg] = useState<string | null>(null);
-  // P9 — the pre-take encouragement layer: shown after the user taps the record
-  // control, before the mic starts. Copy + timer visibility follow the take's
-  // parity WITHIN the 3-take batch (odd → timer shown, even → timer hidden).
-  const [interstitial, setInterstitial] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // True when the upload failure was a 402 — Processing then shows a neutral
   // paywall panel (unlock link, no retry) instead of the destructive error.
@@ -228,10 +259,10 @@ export default function LabOverlay({
     if (!blob || !context || uploadStartedRef.current) return;
     uploadStartedRef.current = true;
     recordedTakeRef.current = exploreEnabled ? arcTakeIndex : null;
-    // C7 — capture the named feeling for this take, then clear the active value
-    // (the remembered value persists for the next take's "same as before"). Only
-    // overwrite when a fresh value is present so a retry / re-record re-running
-    // this effect (the active key is already cleared) can't null out the capture.
+    // C7 — capture the named feeling for this take, then clear the active value.
+    // Only overwrite when a fresh value is present so a retry / re-record
+    // re-running this effect (the active key is already cleared) can't null out
+    // the capture.
     const capturedFeeling = getLastFeeling();
     if (capturedFeeling) {
       recordedFeelingRef.current = capturedFeeling;
@@ -278,7 +309,14 @@ export default function LabOverlay({
                   slides: context.slides,
                 }
               : initArc?.deck;
-            writeExploreArc(returnedArcId, nextIdx, deck);
+            // FE-1 — carry this take's session id so a later take can restore
+            // the arc's setup from the server if localStorage loses the deck.
+            writeExploreArc(
+              returnedArcId,
+              nextIdx,
+              deck,
+              result.sessionId ?? undefined
+            );
             setArcId(returnedArcId);
             setArcTakeIndex(nextIdx);
           }
@@ -316,10 +354,6 @@ export default function LabOverlay({
     );
     return () => clearInterval(id);
   }, [mic.state.status]);
-
-  useEffect(() => {
-    if (state !== "lab_prerecord") setInterstitial(false);
-  }, [state]);
 
   // Resume a parked Readout: restore the held payload on (re)entry to the
   // Readout with nothing loaded (e.g. after reload, via the Lounge's "Resume
@@ -362,8 +396,8 @@ export default function LabOverlay({
           pauseRatio: hero?.pauseRatio ?? undefined,
         })
       );
-      // P9 — after the batch's FIRST take, one short informational bubble that
-      // the next take is up (no pep talk — that lives in the interstitial).
+      // After the batch's FIRST take, one short informational bubble that the
+      // next take is up.
       if (
         exploreEnabled &&
         recordedTakeRef.current !== null &&
@@ -386,16 +420,13 @@ export default function LabOverlay({
     goTo("parked");
   }
 
-  // Unsigned send (§13 Path 2, amended): park + stash the id, then navigate
-  // to the /login screen so the user can choose LinkedIn/Google OAuth OR
-  // email/password — the original spec went straight to LinkedIn OAuth ("one
-  // tap to ship"), but that dead-ends users who don't have LinkedIn or who
-  // prefer email. /login leads with the OAuth buttons (fastest onboarding for
-  // a new user) and still carries a "Sign up" link for the email path, so it
-  // serves both first-time and returning guests from one screen. The resume
+  // Unsigned send (§13 Path 2, amended): park + stash the id, then navigate to
+  // /signup — the SIGN-UP (create-account) view. A non-registered guest who
+  // just recorded their first take needs "create account" (Google/LinkedIn/
+  // email), not a sign-in form; /signup leads with account creation and keeps
+  // "already have an account? sign in" as the secondary link. The resume
   // mechanism is unchanged: the global <WillabPendingSend> reads the pending
-  // id on any post-auth landing (SIGNED_IN event from either provider, and
-  // whether they sign in here or bounce to /signup for email) and runs
+  // id on any post-auth landing (SIGNED_IN event from any provider) and runs
   // merge-then-send.
   function startUnsignedSend() {
     if (readout && labSessionId) {
@@ -405,13 +436,13 @@ export default function LabOverlay({
     // Suppress useBackDismiss's unmount history.back() BEFORE we close +
     // navigate. LabOverlay pushes a throwaway history entry while open and
     // pops it on unmount; without this suppressor that pop fires right after
-    // router.push("/login") and reverses it, landing the user back on /chat
+    // router.push("/signup") and reverses it, landing the user back on /chat
     // (the "sign-in goes to chat, not the auth screen" bug). onClose() still
     // runs so the flow state resets (the overlay won't re-open when they
     // return).
     suppressBackOnClose();
     onClose();
-    router.push("/login");
+    router.push("/signup");
   }
 
   // T8 — advance the deck during recording, logging the tap timeline. Any change
@@ -463,14 +494,7 @@ export default function LabOverlay({
         ) : (
           <span />
         )}
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label="Close"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:bg-muted"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <OverlayCloseButton onClick={handleClose} />
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
@@ -488,9 +512,8 @@ export default function LabOverlay({
             activeArcTake={
               stagedUploadRef.current ? null : arcId ? arcTakeIndex : null
             }
-            preloadDeck={stagedUploadRef.current ? null : initArc?.deck ?? null}
+            preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
-            onExploreChange={setExploreEnabled}
             onSubmit={(ctx, explore) => {
               const staged = stagedUploadRef.current;
               if (staged) {
@@ -519,15 +542,7 @@ export default function LabOverlay({
           />
         )}
 
-        {state === "lab_prerecord" && interstitial ? (
-          <PreTakeInterstitial
-            take={exploreEnabled ? arcTakeIndex : 1}
-            onStart={() => {
-              setInterstitial(false);
-              void mic.start();
-            }}
-          />
-        ) : state === "lab_prerecord" && (
+        {state === "lab_prerecord" && (
           <PreRecord
             context={context}
             rejectedMsg={rejectedMsg}
@@ -537,8 +552,10 @@ export default function LabOverlay({
               // Invalidate any in-flight upload duration read — the user chose to
               // record instead, so a late resolution must not hijack the flow.
               uploadSeqRef.current += 1;
-              // P9 — the encouragement layer sits between this tap and the mic.
-              setInterstitial(true);
+              // FE-1 — the record tap goes straight to the mic; the old pre-take
+              // interstitial screen was dropped. The click is the user gesture
+              // getUserMedia needs, so start() must fire synchronously here.
+              void mic.start();
             }}
             onUploadFile={(file) => {
               // Deckless-only alternative to live recording: submit a file the
@@ -591,6 +608,7 @@ export default function LabOverlay({
           <RecordingPhase
             micState={mic.state}
             elapsed={elapsed}
+            targetSec={context?.target_length_seconds ?? null}
             showTimer={
               !exploreEnabled || batchTake(arcTakeIndex) % 2 === 1
             }
@@ -705,7 +723,6 @@ function SessionContextForm({
   activeArcTake,
   preloadDeck,
   hideDeck = false,
-  onExploreChange,
   onSubmit,
 }: {
   lastSetup: LabSessionContext | null;
@@ -717,7 +734,6 @@ function SessionContextForm({
   preloadDeck: ExploreArcDeck | null;
   /** Hide the slide-deck field (deckless-only flows, e.g. a footer upload). */
   hideDeck?: boolean;
-  onExploreChange: (enabled: boolean) => void;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
 }) {
   const [topic, setTopic] = useState("");
@@ -726,8 +742,10 @@ function SessionContextForm({
   const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
   // Every recording is an explore (3-take) session — no user toggle. The "3
-  // takes" is always on; the BE owns the unlock + arc growth.
-  const [explore, setExplore] = useState<boolean>(true);
+  // takes" is always on; the BE owns the unlock + arc growth. (FE-4 removed
+  // the only opt-out, so this is a constant now — kept as state for the
+  // stable onSubmit signature.)
+  const [explore] = useState<boolean>(true);
 
   // Pre-fill once from the arc's deck (record-another-take into a known deck).
   const didPreloadRef = useRef(false);
@@ -771,26 +789,14 @@ function SessionContextForm({
     <form onSubmit={submit}>
       {/* pb clears the fixed CTA */}
       <div className="pb-24">
-        {/* Explore-arc: banner when continuing an active arc, toggle when fresh. */}
+        {/* Explore-arc: a bare take indicator when continuing an active arc.
+            FE-4 — no framing copy or opt-out; every recording is a 3-take
+            batch, so the orange TAKE N OF 3 line is all that's needed. */}
         {activeArcTake !== null ? (
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
             <p className="text-[13px] font-medium text-primary">
-              Take {batchTake(activeArcTake)} of 3, same topic
+              Take {batchTake(activeArcTake)} of 3
             </p>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Same topic as before. Set it up fresh for this take.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                clearExploreArc();
-                setExplore(false);
-                onExploreChange(false);
-              }}
-              className="mt-2 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              Start a different recording instead
-            </button>
           </div>
         ) : null}
 
@@ -872,38 +878,10 @@ function SessionContextForm({
 
 /* ------------------------- §4 step B: pre-record -------------------------- */
 
-/* ── P9: the pre-take encouragement layer (between the tap and the mic) ──
- *  Odd takes in the batch (1, 3, ...) push time discipline and record WITH the
- *  visible timer; even takes (2, ...) encourage and record with the timer UI
- *  hidden (it still runs internally — the min-duration gate is unchanged).
- *  Same design either way; only copy + timer visibility differ. */
-
-function PreTakeInterstitial({
-  take,
-  onStart,
-}: {
-  /** Absolute take index; parity is judged within the 3-take batch. */
-  take: number;
-  onStart: () => void;
-}) {
-  const odd = batchTake(take) % 2 === 1;
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      <p className="max-w-sm text-[20px] font-semibold leading-snug text-foreground">
-        {odd
-          ? "Please make sure you got in within the time frame"
-          : "You've got all it takes to make it work!"}
-      </p>
-      <Button
-        type="button"
-        onClick={onStart}
-        className="h-12 rounded-full bg-foreground px-8 text-[15px] font-medium text-background hover:bg-foreground/90"
-      >
-        Start the take
-      </Button>
-    </div>
-  );
-}
+/* Timer visibility still follows take parity within the 3-take batch (odd →
+ * timer shown, even → hidden; it runs internally either way). FE-1 removed the
+ * standalone pre-take interstitial screen — the record tap now starts the mic
+ * directly, so there's no longer a between-tap-and-mic encouragement step. */
 
 function PreRecord({
   context,
@@ -949,7 +927,7 @@ function PreRecord({
       </div>
 
       <p className="max-w-sm text-[15px] text-muted-foreground">
-        This is your official take — speak as if it counts. Aim for at least one
+        This is your official take. Speak as if it counts. Aim for at least one
         minute.
       </p>
 
@@ -1001,6 +979,7 @@ function PreRecord({
 function RecordingPhase({
   micState,
   elapsed,
+  targetSec,
   showTimer = true,
   onStop,
   onRecordAgain,
@@ -1012,7 +991,10 @@ function RecordingPhase({
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
-  /** P9 — even takes hide the timer UI (it still runs internally). */
+  /** FE-2 — the target length from setup (seconds). The timer counts DOWN to
+   *  it, then UP (overtime) in red. null = no target picked → plain stopwatch. */
+  targetSec: number | null;
+  /** Even takes hide the timer UI (it still runs internally). */
   showTimer?: boolean;
   onStop: () => void;
   onRecordAgain: () => void;
@@ -1032,7 +1014,7 @@ function RecordingPhase({
         </p>
         <p className="max-w-sm text-[15px] text-muted-foreground">
           We need at least {fmtClock(MIN_RECORDING_SEC)} of speech for a useful
-          read. Nothing was sent — give it another go.
+          read. Nothing was sent, so give it another go.
         </p>
         <Button onClick={onRecordAgain} className="rounded-full px-6">
           Record again
@@ -1072,7 +1054,18 @@ function RecordingPhase({
   }
 
   const reachedMin = elapsed >= MIN_RECORDING_SEC;
-  const remaining = Math.max(0, Math.ceil(MIN_RECORDING_SEC - elapsed));
+  // FE-2 — count DOWN to the setup target, then UP (overtime) once past it. A
+  // valid target drives the clock; with none picked the clock is a plain
+  // elapsed stopwatch. The 60s min-content gate still governs the stop button
+  // independently of the target.
+  const target = targetSec != null && targetSec > 0 ? targetSec : null;
+  const overtime = target != null && elapsed >= target;
+  const clockSec =
+    target == null
+      ? Math.floor(elapsed)
+      : elapsed >= target
+        ? Math.floor(elapsed - target)
+        : Math.ceil(target - elapsed);
   const hasDeck = slides.length > 0;
   return (
     <div
@@ -1104,39 +1097,32 @@ function RecordingPhase({
         ) : null}
       </div>
 
-      {/* FE-2 — the big number counts DOWN (time left to the minimum), not up.
-          Folding the "until you can stop" number into the countdown itself
-          means the subtitle no longer repeats it. Once the minimum is reached
-          there's no more "left" to show, so it switches to counting elapsed. */}
+      {/* FE-2 (round 3) — the recording screen shows ONLY the clock (+ the
+          slide nav above and the stop control below). The big number counts
+          DOWN to the setup target length, then UP in red once the speaker runs
+          past it (overtime); no target picked → a plain elapsed stopwatch. All
+          live helper/subtitle text was removed so nothing nags mid-take. */}
       {showTimer ? (
-        <div className="flex flex-col items-center gap-1">
-          <p className="text-[40px] font-semibold tabular-nums text-foreground">
-            {fmtClock(reachedMin ? elapsed : remaining)}
-          </p>
-        </div>
+        <p
+          className={`text-[40px] font-semibold tabular-nums ${
+            overtime ? "text-destructive" : "text-foreground"
+          }`}
+        >
+          {overtime ? "+" : ""}
+          {fmtClock(clockSec)}
+        </p>
       ) : null}
-      <p className="text-[12px] text-muted-foreground">
-        {reachedMin
-          ? "Minimum reached. Stop whenever you're ready."
-          : showTimer
-            ? "until you can stop"
-            : "Keep going a little longer."}
-      </p>
 
-      {/* U11 — the stop control is LOCKED until the minimum is reached, so a
-          recording can't be ended too short (FE enforcement of the §3.3/§5.5
-          min-content gate). Remaining time is surfaced above; the button is
-          disabled + visually muted until then. */}
+      {/* U11 — the stop control is LOCKED until the 60s minimum is reached, so
+          a recording can't be ended too short (FE enforcement of the §3.3/§5.5
+          min-content gate). Independent of the target countdown above; the
+          button is disabled + visually muted until then. */}
       <button
         type="button"
         onClick={onStop}
         disabled={!reachedMin}
         aria-label={
-          reachedMin
-            ? "Stop recording"
-            : showTimer
-              ? `Keep recording, ${fmtClock(remaining)} until you can stop`
-              : "Keep recording a little longer"
+          reachedMin ? "Stop recording" : "Keep recording a little longer"
         }
         className={`flex h-20 w-20 items-center justify-center rounded-full border-2 transition-transform ${
           reachedMin
@@ -1185,26 +1171,20 @@ function Processing({
   }, [error]);
 
   if (error && paywall) {
+    // FE-5 — pricing/paywall overlay: exit is the header X + the back gesture
+    // only (consistent with every other overlay). The stray in-body "Back to
+    // Lounge" button was removed; "Unlock the full audit" is the sole action.
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
           {error}
         </p>
-        <div className="flex gap-2">
-          <Link
-            href="/dashboard/pricing"
-            className="flex items-center rounded-full bg-primary px-6 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Unlock the full audit
-          </Link>
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="rounded-full px-6"
-          >
-            Back to Lounge
-          </Button>
-        </div>
+        <Link
+          href="/dashboard/pricing"
+          className="flex items-center rounded-full bg-primary px-6 py-2 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Unlock the full audit
+        </Link>
       </div>
     );
   }

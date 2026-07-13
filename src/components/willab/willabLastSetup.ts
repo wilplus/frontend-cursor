@@ -44,6 +44,31 @@ export function mapLastSetup(raw: unknown): LabSessionContext | null {
   };
 }
 
+/** Map a readout re-read's top-level `setup` block → a re-fillable context.
+ *  Same field shape as /last-setup but without the `available` gate (BE-1). Used
+ *  to restore a take's setup (topic / audience / length / slides / deck) from the
+ *  server so take 2+ works even when localStorage lost the arc's deck. null when
+ *  the block is absent or malformed (e.g. before the BE ships it → safe-ahead). */
+export function mapReadoutSetup(raw: unknown): LabSessionContext | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.topic !== "string" || r.topic.trim() === "") return null;
+  return {
+    topic: r.topic,
+    audience: typeof r.audience === "string" ? r.audience : "",
+    target_length_seconds:
+      typeof r.target_length_seconds === "number"
+        ? r.target_length_seconds
+        : null,
+    domain_vocabulary: Array.isArray(r.domain_vocabulary)
+      ? r.domain_vocabulary.filter((x): x is string => typeof x === "string")
+      : [],
+    slides: parseSlides(r.slides),
+    presentationRef:
+      typeof r.presentation_ref === "string" ? r.presentation_ref : null,
+  };
+}
+
 /** Fetch the last set-up for "Same as last time". null = nothing to repeat
  *  (guest, no prior session, or any failure → the button hides). */
 export async function fetchLastSetup(): Promise<LabSessionContext | null> {

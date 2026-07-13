@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Mic, MoreHorizontal, X } from "lucide-react";
+import { ChevronDown, Loader2, Mic, MoreHorizontal } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import type { ExploreArc } from "@/lib/willab/exploreArc";
 import {
   deletePresentation,
@@ -316,14 +317,7 @@ export default function LibraryOverlay({
             </span>
           ))}
         </nav>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="ml-3 shrink-0 text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <OverlayCloseButton onClick={onClose} className="ml-3" />
       </div>
 
       <div className="flex flex-1 flex-col overflow-y-auto">

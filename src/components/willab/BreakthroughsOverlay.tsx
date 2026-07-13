@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Crown, Loader2, Sparkles, X } from "lucide-react";
+import { Crown, Loader2, Sparkles } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
@@ -259,14 +260,7 @@ function PreShellOverlay({
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 justify-end px-3 pt-3">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground"
-        >
-          <X className="h-[17px] w-[17px]" aria-hidden />
-        </button>
+        <OverlayCloseButton onClick={onClose} />
       </div>
       <div className="flex flex-1 items-center justify-center px-8 text-center">
         {children}

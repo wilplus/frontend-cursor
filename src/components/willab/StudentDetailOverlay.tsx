@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X, FileAudio } from "lucide-react";
+import { Loader2, FileAudio } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudentDetail,
   type CoachStudentDetail,
@@ -103,14 +104,7 @@ export default function StudentDetailOverlay({
             </span>
           ) : null}
         </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close student"
-          className="ml-3 text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <OverlayCloseButton onClick={onClose} ariaLabel="Close student" className="ml-3" />
       </div>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useCoachReview } from "./useCoachReview";
 import CoachSnippetReviewCard from "./CoachSnippetReviewCard";
@@ -139,7 +140,7 @@ export default function CoachReviewOverlay({
         onClick={onClose}
         role="button"
         tabIndex={0}
-        aria-label="Close — insights published"
+        aria-label="Close, insights published"
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onClose();
         }}
@@ -354,14 +355,7 @@ function PreShellOverlay({
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 justify-end px-3 pt-3">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground"
-        >
-          <X className="h-[17px] w-[17px]" aria-hidden />
-        </button>
+        <OverlayCloseButton onClick={onClose} />
       </div>
       <div className="flex flex-1 items-center justify-center px-8 text-center">
         {children}

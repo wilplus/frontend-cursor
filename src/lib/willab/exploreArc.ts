@@ -29,6 +29,10 @@ export interface ExploreArc {
   nextTakeIndex: number;
   /** Optional (back-compat with arcs written before this field existed). */
   deck?: ExploreArcDeck;
+  /** FE-1 — a prior take's session id, so the Lab can restore this arc's setup
+   *  (deck included) from the server when localStorage lost the deck. Seeded
+   *  from the thread's recording-summary at the "record next take" sites. */
+  sessionId?: string;
 }
 
 function pickDeck(raw: unknown): ExploreArcDeck | undefined {
@@ -62,6 +66,7 @@ export function readExploreArc(): ExploreArc | null {
       arcId: v.arcId,
       nextTakeIndex: v.nextTakeIndex,
       deck: pickDeck(v.deck),
+      sessionId: typeof v.sessionId === "string" ? v.sessionId : undefined,
     };
   } catch {
     return null;
@@ -71,10 +76,14 @@ export function readExploreArc(): ExploreArc | null {
 export function writeExploreArc(
   arcId: string,
   nextTakeIndex: number,
-  deck?: ExploreArcDeck
+  deck?: ExploreArcDeck,
+  sessionId?: string
 ): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ arcId, nextTakeIndex, deck }));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ arcId, nextTakeIndex, deck, sessionId })
+    );
   } catch {
     // storage quota — not fatal; the arc just won't carry to the next session
   }

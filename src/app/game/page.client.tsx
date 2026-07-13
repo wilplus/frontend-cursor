@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Crown, Loader2, Sparkles, X } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles } from "lucide-react";
+import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
@@ -106,14 +107,7 @@ export default function GamePageClient({
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
           Key moments
         </h1>
-        <button
-          type="button"
-          onClick={() => router.push("/chat")}
-          aria-label="Close"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-border text-muted-foreground"
-        >
-          <X className="h-[17px] w-[17px]" aria-hidden />
-        </button>
+        <OverlayCloseButton onClick={() => router.push("/chat")} />
       </div>
 
       <div className="flex flex-1 flex-col gap-5 px-5 py-5">
