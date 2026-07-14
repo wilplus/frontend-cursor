@@ -10,14 +10,12 @@
 /* -------------------------------------------------------------------------- */
 
 export type ChipAction =
-  | "strong_sides"
   | "trainings"
   | "audit"
   /** The $25 pay note (BE arc_notifications) — taps into the audit checkout. */
   | "arc_checkout";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
-  strong_sides: "★ Strong sides",
   trainings: "Trainings",
   audit: "Open audit",
   arc_checkout: "Unlock the full audit",
@@ -25,9 +23,9 @@ export const CHIP_LABEL: Record<ChipAction, string> = {
 
 // `record_again` is intentionally NOT a chip: the bot points at the permanent
 // "Start official recording" button in words instead of rendering an in-app
-// record CTA (#119 / reversal of #4).
+// record CTA (#119 / reversal of #4). `strong_sides` was removed in R4-13
+// (the strong-sides surface is gone; the trainings tab is the destination).
 const VALID_ACTIONS: readonly ChipAction[] = [
-  "strong_sides",
   "trainings",
   "audit",
   "arc_checkout",

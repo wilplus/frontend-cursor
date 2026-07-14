@@ -35,7 +35,6 @@ describe("isLabOverlay", () => {
     const labStates: WillabState[] = [
       "lab_feelings",
       "lab_session_context",
-      "lab_prerecord",
       "lab_recording",
       "lab_processing",
       "readout",

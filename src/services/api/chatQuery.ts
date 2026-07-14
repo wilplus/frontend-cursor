@@ -75,7 +75,7 @@ export interface ChatQueryResponse {
    * so the FE renders the single matching button under the reply.
    * null / absent → no button. Per-turn signal — caller should NOT cache.
    */
-  suggested_action?: "strong_sides" | "trainings" | "record_again" | null;
+  suggested_action?: "trainings" | "record_again" | null;
   /** Optional stress-contrast block (BE-3). null / absent → omit
    *  the contrast card entirely per prompt C7. */
   contrast?: ChatQueryContrast | null;

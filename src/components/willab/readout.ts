@@ -146,6 +146,17 @@ export interface FullTranscriptChunk {
   durationMs: number;
 }
 
+/** R4-9 (BE item D) — ONE deduped, ordered chunk list for the instant view:
+ *  each ≤200-char chunk carries the say_it_stronger generated from it (matched
+ *  by offset overlap server-side), so no spoken span ever renders twice. */
+export interface InstantChunk {
+  index: number;
+  text: string;
+  startOffsetMs: number;
+  durationMs: number;
+  sayItStronger: SayItStronger | null;
+}
+
 export interface ReadoutPayload {
   snippets: ReadoutSnippet[];
   /** insights_payload.overall_message — post-publish only; null on the raw Readout. */
@@ -171,6 +182,10 @@ export interface ReadoutPayload {
    *  split into ordered chunks. Stacked under one artificial slide card in the
    *  deckless readout. [] for decked takes (they page per deck slide instead). */
   fullTranscriptChunks: FullTranscriptChunk[];
+  /** R4-9 — the instant view's SOLE source once the BE ships it (item D):
+   *  chunk → its suggestion, deduped. [] until then → the FE falls back to
+   *  fullTranscriptChunks + per-snippet cards (today's behavior). */
+  instantChunks: InstantChunk[];
   /** BE `voice_metrics_available` — false when the take had no usable acoustic
    *  signal (too quiet / empty). The readout then shows a soft notice in place
    *  of the metrics block instead of empty PITCH/PACE/VOLUME rows. Defaults to
@@ -328,6 +343,23 @@ export function mapFullTranscriptChunk(raw: unknown): FullTranscriptChunk | null
   };
 }
 
+/** R4-9 — one instant-view chunk (BE instant_chunks). Requires a numeric index;
+ *  the attached suggestion maps through the same mapSayItStronger (final-over-
+ *  draft preference preserved server-side). */
+export function mapInstantChunk(raw: unknown): InstantChunk | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  const index = num(c.index);
+  if (index === null) return null;
+  return {
+    index,
+    text: str(c.text) || str(c.transcript),
+    startOffsetMs: int(c.start_offset_ms),
+    durationMs: int(c.duration_ms),
+    sayItStronger: mapSayItStronger(c.say_it_stronger),
+  };
+}
+
 /** Phase 2 — the slide delivered during this snippet (BE-mapped). Requires a
  *  numeric index; title/body default to "". Exported so the coach-review parser
  *  reuses the SAME shape (the coach sees the same slide the user does). */
@@ -400,9 +432,16 @@ export function mapReadoutPayload(raw: unknown): ReadoutPayload {
         .filter((c): c is FullTranscriptChunk => c !== null)
         .sort((a, b) => a.index - b.index)
     : [];
+  const instantChunks = Array.isArray(r.instant_chunks)
+    ? r.instant_chunks
+        .map(mapInstantChunk)
+        .filter((c): c is InstantChunk => c !== null)
+        .sort((a, b) => a.startOffsetMs - b.startOffsetMs || a.index - b.index)
+    : [];
   return {
     snippets: snippets.map(mapReadoutSnippet),
     fullTranscriptChunks,
+    instantChunks,
     overallMessage:
       typeof insights.overall_message === "string"
         ? insights.overall_message
@@ -601,6 +640,7 @@ export function mockReadout(topic: string): ReadoutPayload {
     slides: [],
     slideTranscripts: [],
     fullTranscriptChunks: [],
+    instantChunks: [],
     voiceMetricsAvailable: true,
     parentAudioRef: null,
     audience: null,

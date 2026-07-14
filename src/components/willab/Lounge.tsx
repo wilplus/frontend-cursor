@@ -10,7 +10,6 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
-  isStrongSidesAsk,
   isUploadAsk,
   loungeToHistory,
   splitBotMessage,
@@ -27,10 +26,7 @@ import StudentRosterOverlay from "./StudentRosterOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
-import {
-  readStrongSidesAnchor,
-  writeStrongSidesAnchor,
-} from "@/lib/willab/strongSidesAnchor";
+import { hasRelaxAnnounced, markRelaxAnnounced } from "@/lib/willab/relaxAnnounced";
 import { clearInsightsReady } from "./sendStatus";
 import { type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
@@ -90,22 +86,6 @@ type ThreadItem =
       row: ReviewQueueRow;
     }
   | {
-      // A-4 / B-2 — the post-send strong-sides offer, anchored in the thread
-      // right after the completed-training card (not pinned to the foot), so new
-      // chat sorts below it.
-      kind: "postsend";
-      sortKey: string;
-      reactKey: string;
-    }
-  | {
-      // The "Strong sides" button when the user asks for them — anchored IN the
-      // thread like any other bubble, not the sticky foot action button, so it
-      // stays put as the conversation continues.
-      kind: "strongsides";
-      sortKey: string;
-      reactKey: string;
-    }
-  | {
       // The audit-progress line. Once you've sent a training it stays in the
       // thread (any state), anchored after the completed-training card — like
       // any other bubble, never disappearing.
@@ -143,6 +123,15 @@ export default function Lounge({
   const thread = useLoungeThreadCtx();
   const { messages, reload } = thread;
   const [draftText, setDraftText] = useState("");
+  // R4-12 — the composer is an auto-grow textarea (multi-line). Re-fit its
+  // height to the content on every change, capped so it never eats the thread.
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [draftText]);
   const [botThinking, setBotThinking] = useState(false);
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -164,45 +153,6 @@ export default function Lounge({
   const [jokeStep, setJokeStep] = useState<"offer" | "feedback" | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
-  // The "Strong sides" ask surfaces a button anchored IN the thread (not the
-  // sticky foot action button). Holds the timestamp it was offered at, so it
-  // sorts chronologically right after the bot's reply and stays put. Persists
-  // (a new ask just re-anchors it); cleared only when the thread resets.
-  // Handoff F: persisted to localStorage so the button survives a reload (the
-  // trainings chip already does, via the message's metadata). Hydrated on
-  // mount via useEffect to avoid an SSR/CSR mismatch.
-  const [strongSidesAt, setStrongSidesAt] = useState<string | null>(null);
-  // markStrongSides — set + persist the anchor together (used by both the
-  // local strong-sides shortcut and the BE's suggested_action path).
-  const markStrongSides = (): void => {
-    const ts = new Date().toISOString();
-    setStrongSidesAt(ts);
-    writeStrongSidesAnchor(ts);
-  };
-  useEffect(() => {
-    const ts = readStrongSidesAnchor();
-    if (ts) setStrongSidesAt(ts);
-  }, []);
-  // #9 fallback — the localStorage anchor is per-device, but a signed-in bot
-  // turn carrying suggested_action=strong_sides is server-persisted. On another
-  // device / cleared storage the anchor is empty, and since the in-bubble
-  // ActionButton is suppressed for strong_sides (the anchor is the single
-  // render), the affordance would vanish entirely. Derive the anchor from the
-  // newest such message instead (not written back — the thread stays the
-  // source of truth).
-  useEffect(() => {
-    if (strongSidesAt) return;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i];
-      if (
-        m.role === "bot" &&
-        coerceSuggestedAction(m.metadata?.suggested_action) === "strong_sides"
-      ) {
-        setStrongSidesAt(m.client_created_at);
-        return;
-      }
-    }
-  }, [messages, strongSidesAt]);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
   // only when the user is already there. The old code called scrollIntoView on
   // a bottom sentinel on every new message + every bot-typing toggle, which
@@ -276,24 +226,17 @@ export default function Lounge({
         });
       }
     }
-    // Anchor both the post-send offer and the audit-progress line right after the
-    // latest completed-training card (its timestamp + "~" sorts just after that
-    // card but before any later message), so chatting on doesn't push them down.
+    // Anchor the audit-progress line right after the latest completed-training
+    // card (its timestamp + "~~" sorts just after that card but before any
+    // later message), so chatting on doesn't push it down.
     const lastSummaryAt = messages
       .filter((m) => m.kind === "recording_summary")
       .map((m) => m.client_created_at)
       .sort()
       .pop();
-    if (state === "review_pending") {
-      items.push({
-        kind: "postsend",
-        sortKey: `${lastSummaryAt ?? ""}~`,
-        reactKey: "postsend",
-      });
-    }
     // The audit-progress line persists once you've sent a training — in ANY
     // state, never disappearing (it self-hides only when there's no progress
-    // data). It's an ordinary thread bubble, anchored, not the transient offer.
+    // data). It's an ordinary thread bubble, anchored, not a transient offer.
     if (lastSummaryAt) {
       items.push({
         kind: "auditprogress",
@@ -301,18 +244,9 @@ export default function Lounge({
         reactKey: "auditprogress",
       });
     }
-    // The Strong sides button sits where it was offered (anchored after the
-    // bot's reply), so it scrolls with the thread like any other bubble.
-    if (strongSidesAt) {
-      items.push({
-        kind: "strongsides",
-        sortKey: strongSidesAt,
-        reactKey: "strongsides",
-      });
-    }
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewQueue.rows, state, strongSidesAt]);
+  }, [messages, isCoach, reviewQueue.rows]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -589,7 +523,7 @@ export default function Lounge({
     if (!atBottomRef.current) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, botThinking, strongSidesAt]);
+  }, [messages.length, botThinking]);
 
   // U3 — capture the historical baseline once the thread first loads, so only
   // messages that arrive AFTER it (new bot replies) animate.
@@ -639,24 +573,48 @@ export default function Lounge({
     if (sent) setJokeStep((s) => (s === "offer" ? "feedback" : s));
   }
 
-  // Bug 3 — decline mirrors accept: the user's choice posts as a real user
-  // bubble (not a silent dismiss), with a short bot acknowledgement. Posted
-  // directly (not through runSend/postChatQuery) — "No thanks" isn't a
-  // question for the librarian.
+  // ── R4-2 · LOCKED INVARIANT ────────────────────────────────────────────────
+  // Every quick-reply ANSWER a user gives by TAPPING A BUTTON (the joke pills,
+  // any "about WillpowerLab" answer buttons, and every future offer button)
+  // MUST post through postAnswerBubble. thread.append is the exact persistent
+  // path a TYPED message uses — server `lounge_messages` when signed in,
+  // localStorage when guest — so a tapped answer survives reload identically to
+  // a typed one. Do NOT post an answer via appendLocalOnly (that is bot-turn
+  // only, for turns the BE persists) or any non-persisted path. New answer
+  // buttons: route the label through here, full stop.
+  function postAnswerBubble(label: string) {
+    void thread.append({ role: "user", kind: "text", body: label });
+  }
+
+  // R4-7 — "3/3 done, relax": when an arc reaches all takes done with the coach
+  // not yet finished, post ONE persistent bot bubble (same path as any typed
+  // turn, so it survives reload). Guarded per-arc in localStorage so a reload /
+  // re-poll can never repeat it.
+  const announceRelax = useCallback(
+    (arcId: string) => {
+      if (hasRelaxAnnounced(arcId)) return;
+      markRelaxAnnounced(arcId);
+      void thread.append({
+        role: "bot",
+        kind: "text",
+        body: "That's all three takes done. Nothing more for you to do on your end. Your coach will review your recordings now, so you can relax.",
+      });
+    },
+    [thread]
+  );
+
+  // Bug 3 — decline mirrors accept: the user's choice posts as a real (persisted)
+  // user bubble, with a short bot acknowledgement. Not a librarian question, so
+  // it skips runSend/postChatQuery.
   function declineJoke() {
-    void thread.append({ role: "user", kind: "text", body: "No thanks" });
+    postAnswerBubble("No thanks");
     void thread.append({ role: "bot", kind: "text", body: "No worries!" });
   }
 
-  // FE-4 — the post-joke feedback tap (Funny / Not funny). Pure chat bubbles,
-  // no BE round-trip (mirrors declineJoke): the answer posts as the user's
-  // bubble with a light bot acknowledgement.
+  // FE-4 — the post-joke feedback tap (Funny / Not funny). The answer posts as a
+  // persisted user bubble (R4-2) with a light bot acknowledgement; no BE call.
   function jokeFeedback(good: boolean) {
-    void thread.append({
-      role: "user",
-      kind: "text",
-      body: good ? "Funny" : "Not funny",
-    });
+    postAnswerBubble(good ? "Funny" : "Not funny");
     void thread.append({
       role: "bot",
       kind: "text",
@@ -681,22 +639,10 @@ export default function Lounge({
       setUploadAskActive(isUploadAsk(q));
       atBottomRef.current = true; // sending always scrolls to your own message
       const history = loungeToHistory(messages); // snapshot of prior turns (pre-append)
-      const botTurns = messages.filter((msg) => msg.role === "bot");
-      const prevBotText = botTurns.length ? botTurns[botTurns.length - 1].body : "";
       // The user turn always persists (optimistic + FE write); for signed-in the
       // BE also writes it from the client_id we pass below, and the server dedups
       // on (user_id, client_id) so it collapses to one row (#2).
       const userMsg = await thread.append({ role: "user", kind: "text", body: displayAs ?? q });
-
-      // Strong-sides shortcut: when the user asks to see their strong sides, don't
-      // recite the coach notes as text — answer briefly and surface the existing
-      // Strong sides bubble (it opens the library). Skips the LLM round-trip.
-      if (isStrongSidesAsk(q, prevBotText)) {
-        // Button only — no text bubble. Anchored in the thread after the user's
-        // ask, so it stays put like any other bubble (not the sticky foot button).
-        markStrongSides();
-        return true;
-      }
 
       setBotThinking(true);
       try {
@@ -710,34 +656,29 @@ export default function Lounge({
           clientId: userMsg.client_id,
           clientCreatedAt: userMsg.client_created_at,
         });
-        // B-1 — the one quick-action the BE suggests for this turn (S1). A
-        // strong-sides suggestion shows ONLY the in-thread button — no text /
-        // note recital. Every other turn renders the reply (+ any foot button).
+        // B-1 — the one quick-action the BE suggests for this turn (S1),
+        // rendered as an in-bubble chip (trainings / audit).
         const suggested = coerceSuggestedAction(resp.suggested_action);
-        if (suggested === "strong_sides") {
-          markStrongSides();
-        } else {
-          const answer = (resp.answer ?? "").trim();
-          // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
-          // We persist the joined body and the thread re-splits on the same
-          // blank-line marker, so a reload shows exactly the bubbles that were sent.
-          const body =
-            resp.bubbles && resp.bubbles.length > 0
-              ? resp.bubbles.join("\n\n")
-              : answer || "I know nothing about that, at least yet 😏";
-          const botDraft = {
-            role: "bot" as const,
-            kind: "text" as const,
-            body,
-            // B-1 — the chip rides in the bot row's metadata so it survives reload
-            // and scroll-back. For signed-in, the BE persists this same row (chip
-            // included) — see #2; we show it optimistically without re-persisting
-            // to avoid a duplicate. Anonymous → the FE persists it locally.
-            metadata: suggested ? { suggested_action: suggested } : null,
-          };
-          if (thread.signedIn) thread.appendLocalOnly(botDraft);
-          else await thread.append(botDraft);
-        }
+        const answer = (resp.answer ?? "").trim();
+        // RULE F (seam 1) — the BE owns the bubble split; render `bubbles` 1:1.
+        // We persist the joined body and the thread re-splits on the same
+        // blank-line marker, so a reload shows exactly the bubbles that were sent.
+        const body =
+          resp.bubbles && resp.bubbles.length > 0
+            ? resp.bubbles.join("\n\n")
+            : answer || "I know nothing about that, at least yet 😏";
+        const botDraft = {
+          role: "bot" as const,
+          kind: "text" as const,
+          body,
+          // B-1 — the chip rides in the bot row's metadata so it survives reload
+          // and scroll-back. For signed-in, the BE persists this same row (chip
+          // included) — see #2; we show it optimistically without re-persisting
+          // to avoid a duplicate. Anonymous → the FE persists it locally.
+          metadata: suggested ? { suggested_action: suggested } : null,
+        };
+        if (thread.signedIn) thread.appendLocalOnly(botDraft);
+        else await thread.append(botDraft);
       } catch {
         await thread.append({
           role: "bot",
@@ -802,18 +743,11 @@ export default function Lounge({
                 row={item.row}
                 onOpen={openReview}
               />
-            ) : item.kind === "postsend" ? (
-              <PostSendOffer
-                key={item.reactKey}
-                onReviewStrongSides={() => onChip("strong_sides")}
-              />
-            ) : item.kind === "auditprogress" ? (
-              <ProgressToAuditBubble key={item.reactKey} arcId={bubbleArcId} />
             ) : (
-              <ActionButton
+              <ProgressToAuditBubble
                 key={item.reactKey}
-                action="strong_sides"
-                onClick={() => onChip("strong_sides")}
+                arcId={bubbleArcId}
+                onReadyForCoach={announceRelax}
               />
             )
           )
@@ -910,24 +844,35 @@ export default function Lounge({
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
       <form onSubmit={handleSend} className="relative">
-        <input
+        <textarea
+          ref={composerRef}
+          rows={1}
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
+          onKeyDown={(e) => {
+            // R4-12 — Enter sends; Shift+Enter inserts a newline. requestSubmit
+            // fires the form's onSubmit (handleSend) with a real submit event.
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
           placeholder="Ask Will about how communication works…"
           /* B9 — kill any autofill / password-manager overlay that can ghost a
-             second line of placeholder text over a chat composer. */
+             second line of placeholder text over a chat composer. R4-12 —
+             autocorrect ON now (this is prose, not a password field). */
           autoComplete="off"
-          autoCorrect="off"
+          autoCorrect="on"
           autoCapitalize="sentences"
           spellCheck
-          className="h-12 w-full rounded-full border border-border bg-background pl-4 pr-12 text-[15px] outline-none focus:border-primary"
+          className="block max-h-40 min-h-[48px] w-full resize-none rounded-3xl border border-border bg-background py-3 pl-4 pr-12 text-[15px] leading-snug outline-none focus:border-primary"
           aria-label="Message Will"
         />
         <button
           type="submit"
           disabled={!draftText.trim() || botThinking}
           aria-label="Send"
-          className={`absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
+          className={`absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
             draftText.trim() ? "text-foreground" : "text-muted-foreground"
           }`}
         >
@@ -983,12 +928,19 @@ export default function Lounge({
             // deck) so the Lab carries arc_id and pre-fills the deck, then open
             // the Lab. The BE appends the take to the same arc. The session id
             // (FE-1) lets the Lab re-fetch the deck from the server if the
-            // cached one is stale/incomplete.
+            // cached one is stale/incomplete; trainings-mode arcs pass their
+            // own (latest take's) id, else derive from the thread. A deckless
+            // seed (trainings mode carries no slide bodies) must not WIPE a
+            // deck already cached for this same arc — keep it.
+            const cached = readExploreArc();
+            const deck =
+              arc.deck ??
+              (cached?.arcId === arc.arcId ? cached.deck : undefined);
             writeExploreArc(
               arc.arcId,
               arc.nextTakeIndex,
-              arc.deck,
-              latestArcSessionId(arc.arcId)
+              deck,
+              arc.sessionId ?? latestArcSessionId(arc.arcId)
             );
             setLibraryOpen(false);
             onStart();
@@ -1009,35 +961,6 @@ export default function Lounge({
         />
       )}
 
-    </div>
-  );
-}
-
-/** A-4 / B-2 — the post-send beat. Once the training is handed to the coach
- *  (review_pending), a warm "that's it for today" line + one proactive button
- *  to revisit past strong sides (B-2). Ordinary styling (not full-width).
- *  Transient: rendered from review_pending state, not persisted, so it clears
- *  when the state moves on. The formal "sent to your coach" record is the
- *  persisted completed-training card (A-3) above it. */
-function PostSendOffer({
-  onReviewStrongSides,
-}: {
-  onReviewStrongSides: () => void;
-}) {
-  return (
-    <div className="mr-auto flex max-w-[85%] flex-col gap-2">
-      <div className="rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-[15px] leading-relaxed text-foreground">
-        That&apos;s it for the practice today. Maybe you want to review your
-        previous strong sides and settle the neural pathways for your charismatic
-        performance?
-      </div>
-      <button
-        type="button"
-        onClick={onReviewStrongSides}
-        className="self-start rounded-full border border-border px-3 py-2 text-[15px] text-foreground transition-colors hover:border-primary/50"
-      >
-        {CHIP_LABEL.strong_sides}
-      </button>
     </div>
   );
 }
@@ -1264,14 +1187,10 @@ function Bubble({
   }
   if (message.role === "bot") {
     // B-1 — read the persisted action from metadata; render below the bubbles.
-    // #9 — strong_sides is EXCLUDED here: its single render is the anchored
-    // in-thread button (the "strongsides" ThreadItem, set via markStrongSides),
-    // so a suggested_action=strong_sides reply never draws a duplicate.
-    const suggested =
+    const action =
       onChip && message.metadata
         ? coerceSuggestedAction(message.metadata.suggested_action)
         : null;
-    const action = suggested === "strong_sides" ? null : suggested;
     return (
       <>
         {/* U3 (bubble-split): multi-paragraph answers reveal sequentially. */}

@@ -24,7 +24,7 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
   install:
     "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you.",
   joke:
-    "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a very bad joke that won't be funny?",
+    "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
   credit:
     "Unlock the full audit for $25: your coach-corrected ideal text and every breakthrough moment. Your automatic overview stays free on every take. Money-back guaranteed.",
 };
