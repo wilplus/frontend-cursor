@@ -28,11 +28,26 @@ export interface PublishNote {
   when?: string | null;
   examples?: string[];
 }
+/** R4-8 — the FULL per-snippet coach state, persisted in one shot at publish
+ *  (BE item C runs each through the save-snippet path before the publish
+ *  contract). Sent ALONGSIDE notes/labels: today's BE ignores the unknown key
+ *  and uses notes/labels as before, so the payload is safe-ahead. */
+export interface PublishSnippetState {
+  id: string;
+  note: string;
+  direction: Direction | null;
+  tag: CoachTag | null;
+  surfaced: boolean;
+}
+
 export interface PublishInput {
   sessionId: string;
   overallMessage: string | null;
   notes: PublishNote[];
   labels: PublishLabel[];
+  /** R4-8 — optional full snapshot; when present the BE persists every entry
+   *  before publishing (save-on-publish replaces per-keystroke autosave). */
+  snippets?: PublishSnippetState[];
   /** §F.5 / BE 3c — gates email/push notification to the user. In-app
    *  Lounge update always fires (the realtime publish event isn't
    *  silenced). When omitted, defaults to `true`, so any caller that
@@ -68,6 +83,8 @@ export async function publishWillabSession(
       snippet_notes: input.notes,
     },
     labels: input.labels,
+    // R4-8 — full snapshot (BE item C); omitted key when the caller sends none.
+    ...(input.snippets ? { snippets: input.snippets } : {}),
     notify_client: input.notifyClient ?? true,
   };
 
@@ -88,6 +105,6 @@ export async function publishWillabSession(
       message: b?.error ?? `Publish failed (HTTP ${res.status}).`,
     };
   } catch {
-    return { ok: false, status: 0, message: "Couldn't reach the server — try again." };
+    return { ok: false, status: 0, message: "Couldn't reach the server. Try again." };
   }
 }

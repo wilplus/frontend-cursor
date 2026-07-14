@@ -173,6 +173,14 @@ export function useDualCaptureMic(opts?: {
   // One in-flight start at a time; cleared in a finally so the latch can
   // never stick (success, early-return, or throw) and jam the mic.
   const startingRef = useRef(false);
+  // Generation token for the getUserMedia async gap (C5). start() awaits the
+  // permission prompt; if the Lab is closed (cancel / unmount) during that gap,
+  // teardown() can't release a stream that doesn't exist yet, and nothing runs
+  // again once getUserMedia resolves — leaving a hot mic until reload. Every
+  // teardown bumps this; start() snapshots it before the await and, if it moved
+  // by the time the stream arrives, stops that just-granted stream and bails
+  // instead of starting a recorder on a dead instance.
+  const startGenRef = useRef(0);
 
   // teardown is the single source of truth for releasing the mic. Anything
   // calling start/stop/cancel ends up here. Defensive try/catch on each leg
@@ -180,6 +188,9 @@ export function useDualCaptureMic(opts?: {
   // cancelled mid-stop) — we never want one failed teardown leg to leak
   // the next one.
   const teardown = useCallback(() => {
+    // Invalidate any in-flight start() (see startGenRef): a teardown during the
+    // getUserMedia gap must abort the pending start so it can't leave a hot mic.
+    startGenRef.current += 1;
     const recognition = recognitionRef.current;
     if (recognition) {
       try {
@@ -256,6 +267,9 @@ export function useDualCaptureMic(opts?: {
       chunksRef.current = [];
       partialRef.current = "";
       finalRef.current = "";
+      // Snapshot AFTER our own teardown bump; a later teardown (cancel / unmount
+      // while the permission prompt is up) moves it and aborts this start.
+      const gen = startGenRef.current;
 
       let stream: MediaStream;
       try {
@@ -268,6 +282,20 @@ export function useDualCaptureMic(opts?: {
           status: "error",
           code: denied ? "denied" : "stream_failed",
           message: denied ? deniedMessage() : "Couldn't access the microphone.",
+        });
+        return;
+      }
+      // The Lab was closed while the permission prompt was up (cancel /
+      // unmount bumped the generation): release the just-granted stream and
+      // bail — never start a recorder on a torn-down instance. State was
+      // already reset by cancel()/unmount, so we don't touch it here.
+      if (gen !== startGenRef.current) {
+        stream.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch {
+            /* ignore */
+          }
         });
         return;
       }

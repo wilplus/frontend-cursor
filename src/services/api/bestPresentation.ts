@@ -98,7 +98,9 @@ function mapProgress(raw: unknown): BestPresentationProgress | null {
   };
 }
 
-function mapSlide(raw: unknown): BestPresentationSlide | null {
+/** Exported for the arc-batch view (R4-11), whose ideal_text.slides reuse the
+ *  exact build_best_presentation slide shape. */
+export function mapSlide(raw: unknown): BestPresentationSlide | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const index =

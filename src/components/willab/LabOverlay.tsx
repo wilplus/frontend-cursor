@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Mic, Square } from "lucide-react";
+import { Loader2, Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,6 @@ import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
-import { readVideoDurationSec } from "@/services/api/coachVideoMeta";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
@@ -51,8 +50,9 @@ import {
 /*  the Lounge with no remount). Distinct "training zone" chrome; holds the    */
 /*  mic for its lifetime via useDualCaptureMic and releases it on close.       */
 /*                                                                            */
-/*    lab_session_context → §4 step A form (topic required; rest pre-filled)   */
-/*    lab_prerecord       → task + high-stakes framing + one large record ctrl */
+/*    lab_session_context → §4 step A form (topic required); its "Start         */
+/*                          recording" submit starts the mic directly (R4-5     */
+/*                          removed the separate Pre-record framing screen)     */
 /*    lab_recording       → live capture, timer, min-content gate (≥60s)       */
 /*    lab_processing      → SYNCHRONOUS upload (submitLabRecording, §3.3) →     */
 /*                          Readout on 201 · re-record on 422 · error+retry     */
@@ -135,6 +135,15 @@ export default function LabOverlay({
   const recordStartRef = useRef(0);
   const { append: appendToThread } = useLoungeThreadCtx();
   const reportedRef = useRef(false);
+  // R4-5 — the Pre-record screen was removed: the Setup "Start recording" submit
+  // now starts the mic directly and flips to lab_recording optimistically. This
+  // flags the one pending initial start so the mic-state effect inits the slide
+  // timeline at the ACTUAL recording start (precise t=0), exactly once.
+  const startPendingRef = useRef(false);
+  // R4-5 fix — true when the take being processed came from a file upload (not
+  // a live recording), so a BE rejection (422) offers "upload a different file"
+  // instead of only "record again" (an upload user may not want to speak now).
+  const lastWasUploadRef = useRef(false);
 
   // Explore-arc state (Prompt B §F2). Read from localStorage on mount so the
   // arc_id carries across LabOverlay sessions (Lounge → Lab → Lounge → Lab…).
@@ -231,13 +240,15 @@ export default function LabOverlay({
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
     const s = mic.state;
-    if (s.status === "recording" && state === "lab_prerecord") {
+    if (s.status === "recording" && startPendingRef.current) {
+      startPendingRef.current = false;
       reportedRef.current = false; // fresh recording → allow a new history entry
-      // T8 — start the slide timeline: slide 0 is on screen at t=0.
+      // T8 — start the slide timeline: slide 0 is on screen at t=0. State was
+      // already flipped to lab_recording on the Setup submit (optimistic), so
+      // there's no goTo here — this only pins t=0 to the real recording start.
       recordStartRef.current = performance.now();
       setCurrentSlide(0);
       slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
-      goTo("lab_recording");
     }
     if (
       s.status === "stopped" &&
@@ -328,9 +339,14 @@ export default function LabOverlay({
         onRecordingProgress?.(result.recordingProgress);
         goTo("readout");
       } else if (result.kind === "rejected") {
+        // R4-5 — the min-content gate (422) used to send the user back to the
+        // Pre-record screen. That screen is gone, so surface the message in
+        // RecordingPhase (which keeps the setup context) and let "Record again"
+        // restart the mic. cancelMic resets to idle; the rejection guard shows
+        // the message rather than a connecting spinner.
         cancelMic();
         setRejectedMsg(result.message);
-        goTo("lab_prerecord");
+        goTo("lab_recording");
       } else {
         setUploadError(result.message);
         setUploadPaywall(result.status === 402);
@@ -523,8 +539,9 @@ export default function LabOverlay({
                 // stops it being filed as a take of a prior/decked arc and makes
                 // the success handler skip writeExploreArc, so that arc's cached
                 // deck is preserved. The BE gates min content (too-short → 422 →
-                // rejected → prerecord).
+                // the lab_recording rejected screen, which offers a re-upload).
                 stagedUploadRef.current = null;
+                lastWasUploadRef.current = true;
                 setRejectedMsg(null);
                 setExploreEnabled(false);
                 setArcId(null);
@@ -535,72 +552,23 @@ export default function LabOverlay({
                 goTo("lab_processing");
                 return;
               }
+              lastWasUploadRef.current = false;
+              // R4-5 — no Pre-record screen: start the mic straight from the
+              // Setup "Start recording" submit (a real user gesture, so
+              // getUserMedia keeps its activation) and flip to lab_recording
+              // optimistically. The mic-state effect pins the slide timeline to
+              // the actual recording start. A failed getUserMedia surfaces in
+              // RecordingPhase's error branch (Try again). Deckless uploads keep
+              // their own entry via the Lounge footer "upload a recording" path
+              // (which routes through this same Setup form when staged).
               setExploreEnabled(explore);
               setContext(ctx);
-              goTo("lab_prerecord");
-            }}
-          />
-        )}
-
-        {state === "lab_prerecord" && (
-          <PreRecord
-            context={context}
-            rejectedMsg={rejectedMsg}
-            arcTake={exploreEnabled ? arcTakeIndex : null}
-            onRecord={() => {
               setRejectedMsg(null);
-              // Invalidate any in-flight upload duration read — the user chose to
-              // record instead, so a late resolution must not hijack the flow.
-              uploadSeqRef.current += 1;
-              // FE-1 — the record tap goes straight to the mic; the old pre-take
-              // interstitial screen was dropped. The click is the user gesture
-              // getUserMedia needs, so start() must fire synchronously here.
+              uploadSeqRef.current += 1; // drop any stale upload-duration read
+              startPendingRef.current = true;
+              goTo("lab_recording");
               void mic.start();
             }}
-            onUploadFile={(file) => {
-              // Deckless-only alternative to live recording: submit a file the
-              // user already has. Skips the mic (no getUserMedia prompt) and the
-              // live-record phase; sets the same two things the mic path sets
-              // (blob + the already-set context) and jumps to processing, where
-              // the existing upload effect fires unchanged. slide_advances stays
-              // [] (correct for deckless), so per-slide sync is never faked.
-              setRejectedMsg(null);
-              // Bug 1 — reject video / oversize files before the network call:
-              // a video file used to reach the Vercel BFF and die as a raw 413
-              // (the platform's ~4.5MB body limit), which read as a dead upload.
-              const uploadError = validateAudioUpload(file);
-              if (uploadError) {
-                setRejectedMsg(uploadError);
-                return;
-              }
-              const seq = (uploadSeqRef.current += 1);
-              // Best-effort local duration pre-check. On failure / non-finite we
-              // skip it and let the BE min-content gate be the sole judge (it
-              // 422s the same as a too-short live take, surfaced via
-              // rejectedMsg). A <video> element reads audio-only files' duration
-              // too, so this one reader covers audio + video uploads.
-              void readVideoDurationSec(file).then((sec) => {
-                // Bail if superseded (newer pick / mic start) or unmounted — a
-                // stale read must never force the state machine.
-                if (!mountedRef.current || uploadSeqRef.current !== seq) return;
-                if (sec != null && sec < MIN_RECORDING_SEC) {
-                  setRejectedMsg(
-                    `That file is only ${fmtClock(sec)}. We need at least ${fmtClock(
-                      MIN_RECORDING_SEC
-                    )} of speech for a useful read.`
-                  );
-                  return;
-                }
-                // Reset the tap-timeline so a prior live-record attempt in this
-                // same overlay session can't leak a fabricated slide_advance
-                // into a deckless file upload (submitLabRecording omits []).
-                slideAdvancesRef.current = [];
-                durationRef.current = sec ?? 0; // 0 is fine — the BE backfills it
-                setBlob(file);
-                goTo("lab_processing");
-              });
-            }}
-            micState={mic.state}
           />
         )}
 
@@ -609,13 +577,18 @@ export default function LabOverlay({
             micState={mic.state}
             elapsed={elapsed}
             targetSec={context?.target_length_seconds ?? null}
-            showTimer={
-              !exploreEnabled || batchTake(arcTakeIndex) % 2 === 1
-            }
+            rejectedMsg={rejectedMsg}
             onStop={() => void mic.stop()}
             onRecordAgain={() => {
               // A retake restarts the clock: reset the tap timeline so a decked
-              // retake (mic self-stop) can't ship stale slide timestamps.
+              // retake (mic self-stop) can't ship stale slide timestamps. This
+              // path inits the timeline itself, so clear the initial-start flag
+              // to keep the mic-state effect from re-initing it. Also clears any
+              // BE-rejection message (R4-5) so the recording UI shows cleanly.
+              // This is a LIVE take now, so a later rejection isn't an upload.
+              setRejectedMsg(null);
+              lastWasUploadRef.current = false;
+              startPendingRef.current = false;
               recordStartRef.current = performance.now();
               setCurrentSlide(0);
               slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
@@ -626,6 +599,25 @@ export default function LabOverlay({
             currentSlide={currentSlide}
             onAdvance={advanceSlide}
             arcTake={exploreEnabled ? arcTakeIndex : null}
+            // R4-5 fix — a rejected UPLOAD offers "upload a different file"
+            // (the context is already deckless-standalone, so just re-submit
+            // the new blob). Live-recorded rejections keep "Record again" only.
+            uploadRetry={
+              lastWasUploadRef.current
+                ? (file) => {
+                    const err = validateAudioUpload(file);
+                    if (err) {
+                      setRejectedMsg(err);
+                      return;
+                    }
+                    setRejectedMsg(null);
+                    slideAdvancesRef.current = [];
+                    durationRef.current = 0; // the BE backfills duration
+                    setBlob(file);
+                    goTo("lab_processing");
+                  }
+                : null
+            }
           />
         )}
 
@@ -655,6 +647,7 @@ export default function LabOverlay({
                 slides: [],
                 slideTranscripts: [],
                 fullTranscriptChunks: [],
+                instantChunks: [],
                 voiceMetricsAvailable: true,
                 parentAudioRef: null,
                 audience: null,
@@ -876,111 +869,14 @@ function SessionContextForm({
   );
 }
 
-/* ------------------------- §4 step B: pre-record -------------------------- */
-
-/* Timer visibility still follows take parity within the 3-take batch (odd →
- * timer shown, even → hidden; it runs internally either way). FE-1 removed the
- * standalone pre-take interstitial screen — the record tap now starts the mic
- * directly, so there's no longer a between-tap-and-mic encouragement step. */
-
-function PreRecord({
-  context,
-  rejectedMsg,
-  arcTake,
-  onRecord,
-  onUploadFile,
-  micState,
-}: {
-  context: LabSessionContext | null;
-  rejectedMsg: string | null;
-  /** Current take number when in an explore arc; null for standalone. */
-  arcTake: number | null;
-  onRecord: () => void;
-  /** Deckless-only: supply a pre-made audio/video file instead of recording. */
-  onUploadFile: (file: File) => void;
-  micState: ReturnType<typeof useDualCaptureMic>["state"];
-}) {
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  // Decked talks depend on the live tap-timeline for per-slide word bucketing,
-  // which a pre-made file can't produce — so the upload affordance is deckless
-  // only (no half-measure / faked slide sync).
-  const deckless = context?.slides?.length === 0;
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
-      <div>
-        {arcTake !== null ? (
-          <p className="text-[11px] font-medium uppercase tracking-wider text-primary">
-            Take {batchTake(arcTake)} of 3
-          </p>
-        ) : null}
-        <p className="text-[12px] uppercase tracking-wide text-muted-foreground">
-          Speak on
-        </p>
-        <p className="mt-1 text-[22px] font-semibold text-foreground">
-          {context?.topic ?? "your topic"}
-        </p>
-        {context?.audience ? (
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            for {context.audience}
-          </p>
-        ) : null}
-      </div>
-
-      <p className="max-w-sm text-[15px] text-muted-foreground">
-        This is your official take. Speak as if it counts. Aim for at least one
-        minute.
-      </p>
-
-      {rejectedMsg ? (
-        <p className="max-w-sm text-[13px] text-destructive">{rejectedMsg}</p>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={onRecord}
-        className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
-        aria-label="Start recording"
-      >
-        <Mic className="h-8 w-8" />
-      </button>
-
-      {deckless ? (
-        <>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="audio/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) onUploadFile(f);
-            }}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-          >
-            or upload a recording instead
-          </button>
-        </>
-      ) : null}
-
-      {micState.status === "error" ? (
-        <p className="text-[13px] text-destructive">{micState.message}</p>
-      ) : null}
-    </div>
-  );
-}
-
 /* ------------------------- §4 step B: recording -------------------------- */
 
 function RecordingPhase({
   micState,
   elapsed,
   targetSec,
-  showTimer = true,
+  rejectedMsg,
+  uploadRetry,
   onStop,
   onRecordAgain,
   slides,
@@ -994,8 +890,12 @@ function RecordingPhase({
   /** FE-2 — the target length from setup (seconds). The timer counts DOWN to
    *  it, then UP (overtime) in red. null = no target picked → plain stopwatch. */
   targetSec: number | null;
-  /** Even takes hide the timer UI (it still runs internally). */
-  showTimer?: boolean;
+  /** R4-5 — the BE min-content rejection (422); shown here now that the
+   *  Pre-record screen is gone. "Record again" restarts the mic. */
+  rejectedMsg: string | null;
+  /** R4-5 fix — when the rejected take was an UPLOAD, submit a different file
+   *  instead of forcing a live re-record. null for live-recorded rejections. */
+  uploadRetry: ((file: File) => void) | null;
   onStop: () => void;
   onRecordAgain: () => void;
   slides: PresentationSlide[];
@@ -1005,6 +905,69 @@ function RecordingPhase({
   /** Current take number when in an explore arc; null for standalone. */
   arcTake: number | null;
 }) {
+  const retryFileRef = useRef<HTMLInputElement | null>(null);
+  // R4-5 — the BE rejected the last take (too short / no clear speech). Keep the
+  // setup context and let the user re-record without re-entering Setup. This
+  // wins over the connecting/idle spinner (cancelMic left the mic idle). When
+  // the take came from a file upload, lead with "upload a different file"
+  // (the old Pre-record recovery) and keep live recording as the alternative.
+  if (rejectedMsg) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <p className="max-w-sm text-[15px] text-destructive">{rejectedMsg}</p>
+        {uploadRetry ? (
+          <>
+            <input
+              ref={retryFileRef}
+              type="file"
+              accept="audio/*"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) uploadRetry(f);
+              }}
+              className="hidden"
+            />
+            <div className="flex flex-col items-center gap-2">
+              <Button
+                onClick={() => retryFileRef.current?.click()}
+                className="rounded-full px-6"
+              >
+                Upload a different file
+              </Button>
+              <button
+                type="button"
+                onClick={onRecordAgain}
+                className="text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                or record instead
+              </button>
+            </div>
+          </>
+        ) : (
+          <Button onClick={onRecordAgain} className="rounded-full px-6">
+            Record again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // R4-5 — with the Pre-record screen gone, RecordingPhase is what shows while
+  // getUserMedia is still resolving (status "idle" after the Setup submit fired
+  // mic.start()). Show a brief connecting state so it never reads "Recording"
+  // before the mic is actually live.
+  if (micState.status === "idle") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+        <p className="text-[15px] text-muted-foreground">
+          Getting your mic ready…
+        </p>
+      </div>
+    );
+  }
+
   // Too-short re-record prompt (min-content gate).
   if (micState.status === "stopped" && micState.durationSec < MIN_RECORDING_SEC) {
     return (
@@ -1097,12 +1060,13 @@ function RecordingPhase({
         ) : null}
       </div>
 
-      {/* FE-2 (round 3) — the recording screen shows ONLY the clock (+ the
-          slide nav above and the stop control below). The big number counts
-          DOWN to the setup target length, then UP in red once the speaker runs
-          past it (overtime); no target picked → a plain elapsed stopwatch. All
-          live helper/subtitle text was removed so nothing nags mid-take. */}
-      {showTimer ? (
+      {/* R4-1+4 — the timer + bar show on EVERY take now (the even-take hide is
+          gone). Numeric clock counts DOWN to the setup target, then UP in red
+          past it (overtime); no target → a plain stopwatch. Below it, a
+          NUMBERLESS progress bar fills toward the target and turns red + pulses
+          once past it (no digits / no %, AC-9). No target → a neutral pulsing
+          bar alongside the stopwatch. */}
+      <div className="flex flex-col items-center gap-2.5">
         <p
           className={`text-[40px] font-semibold tabular-nums ${
             overtime ? "text-destructive" : "text-foreground"
@@ -1111,7 +1075,27 @@ function RecordingPhase({
           {overtime ? "+" : ""}
           {fmtClock(clockSec)}
         </p>
-      ) : null}
+        <div
+          className="h-1.5 w-56 max-w-[70vw] overflow-hidden rounded-full bg-border"
+          aria-hidden
+        >
+          <div
+            className={`h-full rounded-full transition-[width] duration-200 ${
+              overtime
+                ? "animate-pulse bg-destructive"
+                : target == null
+                  ? "animate-pulse bg-muted-foreground/40"
+                  : "bg-primary"
+            }`}
+            style={{
+              width:
+                target == null
+                  ? "100%"
+                  : `${Math.min(100, (elapsed / target) * 100)}%`,
+            }}
+          />
+        </div>
+      </div>
 
       {/* U11 — the stop control is LOCKED until the 60s minimum is reached, so
           a recording can't be ended too short (FE enforcement of the §3.3/§5.5

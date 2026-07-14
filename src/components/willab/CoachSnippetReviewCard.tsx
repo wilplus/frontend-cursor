@@ -48,13 +48,12 @@ const TAGS: { value: CoachTag; label: string }[] = [
   { value: "to_work_on", label: "To work on" },
 ];
 
-const NOTE_DEBOUNCE_MS = 500;
-
 export default function CoachSnippetReviewCard({
   sessionId,
   snippet,
   index,
   total,
+  initialState = null,
   onStateChange,
   presentationRef,
 }: {
@@ -64,47 +63,50 @@ export default function CoachSnippetReviewCard({
   total: number;
   /** The session's served deck PDF (for the per-snippet slide page); null = none. */
   presentationRef: string | null;
-  /** Fires after every successful save so the parent overlay can update
-   *  its publish-floor calculation (§3.10) without a session refetch. */
+  /** R4-8 — restore an in-progress (unpublished) edit from the overlay's crash
+   *  cache; wins over snippet.coachState when present. */
+  initialState?: CoachSnippetState | null;
+  /** Fires on EVERY local edit (R4-8: edits live locally until Publish) so the
+   *  parent overlay tracks the publish payload + floor without a refetch. */
   onStateChange?: (snippetId: string, next: CoachSnippetState) => void;
 }) {
-  // Local state mirrors the persisted coach_state. We initialize from the
-  // payload (so re-mounting resumes where the coach left off) and reconcile
-  // on every successful save's echo (so the persisted truth always wins).
+  // R4-8 — save-on-publish: note/direction/tag/surfaced edits live in LOCAL
+  // state only (mirrored to the overlay via onStateChange, which also feeds a
+  // localStorage crash cache). Nothing hits the server per keystroke; the
+  // overlay's Publish persists everything in one shot. The breakthrough-video
+  // ref is the one exception (a server-side asset), saved live as before.
   const [coachState, setCoachState] = useState<CoachSnippetState>(
-    snippet.coachState
+    initialState ?? snippet.coachState
   );
-  const [savingField, setSavingField] = useState<
-    "direction" | "note" | "tag" | "surfaced" | "breakthrough" | null
-  >(null);
+  const [savingField, setSavingField] = useState<"breakthrough" | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Debounced note save. We don't want to fire on every keystroke — that
-  // would saturate the BE on a long note. 500 ms after the last edit, we
-  // ship whatever's in `noteDraft`.
   const [noteDraft, setNoteDraft] = useState(
-    snippet.coachState.note || snippet.aiDraftNote || ""
+    (initialState ?? snippet.coachState).note || snippet.aiDraftNote || ""
   );
-  const noteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didAutoSaveRef = useRef(false);
+  // R4-8 — auto-grow the note toward full screen as the coach types (same
+  // pattern as BestPresentationOverlay's MarkerEditor): re-fit on every edit,
+  // capped at ~70% of the viewport, scrolling past the cap.
+  const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = noteRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const cap = Math.round(window.innerHeight * 0.7);
+    el.style.height = `${Math.min(el.scrollHeight, cap)}px`;
+  }, [noteDraft]);
+  const didAutoSeedRef = useRef(false);
 
-  const persist = useCallback(
-    async (
-      field: "direction" | "note" | "tag" | "surfaced" | "breakthrough",
-      patch: Parameters<typeof saveCoachSnippet>[2]
-    ) => {
-      setSavingField(field);
-      setSaveError(null);
-      const next = await saveCoachSnippet(sessionId, snippet.id, patch);
-      setSavingField(null);
-      if (!next) {
-        setSaveError("Couldn't save. Try again.");
-        return;
-      }
+  // The local merge: apply the patch, tell the overlay. This is the ONLY write
+  // path for note/direction/tag/surfaced (server persistence happens at
+  // Publish via the full snippets[] payload).
+  const applyLocal = useCallback(
+    (patch: Partial<CoachSnippetState>) => {
+      const next = { ...coachState, ...patch };
       setCoachState(next);
       onStateChange?.(snippet.id, next);
     },
-    [sessionId, snippet.id, onStateChange]
+    [coachState, snippet.id, onStateChange]
   );
 
   // Post-upload save of the breakthrough ref. Returns a boolean so the capture
@@ -132,50 +134,55 @@ export default function CoachSnippetReviewCard({
   );
 
   function pickDirection(value: DirectionLabel) {
-    void persist("direction", { directionLabel: value });
+    applyLocal({ directionLabel: value });
   }
 
   function pickTag(value: CoachTag) {
     // Toggle: same tag tapped twice clears it.
-    const next = coachState.tag === value ? null : value;
-    void persist("tag", { tag: next });
+    applyLocal({ tag: coachState.tag === value ? null : value });
   }
 
   function toggleSurfaced() {
-    void persist("surfaced", { surfaced: !coachState.surfaced });
+    applyLocal({ surfaced: !coachState.surfaced });
   }
 
-  function removeVideo() {
-    void persist("breakthrough", { breakthroughVideoRef: null });
+  // The video REF is a server-side asset pointer, so clearing it stays a live
+  // server write (mirrors the upload path), then syncs the local state.
+  async function removeVideo() {
+    setSavingField("breakthrough");
+    setSaveError(null);
+    const next = await saveCoachSnippet(sessionId, snippet.id, {
+      breakthroughVideoRef: null,
+    });
+    setSavingField(null);
+    if (!next) {
+      setSaveError("Couldn't remove the video. Try again.");
+      return;
+    }
+    applyLocal({ breakthroughVideoRef: next.breakthroughVideoRef });
   }
 
   function onNoteChange(value: string) {
     setNoteDraft(value);
-    if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
-    noteTimerRef.current = setTimeout(() => {
-      void persist("note", { note: value });
-    }, NOTE_DEBOUNCE_MS);
+    applyLocal({ note: value });
   }
 
+  // On mount: seed default-surfaced + the AI draft note LOCALLY (no server
+  // write — R4-8) so the overlay's publish payload / floor sees the defaults.
+  // The BE also defaults snippets to surfaced=true, so this is presentation
+  // state, not a persistence requirement.
   useEffect(() => {
-    return () => {
-      if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
-    };
-  }, []);
-
-  // On mount: surface the snippet and save the AI draft note when not yet persisted.
-  // All snippets default to shown-to-user; coach can unsurface individually.
-  useEffect(() => {
-    if (didAutoSaveRef.current) return;
+    if (didAutoSeedRef.current || initialState) return;
     const needsNote = !!snippet.aiDraftNote && !snippet.coachState.note;
     const needsSurfaced = !snippet.coachState.surfaced;
     if (!needsNote && !needsSurfaced) return;
-    didAutoSaveRef.current = true;
-    const patch: { note?: string; surfaced?: boolean } = {};
+    didAutoSeedRef.current = true;
+    const patch: Partial<CoachSnippetState> = {};
     if (needsNote) patch.note = snippet.aiDraftNote!;
     if (needsSurfaced) patch.surfaced = true;
-    void persist("surfaced", patch);
-  }, [snippet.aiDraftNote, snippet.coachState.note, snippet.coachState.surfaced, persist]);
+    applyLocal(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Status badge — three states (per §F.3):
   //   "Skipped"        — nothing set
@@ -238,7 +245,6 @@ export default function CoachSnippetReviewCard({
                   key={d.value}
                   type="button"
                   onClick={() => pickDirection(d.value)}
-                  disabled={savingField === "direction"}
                   className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
                     active
                       ? "border-primary bg-primary text-primary-foreground"
@@ -276,7 +282,7 @@ export default function CoachSnippetReviewCard({
                 </div>
                 <button
                   type="button"
-                  onClick={removeVideo}
+                  onClick={() => void removeVideo()}
                   disabled={savingField === "breakthrough"}
                   className="self-start text-[13px] text-destructive hover:underline disabled:opacity-50"
                 >
@@ -332,15 +338,13 @@ export default function CoachSnippetReviewCard({
             </span>
           </p>
           <textarea
+            ref={noteRef}
             value={noteDraft}
             onChange={(e) => onNoteChange(e.target.value)}
             rows={3}
             placeholder="What to take away from this snippet…"
-            className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+            className="mt-2 max-h-[70vh] w-full resize-none overflow-y-auto rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
           />
-          {savingField === "note" ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">Saving…</p>
-          ) : null}
         </div>
 
         {/* Tag — user-facing strong/to-work-on (§S.5; independent of direction) */}
@@ -359,7 +363,6 @@ export default function CoachSnippetReviewCard({
                   key={t.value}
                   type="button"
                   onClick={() => pickTag(t.value)}
-                  disabled={savingField === "tag"}
                   className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
                     active
                       ? "border-primary bg-primary/10 text-primary"
@@ -377,7 +380,6 @@ export default function CoachSnippetReviewCard({
         <button
           type="button"
           onClick={toggleSurfaced}
-          disabled={savingField === "surfaced"}
           className={`mt-4 flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition-colors ${
             coachState.surfaced
               ? "border-success/50 bg-success/5"

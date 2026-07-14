@@ -26,7 +26,6 @@ export type WillabState =
   | "lounge_idle"
   | "lab_feelings"
   | "lab_session_context"
-  | "lab_prerecord"
   | "lab_recording"
   | "lab_processing"
   | "readout"
@@ -41,7 +40,6 @@ export type WillabState =
 const LAB_OVERLAY_STATES: ReadonlySet<WillabState> = new Set<WillabState>([
   "lab_feelings",
   "lab_session_context",
-  "lab_prerecord",
   "lab_recording",
   "lab_processing",
   "readout",

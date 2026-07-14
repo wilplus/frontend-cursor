@@ -17,6 +17,7 @@ import {
   groupSnippetsBySlide,
   pickTopSnippet,
   type FullTranscriptChunk,
+  type InstantChunk,
   type ReadoutPayload,
   type SayItStronger,
   type ReadoutSlide,
@@ -46,6 +47,10 @@ type ReadoutSection = ReadoutSlideGroup & {
   fullDurationMs: number;
   /** Deckless-only: the whole transcript split into ordered chunks. */
   chunks: FullTranscriptChunk[] | null;
+  /** R4-9 — the deduped chunk→suggestion list (BE instant_chunks). When
+   *  present it is the instant view's SOLE source: chunk text → corrections →
+   *  commentary, one entry per chunk, nothing rendered twice. */
+  instantChunks: InstantChunk[] | null;
 };
 
 /** Stable key for a moment (BE id when present; else slide+offset). */
@@ -198,7 +203,6 @@ export default function ReadoutCard({
    *  handler always defers (returns false) and the host closes. */
   onRegisterBack?: (handler: () => boolean) => void;
 }) {
-  void sessionId; // reserved (see prop doc)
   // The deck slide (index/title/body) by index — top-level `slides` first, with
   // per-snippet `slide` as a fallback for the title/body text-card path.
   const slidesByIndex = useMemo(() => {
@@ -235,6 +239,7 @@ export default function ReadoutCard({
         fullStartOffsetMs: st.startOffsetMs,
         fullDurationMs: st.durationMs,
         chunks: null,
+        instantChunks: null,
       }));
       // Catch-all so a moment whose slide has no transcript entry (or no slide
       // at all) is never silently dropped.
@@ -251,11 +256,17 @@ export default function ReadoutCard({
           fullStartOffsetMs: 0,
           fullDurationMs: 0,
           chunks: null,
+          instantChunks: null,
         });
       }
       return list;
     }
-    if (payload.fullTranscriptChunks.length > 0) {
+    if (
+      payload.instantChunks.length > 0 ||
+      payload.fullTranscriptChunks.length > 0
+    ) {
+      // R4-9 — instant_chunks (deduped chunk→suggestion) is the preferred
+      // deckless source; fullTranscriptChunks is the pre-BE fallback.
       return [
         {
           slideIndex: null,
@@ -265,7 +276,12 @@ export default function ReadoutCard({
           fullAudioRef: parentAudioRef,
           fullStartOffsetMs: 0,
           fullDurationMs: 0,
-          chunks: payload.fullTranscriptChunks,
+          chunks:
+            payload.fullTranscriptChunks.length > 0
+              ? payload.fullTranscriptChunks
+              : null,
+          instantChunks:
+            payload.instantChunks.length > 0 ? payload.instantChunks : null,
         },
       ];
     }
@@ -278,14 +294,39 @@ export default function ReadoutCard({
       fullStartOffsetMs: 0,
       fullDurationMs: 0,
       chunks: null,
+      instantChunks: null,
     }));
   }, [
     payload.slideTranscripts,
     payload.snippets,
     payload.fullTranscriptChunks,
+    payload.instantChunks,
     slidesByIndex,
     parentAudioRef,
   ]);
+
+  // R4-9 — ONE loading state for the whole suggestions layer: suggestions
+  // generate async, so hold a single "sharpening" block (not per-card shimmers)
+  // until every pending snippet resolves, then reveal the full list at once.
+  // A local time cap matches the polling budget (8 polls x 3s) so a take whose
+  // suggestions never arrive degrades to the text-only view instead of an
+  // eternal shimmer.
+  const suggestionsPending = payload.snippets.some(
+    (s) => !s.sayItStronger && !s.coach?.note
+  );
+  const [suggestionWaitExpired, setSuggestionWaitExpired] = useState(false);
+  // A NEW session in the same mounted card (e.g. the Lab's next take) gets a
+  // fresh wait budget — without this, one expired wait would disable the
+  // single-loading behavior for every later take.
+  useEffect(() => {
+    setSuggestionWaitExpired(false);
+  }, [sessionId]);
+  useEffect(() => {
+    if (!suggestionsPending) return;
+    const id = setTimeout(() => setSuggestionWaitExpired(true), 30_000);
+    return () => clearTimeout(id);
+  }, [suggestionsPending, sessionId]);
+  const suggestionsLoading = suggestionsPending && !suggestionWaitExpired;
 
   // The scroll view has no internal Back stack — the host's close handles it.
   useEffect(() => {
@@ -357,6 +398,7 @@ export default function ReadoutCard({
               presentationRef={payload.presentationRef}
               isSample={isSample && i === 0}
               voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
+              suggestionsLoading={suggestionsLoading}
             />
           ))
         )}
@@ -411,15 +453,19 @@ function Section({
   presentationRef,
   isSample,
   voiceMetricsAvailable,
+  suggestionsLoading,
 }: {
   refCallback: (el: HTMLElement | null) => void;
   section: ReadoutSection;
   presentationRef: string | null;
   isSample: boolean;
   voiceMetricsAvailable: boolean;
+  /** R4-9 — the whole suggestions layer is still generating (one loading
+   *  state, not per-card shimmers). */
+  suggestionsLoading: boolean;
 }) {
   const perSlide = section.fullTranscript !== null;
-  const deckless = section.chunks !== null;
+  const deckless = section.chunks !== null || section.instantChunks !== null;
   const slidePageIndex =
     section.slide?.index ?? (perSlide ? section.slideIndex : null);
 
@@ -450,7 +496,10 @@ function Section({
         {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
 
         {deckless ? (
-          <DecklessSection section={section} />
+          <DecklessSection
+            section={section}
+            suggestionsLoading={suggestionsLoading}
+          />
         ) : perSlide ? (
           <DeckSlideSection section={section} />
         ) : (
@@ -505,7 +554,78 @@ function DeckSlideSection({ section }: { section: ReadoutSection }) {
 
 /* ── deckless section: mock slide already above; chunks + moments ── */
 
-function DecklessSection({ section }: { section: ReadoutSection }) {
+function DecklessSection({
+  section,
+  suggestionsLoading,
+}: {
+  section: ReadoutSection;
+  suggestionsLoading: boolean;
+}) {
+  // R4-9 — the instant view. instant_chunks is ONE deduped list (chunk text +
+  // its suggestion), so nothing renders twice: per chunk, in order — text →
+  // corrections (upgrades) → commentary (why). One loading block stands in for
+  // the whole suggestions layer until every chunk's suggestion resolved (the
+  // polling underneath keeps merging fresh payloads).
+  if (section.instantChunks) {
+    const chunks = section.instantChunks;
+    const fullText = chunks.map((c) => c.text).join("\n\n");
+    // Coach/breakthrough moments still render (post-review re-reads) — but
+    // with the suggestion stripped: its single home is the chunk it came from.
+    const moments = section.snippets
+      .filter((s) => s.coach || s.breakthrough)
+      .map((s) => ({ ...s, sayItStronger: null }));
+    return (
+      <>
+        <div className="flex items-center justify-between">
+          <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+            Your transcript
+          </p>
+          {fullText ? <CopyButton text={fullText} /> : null}
+        </div>
+
+        <div className="flex flex-col gap-5">
+          {chunks.map((c) => (
+            <div key={c.index} className="flex flex-col gap-2">
+              <div className="flex items-start gap-3">
+                {section.fullAudioRef && c.durationMs > 0 ? (
+                  <SectionPlay
+                    playKey={`ichunk:${c.index}`}
+                    src={section.fullAudioRef}
+                    startMs={c.startOffsetMs}
+                    durationMs={c.durationMs}
+                  />
+                ) : null}
+                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+                  {c.text}
+                </p>
+              </div>
+              {!suggestionsLoading && c.sayItStronger ? (
+                <SayItStrongerCard data={c.sayItStronger} />
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {/* One loading state for the whole suggestions layer (no per-card
+            shimmers): everything reveals at once when generation finishes. */}
+        {suggestionsLoading ? <SuggestionShimmer /> : null}
+
+        {moments.length > 0 ? (
+          <div className="mt-2 flex flex-col gap-5">
+            {moments.map((s) => (
+              <MomentBlock
+                key={momentKey(s)}
+                snippet={s}
+                skipTranscript
+                hideShimmer
+              />
+            ))}
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   const chunks = section.chunks ?? [];
   const fullText = chunks.map(chunkText).join("\n\n");
   const moments = section.snippets.filter(
@@ -555,9 +675,13 @@ function DecklessSection({ section }: { section: ReadoutSection }) {
 function MomentBlock({
   snippet,
   skipTranscript = false,
+  hideShimmer = false,
 }: {
   snippet: ReadoutSnippet;
   skipTranscript?: boolean;
+  /** R4-9 — instant mode owns the single suggestions-loading state; the
+   *  per-card shimmer must not double it. */
+  hideShimmer?: boolean;
 }) {
   const text = snippetText(snippet);
   return (
@@ -593,6 +717,7 @@ function MomentBlock({
             : []
         }
         breakthroughSnippet={snippet.breakthrough ? snippet : null}
+        hideShimmer={hideShimmer}
       />
     </div>
   );
@@ -633,11 +758,15 @@ function CommentBlock({
   snippet,
   transcriptCorrected,
   breakthroughSnippet,
+  hideShimmer = false,
 }: {
   /** The moment whose coach note + Say It Stronger render; null → no comment. */
   snippet: ReadoutSnippet | null;
   transcriptCorrected: string[];
   breakthroughSnippet: ReadoutSnippet | null;
+  /** R4-9 — suppress the per-card shimmer when the instant view's single
+   *  suggestions-loading state is in charge. */
+  hideShimmer?: boolean;
 }) {
   const empty =
     !snippet && transcriptCorrected.length === 0 && !breakthroughSnippet;
@@ -671,7 +800,7 @@ function CommentBlock({
           ) : null}
           {snippet.sayItStronger ? (
             <SayItStrongerCard data={snippet.sayItStronger} />
-          ) : !snippet.coach?.note ? (
+          ) : !snippet.coach?.note && !hideShimmer ? (
             <SuggestionShimmer />
           ) : null}
         </>

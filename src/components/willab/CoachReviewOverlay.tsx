@@ -15,7 +15,13 @@ import {
   publishWillabSession,
   type PublishLabel,
   type PublishNote,
+  type PublishSnippetState,
 } from "@/services/api/publishWillabSession";
+import {
+  clearCoachReviewDraft,
+  readCoachReviewDraft,
+  writeCoachReviewDraft,
+} from "@/lib/willab/coachReviewDraft";
 
 const FEELING_EMOJI: Record<string, string> = {
   nervous: "😬",
@@ -49,7 +55,13 @@ export default function CoachReviewOverlay({
   useBackDismiss(onClose);
   const { status, session, refresh } = useCoachReview(sessionId);
 
-  const [localState, setLocalState] = useState<Record<string, CoachSnippetState>>({});
+  // R4-8 — crash-safety draft, read ONCE synchronously at mount so the snippet
+  // cards can seed from it (they mount as soon as the session loads). Holds an
+  // unpublished review that a closed tab would otherwise have lost.
+  const [draftCache] = useState(() => readCoachReviewDraft(sessionId));
+  const [localState, setLocalState] = useState<Record<string, CoachSnippetState>>(
+    () => draftCache?.snippets ?? {}
+  );
   const [videoRef, setVideoRef] = useState<string | null>(null);
   const [overallMessage, setOverallMessage] = useState("");
   const [notifyClient, setNotifyClient] = useState(true);
@@ -84,13 +96,28 @@ export default function CoachReviewOverlay({
   useEffect(() => {
     if (!session) return;
     setVideoRef(session.videoRef);
-    setOverallMessage(session.overallMessage);
+    // R4-8 — a crash-cache draft wins over the server overall message (the
+    // coach was mid-edit); otherwise seed from the server as before.
+    setOverallMessage((prev) =>
+      draftCache ? draftCache.overallMessage || prev : session.overallMessage
+    );
     setNotifyClient(session.state !== "done");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   const onSnippetSaved = useCallback((snippetId: string, next: CoachSnippetState) => {
     setLocalState((prev) => ({ ...prev, [snippetId]: next }));
   }, []);
+
+  // R4-8 — mirror the in-progress review to localStorage (debounced) as crash
+  // insurance. No server traffic; cleared on successful publish.
+  useEffect(() => {
+    if (!session || published) return;
+    const id = setTimeout(() => {
+      writeCoachReviewDraft(sessionId, overallMessage, localState);
+    }, 400);
+    return () => clearTimeout(id);
+  }, [sessionId, session, localState, overallMessage, published]);
 
   const floorMet = session
     ? session.snippets.some((s) => {
@@ -106,8 +133,20 @@ export default function CoachReviewOverlay({
 
     const notes: PublishNote[] = [];
     const labels: PublishLabel[] = [];
+    // R4-8 — publish persists EVERYTHING in one shot: the full per-snippet
+    // state array (BE item C saves each via the save-snippet path before the
+    // publish contract). notes/labels ride along unchanged for back-compat
+    // (today's BE ignores the unknown `snippets` key and uses them as before).
+    const snippets: PublishSnippetState[] = [];
     for (const s of session.snippets) {
       const cs = localState[s.id] ?? s.coachState;
+      snippets.push({
+        id: s.id,
+        note: cs.note,
+        direction: cs.directionLabel,
+        tag: cs.tag,
+        surfaced: cs.surfaced,
+      });
       if (cs.surfaced && cs.note.trim()) {
         notes.push({ snippet_id: s.id, note: cs.note, tag: cs.tag ?? "strong" });
       }
@@ -121,11 +160,14 @@ export default function CoachReviewOverlay({
       overallMessage: overallMessage.trim() || null,
       notes,
       labels,
+      snippets,
       notifyClient,
     });
 
     setPublishing(false);
     if (result.ok) {
+      // The published truth is on the server now; the crash draft is stale.
+      clearCoachReviewDraft(session.sessionId);
       setPublished(true);
       onPublished?.(session.sessionId);
     } else {
@@ -211,6 +253,7 @@ export default function CoachReviewOverlay({
             index={i}
             total={session.snippets.length}
             presentationRef={session.presentationRef}
+            initialState={draftCache?.snippets[s.id] ?? null}
             onStateChange={onSnippetSaved}
           />
         </div>

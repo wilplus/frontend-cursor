@@ -13,6 +13,8 @@ import {
   type StrengthMoment,
   type StrengthsView,
 } from "@/services/api/strengths";
+import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
+import ArcBatchView from "./ArcBatchView";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender, TextSlide } from "./pdfSlides";
 import { SlidePlaceholder } from "./SlideTake";
@@ -94,7 +96,9 @@ type NavLevel =
   | { level: "L2"; presentation: PresentationGroup }
   | { level: "L2g" }
   | { level: "L3"; deck: Deck; topic: string; takeLabel: string }
-  | { level: "L4"; deck: Deck; topic: string; takeLabel: string; slideIdx: number };
+  | { level: "L4"; deck: Deck; topic: string; takeLabel: string; slideIdx: number }
+  /** R4-13 — arc detail in trainings mode (the /user/trainings source). */
+  | { level: "T2"; arc: TrainingArc };
 
 export default function LibraryOverlay({
   onClose,
@@ -111,6 +115,11 @@ export default function LibraryOverlay({
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [presentations, setPresentations] = useState<PresentationGroup[]>([]);
   const [general, setGeneral] = useState<StrengthMoment[]>([]);
+  // R4-13 — arc-grouped trainings (the tab's new source). null = the endpoint
+  // isn't live yet → the legacy strengths-fed view below stays in charge.
+  const [trainings, setTrainings] = useState<TrainingArc[] | null>(null);
+  // The arc whose coach-review batch (R4-11) is open over this overlay.
+  const [batchArcId, setBatchArcId] = useState<string | null>(null);
   const [nav, setNav] = useState<NavLevel>({ level: "L1" });
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -140,6 +149,7 @@ export default function LibraryOverlay({
       switch (cur.level) {
         case "L2":
         case "L2g":
+        case "T2":
           setNav({ level: "L1" });
           break;
         case "L3":
@@ -175,11 +185,23 @@ export default function LibraryOverlay({
 
   useEffect(() => {
     let active = true;
-    void fetchStrengths().then((v) => {
+    // R4-13 — prefer the arc-grouped /user/trainings source (deckless arcs
+    // included). While the endpoint isn't live (null), fall back to the legacy
+    // strengths view so the tab keeps working; the swap is automatic once the
+    // BE ships.
+    void fetchTrainings().then((arcs) => {
       if (!active) return;
-      setPresentations(v.presentations);
-      setGeneral(v.general);
-      setStatus("ready");
+      if (arcs !== null) {
+        setTrainings(arcs);
+        setStatus("ready");
+        return;
+      }
+      void fetchStrengths().then((v) => {
+        if (!active) return;
+        setPresentations(v.presentations);
+        setGeneral(v.general);
+        setStatus("ready");
+      });
     });
     return () => {
       active = false;
@@ -187,7 +209,9 @@ export default function LibraryOverlay({
   }, []);
 
   const isEmpty =
-    presentations.length === 0 && general.length === 0;
+    trainings !== null
+      ? trainings.length === 0
+      : presentations.length === 0 && general.length === 0;
 
   /* ── breadcrumbs ── */
   const goL1 = () => setNav({ level: "L1" });
@@ -205,6 +229,12 @@ export default function LibraryOverlay({
       return [
         { label: "Trainings", onClick: goL1 },
         { label: "Other moments" },
+      ];
+    }
+    if (nav.level === "T2") {
+      return [
+        { label: "Trainings", onClick: goL1 },
+        { label: nav.arc.topic },
       ];
     }
     if (nav.level === "L3") {
@@ -382,11 +412,33 @@ export default function LibraryOverlay({
               setNav({ level: "L4", deck, topic: "Other moments", takeLabel: "general", slideIdx: i });
             }}
           />
+        ) : nav.level === "T2" ? (
+          <TrainingDetail
+            arc={nav.arc}
+            onOpenBest={() => onOpenBestPresentation(nav.arc.bestPresentationArcId)}
+            onOpenBatch={() => setBatchArcId(nav.arc.arcId)}
+            onRecordAnother={() => {
+              // Continue this arc. No slide bodies ride the trainings payload;
+              // the deck restores server-side via the latest take's session id
+              // (the FE-1 setup-restore path).
+              const latest = nav.arc.takes[nav.arc.takes.length - 1];
+              onRecordAnother({
+                arcId: nav.arc.arcId,
+                nextTakeIndex: nav.arc.takeCount + 1,
+                sessionId: latest?.sessionId,
+              });
+            }}
+          />
         ) : isEmpty ? (
           <p className="mx-auto w-full max-w-2xl px-4 text-[15px] text-muted-foreground">
             Nothing here yet. Your strongest moments collect here as your coach
             sends reads.
           </p>
+        ) : trainings !== null ? (
+          <TrainingsList
+            trainings={trainings}
+            onOpen={(arc) => setNav({ level: "T2", arc })}
+          />
         ) : (
           <PresentationsList
             presentations={presentations}
@@ -401,6 +453,118 @@ export default function LibraryOverlay({
           />
         )}
       </div>
+
+      {/* R4-11 — the coach-review batch view, over this overlay. */}
+      {batchArcId ? (
+        <ArcBatchView arcId={batchArcId} onClose={() => setBatchArcId(null)} />
+      ) : null}
+    </div>
+  );
+}
+
+/* ─────────────────── R4-13: trainings mode (arc-grouped) ────────────────── */
+
+function TrainingsList({
+  trainings,
+  onOpen,
+}: {
+  trainings: TrainingArc[];
+  onOpen: (arc: TrainingArc) => void;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pb-6">
+      {trainings.map((arc) => (
+        <button
+          key={arc.arcId}
+          type="button"
+          onClick={() => onOpen(arc)}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-medium text-foreground">
+              {arc.topic}
+            </span>
+            <span className="mt-0.5 block text-[13px] text-muted-foreground">
+              {arc.takeCount} {arc.takeCount === 1 ? "take" : "takes"}
+              {arc.batchVerified ? " · Batch verified" : ""}
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-muted-foreground" aria-hidden />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TrainingDetail({
+  arc,
+  onOpenBest,
+  onOpenBatch,
+  onRecordAnother,
+}: {
+  arc: TrainingArc;
+  onOpenBest: () => void;
+  onOpenBatch: () => void;
+  onRecordAnother: () => void;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-6">
+      {/* Recordings — every take in the arc (deckless included). */}
+      <div>
+        <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Recordings
+        </p>
+        <div className="mt-2 flex flex-col gap-2">
+          {arc.takes.map((t) => (
+            <div
+              key={t.sessionId}
+              className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
+            >
+              <span className="text-[15px] text-foreground">
+                Take {t.takeIndex}
+              </span>
+              <span className="text-[13px] text-muted-foreground">
+                {t.createdAt
+                  ? new Date(t.createdAt).toLocaleDateString()
+                  : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {arc.batchVerified ? (
+        <button
+          type="button"
+          onClick={onOpenBatch}
+          className="flex items-center justify-between rounded-xl border border-success/50 bg-success/5 px-4 py-3 text-left transition hover:bg-success/10"
+        >
+          <span className="text-[15px] font-medium text-foreground">
+            Batch verified · Coach review
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-muted-foreground" aria-hidden />
+        </button>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onOpenBest}
+        disabled={!arc.idealReady}
+        className="rounded-full bg-foreground px-5 py-2.5 text-[14px] font-medium text-background transition hover:bg-foreground/90 disabled:opacity-40"
+      >
+        {arc.idealReady
+          ? "Ideal presentation"
+          : "Ideal presentation (coach still working)"}
+      </button>
+
+      <button
+        type="button"
+        onClick={onRecordAnother}
+        className="flex items-center justify-center gap-2 rounded-full border border-border px-5 py-2.5 text-[14px] font-medium text-foreground transition hover:bg-muted"
+      >
+        <Mic className="h-4 w-4" aria-hidden />
+        Record another take
+      </button>
     </div>
   );
 }

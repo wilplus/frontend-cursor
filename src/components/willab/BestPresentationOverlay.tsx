@@ -13,6 +13,8 @@ import {
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
 import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
+import { publishArc } from "@/services/api/arcBatch";
+import { useUserProfile } from "./useUserProfile";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import {
   parseRichMarkers,
@@ -58,6 +60,30 @@ export default function BestPresentationOverlay({
   const [unlockError, setUnlockError] = useState<string | null>(null);
   // P8 — read-only by default; the navbar Edit button toggles the editor.
   const [editMode, setEditMode] = useState(false);
+  // R4-10 — coach-only "Publish arc to student": one batch action delivering
+  // every take's labelled snippets + the finished ideal text. 409 = the coach
+  // still has ideal-text slides to edit (that ordering is intended).
+  const { isCoach } = useUserProfile();
+  const [arcPublishing, setArcPublishing] = useState(false);
+  const [arcPublished, setArcPublished] = useState(false);
+  const [arcPublishError, setArcPublishError] = useState<string | null>(null);
+  const [arcSlidesPending, setArcSlidesPending] = useState<number[] | null>(null);
+
+  async function handlePublishArc() {
+    if (arcPublishing) return;
+    setArcPublishing(true);
+    setArcPublishError(null);
+    setArcSlidesPending(null);
+    const r = await publishArc(arcId);
+    setArcPublishing(false);
+    if (r.kind === "ok") {
+      setArcPublished(true);
+    } else if (r.kind === "ideal_text_incomplete") {
+      setArcSlidesPending(r.slidesPending);
+    } else {
+      setArcPublishError(r.message);
+    }
+  }
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -369,6 +395,46 @@ export default function BestPresentationOverlay({
           <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
+
+      {/* R4-10 — coach-only batch delivery strip. The per-take "Publish to
+          user" flow (CoachReviewOverlay) stays as-is; this delivers the whole
+          arc (all takes' labelled snippets + the ideal text) in one action. */}
+      {isCoach ? (
+        <div className="shrink-0 border-b border-border bg-primary/5 px-4 py-2">
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[12px] text-muted-foreground">
+                Coach: deliver all takes + the ideal text as one batch
+              </span>
+              <button
+                type="button"
+                onClick={() => void handlePublishArc()}
+                disabled={arcPublishing || arcPublished}
+                className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 text-[12px] font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+              >
+                {arcPublishing ? (
+                  <Loader2 className="h-[14px] w-[14px] animate-spin" aria-hidden />
+                ) : null}
+                {arcPublished ? "Arc published" : "Publish arc to student"}
+              </button>
+            </div>
+            {arcSlidesPending ? (
+              <p className="text-[12px] text-destructive">
+                Finish editing the ideal text first
+                {arcSlidesPending.length > 0
+                  ? ` (slides ${arcSlidesPending
+                      .map((n) => n + 1)
+                      .join(", ")} still need edits)`
+                  : ""}
+                , then publish.
+              </p>
+            ) : null}
+            {arcPublishError ? (
+              <p className="text-[12px] text-destructive">{arcPublishError}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl">
