@@ -47,6 +47,7 @@ import {
   writeCreditOfferLive,
   type OfferType,
 } from "./loungeOffers";
+import { fetchOpenerStart, fetchOpenerNext } from "@/services/api/onboardingOpener";
 import {
   CHIP_LABEL,
   coerceSuggestedAction,
@@ -147,10 +148,16 @@ export default function Lounge({
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
   const [activeOffer, setActiveOffer] = useState<OfferType | null>(null);
-  // FE-4 — the joke is a two-step quick-answer: "offer" shows Yes / No thanks,
-  // then after the joke lands "feedback" shows Funny / Not funny. Both steps are
-  // tappable pills in the footer; every tap posts the user's answer as a bubble.
-  const [jokeStep, setJokeStep] = useState<"offer" | "feedback" | null>(null);
+  // #1 — the opener is a multi-step quick-answer flow: "offer" shows Yes / No
+  // thanks; on Yes it flips to "busy" (a non-interactive placeholder) while
+  // /opener/start is in flight — so a mid-fetch "No thanks" can't race the
+  // append — then to "reply", a single "Go on" pill that advances setup →
+  // punchline → pivot. Every tappable step posts the user's answer as a bubble.
+  // `openerJokeId` carries the joke_id between the start and next calls.
+  const [jokeStep, setJokeStep] = useState<"offer" | "busy" | "reply" | null>(
+    null
+  );
+  const [openerJokeId, setOpenerJokeId] = useState<string | null>(null);
   // E3 — coach-only student roster overlay.
   const [rosterOpen, setRosterOpen] = useState(false);
   // U1 (native scroll): scroll the thread CONTAINER, and stick to the bottom
@@ -417,8 +424,12 @@ export default function Lounge({
   const openOffer = useCallback((type: OfferType) => {
     const rank: Record<OfferType, number> = { credit: 3, joke: 2, install: 1 };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
-    // FE-4 — (re)opening the joke offer always starts at step 1 (Yes / No thanks).
-    if (type === "joke") setJokeStep("offer");
+    // #1 — (re)opening the joke offer always restarts at step 1 (Yes / No
+    // thanks) with a fresh opener (any prior joke_id is discarded).
+    if (type === "joke") {
+      setJokeStep("offer");
+      setOpenerJokeId(null);
+    }
   }, []);
 
   // FE-1 — the eviction-proof source of an arc's prior session id: the newest
@@ -558,19 +569,67 @@ export default function Lounge({
     await runSend(q);
   }
 
-  // F7 / FE-4 — tapping "Yes" posts a "Yes" user bubble, then asks the bot for a
-  // dad joke. The BE keys on the plain "Tell me a dad joke" query, so we send
-  // that under the hood while the visible bubble reads "Yes" (displayAs). Once
-  // the joke lands we advance the offer to its "feedback" step (Funny / Not
-  // funny); we deliberately do NOT resolve the offer here so the footer stays
-  // armed for step 2. The post-await guard skips the advance if the user
-  // declined mid-fetch (jokeStep no longer "offer").
+  // #1 — tapping "Yes" posts a "Yes" user bubble, then fires the structured
+  // opener: POST /opener/start returns the joke's framing + setup line (or 204 =
+  // no opener → skip silently, never an error banner). On a joke, we render the
+  // frame + setup as bot bubbles and advance the footer to its "reply" step (a
+  // single "Go on" pill that delivers the punchline + pivot). sendingRef closes
+  // the double-tap window (start is a network round-trip).
   async function askForJoke() {
-    // Only advance to the feedback step if this tap actually sent the joke — a
-    // guarded no-op (double-tap / mid-send) returns false and must not flip the
-    // footer to Funny / Not funny before the joke arrives.
-    const sent = await runSend("Tell me a dad joke", "Yes");
-    if (sent) setJokeStep((s) => (s === "offer" ? "feedback" : s));
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    // Replace Yes / No thanks with a non-interactive placeholder FIRST, so a
+    // mid-fetch "No thanks" tap can't resolve the offer while /start is still in
+    // flight (which would orphan the frame/setup bubbles after a decline).
+    setJokeStep("busy");
+    postAnswerBubble("Yes"); // R4-2 — the tapped answer persists like a typed one
+    setBotThinking(true);
+    try {
+      const res = await fetchOpenerStart();
+      if (res.kind === "opener") {
+        if (res.frame) await thread.append({ role: "bot", kind: "text", body: res.frame });
+        if (res.setup) await thread.append({ role: "bot", kind: "text", body: res.setup });
+        setOpenerJokeId(res.jokeId);
+        setJokeStep((s) => (s === "busy" ? "reply" : s));
+      } else {
+        // 204 (no opener) or any failure → resolve silently, no error banner.
+        setActiveOffer(null);
+        setJokeStep(null);
+        setOpenerJokeId(null);
+      }
+    } finally {
+      setBotThinking(false);
+      sendingRef.current = false;
+    }
+  }
+
+  // #1 — the "Go on" reply: post the reply bubble, then walk the opener to its
+  // end — POST /opener/next {user_reply} for the punchline, then /opener/next
+  // {after_punchline} for the pivot into onboarding. Both lines land as bot
+  // bubbles; the offer resolves (footer returns to the record button). Any
+  // failure just stops quietly. Guarded against a missing joke_id / double-tap.
+  async function continueOpener() {
+    const jokeId = openerJokeId;
+    if (!jokeId || sendingRef.current) return;
+    sendingRef.current = true;
+    postAnswerBubble("Go on");
+    setBotThinking(true);
+    try {
+      const punchline = await fetchOpenerNext(jokeId, { userReply: "Go on" });
+      // Only walk to the pivot once the punchline actually landed — a pivot with
+      // no punchline before it reads as broken, so a failed punchline stops here.
+      if (punchline) {
+        await thread.append({ role: "bot", kind: "text", body: punchline });
+        const pivot = await fetchOpenerNext(jokeId, { afterPunchline: true });
+        if (pivot) await thread.append({ role: "bot", kind: "text", body: pivot });
+      }
+    } finally {
+      setBotThinking(false);
+      setOpenerJokeId(null);
+      setActiveOffer(null);
+      setJokeStep(null);
+      sendingRef.current = false;
+    }
   }
 
   // ── R4-2 · LOCKED INVARIANT ────────────────────────────────────────────────
@@ -611,24 +670,11 @@ export default function Lounge({
     void thread.append({ role: "bot", kind: "text", body: "No worries!" });
   }
 
-  // FE-4 — the post-joke feedback tap (Funny / Not funny). The answer posts as a
-  // persisted user bubble (R4-2) with a light bot acknowledgement; no BE call.
-  function jokeFeedback(good: boolean) {
-    postAnswerBubble(good ? "Funny" : "Not funny");
-    void thread.append({
-      role: "bot",
-      kind: "text",
-      body: good ? "Glad it landed 😄" : "Told you it was bad 😅",
-    });
-  }
-
-  // The shared send core — used by the composer and the joke offer. `displayAs`
-  // overrides the text shown in the user's bubble while `q` is still the query
-  // sent to the BE (FE-4: the joke "Yes" pill shows "Yes" but queries the joke).
-  // Returns true when this call actually sent, false when it was a guarded
-  // no-op — the joke flow relies on this so a double-tapped "Yes" doesn't
-  // advance to the feedback step on the ignored second tap.
-  async function runSend(q: string, displayAs?: string): Promise<boolean> {
+  // The shared send core — used by the composer. Returns true when this call
+  // actually sent, false when it was a guarded no-op (empty / bot busy / an
+  // in-flight send). sendingRef closes the double-send window that botThinking
+  // alone leaves open (it only arms after the awaited user-turn append).
+  async function runSend(q: string): Promise<boolean> {
     if (!q || botThinking || sendingRef.current) return false;
     sendingRef.current = true;
     // finally guarantees the guard clears on every exit, including a rejected
@@ -642,7 +688,7 @@ export default function Lounge({
       // The user turn always persists (optimistic + FE write); for signed-in the
       // BE also writes it from the client_id we pass below, and the server dedups
       // on (user_id, client_id) so it collapses to one row (#2).
-      const userMsg = await thread.append({ role: "user", kind: "text", body: displayAs ?? q });
+      const userMsg = await thread.append({ role: "user", kind: "text", body: q });
 
       setBotThinking(true);
       try {
@@ -781,11 +827,12 @@ export default function Lounge({
           jokeStep={jokeStep}
           onJokeYes={askForJoke}
           onJokeDecline={declineJoke}
-          onJokeFeedback={jokeFeedback}
+          onOpenerContinue={continueOpener}
           onGetCredits={() => router.push("/dashboard/pricing")}
           onResolve={() => {
             setActiveOffer(null);
             setJokeStep(null);
+            setOpenerJokeId(null);
           }}
         />
       ) : uploadAskActive ? (
@@ -992,16 +1039,16 @@ function OfferActions({
   jokeStep,
   onJokeYes,
   onJokeDecline,
-  onJokeFeedback,
+  onOpenerContinue,
   onGetCredits,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
-  jokeStep: "offer" | "feedback" | null;
+  jokeStep: "offer" | "busy" | "reply" | null;
   onJokeYes: () => void;
   onJokeDecline: () => void;
-  onJokeFeedback: (good: boolean) => void;
+  onOpenerContinue: () => void;
   onGetCredits: () => void;
   onResolve: () => void;
 }) {
@@ -1009,24 +1056,35 @@ function OfferActions({
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
   if (type === "joke") {
-    // FE-4 — step 2: rate the joke. Each pill posts a user bubble, then resolves.
-    if (jokeStep === "feedback") {
+    // #1 — the opener's /start is in flight (Yes tapped): a non-interactive
+    // placeholder holds the footer's height while the librarian "types", so the
+    // decline button is gone and can't race the fetch.
+    if (jokeStep === "busy") {
       return (
-        <SymmetricPair
-          closeLabel="Not funny"
-          onClose={() => {
-            onJokeFeedback(false);
-            onResolve();
-          }}
-          actionLabel="Funny"
-          onAction={() => {
-            onJokeFeedback(true);
-            onResolve();
-          }}
-        />
+        <Button
+          type="button"
+          disabled
+          className="h-12 w-full rounded-full bg-foreground text-background opacity-60"
+        >
+          One moment
+        </Button>
       );
     }
-    // Step 1: accept / decline. "Yes" advances to the feedback step (it does NOT
+    // #1 — step 2: the opener's setup has landed; a single "Go on" pill posts a
+    // reply bubble and delivers the punchline + pivot (onOpenerContinue resolves
+    // the offer itself once it finishes).
+    if (jokeStep === "reply") {
+      return (
+        <Button
+          type="button"
+          onClick={onOpenerContinue}
+          className="h-12 w-full rounded-full bg-foreground text-background hover:bg-foreground/90"
+        >
+          Go on
+        </Button>
+      );
+    }
+    // Step 1: accept / decline. "Yes" advances to the reply step (it does NOT
     // resolve — askForJoke keeps the footer armed); "No thanks" posts + resolves.
     return (
       <SymmetricPair
