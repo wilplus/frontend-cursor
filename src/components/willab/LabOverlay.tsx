@@ -187,6 +187,8 @@ export default function LabOverlay({
         topic: r.setup.topic,
         presentationRef: r.setup.presentationRef,
         slides: r.setup.slides,
+        // R5 fix — restore the set length so take 2/3 keeps the countdown.
+        targetLengthSeconds: r.setup.target_length_seconds,
       });
     });
     return () => {
@@ -334,6 +336,9 @@ export default function LabOverlay({
                   topic: context.topic,
                   presentationRef: context.presentationRef,
                   slides: context.slides,
+                  // R5 fix — carry the set length so the next take's timer keeps
+                  // counting down from it.
+                  targetLengthSeconds: context.target_length_seconds,
                 }
               : initArc?.deck;
             // FE-1 — carry this take's session id so a later take can restore
@@ -772,6 +777,11 @@ function SessionContextForm({
     if (preloadDeck.topic) setTopic(preloadDeck.topic);
     if (preloadDeck.slides.length > 0) setSlides(preloadDeck.slides);
     setPresentationRef(preloadDeck.presentationRef);
+    // R5 fix — restore the set length so take 2/3's timer counts down from it
+    // instead of resetting to no-limit (a stopwatch that only counts up).
+    if (preloadDeck.targetLengthSeconds != null) {
+      setLengthSec(preloadDeck.targetLengthSeconds);
+    }
   }, [preloadDeck]);
 
   // "Same as last time" — when the header bumps applyNonce, re-fill every field
@@ -895,11 +905,54 @@ function SessionContextForm({
 
 /* ---------------- §4 step A.5: pre-take priming panel (R5) ---------------- */
 
-/* One-layer mindset-priming panel between Setup and the mic: a single framing
- * phrase (threat / challenge / balanced by batch position, one picked at random)
- * and a proceed button. The proceed click is the user gesture the mic needs, so
- * the parent starts recording from it. The shown condition + phrase is reported
- * back so the upload can log it. */
+/* A schematic 3-phase "swing" curve for the priming intro: the line dips down
+ * (threat), rises up (challenge), then settles flat at a neutral midline
+ * (balanced). Purely illustrative — it sets the mood for the framing that
+ * follows, carries no numbers. Theme-aware via currentColor. */
+function PrimingSwing() {
+  return (
+    <svg
+      viewBox="0 0 320 150"
+      role="img"
+      aria-label="A line that dips down, rises up, then settles flat"
+      className="h-auto w-full max-w-[320px]"
+    >
+      {/* neutral midline the swing settles onto */}
+      <line
+        x1="10"
+        y1="78"
+        x2="310"
+        y2="78"
+        className="stroke-border"
+        strokeWidth="1"
+        strokeDasharray="4 5"
+      />
+      {/* the swing: dip (threat) → crest (challenge) → settle flat (neutral) */}
+      <path
+        d="M12,78 C40,86 60,126 84,126 C112,126 140,30 168,30 C196,30 220,78 246,78 L308,78"
+        fill="none"
+        className="stroke-primary"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* phase markers */}
+      <circle cx="84" cy="126" r="4" className="fill-primary" />
+      <circle cx="168" cy="30" r="4" className="fill-primary" />
+      <circle cx="277" cy="78" r="4" className="fill-primary" />
+    </svg>
+  );
+}
+
+/* One-layer mindset-priming panel between Setup and the mic. Two minimal steps,
+ * shown on every take:
+ *   1. intro  — a schematic swing graphic + a short "this is part of the
+ *               training, it shifts your mindset" explainer + a single Next.
+ *   2. phrase — one framing phrase (threat / challenge / balanced by batch
+ *               position, one picked at random) + a proceed button.
+ * The proceed click is the user gesture the mic needs, so the parent starts
+ * recording from it. The shown condition + phrase is reported back so the
+ * upload can log it. */
 function PrimingPanel({
   batchTake,
   onProceed,
@@ -910,6 +963,28 @@ function PrimingPanel({
 }) {
   // Pick once per mount (a re-render must not re-roll the phrase).
   const [picked] = useState(() => pickPrimingPhrase(batchTake));
+  const [step, setStep] = useState<"intro" | "phrase">("intro");
+
+  if (step === "intro") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
+        <PrimingSwing />
+        <p className="max-w-md text-[17px] leading-relaxed text-muted-foreground">
+          What&apos;s next is a deliberate part of the training. It&apos;s
+          designed to shift your mindset before you speak, so read it carefully
+          and trust the process.
+        </p>
+        <Button
+          type="button"
+          onClick={() => setStep("phrase")}
+          className="h-12 rounded-full px-8 text-[15px] font-medium"
+        >
+          Next
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
       <p className="max-w-md text-[20px] font-semibold leading-relaxed text-foreground">

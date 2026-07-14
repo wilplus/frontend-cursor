@@ -15,11 +15,15 @@
 const KEY = "willab_explore_arc";
 
 /** The deck an arc belongs to — carried so a next/another take can pre-fill the
- *  Lab (topic + slides + the already-served PDF) without re-entry. */
+ *  Lab (topic + slides + the already-served PDF + the set length) without
+ *  re-entry. */
 export interface ExploreArcDeck {
   topic: string;
   presentationRef: string | null;
   slides: { title: string; body: string }[];
+  /** R5 fix — the training's set length, so takes 2/3 restore the countdown
+   *  timer instead of resetting to a stopwatch. null/absent = no set length. */
+  targetLengthSeconds?: number | null;
 }
 
 export interface ExploreArc {
@@ -52,6 +56,10 @@ function pickDeck(raw: unknown): ExploreArcDeck | undefined {
         ? d.presentationRef
         : null,
     slides,
+    targetLengthSeconds:
+      typeof d.targetLengthSeconds === "number" && d.targetLengthSeconds > 0
+        ? d.targetLengthSeconds
+        : null,
   };
 }
 
