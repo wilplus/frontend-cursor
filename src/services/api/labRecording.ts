@@ -35,6 +35,11 @@ export interface LabUploadInput {
   takeIndex?: number;
   /** Pre-recording feeling — private correlation input (AC-9, never shown back). */
   feeling?: Feeling;
+  /** R5 — the pre-take priming manipulation the user saw (threat/challenge/
+   *  balanced) + the exact phrase. Logged so the framing can be correlated with
+   *  the acoustic read; never shown back to the user. undefined for uploads. */
+  primingCondition?: "threat" | "challenge" | "balanced";
+  primingPhrase?: string;
 }
 
 export type LabUploadResult =
@@ -81,6 +86,9 @@ export async function submitLabRecording(
   // Pre-recording feeling — private correlation input; AC-9 bars it from any
   // user-facing surface. Omit when absent so the field never arrives as "null".
   if (input.feeling) form.append("feeling", input.feeling);
+  // R5 — the pre-take priming framing the user saw; private correlation input.
+  if (input.primingCondition) form.append("priming_condition", input.primingCondition);
+  if (input.primingPhrase) form.append("priming_phrase", input.primingPhrase);
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
   const token = await getAuthToken(); // optional — public/guest endpoint

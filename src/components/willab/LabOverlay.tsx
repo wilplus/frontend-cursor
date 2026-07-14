@@ -17,6 +17,7 @@ import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
 import { batchTake, fmtClock } from "./willabHelpers";
+import { pickPrimingPhrase, type PrimingCondition } from "./primingPhrases";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
 import { readoutSummaryDraft } from "./loungeReports";
@@ -50,9 +51,9 @@ import {
 /*  the Lounge with no remount). Distinct "training zone" chrome; holds the    */
 /*  mic for its lifetime via useDualCaptureMic and releases it on close.       */
 /*                                                                            */
-/*    lab_session_context → §4 step A form (topic required); its "Start         */
-/*                          recording" submit starts the mic directly (R4-5     */
-/*                          removed the separate Pre-record framing screen)     */
+/*    lab_session_context → §4 step A form (topic required)                    */
+/*    lab_prerecord       → R5 one-layer priming panel (threat/challenge/       */
+/*                          balanced phrase + "I'm ready"); its tap starts mic  */
 /*    lab_recording       → live capture, timer, min-content gate (≥60s)       */
 /*    lab_processing      → SYNCHRONOUS upload (submitLabRecording, §3.3) →     */
 /*                          Readout on 201 · re-record on 422 · error+retry     */
@@ -144,6 +145,11 @@ export default function LabOverlay({
   // a live recording), so a BE rejection (422) offers "upload a different file"
   // instead of only "record again" (an upload user may not want to speak now).
   const lastWasUploadRef = useRef(false);
+  // R5 — the framing condition + phrase shown on the pre-take priming panel,
+  // stashed at proceed so the upload can log it (BE correlates framing → read).
+  const primingRef = useRef<{ condition: PrimingCondition; phrase: string } | null>(
+    null
+  );
 
   // Explore-arc state (Prompt B §F2). Read from localStorage on mount so the
   // arc_id carries across LabOverlay sessions (Lounge → Lab → Lounge → Lab…).
@@ -296,6 +302,11 @@ export default function LabOverlay({
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
         feeling: recordedFeelingRef.current ?? undefined,
+        // R5 — the framing manipulation shown on the priming panel, logged for
+        // the threat/challenge/balanced correlation. undefined for uploads
+        // (they skip the panel).
+        primingCondition: primingRef.current?.condition,
+        primingPhrase: primingRef.current?.phrase,
       });
       if (!active) return;
       if (result.kind === "ok") {
@@ -553,18 +564,26 @@ export default function LabOverlay({
                 return;
               }
               lastWasUploadRef.current = false;
-              // R4-5 — no Pre-record screen: start the mic straight from the
-              // Setup "Start recording" submit (a real user gesture, so
-              // getUserMedia keeps its activation) and flip to lab_recording
-              // optimistically. The mic-state effect pins the slide timeline to
-              // the actual recording start. A failed getUserMedia surfaces in
-              // RecordingPhase's error branch (Try again). Deckless uploads keep
-              // their own entry via the Lounge footer "upload a recording" path
-              // (which routes through this same Setup form when staged).
+              // R5 — a live take goes through the priming panel (one framing
+              // phrase + proceed) BEFORE the mic. The panel's proceed button is
+              // the user gesture getUserMedia needs, so mic.start() fires there.
               setExploreEnabled(explore);
               setContext(ctx);
               setRejectedMsg(null);
               uploadSeqRef.current += 1; // drop any stale upload-duration read
+              goTo("lab_prerecord");
+            }}
+          />
+        )}
+
+        {state === "lab_prerecord" && (
+          <PrimingPanel
+            batchTake={batchTake(arcTakeIndex)}
+            onProceed={(condition, phrase) => {
+              // R5 — stash the shown framing for the upload log, then start the
+              // mic straight from this click (gesture preserved) and flip to
+              // lab_recording optimistically; the mic-state effect pins t=0.
+              primingRef.current = { condition, phrase };
               startPendingRef.current = true;
               goTo("lab_recording");
               void mic.start();
@@ -866,6 +885,39 @@ function SessionContextForm({
         </div>
       </div>
     </form>
+  );
+}
+
+/* ---------------- §4 step A.5: pre-take priming panel (R5) ---------------- */
+
+/* One-layer mindset-priming panel between Setup and the mic: a single framing
+ * phrase (threat / challenge / balanced by batch position, one picked at random)
+ * and a proceed button. The proceed click is the user gesture the mic needs, so
+ * the parent starts recording from it. The shown condition + phrase is reported
+ * back so the upload can log it. */
+function PrimingPanel({
+  batchTake,
+  onProceed,
+}: {
+  /** Position within the 3-take batch (1/2/3) → threat/challenge/balanced. */
+  batchTake: number;
+  onProceed: (condition: PrimingCondition, phrase: string) => void;
+}) {
+  // Pick once per mount (a re-render must not re-roll the phrase).
+  const [picked] = useState(() => pickPrimingPhrase(batchTake));
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
+      <p className="max-w-md text-[20px] font-semibold leading-relaxed text-foreground">
+        {picked.phrase}
+      </p>
+      <Button
+        type="button"
+        onClick={() => onProceed(picked.condition, picked.phrase)}
+        className="h-12 rounded-full px-8 text-[15px] font-medium"
+      >
+        I&apos;m ready
+      </Button>
+    </div>
   );
 }
 
