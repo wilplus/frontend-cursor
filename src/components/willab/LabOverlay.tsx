@@ -16,7 +16,12 @@ import { validateAudioUpload } from "./audioUploadValidation";
 import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
 import { domainSpec } from "./domains";
 import { readWillabProfile } from "./willabProfile";
-import { batchTake, fmtClock } from "./willabHelpers";
+import {
+  batchTake,
+  coerceTargetSeconds,
+  fmtClock,
+  formatRecordingClock,
+} from "./willabHelpers";
 import { pickPrimingPhrase, type PrimingCondition } from "./primingPhrases";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import { useSignedIn } from "./useSignedIn";
@@ -939,9 +944,10 @@ function RecordingPhase({
 }: {
   micState: ReturnType<typeof useDualCaptureMic>["state"];
   elapsed: number;
-  /** FE-2 — the target length from setup (seconds). The timer counts DOWN to
-   *  it, then UP (overtime) in red. null = no target picked → plain stopwatch. */
-  targetSec: number | null;
+  /** R5 — the target length from setup (seconds, may arrive as a string). The
+   *  clock counts DOWN to it, then UP as a red negative overrun; null/invalid →
+   *  plain count-up stopwatch. Coerced via formatRecordingClock. */
+  targetSec: number | string | null;
   /** R4-5 — the BE min-content rejection (422); shown here now that the
    *  Pre-record screen is gone. "Record again" restarts the mic. */
   rejectedMsg: string | null;
@@ -1069,18 +1075,12 @@ function RecordingPhase({
   }
 
   const reachedMin = elapsed >= MIN_RECORDING_SEC;
-  // FE-2 — count DOWN to the setup target, then UP (overtime) once past it. A
-  // valid target drives the clock; with none picked the clock is a plain
-  // elapsed stopwatch. The 60s min-content gate still governs the stop button
-  // independently of the target.
-  const target = targetSec != null && targetSec > 0 ? targetSec : null;
-  const overtime = target != null && elapsed >= target;
-  const clockSec =
-    target == null
-      ? Math.floor(elapsed)
-      : elapsed >= target
-        ? Math.floor(elapsed - target)
-        : Math.ceil(target - elapsed);
+  // R5 — Apple-style clock: count DOWN from the setup target, read 0:00 at the
+  // target, then count UP as a negative red overrun (never auto-stopping — the
+  // red is only a nudge). No/invalid target → count up raw elapsed, never red.
+  // The 60s min-content gate still governs the stop button independently.
+  const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
+  const target = coerceTargetSeconds(targetSec); // for the bar fill only
   const hasDeck = slides.length > 0;
   return (
     <div
@@ -1112,20 +1112,17 @@ function RecordingPhase({
         ) : null}
       </div>
 
-      {/* R4-1+4 — the timer + bar show on EVERY take now (the even-take hide is
-          gone). Numeric clock counts DOWN to the setup target, then UP in red
-          past it (overtime); no target → a plain stopwatch. Below it, a
-          NUMBERLESS progress bar fills toward the target and turns red + pulses
-          once past it (no digits / no %, AC-9). No target → a neutral pulsing
-          bar alongside the stopwatch. */}
+      {/* R5 — Apple-style countdown → red negative overrun (e.g. -0:36), on
+          EVERY take. Below it, a NUMBERLESS progress bar fills toward the target
+          and turns red + pulses once past it (no digits / no %, AC-9). No target
+          → count up + a neutral pulsing bar. */}
       <div className="flex flex-col items-center gap-2.5">
         <p
           className={`text-[40px] font-semibold tabular-nums ${
-            overtime ? "text-destructive" : "text-foreground"
+            overrun ? "text-destructive" : "text-foreground"
           }`}
         >
-          {overtime ? "+" : ""}
-          {fmtClock(clockSec)}
+          {clockLabel}
         </p>
         <div
           className="h-1.5 w-56 max-w-[70vw] overflow-hidden rounded-full bg-border"
@@ -1133,7 +1130,7 @@ function RecordingPhase({
         >
           <div
             className={`h-full rounded-full transition-[width] duration-200 ${
-              overtime
+              overrun
                 ? "animate-pulse bg-destructive"
                 : target == null
                   ? "animate-pulse bg-muted-foreground/40"

@@ -1,6 +1,7 @@
 import { getAuthToken } from "@/lib/api/auth-client";
 import { type LabSessionContext } from "./LabOverlay";
 import { type PresentationSlide } from "./presentation";
+import { coerceTargetSeconds } from "./willabHelpers";
 
 /* -------------------------------------------------------------------------- */
 /*  willabLastSetup — "Same as last time" prefill, sourced from the BE          */
@@ -31,10 +32,9 @@ export function mapLastSetup(raw: unknown): LabSessionContext | null {
   return {
     topic: r.topic,
     audience: typeof r.audience === "string" ? r.audience : "",
-    target_length_seconds:
-      typeof r.target_length_seconds === "number"
-        ? r.target_length_seconds
-        : null,
+    // R5 — coerce a numeric string too, so a string length restores the
+    // countdown on takes 2/3 instead of being dropped.
+    target_length_seconds: coerceTargetSeconds(r.target_length_seconds),
     domain_vocabulary: Array.isArray(r.domain_vocabulary)
       ? r.domain_vocabulary.filter((x): x is string => typeof x === "string")
       : [],
@@ -56,10 +56,9 @@ export function mapReadoutSetup(raw: unknown): LabSessionContext | null {
   return {
     topic: r.topic,
     audience: typeof r.audience === "string" ? r.audience : "",
-    target_length_seconds:
-      typeof r.target_length_seconds === "number"
-        ? r.target_length_seconds
-        : null,
+    // R5 — coerce a numeric string too, so a string length restores the
+    // countdown on takes 2/3 instead of being dropped.
+    target_length_seconds: coerceTargetSeconds(r.target_length_seconds),
     domain_vocabulary: Array.isArray(r.domain_vocabulary)
       ? r.domain_vocabulary.filter((x): x is string => typeof x === "string")
       : [],
