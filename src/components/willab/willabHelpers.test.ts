@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   batchTake,
+  coerceTargetSeconds,
   fmtClock,
+  formatRecordingClock,
   isUploadAsk,
   loungeToHistory,
   parseVocabulary,
@@ -96,6 +98,54 @@ describe("loungeToHistory", () => {
     expect(h.length).toBe(20);
     expect(h[0]?.content).toBe("m5");
     expect(h[19]?.content).toBe("m24");
+  });
+});
+
+describe("coerceTargetSeconds", () => {
+  it("keeps a positive number", () => {
+    expect(coerceTargetSeconds(180)).toBe(180);
+    expect(coerceTargetSeconds(180.9)).toBe(180); // floors
+  });
+  it("coerces a numeric string", () => {
+    expect(coerceTargetSeconds("180")).toBe(180);
+    expect(coerceTargetSeconds(" 300 ")).toBe(300);
+  });
+  it("treats NaN / ≤0 / null / junk as the no-limit case", () => {
+    for (const v of [null, undefined, 0, -5, NaN, "", "abc", {}]) {
+      expect(coerceTargetSeconds(v)).toBeNull();
+    }
+  });
+});
+
+describe("formatRecordingClock (R5 iOS countdown)", () => {
+  const label = (e: number, t: unknown) => formatRecordingClock(e, t).label;
+
+  it("counts down from a 3-min target to 0:00, then negative red overrun", () => {
+    // acceptance: 3:00 at start → 0:00 at 3:00 → -0:36 at 3:36, still going.
+    expect(formatRecordingClock(0, 180)).toEqual({ label: "3:00", overrun: false });
+    expect(label(1, 180)).toBe("2:59");
+    expect(label(171, 180)).toBe("0:09");
+    expect(formatRecordingClock(180, 180)).toEqual({ label: "0:00", overrun: false });
+    expect(formatRecordingClock(216, 180)).toEqual({ label: "-0:36", overrun: true });
+    expect(formatRecordingClock(300, 180).overrun).toBe(true); // keeps going
+  });
+
+  it("no target → counts up raw elapsed, never overrun", () => {
+    expect(formatRecordingClock(0, null)).toEqual({ label: "0:00", overrun: false });
+    expect(formatRecordingClock(187, null)).toEqual({ label: "3:07", overrun: false });
+    expect(formatRecordingClock(9, 0)).toEqual({ label: "0:09", overrun: false });
+    expect(formatRecordingClock(500, NaN).overrun).toBe(false);
+  });
+
+  it("uses h:mm:ss once the target reaches an hour (lengths up to 7200s)", () => {
+    expect(label(0, 3600)).toBe("1:00:00");
+    expect(label(1, 3600)).toBe("0:59:59");
+    expect(label(3630, 3600)).toBe("-0:00:30");
+    expect(label(0, 7200)).toBe("2:00:00");
+  });
+
+  it("coerces a string target for the countdown", () => {
+    expect(label(60, "180")).toBe("2:00");
   });
 });
 

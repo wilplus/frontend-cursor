@@ -51,6 +51,50 @@ export function fmtClock(sec: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 }
 
+/** Coerce a target length into positive integer seconds, or null. Accepts a
+ *  number OR a numeric string (the setup / readout / resume sources may echo
+ *  either); NaN / non-finite / ≤ 0 → null (the "no limit" case). */
+export function coerceTargetSeconds(v: unknown): number | null {
+  const n =
+    typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+/** Zero-padded clock. `m:ss` normally (`3:07`, `0:09`); `h:mm:ss` when
+ *  `withHours` (`1:00:00`). Minutes are unpadded in the `m:ss` form, padded in
+ *  the `h:mm:ss` form. Clamps negatives to 0. */
+function fmtHms(sec: number, withHours: boolean): string {
+  const s = Math.max(0, Math.floor(sec));
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  if (withHours) {
+    return `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+  }
+  return `${Math.floor(s / 60)}:${pad(s % 60)}`;
+}
+
+/** R5 — the Apple-style recording clock. Counts DOWN from the setup target,
+ *  reads `0:00` at the target, then counts UP as a NEGATIVE overrun (`-0:36`,
+ *  `overrun: true` so the caller reddens it). No/invalid target → counts up the
+ *  raw elapsed, never overrun. Uses `h:mm:ss` once the target (or the elapsed
+ *  in the no-limit case) reaches an hour. `elapsed` is your live tick seconds;
+ *  `targetSec` is coerced (number | numeric-string | null). */
+export function formatRecordingClock(
+  elapsed: number,
+  targetSec: unknown
+): { label: string; overrun: boolean } {
+  const e = Math.max(0, elapsed);
+  const T = coerceTargetSeconds(targetSec);
+  const overrun = T != null && e > T;
+  const magnitude =
+    T == null
+      ? Math.floor(e) // no limit → raw stopwatch
+      : overrun
+        ? Math.floor(e - T) // -(e − T)
+        : Math.ceil(T - e); // T − e, hits 0 exactly at e === T
+  const withHours = (T != null && T >= 3600) || magnitude >= 3600;
+  return { label: `${overrun ? "-" : ""}${fmtHms(magnitude, withHours)}`, overrun };
+}
+
 /** True when the user is asking to upload / submit a file they already have,
  *  rather than record live. Drives the footer's record button → upload picker
  *  swap. Deliberately broad (upload / attach / import / a file/recording/audio),
