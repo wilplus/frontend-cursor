@@ -29,11 +29,7 @@ import {
   type ReadoutSnippet,
 } from "./readout";
 import { saveTranscriptEdit } from "@/services/api/transcriptEdits";
-import {
-  sendSuggestionFeedback,
-  type SuggestionFeedbackAction,
-  type SuggestionFeedbackTarget,
-} from "@/services/api/suggestionFeedback";
+import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 
 /* -------------------------------------------------------------------------- */
 /*  ReadoutCard — ONE vertical scroll (P4, founder 2026-07-11): every slide     */
@@ -774,50 +770,87 @@ function PieceBlock({
   /** #191 — present → a piece with approved edits offers a re-read mic. */
   reReadContext: ReReadContext | null;
 }) {
-  // #191 — the instant view is suggestions-only: "Approve" composes the upgraded
-  // text into the piece's main text (optimistic), one row at a time. No comment,
-  // no ✓, no Apply-all.
-  const [appliedText, setAppliedText] = useState<string | null>(null);
-  const [approved, setApproved] = useState<Record<number, boolean>>({});
+  // R6-FE2 — Approve is a reversible TOGGLE. The source of truth is the ordered
+  // list of currently-approved row indices; the piece text is recomposed from a
+  // pristine-base SNAPSHOT by re-applying the still-approved rows in their
+  // original approval order. Reverting the most recent approval therefore
+  // restores the exact pre-approve snapshot, and reverting an older one undoes
+  // ONLY that row's replacement (the later rows re-apply unchanged). Plain
+  // React state — the apply-state survives re-renders; nothing lives in the DOM.
+  const [applyOrder, setApplyOrder] = useState<number[]>([]);
+  // Monotonic edit sequence for the re-read mic key: bumps on EVERY toggle
+  // (approve and revert) so a completed read of stale text can't linger, even
+  // through an approve → revert → approve cycle.
+  const [editSeq, setEditSeq] = useState(0);
+  // The pristine base is SNAPSHOTTED at the first approval and held for the
+  // whole composition. Critical: the suggestion poll merges fresh payloads
+  // wholesale, folding our own PUT back as user_edited_text — deriving the base
+  // live from the prop would then rebase the composition onto already-composed
+  // text (double-applying repeated words and making revert a no-op). Cleared
+  // when the order empties so the next cycle re-snapshots current truth.
+  const baseRef = useRef<string | null>(null);
+  // Persist queue: toggles fire PUTs back-to-back (approve → instant revert);
+  // serializing them guarantees the LAST tap's text is what the server keeps
+  // (saveTranscriptEdit never throws, so the chain cannot wedge).
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const sug = piece.sayItStronger;
-  const displayText = appliedText ?? piece.userEditedText ?? piece.text;
+  const upgrades = sug?.upgrades ?? [];
+  const liveBase = piece.userEditedText ?? piece.text;
+  const baseText = baseRef.current ?? liveBase;
+  const composeFor = (order: number[], base: string) =>
+    order.reduce(
+      (t, idx) =>
+        upgrades[idx]
+          ? applyUpgradeText(t, upgrades[idx].original, upgrades[idx].upgrade)
+          : t,
+      base
+    );
+  const displayText =
+    applyOrder.length > 0 ? composeFor(applyOrder, baseText) : liveBase;
   const canPersist = !!(sessionId && piece.snippetId);
-  const hasApprovedEdit = appliedText !== null;
-  // Bumps on every new approval → remounts the re-read mic so it reflects the
-  // latest corrected text (a completed read of stale text can't linger).
-  const approvedCount = Object.keys(approved).length;
+  const hasApprovedEdit = applyOrder.length > 0;
 
-  // Approve = write this upgrade into the piece text + record the feedback. A
-  // row already approved is a no-op on the text (re-running the replace would
-  // swap a SECOND occurrence of a repeated word and corrupt it).
-  const approve = (i: number, u: SayItStrongerUpgrade) => {
-    if (approved[i]) return;
-    const next = applyUpgradeText(displayText, u.original, u.upgrade);
-    setAppliedText(next);
-    setApproved((s) => ({ ...s, [i]: true }));
+  // Toggle = approve (append to the order) or revert (drop from the order),
+  // recompose, persist the composed text, and record the tap ("applied" /
+  // "reverted" — the BE accepts both). Reverting the last approval persists
+  // the base text back, restoring the original server-side too.
+  const toggle = (i: number) => {
+    const isOn = applyOrder.includes(i);
+    const base = baseRef.current ?? liveBase;
+    if (!isOn) {
+      // Overlap guard: a row whose `original` was already consumed by an
+      // overlapping approval can't change the text — approving it anyway would
+      // record a phantom approval that "resurrects" later when the consuming
+      // row is reverted. Keep it an honest no-op (button stays unpressed).
+      const cur = composeFor(applyOrder, base);
+      const u = upgrades[i];
+      if (!u || applyUpgradeText(cur, u.original, u.upgrade) === cur) return;
+    }
+    const nextOrder = isOn
+      ? applyOrder.filter((x) => x !== i)
+      : [...applyOrder, i];
+    if (nextOrder.length > 0 && baseRef.current === null) {
+      baseRef.current = liveBase; // first approval → freeze the base
+    }
+    if (nextOrder.length === 0) baseRef.current = null; // cycle over → thaw
+    setApplyOrder(nextOrder);
+    setEditSeq((n) => n + 1);
     if (canPersist) {
-      void saveTranscriptEdit(sessionId!, { snippetId: piece.snippetId! }, next);
-      const feedback: {
-        snippetId: string;
-        sessionId: string;
-        target: SuggestionFeedbackTarget;
-        action: SuggestionFeedbackAction;
-        upgradeIndex: number;
-        suggestionVersion: number | null;
-      } = {
+      const text = composeFor(nextOrder, base);
+      saveChainRef.current = saveChainRef.current.then(() =>
+        saveTranscriptEdit(sessionId!, { snippetId: piece.snippetId! }, text)
+      );
+      void sendSuggestionFeedback({
         snippetId: piece.snippetId!,
         sessionId: sessionId!,
         target: "upgrade",
-        action: "applied",
+        action: isOn ? "reverted" : "applied",
         upgradeIndex: i,
         suggestionVersion: sug?.version ?? null,
-      };
-      void sendSuggestionFeedback(feedback);
+      });
     }
   };
-
-  const upgrades = sug?.upgrades ?? [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -836,15 +869,16 @@ function PieceBlock({
         </p>
       </div>
 
-      {/* 2 — word / phrase suggestions, each with a single left "Approve". */}
+      {/* 2 — word / phrase suggestions, each with a single left Approve TOGGLE
+          (second click reverts exactly that row's replacement). */}
       {upgrades.length > 0 ? (
         <div className="flex flex-col gap-2">
           {upgrades.map((u, i) => (
             <SuggestionRow
               key={i}
               upgrade={u}
-              approved={!!approved[i]}
-              onApprove={() => approve(i, u)}
+              approved={applyOrder.includes(i)}
+              onToggle={() => toggle(i)}
             />
           ))}
         </div>
@@ -852,13 +886,13 @@ function PieceBlock({
         <AlreadyStrongLine />
       ) : null}
 
-      {/* 3 — re-read the corrected text (only once a piece has approved edits).
-          Keyed by the approval count so a further approval remounts it fresh:
-          the stale "Recorded" clears and the user can re-read the newer text. */}
+      {/* 3 — re-read the corrected text (only while a piece has approved edits).
+          Keyed by the edit sequence so any toggle remounts it fresh: the stale
+          "Recorded" clears and the user can re-read the current text. */}
       {hasApprovedEdit && reReadContext && sessionId ? (
         <PieceReRead
-          key={approvedCount}
-          pieceKey={`piece:${piece.index}:${approvedCount}`}
+          key={editSeq}
+          pieceKey={`piece:${piece.index}:${editSeq}`}
           spokenSessionId={sessionId}
           context={reReadContext}
         />
@@ -867,26 +901,31 @@ function PieceBlock({
   );
 }
 
-/** One word/phrase upgrade row: a single left "Approve" (writes the change into
- *  the piece text) then "old → new". Same row shape for word & phrase (#191). */
+/** One word/phrase upgrade row: a single left Approve TOGGLE (first click
+ *  writes the change into the piece text, second click reverts it and returns
+ *  the row to its normal black-button look) then "old → new". Same row shape
+ *  for word & phrase (#191/R6-FE2). */
 function SuggestionRow({
   upgrade,
   approved,
-  onApprove,
+  onToggle,
 }: {
   upgrade: SayItStrongerUpgrade;
   approved: boolean;
-  onApprove: () => void;
+  onToggle: () => void;
 }) {
   return (
     <div className="flex items-center gap-2.5">
       <button
         type="button"
-        onClick={onApprove}
-        disabled={approved}
+        onClick={onToggle}
+        aria-pressed={approved}
+        aria-label={
+          approved ? "Revert this change" : "Approve this change"
+        }
         className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium transition-colors ${
           approved
-            ? "bg-muted text-muted-foreground"
+            ? "bg-muted text-muted-foreground hover:bg-muted/70"
             : "bg-foreground text-background hover:bg-foreground/90"
         }`}
       >
@@ -1051,7 +1090,8 @@ function PieceReRead({
         }}
         className="flex items-center gap-2 self-start rounded-full border border-primary/40 bg-primary/5 px-4 py-1.5 text-[13px] font-medium text-primary transition-colors hover:border-primary/60"
       >
-        <Mic className="h-3.5 w-3.5" aria-hidden /> Re-read this
+        <Mic className="h-3.5 w-3.5" aria-hidden /> Re-read this as if to a
+        friend
       </button>
       {errorMsg ? (
         <p className="text-[12px] text-destructive">{errorMsg}</p>

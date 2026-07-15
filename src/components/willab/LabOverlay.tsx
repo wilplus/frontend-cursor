@@ -19,7 +19,6 @@ import { readWillabProfile } from "./willabProfile";
 import {
   batchTake,
   coerceTargetSeconds,
-  fmtClock,
   formatRecordingClock,
 } from "./willabHelpers";
 import { pickPrimingPhrase, type PrimingCondition } from "./primingPhrases";
@@ -63,9 +62,9 @@ import {
 /*    lab_session_context → §4 step A form (topic required)                    */
 /*    lab_prerecord       → R5 one-layer priming panel (threat/challenge/       */
 /*                          balanced phrase + "I'm ready"); its tap starts mic  */
-/*    lab_recording       → live capture, timer, min-content gate (≥60s)       */
-/*    lab_processing      → SYNCHRONOUS upload (submitLabRecording, §3.3) →     */
-/*                          Readout on 201 · re-record on 422 · error+retry     */
+/*    lab_recording       → live capture, timer (no minimum time — BE-2)        */
+/*    lab_processing      → upload (submitLabRecording, §3.3): Readout on 201,   */
+/*                          async poll on 202, re-record on 422, error+retry     */
 /*    readout             → §5 ReadoutCard (live payload); send gate = §13      */
 /* -------------------------------------------------------------------------- */
 
@@ -81,9 +80,6 @@ export interface LabSessionContext {
   /** The BE-served PDF url when a deck was uploaded; null for manual / none. */
   presentationRef: string | null;
 }
-
-/** §4 min-content gate (client pre-check; BE ③ is authoritative for has-speech). */
-const MIN_RECORDING_SEC = 60;
 
 const LENGTH_PRESETS = [
   { label: "1 min", sec: 60 },
@@ -282,11 +278,9 @@ export default function LabOverlay({
       setCurrentSlide(0);
       slideAdvancesRef.current = [{ index: 0, tMs: 0 }];
     }
-    if (
-      s.status === "stopped" &&
-      state === "lab_recording" &&
-      s.durationSec >= MIN_RECORDING_SEC
-    ) {
+    // BE-2/R6-FE5 — no minimum-time gate: every stop submits. The BE analyzes
+    // whatever arrived (its min-content 422 is retired server-side too).
+    if (s.status === "stopped" && state === "lab_recording") {
       durationRef.current = s.durationSec;
       setBlob(s.audioBlob);
       goTo("lab_processing");
@@ -1042,54 +1036,13 @@ function SessionContextForm({
 
 /* ---------------- §4 step A.5: pre-take priming panel (R5) ---------------- */
 
-/* A schematic 3-phase "swing" curve for the priming intro: the line dips down
- * (threat), rises up (challenge), then settles flat at a neutral midline
- * (balanced). Purely illustrative — it sets the mood for the framing that
- * follows, carries no numbers. Theme-aware via currentColor. */
-function PrimingSwing() {
-  return (
-    <svg
-      viewBox="0 0 320 150"
-      role="img"
-      aria-label="A line that dips down, rises up, then settles flat"
-      className="h-auto w-full max-w-[320px]"
-    >
-      {/* neutral midline the swing settles onto */}
-      <line
-        x1="10"
-        y1="78"
-        x2="310"
-        y2="78"
-        className="stroke-border"
-        strokeWidth="1"
-        strokeDasharray="4 5"
-      />
-      {/* the swing: dip (threat) → crest (challenge) → settle flat (neutral) */}
-      <path
-        d="M12,78 C40,86 60,126 84,126 C112,126 140,30 168,30 C196,30 220,78 246,78 L308,78"
-        fill="none"
-        className="stroke-primary"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* phase markers */}
-      <circle cx="84" cy="126" r="4" className="fill-primary" />
-      <circle cx="168" cy="30" r="4" className="fill-primary" />
-      <circle cx="277" cy="78" r="4" className="fill-primary" />
-    </svg>
-  );
-}
-
-/* One-layer mindset-priming panel between Setup and the mic. Two minimal steps,
- * shown on every take:
- *   1. intro  — a schematic swing graphic + a short "this is part of the
- *               training, it shifts your mindset" explainer + a single Next.
- *   2. phrase — one framing phrase (threat / challenge / balanced by batch
- *               position, one picked at random) + a proceed button.
- * The proceed click is the user gesture the mic needs, so the parent starts
- * recording from it. The shown condition + phrase is reported back so the
- * upload can log it. */
+/* One-layer mindset-priming panel between Setup and the mic, shown on every
+ * take: one framing phrase (threat / challenge / balanced by batch position,
+ * one picked at random) + a proceed button. The proceed click is the user
+ * gesture the mic needs, so the parent starts recording from it. The shown
+ * condition + phrase is reported back so the upload can log it. (R6-FE6: the
+ * parabola/intro explainer screen that preceded this was deleted — the panel
+ * is the single pre-take screen again.) */
 function PrimingPanel({
   batchTake,
   onProceed,
@@ -1100,29 +1053,6 @@ function PrimingPanel({
 }) {
   // Pick once per mount (a re-render must not re-roll the phrase).
   const [picked] = useState(() => pickPrimingPhrase(batchTake));
-  const [step, setStep] = useState<"intro" | "phrase">("intro");
-
-  if (step === "intro") {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
-        <PrimingSwing />
-        <p className="max-w-md text-[17px] leading-relaxed text-muted-foreground">
-          What&apos;s next is a deliberate part of the training. It&apos;s
-          designed to shift your mindset before you speak, so read it carefully
-          and trust the process.
-        </p>
-        {/* Delivery-layer polish — the parabola screen's CTA is BLACK (matches
-            the record button), not the primary orange. */}
-        <Button
-          type="button"
-          onClick={() => setStep("phrase")}
-          className="h-12 rounded-full bg-foreground px-8 text-[15px] font-medium text-background hover:bg-foreground/90"
-        >
-          Next
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
@@ -1240,24 +1170,6 @@ function RecordingPhase({
     );
   }
 
-  // Too-short re-record prompt (min-content gate).
-  if (micState.status === "stopped" && micState.durationSec < MIN_RECORDING_SEC) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="text-[17px] font-semibold text-foreground">
-          That was only {fmtClock(micState.durationSec)}
-        </p>
-        <p className="max-w-sm text-[15px] text-muted-foreground">
-          We need at least {fmtClock(MIN_RECORDING_SEC)} of speech for a useful
-          read. Nothing was sent, so give it another go.
-        </p>
-        <Button onClick={onRecordAgain} className="rounded-full px-6">
-          Record again
-        </Button>
-      </div>
-    );
-  }
-
   if (micState.status === "error") {
     // Old-iOS standalone PWAs expose no getUserMedia (code "needs_safari") —
     // offer a one-tap hop to Safari (target=_blank from standalone opens the
@@ -1288,11 +1200,9 @@ function RecordingPhase({
     );
   }
 
-  const reachedMin = elapsed >= MIN_RECORDING_SEC;
   // R5 — Apple-style clock: count DOWN from the setup target, read 0:00 at the
   // target, then count UP as a negative red overrun (never auto-stopping — the
   // red is only a nudge). No/invalid target → count up raw elapsed, never red.
-  // The 60s min-content gate still governs the stop button independently.
   const { label: clockLabel, overrun } = formatRecordingClock(elapsed, targetSec);
   const target = coerceTargetSeconds(targetSec); // for the bar fill only
   const hasDeck = slides.length > 0;
@@ -1360,22 +1270,13 @@ function RecordingPhase({
         </div>
       </div>
 
-      {/* U11 — the stop control is LOCKED until the 60s minimum is reached, so
-          a recording can't be ended too short (FE enforcement of the §3.3/§5.5
-          min-content gate). Independent of the target countdown above; the
-          button is disabled + visually muted until then. */}
+      {/* BE-2/R6-FE5 — stop is always available; there is no minimum recording
+          time anywhere (the old 60s lock + too-short prompts are gone). */}
       <button
         type="button"
         onClick={onStop}
-        disabled={!reachedMin}
-        aria-label={
-          reachedMin ? "Stop recording" : "Keep recording a little longer"
-        }
-        className={`flex h-20 w-20 items-center justify-center rounded-full border-2 transition-transform ${
-          reachedMin
-            ? "border-destructive text-destructive hover:scale-105"
-            : "cursor-not-allowed border-muted-foreground/25 text-muted-foreground/40"
-        }`}
+        aria-label="Stop recording"
+        className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-transform hover:scale-105"
       >
         <Square className="h-7 w-7 fill-current" />
       </button>
