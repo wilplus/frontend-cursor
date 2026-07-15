@@ -30,7 +30,14 @@ export type LoungeKind =
   /** The unpaid/unreviewed >=3-takes counterpart: the full transcript is ready
    *  (transcript text + strong sides — never a premature "best presentation").
    *  Metadata carries { arc_id, topic }. */
-  | "transcript_ready";
+  | "transcript_ready"
+  /** Delivery layer — one grey card per take, emitted by the coach's final
+   *  "Save and Publish full analysis". Metadata carries
+   *  { arc_id, take_session_id, take_index, free }. Opens the feedback page. */
+  | "feedback"
+  /** Delivery layer — the PURPLE ideal-text card (one per arc, after the 3
+   *  feedback bubbles). Metadata carries { arc_id }. Opens the notebook. */
+  | "ideal_text";
 
 /** Server-shared limits (keep in lockstep with the BE contract). */
 export const LOUNGE_BODY_MAX = 16_000;

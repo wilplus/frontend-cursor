@@ -2,26 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Crown, FileDown, Loader2, Pencil, Sparkles } from "lucide-react";
+import { Crown, FileDown, Loader2, Sparkles } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import { SlideRender } from "./pdfSlides";
 import {
   fetchBestPresentation,
-  saveBestPresentationSlideText,
   type BestPresentationResult,
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
 import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
-import { publishArc } from "@/services/api/arcBatch";
 import { useUserProfile } from "./useUserProfile";
 import { readExploreArc } from "@/lib/willab/exploreArc";
-import {
-  parseRichMarkers,
-  richMarkersToHtml,
-  wrapSelection,
-  type RichMark,
-} from "@/lib/willab/richMarkers";
+import CoachIdealTextPanel from "./CoachIdealTextPanel";
+import { parseRichMarkers, richMarkersToHtml } from "@/lib/willab/richMarkers";
 
 /* -------------------------------------------------------------------------- */
 /*  BestPresentationOverlay — the IDEAL TEXT view (Lovable P8).                */
@@ -58,32 +52,8 @@ export default function BestPresentationOverlay({
   const [unlocking, setUnlocking] = useState(false);
   // Soft, retryable notice under the unlock button — never an error screen.
   const [unlockError, setUnlockError] = useState<string | null>(null);
-  // P8 — read-only by default; the navbar Edit button toggles the editor.
-  const [editMode, setEditMode] = useState(false);
-  // R4-10 — coach-only "Publish arc to student": one batch action delivering
-  // every take's labelled snippets + the finished ideal text. 409 = the coach
-  // still has ideal-text slides to edit (that ordering is intended).
+  // Delivery layer — the coach flow lives in CoachIdealTextPanel now.
   const { isCoach } = useUserProfile();
-  const [arcPublishing, setArcPublishing] = useState(false);
-  const [arcPublished, setArcPublished] = useState(false);
-  const [arcPublishError, setArcPublishError] = useState<string | null>(null);
-  const [arcSlidesPending, setArcSlidesPending] = useState<number[] | null>(null);
-
-  async function handlePublishArc() {
-    if (arcPublishing) return;
-    setArcPublishing(true);
-    setArcPublishError(null);
-    setArcSlidesPending(null);
-    const r = await publishArc(arcId);
-    setArcPublishing(false);
-    if (r.kind === "ok") {
-      setArcPublished(true);
-    } else if (r.kind === "ideal_text_incomplete") {
-      setArcSlidesPending(r.slidesPending);
-    } else {
-      setArcPublishError(r.message);
-    }
-  }
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -182,18 +152,6 @@ export default function BestPresentationOverlay({
     };
   }, [slideCount, status]);
 
-  function handleTextSaved(slideIndex: number, newText: string) {
-    setResult((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        slides: prev.slides.map((s) =>
-          s.index === slideIndex ? { ...s, text: newText, edited: true } : s
-        ),
-      };
-    });
-  }
-
   // ── Export: a print window (browser Save as PDF) preserving the marker
   // formatting + key phrases + game deep links. Client-side, zero deps.
   function handleExport() {
@@ -228,6 +186,34 @@ export default function BestPresentationOverlay({
       <script>window.onload = function () { window.print(); };</script>
     </body></html>`);
     w.document.close();
+  }
+
+  // Delivery layer — the COACH must always reach the ideal-text panel: the
+  // arc a coach reviews is by definition not yet finalized (preparing), never
+  // theirs to pay for (paywall), and may 402/404 on the student fetch (error).
+  // Without this, removing the per-take publish would dead-end the coach on
+  // student-copy screens with no way to publish anything.
+  if (
+    isCoach &&
+    (status === "paywall" || status === "preparing" || status === "error")
+  ) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-background">
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
+          <span className="text-[13px] font-medium text-foreground">
+            Ideal text · coach review
+          </span>
+          <OverlayCloseButton onClick={onClose} />
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <CoachIdealTextPanel arcId={arcId} />
+          <p className="mx-auto w-full max-w-2xl px-4 py-3 text-[12px] text-muted-foreground">
+            The student&apos;s assembled view isn&apos;t available yet — you can
+            still edit, approve, and publish from here.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (status === "paywall") {
@@ -378,63 +364,14 @@ export default function BestPresentationOverlay({
             <FileDown className="h-[14px] w-[14px]" aria-hidden />
             Export
           </button>
-          <button
-            type="button"
-            onClick={() => setEditMode((v) => !v)}
-            aria-pressed={editMode}
-            aria-label={editMode ? "Done editing" : "Edit text"}
-            className={`flex h-[28px] items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium ${
-              editMode
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-foreground"
-            }`}
-          >
-            <Pencil className="h-[14px] w-[14px]" aria-hidden />
-            {editMode ? "Done" : "Edit"}
-          </button>
           <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
 
-      {/* R4-10 — coach-only batch delivery strip. The per-take "Publish to
-          user" flow (CoachReviewOverlay) stays as-is; this delivers the whole
-          arc (all takes' labelled snippets + the ideal text) in one action. */}
-      {isCoach ? (
-        <div className="shrink-0 border-b border-border bg-primary/5 px-4 py-2">
-          <div className="mx-auto flex w-full max-w-2xl flex-col gap-1">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[12px] text-muted-foreground">
-                Coach: deliver all takes + the ideal text as one batch
-              </span>
-              <button
-                type="button"
-                onClick={() => void handlePublishArc()}
-                disabled={arcPublishing || arcPublished}
-                className="flex h-[28px] shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 text-[12px] font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-              >
-                {arcPublishing ? (
-                  <Loader2 className="h-[14px] w-[14px] animate-spin" aria-hidden />
-                ) : null}
-                {arcPublished ? "Arc published" : "Publish arc to student"}
-              </button>
-            </div>
-            {arcSlidesPending ? (
-              <p className="text-[12px] text-destructive">
-                Finish editing the ideal text first
-                {arcSlidesPending.length > 0
-                  ? ` (slides ${arcSlidesPending
-                      .map((n) => n + 1)
-                      .join(", ")} still need edits)`
-                  : ""}
-                , then publish.
-              </p>
-            ) : null}
-            {arcPublishError ? (
-              <p className="text-[12px] text-destructive">{arcPublishError}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {/* Delivery layer — the coach's ONE-BLOCK ideal-text flow (Save /
+          Save and Publish full analysis). Replaces the R4-10 batch strip and
+          the per-slide coach editing. */}
+      {isCoach ? <CoachIdealTextPanel arcId={arcId} /> : null}
 
       <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl">
@@ -461,9 +398,6 @@ export default function BestPresentationOverlay({
               }}
               slide={slide}
               presentationRef={result.presentationRef}
-              arcId={arcId}
-              editMode={editMode}
-              onTextSaved={handleTextSaved}
             />
           ))}
 
@@ -492,16 +426,10 @@ function IdealTextSection({
   refCallback,
   slide,
   presentationRef,
-  arcId,
-  editMode,
-  onTextSaved,
 }: {
   refCallback: (el: HTMLElement | null) => void;
   slide: BestPresentationSlide;
   presentationRef: string | null;
-  arcId: string;
-  editMode: boolean;
-  onTextSaved: (slideIndex: number, text: string) => void;
 }) {
   const hasSlideVisual = !!presentationRef || !!slide.title;
   return (
@@ -521,29 +449,27 @@ function IdealTextSection({
       )}
 
       <div className="flex flex-col gap-3 px-4 py-4">
-        {slide.text || editMode ? (
-          editMode ? (
-            <MarkerEditor arcId={arcId} slide={slide} onSaved={onTextSaved} />
-          ) : (
-            // Read view: font one step bigger than the readout (16 vs 15).
-            <p className="whitespace-pre-line text-[16px] leading-relaxed text-foreground">
-              {parseRichMarkers(slide.text).map((seg, i) => (
-                <span
-                  key={i}
-                  className={[
-                    seg.bold ? "font-semibold" : "",
-                    seg.italic ? "italic" : "",
-                    seg.underline ? "underline underline-offset-2" : "",
-                    seg.highlight ? "rounded bg-primary/20 px-0.5" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {seg.text}
-                </span>
-              ))}
-            </p>
-          )
+        {slide.text ? (
+          // Read view: font one step bigger than the readout (16 vs 15).
+          // Delivery layer: read-only — per-slide editing retired (the coach
+          // edits the ONE-BLOCK ideal text; the user edits their notebook copy).
+          <p className="whitespace-pre-line text-[16px] leading-relaxed text-foreground">
+            {parseRichMarkers(slide.text).map((seg, i) => (
+              <span
+                key={i}
+                className={[
+                  seg.bold ? "font-semibold" : "",
+                  seg.italic ? "italic" : "",
+                  seg.underline ? "underline underline-offset-2" : "",
+                  seg.highlight ? "rounded bg-primary/20 px-0.5" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {seg.text}
+              </span>
+            ))}
+          </p>
         ) : (
           <p className="text-[14px] italic text-muted-foreground">
             No best recording for this slide yet.
@@ -571,7 +497,7 @@ function IdealTextSection({
           </p>
         ) : null}
 
-        {!editMode && slide.text ? (
+        {slide.text ? (
           <p className="text-[11px] text-muted-foreground">
             from your take {slide.takeIndex}
             {slide.edited ? ", edited" : ""}
@@ -579,100 +505,6 @@ function IdealTextSection({
         ) : null}
       </div>
     </section>
-  );
-}
-
-/* ── the marker editor: textarea + B / I / U / highlight, per section ── */
-
-function MarkerEditor({
-  arcId,
-  slide,
-  onSaved,
-}: {
-  arcId: string;
-  slide: BestPresentationSlide;
-  onSaved: (slideIndex: number, text: string) => void;
-}) {
-  const [draft, setDraft] = useState(slide.text);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [draft]);
-
-  function applyMark(mark: RichMark) {
-    const el = ref.current;
-    if (!el) return;
-    const r = wrapSelection(draft, el.selectionStart, el.selectionEnd, mark);
-    if (r.text === draft) return; // collapsed selection
-    setDraft(r.text);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(r.selStart, r.selEnd);
-    });
-  }
-
-  async function save() {
-    const t = draft.trim();
-    if (!t || saving) return;
-    setSaving(true);
-    setError(null);
-    const r = await saveBestPresentationSlideText(arcId, slide.index, t);
-    setSaving(false);
-    if (r.ok) {
-      onSaved(slide.index, t);
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 1500);
-    } else {
-      setError(r.message ?? "Could not save. Try again.");
-    }
-  }
-
-  const marks: { mark: RichMark; label: string; cls: string }[] = [
-    { mark: "bold", label: "B", cls: "font-bold" },
-    { mark: "italic", label: "I", cls: "italic" },
-    { mark: "underline", label: "U", cls: "underline underline-offset-2" },
-    { mark: "highlight", label: "HL", cls: "text-primary" },
-  ];
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-1.5">
-        {marks.map((m) => (
-          <button
-            key={m.mark}
-            type="button"
-            onClick={() => applyMark(m.mark)}
-            aria-label={`Mark selection ${m.mark}`}
-            className={`flex h-8 w-9 items-center justify-center rounded-lg border border-border text-[13px] text-foreground hover:bg-muted ${m.cls}`}
-          >
-            {m.label}
-          </button>
-        ))}
-        <div className="flex-1" />
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving || !draft.trim()}
-          className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-medium text-primary-foreground disabled:opacity-50"
-        >
-          {saving ? "Saving..." : savedFlash ? "Saved" : "Save"}
-        </button>
-      </div>
-      <textarea
-        ref={ref}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={4}
-        className="max-h-[60vh] w-full resize-none overflow-y-auto rounded-xl border border-primary bg-background px-3 py-2 text-[16px] leading-relaxed outline-none focus:ring-1 focus:ring-primary"
-      />
-      {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
-    </div>
   );
 }
 

@@ -4,15 +4,12 @@ import { getBackendUrl, getV2AccessToken } from "@/app/api/getAuth";
 export const runtime = "nodejs";
 
 /**
- * GET /api/v2/explore/arc/[arcId]/batch
+ * PUT /api/v2/explore/arc/[arcId]/ideal-text/notes
  *
- * BFF proxy — the STUDENT batch view (R4-11 / BE-A). After the coach's
- * "Publish arc", returns {delivered:true, takes:[{take_index, session_id,
- * snippets:[...]}], ideal_text:{slides:[...]}}; before it, {delivered:false}.
- * The payload intentionally carries NO say_it_stronger (synonyms are
- * instant-view only) and the ideal text is coach-edited (L1). Relayed verbatim.
+ * BFF proxy — the user's PERSONAL notebook copy of the ideal text (A6). Never
+ * touches the coach-approved canonical (L1). Body {text} relayed verbatim.
  */
-export async function GET(
+export async function PUT(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
@@ -22,20 +19,35 @@ export async function GET(
   }
   const backend = getBackendUrl();
   if (!backend) {
-    return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Backend URL not configured" },
+      { status: 502 }
+    );
   }
 
   const id = encodeURIComponent(params.arcId);
+  const body = await req.text();
   let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/explore/arc/${id}/batch`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    upstream = await fetch(`${backend}/v2/explore/arc/${id}/ideal-text/notes`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: body || "{}",
       cache: "no-store",
     });
   } catch (err) {
-    console.error("GET /api/v2/explore/arc/[arcId]/batch — fetch failed:", err);
-    return NextResponse.json({ error: "Batch service unavailable." }, { status: 502 });
+    console.error(
+      "PUT /api/v2/explore/arc/[arcId]/ideal-text/notes — fetch failed:",
+      err
+    );
+    return NextResponse.json(
+      { error: "Notes service unavailable." },
+      { status: 502 }
+    );
   }
 
   const text = await upstream.text();

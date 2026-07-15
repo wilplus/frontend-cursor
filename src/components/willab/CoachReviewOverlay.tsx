@@ -12,11 +12,11 @@ import SnippetScreenShell from "./SnippetScreenShell";
 import { recutSession } from "@/services/api/recutSession";
 import type { CoachSnippetState, SessionFeeling } from "@/services/api/coachReview";
 import {
-  publishWillabSession,
   type PublishLabel,
   type PublishNote,
   type PublishSnippetState,
 } from "@/services/api/publishWillabSession";
+import { saveCoachFeedback } from "@/services/api/saveCoachFeedback";
 import {
   clearCoachReviewDraft,
   readCoachReviewDraft,
@@ -64,7 +64,6 @@ export default function CoachReviewOverlay({
   );
   const [videoRef, setVideoRef] = useState<string | null>(null);
   const [overallMessage, setOverallMessage] = useState("");
-  const [notifyClient, setNotifyClient] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
@@ -101,7 +100,6 @@ export default function CoachReviewOverlay({
     setOverallMessage((prev) =>
       draftCache ? draftCache.overallMessage || prev : session.overallMessage
     );
-    setNotifyClient(session.state !== "done");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
@@ -126,17 +124,20 @@ export default function CoachReviewOverlay({
       })
     : false;
 
-  async function handlePublish() {
+  // Delivery layer — the per-take action is a SAVE checkpoint, not a publish:
+  // it persists the take's drafts + stamps coach_feedback_saved_at server-side
+  // and delivers NOTHING. The user only receives the 4 bubbles at the arc-level
+  // "Save and Publish full analysis" (ideal-text panel), which requires all 3
+  // takes saved + the ideal text approved.
+  async function handleSaveFeedback() {
     if (!session || !floorMet || publishing) return;
     setPublishing(true);
     setPublishError(null);
 
     const notes: PublishNote[] = [];
     const labels: PublishLabel[] = [];
-    // R4-8 — publish persists EVERYTHING in one shot: the full per-snippet
-    // state array (BE item C saves each via the save-snippet path before the
-    // publish contract). notes/labels ride along unchanged for back-compat
-    // (today's BE ignores the unknown `snippets` key and uses them as before).
+    // The full per-snippet state array persists in one shot (R4-8 save-on-
+    // publish became save-on-Save); notes/labels ride along for back-compat.
     const snippets: PublishSnippetState[] = [];
     for (const s of session.snippets) {
       const cs = localState[s.id] ?? s.coachState;
@@ -155,23 +156,22 @@ export default function CoachReviewOverlay({
       }
     }
 
-    const result = await publishWillabSession({
+    const result = await saveCoachFeedback({
       sessionId: session.sessionId,
       overallMessage: overallMessage.trim() || null,
       notes,
       labels,
       snippets,
-      notifyClient,
     });
 
     setPublishing(false);
     if (result.ok) {
-      // The published truth is on the server now; the crash draft is stale.
+      // The saved truth is on the server now; the crash draft is stale.
       clearCoachReviewDraft(session.sessionId);
       setPublished(true);
       onPublished?.(session.sessionId);
     } else {
-      setPublishError(result.message);
+      setPublishError(result.message ?? "Couldn't save. Try again.");
     }
   }
 
@@ -182,14 +182,14 @@ export default function CoachReviewOverlay({
         onClick={onClose}
         role="button"
         tabIndex={0}
-        aria-label="Close, insights published"
+        aria-label="Close, feedback saved"
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onClose();
         }}
       >
         <CheckCircle2 className="h-14 w-14 text-success" aria-hidden />
         <p className="text-[20px] font-semibold text-foreground">
-          Insights published
+          Feedback saved
         </p>
         <p className="text-[14px] text-muted-foreground">Tap anywhere to close</p>
       </div>
@@ -236,9 +236,11 @@ export default function CoachReviewOverlay({
       total={total}
       onPrev={() => setCursor((c) => Math.max(c - 1, 0))}
       onNext={
-        isAtWrapup ? () => void handlePublish() : () => setCursor((c) => c + 1)
+        isAtWrapup
+          ? () => void handleSaveFeedback()
+          : () => setCursor((c) => c + 1)
       }
-      nextLabel={isAtWrapup ? (publishing ? "Publishing..." : "Publish to user") : undefined}
+      nextLabel={isAtWrapup ? (publishing ? "Saving..." : "Save feedback") : undefined}
       nextTone={isAtWrapup ? "terminal" : "primary"}
       nextDisabled={isAtWrapup ? !floorMet || publishing : false}
       managed={false}
@@ -265,7 +267,7 @@ export default function CoachReviewOverlay({
 
         {!floorMet ? (
           <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-            Surface at least one snippet and add a note to publish.
+            Surface at least one snippet and add a note to save.
           </p>
         ) : null}
 
@@ -372,15 +374,13 @@ export default function CoachReviewOverlay({
           ) : null}
         </div>
 
-        <label className="flex cursor-pointer items-center justify-center gap-2 text-[13px] text-foreground">
-          <input
-            type="checkbox"
-            checked={notifyClient}
-            onChange={(e) => setNotifyClient(e.target.checked)}
-            className="h-4 w-4 cursor-pointer rounded border-border text-primary accent-primary"
-          />
-          <span>Notify the client about this update</span>
-        </label>
+        {/* Delivery layer — a Save is a draft checkpoint: nothing reaches the
+            user until the arc-level "Save and Publish full analysis", so there
+            is no notify toggle here anymore. */}
+        <p className="text-center text-[12px] text-muted-foreground">
+          Saving keeps this as your draft. The user receives everything at once
+          when you publish the full analysis from the ideal-text panel.
+        </p>
       </div>
     </SnippetScreenShell>
   );

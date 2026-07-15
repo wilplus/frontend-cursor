@@ -44,12 +44,21 @@ function detailLine(
   return parts.join(", ");
 }
 
+/** Delivery layer — the feedback bubble's parsed metadata. */
+export interface FeedbackBubbleTarget {
+  arcId: string;
+  takeSessionId: string | null;
+  takeIndex: number | null;
+}
+
 export default function ReportCard({
   message,
   onViewInsights,
   onOpenBestPresentation,
   onOpenBreakthroughs,
   onOpenTranscripts,
+  onOpenFeedback,
+  onOpenIdealText,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
@@ -57,7 +66,101 @@ export default function ReportCard({
   onOpenBreakthroughs?: (arcId: string) => void;
   /** transcript_ready — opens the Trainings library (where transcripts live). */
   onOpenTranscripts?: () => void;
+  /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+  /** Delivery layer — the purple bubble opens the ideal-text notebook. */
+  onOpenIdealText?: (arcId: string) => void;
 }) {
+  // Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
+  // behind the tap: the feedback page itself renders the unlock panel).
+  if (message.kind === "feedback") {
+    const arcId =
+      typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+    const takeSessionId =
+      typeof message.metadata?.take_session_id === "string"
+        ? message.metadata.take_session_id
+        : null;
+    const takeIndex =
+      typeof message.metadata?.take_index === "number"
+        ? message.metadata.take_index
+        : null;
+    const openable = !!(arcId && onOpenFeedback);
+    const open = () => {
+      if (arcId && onOpenFeedback)
+        onOpenFeedback({ arcId, takeSessionId, takeIndex });
+    };
+    return (
+      <div
+        role={openable ? "button" : undefined}
+        tabIndex={openable ? 0 : undefined}
+        onClick={openable ? open : undefined}
+        onKeyDown={
+          openable
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  open();
+                }
+              }
+            : undefined
+        }
+        className={`my-1 rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+      >
+        <p className="text-[15px] leading-relaxed text-foreground">
+          <span className="font-semibold">
+            Feedback{takeIndex != null ? ` · Take ${takeIndex}` : ""}
+          </span>
+        </p>
+        {message.body ? (
+          <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+            {message.body}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  // Delivery layer — the PURPLE ideal-text card (after the 3 feedback bubbles).
+  if (message.kind === "ideal_text") {
+    const arcId =
+      typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+    const openable = !!(arcId && onOpenIdealText);
+    const open = () => {
+      if (arcId && onOpenIdealText) onOpenIdealText(arcId);
+    };
+    return (
+      <div
+        role={openable ? "button" : undefined}
+        tabIndex={openable ? 0 : undefined}
+        onClick={openable ? open : undefined}
+        onKeyDown={
+          openable
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  open();
+                }
+              }
+            : undefined
+        }
+        className={`my-1 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 px-4 py-3.5 text-white shadow-sm ${
+          openable ? "cursor-pointer" : ""
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <Crown className="h-5 w-5 shrink-0 text-amber-300" aria-hidden />
+          <p className="text-[15px] font-semibold leading-snug">
+            Your ideal text
+          </p>
+        </div>
+        {message.body ? (
+          <p className="mt-1 text-[14px] leading-relaxed text-white/85">
+            {message.body}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
   // The unpaid/unreviewed >=3-takes card: the BE-written body ("Your full
   // transcript for X is ready.") as a grey clickable card → the Trainings
   // library. Never claims a "best presentation".
