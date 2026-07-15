@@ -293,3 +293,44 @@ describe("mapCoachReviewSession — features (C1 / §B.1)", () => {
     expect(s?.snippets[0].features).toBeNull();
   });
 });
+
+describe("mapCoachReviewSession — acoustic_read + auto_comment (#190, coach-only)", () => {
+  it("parses + clamps the potentiometer to -1..1 and reads outside_normal_range", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        {
+          id: "n1",
+          acoustic_read: { potentiometer: 1.8, outside_normal_range: true },
+          auto_comment: "Sounded rather confident here.",
+        },
+        {
+          id: "n2",
+          acoustic_read: { potentiometer: -2, outside_normal_range: false },
+        },
+      ],
+    });
+    expect(s?.snippets[0].acousticRead).toEqual({
+      potentiometer: 1,
+      outsideNormalRange: true,
+    });
+    expect(s?.snippets[0].autoComment).toBe("Sounded rather confident here.");
+    expect(s?.snippets[1].acousticRead).toEqual({
+      potentiometer: -1,
+      outsideNormalRange: false,
+    });
+  });
+
+  it("nulls acoustic_read + auto_comment when absent / malformed", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        { id: "n1" },
+        { id: "n2", acoustic_read: { potentiometer: "loud" } },
+      ],
+    });
+    expect(s?.snippets[0].acousticRead).toBeNull();
+    expect(s?.snippets[0].autoComment).toBeNull();
+    expect(s?.snippets[1].acousticRead).toBeNull();
+  });
+});
