@@ -259,8 +259,9 @@ export default function ReadoutCard({
   // section for deckless chunked takes; legacy per-snippet sections otherwise.
   const sections = useMemo((): ReadoutSection[] => {
     // #190 — instant_chunks is the SOLE source of the instant view when present.
-    // Group the ≤200-char pieces by slide_index (first-order division); never
-    // re-split client-side. Deckless pieces (slideIndex null) collect into one
+    // Group the pieces by slide_index (first-order division); never re-split or
+    // length-cap client-side (BE-1: pieces are punctuated prose ~250 chars).
+    // Deckless pieces (slideIndex null) collect into one
     // trailing group. Old recordings (no instant_chunks) fall through to the
     // legacy per-slide / per-snippet paths below, unchanged.
     if (payload.instantChunks.length > 0) {
@@ -687,11 +688,12 @@ function DecklessSection({ section }: { section: ReadoutSection }) {
 }
 
 /* ── #190/#191 per-piece instant view ─────────────────────────────────────
- *  Each ≤200-char piece renders: text (+ its exact-span play) → word/phrase
- *  suggestion rows, each with a single "Approve" that rewrites the piece text
- *  optimistically and persists best-effort (transcript edit + suggestion
- *  feedback). No comment row, no ✓, no Apply-all (#191). Once a piece has an
- *  approved edit, a re-read mic offers to re-record the corrected text. */
+ *  Each piece (punctuated prose, ~250 chars — no client length cap) renders:
+ *  text (+ its exact-span play) → word/phrase suggestion rows, each with a
+ *  single "Approve" that rewrites the piece text optimistically and persists
+ *  best-effort (transcript edit + suggestion feedback). No comment row, no ✓,
+ *  no Apply-all (#191). Once a piece has an approved edit, a re-read mic offers
+ *  to re-record the corrected text. */
 
 /** Escape a literal for use inside a RegExp. */
 function escapeRegExp(s: string): string {
@@ -819,7 +821,7 @@ function PieceBlock({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 1 — the piece text (≤200 chars) + its exact-span play control. */}
+      {/* 1 — the piece text (punctuated prose) + its exact-span play control. */}
       <div className="flex items-start gap-3">
         {audioRef && piece.durationMs > 0 ? (
           <SectionPlay

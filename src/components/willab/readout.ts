@@ -157,13 +157,16 @@ export interface FullTranscriptChunk {
   durationMs: number;
 }
 
-/** #190 — one ≤200-char "piece": a slide-boundary-or-char-capped cut of the
- *  take with an exact audio span, carrying its own suggestions + comment. The
+/** #190 — one "piece": a slide-boundary-or-char-capped cut of the take with an
+ *  exact audio span, carrying its own suggestions + comment. BE-1 (2026-07-15):
+ *  pieces now arrive punctuated + sentence-complete, up to ~250 chars — the FE
+ *  never enforces a length cap, so treat `text` as arbitrary-length prose. The
  *  instant view renders EXCLUSIVELY from these (grouped by slideIndex when the
  *  take has a deck). Each is a first-class moment (its own snippetId). */
 export interface InstantChunk {
   index: number;
-  /** The piece text (≤200 chars; BE `transcript`). userEditedText wins for display. */
+  /** The piece text (BE `transcript`; punctuated prose). userEditedText wins for
+   *  display. Rendered verbatim — never truncated or re-normalized. */
   text: string;
   /** #190 — the deck slide this piece was delivered on (first-order grouping);
    *  null for deckless takes / pieces with no slide. */
