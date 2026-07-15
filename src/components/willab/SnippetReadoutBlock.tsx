@@ -2,6 +2,7 @@
 
 import MediaPlayer from "@/components/results/MediaPlayer";
 import type { ReadoutFeatures, ReadoutStickiness } from "./readout";
+import type { AcousticRead } from "@/services/api/coachReview";
 
 /* -------------------------------------------------------------------------- */
 /*  SnippetReadoutBlock — the snippet readout block in the COACH review card.  */
@@ -52,6 +53,8 @@ export default function SnippetReadoutBlock({
   transcript,
   stickiness,
   features,
+  acousticRead = null,
+  autoComment = null,
 }: {
   audioRef: string | null;
   startOffsetMs: number;
@@ -59,6 +62,10 @@ export default function SnippetReadoutBlock({
   transcript: string;
   stickiness: ReadoutStickiness;
   features: ReadoutFeatures | null;
+  /** #190 — the coach-only stress↔charisma verdict. COACH-ONLY. */
+  acousticRead?: AcousticRead | null;
+  /** #190 — the machine's tone comment (BE-worded; never FE-synthesized). */
+  autoComment?: string | null;
 }) {
   const f = features;
 
@@ -80,6 +87,15 @@ export default function SnippetReadoutBlock({
           </div>
         ) : null}
       </div>
+
+      {/* #190 — coach-only acoustic verdict: stress↔charisma needle + the
+          machine's tone comment (BE-worded). Never shown on any user surface. */}
+      {acousticRead ? <AcousticPotentiometer read={acousticRead} /> : null}
+      {autoComment ? (
+        <p className="text-[13px] italic leading-relaxed text-muted-foreground">
+          {autoComment}
+        </p>
+      ) : null}
 
       {/* Hero pair */}
       <div className="flex gap-10">
@@ -146,6 +162,51 @@ export default function SnippetReadoutBlock({
         </div>
       )}
     </>
+  );
+}
+
+/** #190 — the stress↔charisma potentiometer (coach-only). A horizontal gauge
+ *  with the needle at the read's position (-1 stress … +1 charisma), plus a
+ *  "worth a listen" nudge when the read fell outside the normal range. Renders
+ *  no number — the needle position IS the read. */
+function AcousticPotentiometer({ read }: { read: AcousticRead }) {
+  // -1..1 → 0..100% (left = stress, right = charisma).
+  const pos = ((read.potentiometer + 1) / 2) * 100;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/40 px-4 py-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Acoustic read
+        </p>
+        {read.outsideNormalRange ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+            Worth a listen
+          </span>
+        ) : null}
+      </div>
+      <div
+        role="img"
+        aria-label="Stress to charisma acoustic read"
+        className="relative h-2 rounded-full bg-gradient-to-r from-amber-500/50 via-muted to-primary/60"
+      >
+        {/* neutral (center) tick */}
+        <span
+          className="absolute left-1/2 top-1/2 h-3.5 w-px -translate-x-1/2 -translate-y-1/2 bg-border"
+          aria-hidden
+        />
+        {/* the needle */}
+        <span
+          className="absolute top-1/2 h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow"
+          style={{ left: `${pos}%` }}
+          aria-hidden
+        />
+      </div>
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+        <span>stress</span>
+        <span>charisma</span>
+      </div>
+    </div>
   );
 }
 

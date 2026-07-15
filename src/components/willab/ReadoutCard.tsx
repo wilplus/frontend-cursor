@@ -20,10 +20,17 @@ import {
   type InstantChunk,
   type ReadoutPayload,
   type SayItStronger,
+  type SayItStrongerUpgrade,
   type ReadoutSlide,
   type ReadoutSlideGroup,
   type ReadoutSnippet,
 } from "./readout";
+import { saveTranscriptEdit } from "@/services/api/transcriptEdits";
+import {
+  sendSuggestionFeedback,
+  type SuggestionFeedbackAction,
+  type SuggestionFeedbackTarget,
+} from "@/services/api/suggestionFeedback";
 
 /* -------------------------------------------------------------------------- */
 /*  ReadoutCard — ONE vertical scroll (P4, founder 2026-07-11): every slide     */
@@ -224,10 +231,47 @@ export default function ReadoutCard({
     [payload.parentAudioRef, payload.snippets]
   );
 
+  // #190 — snippets by id, so a piece can pull its coach note + breakthrough
+  // video off the matching snippet (matched by the piece's snippetId).
+  const snippetsById = useMemo(() => {
+    const m = new Map<string, ReadoutSnippet>();
+    for (const s of payload.snippets) if (s.id) m.set(s.id, s);
+    return m;
+  }, [payload.snippets]);
+
   // Section model. Per-deck-slide when the BE sends complete slide transcripts
   // (every slide gets a section, quiet first slide included); ONE mock-slide
   // section for deckless chunked takes; legacy per-snippet sections otherwise.
   const sections = useMemo((): ReadoutSection[] => {
+    // #190 — instant_chunks is the SOLE source of the instant view when present.
+    // Group the ≤200-char pieces by slide_index (first-order division); never
+    // re-split client-side. Deckless pieces (slideIndex null) collect into one
+    // trailing group. Old recordings (no instant_chunks) fall through to the
+    // legacy per-slide / per-snippet paths below, unchanged.
+    if (payload.instantChunks.length > 0) {
+      const byKey = new Map<number | null, InstantChunk[]>();
+      for (const c of payload.instantChunks) {
+        const arr = byKey.get(c.slideIndex);
+        if (arr) arr.push(c);
+        else byKey.set(c.slideIndex, [c]);
+      }
+      const keys = [...byKey.keys()].sort((a, b) => {
+        if (a === null) return 1; // deckless / no-slide group trails
+        if (b === null) return -1;
+        return a - b;
+      });
+      return keys.map((key) => ({
+        slideIndex: key,
+        slide: key !== null ? slidesByIndex.get(key) ?? null : null,
+        snippets: [],
+        fullTranscript: null,
+        fullAudioRef: parentAudioRef,
+        fullStartOffsetMs: 0,
+        fullDurationMs: 0,
+        chunks: null,
+        instantChunks: byKey.get(key)!,
+      }));
+    }
     if (payload.slideTranscripts.length > 0) {
       const txIndices = new Set(payload.slideTranscripts.map((t) => t.index));
       const list: ReadoutSection[] = payload.slideTranscripts.map((st) => ({
@@ -261,12 +305,10 @@ export default function ReadoutCard({
       }
       return list;
     }
-    if (
-      payload.instantChunks.length > 0 ||
-      payload.fullTranscriptChunks.length > 0
-    ) {
-      // R4-9 — instant_chunks (deduped chunk→suggestion) is the preferred
-      // deckless source; fullTranscriptChunks is the pre-BE fallback.
+    if (payload.fullTranscriptChunks.length > 0) {
+      // Legacy deckless fallback (pre-#190): the whole transcript split into
+      // ordered chunks under one mock slide. Only reached when instant_chunks
+      // is absent.
       return [
         {
           slideIndex: null,
@@ -276,12 +318,8 @@ export default function ReadoutCard({
           fullAudioRef: parentAudioRef,
           fullStartOffsetMs: 0,
           fullDurationMs: 0,
-          chunks:
-            payload.fullTranscriptChunks.length > 0
-              ? payload.fullTranscriptChunks
-              : null,
-          instantChunks:
-            payload.instantChunks.length > 0 ? payload.instantChunks : null,
+          chunks: payload.fullTranscriptChunks,
+          instantChunks: null,
         },
       ];
     }
@@ -311,9 +349,15 @@ export default function ReadoutCard({
   // A local time cap matches the polling budget (8 polls x 3s) so a take whose
   // suggestions never arrive degrades to the text-only view instead of an
   // eternal shimmer.
-  const suggestionsPending = payload.snippets.some(
-    (s) => !s.sayItStronger && !s.coach?.note
-  );
+  // #190 — with pieces, "pending" means the suggestion layer hasn't landed at
+  // all yet (only ~16 salient pieces ever carry a card, so we can't wait on
+  // "every piece"): pending until the FIRST piece suggestion arrives, then
+  // render the whole list at once (no progressive pop-in). Legacy payloads keep
+  // the per-snippet check.
+  const suggestionsPending =
+    payload.instantChunks.length > 0
+      ? !payload.instantChunks.some((c) => c.sayItStronger)
+      : payload.snippets.some((s) => !s.sayItStronger && !s.coach?.note);
   const [suggestionWaitExpired, setSuggestionWaitExpired] = useState(false);
   // A NEW session in the same mounted card (e.g. the Lab's next take) gets a
   // fresh wait budget — without this, one expired wait would disable the
@@ -399,6 +443,8 @@ export default function ReadoutCard({
               isSample={isSample && i === 0}
               voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
               suggestionsLoading={suggestionsLoading}
+              snippetsById={snippetsById}
+              sessionId={sessionId}
             />
           ))
         )}
@@ -454,6 +500,8 @@ function Section({
   isSample,
   voiceMetricsAvailable,
   suggestionsLoading,
+  snippetsById,
+  sessionId,
 }: {
   refCallback: (el: HTMLElement | null) => void;
   section: ReadoutSection;
@@ -463,6 +511,10 @@ function Section({
   /** R4-9 — the whole suggestions layer is still generating (one loading
    *  state, not per-card shimmers). */
   suggestionsLoading: boolean;
+  /** #190 — snippets by id, for a piece's coach note + breakthrough video. */
+  snippetsById: Map<string, ReadoutSnippet>;
+  /** #190 — the session id, to persist Apply / preferred / transcript edits. */
+  sessionId: string | null;
 }) {
   const perSlide = section.fullTranscript !== null;
   const deckless = section.chunks !== null || section.instantChunks !== null;
@@ -495,11 +547,16 @@ function Section({
         ) : null}
         {!voiceMetricsAvailable ? <VoiceMetricsNotice /> : null}
 
-        {deckless ? (
-          <DecklessSection
-            section={section}
+        {section.instantChunks ? (
+          <PieceList
+            pieces={section.instantChunks}
+            audioRef={section.fullAudioRef}
+            snippetsById={snippetsById}
+            sessionId={sessionId}
             suggestionsLoading={suggestionsLoading}
           />
+        ) : deckless ? (
+          <DecklessSection section={section} />
         ) : perSlide ? (
           <DeckSlideSection section={section} />
         ) : (
@@ -554,78 +611,9 @@ function DeckSlideSection({ section }: { section: ReadoutSection }) {
 
 /* ── deckless section: mock slide already above; chunks + moments ── */
 
-function DecklessSection({
-  section,
-  suggestionsLoading,
-}: {
-  section: ReadoutSection;
-  suggestionsLoading: boolean;
-}) {
-  // R4-9 — the instant view. instant_chunks is ONE deduped list (chunk text +
-  // its suggestion), so nothing renders twice: per chunk, in order — text →
-  // corrections (upgrades) → commentary (why). One loading block stands in for
-  // the whole suggestions layer until every chunk's suggestion resolved (the
-  // polling underneath keeps merging fresh payloads).
-  if (section.instantChunks) {
-    const chunks = section.instantChunks;
-    const fullText = chunks.map((c) => c.text).join("\n\n");
-    // Coach/breakthrough moments still render (post-review re-reads) — but
-    // with the suggestion stripped: its single home is the chunk it came from.
-    const moments = section.snippets
-      .filter((s) => s.coach || s.breakthrough)
-      .map((s) => ({ ...s, sayItStronger: null }));
-    return (
-      <>
-        <div className="flex items-center justify-between">
-          <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-            Your transcript
-          </p>
-          {fullText ? <CopyButton text={fullText} /> : null}
-        </div>
-
-        <div className="flex flex-col gap-5">
-          {chunks.map((c) => (
-            <div key={c.index} className="flex flex-col gap-2">
-              <div className="flex items-start gap-3">
-                {section.fullAudioRef && c.durationMs > 0 ? (
-                  <SectionPlay
-                    playKey={`ichunk:${c.index}`}
-                    src={section.fullAudioRef}
-                    startMs={c.startOffsetMs}
-                    durationMs={c.durationMs}
-                  />
-                ) : null}
-                <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
-                  {c.text}
-                </p>
-              </div>
-              {!suggestionsLoading && c.sayItStronger ? (
-                <SayItStrongerCard data={c.sayItStronger} />
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        {/* One loading state for the whole suggestions layer (no per-card
-            shimmers): everything reveals at once when generation finishes. */}
-        {suggestionsLoading ? <SuggestionShimmer /> : null}
-
-        {moments.length > 0 ? (
-          <div className="mt-2 flex flex-col gap-5">
-            {moments.map((s) => (
-              <MomentBlock
-                key={momentKey(s)}
-                snippet={s}
-                skipTranscript
-                hideShimmer
-              />
-            ))}
-          </div>
-        ) : null}
-      </>
-    );
-  }
-
+function DecklessSection({ section }: { section: ReadoutSection }) {
+  // Legacy deckless fallback (pre-#190 payloads): the whole transcript split
+  // into ordered chunks + moments. The #190 instant-piece view is PieceList.
   const chunks = section.chunks ?? [];
   const fullText = chunks.map(chunkText).join("\n\n");
   const moments = section.snippets.filter(
@@ -667,6 +655,363 @@ function DecklessSection({
         </div>
       ) : null}
     </>
+  );
+}
+
+/* ── #190 per-piece instant view ──────────────────────────────────────────
+ *  Each ≤200-char piece renders: text (+ its exact-span play) → word/phrase
+ *  suggestion rows (Apply + ✓) → a comment row (auto_comment, or coach note +
+ *  video once published) → Apply-all. No reason/why small-print, no copy
+ *  buttons. Apply / ✓ / Apply-all rewrite the piece text optimistically and
+ *  persist best-effort (transcript edit + suggestion feedback). */
+
+/** Escape a literal for use inside a RegExp. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Apply one upgrade to the text: replace the first (case-insensitive) match of
+ *  `original` with `upgrade`. No match → unchanged (best-effort optimistic edit;
+ *  the BE stores the canonical). The replacement is a callback so `$`-patterns
+ *  in the upgrade text are inserted literally, never as substitutions. */
+function applyUpgradeText(text: string, original: string, upgrade: string): string {
+  if (!original) return text;
+  const re = new RegExp(escapeRegExp(original), "i");
+  return re.test(text) ? text.replace(re, () => upgrade) : text;
+}
+
+function PieceList({
+  pieces,
+  audioRef,
+  snippetsById,
+  sessionId,
+  suggestionsLoading,
+}: {
+  pieces: InstantChunk[];
+  audioRef: string | null;
+  snippetsById: Map<string, ReadoutSnippet>;
+  sessionId: string | null;
+  suggestionsLoading: boolean;
+}) {
+  // #190 — the suggestions arrive async: hold a skeleton until the layer has
+  // landed, then reveal the whole list at once (no progressive pop-in).
+  if (suggestionsLoading) return <PieceListSkeleton count={pieces.length} />;
+  return (
+    <div className="flex flex-col gap-6">
+      {pieces.map((c) => (
+        <PieceBlock
+          key={c.index}
+          piece={c}
+          snippet={c.snippetId ? snippetsById.get(c.snippetId) ?? null : null}
+          audioRef={audioRef}
+          sessionId={sessionId}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PieceBlock({
+  piece,
+  snippet,
+  audioRef,
+  sessionId,
+}: {
+  piece: InstantChunk;
+  /** The matching snippet (by snippetId) — source of the coach note + video. */
+  snippet: ReadoutSnippet | null;
+  audioRef: string | null;
+  sessionId: string | null;
+}) {
+  // Optimistic applied-text layer: Apply / ✓ / Apply-all compose the upgraded
+  // text into the piece's main text; each upgrade's tap state drives its row.
+  const [appliedText, setAppliedText] = useState<string | null>(null);
+  const [status, setStatus] = useState<Record<number, "applied" | "preferred">>(
+    {}
+  );
+  const [commentLiked, setCommentLiked] = useState(false);
+
+  const sug = piece.sayItStronger;
+  const displayText = appliedText ?? piece.userEditedText ?? piece.text;
+  const coachNote = snippet?.coach?.note ?? null;
+  const videoRef = snippet?.breakthroughVideoRef ?? null;
+  // Coach note wins over the machine's auto_comment once published.
+  const comment = coachNote ?? piece.autoComment;
+  const canPersist = !!(sessionId && piece.snippetId);
+
+  const persistText = (text: string) => {
+    if (canPersist) {
+      void saveTranscriptEdit(sessionId!, { snippetId: piece.snippetId! }, text);
+    }
+  };
+  const feedback = (
+    target: SuggestionFeedbackTarget,
+    action: SuggestionFeedbackAction,
+    upgradeIndex?: number
+  ) => {
+    if (!canPersist) return;
+    void sendSuggestionFeedback({
+      snippetId: piece.snippetId!,
+      sessionId: sessionId!,
+      target,
+      action,
+      upgradeIndex,
+      suggestionVersion: sug?.version ?? null,
+    });
+  };
+
+  // Apply (action "applied") and ✓ (action "preferred") BOTH write the change
+  // into the piece text; ✓ additionally marks the row preferred. A row that was
+  // already applied only flips its status — re-running the replace would swap a
+  // SECOND occurrence of a repeated word (the filler/overuse case) and corrupt
+  // the text.
+  const applyOne = (
+    i: number,
+    u: SayItStrongerUpgrade,
+    action: "applied" | "preferred"
+  ) => {
+    if (!status[i]) {
+      const next = applyUpgradeText(displayText, u.original, u.upgrade);
+      setAppliedText(next);
+      persistText(next);
+    }
+    setStatus((s) => ({ ...s, [i]: action }));
+    feedback("upgrade", action, i);
+  };
+
+  // Apply-all composes from the CURRENT text and only applies rows not yet
+  // tapped — recomposing from scratch would discard the user's earlier applies
+  // (an applied phrase could silently revert when an overlapping word upgrade
+  // re-ran first).
+  const applyAll = () => {
+    if (!sug) return;
+    let text = displayText;
+    sug.upgrades.forEach((u, i) => {
+      if (!status[i]) text = applyUpgradeText(text, u.original, u.upgrade);
+    });
+    setAppliedText(text);
+    setStatus((prev) => {
+      const next = { ...prev };
+      sug.upgrades.forEach((_, i) => {
+        if (!next[i]) next[i] = "applied";
+      });
+      return next;
+    });
+    persistText(text);
+    feedback("upgrade", "apply_all");
+  };
+
+  const likeComment = () => {
+    setCommentLiked(true);
+    feedback(videoRef ? "comment_video" : "comment", "preferred");
+  };
+
+  const upgrades = sug?.upgrades ?? [];
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* 1 — the piece text (≤200 chars) + its exact-span play control. */}
+      <div className="flex items-start gap-3">
+        {audioRef && piece.durationMs > 0 ? (
+          <SectionPlay
+            playKey={`piece:${piece.index}`}
+            src={audioRef}
+            startMs={piece.startOffsetMs}
+            durationMs={piece.durationMs}
+          />
+        ) : null}
+        <p className="flex-1 whitespace-pre-line text-[15px] leading-relaxed text-foreground">
+          {displayText}
+        </p>
+      </div>
+
+      {/* 2 — word / phrase suggestions (Apply + ✓); no reason/why. */}
+      {upgrades.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {upgrades.map((u, i) => (
+            <SuggestionRow
+              key={i}
+              upgrade={u}
+              status={status[i]}
+              onApply={() => applyOne(i, u, "applied")}
+              onPrefer={() => applyOne(i, u, "preferred")}
+            />
+          ))}
+        </div>
+      ) : sug?.alreadyStrong ? (
+        <AlreadyStrongLine />
+      ) : null}
+
+      {/* 3 — the comment row (auto_comment / coach note + optional video). */}
+      {comment ? (
+        <CommentRow
+          text={comment}
+          videoRef={videoRef}
+          liked={commentLiked}
+          onLike={likeComment}
+        />
+      ) : null}
+
+      {/* 4 — Apply all (only when there's more than one upgrade). */}
+      {upgrades.length > 1 ? (
+        <button
+          type="button"
+          onClick={applyAll}
+          className="self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/50"
+        >
+          Apply all
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** One word/phrase upgrade row: "old → new" + Apply (writes the change) + ✓
+ *  (marks preferred, also writes the change). Same row shape for word & phrase. */
+function SuggestionRow({
+  upgrade,
+  status,
+  onApply,
+  onPrefer,
+}: {
+  upgrade: SayItStrongerUpgrade;
+  status: "applied" | "preferred" | undefined;
+  onApply: () => void;
+  onPrefer: () => void;
+}) {
+  const applied = status === "applied" || status === "preferred";
+  const preferred = status === "preferred";
+  return (
+    <div className="flex items-center gap-2">
+      <p className="flex-1 text-[14px] leading-relaxed">
+        {/* E1 — filler/overuse carry a subtle amber caution tag. */}
+        {upgrade.kind !== "upgrade" ? (
+          <span className="mr-1.5 inline-flex -translate-y-px items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 align-middle text-[11px] font-medium text-amber-700 dark:text-amber-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+            {upgrade.kind === "filler" ? "filler" : "overused"}
+          </span>
+        ) : null}
+        <span className="text-muted-foreground line-through">
+          {upgrade.original}
+        </span>{" "}
+        <span aria-hidden>&rarr;</span>{" "}
+        <span className="font-medium text-foreground">{upgrade.upgrade}</span>
+      </p>
+      <button
+        type="button"
+        onClick={onApply}
+        disabled={applied}
+        className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium transition-colors ${
+          applied
+            ? "bg-muted text-muted-foreground"
+            : "bg-foreground text-background hover:bg-foreground/90"
+        }`}
+      >
+        {applied ? "Applied" : "Apply"}
+      </button>
+      <button
+        type="button"
+        onClick={onPrefer}
+        aria-label={preferred ? "Preferred" : "Mark as preferred"}
+        aria-pressed={preferred}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          preferred
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border text-muted-foreground hover:border-primary/50"
+        }`}
+      >
+        <Check className="h-4 w-4" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/** The qualitative comment row — insight icon + prose + a like (✓). Same font
+ *  family as the suggestion rows. Renders an optional breakthrough video. */
+function CommentRow({
+  text,
+  videoRef,
+  liked,
+  onLike,
+}: {
+  text: string;
+  videoRef: string | null;
+  liked: boolean;
+  onLike: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <div className="flex flex-1 flex-col gap-2">
+        <p className="text-[14px] leading-relaxed text-foreground">{text}</p>
+        {videoRef ? <PieceVideo src={videoRef} /> : null}
+      </div>
+      <button
+        type="button"
+        onClick={onLike}
+        aria-label={liked ? "Liked" : "Like this comment"}
+        aria-pressed={liked}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          liked
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border text-muted-foreground hover:border-primary/50"
+        }`}
+      >
+        <Check className="h-4 w-4" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/** A compact "Watch" affordance that expands the breakthrough video inline. */
+function PieceVideo({ src }: { src: string }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+      >
+        <Play className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+        Watch
+      </button>
+    );
+  }
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video src={src} controls autoPlay playsInline className="w-full bg-black" />
+    </div>
+  );
+}
+
+/** The affirming line shown when a piece was already strong (no upgrades). */
+function AlreadyStrongLine() {
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-primary/[0.06] px-4 py-3">
+      <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <p className="text-[14px] text-foreground">
+        This one&apos;s already strong. Said as-is.
+      </p>
+    </div>
+  );
+}
+
+/** Skeleton for the whole piece list while the suggestion layer loads. */
+function PieceListSkeleton({ count }: { count: number }) {
+  const rows = Math.min(Math.max(count, 2), 5);
+  return (
+    <div className="flex flex-col gap-6" aria-hidden>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-2">
+          <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+          <div className="h-6 w-2/3 animate-pulse rounded-full bg-muted" />
+        </div>
+      ))}
+      <SuggestionShimmer />
+    </div>
   );
 }
 

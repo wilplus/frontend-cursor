@@ -3,6 +3,7 @@ import {
   mapReadoutPayload,
   mapSayItStronger,
   mapFullTranscriptChunk,
+  mapInstantChunk,
 } from "./readout";
 
 describe("mapSayItStronger", () => {
@@ -25,9 +26,29 @@ describe("mapSayItStronger", () => {
       upgrade: "clearly",
       reason: "hedge removed",
       kind: "upgrade",
+      scope: "word",
     });
     expect(s!.rewriteYourVoice).toBe("Say it plainly.");
     expect(s!.why).toBe("Tighter than your average line here.");
+  });
+
+  it("maps the #190 scope discriminator (phrase; absent/unknown → word)", () => {
+    const s = mapSayItStronger({
+      upgrades: [
+        { original: "kind of great", upgrade: "excellent", scope: "phrase" },
+        { original: "great", upgrade: "excellent", scope: "word" },
+        { original: "a", upgrade: "b" }, // absent → word
+        { original: "c", upgrade: "d", scope: "sentence" }, // unknown → word
+      ],
+      rewrite_your_voice: "x",
+      rewrite_polished: "y",
+    });
+    expect(s!.upgrades.map((u) => u.scope)).toEqual([
+      "phrase",
+      "word",
+      "word",
+      "word",
+    ]);
   });
 
   it("nulls why + reason when the BE output-guard stripped them (AC-9)", () => {
@@ -75,6 +96,13 @@ describe("mapSayItStronger", () => {
     expect(
       mapSayItStronger({ upgrades: [], rewrite_your_voice: "", rewrite_polished: "" })
     ).toBeNull();
+  });
+
+  it("keeps a BARE already_strong verdict (no upgrades, no rewrites) — the affirming line must render", () => {
+    const s = mapSayItStronger({ already_strong: true, upgrades: [] });
+    expect(s).not.toBeNull();
+    expect(s!.alreadyStrong).toBe(true);
+    expect(s!.upgrades).toEqual([]);
   });
 });
 
@@ -145,6 +173,46 @@ describe("mapFullTranscriptChunk + payload fold", () => {
     expect(p.fullTranscriptChunks[1]).toMatchObject({
       startOffsetMs: 0,
       durationMs: 0,
+    });
+  });
+
+  it("maps an instant piece with #190 fields (slide_index, snippet_id, auto_comment, user_edited_text)", () => {
+    const c = mapInstantChunk({
+      index: 2,
+      slide_index: 1,
+      transcript: "Welcome everyone.",
+      snippet_id: "snip-7",
+      start_offset_ms: 1500,
+      duration_ms: 4200,
+      auto_comment: "Sounded rather confident here.",
+      user_edited_text: "Welcome, everyone.",
+      say_it_stronger: {
+        upgrades: [{ original: "everyone", upgrade: "all of you", scope: "word" }],
+        rewrite_your_voice: "Welcome, all of you.",
+        rewrite_polished: "A warm welcome to all of you.",
+      },
+    });
+    expect(c).toEqual({
+      index: 2,
+      text: "Welcome everyone.",
+      slideIndex: 1,
+      snippetId: "snip-7",
+      startOffsetMs: 1500,
+      durationMs: 4200,
+      autoComment: "Sounded rather confident here.",
+      userEditedText: "Welcome, everyone.",
+      sayItStronger: expect.objectContaining({ alreadyStrong: false }),
+    });
+  });
+
+  it("instant piece: absent optional fields → null (deckless / pre-coach)", () => {
+    const c = mapInstantChunk({ index: 0, transcript: "hi" });
+    expect(c).toMatchObject({
+      slideIndex: null,
+      snippetId: null,
+      autoComment: null,
+      userEditedText: null,
+      sayItStronger: null,
     });
   });
 

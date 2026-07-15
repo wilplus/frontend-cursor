@@ -44,6 +44,16 @@ export interface CoachSnippetState {
   breakthroughVideoRef: string | null;
 }
 
+/** #190 — the coach-only acoustic verdict: a stress↔charisma needle
+ *  (`potentiometer` -1..1; -1 = stress, +1 = charisma) plus whether the read
+ *  fell outside the normal range (a "worth a listen" nudge). COACH-ONLY — never
+ *  rendered on any user surface (it is a verdict, not the reference vector). */
+export interface AcousticRead {
+  /** -1..1, clamped. Left = stress, right = charisma. */
+  potentiometer: number;
+  outsideNormalRange: boolean;
+}
+
 /** Identity-stripped snippet payload (§S.4). NO control/salience score, NO
  *  best/worst flag, NO KPI, NO prior AI direction verdict. */
 export interface CoachReviewSnippet {
@@ -70,6 +80,12 @@ export interface CoachReviewSnippet {
    *  frozen — never overwritten by coach edits so the (draft,final) diff
    *  survives for the comment-clone corpus. null = AI didn't produce one. */
   aiDraftNote: string | null;
+  /** #190 — the coach-only stress↔charisma verdict (needle + worth-a-listen).
+   *  null when the packet omits it. NEVER user-facing. */
+  acousticRead: AcousticRead | null;
+  /** #190 — the machine's qualitative comment (acoustic tone only). Coach-only
+   *  reference; the tone wording comes from the BE (never FE-synthesized). */
+  autoComment: string | null;
   coachState: CoachSnippetState;
 }
 
@@ -137,6 +153,19 @@ function pickCoachState(raw: unknown): CoachSnippetState {
   };
 }
 
+/** #190 — the coach-only acoustic verdict. Requires a finite potentiometer;
+ *  clamps it to -1..1. null when absent/malformed (older packets). */
+function pickAcousticRead(raw: unknown): AcousticRead | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const p = r.potentiometer;
+  if (typeof p !== "number" || !Number.isFinite(p)) return null;
+  return {
+    potentiometer: Math.max(-1, Math.min(1, p)),
+    outsideNormalRange: r.outside_normal_range === true,
+  };
+}
+
 function pickFeeling(raw: unknown): SessionFeeling | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -185,6 +214,12 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
       const v = coachStateRaw.ai_draft_coach_note;
       return typeof v === "string" && v.length > 0 ? v : null;
     })(),
+    // #190 — coach-only acoustic verdict + machine tone comment.
+    acousticRead: pickAcousticRead(r.acoustic_read),
+    autoComment:
+      typeof r.auto_comment === "string" && r.auto_comment.length > 0
+        ? r.auto_comment
+        : null,
     coachState: pickCoachState(r.coach_state),
   };
 }

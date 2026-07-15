@@ -225,6 +225,8 @@ export default function CoachSnippetReviewCard({
         transcript={snippet.transcript}
         stickiness={snippet.stickiness}
         features={snippet.features}
+        acousticRead={snippet.acousticRead}
+        autoComment={snippet.autoComment}
       />
 
       {/* Coach controls — the §F.3 split-sink surface */}
@@ -337,13 +339,15 @@ export default function CoachSnippetReviewCard({
               Shown to user
             </span>
           </p>
+          {/* #190 — a big, comfortable editor (founder ask): tall min height,
+              full width, auto-grows with content up to 70vh. */}
           <textarea
             ref={noteRef}
             value={noteDraft}
             onChange={(e) => onNoteChange(e.target.value)}
-            rows={3}
+            rows={6}
             placeholder="What to take away from this snippet…"
-            className="mt-2 max-h-[70vh] w-full resize-none overflow-y-auto rounded-xl border border-border bg-background px-3 py-2 text-[15px] outline-none focus:border-primary"
+            className="mt-2 min-h-[10rem] max-h-[70vh] w-full resize-y overflow-y-auto rounded-xl border border-border bg-background px-3.5 py-3 text-[15px] leading-relaxed outline-none focus:border-primary"
           />
         </div>
 

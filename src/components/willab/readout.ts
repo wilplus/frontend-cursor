@@ -110,12 +110,19 @@ export interface ReadoutSnippet {
  *  against the speaker's own full take); absent → "upgrade" (plain swap). */
 export type SayItStrongerUpgradeKind = "upgrade" | "filler" | "overuse";
 
+/** BE #190 — a word-level swap vs a whole-phrase rewrite. Drives the row shape:
+ *  "old word → new word" vs "old phrase → new phrase". Absent → "word". */
+export type SayItStrongerScope = "word" | "phrase";
+
 export interface SayItStrongerUpgrade {
   original: string;
   upgrade: string;
-  /** Qualitative reason; null when the BE output-guard stripped it (AC-9). */
+  /** Qualitative reason; null when the BE output-guard stripped it (AC-9).
+   *  NEVER rendered on the user instant view (kept for the coach lane only). */
   reason: string | null;
   kind: SayItStrongerUpgradeKind;
+  /** #190 — word vs phrase; the FE renders the same row either way. */
+  scope: SayItStrongerScope;
 }
 
 export interface SayItStronger {
@@ -128,8 +135,12 @@ export interface SayItStronger {
   /** Option B — slightly more formal / polished. */
   rewritePolished: string;
   /** 2-3 sentence "why this matters"; qualitative, self-referential. null when
-   *  the BE output-guard nulled it (leaked a number / retired construct word). */
+   *  the BE output-guard nulled it (leaked a number / retired construct word).
+   *  NEVER rendered on the user instant view (coach lane may show it). */
   why: string | null;
+  /** #190 — this card's version, echoed on suggestion-feedback so a tap targets
+   *  the exact version shown (staleness guard). null on older payloads. */
+  version: number | null;
 }
 
 /** One entry of a deckless take's full transcript, split into ordered chunks.
@@ -146,15 +157,29 @@ export interface FullTranscriptChunk {
   durationMs: number;
 }
 
-/** R4-9 (BE item D) — ONE deduped, ordered chunk list for the instant view:
- *  each ≤200-char chunk carries the say_it_stronger generated from it (matched
- *  by offset overlap server-side), so no spoken span ever renders twice. */
+/** #190 — one ≤200-char "piece": a slide-boundary-or-char-capped cut of the
+ *  take with an exact audio span, carrying its own suggestions + comment. The
+ *  instant view renders EXCLUSIVELY from these (grouped by slideIndex when the
+ *  take has a deck). Each is a first-class moment (its own snippetId). */
 export interface InstantChunk {
   index: number;
+  /** The piece text (≤200 chars; BE `transcript`). userEditedText wins for display. */
   text: string;
+  /** #190 — the deck slide this piece was delivered on (first-order grouping);
+   *  null for deckless takes / pieces with no slide. */
+  slideIndex: number | null;
+  /** #190 — the piece's own moment id: persists suggestion feedback + transcript
+   *  edits, and matches the coach note/video back onto the piece. null = can't
+   *  persist taps for this piece (fire-and-forget no-ops). */
+  snippetId: string | null;
   startOffsetMs: number;
   durationMs: number;
   sayItStronger: SayItStronger | null;
+  /** #190 — the machine's qualitative read for this piece (present pre-coach);
+   *  the coach note replaces it visually once published. null when absent. */
+  autoComment: string | null;
+  /** The user's saved edit of this piece's text; wins over `text` for display. */
+  userEditedText: string | null;
 }
 
 export interface ReadoutPayload {
@@ -307,20 +332,32 @@ export function mapSayItStronger(raw: unknown): SayItStronger | null {
             // Additive E1 discriminator; absent / unknown → plain "upgrade".
             kind:
               o.kind === "filler" || o.kind === "overuse" ? o.kind : "upgrade",
+            // #190 — word vs phrase; anything but "phrase" reads as a word swap.
+            scope: o.scope === "phrase" ? "phrase" : "word",
           };
         })
         .filter((u): u is SayItStrongerUpgrade => u !== null)
     : [];
   const rewriteYourVoice = str(s.rewrite_your_voice);
   const rewritePolished = str(s.rewrite_polished);
-  // Nothing usable → treat as not-ready (null) rather than an empty card.
-  if (!rewriteYourVoice && !rewritePolished && upgrades.length === 0) return null;
+  // Nothing usable → treat as not-ready (null) rather than an empty card —
+  // EXCEPT an explicit already_strong verdict, whose natural shape is exactly
+  // "no upgrades, no rewrites" and must still render the affirming line.
+  if (
+    !rewriteYourVoice &&
+    !rewritePolished &&
+    upgrades.length === 0 &&
+    s.already_strong !== true
+  ) {
+    return null;
+  }
   return {
     alreadyStrong: s.already_strong === true,
     upgrades,
     rewriteYourVoice,
     rewritePolished,
     why: typeof s.why === "string" && s.why.length > 0 ? s.why : null,
+    version: num(s.version),
   };
 }
 
@@ -343,7 +380,7 @@ export function mapFullTranscriptChunk(raw: unknown): FullTranscriptChunk | null
   };
 }
 
-/** R4-9 — one instant-view chunk (BE instant_chunks). Requires a numeric index;
+/** #190 — one instant-view piece (BE instant_chunks). Requires a numeric index;
  *  the attached suggestion maps through the same mapSayItStronger (final-over-
  *  draft preference preserved server-side). */
 export function mapInstantChunk(raw: unknown): InstantChunk | null {
@@ -354,9 +391,22 @@ export function mapInstantChunk(raw: unknown): InstantChunk | null {
   return {
     index,
     text: str(c.text) || str(c.transcript),
+    slideIndex: num(c.slide_index),
+    snippetId:
+      typeof c.snippet_id === "string" && c.snippet_id.length > 0
+        ? c.snippet_id
+        : null,
     startOffsetMs: int(c.start_offset_ms),
     durationMs: int(c.duration_ms),
     sayItStronger: mapSayItStronger(c.say_it_stronger),
+    autoComment:
+      typeof c.auto_comment === "string" && c.auto_comment.length > 0
+        ? c.auto_comment
+        : null,
+    userEditedText:
+      typeof c.user_edited_text === "string" && c.user_edited_text.length > 0
+        ? c.user_edited_text
+        : null,
   };
 }
 
