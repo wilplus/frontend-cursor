@@ -19,7 +19,13 @@ export type SuggestionFeedbackTarget =
   | "comment" // the qualitative comment row (auto_comment / coach note)
   | "comment_video";
 
-export type SuggestionFeedbackAction = "applied" | "preferred" | "apply_all";
+/** R6-FE2 — "reverted" fires when the user un-approves a row (the toggle's
+ *  second click); the BE accepts it alongside the original actions. */
+export type SuggestionFeedbackAction =
+  | "applied"
+  | "preferred"
+  | "apply_all"
+  | "reverted";
 
 export interface SuggestionFeedbackInput {
   snippetId: string;
