@@ -26,7 +26,13 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [approved, setApproved] = useState(false);
-  const [available, setAvailable] = useState(false);
+  // FE-A — the observable assembler: "pending" = fewer than 3 spoken takes
+  // (show the counts), "ready" = the persisted draft opens instantly,
+  // "failed" = the fetch itself broke. Older payloads (no assembly_state)
+  // infer: text present → ready, absent → pending without counts.
+  const [phase, setPhase] = useState<"pending" | "ready" | "failed">("pending");
+  const [takesDone, setTakesDone] = useState<number | null>(null);
+  const [takesTarget, setTakesTarget] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -48,7 +54,14 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
       if (r) {
         setDraft(r.text);
         setApproved(r.approved);
-        setAvailable(true);
+        setTakesDone(r.takesDone);
+        setTakesTarget(r.takesTarget);
+        const ready =
+          r.assemblyState === "ready" ||
+          (r.assemblyState === null && r.text.length > 0);
+        setPhase(ready ? "ready" : "pending");
+      } else {
+        setPhase("failed");
       }
       setLoading(false);
     });
@@ -115,12 +128,25 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
     );
   }
 
-  if (!available) {
+  if (phase === "failed") {
     return (
       <div className="shrink-0 border-b border-border bg-primary/5 px-4 py-3">
         <p className="mx-auto w-full max-w-2xl text-[12px] text-muted-foreground">
-          Coach: the assembled ideal text isn&apos;t ready yet (it builds after
-          the third take).
+          Couldn&apos;t load the ideal text just now. Reopen this view to try
+          again.
+        </p>
+      </div>
+    );
+  }
+
+  if (phase === "pending") {
+    return (
+      <div className="shrink-0 border-b border-border bg-primary/5 px-4 py-3">
+        <p className="mx-auto w-full max-w-2xl text-[12px] text-muted-foreground">
+          Ideal text assembles after take 3
+          {takesDone !== null
+            ? `. ${takesDone} of ${takesTarget ?? 3} takes recorded so far.`
+            : "."}
         </p>
       </div>
     );
@@ -137,7 +163,11 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
             <span className="flex items-center gap-1 text-[12px] font-medium text-success">
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Approved
             </span>
-          ) : null}
+          ) : (
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
+              Ready to review
+            </span>
+          )}
         </div>
 
         <textarea

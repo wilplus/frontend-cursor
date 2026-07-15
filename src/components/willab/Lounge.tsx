@@ -1126,6 +1126,10 @@ export default function Lounge({
         <StudentRosterOverlay
           onClose={() => setRosterOpen(false)}
           onOpenReview={openReview}
+          // FE-B — the ideal-ready badge opens the arc's coach panel view
+          // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
+          // in every state, pre-3-takes included — never a dead end).
+          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
         />
       )}
       {reviewSessionId && (

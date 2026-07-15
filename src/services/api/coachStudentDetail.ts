@@ -11,6 +11,11 @@
 
 export type Feeling = "nervous" | "excited" | "calm" | "unsure";
 
+/** FE-C — the roster's 3-state take chip (founder rule: saved-but-unpublished
+ *  reads as Reviewed). null on older payloads → fall back to the legacy state
+ *  label. */
+export type ReviewState = "to_review" | "reviewed" | "delivered";
+
 export interface CoachStudentSession {
   sessionId: string;
   topic: string;
@@ -19,6 +24,12 @@ export interface CoachStudentSession {
   state: string;
   /** Pre-recording feeling (BE #109). null when not captured or older session. */
   feeling: Feeling | null;
+  /** FE-C — To review / Reviewed (saved) / Delivered. */
+  reviewState: ReviewState | null;
+  /** FE-B — this session's arc, so the ideal-ready badge can open the panel. */
+  arcId: string | null;
+  /** FE-B — a persisted, unapproved ideal-text draft exists for this arc. */
+  arcIdealReady: boolean;
 }
 
 export interface CoachStudentDetail {
@@ -39,6 +50,11 @@ function pickFeeling(v: unknown): Feeling | null {
   return null;
 }
 
+function pickReviewState(v: unknown): ReviewState | null {
+  if (v === "to_review" || v === "reviewed" || v === "delivered") return v;
+  return null;
+}
+
 function mapSession(raw: unknown): CoachStudentSession | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -49,6 +65,10 @@ function mapSession(raw: unknown): CoachStudentSession | null {
     createdAt: typeof r.created_at === "string" ? r.created_at : "",
     state: typeof r.state === "string" ? r.state : "",
     feeling: pickFeeling(r.feeling),
+    reviewState: pickReviewState(r.review_state),
+    arcId:
+      typeof r.arc_id === "string" && r.arc_id.length > 0 ? r.arc_id : null,
+    arcIdealReady: r.arc_ideal_ready === true,
   };
 }
 

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, FileAudio } from "lucide-react";
+import { Crown, Loader2, FileAudio } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudentDetail,
   type CoachStudentDetail,
+  type ReviewState,
 } from "@/services/api/coachStudentDetail";
 import { useBackDismiss } from "./useBackDismiss";
 
@@ -54,6 +55,30 @@ function stateLabel(state: string): string {
   return state ? state.replace(/_/g, " ") : "";
 }
 
+/** FE-C — the 3-state take chip: To review (attention) / Reviewed (neutral —
+ *  saved-but-unpublished reads as Reviewed, founder rule) / Delivered (green). */
+function ReviewStateChip({ state }: { state: ReviewState }) {
+  const cls =
+    state === "to_review"
+      ? "bg-primary/10 text-primary"
+      : state === "reviewed"
+      ? "bg-muted text-muted-foreground"
+      : "bg-success/10 text-success";
+  const label =
+    state === "to_review"
+      ? "To review"
+      : state === "reviewed"
+      ? "Reviewed"
+      : "Delivered";
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 const FEELING_EMOJI: Record<string, string> = {
   nervous: "😬",
   excited: "🔥",
@@ -66,12 +91,16 @@ export default function StudentDetailOverlay({
   fallbackPseudonym,
   onClose,
   onOpenReview,
+  onOpenArcIdeal,
 }: {
   userId: string;
   /** Shown in the header until the detail loads (carried from the roster row). */
   fallbackPseudonym?: string;
   onClose: () => void;
   onOpenReview: (sessionId: string) => void;
+  /** FE-B — open the arc's ideal-text panel from the ready badge. Optional:
+   *  without it the badge renders as a non-tappable cue. */
+  onOpenArcIdeal?: (arcId: string) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
@@ -79,6 +108,18 @@ export default function StudentDetailOverlay({
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading"
   );
+
+  // FE-B — one badge per arc with a ready (persisted, unapproved) draft.
+  const idealReadyArcs =
+    detail === null
+      ? []
+      : [
+          ...new Set(
+            detail.sessions
+              .filter((s) => s.arcIdealReady && s.arcId)
+              .map((s) => s.arcId as string)
+          ),
+        ];
 
   useEffect(() => {
     let active = true;
@@ -137,6 +178,31 @@ export default function StudentDetailOverlay({
               </section>
             ) : null}
 
+            {/* FE-B — one ideal-ready cue per arc: the coach's signal to open,
+                review, approve, and publish the full analysis. Tappable when
+                the host threads an opener. */}
+            {idealReadyArcs.map((arcId) => (
+              <button
+                key={arcId}
+                type="button"
+                onClick={
+                  onOpenArcIdeal ? () => onOpenArcIdeal(arcId) : undefined
+                }
+                disabled={!onOpenArcIdeal}
+                className={`flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/5 px-4 py-3 text-left ${
+                  onOpenArcIdeal ? "transition-colors hover:border-primary/70" : ""
+                }`}
+              >
+                <Crown className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                <span className="flex-1 text-[14px] font-medium text-foreground">
+                  Ideal text ready to review
+                </span>
+                {onOpenArcIdeal ? (
+                  <span className="text-[12px] text-primary">Open</span>
+                ) : null}
+              </button>
+            ))}
+
             <section>
               <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
                 Sessions
@@ -170,9 +236,15 @@ export default function StudentDetailOverlay({
                             {FEELING_EMOJI[s.feeling]} {s.feeling}
                           </span>
                         ) : null}
-                        <span className="shrink-0 text-[12px] text-muted-foreground">
-                          {stateLabel(s.state)}
-                        </span>
+                        {/* FE-C — 3-state chip (saved = Reviewed, founder rule);
+                            older payloads fall back to the legacy state label. */}
+                        {s.reviewState ? (
+                          <ReviewStateChip state={s.reviewState} />
+                        ) : (
+                          <span className="shrink-0 text-[12px] text-muted-foreground">
+                            {stateLabel(s.state)}
+                          </span>
+                        )}
                       </button>
                     </li>
                   ))}

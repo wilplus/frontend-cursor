@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Crown, Loader2, Sparkles } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
+import { useBackDismiss } from "./useBackDismiss";
 import LoadingState from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender } from "./pdfSlides";
@@ -40,14 +41,19 @@ export default function BreakthroughsOverlay({
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
 
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
-  // True when the user leaves via the pricing top-up (insufficient credits). The
-  // cleanup must NOT balance the history entry then, or the queued back() pops
-  // the freshly pushed route and bounces the user off pricing (the #169 bug).
-  const leftViaNavRef = useRef(false);
+  // R7 — the shared stack-aware back-dismiss (an inline listener would bypass
+  // the overlay stack and cascade-close everything underneath). Back steps one
+  // breakthrough back first (onBack consumes), then closes. The suppressor
+  // replaces the old leftViaNavRef for the pricing top-up forward-nav.
+  const suppressBackDismiss = useBackDismiss(onClose, () => {
+    if (cursorRef.current > 0) {
+      setCursor((c) => c - 1);
+      return true;
+    }
+    return false;
+  });
 
   // Spend credits to unlock this arc — mirrors BestPresentationOverlay. A paywall
   // is never an error: on success refetch; short on credits → pricing top-up;
@@ -64,33 +70,12 @@ export default function BreakthroughsOverlay({
       return;
     }
     if (r.reason === "insufficient") {
-      leftViaNavRef.current = true;
+      suppressBackDismiss();
       router.push("/dashboard/pricing");
       return;
     }
     setUnlockError(r.message);
   }
-
-  // Back-dismiss with per-item stepping (same pattern as BestPresentationOverlay).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let closedByPopstate = false;
-    window.history.pushState({ __willabOverlay: true }, "");
-    function handlePop() {
-      if (cursorRef.current > 0) {
-        setCursor((c) => c - 1);
-        window.history.pushState({ __willabOverlay: true }, "");
-      } else {
-        closedByPopstate = true;
-        onCloseRef.current();
-      }
-    }
-    window.addEventListener("popstate", handlePop);
-    return () => {
-      window.removeEventListener("popstate", handlePop);
-      if (!closedByPopstate && !leftViaNavRef.current) window.history.back();
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;

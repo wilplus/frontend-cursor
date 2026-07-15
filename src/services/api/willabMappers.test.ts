@@ -51,6 +51,27 @@ describe("mapCoachStudent (E3)", () => {
 });
 
 describe("mapCoachStudentDetail (E-1b / S6)", () => {
+  it("maps review_state + arc ideal-ready fields (FE-B/FE-C), junk → safe defaults", () => {
+    const d = mapCoachStudentDetail({
+      pseudonym: "P",
+      sessions: [
+        { session_id: "a", review_state: "to_review", arc_id: "arc1", arc_ideal_ready: true },
+        { session_id: "b", review_state: "reviewed" },
+        { session_id: "c", review_state: "delivered" },
+        { session_id: "d", review_state: "garbage", arc_ideal_ready: "yes" },
+      ],
+    });
+    expect(d?.sessions.map((x) => x.reviewState)).toEqual([
+      "to_review",
+      "reviewed",
+      "delivered",
+      null,
+    ]);
+    expect(d?.sessions[0].arcId).toBe("arc1");
+    expect(d?.sessions[0].arcIdealReady).toBe(true);
+    expect(d?.sessions[3].arcIdealReady).toBe(false);
+  });
+
   it("maps the pseudonymized detail + session history", () => {
     expect(
       mapCoachStudentDetail({
@@ -79,6 +100,9 @@ describe("mapCoachStudentDetail (E-1b / S6)", () => {
           createdAt: "2026-06-01T00:00:00Z",
           state: "done",
           feeling: null,
+          reviewState: null,
+          arcId: null,
+          arcIdealReady: false,
         },
       ],
     });
