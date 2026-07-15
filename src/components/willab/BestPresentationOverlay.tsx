@@ -14,6 +14,7 @@ import {
 import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 import { useUserProfile } from "./useUserProfile";
 import { readExploreArc } from "@/lib/willab/exploreArc";
+import { useBackDismiss } from "./useBackDismiss";
 import CoachIdealTextPanel from "./CoachIdealTextPanel";
 import { parseRichMarkers, richMarkersToHtml } from "@/lib/willab/richMarkers";
 
@@ -55,13 +56,12 @@ export default function BestPresentationOverlay({
   // Delivery layer — the coach flow lives in CoachIdealTextPanel now.
   const { isCoach } = useUserProfile();
 
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  // True when the user leaves via an internal navigation (pricing top-up, the
-  // "One last step" game link). The cleanup must NOT balance the history entry
-  // then — the queued back() would pop the freshly pushed route and bounce the
-  // user straight back to /chat.
-  const leftViaNavRef = useRef(false);
+  // R7 — the shared stack-aware back-dismiss (an inline popstate listener would
+  // bypass the overlay stack and cascade-close everything underneath). The
+  // returned suppressor replaces the old leftViaNavRef: call it right before a
+  // FORWARD navigation (pricing top-up, the game link) so the unmount cleanup
+  // doesn't history.back() over it.
+  const suppressBackDismiss = useBackDismiss(onClose);
 
   async function handleUnlock() {
     if (unlocking) return;
@@ -75,29 +75,12 @@ export default function BestPresentationOverlay({
       return;
     }
     if (r.reason === "insufficient") {
-      leftViaNavRef.current = true;
+      suppressBackDismiss();
       router.push("/dashboard/pricing");
       return;
     }
     setUnlockError(r.message);
   }
-
-  // Back-dismiss: one throwaway history entry; Back closes the overlay (the
-  // scroll view has no internal pages to step).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let closedByPopstate = false;
-    window.history.pushState({ __willabOverlay: true }, "");
-    function handlePop() {
-      closedByPopstate = true;
-      onCloseRef.current();
-    }
-    window.addEventListener("popstate", handlePop);
-    return () => {
-      window.removeEventListener("popstate", handlePop);
-      if (!closedByPopstate && !leftViaNavRef.current) window.history.back();
-    };
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -406,7 +389,7 @@ export default function BestPresentationOverlay({
             <button
               type="button"
               onClick={() => {
-                leftViaNavRef.current = true;
+                suppressBackDismiss();
                 router.push(`/game?arc=${encodeURIComponent(arcId)}`);
               }}
               className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background transition hover:bg-foreground/90"

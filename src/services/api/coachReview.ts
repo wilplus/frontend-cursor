@@ -118,6 +118,11 @@ export interface CoachReviewSession {
   snippets: CoachReviewSnippet[];
   /** Pre-recording feelings (BE #108) — newest-first from feelings[]. Coach-only. */
   feelings: SessionFeeling[];
+  /** FE-B — a persisted, unapproved ideal-text draft exists for this session's
+   *  arc: the coach's cue to open, review, approve, and publish. */
+  arcIdealReady: boolean;
+  /** The session's arc (rides with arc_ideal_ready); null on older payloads. */
+  arcId: string | null;
 }
 
 /** What the FE sends per per-snippet save. Any subset of fields. The BE
@@ -272,6 +277,9 @@ export function mapCoachReviewSession(
     feelings: Array.isArray(r.feelings)
       ? r.feelings.map(pickFeeling).filter((f): f is SessionFeeling => f !== null)
       : [],
+    arcIdealReady: r.arc_ideal_ready === true,
+    arcId:
+      typeof r.arc_id === "string" && r.arc_id.length > 0 ? r.arc_id : null,
   };
 }
 

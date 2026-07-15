@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Loader2, Mic, MoreHorizontal } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
+import { useBackDismiss } from "./useBackDismiss";
 import type { ExploreArc } from "@/lib/willab/exploreArc";
 import {
   deletePresentation,
@@ -131,64 +132,46 @@ export default function LibraryOverlay({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Refs for the popstate handler (avoids stale closures in the [] effect).
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const navRef = useRef(nav);
   navRef.current = nav;
   const presentationsRef = useRef(presentations);
   presentationsRef.current = presentations;
 
-  // Back-dismiss with internal nav stack: one history entry kept alive while
-  // the overlay is open. Each popstate either steps back one nav level or,
-  // when already at L1, closes the overlay. A fresh entry is pushed after
-  // every internal step so the next swipe is interceptable.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let closedByPopstate = false;
-    window.history.pushState({ __willabOverlay: true }, "");
-    function handlePop() {
-      const cur = navRef.current;
-      if (cur.level === "L1") {
-        closedByPopstate = true;
-        onCloseRef.current();
-        return;
-      }
-      switch (cur.level) {
-        case "L2":
-        case "L2g":
-        case "T2":
-          setNav({ level: "L1" });
-          break;
-        case "L3":
-          if (cur.deck.takeLabel === "general") {
-            setNav({ level: "L2g" });
-          } else {
-            const p = presentationsRef.current.find(
-              (pr) => (pr.topic || "Presentation") === cur.topic
-            );
-            setNav(p ? { level: "L2", presentation: p } : { level: "L1" });
-          }
-          break;
-        case "L4":
-          setNav({
-            level: "L3",
-            deck: cur.deck,
-            topic: cur.topic,
-            takeLabel: cur.takeLabel,
-          });
-          break;
-      }
-      // Repush so the next swipe is still catchable.
-      window.history.pushState({ __willabOverlay: true }, "");
+  // R7 — the shared stack-aware back-dismiss (an inline listener would bypass
+  // the overlay stack: an overlay stacked over the library — a take's feedback
+  // page, the ideal notebook — would have ITS pop also step the library's nav
+  // underneath). Back steps one nav level (onBack consumes; the hook re-arms
+  // the history entry); at L1 it closes.
+  useBackDismiss(onClose, () => {
+    const cur = navRef.current;
+    if (cur.level === "L1") return false; // top level → close as usual
+    switch (cur.level) {
+      case "L2":
+      case "L2g":
+      case "T2":
+        setNav({ level: "L1" });
+        break;
+      case "L3":
+        if (cur.deck.takeLabel === "general") {
+          setNav({ level: "L2g" });
+        } else {
+          const p = presentationsRef.current.find(
+            (pr) => (pr.topic || "Presentation") === cur.topic
+          );
+          setNav(p ? { level: "L2", presentation: p } : { level: "L1" });
+        }
+        break;
+      case "L4":
+        setNav({
+          level: "L3",
+          deck: cur.deck,
+          topic: cur.topic,
+          takeLabel: cur.takeLabel,
+        });
+        break;
     }
-    window.addEventListener("popstate", handlePop);
-    return () => {
-      window.removeEventListener("popstate", handlePop);
-      // Only balance our entry on a non-Back close; a Back already popped it,
-      // and a second back() would walk past /chat to /login.
-      if (!closedByPopstate) window.history.back();
-    };
-  }, []);
+    return true; // consumed — the hook re-arms the entry
+  });
 
   useEffect(() => {
     let active = true;

@@ -129,6 +129,15 @@ export interface CoachIdealText {
   /** The auto-assembled draft merged with any saved coach edit. */
   text: string;
   approved: boolean;
+  /** BE-B — the eager assembler's status. "pending" = fewer than 3 spoken
+   *  takes (nothing to review yet); "ready" = the persisted draft exists and
+   *  the editor can open instantly. null on older payloads → the FE infers
+   *  from `text` (present = ready). */
+  assemblyState: "pending" | "ready" | null;
+  /** Spoken-take counts for the pending copy ("N of M takes recorded").
+   *  null when the payload omits them. */
+  takesDone: number | null;
+  takesTarget: number | null;
 }
 
 export async function fetchCoachIdealText(
@@ -152,11 +161,21 @@ export async function fetchCoachIdealText(
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return null;
   const text = str(body.text);
+  const count = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
   return {
     text,
     approved:
       body.approved === true ||
       (typeof body.approved_at === "string" && body.approved_at.length > 0),
+    assemblyState:
+      body.assembly_state === "pending"
+        ? "pending"
+        : body.assembly_state === "ready"
+        ? "ready"
+        : null,
+    takesDone: count(body.takes_done),
+    takesTarget: count(body.takes_target),
   };
 }
 

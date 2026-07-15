@@ -271,6 +271,17 @@ export default function CoachReviewOverlay({
           </p>
         ) : null}
 
+        {/* FE-B — the assembler's cue: a persisted, unapproved ideal-text
+            draft exists on this arc. Review + publish happen on the arc's
+            ideal-text panel (opened from the student's roster badge). */}
+        {session.arcIdealReady ? (
+          <p className="rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-center text-[13px] text-foreground">
+            The ideal text is ready to review. After saving this take, open it
+            from the student&apos;s page to approve and publish the full
+            analysis.
+          </p>
+        ) : null}
+
         {publishError ? (
           <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
             {publishError}
