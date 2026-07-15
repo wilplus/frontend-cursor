@@ -14,6 +14,8 @@ export interface TrainingTake {
   takeIndex: number;
   createdAt: string | null;
   hasSlides: boolean;
+  /** Delivery layer — true once this take's published feedback page exists. */
+  feedbackAvailable: boolean;
 }
 
 export interface TrainingArc {
@@ -27,6 +29,9 @@ export interface TrainingArc {
   /** True once the coach finalized the ideal text (gates the ideal button). */
   idealReady: boolean;
   bestPresentationArcId: string;
+  /** Delivery layer — the arc's cover image ref (the served deck PDF); null =
+   *  render the mock cover. */
+  coverRef: string | null;
 }
 
 function mapTake(raw: unknown): TrainingTake | null {
@@ -38,6 +43,7 @@ function mapTake(raw: unknown): TrainingTake | null {
     takeIndex: typeof r.take_index === "number" ? r.take_index : 0,
     createdAt: typeof r.created_at === "string" ? r.created_at : null,
     hasSlides: r.has_slides === true,
+    feedbackAvailable: r.feedback_available === true,
   };
 }
 
@@ -70,6 +76,12 @@ function mapArc(raw: unknown): TrainingArc | null {
       r.best_presentation_arc_id.length > 0
         ? r.best_presentation_arc_id
         : r.arc_id,
+    coverRef:
+      typeof r.cover_ref === "string" && r.cover_ref.length > 0
+        ? r.cover_ref
+        : typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
+          ? r.presentation_ref
+          : null,
   };
 }
 

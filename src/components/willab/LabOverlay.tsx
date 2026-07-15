@@ -43,6 +43,10 @@ import {
   type ExploreArcDeck,
 } from "@/lib/willab/exploreArc";
 import {
+  writeProcessingTake,
+  clearProcessingTake,
+} from "@/lib/willab/processingTake";
+import {
   clampSlides,
   initialSlides,
   nonEmptySlides,
@@ -219,6 +223,21 @@ export default function LabOverlay({
   // paywall panel (unlock link, no retry) instead of the destructive error.
   const [uploadPaywall, setUploadPaywall] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  // Async analysis (delivery layer): the session being polled after a 202
+  // accept, and whether the poll has crossed the 3-min "taking longer" cap
+  // (the poll keeps going — the cap only swaps the copy + offers re-record).
+  const [pollSessionId, setPollSessionId] = useState<string | null>(null);
+  const [pollSlow, setPollSlow] = useState(false);
+  const pollStartRef = useRef(0);
+  // The 202 accept's arc bookkeeping, held back until the analysis actually
+  // SUCCEEDS — committing at accept would burn a take slot on a failed
+  // analysis (and a retry would then re-submit with an inflated take_index).
+  const pendingCarryRef = useRef<{
+    returnedArcId: string;
+    nextIdx: number;
+    deck: ExploreArcDeck | undefined;
+    sessionId: string;
+  } | null>(null);
   const durationRef = useRef(0);
   const uploadStartedRef = useRef(false);
   // Guards for the deckless file-upload path. uploadSeqRef is bumped on every
@@ -294,6 +313,26 @@ export default function LabOverlay({
     }
     let active = true;
     void (async () => {
+      // Shared arc bookkeeping for the sync (201) and async (202) accept paths:
+      // write the returned arc + next take_index (+ deck) to localStorage so the
+      // next LabOverlay session picks the arc up.
+      const carryArc = (rArcId: string | null, rTakeIdx: number | null) => {
+        if (!exploreEnabled) return;
+        const returnedArcId = rArcId ?? arcId;
+        if (!returnedArcId) return;
+        const nextIdx =
+          (typeof rTakeIdx === "number" && rTakeIdx > 0 ? rTakeIdx : arcTakeIndex) +
+          1;
+        const deck = context
+          ? {
+              topic: context.topic,
+              presentationRef: context.presentationRef,
+              slides: context.slides,
+              targetLengthSeconds: context.target_length_seconds,
+            }
+          : initArc?.deck;
+        return { returnedArcId, nextIdx, deck };
+      };
       const result = await submitLabRecording({
         audioBlob: blob,
         durationSec: durationRef.current,
@@ -318,40 +357,20 @@ export default function LabOverlay({
       if (!active) return;
       if (result.kind === "ok") {
         // Carry the arc: write the returned arc_id + next take_index to
-        // localStorage so the next LabOverlay session picks it up.
-        if (exploreEnabled) {
-          const returnedArcId = result.arcId ?? arcId;
-          if (returnedArcId) {
-            // 3-take batch cycle (founder 2026-07-11): the BE stops joining an
-            // arc at 3 takes and returns a FRESH arc (take_index resets). Trust
-            // the BE's take_index when present so the local counter follows the
-            // batch; fall back to the local increment for older payloads. Carry
-            // the deck forward so the next take pre-fills the Lab.
-            const nextIdx =
-              (typeof result.takeIndex === "number" && result.takeIndex > 0
-                ? result.takeIndex
-                : arcTakeIndex) + 1;
-            const deck = context
-              ? {
-                  topic: context.topic,
-                  presentationRef: context.presentationRef,
-                  slides: context.slides,
-                  // R5 fix — carry the set length so the next take's timer keeps
-                  // counting down from it.
-                  targetLengthSeconds: context.target_length_seconds,
-                }
-              : initArc?.deck;
-            // FE-1 — carry this take's session id so a later take can restore
-            // the arc's setup from the server if localStorage loses the deck.
-            writeExploreArc(
-              returnedArcId,
-              nextIdx,
-              deck,
-              result.sessionId ?? undefined
-            );
-            setArcId(returnedArcId);
-            setArcTakeIndex(nextIdx);
-          }
+        // localStorage so the next LabOverlay session picks it up. (3-take
+        // batch cycle: trust the BE's take_index when present — the BE returns
+        // a FRESH arc after 3 takes. FE-1: carry the session id so a later take
+        // can restore the setup server-side.)
+        const carried = carryArc(result.arcId, result.takeIndex);
+        if (carried) {
+          writeExploreArc(
+            carried.returnedArcId,
+            carried.nextIdx,
+            carried.deck,
+            result.sessionId ?? undefined
+          );
+          setArcId(carried.returnedArcId);
+          setArcTakeIndex(carried.nextIdx);
         }
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
@@ -359,6 +378,29 @@ export default function LabOverlay({
         setUploadPaywall(false);
         onRecordingProgress?.(result.recordingProgress);
         goTo("readout");
+      } else if (result.kind === "processing") {
+        // Async analysis (delivery layer): the BE accepted the upload (202)
+        // and finishes the analysis in a background daemon — it now SURVIVES a
+        // closed tab / locked phone. Poll the readout until ready/failed; the
+        // persisted marker lets the Lounge resume a calm indicator on return.
+        // Arc bookkeeping is STASHED, not committed — it only applies when the
+        // analysis succeeds (a failed take must not advance the arc, and a
+        // retry must reuse the original take_index).
+        const carried = carryArc(result.arcId, result.takeIndex);
+        pendingCarryRef.current = carried
+          ? { ...carried, sessionId: result.sessionId }
+          : null;
+        setLabSessionId(result.sessionId);
+        setUploadError(null);
+        setUploadPaywall(false);
+        writeProcessingTake({
+          sessionId: result.sessionId,
+          arcId: result.arcId ?? arcId,
+          takeIndex:
+            result.takeIndex ?? (exploreEnabled ? arcTakeIndex : null),
+          startedAt: Date.now(),
+        });
+        setPollSessionId(result.sessionId);
       } else if (result.kind === "rejected") {
         // R4-5 — the min-content gate (422) used to send the user back to the
         // Pre-record screen. That screen is gone, so surface the message in
@@ -377,6 +419,72 @@ export default function LabOverlay({
       active = false;
     };
   }, [state, blob, context, goTo, cancelMic, retryNonce]);
+
+  // Async analysis poll (delivery layer): every ~2s until the daemon flips the
+  // session to ready (→ readout) or failed (→ retry). Null responses (network
+  // blips) just keep polling; past 3 min the copy flips to "taking longer" but
+  // the poll continues — the analysis genuinely finishes server-side.
+  useEffect(() => {
+    if (!pollSessionId || state !== "lab_processing") return;
+    pollStartRef.current = Date.now();
+    setPollSlow(false);
+    let active = true;
+    const tick = async () => {
+      const r = await fetchGuestLabReadout(pollSessionId);
+      if (!active) return;
+      if (r) {
+        const hasContent =
+          r.readout.snippets.length > 0 ||
+          r.readout.instantChunks.length > 0 ||
+          r.readout.fullTranscriptChunks.length > 0;
+        if (r.state === "failed") {
+          // Discard the stashed arc bookkeeping — a failed take must not
+          // advance the arc, so the retry reuses the original take_index.
+          pendingCarryRef.current = null;
+          clearProcessingTake(pollSessionId);
+          setPollSessionId(null);
+          setPollSlow(false);
+          setUploadError(
+            "The analysis hit a snag on our side. Your recording is safe. Try again."
+          );
+          return;
+        }
+        if (
+          r.state === "ready" ||
+          r.state === "readout_ready" ||
+          (r.state !== "processing" && hasContent)
+        ) {
+          // Success — NOW commit the arc bookkeeping stashed at the 202 accept.
+          const carried = pendingCarryRef.current;
+          if (carried && carried.sessionId === pollSessionId) {
+            writeExploreArc(
+              carried.returnedArcId,
+              carried.nextIdx,
+              carried.deck,
+              carried.sessionId
+            );
+            setArcId(carried.returnedArcId);
+            setArcTakeIndex(carried.nextIdx);
+          }
+          pendingCarryRef.current = null;
+          clearProcessingTake(pollSessionId);
+          setPollSessionId(null);
+          setPollSlow(false);
+          setReadout(r.readout);
+          setUploadError(null);
+          goTo("readout");
+          return;
+        }
+      }
+      if (Date.now() - pollStartRef.current > 180_000) setPollSlow(true);
+    };
+    void tick(); // immediate first read — a fast daemon shouldn't wait 2s
+    const id = setInterval(() => void tick(), 2000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [pollSessionId, state, goTo]);
 
   // Recording timer (250ms tick; reset whenever not recording).
   useEffect(() => {
@@ -654,11 +762,26 @@ export default function LabOverlay({
           <Processing
             error={uploadError}
             paywall={uploadPaywall}
+            slow={pollSlow}
             onRetry={() => {
               setUploadError(null);
               setUploadPaywall(false);
+              setPollSlow(false);
               uploadStartedRef.current = false;
               setRetryNonce((n) => n + 1);
+            }}
+            onReRecord={() => {
+              // Abandon the slow analysis (the daemon still finishes it server-
+              // side; the marker + Lounge indicator keep tracking it) and take
+              // the user back through priming → mic for a fresh take. The
+              // stashed arc bookkeeping goes with it — the abandoned take must
+              // not advance the arc.
+              pendingCarryRef.current = null;
+              setPollSessionId(null);
+              setPollSlow(false);
+              uploadStartedRef.current = false;
+              setBlob(null);
+              goTo("lab_prerecord");
             }}
             onClose={onClose}
           />
@@ -988,10 +1111,12 @@ function PrimingPanel({
           designed to shift your mindset before you speak, so read it carefully
           and trust the process.
         </p>
+        {/* Delivery-layer polish — the parabola screen's CTA is BLACK (matches
+            the record button), not the primary orange. */}
         <Button
           type="button"
           onClick={() => setStep("phrase")}
-          className="h-12 rounded-full px-8 text-[15px] font-medium"
+          className="h-12 rounded-full bg-foreground px-8 text-[15px] font-medium text-background hover:bg-foreground/90"
         >
           Next
         </Button>
@@ -1272,14 +1397,21 @@ const PROCESSING_LINES = [
 function Processing({
   error,
   paywall,
+  slow = false,
   onRetry,
+  onReRecord,
   onClose,
 }: {
   error: string | null;
   /** True when the failure was a 402 — a paywall is never an error: neutral
    *  styling, no retry (it would just 402 again), a route to the unlock. */
   paywall: boolean;
+  /** Async analysis: the poll crossed the 3-min cap — swap to the calm
+   *  "taking longer than usual" copy + offer a re-record. Never an error. */
+  slow?: boolean;
   onRetry: () => void;
+  /** Abandon a slow analysis and record a fresh take (priming → mic). */
+  onReRecord?: () => void;
   onClose: () => void;
 }) {
   const [lineIdx, setLineIdx] = useState(0);
@@ -1291,6 +1423,32 @@ function Processing({
     );
     return () => clearInterval(id);
   }, [error]);
+
+  if (!error && slow) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
+          This is taking longer than usual. Your recording is safe and the
+          analysis keeps running on our side, even if you close this.
+        </p>
+        <div className="flex gap-2">
+          {onReRecord ? (
+            <Button onClick={onReRecord} className="rounded-full px-6">
+              Record again
+            </Button>
+          ) : null}
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="rounded-full px-6"
+          >
+            Back to Lounge
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (error && paywall) {
     // FE-5 — pricing/paywall overlay: exit is the header X + the back gesture

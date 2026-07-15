@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Upload, Users } from "lucide-react";
+import { Loader2, Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
@@ -10,15 +10,23 @@ import type { LoungeMessage } from "@/services/api/loungeMessages";
 import type { ReviewQueueRow } from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
+  batchTake,
   isUploadAsk,
   loungeToHistory,
   splitBotMessage,
 } from "./willabHelpers";
+import { fetchGuestLabReadout } from "@/services/api/labRecording";
+import {
+  readProcessingTake,
+  clearProcessingTake,
+} from "@/lib/willab/processingTake";
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
-import ReportCard from "./ReportCard";
+import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
 import LoadingState from "./LoadingState";
 import InsightsOverlay from "./InsightsOverlay";
+import FeedbackOverlay from "./FeedbackOverlay";
+import IdealTextOverlay from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import BreakthroughsOverlay from "./BreakthroughsOverlay";
@@ -28,7 +36,7 @@ import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
 import { hasRelaxAnnounced, markRelaxAnnounced } from "@/lib/willab/relaxAnnounced";
 import { clearInsightsReady } from "./sendStatus";
-import { type WillabState } from "./useWillabFlow";
+import { isLabOverlay, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewBubble from "./CoachReviewBubble";
@@ -417,6 +425,85 @@ export default function Lounge({
   // the button instead of silently opening the Lab with a doomed upload.
   const [uploadPickError, setUploadPickError] = useState<string | null>(null);
 
+  // Delivery layer — the tapped feedback bubble (per-take page) and the purple
+  // ideal-text bubble's notebook.
+  const [feedbackTarget, setFeedbackTarget] =
+    useState<FeedbackBubbleTarget | null>(null);
+  const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
+
+  // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
+  // server-side; resume its persisted marker and poll until terminal. Re-runs
+  // whenever the Lab overlay CLOSES (state-driven, not mount-only — the Lounge
+  // is always-mounted, so a marker written mid-session must be picked up the
+  // moment the user comes back from the Lab). While the Lab is open it owns
+  // the live poll, so this stands down.
+  const [processingResume, setProcessingResume] = useState<{
+    takeIndex: number | null;
+    status: "analyzing" | "failed";
+  } | null>(null);
+  useEffect(() => {
+    if (isLabOverlay(state)) return; // the LabOverlay owns the poll while open
+    const marker = readProcessingTake();
+    if (!marker) {
+      setProcessingResume(null);
+      return;
+    }
+    const stale = () => Date.now() - marker.startedAt > 30 * 60_000;
+    // A marker older than 30 min is stale (the accepted redeploy-mid-job gap
+    // leaves `processing` forever) — clear quietly instead of an eternal chip.
+    if (stale()) {
+      clearProcessingTake(marker.sessionId);
+      return;
+    }
+    setProcessingResume({ takeIndex: marker.takeIndex, status: "analyzing" });
+    let active = true;
+    let failTimer: ReturnType<typeof setTimeout> | null = null;
+    const id = setInterval(() => void tick(), 5000);
+    async function tick() {
+      // The stale cutoff applies inside the loop too — a long-lived tab must
+      // not keep an orphaned "analyzing" chip alive forever.
+      if (stale()) {
+        clearProcessingTake(marker!.sessionId);
+        setProcessingResume(null);
+        clearInterval(id);
+        return;
+      }
+      const r = await fetchGuestLabReadout(marker!.sessionId);
+      if (!active || !r) return;
+      const hasContent =
+        r.readout.snippets.length > 0 ||
+        r.readout.instantChunks.length > 0 ||
+        r.readout.fullTranscriptChunks.length > 0;
+      if (r.state === "failed") {
+        clearProcessingTake(marker!.sessionId);
+        setProcessingResume({ takeIndex: marker!.takeIndex, status: "failed" });
+        clearInterval(id);
+        // The failure note lingers briefly, then clears itself.
+        failTimer = setTimeout(() => {
+          if (active) setProcessingResume(null);
+        }, 10_000);
+        return;
+      }
+      if (
+        r.state === "ready" ||
+        r.state === "readout_ready" ||
+        (r.state !== "processing" && hasContent)
+      ) {
+        clearProcessingTake(marker!.sessionId);
+        setProcessingResume(null);
+        clearInterval(id);
+      }
+    }
+    void tick();
+    return () => {
+      active = false;
+      clearInterval(id);
+      if (failTimer) clearTimeout(failTimer);
+    };
+    // state is the re-arm trigger; everything else is read fresh per run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   // Auto-open an offer in the footer, respecting priority so that when several
   // fire at the same post-send moment the most urgent wins the slot (the others
   // remain clickable bubbles in the thread). An explicit bubble tap bypasses
@@ -774,6 +861,8 @@ export default function Lounge({
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
+                onOpenFeedback={setFeedbackTarget}
+                onOpenIdealText={setIdealTextArcId}
                 onChip={onChip}
                 activeOffer={activeOffer}
                 onOpenOffer={setActiveOffer}
@@ -815,6 +904,30 @@ export default function Lounge({
           Your students
         </Button>
       )}
+
+      {/* Async analysis (delivery layer): a take left mid-analysis (closed tab /
+          locked phone) keeps finishing server-side — this chip resumes a calm
+          indicator from the persisted marker and clears itself when done. */}
+      {processingResume ? (
+        <p
+          className={`mb-1.5 flex items-center justify-center gap-2 rounded-full px-4 py-1.5 text-center text-[13px] ${
+            processingResume.status === "failed"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {processingResume.status === "failed" ? null : (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          )}
+          {processingResume.status === "failed"
+            ? "That take's analysis failed. Record it again when you're ready."
+            : `Still analyzing your ${
+                processingResume.takeIndex
+                  ? `take ${batchTake(processingResume.takeIndex)}`
+                  : "recording"
+              }…`}
+        </p>
+      ) : null}
 
       {/* The record-button slot. While an offer is "armed" (freshly triggered,
           or re-opened by tapping its thread bubble) its action pair REPLACES the
@@ -961,6 +1074,21 @@ export default function Lounge({
         <BreakthroughsOverlay
           arcId={breakthroughsArcId}
           onClose={() => setBreakthroughsArcId(null)}
+        />
+      )}
+      {/* Delivery layer — the 4 bubbles' destinations. */}
+      {feedbackTarget && (
+        <FeedbackOverlay
+          arcId={feedbackTarget.arcId}
+          takeSessionId={feedbackTarget.takeSessionId}
+          takeIndex={feedbackTarget.takeIndex}
+          onClose={() => setFeedbackTarget(null)}
+        />
+      )}
+      {idealTextArcId && (
+        <IdealTextOverlay
+          arcId={idealTextArcId}
+          onClose={() => setIdealTextArcId(null)}
         />
       )}
       {activeInsight && (
@@ -1188,6 +1316,8 @@ function Bubble({
   onOpenBestPresentation,
   onOpenBreakthroughs,
   onOpenTranscripts,
+  onOpenFeedback,
+  onOpenIdealText,
   onChip,
   activeOffer,
   onOpenOffer,
@@ -1201,6 +1331,10 @@ function Bubble({
   onOpenBreakthroughs?: (arcId: string) => void;
   /** transcript_ready card — opens the Trainings library. */
   onOpenTranscripts?: () => void;
+  /** Delivery layer — the grey feedback bubbles open their take's page. */
+  onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
+  /** Delivery layer — the purple bubble opens the ideal-text notebook. */
+  onOpenIdealText?: (arcId: string) => void;
   onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -1224,7 +1358,9 @@ function Bubble({
     message.kind === "recording_summary" ||
     message.kind === "insight" ||
     message.kind === "best_presentation_ready" ||
-    message.kind === "transcript_ready"
+    message.kind === "transcript_ready" ||
+    message.kind === "feedback" ||
+    message.kind === "ideal_text"
   ) {
     return (
       <ReportCard
@@ -1233,6 +1369,8 @@ function Bubble({
         onOpenBestPresentation={onOpenBestPresentation}
         onOpenBreakthroughs={onOpenBreakthroughs}
         onOpenTranscripts={onOpenTranscripts}
+        onOpenFeedback={onOpenFeedback}
+        onOpenIdealText={onOpenIdealText}
       />
     );
   }

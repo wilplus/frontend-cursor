@@ -13,8 +13,9 @@ import {
   type StrengthMoment,
   type StrengthsView,
 } from "@/services/api/strengths";
-import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
-import ArcBatchView from "./ArcBatchView";
+import { fetchTrainings, type TrainingArc, type TrainingTake } from "@/services/api/trainings";
+import FeedbackOverlay from "./FeedbackOverlay";
+import IdealTextOverlay from "./IdealTextOverlay";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { SlideRender, TextSlide } from "./pdfSlides";
 import { SlidePlaceholder } from "./SlideTake";
@@ -118,8 +119,14 @@ export default function LibraryOverlay({
   // R4-13 — arc-grouped trainings (the tab's new source). null = the endpoint
   // isn't live yet → the legacy strengths-fed view below stays in charge.
   const [trainings, setTrainings] = useState<TrainingArc[] | null>(null);
-  // The arc whose coach-review batch (R4-11) is open over this overlay.
-  const [batchArcId, setBatchArcId] = useState<string | null>(null);
+  // Delivery layer — a take's feedback page / the arc's ideal-text notebook,
+  // opened over this overlay.
+  const [feedbackTake, setFeedbackTake] = useState<{
+    arcId: string;
+    takeIndex: number;
+    sessionId: string;
+  } | null>(null);
+  const [idealArcId, setIdealArcId] = useState<string | null>(null);
   const [nav, setNav] = useState<NavLevel>({ level: "L1" });
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -415,8 +422,14 @@ export default function LibraryOverlay({
         ) : nav.level === "T2" ? (
           <TrainingDetail
             arc={nav.arc}
-            onOpenBest={() => onOpenBestPresentation(nav.arc.bestPresentationArcId)}
-            onOpenBatch={() => setBatchArcId(nav.arc.arcId)}
+            onOpenIdeal={() => setIdealArcId(nav.arc.arcId)}
+            onOpenTake={(t) =>
+              setFeedbackTake({
+                arcId: nav.arc.arcId,
+                takeIndex: t.takeIndex,
+                sessionId: t.sessionId,
+              })
+            }
             onRecordAnother={() => {
               // Continue this arc. No slide bodies ride the trainings payload;
               // the deck restores server-side via the latest take's session id
@@ -454,9 +467,18 @@ export default function LibraryOverlay({
         )}
       </div>
 
-      {/* R4-11 — the coach-review batch view, over this overlay. */}
-      {batchArcId ? (
-        <ArcBatchView arcId={batchArcId} onClose={() => setBatchArcId(null)} />
+      {/* Delivery layer — a take's feedback page / the ideal-text notebook,
+          stacked over this overlay (z-40 over z-30). */}
+      {feedbackTake ? (
+        <FeedbackOverlay
+          arcId={feedbackTake.arcId}
+          takeSessionId={feedbackTake.sessionId}
+          takeIndex={feedbackTake.takeIndex}
+          onClose={() => setFeedbackTake(null)}
+        />
+      ) : null}
+      {idealArcId ? (
+        <IdealTextOverlay arcId={idealArcId} onClose={() => setIdealArcId(null)} />
       ) : null}
     </div>
   );
@@ -486,7 +508,6 @@ function TrainingsList({
             </span>
             <span className="mt-0.5 block text-[13px] text-muted-foreground">
               {arc.takeCount} {arc.takeCount === 1 ? "take" : "takes"}
-              {arc.batchVerified ? " · Batch verified" : ""}
             </span>
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-muted-foreground" aria-hidden />
@@ -498,73 +519,79 @@ function TrainingsList({
 
 function TrainingDetail({
   arc,
-  onOpenBest,
-  onOpenBatch,
+  onOpenIdeal,
+  onOpenTake,
   onRecordAnother,
 }: {
   arc: TrainingArc;
-  onOpenBest: () => void;
-  onOpenBatch: () => void;
+  /** Opens the arc's ideal-text notebook (the delivery-layer deliverable). */
+  onOpenIdeal: () => void;
+  /** Opens one take's feedback page. */
+  onOpenTake: (t: TrainingTake) => void;
   onRecordAnother: () => void;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 pb-6">
-      {/* Recordings — every take in the arc (deckless included). */}
-      <div>
-        <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Recordings
-        </p>
-        <div className="mt-2 flex flex-col gap-2">
-          {arc.takes.map((t) => (
-            <div
-              key={t.sessionId}
-              className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
-            >
-              <span className="text-[15px] text-foreground">
-                Take {t.takeIndex}
-              </span>
-              <span className="text-[13px] text-muted-foreground">
-                {t.createdAt
-                  ? new Date(t.createdAt).toLocaleDateString()
-                  : ""}
-              </span>
-            </div>
-          ))}
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-6">
+      {/* Delivery layer — no title beyond the navbar: the top is the big cover
+          (the served deck's first page, or a calm mock) with the darker-bg
+          "Open ideal presentation" button directly under it. The button sits
+          BELOW the cover (not overlaid) so it can't hide SlideRender's retry
+          control on a failed PDF or float over the header while it loads. */}
+      <div className="flex flex-col">
+        {arc.coverRef ? (
+          <SlideRender
+            presentationRef={arc.coverRef}
+            pageIndex={0}
+            title={arc.topic}
+            body=""
+            className="w-full"
+          />
+        ) : (
+          <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
+            <Mic className="h-10 w-10 text-muted-foreground/40" aria-hidden />
+          </div>
+        )}
+        <div className="px-4 pt-3">
+          <button
+            type="button"
+            onClick={onOpenIdeal}
+            className="w-full rounded-full bg-foreground px-5 py-2.5 text-[14px] font-medium text-background transition hover:bg-foreground/90"
+          >
+            Open ideal presentation
+          </button>
         </div>
       </div>
 
-      {arc.batchVerified ? (
+      {/* The take list — each row opens that take's feedback page. */}
+      <div className="flex flex-col gap-2 px-4">
+        {arc.takes.map((t) => (
+          <button
+            key={t.sessionId}
+            type="button"
+            onClick={() => onOpenTake(t)}
+            className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40"
+          >
+            <span className="text-[15px] text-foreground">
+              Take {t.takeIndex}
+            </span>
+            <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
+              {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ""}
+              <ChevronDown className="h-4 w-4 -rotate-90" aria-hidden />
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="px-4">
         <button
           type="button"
-          onClick={onOpenBatch}
-          className="flex items-center justify-between rounded-xl border border-success/50 bg-success/5 px-4 py-3 text-left transition hover:bg-success/10"
+          onClick={onRecordAnother}
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-border px-5 py-2.5 text-[14px] font-medium text-foreground transition hover:bg-muted"
         >
-          <span className="text-[15px] font-medium text-foreground">
-            Batch verified · Coach review
-          </span>
-          <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-muted-foreground" aria-hidden />
+          <Mic className="h-4 w-4" aria-hidden />
+          Record another take
         </button>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={onOpenBest}
-        disabled={!arc.idealReady}
-        className="rounded-full bg-foreground px-5 py-2.5 text-[14px] font-medium text-background transition hover:bg-foreground/90 disabled:opacity-40"
-      >
-        {arc.idealReady
-          ? "Ideal presentation"
-          : "Ideal presentation (coach still working)"}
-      </button>
-
-      <button
-        type="button"
-        onClick={onRecordAnother}
-        className="flex items-center justify-center gap-2 rounded-full border border-border px-5 py-2.5 text-[14px] font-medium text-foreground transition hover:bg-muted"
-      >
-        <Mic className="h-4 w-4" aria-hidden />
-        Record another take
-      </button>
+      </div>
     </div>
   );
 }

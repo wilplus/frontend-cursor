@@ -171,31 +171,8 @@ export async function fetchBestPresentationProgress(
   return mapProgress(await res.json().catch(() => null));
 }
 
-/** Save the user-edited composed text for a single slide.
- *  Called when the user saves an edit in F1 BestPresentationOverlay. */
-export async function saveBestPresentationSlideText(
-  arcId: string,
-  slideIndex: number,
-  text: string
-): Promise<{ ok: boolean; message?: string }> {
-  const headers = await authHeaders();
-  let res: Response;
-  try {
-    res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/best-presentation/slides/${slideIndex}`,
-      {
-        method: "PUT",
-        headers: { ...headers, "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ text }),
-      }
-    );
-  } catch {
-    return { ok: false, message: "Network error. Try again." };
-  }
-  if (!res.ok) return { ok: false, message: `Failed to save (${res.status}).` };
-  return { ok: true };
-}
+// Delivery layer: per-slide text editing is retired — the coach edits the
+// ONE-BLOCK ideal text (idealText.ts) and the user edits their notebook copy.
 
 /** Full payload — fetched once when the overlay opens.
  *  Soft-fails to null. */

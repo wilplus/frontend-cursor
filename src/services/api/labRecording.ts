@@ -53,6 +53,10 @@ export interface LabUploadInput {
 
 export type LabUploadResult =
   | { kind: "ok"; sessionId: string | null; state: string | null; readout: ReadoutPayload; arcId: string | null; takeIndex: number | null; recordingProgress: RecordingProgress | null }
+  /** Async analysis (delivery layer): the BE accepted the upload (202) and is
+   *  finishing the analysis in a background daemon — poll the readout until
+   *  `ready`/`failed`. Survives a closed tab / locked phone. */
+  | { kind: "processing"; sessionId: string; arcId: string | null; takeIndex: number | null; takeCount: number | null }
   | { kind: "rejected"; message: string } // 422 — min-content gate
   | { kind: "error"; status: number; message: string };
 
@@ -168,6 +172,24 @@ export async function submitLabRecording(
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) {
     return { kind: "error", status: res.status, message: "Empty response from the lab." };
+  }
+
+  // Async analysis (delivery layer): 202 = { session_id, recording_id,
+  // state:"processing", arc_id, take_index, take_count } — the daemon finishes
+  // server-side; the FE polls the readout until ready/failed. Only an explicit
+  // "processing" diverts here, so the legacy synchronous 201 path is untouched.
+  if (
+    (res.status === 202 || body.state === "processing") &&
+    typeof body.session_id === "string" &&
+    body.session_id.length > 0
+  ) {
+    return {
+      kind: "processing",
+      sessionId: body.session_id,
+      arcId: typeof body.arc_id === "string" ? body.arc_id : null,
+      takeIndex: typeof body.take_index === "number" ? body.take_index : null,
+      takeCount: typeof body.take_count === "number" ? body.take_count : null,
+    };
   }
 
   // BE A2 (verified live): 201 = { status, session_id, recording_id, state,
