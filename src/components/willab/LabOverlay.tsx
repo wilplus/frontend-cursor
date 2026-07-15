@@ -689,6 +689,20 @@ export default function LabOverlay({
             onRegisterBack={(fn) => {
               readoutBackRef.current = fn;
             }}
+            // #191 — the spoken take's setup, so a piece with approved edits can
+            // offer a re-read (uploaded as recording_kind=read, paired here).
+            reReadContext={
+              context
+                ? {
+                    topic: context.topic,
+                    audience: context.audience,
+                    slides: context.slides,
+                    presentationRef: context.presentationRef,
+                    domainVocabulary: context.domain_vocabulary,
+                    targetLengthSeconds: context.target_length_seconds,
+                  }
+                : null
+            }
           />
         )}
 

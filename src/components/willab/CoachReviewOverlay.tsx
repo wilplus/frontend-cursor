@@ -265,7 +265,7 @@ export default function CoachReviewOverlay({
 
         {!floorMet ? (
           <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-            Surface at least one snippet with a note and tag to publish.
+            Surface at least one snippet and add a note to publish.
           </p>
         ) : null}
 

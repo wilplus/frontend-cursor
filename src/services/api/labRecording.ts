@@ -40,6 +40,15 @@ export interface LabUploadInput {
    *  the acoustic read; never shown back to the user. undefined for uploads. */
   primingCondition?: "threat" | "challenge" | "balanced";
   primingPhrase?: string;
+  /** #191 — "spoken" (the take itself) vs "read" (a re-read of a piece's
+   *  corrected text). Default/omitted = spoken (the BE's default). */
+  recordingKind?: "spoken" | "read";
+  /** #191 — for a read, the spoken session this re-read belongs to. The BE links
+   *  it to that take and it does NOT count as a new take. */
+  pairedSessionId?: string;
+  /** #191 — a fresh id so a read is its own session (the read never overwrites
+   *  the spoken take). Sent for reads; omit for the spoken take. */
+  guestSessionId?: string;
 }
 
 export type LabUploadResult =
@@ -89,6 +98,12 @@ export async function submitLabRecording(
   // R5 — the pre-take priming framing the user saw; private correlation input.
   if (input.primingCondition) form.append("priming_condition", input.primingCondition);
   if (input.primingPhrase) form.append("priming_phrase", input.primingPhrase);
+  // #191 — read-vs-spoken. A read carries the spoken session it re-reads
+  // (paired) + its own fresh session id, so it links to the take without
+  // counting as a new one. Omit all three for a normal spoken take.
+  if (input.recordingKind) form.append("recording_kind", input.recordingKind);
+  if (input.pairedSessionId) form.append("paired_session_id", input.pairedSessionId);
+  if (input.guestSessionId) form.append("guest_session_id", input.guestSessionId);
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
   const token = await getAuthToken(); // optional — public/guest endpoint

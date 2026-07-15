@@ -10,7 +10,6 @@ import {
   type CoachReviewSnippet,
   type CoachSnippetState,
   type DirectionLabel,
-  type CoachTag,
 } from "@/services/api/coachReview";
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
 
@@ -41,11 +40,6 @@ const DIRECTIONS: { value: DirectionLabel; label: string }[] = [
   { value: "challenge", label: "Challenge" },
   { value: "ambiguous", label: "Ambiguous" },
   { value: "threat", label: "Threat" },
-];
-
-const TAGS: { value: CoachTag; label: string }[] = [
-  { value: "strong", label: "Strong" },
-  { value: "to_work_on", label: "To work on" },
 ];
 
 export default function CoachSnippetReviewCard({
@@ -81,8 +75,10 @@ export default function CoachSnippetReviewCard({
   const [savingField, setSavingField] = useState<"breakthrough" | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // #191 — no pre-fill: the coach writes the note from scratch (that IS the
+  // training signal). The BE now sends note="" and no ai_draft_coach_note.
   const [noteDraft, setNoteDraft] = useState(
-    (initialState ?? snippet.coachState).note || snippet.aiDraftNote || ""
+    (initialState ?? snippet.coachState).note || ""
   );
   // R4-8 — auto-grow the note toward full screen as the coach types (same
   // pattern as BestPresentationOverlay's MarkerEditor): re-fit on every edit,
@@ -95,7 +91,6 @@ export default function CoachSnippetReviewCard({
     const cap = Math.round(window.innerHeight * 0.7);
     el.style.height = `${Math.min(el.scrollHeight, cap)}px`;
   }, [noteDraft]);
-  const didAutoSeedRef = useRef(false);
 
   // The local merge: apply the patch, tell the overlay. This is the ONLY write
   // path for note/direction/tag/surfaced (server persistence happens at
@@ -137,11 +132,6 @@ export default function CoachSnippetReviewCard({
     applyLocal({ directionLabel: value });
   }
 
-  function pickTag(value: CoachTag) {
-    // Toggle: same tag tapped twice clears it.
-    applyLocal({ tag: coachState.tag === value ? null : value });
-  }
-
   function toggleSurfaced() {
     applyLocal({ surfaced: !coachState.surfaced });
   }
@@ -167,22 +157,9 @@ export default function CoachSnippetReviewCard({
     applyLocal({ note: value });
   }
 
-  // On mount: seed default-surfaced + the AI draft note LOCALLY (no server
-  // write — R4-8) so the overlay's publish payload / floor sees the defaults.
-  // The BE also defaults snippets to surfaced=true, so this is presentation
-  // state, not a persistence requirement.
-  useEffect(() => {
-    if (didAutoSeedRef.current || initialState) return;
-    const needsNote = !!snippet.aiDraftNote && !snippet.coachState.note;
-    const needsSurfaced = !snippet.coachState.surfaced;
-    if (!needsNote && !needsSurfaced) return;
-    didAutoSeedRef.current = true;
-    const patch: Partial<CoachSnippetState> = {};
-    if (needsNote) patch.note = snippet.aiDraftNote!;
-    if (needsSurfaced) patch.surfaced = true;
-    applyLocal(patch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // #191 — no auto-seed. Every snippet defaults HIDDEN (surfaced=false): the
+  // coach opts in only the key moments they mark, and there's no AI draft note
+  // to pre-fill. Nothing reaches the student until the coach surfaces + publishes.
 
   // Status badge — three states (per §F.3):
   //   "Skipped"        — nothing set
@@ -201,9 +178,23 @@ export default function CoachSnippetReviewCard({
 
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4">
-      <span className="text-[12px] text-muted-foreground">
-        Snippet {index + 1} of {total}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-muted-foreground">
+          Snippet {index + 1} of {total}
+        </span>
+        {/* #191 — spoken take vs a re-read of a corrected piece. */}
+        {snippet.recordingKind ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              snippet.recordingKind === "read"
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {snippet.recordingKind === "read" ? "Read" : "Spoken"}
+          </span>
+        ) : null}
+      </div>
 
       {/* The slide on screen when this snippet started (deck attached) — the
           coach's reference for what the user was talking about, same slide the
@@ -223,10 +214,7 @@ export default function CoachSnippetReviewCard({
         startOffsetMs={snippet.startOffsetMs}
         durationMs={snippet.durationMs}
         transcript={snippet.transcript}
-        stickiness={snippet.stickiness}
-        features={snippet.features}
         acousticRead={snippet.acousticRead}
-        autoComment={snippet.autoComment}
       />
 
       {/* Coach controls — the §F.3 split-sink surface */}
@@ -349,35 +337,6 @@ export default function CoachSnippetReviewCard({
             placeholder="What to take away from this snippet…"
             className="mt-2 min-h-[10rem] max-h-[70vh] w-full resize-y overflow-y-auto rounded-xl border border-border bg-background px-3.5 py-3 text-[15px] leading-relaxed outline-none focus:border-primary"
           />
-        </div>
-
-        {/* Tag — user-facing strong/to-work-on (§S.5; independent of direction) */}
-        <div className="mt-4">
-          <p className="text-sm font-semibold text-foreground">
-            Tag
-            <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-              Shown to user
-            </span>
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {TAGS.map((t) => {
-              const active = coachState.tag === t.value;
-              return (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => pickTag(t.value)}
-                  className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
-                    active
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-foreground hover:border-primary/50"
-                  } disabled:opacity-50`}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Surface toggle — does the user see this snippet at all? */}
