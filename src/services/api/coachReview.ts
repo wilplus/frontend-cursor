@@ -84,8 +84,14 @@ export interface CoachReviewSnippet {
    *  null when the packet omits it. NEVER user-facing. */
   acousticRead: AcousticRead | null;
   /** #190 — the machine's qualitative comment (acoustic tone only). Coach-only
-   *  reference; the tone wording comes from the BE (never FE-synthesized). */
+   *  reference; the tone wording comes from the BE (never FE-synthesized).
+   *  #191 — now null by default (the coach writes from scratch); kept for
+   *  back-compat / older packets. */
   autoComment: string | null;
+  /** #191 — whether this snippet is the spoken take ("spoken") or a re-read of a
+   *  piece's corrected text ("read"). Labels the coach card. null = unknown
+   *  (older packets) → treated as spoken. */
+  recordingKind: "spoken" | "read" | null;
   coachState: CoachSnippetState;
 }
 
@@ -219,6 +225,13 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
     autoComment:
       typeof r.auto_comment === "string" && r.auto_comment.length > 0
         ? r.auto_comment
+        : null,
+    // #191 — spoken take vs re-read; anything but "read" → spoken.
+    recordingKind:
+      r.recording_kind === "read"
+        ? "read"
+        : r.recording_kind === "spoken"
+        ? "spoken"
         : null,
     coachState: pickCoachState(r.coach_state),
   };

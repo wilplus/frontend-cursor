@@ -10,9 +10,12 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { Check, Copy, Info, Pause, Play, Sparkles } from "lucide-react";
+import { Check, Copy, Info, Mic, Pause, Play, Sparkles, Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { SlideRender } from "./pdfSlides";
+import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
+import { submitLabRecording } from "@/services/api/labRecording";
+import { type PresentationSlide } from "./presentation";
 import {
   groupSnippetsBySlide,
   pickTopSnippet,
@@ -83,6 +86,21 @@ const chunkText = (c: FullTranscriptChunk) => c.userEditedText ?? c.transcript;
 /** The training-setup audience (B4) — suffixed onto Say-It-Stronger insight
  *  lines as "(audience: X)". Render-only; null hides the suffix. */
 const ReadoutAudienceContext = createContext<string | null>(null);
+
+/** #191 — ONE re-read mic at a time across all pieces (mirrors the single
+ *  SectionAudioContext player). `claim` makes a piece the active recorder; every
+ *  other recording piece sees `activeKey` change and cancels, so two mics can't
+ *  be hot at once. `release` clears the slot when that piece finishes. */
+interface ReReadCoordinator {
+  activeKey: string | null;
+  claim: (key: string) => void;
+  release: (key: string) => void;
+}
+const ReReadCoordinatorContext = createContext<ReReadCoordinator>({
+  activeKey: null,
+  claim: () => {},
+  release: () => {},
+});
 
 /* ── shared section audio: ONE element, seek + stop per section span ── */
 
@@ -194,6 +212,7 @@ export default function ReadoutCard({
   // Kept for call-site compatibility; the scroll view needs no history paging.
   managed: _managed = true,
   onRegisterBack,
+  reReadContext = null,
 }: {
   payload: ReadoutPayload;
   /** Present for parity with the transcript-edit era; editing moved to the
@@ -202,6 +221,10 @@ export default function ReadoutCard({
   sessionId?: string | null;
   isSample?: boolean;
   onSend?: () => void;
+  /** #191 — the spoken take's setup context, so a piece with approved edits can
+   *  offer a re-read mic (records → uploads as recording_kind=read paired to
+   *  this session). null (e.g. the published InsightsOverlay) → no re-read. */
+  reReadContext?: ReReadContext | null;
   /** Required for shell mode (full-screen overlay). Both LabOverlay and
    *  InsightsOverlay provide this. Without it the card renders a plain div. */
   onClose?: () => void;
@@ -230,14 +253,6 @@ export default function ReadoutCard({
       null,
     [payload.parentAudioRef, payload.snippets]
   );
-
-  // #190 — snippets by id, so a piece can pull its coach note + breakthrough
-  // video off the matching snippet (matched by the piece's snippetId).
-  const snippetsById = useMemo(() => {
-    const m = new Map<string, ReadoutSnippet>();
-    for (const s of payload.snippets) if (s.id) m.set(s.id, s);
-    return m;
-  }, [payload.snippets]);
 
   // Section model. Per-deck-slide when the BE sends complete slide transcripts
   // (every slide gets a section, quiet first slide included); ONE mock-slide
@@ -426,9 +441,21 @@ export default function ReadoutCard({
   const sectionCount = Math.max(sections.length, 1);
   const hasSummary = !!(payload.overallMessage || payload.videoRef);
 
+  // #191 — one active re-read mic across every piece (see ReReadCoordinator).
+  const [activeReRead, setActiveReRead] = useState<string | null>(null);
+  const reReadCoord = useMemo<ReReadCoordinator>(
+    () => ({
+      activeKey: activeReRead,
+      claim: (key) => setActiveReRead(key),
+      release: (key) => setActiveReRead((k) => (k === key ? null : k)),
+    }),
+    [activeReRead]
+  );
+
   const body = (
     <ReadoutAudienceContext.Provider value={payload.audience}>
-      <SectionAudioContext.Provider value={audio}>
+      <ReReadCoordinatorContext.Provider value={reReadCoord}>
+        <SectionAudioContext.Provider value={audio}>
         {sections.length === 0 ? (
           <p className="px-4 py-12 text-center text-[15px] text-muted-foreground">
             No analyzable snippets in this recording.
@@ -443,8 +470,8 @@ export default function ReadoutCard({
               isSample={isSample && i === 0}
               voiceMetricsAvailable={i === 0 ? payload.voiceMetricsAvailable : true}
               suggestionsLoading={suggestionsLoading}
-              snippetsById={snippetsById}
               sessionId={sessionId}
+              reReadContext={reReadContext}
             />
           ))
         )}
@@ -465,7 +492,8 @@ export default function ReadoutCard({
             </button>
           </div>
         ) : null}
-      </SectionAudioContext.Provider>
+        </SectionAudioContext.Provider>
+      </ReReadCoordinatorContext.Provider>
     </ReadoutAudienceContext.Provider>
   );
 
@@ -500,8 +528,8 @@ function Section({
   isSample,
   voiceMetricsAvailable,
   suggestionsLoading,
-  snippetsById,
   sessionId,
+  reReadContext,
 }: {
   refCallback: (el: HTMLElement | null) => void;
   section: ReadoutSection;
@@ -511,10 +539,10 @@ function Section({
   /** R4-9 — the whole suggestions layer is still generating (one loading
    *  state, not per-card shimmers). */
   suggestionsLoading: boolean;
-  /** #190 — snippets by id, for a piece's coach note + breakthrough video. */
-  snippetsById: Map<string, ReadoutSnippet>;
-  /** #190 — the session id, to persist Apply / preferred / transcript edits. */
+  /** #190 — the session id, to persist Approve / transcript edits. */
   sessionId: string | null;
+  /** #191 — re-read context (null → no re-read mic). */
+  reReadContext: ReReadContext | null;
 }) {
   const perSlide = section.fullTranscript !== null;
   const deckless = section.chunks !== null || section.instantChunks !== null;
@@ -551,9 +579,9 @@ function Section({
           <PieceList
             pieces={section.instantChunks}
             audioRef={section.fullAudioRef}
-            snippetsById={snippetsById}
             sessionId={sessionId}
             suggestionsLoading={suggestionsLoading}
+            reReadContext={reReadContext}
           />
         ) : deckless ? (
           <DecklessSection section={section} />
@@ -658,12 +686,12 @@ function DecklessSection({ section }: { section: ReadoutSection }) {
   );
 }
 
-/* ── #190 per-piece instant view ──────────────────────────────────────────
+/* ── #190/#191 per-piece instant view ─────────────────────────────────────
  *  Each ≤200-char piece renders: text (+ its exact-span play) → word/phrase
- *  suggestion rows (Apply + ✓) → a comment row (auto_comment, or coach note +
- *  video once published) → Apply-all. No reason/why small-print, no copy
- *  buttons. Apply / ✓ / Apply-all rewrite the piece text optimistically and
- *  persist best-effort (transcript edit + suggestion feedback). */
+ *  suggestion rows, each with a single "Approve" that rewrites the piece text
+ *  optimistically and persists best-effort (transcript edit + suggestion
+ *  feedback). No comment row, no ✓, no Apply-all (#191). Once a piece has an
+ *  approved edit, a re-read mic offers to re-record the corrected text. */
 
 /** Escape a literal for use inside a RegExp. */
 function escapeRegExp(s: string): string {
@@ -680,18 +708,39 @@ function applyUpgradeText(text: string, original: string, upgrade: string): stri
   return re.test(text) ? text.replace(re, () => upgrade) : text;
 }
 
+/** #191 — the spoken take's setup, threaded from LabOverlay so a piece with
+ *  approved edits can offer a re-read mic. Mirrors the fields submitLabRecording
+ *  needs; the read carries them plus recording_kind=read + the paired session. */
+export interface ReReadContext {
+  topic: string;
+  audience?: string | null;
+  slides?: PresentationSlide[];
+  presentationRef?: string | null;
+  domainVocabulary?: string[];
+  targetLengthSeconds?: number | null;
+}
+
+/** A fresh id so each read is its own session (never overwrites the spoken
+ *  take). crypto.randomUUID where available; a timestamped fallback otherwise. */
+function freshGuestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `read-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+}
+
 function PieceList({
   pieces,
   audioRef,
-  snippetsById,
   sessionId,
   suggestionsLoading,
+  reReadContext,
 }: {
   pieces: InstantChunk[];
   audioRef: string | null;
-  snippetsById: Map<string, ReadoutSnippet>;
   sessionId: string | null;
   suggestionsLoading: boolean;
+  reReadContext: ReReadContext | null;
 }) {
   // #190 — the suggestions arrive async: hold a skeleton until the layer has
   // landed, then reveal the whole list at once (no progressive pop-in).
@@ -702,9 +751,9 @@ function PieceList({
         <PieceBlock
           key={c.index}
           piece={c}
-          snippet={c.snippetId ? snippetsById.get(c.snippetId) ?? null : null}
           audioRef={audioRef}
           sessionId={sessionId}
+          reReadContext={reReadContext}
         />
       ))}
     </div>
@@ -713,97 +762,57 @@ function PieceList({
 
 function PieceBlock({
   piece,
-  snippet,
   audioRef,
   sessionId,
+  reReadContext,
 }: {
   piece: InstantChunk;
-  /** The matching snippet (by snippetId) — source of the coach note + video. */
-  snippet: ReadoutSnippet | null;
   audioRef: string | null;
   sessionId: string | null;
+  /** #191 — present → a piece with approved edits offers a re-read mic. */
+  reReadContext: ReReadContext | null;
 }) {
-  // Optimistic applied-text layer: Apply / ✓ / Apply-all compose the upgraded
-  // text into the piece's main text; each upgrade's tap state drives its row.
+  // #191 — the instant view is suggestions-only: "Approve" composes the upgraded
+  // text into the piece's main text (optimistic), one row at a time. No comment,
+  // no ✓, no Apply-all.
   const [appliedText, setAppliedText] = useState<string | null>(null);
-  const [status, setStatus] = useState<Record<number, "applied" | "preferred">>(
-    {}
-  );
-  const [commentLiked, setCommentLiked] = useState(false);
+  const [approved, setApproved] = useState<Record<number, boolean>>({});
 
   const sug = piece.sayItStronger;
   const displayText = appliedText ?? piece.userEditedText ?? piece.text;
-  const coachNote = snippet?.coach?.note ?? null;
-  const videoRef = snippet?.breakthroughVideoRef ?? null;
-  // Coach note wins over the machine's auto_comment once published.
-  const comment = coachNote ?? piece.autoComment;
   const canPersist = !!(sessionId && piece.snippetId);
+  const hasApprovedEdit = appliedText !== null;
+  // Bumps on every new approval → remounts the re-read mic so it reflects the
+  // latest corrected text (a completed read of stale text can't linger).
+  const approvedCount = Object.keys(approved).length;
 
-  const persistText = (text: string) => {
+  // Approve = write this upgrade into the piece text + record the feedback. A
+  // row already approved is a no-op on the text (re-running the replace would
+  // swap a SECOND occurrence of a repeated word and corrupt it).
+  const approve = (i: number, u: SayItStrongerUpgrade) => {
+    if (approved[i]) return;
+    const next = applyUpgradeText(displayText, u.original, u.upgrade);
+    setAppliedText(next);
+    setApproved((s) => ({ ...s, [i]: true }));
     if (canPersist) {
-      void saveTranscriptEdit(sessionId!, { snippetId: piece.snippetId! }, text);
+      void saveTranscriptEdit(sessionId!, { snippetId: piece.snippetId! }, next);
+      const feedback: {
+        snippetId: string;
+        sessionId: string;
+        target: SuggestionFeedbackTarget;
+        action: SuggestionFeedbackAction;
+        upgradeIndex: number;
+        suggestionVersion: number | null;
+      } = {
+        snippetId: piece.snippetId!,
+        sessionId: sessionId!,
+        target: "upgrade",
+        action: "applied",
+        upgradeIndex: i,
+        suggestionVersion: sug?.version ?? null,
+      };
+      void sendSuggestionFeedback(feedback);
     }
-  };
-  const feedback = (
-    target: SuggestionFeedbackTarget,
-    action: SuggestionFeedbackAction,
-    upgradeIndex?: number
-  ) => {
-    if (!canPersist) return;
-    void sendSuggestionFeedback({
-      snippetId: piece.snippetId!,
-      sessionId: sessionId!,
-      target,
-      action,
-      upgradeIndex,
-      suggestionVersion: sug?.version ?? null,
-    });
-  };
-
-  // Apply (action "applied") and ✓ (action "preferred") BOTH write the change
-  // into the piece text; ✓ additionally marks the row preferred. A row that was
-  // already applied only flips its status — re-running the replace would swap a
-  // SECOND occurrence of a repeated word (the filler/overuse case) and corrupt
-  // the text.
-  const applyOne = (
-    i: number,
-    u: SayItStrongerUpgrade,
-    action: "applied" | "preferred"
-  ) => {
-    if (!status[i]) {
-      const next = applyUpgradeText(displayText, u.original, u.upgrade);
-      setAppliedText(next);
-      persistText(next);
-    }
-    setStatus((s) => ({ ...s, [i]: action }));
-    feedback("upgrade", action, i);
-  };
-
-  // Apply-all composes from the CURRENT text and only applies rows not yet
-  // tapped — recomposing from scratch would discard the user's earlier applies
-  // (an applied phrase could silently revert when an overlapping word upgrade
-  // re-ran first).
-  const applyAll = () => {
-    if (!sug) return;
-    let text = displayText;
-    sug.upgrades.forEach((u, i) => {
-      if (!status[i]) text = applyUpgradeText(text, u.original, u.upgrade);
-    });
-    setAppliedText(text);
-    setStatus((prev) => {
-      const next = { ...prev };
-      sug.upgrades.forEach((_, i) => {
-        if (!next[i]) next[i] = "applied";
-      });
-      return next;
-    });
-    persistText(text);
-    feedback("upgrade", "apply_all");
-  };
-
-  const likeComment = () => {
-    setCommentLiked(true);
-    feedback(videoRef ? "comment_video" : "comment", "preferred");
   };
 
   const upgrades = sug?.upgrades ?? [];
@@ -825,16 +834,15 @@ function PieceBlock({
         </p>
       </div>
 
-      {/* 2 — word / phrase suggestions (Apply + ✓); no reason/why. */}
+      {/* 2 — word / phrase suggestions, each with a single left "Approve". */}
       {upgrades.length > 0 ? (
         <div className="flex flex-col gap-2">
           {upgrades.map((u, i) => (
             <SuggestionRow
               key={i}
               upgrade={u}
-              status={status[i]}
-              onApply={() => applyOne(i, u, "applied")}
-              onPrefer={() => applyOne(i, u, "preferred")}
+              approved={!!approved[i]}
+              onApprove={() => approve(i, u)}
             />
           ))}
         </div>
@@ -842,47 +850,46 @@ function PieceBlock({
         <AlreadyStrongLine />
       ) : null}
 
-      {/* 3 — the comment row (auto_comment / coach note + optional video). */}
-      {comment ? (
-        <CommentRow
-          text={comment}
-          videoRef={videoRef}
-          liked={commentLiked}
-          onLike={likeComment}
+      {/* 3 — re-read the corrected text (only once a piece has approved edits).
+          Keyed by the approval count so a further approval remounts it fresh:
+          the stale "Recorded" clears and the user can re-read the newer text. */}
+      {hasApprovedEdit && reReadContext && sessionId ? (
+        <PieceReRead
+          key={approvedCount}
+          pieceKey={`piece:${piece.index}:${approvedCount}`}
+          spokenSessionId={sessionId}
+          context={reReadContext}
         />
-      ) : null}
-
-      {/* 4 — Apply all (only when there's more than one upgrade). */}
-      {upgrades.length > 1 ? (
-        <button
-          type="button"
-          onClick={applyAll}
-          className="self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/50"
-        >
-          Apply all
-        </button>
       ) : null}
     </div>
   );
 }
 
-/** One word/phrase upgrade row: "old → new" + Apply (writes the change) + ✓
- *  (marks preferred, also writes the change). Same row shape for word & phrase. */
+/** One word/phrase upgrade row: a single left "Approve" (writes the change into
+ *  the piece text) then "old → new". Same row shape for word & phrase (#191). */
 function SuggestionRow({
   upgrade,
-  status,
-  onApply,
-  onPrefer,
+  approved,
+  onApprove,
 }: {
   upgrade: SayItStrongerUpgrade;
-  status: "applied" | "preferred" | undefined;
-  onApply: () => void;
-  onPrefer: () => void;
+  approved: boolean;
+  onApprove: () => void;
 }) {
-  const applied = status === "applied" || status === "preferred";
-  const preferred = status === "preferred";
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
+      <button
+        type="button"
+        onClick={onApprove}
+        disabled={approved}
+        className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium transition-colors ${
+          approved
+            ? "bg-muted text-muted-foreground"
+            : "bg-foreground text-background hover:bg-foreground/90"
+        }`}
+      >
+        {approved ? "Approved" : "Approve"}
+      </button>
       <p className="flex-1 text-[14px] leading-relaxed">
         {/* E1 — filler/overuse carry a subtle amber caution tag. */}
         {upgrade.kind !== "upgrade" ? (
@@ -897,91 +904,156 @@ function SuggestionRow({
         <span aria-hidden>&rarr;</span>{" "}
         <span className="font-medium text-foreground">{upgrade.upgrade}</span>
       </p>
-      <button
-        type="button"
-        onClick={onApply}
-        disabled={applied}
-        className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-medium transition-colors ${
-          applied
-            ? "bg-muted text-muted-foreground"
-            : "bg-foreground text-background hover:bg-foreground/90"
-        }`}
-      >
-        {applied ? "Applied" : "Apply"}
-      </button>
-      <button
-        type="button"
-        onClick={onPrefer}
-        aria-label={preferred ? "Preferred" : "Mark as preferred"}
-        aria-pressed={preferred}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
-          preferred
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-border text-muted-foreground hover:border-primary/50"
-        }`}
-      >
-        <Check className="h-4 w-4" aria-hidden />
-      </button>
     </div>
   );
 }
 
-/** The qualitative comment row — insight icon + prose + a like (✓). Same font
- *  family as the suggestion rows. Renders an optional breakthrough video. */
-function CommentRow({
-  text,
-  videoRef,
-  liked,
-  onLike,
+/** #191 — the per-piece re-read: record the user reading the corrected text, then
+ *  upload it as recording_kind=read paired to the spoken session (its own fresh
+ *  session; never counts as a new take). Stays inline; a green check on success,
+ *  no readout. */
+function PieceReRead({
+  pieceKey,
+  spokenSessionId,
+  context,
 }: {
-  text: string;
-  videoRef: string | null;
-  liked: boolean;
-  onLike: () => void;
+  /** Unique key so the shared coordinator can tell pieces apart. */
+  pieceKey: string;
+  spokenSessionId: string;
+  context: ReReadContext;
 }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-      <div className="flex flex-1 flex-col gap-2">
-        <p className="text-[14px] leading-relaxed text-foreground">{text}</p>
-        {videoRef ? <PieceVideo src={videoRef} /> : null}
-      </div>
-      <button
-        type="button"
-        onClick={onLike}
-        aria-label={liked ? "Liked" : "Like this comment"}
-        aria-pressed={liked}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors ${
-          liked
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-border text-muted-foreground hover:border-primary/50"
-        }`}
-      >
-        <Check className="h-4 w-4" aria-hidden />
-      </button>
-    </div>
-  );
-}
+  const coord = useContext(ReReadCoordinatorContext);
+  const mic = useDualCaptureMic({ transcript: false });
+  // The RECORDING/CONNECTING state is derived from mic.state (source of truth);
+  // `phase` only tracks the upload lifecycle so the UI never shows a live Stop
+  // before the mic is actually recording (dropped-Stop race).
+  const [phase, setPhase] = useState<"pre" | "uploading" | "done">("pre");
+  const [starting, setStarting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const uploadingRef = useRef(false);
+  const status = mic.state.status;
 
-/** A compact "Watch" affordance that expands the breakthrough video inline. */
-function PieceVideo({ src }: { src: string }) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
+  // Another piece claimed the mic → release this one (only one hot mic at a
+  // time). cancel() aborts a pending start too (it bumps the hook's gen token).
+  useEffect(() => {
+    if (coord.activeKey !== pieceKey && (starting || status === "recording")) {
+      mic.cancel();
+      setStarting(false);
+    }
+  }, [coord.activeKey, pieceKey, starting, status, mic]);
+
+  // Mic is live → drop the "connecting" flag so the real Stop button shows.
+  useEffect(() => {
+    if (status === "recording") setStarting(false);
+  }, [status]);
+
+  // Stopped → upload the read once (uploadingRef guards a re-entry).
+  useEffect(() => {
+    if (mic.state.status !== "stopped" || uploadingRef.current) return;
+    uploadingRef.current = true;
+    const { audioBlob, durationSec } = mic.state;
+    setPhase("uploading");
+    void (async () => {
+      const res = await submitLabRecording({
+        audioBlob,
+        durationSec,
+        topic: context.topic,
+        audience: context.audience ?? undefined,
+        slides: context.slides,
+        presentationRef: context.presentationRef ?? undefined,
+        domainVocabulary: context.domainVocabulary,
+        targetLengthSeconds: context.targetLengthSeconds ?? undefined,
+        recordingKind: "read",
+        pairedSessionId: spokenSessionId,
+        guestSessionId: freshGuestId(),
+      });
+      mic.cancel(); // reset the hook (releases the mic, back to idle)
+      coord.release(pieceKey);
+      uploadingRef.current = false;
+      if (res.kind === "ok") {
+        setPhase("done");
+      } else {
+        setErrorMsg(
+          res.kind === "rejected"
+            ? res.message
+            : "Couldn't save your read. Try again."
+        );
+        setPhase("pre");
+      }
+    })();
+  }, [mic, context, spokenSessionId, coord, pieceKey]);
+
+  // A mic-level failure (denied / unsupported) surfaces as a retryable error.
+  useEffect(() => {
+    if (mic.state.status === "error") {
+      setErrorMsg(mic.state.message);
+      setStarting(false);
+      coord.release(pieceKey);
+    }
+  }, [mic.state, coord, pieceKey]);
+
+  if (phase === "done") {
+    return (
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-success">
+        <Check className="h-4 w-4" aria-hidden /> Recorded
+      </p>
+    );
+  }
+  if (phase === "uploading") {
+    return (
+      <p className="text-[13px] text-muted-foreground">Saving your read…</p>
+    );
+  }
+  if (status === "recording") {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] text-foreground transition-colors hover:border-primary/50"
+        onClick={() => void mic.stop()}
+        className="flex items-center gap-2 self-start rounded-full bg-destructive px-4 py-1.5 text-[13px] font-medium text-destructive-foreground transition-colors hover:bg-destructive/90"
       >
-        <Play className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-        Watch
+        <Square className="h-3.5 w-3.5" aria-hidden /> Stop
       </button>
     );
   }
+  if (starting) {
+    // getUserMedia gap — no live Stop yet; Cancel aborts the pending start.
+    return (
+      <div className="flex items-center gap-3">
+        <span className="text-[13px] text-muted-foreground">
+          Getting your mic ready…
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            mic.cancel();
+            setStarting(false);
+            coord.release(pieceKey);
+          }}
+          className="text-[12px] font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+  // idle (with an optional retryable error)
   return (
-    <div className="overflow-hidden rounded-2xl border border-border">
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <video src={src} controls autoPlay playsInline className="w-full bg-black" />
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={() => {
+          setErrorMsg(null);
+          setStarting(true);
+          coord.claim(pieceKey);
+          void mic.start();
+        }}
+        className="flex items-center gap-2 self-start rounded-full border border-primary/40 bg-primary/5 px-4 py-1.5 text-[13px] font-medium text-primary transition-colors hover:border-primary/60"
+      >
+        <Mic className="h-3.5 w-3.5" aria-hidden /> Re-read this
+      </button>
+      {errorMsg ? (
+        <p className="text-[12px] text-destructive">{errorMsg}</p>
+      ) : null}
     </div>
   );
 }

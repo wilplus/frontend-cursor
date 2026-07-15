@@ -334,3 +334,21 @@ describe("mapCoachReviewSession — acoustic_read + auto_comment (#190, coach-on
     expect(s?.snippets[1].acousticRead).toBeNull();
   });
 });
+
+describe("mapCoachReviewSession — recording_kind (#191)", () => {
+  it("labels spoken / read and defaults unknown to null", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        { id: "n1", recording_kind: "spoken" },
+        { id: "n2", recording_kind: "read" },
+        { id: "n3" },
+        { id: "n4", recording_kind: "garbage" },
+      ],
+    });
+    expect(s?.snippets[0].recordingKind).toBe("spoken");
+    expect(s?.snippets[1].recordingKind).toBe("read");
+    expect(s?.snippets[2].recordingKind).toBeNull();
+    expect(s?.snippets[3].recordingKind).toBeNull();
+  });
+});
