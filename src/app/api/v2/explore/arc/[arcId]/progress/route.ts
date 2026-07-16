@@ -10,26 +10,29 @@ export const runtime = "nodejs";
  * Polled by ProgressToAuditBubble for the take counter; the deliverable
  * affordances live on the BE terminal Lounge card (best_presentation_ready /
  * transcript_ready), not here.
+ *
+ * PUBLIC / guest (BE #199): a signed-out user recording an arc sees their own
+ * take counter — the arc id is the capability. The token is forwarded when
+ * present (signed-in scoping) but never required; the BE stays authoritative.
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: { arcId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+  const token = await getV2AccessToken(req); // optional — guest-allowed
   const backend = getBackendUrl();
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
   }
 
   const id = encodeURIComponent(params.arcId);
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
   let upstream: Response;
   try {
     upstream = await fetch(`${backend}/v2/explore/arc/${id}/progress`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      headers,
       cache: "no-store",
     });
   } catch (err) {

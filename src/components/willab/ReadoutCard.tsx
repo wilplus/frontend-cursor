@@ -777,18 +777,16 @@ function PieceBlock({
   // restores the exact pre-approve snapshot, and reverting an older one undoes
   // ONLY that row's replacement (the later rows re-apply unchanged). Plain
   // React state — the apply-state survives re-renders; nothing lives in the DOM.
-  const [applyOrder, setApplyOrder] = useState<number[]>([]);
+  // #199 — the BE now persists the approval SET, so a reload restores the
+  // toggles (and revert) instead of showing edited text with every row
+  // un-approved. Seeded once at mount; local taps own it from there (a poll
+  // re-merge must not clobber a live edit).
+  const serverOrder = piece.appliedUpgradeIndexes;
+  const [applyOrder, setApplyOrder] = useState<number[]>(() => serverOrder ?? []);
   // Monotonic edit sequence for the re-read mic key: bumps on EVERY toggle
   // (approve and revert) so a completed read of stale text can't linger, even
   // through an approve → revert → approve cycle.
   const [editSeq, setEditSeq] = useState(0);
-  // The pristine base is SNAPSHOTTED at the first approval and held for the
-  // whole composition. Critical: the suggestion poll merges fresh payloads
-  // wholesale, folding our own PUT back as user_edited_text — deriving the base
-  // live from the prop would then rebase the composition onto already-composed
-  // text (double-applying repeated words and making revert a no-op). Cleared
-  // when the order empties so the next cycle re-snapshots current truth.
-  const baseRef = useRef<string | null>(null);
   // Persist queue: toggles fire PUTs back-to-back (approve → instant revert);
   // serializing them guarantees the LAST tap's text is what the server keeps
   // (saveTranscriptEdit never throws, so the chain cannot wedge).
@@ -797,7 +795,6 @@ function PieceBlock({
   const sug = piece.sayItStronger;
   const upgrades = sug?.upgrades ?? [];
   const liveBase = piece.userEditedText ?? piece.text;
-  const baseText = baseRef.current ?? liveBase;
   const composeFor = (order: number[], base: string) =>
     order.reduce(
       (t, idx) =>
@@ -806,8 +803,33 @@ function PieceBlock({
           : t,
       base
     );
-  const displayText =
-    applyOrder.length > 0 ? composeFor(applyOrder, baseText) : liveBase;
+
+  // Two composition models:
+  //  - #199 (the BE sends the set): `text` (the PRISTINE transcript — the BE
+  //    keeps edits in user_edited_text, never in transcript) + the set is the
+  //    complete truth, so we always recompose from pristine. That also kills
+  //    the rebase hazard for free: a poll folding our own edit back can't move
+  //    the base, so repeated words can't double-apply and revert always lands.
+  //  - legacy (no set): the base is SNAPSHOTTED at the first approval, since
+  //    deriving it live from user_edited_text would rebase onto already-composed
+  //    text. Cleared when the order empties so the next cycle re-snapshots.
+  const useServerSet = serverOrder !== null;
+  const baseRef = useRef<string | null>(null);
+  const baseText = useServerSet ? piece.text : baseRef.current ?? liveBase;
+  // The set indexes into upgrades[], which arrive ASYNC — and the 30s wait cap
+  // can reveal pieces before (or without) them. Recomposing then would apply
+  // nothing and render the PRISTINE text, silently discarding the user's saved
+  // edit. So honor the set only once every row it names is loaded; until then
+  // trust the BE's already-composed text. (Also covers a regenerated
+  // suggestion list whose indexes no longer line up.)
+  const canRecompose = applyOrder.every((i) => upgrades[i]);
+  const displayText = useServerSet
+    ? canRecompose
+      ? composeFor(applyOrder, piece.text)
+      : liveBase
+    : applyOrder.length > 0
+      ? composeFor(applyOrder, baseText)
+      : liveBase;
   const canPersist = !!(sessionId && piece.snippetId);
   const hasApprovedEdit = applyOrder.length > 0;
 
@@ -817,7 +839,9 @@ function PieceBlock({
   // the base text back, restoring the original server-side too.
   const toggle = (i: number) => {
     const isOn = applyOrder.includes(i);
-    const base = baseRef.current ?? liveBase;
+    // The server-set model always composes from the pristine transcript; the
+    // legacy one from the frozen (or about-to-freeze) snapshot.
+    const base = useServerSet ? piece.text : baseRef.current ?? liveBase;
     if (!isOn) {
       // Overlap guard: a row whose `original` was already consumed by an
       // overlapping approval can't change the text — approving it anyway would
@@ -830,10 +854,12 @@ function PieceBlock({
     const nextOrder = isOn
       ? applyOrder.filter((x) => x !== i)
       : [...applyOrder, i];
-    if (nextOrder.length > 0 && baseRef.current === null) {
-      baseRef.current = liveBase; // first approval → freeze the base
+    if (!useServerSet) {
+      if (nextOrder.length > 0 && baseRef.current === null) {
+        baseRef.current = liveBase; // first approval → freeze the base
+      }
+      if (nextOrder.length === 0) baseRef.current = null; // cycle over → thaw
     }
-    if (nextOrder.length === 0) baseRef.current = null; // cycle over → thaw
     setApplyOrder(nextOrder);
     setEditSeq((n) => n + 1);
     if (canPersist) {
@@ -1011,7 +1037,10 @@ function PieceReRead({
       mic.cancel(); // reset the hook (releases the mic, back to idle)
       coord.release(pieceKey);
       uploadingRef.current = false;
-      if (res.kind === "ok") {
+      // A 202 accept ("processing") is SUCCESS here, same as a 201: the read
+      // goes straight to the coach, so this surface has no readout to poll for
+      // — the green check is the whole outcome. (Only the spoken take polls.)
+      if (res.kind === "ok" || res.kind === "processing") {
         setPhase("done");
       } else {
         setErrorMsg(

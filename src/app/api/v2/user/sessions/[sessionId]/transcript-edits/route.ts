@@ -10,15 +10,17 @@ export const runtime = "nodejs";
  * a deckless full_transcript_chunk by index). Body: { snippet_id | chunk_index,
  * text }. Owner-gated + upserted BE-side; the coach still reviews the original.
  * Forwards status + body faithfully.
+ *
+ * PUBLIC / guest (BE #199): a signed-out user approving a suggestion must
+ * persist too — the unclaimed session's own unguessable id is the capability.
+ * The token is forwarded when present (signed-in scoping) but never required;
+ * the BE remains authoritative on ownership. Same pattern as the Lab upload.
  */
 export async function PUT(
   req: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
-  const token = await getV2AccessToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+  const token = await getV2AccessToken(req); // optional — guest-allowed
   const backend = getBackendUrl();
   if (!backend) {
     return NextResponse.json({ error: "Backend URL not configured" }, { status: 502 });
@@ -32,15 +34,16 @@ export async function PUT(
   }
 
   const id = encodeURIComponent(params.sessionId);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
   let upstream: Response;
   try {
     upstream = await fetch(`${backend}/v2/user/sessions/${id}/transcript-edits`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers,
       body,
       cache: "no-store",
     });
