@@ -201,6 +201,8 @@ describe("mapFullTranscriptChunk + payload fold", () => {
       durationMs: 4200,
       autoComment: "Sounded rather confident here.",
       userEditedText: "Welcome, everyone.",
+      // #199 — absent here (this payload predates the approval set) → null.
+      appliedUpgradeIndexes: null,
       sayItStronger: expect.objectContaining({ alreadyStrong: false }),
     });
   });

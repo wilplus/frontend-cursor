@@ -183,6 +183,12 @@ export interface InstantChunk {
   autoComment: string | null;
   /** The user's saved edit of this piece's text; wins over `text` for display. */
   userEditedText: string | null;
+  /** BE #199 — which `say_it_stronger.upgrades[]` rows the user has approved,
+   *  in approval order. THE persisted approval set: it restores the Approve
+   *  toggles (and revert) across reloads, and makes `text` + this set the
+   *  complete model (immune to a poll folding our own edit back). null on
+   *  older payloads → fall back to the composed `userEditedText`, no revert. */
+  appliedUpgradeIndexes: number[] | null;
 }
 
 export interface ReadoutPayload {
@@ -410,6 +416,13 @@ export function mapInstantChunk(raw: unknown): InstantChunk | null {
       typeof c.user_edited_text === "string" && c.user_edited_text.length > 0
         ? c.user_edited_text
         : null,
+    // #199 — the approval set. An ARRAY (even empty) is authoritative: [] means
+    // "nothing approved". Absent/malformed → null (older payload; no set known).
+    appliedUpgradeIndexes: Array.isArray(c.applied_upgrade_indexes)
+      ? c.applied_upgrade_indexes.filter(
+          (n): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0
+        )
+      : null,
   };
 }
 
