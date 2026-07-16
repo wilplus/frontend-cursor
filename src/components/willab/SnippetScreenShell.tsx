@@ -15,6 +15,9 @@ export default function SnippetScreenShell({
   nextTone = "primary",
   backDisabled,
   nextDisabled = false,
+  /** Hide the Next button entirely (the coach wrap-up owns its own actions —
+   *  "Open the ideal text" / Save / Publish — so there is no "next" there). */
+  hideNext = false,
   /** When false the parent overlay's useBackDismiss handles back — avoids
    *  double history-entry registration. Pass managed={false} when embedded. */
   managed = true,
@@ -33,6 +36,7 @@ export default function SnippetScreenShell({
   nextTone?: "primary" | "terminal";
   backDisabled?: boolean;
   nextDisabled?: boolean;
+  hideNext?: boolean;
   managed?: boolean;
   isCoachMessage?: boolean;
   children: ReactNode;
@@ -79,20 +83,22 @@ export default function SnippetScreenShell({
             Back
           </button>
 
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={nextDisabled}
-            className={cn(
-              "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-[15px] font-medium disabled:opacity-40",
-              nextTone === "terminal"
-                ? "bg-foreground text-background"
-                : "bg-primary text-primary-foreground"
-            )}
-          >
-            {nextLabel ?? "Next"}
-            <ArrowRight className="h-[17px] w-[17px]" aria-hidden />
-          </button>
+          {hideNext ? null : (
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={nextDisabled}
+              className={cn(
+                "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-[15px] font-medium disabled:opacity-40",
+                nextTone === "terminal"
+                  ? "bg-foreground text-background"
+                  : "bg-primary text-primary-foreground"
+              )}
+            >
+              {nextLabel ?? "Next"}
+              <ArrowRight className="h-[17px] w-[17px]" aria-hidden />
+            </button>
+          )}
         </div>
       </div>
     </div>

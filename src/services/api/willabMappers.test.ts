@@ -9,6 +9,7 @@ import { mapLibraryEntry } from "./library";
 import { mapCoachReviewSession } from "./coachReview";
 import { mapCoachStudent } from "./coachStudents";
 import { mapCoachStudentDetail } from "./coachStudentDetail";
+import { mapCoachReviewState } from "./coachReviewState";
 
 describe("mapCoachStudent (E3)", () => {
   it("maps snake → camel, pseudonymized, with id + sessionCount", () => {
@@ -298,6 +299,82 @@ describe("groupReviewQueueByStudent (FP-4)", () => {
       row("b", { userId: "u1" }),
     ]);
     expect(groups.map((g) => g.userId)).toEqual(["u2", "u1"]);
+  });
+});
+
+describe("mapCoachReviewState (FE-2)", () => {
+  it("maps the full contract snake → camel", () => {
+    const s = mapCoachReviewState({
+      arc_id: "arc1",
+      published: false,
+      takes: [
+        {
+          session_id: "s1",
+          take_index: 1,
+          review_state: "reviewed",
+          has_reread: true,
+        },
+      ],
+      takes_saved: 3,
+      takes_total: 3,
+      takes_target: 3,
+      ideal: {
+        assembly_state: "ready",
+        ready: true,
+        approved: false,
+        source: "machine",
+        takes_done: 3,
+      },
+      can_publish: false,
+      blockers: ["IDEAL_TEXT_NOT_APPROVED"],
+      pending_session_ids: [],
+    });
+    expect(s).toEqual({
+      arcId: "arc1",
+      published: false,
+      takes: [
+        {
+          sessionId: "s1",
+          takeIndex: 1,
+          reviewState: "reviewed",
+          hasReread: true,
+        },
+      ],
+      takesSaved: 3,
+      takesTotal: 3,
+      takesTarget: 3,
+      ideal: {
+        assemblyState: "ready",
+        ready: true,
+        approved: false,
+        source: "machine",
+        takesDone: 3,
+      },
+      canPublish: false,
+      blockers: ["IDEAL_TEXT_NOT_APPROVED"],
+      pendingSessionIds: [],
+    });
+  });
+
+  it("defaults safely + drops junk takes / blockers", () => {
+    const s = mapCoachReviewState({
+      arc_id: "arc2",
+      takes: [{ take_index: 2 }, { session_id: "s2" }], // first has no session_id
+      blockers: ["TAKES_NOT_SAVED", "bogus"],
+    });
+    expect(s?.published).toBe(false);
+    expect(s?.takes).toEqual([
+      { sessionId: "s2", takeIndex: null, reviewState: null, hasReread: false },
+    ]);
+    expect(s?.ideal.assemblyState).toBeNull();
+    expect(s?.ideal.approved).toBe(false);
+    expect(s?.canPublish).toBe(false);
+    expect(s?.blockers).toEqual(["TAKES_NOT_SAVED"]);
+  });
+
+  it("returns null on a non-object", () => {
+    expect(mapCoachReviewState(null)).toBeNull();
+    expect(mapCoachReviewState("nope")).toBeNull();
   });
 });
 

@@ -130,10 +130,12 @@ export interface CoachIdealText {
   text: string;
   approved: boolean;
   /** BE-B — the eager assembler's status. "pending" = fewer than 3 spoken
-   *  takes (nothing to review yet); "ready" = the persisted draft exists and
-   *  the editor can open instantly. null on older payloads → the FE infers
-   *  from `text` (present = ready). */
-  assemblyState: "pending" | "ready" | null;
+   *  takes (nothing to review yet); "empty" = takes are in but nothing to
+   *  assemble yet (no coach-confirmed key moments — the BE no longer serves a
+   *  "ready" empty block); "ready" = the persisted draft exists and the editor
+   *  can open instantly. null only on legacy payloads → treated as a soft
+   *  error now that the BE always sends assembly_state. */
+  assemblyState: "pending" | "empty" | "ready" | null;
   /** Spoken-take counts for the pending copy ("N of M takes recorded").
    *  null when the payload omits them. */
   takesDone: number | null;
@@ -142,6 +144,9 @@ export interface CoachIdealText {
    *  "coach" (the coach has edited it). Drives a coach-only chip. null on
    *  older payloads → the chip hides. */
   source: "machine" | "coach" | null;
+  /** The arc's deck (for the redesign's cover slide). Safe-ahead: null until
+   *  the BE echoes presentation_ref here → the panel shows a blank cover. */
+  presentationRef: string | null;
 }
 
 export async function fetchCoachIdealText(
@@ -175,6 +180,8 @@ export async function fetchCoachIdealText(
     assemblyState:
       body.assembly_state === "pending"
         ? "pending"
+        : body.assembly_state === "empty"
+        ? "empty"
         : body.assembly_state === "ready"
         ? "ready"
         : null,
@@ -185,6 +192,11 @@ export async function fetchCoachIdealText(
         ? "coach"
         : body.source === "machine"
         ? "machine"
+        : null,
+    presentationRef:
+      typeof body.presentation_ref === "string" &&
+      body.presentation_ref.length > 0
+        ? body.presentation_ref
         : null,
   };
 }
