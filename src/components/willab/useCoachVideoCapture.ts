@@ -23,8 +23,10 @@ export interface CoachVideoCapture {
   error: string | null;
   /** True when the last upload failed and can be retried with the same key. */
   retryable: boolean;
-  /** A fresh file selection / recording → new key (new take). */
-  submit: (file: File) => void;
+  /** A fresh file selection / recording → new key (new take). `source` (FP-2)
+   *  tags provenance: an in-app camera capture passes "in-app-recording", a
+   *  file pick passes nothing (defaults to the browser UA). */
+  submit: (file: File, opts?: { source?: string }) => void;
   /** Re-send the last failed file with the SAME key (deduped, never a new take). */
   retry: () => void;
 }
@@ -39,14 +41,19 @@ export function useCoachVideoCapture(
 ): CoachVideoCapture {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The in-flight / last-failed record action — held so a retry reuses its key.
-  const pendingRef = useRef<{ file: File; key: string } | null>(null);
+  // The in-flight / last-failed record action — held so a retry reuses its key
+  // AND its provenance source (a retry is the same take, not a re-record).
+  const pendingRef = useRef<{
+    file: File;
+    key: string;
+    source?: string;
+  } | null>(null);
 
-  async function run(file: File, key: string) {
-    pendingRef.current = { file, key };
+  async function run(file: File, key: string, source?: string) {
+    pendingRef.current = { file, key, source };
     setUploading(true);
     setError(null);
-    const prov = videoProvenance();
+    const prov = videoProvenance(source);
     const durationSec = await readVideoDurationSec(file);
     const ref = await upload(file, { idempotencyKey: key, durationSec, ...prov });
     if (!ref) {
@@ -75,10 +82,11 @@ export function useCoachVideoCapture(
     uploading,
     error,
     retryable: !uploading && pendingRef.current !== null,
-    submit: (file: File) => void run(file, newUploadKey()),
+    submit: (file: File, opts?: { source?: string }) =>
+      void run(file, newUploadKey(), opts?.source),
     retry: () => {
       const p = pendingRef.current;
-      if (p && !uploading) void run(p.file, p.key);
+      if (p && !uploading) void run(p.file, p.key, p.source);
     },
   };
 }

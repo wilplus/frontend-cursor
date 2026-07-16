@@ -39,8 +39,8 @@ export interface CoachSnippetState {
   note: string;
   tag: CoachTag | null;
   surfaced: boolean;
-  /** Per-snippet breakthrough video (coach upload). Public URL or null. Only
-   *  authored when the coach labels the snippet "challenge". */
+  /** Per-snippet coach video (coach upload). Public URL or null. Authored when
+   *  the coach labels the snippet "challenge" OR "threat" (FP-3). */
   breakthroughVideoRef: string | null;
 }
 
@@ -92,6 +92,11 @@ export interface CoachReviewSnippet {
    *  piece's corrected text ("read"). Labels the coach card. null = unknown
    *  (older packets) → treated as spoken. */
   recordingKind: "spoken" | "read" | null;
+  /** FP-5 / BE-2 — the parent take (take_session_id) this snippet belongs to. A
+   *  re-read carries the id of the take it corrects, so the coach reviews it
+   *  inside that take's flow instead of as a stray session. null on older
+   *  packets. */
+  takeSessionId: string | null;
   coachState: CoachSnippetState;
 }
 
@@ -238,6 +243,11 @@ function pickSnippet(raw: unknown): CoachReviewSnippet | null {
         : r.recording_kind === "spoken"
         ? "spoken"
         : null,
+    // FP-5 / BE-2 — the parent take this snippet belongs to.
+    takeSessionId:
+      typeof r.take_session_id === "string" && r.take_session_id.length > 0
+        ? r.take_session_id
+        : null,
     coachState: pickCoachState(r.coach_state),
   };
 }
@@ -266,14 +276,24 @@ export function mapCoachReviewSession(
       typeof r.presentation_ref === "string" && r.presentation_ref.length > 0
         ? r.presentation_ref
         : null,
-    snippets: (Array.isArray(r.snippets)
-      ? r.snippets
-          .map(pickSnippet)
-          .filter((s): s is CoachReviewSnippet => s !== null)
-      : []).sort(
-        (a, b) =>
-          (a.slide?.index ?? Infinity) - (b.slide?.index ?? Infinity)
-      ),
+    // FP-5 — re-reads (BE-2) are appended by the BE AFTER the spoken take and
+    // must stay in that append order: they're revealed by "Next" at the tail of
+    // the parent take's flow, never sorted back among the spoken snippets they
+    // correct. So we slide-order the spoken snippets only and keep the reads in
+    // their BE tail position. (Older packets have no reads → identical result.)
+    snippets: (() => {
+      const parsed = Array.isArray(r.snippets)
+        ? r.snippets
+            .map(pickSnippet)
+            .filter((s): s is CoachReviewSnippet => s !== null)
+        : [];
+      const spoken = parsed.filter((s) => s.recordingKind !== "read");
+      const reads = parsed.filter((s) => s.recordingKind === "read");
+      spoken.sort(
+        (a, b) => (a.slide?.index ?? Infinity) - (b.slide?.index ?? Infinity)
+      );
+      return [...spoken, ...reads];
+    })(),
     feelings: Array.isArray(r.feelings)
       ? r.feelings.map(pickFeeling).filter((f): f is SessionFeeling => f !== null)
       : [],

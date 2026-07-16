@@ -5,6 +5,7 @@ import { Loader2, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadCoachVideo } from "@/services/api/coachReview";
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
+import CoachVideoRecorder from "./CoachVideoRecorder";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachVideoSlot — session-level coach video upload (§F.6)                   */
@@ -59,36 +60,56 @@ export default function CoachVideoSlot({
             playsInline
             className="w-full rounded-xl bg-black"
           />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="rounded-full"
-          >
-            <Video className="mr-1.5 h-4 w-4" aria-hidden />
-            {uploading ? "Replacing…" : "Replace video"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="rounded-full"
+            >
+              <Video className="mr-1.5 h-4 w-4" aria-hidden />
+              {uploading ? "Replacing…" : "Replace file"}
+            </Button>
+            {/* In-app camera replacement (FP-2), beside the file picker. */}
+            <CoachVideoRecorder
+              onRecorded={(file) =>
+                cap.submit(file, { source: "in-app-recording" })
+              }
+              disabled={uploading}
+              label="Record instead"
+            />
+          </div>
         </div>
       ) : (
-        <div className="mt-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="rounded-full"
-          >
-            {uploading ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Video className="mr-1.5 h-4 w-4" aria-hidden />
-            )}
-            {uploading ? "Uploading…" : "Upload coach video"}
-          </Button>
-          <p className="mt-2 text-[12px] text-muted-foreground">
-            Tap to choose a file or record one straight from your phone&apos;s camera.
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="rounded-full"
+            >
+              {uploading ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Video className="mr-1.5 h-4 w-4" aria-hidden />
+              )}
+              {uploading ? "Uploading…" : "Upload a file"}
+            </Button>
+            {/* Record straight from the Mac's camera + mic (FP-2), no upload
+                step; the phone-camera file path stays as the fallback. */}
+            <CoachVideoRecorder
+              onRecorded={(file) =>
+                cap.submit(file, { source: "in-app-recording" })
+              }
+              disabled={uploading}
+            />
+          </div>
+          <p className="text-[12px] text-muted-foreground">
+            Record here, choose a file, or shoot one from your phone&apos;s camera.
           </p>
         </div>
       )}

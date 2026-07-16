@@ -37,6 +37,7 @@ describe("mapCoachStudent — drill-down id coercion", () => {
       domain: "sales",
       lastActive: "2026-06-01T00:00:00Z",
       sessionCount: 3,
+      idealReady: false,
     });
     expect(mapCoachStudent({ user_id: "u1" })).toBeNull();
   });

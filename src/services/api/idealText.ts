@@ -138,6 +138,10 @@ export interface CoachIdealText {
    *  null when the payload omits them. */
   takesDone: number | null;
   takesTarget: number | null;
+  /** FP-1 — provenance: "machine" (the auto-assembled draft, untouched) vs
+   *  "coach" (the coach has edited it). Drives a coach-only chip. null on
+   *  older payloads → the chip hides. */
+  source: "machine" | "coach" | null;
 }
 
 export async function fetchCoachIdealText(
@@ -176,6 +180,12 @@ export async function fetchCoachIdealText(
         : null,
     takesDone: count(body.takes_done),
     takesTarget: count(body.takes_target),
+    source:
+      body.source === "coach"
+        ? "coach"
+        : body.source === "machine"
+        ? "machine"
+        : null,
   };
 }
 

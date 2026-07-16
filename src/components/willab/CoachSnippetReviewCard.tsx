@@ -12,6 +12,7 @@ import {
   type DirectionLabel,
 } from "@/services/api/coachReview";
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
+import CoachVideoRecorder from "./CoachVideoRecorder";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachSnippetReviewCard — one snippet's full coach view (§F.3 + §F.4)       */
@@ -248,13 +249,15 @@ export default function CoachSnippetReviewCard({
           </div>
         </div>
 
-        {/* Breakthrough video — appears once the snippet is labeled "challenge"
-            so the coach can attach a short clip justifying the breakthrough.
-            (Upload endpoint is Phase 2 BE; until it ships this soft-fails.) */}
-        {coachState.directionLabel === "challenge" ? (
+        {/* Moment video — appears once the snippet is labeled challenge OR
+            threat (FP-3), so the coach can attach a short clip about the
+            moment either way. The BE stores both; BE-6 surfaces the threat
+            ones on the student feedback page. */}
+        {coachState.directionLabel === "challenge" ||
+        coachState.directionLabel === "threat" ? (
           <div className="mt-4">
             <p className="text-sm font-semibold text-foreground">
-              Breakthrough video
+              Video
               <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
                 Shown to user
               </span>
@@ -280,27 +283,37 @@ export default function CoachSnippetReviewCard({
                 </button>
               </div>
             ) : (
-              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center">
-                <Video className="h-5 w-5 text-primary" aria-hidden />
-                <span className="text-[13px] font-medium text-primary">
-                  {videoCap.uploading ? "Uploading…" : "Add a breakthrough video"}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Short clip explaining why this was the breakthrough
-                </span>
-                <input
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
+              <div className="mt-2 space-y-2">
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center">
+                  <Video className="h-5 w-5 text-primary" aria-hidden />
+                  <span className="text-[13px] font-medium text-primary">
+                    {videoCap.uploading ? "Uploading…" : "Add a video"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    A short video about this moment
+                  </span>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    disabled={videoCap.uploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      // New selection → new record action / key.
+                      if (f) videoCap.submit(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {/* In-app camera capture (FP-2), beside the file drop-zone.
+                    Outside the <label> so its buttons don't trip the picker. */}
+                <CoachVideoRecorder
+                  onRecorded={(file) =>
+                    videoCap.submit(file, { source: "in-app-recording" })
+                  }
                   disabled={videoCap.uploading}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    // New selection → new record action / key.
-                    if (f) videoCap.submit(f);
-                    e.target.value = "";
-                  }}
                 />
-              </label>
+              </div>
             )}
             {videoCap.error ? (
               <p className="mt-1 flex items-center gap-2 text-[12px] text-destructive">
