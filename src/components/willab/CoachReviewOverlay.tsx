@@ -47,10 +47,14 @@ export default function CoachReviewOverlay({
   sessionId,
   onClose,
   onPublished,
+  onOpenArcIdeal,
 }: {
   sessionId: string;
   onClose: () => void;
   onPublished?: (sessionId: string) => void;
+  /** FP-1 — open this arc's ideal-text panel directly from the wrap-up cue
+   *  (the founder's missing path). Optional: without it the cue is plain text. */
+  onOpenArcIdeal?: (arcId: string) => void;
 }) {
   useBackDismiss(onClose);
   const { status, session, refresh } = useCoachReview(sessionId);
@@ -240,7 +244,17 @@ export default function CoachReviewOverlay({
           ? () => void handleSaveFeedback()
           : () => setCursor((c) => c + 1)
       }
-      nextLabel={isAtWrapup ? (publishing ? "Saving..." : "Save feedback") : undefined}
+      nextLabel={
+        isAtWrapup
+          ? publishing
+            ? "Saving..."
+            : "Save feedback"
+          : // FP-5 — flag when the next page is a re-read so the coach knows
+            // they're moving from the spoken take into its corrected re-reads.
+            session.snippets[cursor + 1]?.recordingKind === "read"
+            ? "Next · re-read"
+            : undefined
+      }
       nextTone={isAtWrapup ? "terminal" : "primary"}
       nextDisabled={isAtWrapup ? !floorMet || publishing : false}
       managed={false}
@@ -271,15 +285,31 @@ export default function CoachReviewOverlay({
           </p>
         ) : null}
 
-        {/* FE-B — the assembler's cue: a persisted, unapproved ideal-text
-            draft exists on this arc. Review + publish happen on the arc's
-            ideal-text panel (opened from the student's roster badge). */}
+        {/* FP-1 — the assembler's cue is now a BUTTON that opens the ideal-text
+            panel directly (the founder's missing path — one tap after take 3).
+            Falls back to plain text if the host didn't thread the opener or the
+            payload lacks the arc id. */}
         {session.arcIdealReady ? (
-          <p className="rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-center text-[13px] text-foreground">
-            The ideal text is ready to review. After saving this take, open it
-            from the student&apos;s page to approve and publish the full
-            analysis.
-          </p>
+          onOpenArcIdeal && session.arcId ? (
+            <button
+              type="button"
+              onClick={() => onOpenArcIdeal(session.arcId!)}
+              className="flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-left transition-colors hover:border-primary/70"
+            >
+              <span className="text-[13px] text-foreground">
+                The ideal text is ready. Open it to review, approve, and publish
+                the full analysis.
+              </span>
+              <span className="shrink-0 text-[12px] font-medium text-primary">
+                Open
+              </span>
+            </button>
+          ) : (
+            <p className="rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-center text-[13px] text-foreground">
+              The ideal text is ready to review. Open it from the student&apos;s
+              page to approve and publish the full analysis.
+            </p>
+          )
         ) : null}
 
         {publishError ? (

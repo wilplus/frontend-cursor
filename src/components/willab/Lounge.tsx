@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
-import type { ReviewQueueRow } from "@/services/api/reviewQueue";
+import {
+  groupReviewQueueByStudent,
+  type ReviewStudentGroup,
+} from "@/services/api/reviewQueue";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
 import {
   batchTake,
@@ -31,7 +34,9 @@ import LibraryOverlay from "./LibraryOverlay";
 import BestPresentationOverlay from "./BestPresentationOverlay";
 import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
+import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
+import ReviewGroupOverlay from "./ReviewGroupOverlay";
 import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
 import { hasRelaxAnnounced, markRelaxAnnounced } from "@/lib/willab/relaxAnnounced";
@@ -39,7 +44,7 @@ import { clearInsightsReady } from "./sendStatus";
 import { isLabOverlay, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
-import CoachReviewBubble from "./CoachReviewBubble";
+import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -92,7 +97,8 @@ type ThreadItem =
       kind: "review";
       sortKey: string;
       reactKey: string;
-      row: ReviewQueueRow;
+      // FP-4 — one item per student (grouped), not per session.
+      group: ReviewStudentGroup;
     }
   | {
       // The audit-progress line. Once you've sent a training it stays in the
@@ -191,6 +197,16 @@ export default function Lounge({
   // the CoachReviewOverlay over the Lounge; closing it returns to the chat
   // thread underneath with no remount of the queue.
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  // FP-4 — a student-grouped review bubble opens either the full
+  // StudentDetailOverlay (when the group carries a user_id) or, pre-BE-4, the
+  // local recordings list built from the group's queue rows.
+  const [studentDetail, setStudentDetail] = useState<{
+    id: string;
+    pseudonym: string;
+  } | null>(null);
+  // Hold only the group KEY, not the group object — the live group is looked up
+  // from reviewGroups each render so the open overlay stays fresh (FP-4 review).
+  const [reviewGroupKey, setReviewGroupKey] = useState<string | null>(null);
 
   // The arc the best-presentation bubble points at — read from the DURABLE,
   // server-persisted recording_summary metadata (newest first), so the bubble
@@ -213,6 +229,20 @@ export default function Lounge({
   // that user"). Sort by created_at / sent_at ascending so oldest sits at
   // the top and newest at the bottom (matching how the existing thread
   // already reads).
+  // FP-4 — the review queue collapsed to one group per student. Derived from
+  // the LIVE rows so an open ReviewGroupOverlay reflects a just-published take
+  // (its row flips to done → the group's rows update) rather than a frozen
+  // snapshot taken at open time.
+  const reviewGroups = useMemo<ReviewStudentGroup[]>(
+    () => (isCoach ? groupReviewQueueByStudent(reviewQueue.rows) : []),
+    [isCoach, reviewQueue.rows]
+  );
+  // The live group behind an open ReviewGroupOverlay (null when none open or the
+  // group emptied out). Looked up by key so it tracks row-state changes.
+  const activeReviewGroup = reviewGroupKey
+    ? reviewGroups.find((g) => g.key === reviewGroupKey) ?? null
+    : null;
+
   const threadItems = useMemo<ThreadItem[]>(() => {
     // #10 — dedupe by client_id: the BE thread is the source of truth and its
     // idempotent client_ids are the identity. A double-insert (retry, optimistic
@@ -232,12 +262,14 @@ export default function Lounge({
       });
     }
     if (isCoach) {
-      for (const row of reviewQueue.rows) {
+      // FP-4 — one item per student, sorted by the group's earliest-waiting
+      // session.
+      for (const group of reviewGroups) {
         items.push({
           kind: "review",
-          sortKey: row.sentAt || "",
-          reactKey: `review:${row.sessionId}`,
-          row,
+          sortKey: group.earliestSentAt || "",
+          reactKey: `review:${group.key}`,
+          group,
         });
       }
     }
@@ -261,7 +293,7 @@ export default function Lounge({
     }
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
-  }, [messages, isCoach, reviewQueue.rows]);
+  }, [messages, isCoach, reviewGroups]);
 
   // §F.2 — open the review overlay over the Lounge. No navigation: the chat
   // thread stays mounted beneath the overlay so closing returns the coach
@@ -276,6 +308,21 @@ export default function Lounge({
     // Refresh the queue so the bubble's state badge (pending → in_progress)
     // reflects any per-snippet saves the coach made inside the overlay.
     void reviewQueue.refresh();
+  }
+
+  // FP-4 — a per-student review bubble opens that student's recordings list.
+  // With a user_id (BE-4) → the full StudentDetailOverlay (goal, ideal-ready
+  // cues, whole history). Without one, a lone session opens its review directly
+  // (no regression), and a multi-session group opens the local list built from
+  // the queue rows. Either way each recording still opens CoachReviewOverlay.
+  function openReviewGroup(group: ReviewStudentGroup): void {
+    if (group.userId) {
+      setStudentDetail({ id: group.userId, pseudonym: group.pseudonym });
+    } else if (group.rows.length === 1) {
+      openReview(group.rows[0].sessionId);
+    } else {
+      setReviewGroupKey(group.key);
+    }
   }
 
   // U6 — opening the in-thread insight card is the single "mark read" path now
@@ -873,10 +920,10 @@ export default function Lounge({
                 }
               />
             ) : item.kind === "review" ? (
-              <CoachReviewBubble
+              <CoachReviewGroupBubble
                 key={item.reactKey}
-                row={item.row}
-                onOpen={openReview}
+                group={item.group}
+                onOpen={openReviewGroup}
               />
             ) : (
               <ProgressToAuditBubble
@@ -1132,11 +1179,42 @@ export default function Lounge({
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
         />
       )}
+      {/* FP-4 — per-student drill-down opened from a grouped review bubble.
+          Mounted BEFORE the review overlay so a review opened from here stacks
+          on top (equal z-index → DOM order wins). */}
+      {studentDetail && (
+        <StudentDetailOverlay
+          userId={studentDetail.id}
+          fallbackPseudonym={studentDetail.pseudonym}
+          onClose={() => {
+            setStudentDetail(null);
+            void reviewQueue.refresh();
+          }}
+          onOpenReview={openReview}
+          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+        />
+      )}
+      {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
+          user_id. Uses the LIVE group (looked up by key) so a take published
+          from the stacked review overlay flips to Delivered here on return. */}
+      {activeReviewGroup && (
+        <ReviewGroupOverlay
+          group={activeReviewGroup}
+          onClose={() => {
+            setReviewGroupKey(null);
+            void reviewQueue.refresh();
+          }}
+          onOpenReview={openReview}
+        />
+      )}
       {reviewSessionId && (
         <CoachReviewOverlay
           sessionId={reviewSessionId}
           onClose={closeReview}
           onPublished={reviewQueue.markDone}
+          // FP-1 — the wrap-up cue opens the ideal-text panel directly; it
+          // stacks over the review (LIFO back-dismiss returns here).
+          onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
         />
       )}
 

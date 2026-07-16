@@ -33,6 +33,8 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
   const [phase, setPhase] = useState<"pending" | "ready" | "failed">("pending");
   const [takesDone, setTakesDone] = useState<number | null>(null);
   const [takesTarget, setTakesTarget] = useState<number | null>(null);
+  // FP-1 — provenance ("machine" = auto-assembled, untouched; "coach" = edited).
+  const [source, setSource] = useState<"machine" | "coach" | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -56,6 +58,7 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
         setApproved(r.approved);
         setTakesDone(r.takesDone);
         setTakesTarget(r.takesTarget);
+        setSource(r.source);
         const ready =
           r.assemblyState === "ready" ||
           (r.assemblyState === null && r.text.length > 0);
@@ -155,9 +158,16 @@ export default function CoachIdealTextPanel({ arcId }: { arcId: string }) {
   return (
     <div className="shrink-0 border-b border-border bg-primary/5 px-4 py-3">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-medium text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground">
             Coach: review the ideal text, then publish the full analysis
+            {/* FP-1 — provenance so the coach knows if it's still the raw
+                auto-assembly or something they've already edited. */}
+            {source ? (
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal text-muted-foreground">
+                {source === "coach" ? "Coach-edited" : "Auto-assembled draft"}
+              </span>
+            ) : null}
           </span>
           {approved ? (
             <span className="flex items-center gap-1 text-[12px] font-medium text-success">

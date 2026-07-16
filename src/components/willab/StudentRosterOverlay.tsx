@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, Sparkles } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudents,
@@ -130,6 +130,17 @@ export default function StudentRosterOverlay({
                       ) : null}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
+                      {/* FP-1 — ideal text is assembled and waiting on the
+                          coach's review for at least one of this student's arcs. */}
+                      {s.idealReady ? (
+                        <span
+                          className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-[12px] font-medium text-primary"
+                          title="Ideal text ready to review"
+                        >
+                          <Sparkles className="h-3 w-3" aria-hidden />
+                          Ideal ready
+                        </span>
+                      ) : null}
                       {s.sessionCount != null ? (
                         <span
                           className="rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-medium text-foreground"

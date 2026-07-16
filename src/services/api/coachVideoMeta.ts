@@ -28,13 +28,22 @@ export function newUploadKey(): string {
     : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 }
 
-/** Platform + app/browser, best-effort. device/source can't be recovered BE-side. */
-export function videoProvenance(): { device: string | null; source: string | null } {
-  if (typeof navigator === "undefined") return { device: null, source: null };
+/** Platform + app/browser, best-effort. device/source can't be recovered BE-side.
+ *  `sourceOverride` (FP-2) lets an in-app recording tag itself as
+ *  "in-app-recording" so the BE can tell a camera capture from a file upload;
+ *  the browser UA still rides along on `device`. */
+export function videoProvenance(sourceOverride?: string): {
+  device: string | null;
+  source: string | null;
+} {
+  if (typeof navigator === "undefined") {
+    return { device: null, source: sourceOverride ?? null };
+  }
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
   const device = nav.userAgentData?.platform || nav.platform || null;
   const ua = nav.userAgent || "";
-  return { device: device || null, source: ua ? `willab-web ${ua}` : "willab-web" };
+  const source = sourceOverride ?? (ua ? `willab-web ${ua}` : "willab-web");
+  return { device: device || null, source };
 }
 
 /** Read a video file's duration (seconds) via a throwaway <video> element.

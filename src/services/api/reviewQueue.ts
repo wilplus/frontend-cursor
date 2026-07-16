@@ -18,6 +18,10 @@ export type ReviewQueueState = "pending" | "in_progress" | "done";
 
 export interface ReviewQueueRow {
   sessionId: string;
+  /** FP-4 / BE-4 — opaque per-user id, the grouping key that collapses a
+   *  student's sessions into ONE bubble. NOT PII. null until BE-4 ships it →
+   *  the FE falls back to grouping by pseudonym. */
+  userId: string | null;
   /** Stable per-user pseudonym (e.g. "Playful Octopus"). NEVER real name. */
   pseudonym: string;
   /** The user's profile domain enum key (public_speaking, sales, etc.). */
@@ -41,6 +45,8 @@ export function mapReviewQueueRow(raw: unknown): ReviewQueueRow | null {
   const state = r.state;
   return {
     sessionId: r.session_id,
+    userId:
+      typeof r.user_id === "string" && r.user_id.length > 0 ? r.user_id : null,
     pseudonym: typeof r.pseudonym === "string" ? r.pseudonym : "",
     domain: typeof r.domain === "string" ? r.domain : "",
     topic: typeof r.topic === "string" ? r.topic : "",
@@ -79,6 +85,92 @@ export function reconcileReviewQueue(
     .filter((r) => !present.has(r.sessionId))
     .map((r) => ({ ...r, state: "done" as const }));
   return [...merged, ...retained];
+}
+
+/* -------------------------------------------------------------------------- */
+/*  FP-4 — per-student grouping                                                 */
+/*                                                                            */
+/*  The queue arrives one row per session; a student who sent three takes made  */
+/*  three rows (and three bubbles). We collapse them into ONE bubble per        */
+/*  student, opening that student's recordings list. The grouping key is the    */
+/*  user id (BE-4); until that ships, pseudonym is the fallback key.            */
+/* -------------------------------------------------------------------------- */
+
+export interface ReviewStudentGroup {
+  /** Stable grouping key: "u:<user_id>" (BE-4) or "p:<pseudonym>" fallback. */
+  key: string;
+  /** The user id when known (BE-4) — lets the bubble open the full
+   *  StudentDetailOverlay; null pre-BE-4 → the local row-list fallback. */
+  userId: string | null;
+  pseudonym: string;
+  domain: string;
+  /** This student's queue rows, oldest first (FIFO — longest-waiting first). */
+  rows: ReviewQueueRow[];
+  /** Rows still awaiting review (state !== "done") — the "N to review" count. */
+  toReviewCount: number;
+  /** Group lifecycle: pending if any row is pending, else in_progress if any is
+   *  in_progress, else done (every session published). */
+  state: ReviewQueueState;
+  /** Earliest sent_at across the group — its thread sort key, so the
+   *  longest-waiting student surfaces first (matches the per-row FIFO). */
+  earliestSentAt: string;
+}
+
+/**
+ * Collapse queue rows into one group per student. Groups preserve
+ * first-appearance order; rows within a group are FIFO by sent_at. A group with
+ * a user id (BE-4) can open the full student overlay; a pseudonym-only group
+ * (pre-BE-4) still collapses and drives the local fallback list. Pure.
+ */
+export function groupReviewQueueByStudent(
+  rows: ReviewQueueRow[]
+): ReviewStudentGroup[] {
+  const byKey = new Map<string, ReviewStudentGroup>();
+  const order: string[] = [];
+  for (const row of rows) {
+    // user_id (BE-4) is the real key; pseudonym is the pre-BE-4 fallback. An
+    // identity-less row (no id AND no pseudonym) keys by its own session so two
+    // distinct blank-pseudonym students never merge into one bubble.
+    const key = row.userId
+      ? `u:${row.userId}`
+      : row.pseudonym
+      ? `p:${row.pseudonym}`
+      : `s:${row.sessionId}`;
+    let g = byKey.get(key);
+    if (!g) {
+      g = {
+        key,
+        userId: row.userId ?? null,
+        pseudonym: row.pseudonym,
+        domain: row.domain,
+        rows: [],
+        toReviewCount: 0,
+        state: "done",
+        earliestSentAt: row.sentAt || "",
+      };
+      byKey.set(key, g);
+      order.push(key);
+    }
+    g.rows.push(row);
+    // Backfill identity from a later row if the first one lacked it.
+    if (!g.pseudonym && row.pseudonym) g.pseudonym = row.pseudonym;
+    if (!g.domain && row.domain) g.domain = row.domain;
+    if (!g.userId && row.userId) g.userId = row.userId;
+    if (row.sentAt && (!g.earliestSentAt || row.sentAt < g.earliestSentAt)) {
+      g.earliestSentAt = row.sentAt;
+    }
+  }
+  return order.map((key) => {
+    const g = byKey.get(key) as ReviewStudentGroup;
+    g.rows.sort((a, b) => (a.sentAt || "").localeCompare(b.sentAt || ""));
+    g.toReviewCount = g.rows.filter((r) => r.state !== "done").length;
+    g.state = g.rows.some((r) => r.state === "pending")
+      ? "pending"
+      : g.rows.some((r) => r.state === "in_progress")
+      ? "in_progress"
+      : "done";
+    return g;
+  });
 }
 
 const ENDPOINT = "/api/v2/coach/queue";

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mapReviewQueueRow, reconcileReviewQueue } from "./reviewQueue";
+import {
+  mapReviewQueueRow,
+  reconcileReviewQueue,
+  groupReviewQueueByStudent,
+} from "./reviewQueue";
 import type { ReviewQueueRow } from "./reviewQueue";
 import { mapLibraryEntry } from "./library";
 import { mapCoachReviewSession } from "./coachReview";
@@ -22,6 +26,7 @@ describe("mapCoachStudent (E3)", () => {
       domain: "sales",
       lastActive: "2026-06-08T00:00:00Z",
       sessionCount: 7,
+      idealReady: false,
     });
   });
 
@@ -144,6 +149,7 @@ describe("mapReviewQueueRow", () => {
       })
     ).toEqual({
       sessionId: "s",
+      userId: null,
       pseudonym: "Playful Octopus",
       domain: "public_speaking",
       topic: "Q3 pitch",
@@ -151,6 +157,13 @@ describe("mapReviewQueueRow", () => {
       state: "pending",
       sentAt: "2026-06-01T00:00:00Z",
     });
+  });
+
+  it("maps user_id when present (FP-4 / BE-4)", () => {
+    expect(
+      mapReviewQueueRow({ session_id: "s", user_id: "u-42" })?.userId
+    ).toBe("u-42");
+    expect(mapReviewQueueRow({ session_id: "s", user_id: "" })?.userId).toBeNull();
   });
 
   it("defaults missing optionals + clamps unknown state to pending", () => {
@@ -161,6 +174,7 @@ describe("mapReviewQueueRow", () => {
       })
     ).toEqual({
       sessionId: "s",
+      userId: null,
       pseudonym: "",
       domain: "",
       topic: "",
@@ -191,6 +205,7 @@ describe("reconcileReviewQueue (C2)", () => {
     state: ReviewQueueRow["state"] = "pending"
   ): ReviewQueueRow => ({
     sessionId,
+    userId: null,
     pseudonym: "P",
     domain: "public_speaking",
     topic: "t",
@@ -216,6 +231,73 @@ describe("reconcileReviewQueue (C2)", () => {
   it("passes rows through unchanged when nothing is published", () => {
     const next = [row("a"), row("b", "in_progress")];
     expect(reconcileReviewQueue(next, [])).toEqual(next);
+  });
+});
+
+describe("groupReviewQueueByStudent (FP-4)", () => {
+  const row = (
+    sessionId: string,
+    over: Partial<ReviewQueueRow> = {}
+  ): ReviewQueueRow => ({
+    sessionId,
+    userId: null,
+    pseudonym: "P",
+    domain: "public_speaking",
+    topic: "t",
+    nSnippets: 1,
+    state: "pending",
+    sentAt: "2026-06-01T00:00:00Z",
+    ...over,
+  });
+
+  it("collapses a student's sessions into one group, FIFO within", () => {
+    const groups = groupReviewQueueByStudent([
+      row("a", { userId: "u1", sentAt: "2026-06-03T00:00:00Z" }),
+      row("b", { userId: "u1", sentAt: "2026-06-01T00:00:00Z" }),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe("u:u1");
+    expect(groups[0].userId).toBe("u1");
+    expect(groups[0].rows.map((r) => r.sessionId)).toEqual(["b", "a"]);
+    expect(groups[0].earliestSentAt).toBe("2026-06-01T00:00:00Z");
+  });
+
+  it("falls back to grouping by pseudonym when no user_id (pre-BE-4)", () => {
+    const groups = groupReviewQueueByStudent([
+      row("a", { pseudonym: "Alice" }),
+      row("b", { pseudonym: "Alice" }),
+      row("c", { pseudonym: "Bob" }),
+    ]);
+    expect(groups.map((g) => g.key)).toEqual(["p:Alice", "p:Bob"]);
+    expect(groups[0].userId).toBeNull();
+    expect(groups[0].rows).toHaveLength(2);
+  });
+
+  it("counts only not-done rows and rolls up the group state", () => {
+    const g = groupReviewQueueByStudent([
+      row("a", { userId: "u1", state: "done" }),
+      row("b", { userId: "u1", state: "in_progress" }),
+      row("c", { userId: "u1", state: "pending" }),
+    ])[0];
+    expect(g.toReviewCount).toBe(2);
+    expect(g.state).toBe("pending"); // any pending → group pending
+  });
+
+  it("rolls up to done only when every session is done", () => {
+    const g = groupReviewQueueByStudent([
+      row("a", { userId: "u1", state: "done" }),
+      row("b", { userId: "u1", state: "done" }),
+    ])[0];
+    expect(g.toReviewCount).toBe(0);
+    expect(g.state).toBe("done");
+  });
+
+  it("keeps distinct students in first-appearance order", () => {
+    const groups = groupReviewQueueByStudent([
+      row("a", { userId: "u2" }),
+      row("b", { userId: "u1" }),
+    ]);
+    expect(groups.map((g) => g.userId)).toEqual(["u2", "u1"]);
   });
 });
 
@@ -370,9 +452,47 @@ describe("mapCoachReviewSession — recording_kind (#191)", () => {
         { id: "n4", recording_kind: "garbage" },
       ],
     });
-    expect(s?.snippets[0].recordingKind).toBe("spoken");
-    expect(s?.snippets[1].recordingKind).toBe("read");
-    expect(s?.snippets[2].recordingKind).toBeNull();
-    expect(s?.snippets[3].recordingKind).toBeNull();
+    // Assert by id, not index — FP-5 reorders reads to the tail.
+    const byId = (id: string) => s?.snippets.find((n) => n.id === id);
+    expect(byId("n1")?.recordingKind).toBe("spoken");
+    expect(byId("n2")?.recordingKind).toBe("read");
+    expect(byId("n3")?.recordingKind).toBeNull();
+    expect(byId("n4")?.recordingKind).toBeNull();
+  });
+});
+
+describe("mapCoachReviewSession — re-read ordering (FP-5)", () => {
+  it("slide-orders spoken snippets but keeps reads appended in BE order", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        // Out of slide order + a read interleaved among the spoken rows.
+        { id: "spoken-b", recording_kind: "spoken", slide: { index: 2 } },
+        { id: "read-x", recording_kind: "read", slide: { index: 1 } },
+        { id: "spoken-a", recording_kind: "spoken", slide: { index: 1 } },
+        { id: "read-y", recording_kind: "read", slide: { index: 2 } },
+      ],
+    });
+    // Spoken sorted by slide (a before b); reads NOT sorted into them — kept in
+    // BE append order at the tail (x before y), even though read-x's slide is 1.
+    expect(s?.snippets.map((n) => n.id)).toEqual([
+      "spoken-a",
+      "spoken-b",
+      "read-x",
+      "read-y",
+    ]);
+  });
+
+  it("maps take_session_id → takeSessionId (null when absent)", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        { id: "n1", take_session_id: "take-7" },
+        { id: "n2" },
+      ],
+    });
+    const byId = (id: string) => s?.snippets.find((n) => n.id === id);
+    expect(byId("n1")?.takeSessionId).toBe("take-7");
+    expect(byId("n2")?.takeSessionId).toBeNull();
   });
 });

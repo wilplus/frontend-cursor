@@ -21,6 +21,9 @@ export interface CoachStudent {
   /** Sends-per-user — the "is the coach drowning" instrument. Optional until
    *  the BE adds `session_count`; undefined → not rendered. */
   sessionCount?: number;
+  /** FP-1 — true when the student has any arc whose ideal text is assembled +
+   *  awaiting the coach's review. Safe-ahead: false until the BE adds it. */
+  idealReady: boolean;
 }
 
 /** Coerce the first usable id from candidate fields: a non-empty string, or a
@@ -52,6 +55,9 @@ export function mapCoachStudent(raw: unknown): CoachStudent | null {
       typeof r.session_count === "number" && Number.isFinite(r.session_count)
         ? r.session_count
         : undefined,
+    idealReady:
+      r.ideal_ready === true ||
+      (Array.isArray(r.ideal_ready_arc_ids) && r.ideal_ready_arc_ids.length > 0),
   };
 }
 
