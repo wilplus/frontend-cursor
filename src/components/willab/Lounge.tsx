@@ -1087,36 +1087,6 @@ export default function Lounge({
         </button>
       </form>
 
-      {/* F2 — best-presentation overlay (the arc deliverable). Rendered BEFORE
-          the insights overlay so opening a session from here paints the read ON
-          TOP; closing the read returns to this (it stays mounted underneath). */}
-      {bestPresentationArcId && (
-        <BestPresentationOverlay
-          arcId={bestPresentationArcId}
-          onClose={() => setBestPresentationArcId(null)}
-          onRecordNext={(takesDone) => {
-            // Seed the arc THIS progress bar belongs to, so the take lands in
-            // it (and "Take N of 3" + the interstitial parity read true) even
-            // when localStorage holds a different / no arc.
-            if (
-              bestPresentationArcId &&
-              readExploreArc()?.arcId !== bestPresentationArcId
-            ) {
-              // FE-1 — carry the arc's session id so the Lab can restore its
-              // deck from the server (this seed omits the deck; localStorage was
-              // lost or holds a different arc).
-              writeExploreArc(
-                bestPresentationArcId,
-                takesDone + 1,
-                undefined,
-                latestArcSessionId(bestPresentationArcId)
-              );
-            }
-            setBestPresentationArcId(null);
-            onStart();
-          }}
-        />
-      )}
       {breakthroughsArcId && (
         <BreakthroughsOverlay
           arcId={breakthroughsArcId}
@@ -1212,9 +1182,45 @@ export default function Lounge({
           sessionId={reviewSessionId}
           onClose={closeReview}
           onPublished={reviewQueue.markDone}
-          // FP-1 — the wrap-up cue opens the ideal-text panel directly; it
-          // stacks over the review (LIFO back-dismiss returns here).
+          // The wrap-up cue opens the ideal-text panel (mounted last, so it
+          // paints above this review; LIFO back-dismiss returns here).
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+        />
+      )}
+
+      {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
+          panel lives here). Mounted LAST on purpose: every path OPENS INTO it
+          (roster / student detail / review wrap-up all call
+          setBestPresentationArcId), and nothing this mount renders opens on top
+          of it. Equal z-40 → last in DOM wins, so it paints ABOVE the overlay it
+          was opened from (that was the P0 "nothing happens" bug — it used to
+          render first and hide behind an opaque z-40 sibling). Mount order also
+          makes it the LIFO back-dismiss top, so Back closes it first. */}
+      {bestPresentationArcId && (
+        <BestPresentationOverlay
+          arcId={bestPresentationArcId}
+          onClose={() => setBestPresentationArcId(null)}
+          onRecordNext={(takesDone) => {
+            // Seed the arc THIS progress bar belongs to, so the take lands in
+            // it (and "Take N of 3" + the interstitial parity read true) even
+            // when localStorage holds a different / no arc.
+            if (
+              bestPresentationArcId &&
+              readExploreArc()?.arcId !== bestPresentationArcId
+            ) {
+              // FE-1 — carry the arc's session id so the Lab can restore its
+              // deck from the server (this seed omits the deck; localStorage was
+              // lost or holds a different arc).
+              writeExploreArc(
+                bestPresentationArcId,
+                takesDone + 1,
+                undefined,
+                latestArcSessionId(bestPresentationArcId)
+              );
+            }
+            setBestPresentationArcId(null);
+            onStart();
+          }}
         />
       )}
 

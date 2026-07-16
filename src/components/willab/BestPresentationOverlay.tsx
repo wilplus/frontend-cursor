@@ -171,15 +171,13 @@ export default function BestPresentationOverlay({
     w.document.close();
   }
 
-  // Delivery layer — the COACH must always reach the ideal-text panel: the
-  // arc a coach reviews is by definition not yet finalized (preparing), never
-  // theirs to pay for (paywall), and may 402/404 on the student fetch (error).
-  // Without this, removing the per-take publish would dead-end the coach on
-  // student-copy screens with no way to publish anything.
-  if (
-    isCoach &&
-    (status === "paywall" || status === "preparing" || status === "error")
-  ) {
+  // Founder redesign — for the COACH the ideal-text editor IS the whole view:
+  // a slide + the text below in editable paragraphs, minimalistic (no student
+  // sections, no paywall/preparing/error student screens). The panel fetches
+  // the coach lane itself and renders its own pending/empty/ready/failed. The
+  // deck ref rides along from the student fetch when it happens to be resolved;
+  // otherwise the panel falls back to the ref the coach lane echoes.
+  if (isCoach) {
     return (
       <div className="fixed inset-0 z-40 flex flex-col bg-background">
         <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
@@ -188,13 +186,10 @@ export default function BestPresentationOverlay({
           </span>
           <OverlayCloseButton onClick={onClose} />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <CoachIdealTextPanel arcId={arcId} />
-          <p className="mx-auto w-full max-w-2xl px-4 py-3 text-[12px] text-muted-foreground">
-            The student&apos;s assembled view isn&apos;t available yet — you can
-            still edit, approve, and publish from here.
-          </p>
-        </div>
+        <CoachIdealTextPanel
+          arcId={arcId}
+          presentationRef={result?.presentationRef ?? null}
+        />
       </div>
     );
   }
@@ -350,11 +345,6 @@ export default function BestPresentationOverlay({
           <OverlayCloseButton onClick={onClose} />
         </div>
       </div>
-
-      {/* Delivery layer — the coach's ONE-BLOCK ideal-text flow (Save /
-          Save and Publish full analysis). Replaces the R4-10 batch strip and
-          the per-slide coach editing. */}
-      {isCoach ? <CoachIdealTextPanel arcId={arcId} /> : null}
 
       <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl">

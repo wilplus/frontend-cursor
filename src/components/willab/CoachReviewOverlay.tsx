@@ -18,10 +18,28 @@ import {
 } from "@/services/api/publishWillabSession";
 import { saveCoachFeedback } from "@/services/api/saveCoachFeedback";
 import {
+  fetchCoachReviewState,
+  type CoachReviewState,
+  type PublishBlocker,
+} from "@/services/api/coachReviewState";
+import { publishArc } from "@/services/api/arcBatch";
+import {
   clearCoachReviewDraft,
   readCoachReviewDraft,
   writeCoachReviewDraft,
 } from "@/lib/willab/coachReviewDraft";
+
+/** Map a publish blocker to the disabled-PUBLISH reason (FE-2). */
+function blockerReason(b: PublishBlocker): string {
+  switch (b) {
+    case "TAKES_NOT_SAVED":
+      return "Save each recording's feedback first";
+    case "IDEAL_TEXT_NOT_APPROVED":
+      return "Approve the ideal text first";
+    case "NO_TAKES":
+      return "No recordings to publish yet";
+  }
+}
 
 const FEELING_EMOJI: Record<string, string> = {
   nervous: "😬",
@@ -69,8 +87,16 @@ export default function CoachReviewOverlay({
   const [videoRef, setVideoRef] = useState<string | null>(null);
   const [overallMessage, setOverallMessage] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
-  const [published, setPublished] = useState(false);
+  // "saving" = the per-take Save checkpoint; "delivered" = the arc PUBLISH
+  // succeeded (the terminal state). Separated so a Save no longer masquerades
+  // as the end of the flow (FE-2 gives the coach Open-ideal → Publish after).
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [delivered, setDelivered] = useState(false);
+  // FE-2 — the wrap-up's single read: per-take review states + ideal-text
+  // assembly/approval + can_publish/blockers (mirrors publish-analysis's gate).
+  const [reviewState, setReviewState] = useState<CoachReviewState | null>(null);
   const [cursor, setCursor] = useState(0);
   const [recutting, setRecutting] = useState(false);
   const [recutError, setRecutError] = useState<string | null>(null);
@@ -112,14 +138,37 @@ export default function CoachReviewOverlay({
   }, []);
 
   // R4-8 — mirror the in-progress review to localStorage (debounced) as crash
-  // insurance. No server traffic; cleared on successful publish.
+  // insurance. No server traffic; stops once the arc is delivered.
   useEffect(() => {
-    if (!session || published) return;
+    if (!session || delivered) return;
     const id = setTimeout(() => {
       writeCoachReviewDraft(sessionId, overallMessage, localState);
     }, 400);
     return () => clearTimeout(id);
-  }, [sessionId, session, localState, overallMessage, published]);
+  }, [sessionId, session, localState, overallMessage, delivered]);
+
+  // FE-2 — load the wrap-up read once the arc id is known, and refresh it while
+  // the coach sits on the wrap-up (so approving in the ideal-text panel, which
+  // stacks over this overlay, flips PUBLISH live on return). Stops once the arc
+  // is delivered / published.
+  const arcId = session?.arcId ?? null;
+  const refreshReviewState = useCallback(async () => {
+    if (!arcId) return;
+    const r = await fetchCoachReviewState(arcId);
+    if (r) setReviewState(r);
+  }, [arcId]);
+
+  const atWrapupNow = !!session && cursor === session.snippets.length;
+  useEffect(() => {
+    if (!arcId) return;
+    void refreshReviewState();
+  }, [arcId, refreshReviewState]);
+  useEffect(() => {
+    if (!arcId || !atWrapupNow || delivered) return;
+    if (reviewState?.published) return;
+    const id = setInterval(() => void refreshReviewState(), 5000);
+    return () => clearInterval(id);
+  }, [arcId, atWrapupNow, delivered, reviewState?.published, refreshReviewState]);
 
   const floorMet = session
     ? session.snippets.some((s) => {
@@ -134,8 +183,8 @@ export default function CoachReviewOverlay({
   // "Save and Publish full analysis" (ideal-text panel), which requires all 3
   // takes saved + the ideal text approved.
   async function handleSaveFeedback() {
-    if (!session || !floorMet || publishing) return;
-    setPublishing(true);
+    if (!session || !floorMet || saving || publishing) return;
+    setSaving(true);
     setPublishError(null);
 
     const notes: PublishNote[] = [];
@@ -168,34 +217,65 @@ export default function CoachReviewOverlay({
       snippets,
     });
 
-    setPublishing(false);
+    setSaving(false);
     if (result.ok) {
-      // The saved truth is on the server now; the crash draft is stale.
+      // The saved truth is on the server now; the crash draft is stale. Stay on
+      // the wrap-up (the coach still opens the ideal text + publishes) and flash
+      // a confirmation; refresh review-state so takes_saved / blockers update.
+      // NOTE: do NOT call onPublished here — that's reviewQueue.markDone, the
+      // terminal "delivered" marker. A Save only stamps coach_feedback_saved_at
+      // (in_progress); the queue bubble picks that up via closeReview's refresh.
+      // Marking done on a mere save would falsely report delivery and drop the
+      // "still needs publishing" signal. onPublished stays PUBLISH-only.
       clearCoachReviewDraft(session.sessionId);
-      setPublished(true);
-      onPublished?.(session.sessionId);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1800);
+      void refreshReviewState();
     } else {
       setPublishError(result.message ?? "Couldn't save. Try again.");
     }
   }
 
-  if (published) {
+  // FE-2 — the final PUBLISH: only reachable once the ideal text is approved
+  // (the button is gated on reviewState.ideal.approved) and every precondition
+  // is met (can_publish). publish-analysis is still the server-side gate — its
+  // 409s shouldn't fire now, but arcBatch surfaces them if they do.
+  async function handlePublish() {
+    if (!arcId || publishing) return;
+    setPublishing(true);
+    setPublishError(null);
+    const r = await publishArc(arcId);
+    setPublishing(false);
+    if (r.kind === "ok") {
+      clearCoachReviewDraft(sessionId);
+      setDelivered(true);
+      onPublished?.(sessionId);
+    } else if (r.kind === "ideal_text_incomplete") {
+      setPublishError("The ideal text needs finishing before the publish.");
+      void refreshReviewState();
+    } else {
+      setPublishError(r.message);
+      void refreshReviewState();
+    }
+  }
+
+  if (delivered) {
     return (
       <div
         className="fixed inset-0 z-40 flex cursor-pointer flex-col items-center justify-center gap-4 bg-background p-6 text-center"
         onClick={onClose}
         role="button"
         tabIndex={0}
-        aria-label="Close, feedback saved"
+        aria-label="Close, analysis delivered"
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") onClose();
         }}
       >
         <CheckCircle2 className="h-14 w-14 text-success" aria-hidden />
-        <p className="text-[20px] font-semibold text-foreground">
-          Feedback saved
+        <p className="text-[20px] font-semibold text-foreground">Delivered</p>
+        <p className="text-[14px] text-muted-foreground">
+          The full analysis is on its way to the student. Tap anywhere to close.
         </p>
-        <p className="text-[14px] text-muted-foreground">Tap anywhere to close</p>
       </div>
     );
   }
@@ -239,24 +319,17 @@ export default function CoachReviewOverlay({
       index={cursor}
       total={total}
       onPrev={() => setCursor((c) => Math.max(c - 1, 0))}
-      onNext={
-        isAtWrapup
-          ? () => void handleSaveFeedback()
-          : () => setCursor((c) => c + 1)
-      }
+      onNext={() => setCursor((c) => c + 1)}
       nextLabel={
-        isAtWrapup
-          ? publishing
-            ? "Saving..."
-            : "Save feedback"
-          : // FP-5 — flag when the next page is a re-read so the coach knows
-            // they're moving from the spoken take into its corrected re-reads.
-            session.snippets[cursor + 1]?.recordingKind === "read"
-            ? "Next · re-read"
-            : undefined
+        // FP-5 — flag when the next page is a re-read so the coach knows they're
+        // moving from the spoken take into its corrected re-reads.
+        session.snippets[cursor + 1]?.recordingKind === "read"
+          ? "Next · re-read"
+          : undefined
       }
-      nextTone={isAtWrapup ? "terminal" : "primary"}
-      nextDisabled={isAtWrapup ? !floorMet || publishing : false}
+      // FE-2 — the wrap-up reads as its own page: no "Next". Its actions (Open
+      // the ideal text / Save / Publish) live in the page below.
+      hideNext={isAtWrapup}
       managed={false}
       isCoachMessage={isAtWrapup}
     >
@@ -285,32 +358,88 @@ export default function CoachReviewOverlay({
           </p>
         ) : null}
 
-        {/* FP-1 — the assembler's cue is now a BUTTON that opens the ideal-text
-            panel directly (the founder's missing path — one tap after take 3).
-            Falls back to plain text if the host didn't thread the opener or the
-            payload lacks the arc id. */}
-        {session.arcIdealReady ? (
-          onOpenArcIdeal && session.arcId ? (
-            <button
+        {/* FE-2 — the forward path, its own screen: Save this take, then Open
+            the ideal text (review + approve), then Publish the full analysis.
+            Each button shows its real, server-gated state from review-state. */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-foreground">
+                Save this take
+              </p>
+              <p className="text-[12px] text-muted-foreground">
+                Keeps your notes and labels for this recording.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleSaveFeedback()}
+              disabled={!floorMet || saving || publishing}
+              className="shrink-0 rounded-full disabled:opacity-50"
+            >
+              {saving ? "Saving…" : savedFlash ? "Saved" : "Save feedback"}
+            </Button>
+          </div>
+
+          {/* Open the ideal text — the primary action. Before take 3 (pending)
+              or with nothing to assemble (empty), it's a cue, not a button. */}
+          {reviewState?.ideal.assemblyState === "pending" ? (
+            <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
+              The ideal text assembles after take 3
+              {reviewState.ideal.takesDone !== null
+                ? `. ${reviewState.ideal.takesDone} of ${
+                    reviewState.takesTarget ?? 3
+                  } takes recorded so far.`
+                : "."}
+            </p>
+          ) : reviewState?.ideal.assemblyState === "empty" ? (
+            <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
+              Nothing to assemble yet. Mark some key moments in the takes first.
+            </p>
+          ) : onOpenArcIdeal && session.arcId ? (
+            <Button
               type="button"
               onClick={() => onOpenArcIdeal(session.arcId!)}
-              className="flex items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-left transition-colors hover:border-primary/70"
+              className="h-11 w-full rounded-full bg-primary text-[14px] font-medium text-primary-foreground"
             >
-              <span className="text-[13px] text-foreground">
-                The ideal text is ready. Open it to review, approve, and publish
-                the full analysis.
-              </span>
-              <span className="shrink-0 text-[12px] font-medium text-primary">
-                Open
-              </span>
-            </button>
+              Open the ideal text
+            </Button>
           ) : (
-            <p className="rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-center text-[13px] text-foreground">
-              The ideal text is ready to review. Open it from the student&apos;s
-              page to approve and publish the full analysis.
+            <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
+              Open the ideal text from the student&apos;s page to review and
+              approve it.
             </p>
-          )
-        ) : null}
+          )}
+
+          {/* PUBLISH — the last button, only once the ideal text is approved. */}
+          {reviewState?.ideal.approved ? (
+            reviewState.published ? (
+              <div className="flex items-center justify-center gap-1.5 rounded-full bg-success/10 py-2.5 text-[14px] font-medium text-success">
+                <CheckCircle2 className="h-4 w-4" aria-hidden /> Delivered
+              </div>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  onClick={() => void handlePublish()}
+                  disabled={!reviewState.canPublish || publishing}
+                  className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90 disabled:opacity-50"
+                >
+                  {publishing ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+                  ) : null}
+                  Publish the full analysis
+                </Button>
+                {!reviewState.canPublish && reviewState.blockers.length > 0 ? (
+                  <p className="text-center text-[12px] text-muted-foreground">
+                    {reviewState.blockers.map(blockerReason).join(" · ")}
+                  </p>
+                ) : null}
+              </>
+            )
+          ) : null}
+        </div>
 
         {publishError ? (
           <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-[13px] text-destructive">
@@ -415,12 +544,12 @@ export default function CoachReviewOverlay({
           ) : null}
         </div>
 
-        {/* Delivery layer — a Save is a draft checkpoint: nothing reaches the
-            user until the arc-level "Save and Publish full analysis", so there
-            is no notify toggle here anymore. */}
+        {/* A Save is a per-take checkpoint: nothing reaches the user until you
+            Publish the full analysis above (which needs every take saved + the
+            ideal text approved). */}
         <p className="text-center text-[12px] text-muted-foreground">
           Saving keeps this as your draft. The user receives everything at once
-          when you publish the full analysis from the ideal-text panel.
+          when you publish the full analysis.
         </p>
       </div>
     </SnippetScreenShell>
