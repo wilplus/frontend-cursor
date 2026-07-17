@@ -648,9 +648,8 @@ export default function LabOverlay({
             // of a persisted arc. Suppress the "Take N of 3" banner + the deck
             // pre-fill (and hide the deck field) so no prior arc bleeds into it.
             applyNonce={applyLastNonce}
-            activeArcTake={
-              stagedUploadRef.current ? null : arcId ? arcTakeIndex : null
-            }
+            // SD — the 3-take arc is retired: no "Take N of 3" banner.
+            activeArcTake={null}
             preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
             onSubmit={(ctx, explore) => {
@@ -676,26 +675,14 @@ export default function LabOverlay({
                 return;
               }
               lastWasUploadRef.current = false;
-              // R5 — a live take goes through the priming panel (one framing
-              // phrase + proceed) BEFORE the mic. The panel's proceed button is
-              // the user gesture getUserMedia needs, so mic.start() fires there.
+              // SD — the priming panel (threat/challenge framing) is deleted:
+              // the submit click IS the user gesture getUserMedia needs, so the
+              // mic starts right here and recording begins immediately.
               setExploreEnabled(explore);
               setContext(ctx);
               setRejectedMsg(null);
               uploadSeqRef.current += 1; // drop any stale upload-duration read
-              goTo("lab_prerecord");
-            }}
-          />
-        )}
-
-        {state === "lab_prerecord" && (
-          <PrimingPanel
-            batchTake={batchTake(arcTakeIndex)}
-            onProceed={(condition, phrase) => {
-              // R5 — stash the shown framing for the upload log, then start the
-              // mic straight from this click (gesture preserved) and flip to
-              // lab_recording optimistically; the mic-state effect pins t=0.
-              primingRef.current = { condition, phrase };
+              primingRef.current = null;
               startPendingRef.current = true;
               goTo("lab_recording");
               void mic.start();
@@ -729,7 +716,7 @@ export default function LabOverlay({
             presentationRef={context?.presentationRef ?? null}
             currentSlide={currentSlide}
             onAdvance={advanceSlide}
-            arcTake={exploreEnabled ? arcTakeIndex : null}
+            arcTake={null}
             // R4-5 fix — a rejected UPLOAD offers "upload a different file"
             // (the context is already deckless-standalone, so just re-submit
             // the new blob). Live-recorded rejections keep "Record again" only.
@@ -775,7 +762,10 @@ export default function LabOverlay({
               setPollSlow(false);
               uploadStartedRef.current = false;
               setBlob(null);
-              goTo("lab_prerecord");
+              primingRef.current = null;
+              startPendingRef.current = true;
+              goTo("lab_recording");
+              void mic.start();
             }}
             onClose={onClose}
           />

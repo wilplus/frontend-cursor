@@ -77,8 +77,8 @@ export default function WelcomeConsent({ onAccept }: { onAccept: () => void }) {
         Your best talk, in your own words
       </h1>
       <p className="mt-3 max-w-[30ch] text-[14px] text-muted-foreground">
-        Record your talk three times. You get the ideal text of your
-        presentation and see which moments landed best.
+        Record your talk. You get the ideal text of your presentation and
+        see which moments landed best.
       </p>
 
       <button
