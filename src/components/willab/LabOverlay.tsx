@@ -28,7 +28,7 @@ import { readoutSummaryDraft } from "./loungeReports";
 import { clearParked, readParked, writeParked } from "./willabParked";
 import { setPendingSend, setReviewPending } from "./sendStatus";
 import type { ReadoutPayload } from "./readout";
-import ReadoutCard from "./ReadoutCard";
+import IdealTextReadout from "./IdealTextReadout";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
@@ -771,9 +771,12 @@ export default function LabOverlay({
           />
         )}
 
+        {/* SD — the post-recording screen IS the ideal text 1.0: suggestions
+            auto-applied, editable, pending-verification badge; delivery to the
+            coach is automatic (no Approve rows, no Send button). Replaces the
+            per-piece approve walker (ReadoutCard). */}
         {state === "readout" && (
-          <ReadoutCard
-            sessionId={labSessionId}
+          <IdealTextReadout
             payload={
               readout ?? {
                 snippets: [],
@@ -790,26 +793,15 @@ export default function LabOverlay({
                 auditPaid: true,
               }
             }
-            onSend={() => goTo(sessionId ? "sendgate_signed" : "sendgate_unsigned")}
-            onClose={handleClose}
-            managed={false}
-            onRegisterBack={(fn) => {
-              readoutBackRef.current = fn;
+            sessionId={labSessionId}
+            signedIn={signedIn}
+            onAutoSent={() => {
+              // Mirrors the old SendGate.onSent bookkeeping, minus the screen
+              // change: the user stays on their ideal text.
+              clearParked();
+              if (labSessionId) setReviewPending(labSessionId);
             }}
-            // #191 — the spoken take's setup, so a piece with approved edits can
-            // offer a re-read (uploaded as recording_kind=read, paired here).
-            reReadContext={
-              context
-                ? {
-                    topic: context.topic,
-                    audience: context.audience,
-                    slides: context.slides,
-                    presentationRef: context.presentationRef,
-                    domainVocabulary: context.domain_vocabulary,
-                    targetLengthSeconds: context.target_length_seconds,
-                  }
-                : null
-            }
+            onSignUp={() => goTo("sendgate_unsigned")}
           />
         )}
 
