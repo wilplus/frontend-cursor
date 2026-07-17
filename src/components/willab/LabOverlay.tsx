@@ -803,6 +803,27 @@ export default function LabOverlay({
               if (labSessionId) setReviewPending(labSessionId);
             }}
             onSignUp={() => goTo("sendgate_unsigned")}
+            onReRead={() => {
+              // A re-read is just the next take on THIS presentation: keep the
+              // deck (context) and arc (arcTakeIndex was already advanced on the
+              // prior upload), drop the current take's readout/session/blob, and
+              // drop back to the mic. The BE reconciles the real take index on
+              // upload. Clear the parked readout so it can't restore over the
+              // new take; startPendingRef lets the mic-state effect re-init the
+              // slide timeline at the real recording start.
+              clearParked();
+              setReadout(null);
+              setLabSessionId(null);
+              setBlob(null);
+              uploadStartedRef.current = false;
+              pendingCarryRef.current = null;
+              setPollSessionId(null);
+              setPollSlow(false);
+              primingRef.current = null;
+              startPendingRef.current = true;
+              goTo("lab_recording");
+              void mic.start();
+            }}
           />
         )}
 

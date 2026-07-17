@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, PencilLine } from "lucide-react";
+import { Check, Copy, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import { fetchIdealText, saveIdealUserEdit } from "@/services/api/idealText";
@@ -56,6 +56,7 @@ export default function IdealTextReadout({
   signedIn,
   onAutoSent,
   onSignUp,
+  onReRead,
 }: {
   payload: ReadoutPayload;
   sessionId: string | null;
@@ -67,6 +68,10 @@ export default function IdealTextReadout({
   onAutoSent: () => void;
   /** Guest path — save the text by creating an account (the signup gate). */
   onSignUp: () => void;
+  /** Re-read: reading this ideal text aloud is just the next take — the host
+   *  drops us back into the record flow for this presentation, and the reading
+   *  sharpens the text. Absent → the re-read block hides. */
+  onReRead?: () => void;
 }) {
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
@@ -272,6 +277,25 @@ export default function IdealTextReadout({
         >
           Save your ideal text
         </Button>
+      ) : onReRead ? (
+        // Re-read loop — reading the ideal text aloud is just the next take.
+        // The reading goes back through analysis and the text gets sharper and
+        // more yours. Small mic'd CTA at the bottom, under the ask.
+        <div className="mt-1 flex flex-col gap-2.5 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-4">
+          <p className="text-[13px] leading-relaxed text-foreground">
+            Please read the text as if you were presenting. It helps us spot
+            whether it feels good, and make it even more your style and engaging
+            for your specific audience.
+          </p>
+          <Button
+            type="button"
+            onClick={onReRead}
+            className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90"
+          >
+            <Mic className="mr-2 h-4 w-4" aria-hidden />
+            Send for analysis
+          </Button>
+        </div>
       ) : null}
     </div>
   );
