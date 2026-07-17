@@ -141,7 +141,7 @@ export default function CoachIdealTextPanel({
       // machine assembly.
       setSource("coach");
     } else {
-      setError("Couldn't approve the ideal text. Try again.");
+      setError("Couldn't verify the ideal text. Try again.");
     }
   }
 
@@ -265,7 +265,7 @@ export default function CoachIdealTextPanel({
             </Button>
             {approved ? (
               <span className="flex items-center gap-1 text-[13px] font-medium text-success">
-                <CheckCircle2 className="h-4 w-4" aria-hidden /> Approved
+                <CheckCircle2 className="h-4 w-4" aria-hidden /> Verified
               </span>
             ) : (
               <Button
@@ -280,13 +280,13 @@ export default function CoachIdealTextPanel({
                     aria-hidden
                   />
                 ) : null}
-                Approve
+                Verify
               </Button>
             )}
           </div>
           {approved ? (
             <p className="text-[12px] text-muted-foreground">
-              Approved. Publish the full analysis from the wrap-up screen.
+              Verified. Publish the full analysis from the wrap-up screen.
             </p>
           ) : null}
           {error ? <p className="text-[12px] text-destructive">{error}</p> : null}

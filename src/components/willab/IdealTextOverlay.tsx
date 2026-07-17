@@ -17,6 +17,11 @@ import {
   type IdealText,
   type InstantPaywall,
 } from "@/services/api/idealText";
+import {
+  fetchMomentExplanation,
+  unlockMoments,
+  type MomentExplanationResult,
+} from "@/services/api/momentExplanation";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -33,9 +38,15 @@ import {
 export default function IdealTextOverlay({
   arcId,
   onClose,
+  onReadAloud,
 }: {
   arcId: string;
   onClose: () => void;
+  /** SD — "Read it aloud": the host closes this overlay into the record flow
+   *  for this presentation (a re-read is just another recording). Receives the
+   *  current version as a take-count hint for the arc seed. Optional: without
+   *  it the CTA hides. */
+  onReadAloud?: (version: number | null) => void;
 }) {
   // D-3 invariant — the device Back gesture closes THIS overlay (LIFO with the
   // nested FeedbackOverlay, which pushes its own entry on top).
@@ -63,6 +74,18 @@ export default function IdealTextOverlay({
   } | null>(null);
   const unlockedRef = useRef(false);
   const [refetchNonce, setRefetchNonce] = useState(0);
+  // SD (single-deliverable) — the living-document state: verification status,
+  // version, and whether the 5-credit moments unlock has run.
+  const [sd, setSd] = useState<{
+    status: "unverified" | "verified";
+    version: number | null;
+    momentsUnlocked: boolean;
+    priceCredits: number | null;
+  } | null>(null);
+  // SD — the open key-moment overlay: which moment, and its fetched content.
+  const [momentOpen, setMomentOpen] = useState<IdealKeyMomentLink | null>(null);
+  const [momentContent, setMomentContent] =
+    useState<MomentExplanationResult | null>(null);
 
   // A different arc = a fresh entitlement question; never carry the unlocked
   // flag or a cached draft across arcs.
@@ -88,7 +111,20 @@ export default function IdealTextOverlay({
     setStatus("loading");
     void fetchIdealText(arcId).then((r) => {
       if (!active) return;
-      if (r.kind === "ready") {
+      if (r.kind === "single") {
+        // SD — the ONE living text: both statuses free to read; the only paid
+        // thing is opening the key moments. Renders through the ready view
+        // with the SD chrome (status chip, read-aloud CTA, moment behavior).
+        setIdeal(r.ideal);
+        setNotes(null);
+        setSd({
+          status: r.status,
+          version: r.version,
+          momentsUnlocked: r.momentsUnlocked,
+          priceCredits: r.priceCredits,
+        });
+        setStatus("ready");
+      } else if (r.kind === "ready") {
         setIdeal(r.ideal);
         setNotes(r.ideal.notes);
         setStatus("ready");
@@ -128,6 +164,52 @@ export default function IdealTextOverlay({
 
   const displayText = notes ?? ideal?.text ?? "";
 
+  // Staleness guard for the moment-explanation fetches: a slow response for a
+  // closed/replaced sheet must never overwrite the currently open one (R-sd3).
+  const momentReqRef = useRef(0);
+
+  async function loadMomentContent(m: IdealKeyMomentLink) {
+    const req = ++momentReqRef.current;
+    setMomentContent(null);
+    const r = await fetchMomentExplanation(arcId, m.momentId ?? m.snippetId);
+    if (momentReqRef.current === req) setMomentContent(r);
+  }
+
+  // SD — a tapped moment opens the explanation overlay (or the unlock prompt);
+  // legacy mode keeps the "Go to this moment?" feedback deep-link. A legacy
+  // moment with no snippet link stays inert (it has nowhere to deep-link;
+  // rendering it tappable would open an unanchored feedback page — R-sd4).
+  async function openMoment(m: IdealKeyMomentLink) {
+    if (!sd) {
+      if (!m.snippetId) return;
+      setMomentAsk(m);
+      return;
+    }
+    setMomentOpen(m);
+    if (!sd.momentsUnlocked) {
+      momentReqRef.current++;
+      setMomentContent({ kind: "locked", priceCredits: sd.priceCredits });
+      return;
+    }
+    await loadMomentContent(m);
+  }
+
+  async function buyMoments(): Promise<string | null> {
+    const r = await unlockMoments(arcId);
+    if (r.ok) {
+      setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev));
+      if (momentOpen) await loadMomentContent(momentOpen);
+      return null;
+    }
+    if (r.reason === "insufficient") {
+      // Top-ups live on the pricing page (hard navigation — the documented
+      // forward-nav trap with stacked overlays' back-dismiss cleanup).
+      window.location.assign("/dashboard/pricing");
+      return null;
+    }
+    return r.message;
+  }
+
   function copyText() {
     void navigator.clipboard?.writeText(displayText).then(() => {
       setCopied(true);
@@ -156,9 +238,9 @@ export default function IdealTextOverlay({
               )}
             </button>
           ) : null}
-          {/* Personal-notes editing is a perfected-lane feature — no pencil on
-              the instant draft. */}
-          {status === "ready" && !editing ? (
+          {/* Personal-notes editing is a legacy perfected-lane feature — no
+              pencil on the instant draft or in the SD living document. */}
+          {status === "ready" && !editing && !sd ? (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -247,11 +329,44 @@ export default function IdealTextOverlay({
               onCancel={() => setEditing(false)}
             />
           ) : ideal ? (
-            <NotebookText
-              text={displayText}
-              ideal={ideal}
-              onMomentTap={setMomentAsk}
-            />
+            <div className="flex flex-col gap-4">
+              {/* SD chrome — the living document's status + the read-aloud ask. */}
+              {sd ? (
+                <div className="flex flex-col gap-3">
+                  <span
+                    className={`self-start rounded-full px-2.5 py-1 text-[12px] font-medium ${
+                      sd.status === "verified"
+                        ? "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {sd.status === "verified"
+                      ? "Verified by your coach"
+                      : "Not verified yet"}
+                  </span>
+                  {sd.status === "unverified" && onReadAloud ? (
+                    <button
+                      type="button"
+                      onClick={() => onReadAloud(sd.version)}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left transition-colors hover:border-primary/60"
+                    >
+                      <span className="text-[13px] leading-relaxed text-foreground">
+                        Read it aloud. Your reading becomes your next
+                        recording, and your text gets sharper.
+                      </span>
+                      <span className="shrink-0 text-[12px] font-medium text-primary">
+                        Record
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              <NotebookText
+                text={displayText}
+                ideal={ideal}
+                onMomentTap={(m) => void openMoment(m)}
+              />
+            </div>
           ) : null}
         </div>
       </div>
@@ -292,6 +407,120 @@ export default function IdealTextOverlay({
           topLayer
         />
       ) : null}
+
+      {/* SD — the key-moment sheet: a simple card over the page (coach note
+          and/or video, or the 5-credit unlock prompt). Never navigates away. */}
+      {momentOpen ? (
+        <div
+          className="fixed inset-0 z-10 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => setMomentOpen(null)}
+          role="presentation"
+        >
+          {/* D-3 — the sheet joins the back-dismiss LIFO: Back closes the
+              sheet first, not the whole notebook underneath (R-sd5). */}
+          <SheetBackDismiss onClose={() => setMomentOpen(null)} />
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Key moment"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[14px] font-semibold text-foreground">
+                Your key moment
+              </p>
+              <OverlayCloseButton
+                onClick={() => setMomentOpen(null)}
+                ariaLabel="Close key moment"
+              />
+            </div>
+            {momentContent === null ? (
+              <p className="py-6 text-center text-[13px] text-muted-foreground">
+                Loading…
+              </p>
+            ) : momentContent.kind === "locked" ? (
+              <MomentUnlockPrompt
+                priceCredits={momentContent.priceCredits}
+                onBuy={buyMoments}
+              />
+            ) : momentContent.kind === "error" ? (
+              <p className="py-6 text-center text-[13px] text-muted-foreground">
+                Couldn&apos;t load this moment just now. Try again in a moment.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {momentContent.videoRef ? (
+                  // eslint-disable-next-line jsx-a11y/media-has-caption
+                  <video
+                    src={momentContent.videoRef}
+                    controls
+                    playsInline
+                    className="w-full rounded-xl bg-black"
+                  />
+                ) : null}
+                {momentContent.note ? (
+                  <p className="text-[15px] leading-relaxed text-foreground">
+                    {momentContent.note}
+                  </p>
+                ) : null}
+                {!momentContent.videoRef && !momentContent.note ? (
+                  <p className="py-4 text-center text-[13px] text-muted-foreground">
+                    Your coach hasn&apos;t added the explanation for this moment
+                    yet.
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** D-3 — a mount-scoped back-dismiss entry for the moment sheet (hooks can't
+ *  be conditional, so the conditional mount of this child does the pushing). */
+function SheetBackDismiss({ onClose }: { onClose: () => void }) {
+  useBackDismiss(onClose);
+  return null;
+}
+
+/** SD — the unlock prompt inside the moment sheet: one price, one button. */
+function MomentUnlockPrompt({
+  priceCredits,
+  onBuy,
+}: {
+  priceCredits: number | null;
+  onBuy: () => Promise<string | null>;
+}) {
+  const [buying, setBuying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const price = priceCredits ?? 5;
+  return (
+    <div className="flex flex-col items-center gap-3 py-2 text-center">
+      <p className="text-[14px] leading-relaxed text-foreground">
+        See why these were your key moments, from your coach.
+      </p>
+      <Button
+        type="button"
+        onClick={() => {
+          if (buying) return;
+          setBuying(true);
+          setError(null);
+          void onBuy().then((err) => {
+            setBuying(false);
+            if (err) setError(err);
+          });
+        }}
+        disabled={buying}
+        className="h-10 rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
+      >
+        {buying ? "Unlocking…" : `Unlock for ${price} credits`}
+      </Button>
+      <p className="text-[12px] text-muted-foreground">
+        One unlock opens every key moment in this presentation, now and later.
+      </p>
+      {error ? <p className="text-[12px] text-destructive">{error}</p> : null}
     </div>
   );
 }

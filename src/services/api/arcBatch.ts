@@ -48,7 +48,7 @@ export async function publishArc(arcId: string): Promise<PublishArcResult> {
       body?.code === "TAKES_NOT_SAVED"
         ? "Save each recording's feedback first."
         : body?.code === "IDEAL_TEXT_NOT_APPROVED"
-        ? "Approve the ideal text first."
+        ? "Verify the ideal text first."
         : null;
     const msg =
       firstString(body?.error, body?.message, body?.detail) ??

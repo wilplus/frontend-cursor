@@ -20,6 +20,11 @@ export interface IdealKeyMomentLink {
   anchor: string;
   snippetId: string;
   takeSessionId: string;
+  /** Single-deliverable (SD) — the moment's id for the explanation endpoint
+   *  and whether the coach authored a note/video for it. null/false on legacy
+   *  payloads. */
+  momentId?: string | null;
+  hasExplanation?: boolean;
 }
 
 export interface IdealText {
@@ -48,7 +53,18 @@ export type IdealTextResult =
   // already paid (the arc just isn't approved yet) — true suppresses the Buy
   // CTA; false/absent → the upsell shows (safe-ahead of the BE field).
   | { kind: "instant"; ideal: IdealText; paywall: InstantPaywall; entitled: boolean }
-  | { kind: "locked" } // 402 — the $25 unlock opens it
+  // Single-deliverable (SINGLE_DELIVERABLE_ENABLED): the ONE living ideal text.
+  // Both statuses are FREE to read; the only paid thing in the app is opening
+  // the key-moment explanations (momentsUnlocked + priceCredits drive that).
+  | {
+      kind: "single";
+      ideal: IdealText;
+      status: "unverified" | "verified";
+      version: number | null;
+      momentsUnlocked: boolean;
+      priceCredits: number | null;
+    }
+  | { kind: "locked" } // 402 — the $25 unlock opens it (legacy lane)
   | { kind: "pending" } // 404 / not approved yet — coach still working
   | { kind: "error" };
 
@@ -62,8 +78,19 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
   const anchor = str(r.anchor);
   const snippetId = str(r.snippet_id);
   const takeSessionId = str(r.take_session_id);
-  if (!anchor || !snippetId) return null;
-  return { anchor, snippetId, takeSessionId };
+  // SD payloads may key moments by id instead of snippet_id. Ids may arrive
+  // numeric (serializer-dependent) — coerce, never drop.
+  const idOf = (v: unknown): string =>
+    typeof v === "string" ? v : typeof v === "number" && Number.isFinite(v) ? String(v) : "";
+  const momentId = idOf(r.id) || idOf(r.moment_id) || null;
+  if (!anchor || (!snippetId && !momentId)) return null;
+  return {
+    anchor,
+    snippetId,
+    takeSessionId,
+    momentId,
+    hasExplanation: r.has_explanation === true,
+  };
 }
 
 export function mapIdealText(raw: unknown): IdealText | null {
@@ -131,6 +158,28 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
   if (res.status === 404) return { kind: "pending" };
   if (!res.ok) return { kind: "error" };
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  // Single-deliverable contract (SINGLE_DELIVERABLE_ENABLED): the payload
+  // carries `status` — both statuses free to read, no approved coercion.
+  // Checked FIRST; absent status → the older lanes below, byte-for-byte.
+  if (body?.status === "unverified" || body?.status === "verified") {
+    const ideal = mapIdealText(body);
+    if (!ideal) return { kind: "pending" };
+    return {
+      kind: "single",
+      ideal,
+      status: body.status,
+      version:
+        typeof body.version === "number" && Number.isFinite(body.version)
+          ? body.version
+          : null,
+      momentsUnlocked: body.moments_unlocked === true,
+      priceCredits:
+        typeof body.price_credits === "number" &&
+        Number.isFinite(body.price_credits)
+          ? body.price_credits
+          : null,
+    };
+  }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
   // before payment/approval. Checked BEFORE the locked/approved coercions —
   // an instant payload is deliberately unpaid and unapproved. Absent variant
