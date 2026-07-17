@@ -70,11 +70,15 @@ export default function WelcomeConsent({ onAccept }: { onAccept: () => void }) {
         </svg>
       </div>
 
+      {/* Honest positioning (founder 2026-07-17): promise the deliverable —
+          the ideal text of YOUR talk + your strongest moments — never
+          "charisma now". */}
       <h1 className="max-w-[16ch] text-[34px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-[40px]">
-        Turn your stress into charisma
+        Your best talk, in your own words
       </h1>
-      <p className="mt-3 max-w-[28ch] text-[14px] text-muted-foreground">
-        Step by step, at your own pace.
+      <p className="mt-3 max-w-[30ch] text-[14px] text-muted-foreground">
+        Record your talk three times. You get the ideal text of your
+        presentation and see which moments landed best.
       </p>
 
       <button
