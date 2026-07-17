@@ -91,7 +91,13 @@ describe("mapIdealText", () => {
     });
     expect(v?.keyPhrases).toEqual(["a"]);
     expect(v?.keyMoments).toEqual([
-      { anchor: "T", snippetId: "s", takeSessionId: "k" },
+      {
+        anchor: "T",
+        snippetId: "s",
+        takeSessionId: "k",
+        momentId: null,
+        hasExplanation: false,
+      },
     ]);
     expect(v?.approved).toBe(true);
     expect(v?.notes).toBeNull();

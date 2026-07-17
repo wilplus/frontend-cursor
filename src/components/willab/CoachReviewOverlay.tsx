@@ -35,7 +35,7 @@ function blockerReason(b: PublishBlocker): string {
     case "TAKES_NOT_SAVED":
       return "Save each recording's feedback first";
     case "IDEAL_TEXT_NOT_APPROVED":
-      return "Approve the ideal text first";
+      return "Verify the ideal text first";
     case "NO_TAKES":
       return "No recordings to publish yet";
   }
@@ -417,7 +417,7 @@ export default function CoachReviewOverlay({
                   approval step explicit while PUBLISH is still hidden. */}
               {reviewState && !reviewState.ideal.approved ? (
                 <p className="text-center text-[12px] text-muted-foreground">
-                  Review and Approve it there to unlock publishing.
+                  Review and Verify it there to unlock publishing.
                 </p>
               ) : null}
             </>

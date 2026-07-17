@@ -37,9 +37,7 @@ import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
 import ReviewGroupOverlay from "./ReviewGroupOverlay";
-import ProgressToAuditBubble from "./ProgressToAuditBubble";
 import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
-import { hasRelaxAnnounced, markRelaxAnnounced } from "@/lib/willab/relaxAnnounced";
 import { clearInsightsReady } from "./sendStatus";
 import { isLabOverlay, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
@@ -99,14 +97,6 @@ type ThreadItem =
       reactKey: string;
       // FP-4 — one item per student (grouped), not per session.
       group: ReviewStudentGroup;
-    }
-  | {
-      // The audit-progress line. Once you've sent a training it stays in the
-      // thread (any state), anchored after the completed-training card — like
-      // any other bubble, never disappearing.
-      kind: "auditprogress";
-      sortKey: string;
-      reactKey: string;
     }
   ;
 
@@ -208,21 +198,6 @@ export default function Lounge({
   // from reviewGroups each render so the open overlay stays fresh (FP-4 review).
   const [reviewGroupKey, setReviewGroupKey] = useState<string | null>(null);
 
-  // The arc the best-presentation bubble points at — read from the DURABLE,
-  // server-persisted recording_summary metadata (newest first), so the bubble
-  // stays clickable across logout/login and any device. null → the bubble
-  // falls back to the localStorage arc (pre-fix recordings, same device).
-  const bubbleArcId = useMemo<string | null>(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i];
-      const arc = m.metadata?.arc_id;
-      if (m.kind === "recording_summary" && typeof arc === "string" && arc.length > 0) {
-        return arc;
-      }
-    }
-    return null;
-  }, [messages]);
-
   // Interleave the coach's review queue rows with regular Lounge messages so
   // a "new session ready to label" bubble appears chronologically alongside
   // the rest of the chat — that's the §3 design ("message in his chat from
@@ -273,24 +248,8 @@ export default function Lounge({
         });
       }
     }
-    // Anchor the audit-progress line right after the latest completed-training
-    // card (its timestamp + "~~" sorts just after that card but before any
-    // later message), so chatting on doesn't push it down.
-    const lastSummaryAt = messages
-      .filter((m) => m.kind === "recording_summary")
-      .map((m) => m.client_created_at)
-      .sort()
-      .pop();
-    // The audit-progress line persists once you've sent a training — in ANY
-    // state, never disappearing (it self-hides only when there's no progress
-    // data). It's an ordinary thread bubble, anchored, not a transient offer.
-    if (lastSummaryAt) {
-      items.push({
-        kind: "auditprogress",
-        sortKey: `${lastSummaryAt}~~`,
-        reactKey: "auditprogress",
-      });
-    }
+    // SD — the audit-progress line ("N more takes to the full training") is
+    // retired with the 3-take arc: takes are open-ended now.
     items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     return items;
   }, [messages, isCoach, reviewGroups]);
@@ -779,23 +738,6 @@ export default function Lounge({
     void thread.append({ role: "user", kind: "text", body: label });
   }
 
-  // R4-7 — "3/3 done, relax": when an arc reaches all takes done with the coach
-  // not yet finished, post ONE persistent bot bubble (same path as any typed
-  // turn, so it survives reload). Guarded per-arc in localStorage so a reload /
-  // re-poll can never repeat it.
-  const announceRelax = useCallback(
-    (arcId: string) => {
-      if (hasRelaxAnnounced(arcId)) return;
-      markRelaxAnnounced(arcId);
-      void thread.append({
-        role: "bot",
-        kind: "text",
-        body: "That's all three takes done. Nothing more for you to do on your end. Your coach will review your recordings now, so you can relax.",
-      });
-    },
-    [thread]
-  );
-
   // Bug 3 — decline mirrors accept: the user's choice posts as a real (persisted)
   // user bubble, with a short bot acknowledgement. Not a librarian question, so
   // it skips runSend/postChatQuery.
@@ -919,17 +861,11 @@ export default function Lounge({
                   !baselineRef.current.has(item.message.client_id)
                 }
               />
-            ) : item.kind === "review" ? (
+            ) : (
               <CoachReviewGroupBubble
                 key={item.reactKey}
                 group={item.group}
                 onOpen={openReviewGroup}
-              />
-            ) : (
-              <ProgressToAuditBubble
-                key={item.reactKey}
-                arcId={bubbleArcId}
-                onReadyForCoach={announceRelax}
               />
             )
           )
@@ -1106,6 +1042,25 @@ export default function Lounge({
         <IdealTextOverlay
           arcId={idealTextArcId}
           onClose={() => setIdealTextArcId(null)}
+          // SD — "Read it aloud": the re-read is just another recording. Seed
+          // THIS presentation (only when the cache holds a different arc; the
+          // BE reconciles the real take index on upload) and open the Lab.
+          onReadAloud={(version) => {
+            const arcId = idealTextArcId;
+            const cached = readExploreArc();
+            if (cached?.arcId !== arcId) {
+              // Seed the next-take index from the SD version hint (≈ takes so
+              // far); the BE reconciles the real take_index on upload.
+              writeExploreArc(
+                arcId,
+                (version ?? 0) + 1,
+                undefined,
+                latestArcSessionId(arcId)
+              );
+            }
+            setIdealTextArcId(null);
+            onStart();
+          }}
         />
       )}
       {activeInsight && (

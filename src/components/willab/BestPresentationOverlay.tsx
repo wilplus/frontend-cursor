@@ -144,7 +144,6 @@ export default function BestPresentationOverlay({
     if (!w) return; // popup blocked — nothing to break
     const esc = (t: string) =>
       t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const gameUrl = `${window.location.origin}/game?arc=${encodeURIComponent(arcId)}`;
     const sectionsHtml = result.slides
       .map((s) => {
         const phrases = s.keyPhrases.length
@@ -152,8 +151,9 @@ export default function BestPresentationOverlay({
               .map(esc)
               .join(" · ")}</p>`
           : "";
+        // SD — the game deep-link is retired; the export marks the moment only.
         const key = s.breakthrough
-          ? `<p style="margin:6px 0 0"><a href="${gameUrl}" style="color:#ee7a2b;font-weight:600;text-decoration:none">Key moment →</a></p>`
+          ? `<p style="margin:6px 0 0;color:#ee7a2b;font-weight:600">Key moment</p>`
           : "";
         return `<section style="margin:0 0 22px">
           ${s.title ? `<h2 style="font-size:14px;margin:0 0 6px;color:#999;font-weight:600">${esc(s.title)}</h2>` : ""}
@@ -375,19 +375,9 @@ export default function BestPresentationOverlay({
             />
           ))}
 
-          {/* Bottom of scroll — 1.7's button (wins over global #2, flagged). */}
-          <div className="px-4 pb-10 pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                suppressBackDismiss();
-                router.push(`/game?arc=${encodeURIComponent(arcId)}`);
-              }}
-              className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background transition hover:bg-foreground/90"
-            >
-              One last step
-            </button>
-          </div>
+          {/* SD — the game CTA is retired from the student surface: the ideal
+              text IS the product's end, nothing after it. */}
+          <div className="pb-10" />
         </div>
       </div>
     </div>
