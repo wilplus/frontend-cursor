@@ -59,6 +59,13 @@ export default function CoachIdealTextPanel({
   // The deck for the cover slide: the caller's ref (present when the student
   // view is ready) wins; otherwise whatever the coach lane echoed.
   const [fetchedRef, setFetchedRef] = useState<string | null>(null);
+  // #214 — the student's own edit of the current version (read-only reference;
+  // separate lane, never merged automatically).
+  const [userEdit, setUserEdit] = useState<{
+    text: string;
+    version: number | null;
+    updatedAt: string | null;
+  } | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -79,6 +86,7 @@ export default function CoachIdealTextPanel({
       setTakesTarget(r.takesTarget);
       setSource(r.source);
       setFetchedRef(r.presentationRef);
+      setUserEdit(r.userEdit);
       if (r.assemblyState === "ready") {
         setParagraphs(splitParagraphs(r.text));
         setPhase("ready");
@@ -252,6 +260,20 @@ export default function CoachIdealTextPanel({
               </button>
             )
           )}
+
+          {/* #214 — the student's edit, read-only reference. The coach
+              reconciles by hand; the lanes never merge automatically. */}
+          {userEdit ? (
+            <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                The student&apos;s own edit
+                {userEdit.version !== null ? ` · v${userEdit.version}` : ""}
+              </p>
+              <p className="whitespace-pre-line text-[14px] leading-relaxed text-foreground">
+                <RichText text={userEdit.text} />
+              </p>
+            </div>
+          ) : null}
 
           <div className="mt-1 flex items-center gap-2">
             <Button

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
+import { fetchIdealText, saveIdealUserEdit } from "@/services/api/idealText";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -50,12 +51,16 @@ export function composeIdealText(payload: ReadoutPayload): string {
 export default function IdealTextReadout({
   payload,
   sessionId,
+  arcId = null,
   signedIn,
   onAutoSent,
   onSignUp,
 }: {
   payload: ReadoutPayload;
   sessionId: string | null;
+  /** The presentation this take belongs to — enables edit persistence (#214).
+   *  null (guest / standalone upload) → edits stay local. */
+  arcId?: string | null;
   signedIn: boolean | null;
   /** Fires once after the automatic send succeeds (review-pending bookkeeping). */
   onAutoSent: () => void;
@@ -69,6 +74,27 @@ export default function IdealTextReadout({
   const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  // #214 — edit persistence: armed once the SD GET confirms the contract and
+  // hands us the current version. Until then (flag OFF / guest) edits are
+  // local-only, exactly the pre-#214 behavior.
+  const versionRef = useRef<number | null>(null);
+  // State (not a ref) so arming re-runs the debounce effect — an edit typed
+  // BEFORE the version fetch lands must still save once arming completes.
+  const [canPersist, setCanPersist] = useState(false);
+  const dirtyRef = useRef(false);
+  // SEND-LATEST serialization (review R-ue2): saves run one at a time on a
+  // promise chain, and each sends the text AS OF EXECUTION — overlapping PUTs
+  // can therefore never commit an older edit over a newer one server-side.
+  const textRef = useRef("");
+  const savedTextRef = useRef<string | null>(null);
+  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const persistArmedRef = useRef(false);
+  const arcIdRef = useRef<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">(
+    "idle"
+  );
+  textRef.current = text;
+  arcIdRef.current = arcId;
 
   // Automatic delivery — no send button. Once, when signed in with a session.
   useEffect(() => {
@@ -79,6 +105,67 @@ export default function IdealTextReadout({
       else if (r.kind !== "unauthenticated") setSendFailed(true);
     });
   }, [signedIn, sessionId, onAutoSent]);
+
+  // #214 — arm persistence: read the current version from the SD GET. A
+  // non-single result (flag OFF, older BE) leaves persistence off.
+  useEffect(() => {
+    if (!signedIn || !arcId) return;
+    let active = true;
+    void fetchIdealText(arcId).then((r) => {
+      if (!active || r.kind !== "single") return;
+      versionRef.current = r.version;
+      persistArmedRef.current = true;
+      setCanPersist(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [signedIn, arcId]);
+
+  // #214 — debounced save of a DIRTY edit (never the untouched composed text).
+  // saveIdealUserEdit retries once on VERSION_SUPERSEDED with the server's
+  // current version — the student's edit always wins (locked rule). Each
+  // chained save reads textRef at execution, so the newest words always land
+  // last; "Edit saved." shows only when the SAVED text is still the current
+  // text (a newer pending edit keeps the status quiet — R-ue3).
+  const enqueueSave = useCallback((aid: string) => {
+    chainRef.current = chainRef.current.then(async () => {
+      const t = textRef.current;
+      if (savedTextRef.current === t) return;
+      const r = await saveIdealUserEdit(aid, t, versionRef.current);
+      if (r.ok) {
+        versionRef.current = r.version ?? versionRef.current;
+        savedTextRef.current = t;
+        setSaveState(textRef.current === t ? "saved" : "idle");
+      } else {
+        setSaveState("failed");
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!dirtyRef.current || !canPersist || !arcId) return;
+    const id = setTimeout(() => enqueueSave(arcId), 800);
+    return () => clearTimeout(id);
+  }, [text, arcId, canPersist, enqueueSave]);
+
+  // Unmount flush (R-ue3): a close inside the debounce window must not drop
+  // the final edit — fire the save on the way out (the request outlives the
+  // component; state setters after unmount are React no-ops).
+  useEffect(
+    () => () => {
+      const aid = arcIdRef.current;
+      if (
+        aid &&
+        persistArmedRef.current &&
+        dirtyRef.current &&
+        savedTextRef.current !== textRef.current
+      ) {
+        void saveIdealUserEdit(aid, textRef.current, versionRef.current);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const el = editorRef.current;
@@ -134,7 +221,11 @@ export default function IdealTextReadout({
         <textarea
           ref={editorRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            dirtyRef.current = true;
+            setSaveState("idle");
+            setText(e.target.value);
+          }}
           className="w-full resize-none overflow-hidden rounded-2xl border border-primary bg-background px-4 py-4 text-[17px] leading-relaxed outline-none"
         />
       ) : (
@@ -142,6 +233,15 @@ export default function IdealTextReadout({
           {text}
         </p>
       )}
+
+      {saveState === "saved" ? (
+        <p className="text-[12px] text-muted-foreground">Edit saved.</p>
+      ) : saveState === "failed" ? (
+        <p className="text-[12px] text-muted-foreground">
+          Couldn&apos;t save your edit just now. It stays here; keep typing and
+          it retries.
+        </p>
+      ) : null}
 
       {sendFailed ? (
         <p className="text-[12px] text-muted-foreground">
