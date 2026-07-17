@@ -32,8 +32,22 @@ export interface IdealText {
   notes: string | null;
 }
 
+/** Instant-lane paywall figures from the BE payload; null → the UI falls back
+ *  to the ARC_UNLOCK_CREDITS constant / its own balance fetch. */
+export interface InstantPaywall {
+  priceCredits: number | null;
+  creditsCurrent: number | null;
+}
+
 export type IdealTextResult =
-  | { kind: "ready"; ideal: IdealText }
+  | { kind: "ready"; ideal: IdealText } // the coach-perfected text (paid + approved)
+  // The FREE machine draft (founder re-lock 2026-07-17): served the moment the
+  // eager assembler has output, before payment/approval. Text + key moments
+  // only — no notes (the personal notebook copy stays a perfected-lane
+  // feature). The BE flags this with variant:"instant". `entitled` = the user
+  // already paid (the arc just isn't approved yet) — true suppresses the Buy
+  // CTA; false/absent → the upsell shows (safe-ahead of the BE field).
+  | { kind: "instant"; ideal: IdealText; paywall: InstantPaywall; entitled: boolean }
   | { kind: "locked" } // 402 — the $25 unlock opens it
   | { kind: "pending" } // 404 / not approved yet — coach still working
   | { kind: "error" };
@@ -72,6 +86,33 @@ export function mapIdealText(raw: unknown): IdealText | null {
   };
 }
 
+/** Map a variant:"instant" payload → the instant result. Pure; null when the
+ *  payload carries no usable text (the caller degrades to pending). Paywall
+ *  figures read defensively across the plausible key spellings; missing →
+ *  null (the UI falls back to its own constant/balance fetch). */
+export function mapInstantIdealText(
+  raw: Record<string, unknown>
+): Extract<IdealTextResult, { kind: "instant" }> | null {
+  const ideal = mapIdealText(raw);
+  if (!ideal) return null;
+  const count = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const pw = (raw.paywall ?? {}) as Record<string, unknown>;
+  return {
+    kind: "instant",
+    ideal,
+    paywall: {
+      priceCredits:
+        count(pw.price) ?? count(pw.price_credits) ?? count(pw.credits),
+      creditsCurrent: count(pw.credits_current) ?? count(pw.balance),
+    },
+    // Already-paid signal, read across plausible spellings; absent → false
+    // (the upsell shows). Prevents re-selling an unlock the user owns.
+    entitled:
+      raw.entitled === true || raw.paid === true || pw.entitled === true,
+  };
+}
+
 /** Student fetch — gated by the $25 unlock; pending until the coach approves. */
 export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
   const token = await getAuthToken();
@@ -90,6 +131,13 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
   if (res.status === 404) return { kind: "pending" };
   if (!res.ok) return { kind: "error" };
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
+  // before payment/approval. Checked BEFORE the locked/approved coercions —
+  // an instant payload is deliberately unpaid and unapproved. Absent variant
+  // (flag off / older BE) → the legacy path below, byte-for-byte.
+  if (body?.variant === "instant") {
+    return mapInstantIdealText(body) ?? { kind: "pending" };
+  }
   if (body?.locked === true) return { kind: "locked" };
   const ideal = mapIdealText(body);
   if (!ideal) return { kind: "pending" };

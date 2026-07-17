@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, Mic } from "lucide-react";
+import { Crown, Mic, Sparkles } from "lucide-react";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { bestPresentationView, insightView, readoutView } from "./loungeReports";
 
@@ -120,7 +120,11 @@ export default function ReportCard({
     );
   }
 
-  // Delivery layer — the PURPLE ideal-text card (after the 3 feedback bubbles).
+  // Delivery layer — the ideal-text cards. Two variants share the kind:
+  //   metadata.variant "instant" → the FREE machine draft at take 3: a plain
+  //     grey card (deliberately NOT purple, so the later coach-perfected purple
+  //     bubble still reads as the upgrade moment, never a duplicate).
+  //   no variant / "perfected" → the publish-time PURPLE card (unchanged).
   if (message.kind === "ideal_text") {
     const arcId =
       typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
@@ -128,6 +132,40 @@ export default function ReportCard({
     const open = () => {
       if (arcId && onOpenIdealText) onOpenIdealText(arcId);
     };
+    if (message.metadata?.variant === "instant") {
+      return (
+        <div
+          role={openable ? "button" : undefined}
+          tabIndex={openable ? 0 : undefined}
+          onClick={openable ? open : undefined}
+          onKeyDown={
+            openable
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    open();
+                  }
+                }
+              : undefined
+          }
+          className={`my-1 rounded-2xl border border-primary/30 bg-chat-bot px-4 py-3 ${
+            openable ? "cursor-pointer" : ""
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <p className="text-[15px] font-semibold leading-snug text-foreground">
+              Instant ideal text
+            </p>
+          </div>
+          {message.body ? (
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+              {message.body}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
     return (
       <div
         role={openable ? "button" : undefined}
