@@ -16,7 +16,8 @@ import { useUserProfile } from "./useUserProfile";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { useBackDismiss } from "./useBackDismiss";
 import CoachIdealTextPanel from "./CoachIdealTextPanel";
-import { parseRichMarkers, richMarkersToHtml } from "@/lib/willab/richMarkers";
+import { richMarkersToHtml } from "@/lib/willab/richMarkers";
+import { RichText } from "./RichText";
 
 /* -------------------------------------------------------------------------- */
 /*  BestPresentationOverlay — the IDEAL TEXT view (Lovable P8).                */
@@ -427,21 +428,9 @@ function IdealTextSection({
           // Delivery layer: read-only — per-slide editing retired (the coach
           // edits the ONE-BLOCK ideal text; the user edits their notebook copy).
           <p className="whitespace-pre-line text-[16px] leading-relaxed text-foreground">
-            {parseRichMarkers(slide.text).map((seg, i) => (
-              <span
-                key={i}
-                className={[
-                  seg.bold ? "font-semibold" : "",
-                  seg.italic ? "italic" : "",
-                  seg.underline ? "underline underline-offset-2" : "",
-                  seg.highlight ? "rounded bg-primary/20 px-0.5" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {seg.text}
-              </span>
-            ))}
+            {/* FE-9 — the shared marker renderer, identical to the coach
+                preview and the notebook. */}
+            <RichText text={slide.text} />
           </p>
         ) : (
           <p className="text-[14px] italic text-muted-foreground">

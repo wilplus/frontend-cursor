@@ -1,8 +1,21 @@
 /* -------------------------------------------------------------------------- */
-/*  richMarkers — the ideal-text marker subset (B6): **bold**, *italic*,        */
-/*  __underline__, ==highlight==. Stored as-is in the existing TEXT column;     */
-/*  every other surface degrades to readable plain text. No nesting — the       */
-/*  editor writes flat spans, and the renderer treats markers as flat tokens.   */
+/*  richMarkers — the ideal-text marker contract (FE-9, pinned BE-side in       */
+/*  services/ideal_text_block.py; both the coach editor and the student         */
+/*  notebook share it):                                                         */
+/*    **bold**   __underline__   //italic//   {{orange:text}}                   */
+/*    [[moment:snippet|session]]text[[/moment]]  (key-moment deep link)         */
+/*  Legacy tokens still parse for texts saved before the contract:              */
+/*    *italic*   ==highlight==  (highlight renders as the same orange)          */
+/*  Stored as-is in the TEXT column; the BE strips only raw HTML and never      */
+/*  parses markers except [[moment:]]. Every other surface degrades to          */
+/*  readable plain text. No nesting — flat spans only.                          */
+/*                                                                            */
+/*  INVARIANT (review R-it): wrapSelection's output must always round-trip      */
+/*  through parseRichMarkers — the toolbar may wrap ANY selection (mid-word,    */
+/*  after a colon, flush against another marker, containing "and/or"), so the   */
+/*  italic arm accepts all of those. The only rejection is a "//" immediately   */
+/*  preceded by ":" (a URL protocol), enforced in JS — NOT via regex            */
+/*  lookbehind, which throws at parse time on older iOS Safari.                 */
 /* -------------------------------------------------------------------------- */
 
 export interface RichSegment {
@@ -10,37 +23,86 @@ export interface RichSegment {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  /** The one accent color (orange) — {{orange:…}} and legacy ==…==. */
   highlight: boolean;
+  /** Key-moment deep link ([[moment:snippet|session]]…[[/moment]]). Styled
+   *  distinctly from a plain underline by every renderer. Optional so plain
+   *  segments keep the legacy 5-field shape. */
+  moment?: { snippetId: string; sessionId: string };
 }
 
-const TOKEN_RE = /\*\*(.+?)\*\*|__(.+?)__|==(.+?)==|\*(.+?)\*/g;
+/*  Alternation order = precedence: moment first (longest, bracketed), then
+ *  ** before * (so bold never half-matches as italic), the pinned tokens,
+ *  then the legacy ones. Named groups (ES2018 — safely older than every
+ *  browser this app supports) so adding an arm can't silently renumber the
+ *  others. Bold/underline/orange allow newlines (the toolbar can wrap across
+ *  a soft break); italic forbids "//" inside but allows single slashes. */
+const TOKEN_RE =
+  /\[\[moment:(?<mSnip>[^\]|]*)\|(?<mSess>[^\]]*)\]\](?<mText>[\s\S]+?)\[\[\/moment\]\]|\*\*(?<bold>[\s\S]+?)\*\*|__(?<under>[\s\S]+?)__|\{\{orange:(?<orange>[\s\S]+?)\}\}|==(?<hl>.+?)==|\/\/(?<ital>(?:[^/\n]|\/(?!\/))+?)\/\/|\*(?<italLegacy>.+?)\*/g;
+
+const PLAIN = { bold: false, italic: false, underline: false, highlight: false };
 
 /** Split marked text into flat render segments. Unmarked text passes through;
  *  malformed / unclosed markers render literally (never crash, never hide). */
 export function parseRichMarkers(text: string): RichSegment[] {
   const out: RichSegment[] = [];
-  const plain = (t: string) =>
-    out.push({ text: t, bold: false, italic: false, underline: false, highlight: false });
+  const plain = (t: string) => {
+    if (t) out.push({ text: t, ...PLAIN });
+  };
   let last = 0;
   let m: RegExpExecArray | null;
   TOKEN_RE.lastIndex = 0;
   while ((m = TOKEN_RE.exec(text)) !== null) {
+    const g = m.groups ?? {};
+    // Protocol guard (see the header invariant): "https://…" must never
+    // italicize. Skip just this candidate and rescan from the next char —
+    // the region stays part of the surrounding plain run.
+    if (g.ital !== undefined && m.index > 0 && text[m.index - 1] === ":") {
+      TOKEN_RE.lastIndex = m.index + 1;
+      continue;
+    }
     if (m.index > last) plain(text.slice(last, m.index));
-    if (m[1] !== undefined) {
-      out.push({ text: m[1], bold: true, italic: false, underline: false, highlight: false });
-    } else if (m[2] !== undefined) {
-      out.push({ text: m[2], bold: false, italic: false, underline: true, highlight: false });
-    } else if (m[3] !== undefined) {
-      out.push({ text: m[3], bold: false, italic: false, underline: false, highlight: true });
-    } else if (m[4] !== undefined) {
-      out.push({ text: m[4], bold: false, italic: true, underline: false, highlight: false });
+    if (g.mText !== undefined) {
+      out.push({
+        text: g.mText,
+        ...PLAIN,
+        moment: { snippetId: g.mSnip ?? "", sessionId: g.mSess ?? "" },
+      });
+    } else if (g.bold !== undefined) {
+      out.push({ text: g.bold, ...PLAIN, bold: true });
+    } else if (g.under !== undefined) {
+      out.push({ text: g.under, ...PLAIN, underline: true });
+    } else if (g.orange !== undefined) {
+      out.push({ text: g.orange, ...PLAIN, highlight: true });
+    } else if (g.hl !== undefined) {
+      out.push({ text: g.hl, ...PLAIN, highlight: true });
+    } else if (g.ital !== undefined) {
+      out.push({ text: g.ital, ...PLAIN, italic: true });
+    } else if (g.italLegacy !== undefined) {
+      out.push({ text: g.italLegacy, ...PLAIN, italic: true });
     }
     last = m.index + m[0].length;
   }
   if (last < text.length) plain(text.slice(last));
-  return out.length > 0
-    ? out
-    : [{ text, bold: false, italic: false, underline: false, highlight: false }];
+  return out.length > 0 ? out : [{ text, ...PLAIN }];
+}
+
+/** Raw [start, end) spans of every marker token in `text` — used by
+ *  segmentIdealText to refuse anchor ranges that would slice a token in half
+ *  (which would leak raw marker syntax into the student notebook). */
+export function markerTokenSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  let m: RegExpExecArray | null;
+  TOKEN_RE.lastIndex = 0;
+  while ((m = TOKEN_RE.exec(text)) !== null) {
+    const g = m.groups ?? {};
+    if (g.ital !== undefined && m.index > 0 && text[m.index - 1] === ":") {
+      TOKEN_RE.lastIndex = m.index + 1;
+      continue;
+    }
+    spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
 }
 
 /** Strip all markers (for copy / plain-text fallbacks). */
@@ -52,14 +114,15 @@ export function stripRichMarkers(text: string): string {
 
 export type RichMark = "bold" | "italic" | "underline" | "highlight";
 
+/** The pinned wrappers (FE-9): italic is //…//, the accent is {{orange:…}}. */
 const WRAPPERS: Record<RichMark, [string, string]> = {
   bold: ["**", "**"],
-  italic: ["*", "*"],
+  italic: ["//", "//"],
   underline: ["__", "__"],
-  highlight: ["==", "=="],
+  highlight: ["{{orange:", "}}"],
 };
 
-/** Wrap [start, end) of `text` in the mark's tokens (the editor's B/I/U/HL
+/** Wrap [start, end) of `text` in the mark's tokens (the editor's B/I/U/orange
  *  buttons). A collapsed selection is a no-op. Returns the new text plus the
  *  new selection range (inside the markers). */
 export function wrapSelection(
@@ -79,8 +142,10 @@ export function wrapSelection(
   };
 }
 
-/** Markers → minimal HTML for the print/PDF export (highlight = the brand
- *  orange). Text is HTML-escaped before markers become tags. */
+/** Markers → minimal HTML for the print/PDF export. Styling mirrors the
+ *  RichText renderer (RichText.tsx): the accent is orange TEXT (not a
+ *  background), a key moment is an orange dotted underline — keep the two in
+ *  step when either changes. Text is HTML-escaped before markers become tags. */
 export function richMarkersToHtml(text: string): string {
   const esc = (t: string) =>
     t
@@ -93,8 +158,9 @@ export function richMarkersToHtml(text: string): string {
       if (s.bold) h = `<b>${h}</b>`;
       if (s.italic) h = `<i>${h}</i>`;
       if (s.underline) h = `<u>${h}</u>`;
-      if (s.highlight)
-        h = `<mark style="background:#ee7a2b33;color:inherit">${h}</mark>`;
+      if (s.highlight) h = `<span style="color:#ee7a2b">${h}</span>`;
+      if (s.moment)
+        h = `<span style="color:#ee7a2b;text-decoration:underline dotted;text-underline-offset:3px">${h}</span>`;
       return h;
     })
     .join("");

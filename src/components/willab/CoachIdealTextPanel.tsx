@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlideRender } from "./pdfSlides";
-import { parseRichMarkers } from "@/lib/willab/richMarkers";
+import { MarkerToolbar, RichText } from "./RichText";
 import {
   approveIdealText,
   fetchCoachIdealText,
@@ -301,32 +301,22 @@ function PanelShell({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 overflow-y-auto">{children}</div>;
 }
 
-/** One paragraph rendered read-only with the assembler's markers (bold key
- *  phrases etc.), one font step bigger than the readout. */
+/** One paragraph rendered read-only with the shared marker renderer (bold key
+ *  phrases, italics, orange accents, moment links), one font step bigger than
+ *  the readout. */
 function RichParagraph({ text }: { text: string }) {
   return (
     <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
-      {parseRichMarkers(text).map((seg, i) => (
-        <span
-          key={i}
-          className={[
-            seg.bold ? "font-semibold" : "",
-            seg.italic ? "italic" : "",
-            seg.underline ? "underline underline-offset-2" : "",
-            seg.highlight ? "rounded bg-primary/20 px-0.5" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          {seg.text}
-        </span>
-      ))}
+      <RichText text={text} />
     </p>
   );
 }
 
-/** The in-place editor for a single paragraph: an auto-growing textarea that
- *  focuses on mount and returns to the read view on blur. */
+/** The in-place editor for a single paragraph: the FE-9 formatting bar (the
+ *  same options the student gets) over an auto-growing textarea that focuses
+ *  on mount and returns to the read view on blur. The toolbar wraps the
+ *  selection in the pinned markers; its buttons act on mousedown so they
+ *  don't blur (= close) the editor. */
 function ParagraphEditor({
   value,
   onChange,
@@ -351,13 +341,16 @@ function ParagraphEditor({
     el.style.height = `${el.scrollHeight}px`;
   }, [value]);
   return (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onDone}
-      rows={1}
-      className="w-full resize-none overflow-hidden rounded-lg border border-primary bg-background px-3 py-2 text-[17px] leading-relaxed outline-none"
-    />
+    <div className="flex flex-col gap-1.5">
+      <MarkerToolbar textareaRef={ref} value={value} onChange={onChange} />
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onDone}
+        rows={1}
+        className="w-full resize-none overflow-hidden rounded-lg border border-primary bg-background px-3 py-2 text-[17px] leading-relaxed outline-none"
+      />
+    </div>
   );
 }

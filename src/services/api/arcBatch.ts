@@ -12,13 +12,12 @@ import { getAuthToken } from "@/lib/api/auth-client";
 
 export type PublishArcResult =
   | { kind: "ok"; takesPublished: number; deliveredAt: string | null }
-  | { kind: "ideal_text_incomplete"; slidesPending: number[] }
   | { kind: "error"; status: number; message: string };
 
-/** POST /v2/coach/arc/<id>/publish — deliver the full analysis (4 bubbles).
- *  409 IDEAL_TEXT_INCOMPLETE = the ideal text needs finishing/approval first
- *  (that ordering is intended). Other 409s (e.g. not all takes saved) surface
- *  as their BE message. */
+/** POST publish (BFF → BE publish-analysis) — deliver the full analysis (4
+ *  bubbles). The live 409s are TAKES_NOT_SAVED / IDEAL_TEXT_NOT_APPROVED;
+ *  they surface via the BE's own message (the wrap-up's review-state read
+ *  should have prevented them). */
 export async function publishArc(arcId: string): Promise<PublishArcResult> {
   const token = await getAuthToken();
   if (!token) {
@@ -37,17 +36,23 @@ export async function publishArc(arcId: string): Promise<PublishArcResult> {
 
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
 
-  if (res.status === 409 && body?.code === "IDEAL_TEXT_INCOMPLETE") {
-    const pending = Array.isArray(body.slides_pending)
-      ? body.slides_pending.filter(
-          (n): n is number => typeof n === "number" && Number.isFinite(n)
-        )
-      : [];
-    return { kind: "ideal_text_incomplete", slidesPending: pending };
-  }
   if (!res.ok) {
+    // The BE's 409s are code-shaped (TAKES_NOT_SAVED / IDEAL_TEXT_NOT_APPROVED)
+    // and may carry the human text under message/detail rather than error —
+    // try each, then map the bare code, before the generic fallback.
+    const firstString = (...vals: unknown[]): string | null => {
+      for (const v of vals) if (typeof v === "string" && v.length > 0) return v;
+      return null;
+    };
+    const codeCopy =
+      body?.code === "TAKES_NOT_SAVED"
+        ? "Save each recording's feedback first."
+        : body?.code === "IDEAL_TEXT_NOT_APPROVED"
+        ? "Approve the ideal text first."
+        : null;
     const msg =
-      (typeof body?.error === "string" && body.error) ||
+      firstString(body?.error, body?.message, body?.detail) ??
+      codeCopy ??
       `Publish failed (HTTP ${res.status}).`;
     return { kind: "error", status: res.status, message: msg };
   }

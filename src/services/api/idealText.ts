@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { markerTokenSpans } from "@/lib/willab/richMarkers";
 
 /* -------------------------------------------------------------------------- */
 /*  idealText — the arc's ONE-BLOCK ideal text (delivery layer)                */
@@ -254,7 +255,11 @@ export interface IdealSegment {
 /** Split the ideal text into render segments: the FIRST case-insensitive
  *  occurrence of each key-moment anchor becomes an underlined link segment,
  *  the first occurrence of each key phrase becomes bold. Overlaps resolve
- *  first-come (earlier start wins; moments matched before phrases). Pure. */
+ *  first-come (earlier start wins; moments matched before phrases). A range
+ *  that would slice a rich-marker token in half is dropped (FE-9): the text
+ *  may carry coach markers, and cutting one mid-token would leak raw marker
+ *  syntax into the flanking segments. A token FULLY inside a range is fine —
+ *  the segment's own marker rendering handles it. Pure. */
 export function segmentIdealText(
   text: string,
   keyPhrases: string[],
@@ -262,19 +267,30 @@ export function segmentIdealText(
 ): IdealSegment[] {
   if (!text) return [];
   const lower = text.toLowerCase();
+  const tokenSpans = markerTokenSpans(text);
+  // True when [start, end) partially overlaps a marker token (either boundary
+  // inside the token, or the range strictly inside it).
+  const slicesToken = (start: number, end: number): boolean =>
+    tokenSpans.some(
+      ([ts, te]) => start < te && end > ts && !(ts >= start && te <= end)
+    );
   type Range = { start: number; end: number; bold?: boolean; moment?: IdealKeyMomentLink };
   const candidates: Range[] = [];
   for (const m of keyMoments) {
     const a = m.anchor.trim().toLowerCase();
     if (!a) continue;
     const i = lower.indexOf(a);
-    if (i >= 0) candidates.push({ start: i, end: i + a.length, moment: m });
+    if (i >= 0 && !slicesToken(i, i + a.length)) {
+      candidates.push({ start: i, end: i + a.length, moment: m });
+    }
   }
   for (const p of keyPhrases) {
     const q = p.trim().toLowerCase();
     if (!q) continue;
     const i = lower.indexOf(q);
-    if (i >= 0) candidates.push({ start: i, end: i + q.length, bold: true });
+    if (i >= 0 && !slicesToken(i, i + q.length)) {
+      candidates.push({ start: i, end: i + q.length, bold: true });
+    }
   }
   // Earlier start wins; a moment beats a phrase at the same start (it carries
   // the deep-link). Drop anything overlapping an accepted range.

@@ -170,20 +170,27 @@ export default function CoachReviewOverlay({
     return () => clearInterval(id);
   }, [arcId, atWrapupNow, delivered, reviewState?.published, refreshReviewState]);
 
-  const floorMet = session
-    ? session.snippets.some((s) => {
-        const cs = localState[s.id] ?? s.coachState;
-        return cs.surfaced && cs.note.trim() !== "";
-      })
-    : false;
+  // FE-8 — informational only, NEVER a save gate: "reviewed, nothing to
+  // surface" is a valid coach verdict. The BE stamps coach_feedback_saved_at
+  // on an EMPTY save by design (test_save_feedback_no_body_still_stamps), and
+  // publish-analysis flips takes with zero surfaced snippets. The old FE floor
+  // ("surface ≥1 snippet + note to save") deadlocked publishing on such takes.
+  // Tests SURFACED alone — the save payload persists `surfaced` regardless of
+  // notes, so a surfaced note-less snippet still reaches the user and must not
+  // trip a "user gets nothing" banner.
+  const nothingSurfaced = session
+    ? !session.snippets.some(
+        (s) => (localState[s.id] ?? s.coachState).surfaced
+      )
+    : true;
 
   // Delivery layer — the per-take action is a SAVE checkpoint, not a publish:
   // it persists the take's drafts + stamps coach_feedback_saved_at server-side
   // and delivers NOTHING. The user only receives the 4 bubbles at the arc-level
-  // "Save and Publish full analysis" (ideal-text panel), which requires all 3
-  // takes saved + the ideal text approved.
+  // PUBLISH on the wrap-up, which requires all takes saved + the ideal text
+  // approved.
   async function handleSaveFeedback() {
-    if (!session || !floorMet || saving || publishing) return;
+    if (!session || saving || publishing) return;
     setSaving(true);
     setPublishError(null);
 
@@ -250,9 +257,6 @@ export default function CoachReviewOverlay({
       clearCoachReviewDraft(sessionId);
       setDelivered(true);
       onPublished?.(sessionId);
-    } else if (r.kind === "ideal_text_incomplete") {
-      setPublishError("The ideal text needs finishing before the publish.");
-      void refreshReviewState();
     } else {
       setPublishError(r.message);
       void refreshReviewState();
@@ -352,9 +356,12 @@ export default function CoachReviewOverlay({
       <div className={isAtWrapup ? "flex flex-col gap-4 px-4 py-4" : "hidden"}>
         <h2 className="text-[20px] font-semibold text-foreground">Wrap up</h2>
 
-        {!floorMet ? (
+        {/* FE-8 — a non-blocking nudge, not a gate: saving with nothing
+            surfaced is valid ("reviewed, nothing to surface"). */}
+        {nothingSurfaced ? (
           <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
-            Surface at least one snippet and add a note to save.
+            Nothing surfaced yet. You can still save; the user just won&apos;t
+            get snippet feedback from this take.
           </p>
         ) : null}
 
@@ -375,7 +382,7 @@ export default function CoachReviewOverlay({
               type="button"
               variant="outline"
               onClick={() => void handleSaveFeedback()}
-              disabled={!floorMet || saving || publishing}
+              disabled={saving || publishing}
               className="shrink-0 rounded-full disabled:opacity-50"
             >
               {saving ? "Saving…" : savedFlash ? "Saved" : "Save feedback"}
@@ -398,13 +405,22 @@ export default function CoachReviewOverlay({
               Nothing to assemble yet. Mark some key moments in the takes first.
             </p>
           ) : onOpenArcIdeal && session.arcId ? (
-            <Button
-              type="button"
-              onClick={() => onOpenArcIdeal(session.arcId!)}
-              className="h-11 w-full rounded-full bg-primary text-[14px] font-medium text-primary-foreground"
-            >
-              Open the ideal text
-            </Button>
+            <>
+              <Button
+                type="button"
+                onClick={() => onOpenArcIdeal(session.arcId!)}
+                className="h-11 w-full rounded-full bg-primary text-[14px] font-medium text-primary-foreground"
+              >
+                Open the ideal text
+              </Button>
+              {/* FE-8 — the founder's "Save ≠ approve" confusion: make the
+                  approval step explicit while PUBLISH is still hidden. */}
+              {reviewState && !reviewState.ideal.approved ? (
+                <p className="text-center text-[12px] text-muted-foreground">
+                  Review and Approve it there to unlock publishing.
+                </p>
+              ) : null}
+            </>
           ) : (
             <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-[13px] text-muted-foreground">
               Open the ideal text from the student&apos;s page to review and

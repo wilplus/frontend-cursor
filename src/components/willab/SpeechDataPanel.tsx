@@ -22,12 +22,17 @@ import type { ReadoutFeatures } from "./readout";
 /*  neutral label ("Speech data") — never "your".                               */
 /* -------------------------------------------------------------------------- */
 
-const hz = (v: number | null): string => (v != null ? `${Math.round(v)} Hz` : "—");
-const pct = (v: number | null): string =>
+/** The shared unit formatters — exported so every surface showing these
+ *  figures (this panel, the coach card's FE-7 acoustic disclosure) rounds and
+ *  labels them identically and can't drift. */
+export const hz = (v: number | null): string =>
+  v != null ? `${Math.round(v)} Hz` : "—";
+export const pct = (v: number | null): string =>
   v != null ? `${Math.round(v * 100)}%` : "—";
-const wpm = (v: number | null): string =>
+export const wpm = (v: number | null): string =>
   v != null ? `${Math.round(v)} wpm` : "—";
-const db = (v: number | null): string => (v != null ? `${Math.round(v)} dB` : "—");
+export const db = (v: number | null): string =>
+  v != null ? `${Math.round(v)} dB` : "—";
 
 export default function SpeechDataPanel({
   features,
