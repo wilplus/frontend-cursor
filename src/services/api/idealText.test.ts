@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mapIdealText, segmentIdealText } from "./idealText";
+import {
+  mapIdealText,
+  mapInstantIdealText,
+  segmentIdealText,
+} from "./idealText";
 
 describe("segmentIdealText (delivery layer notebook)", () => {
   const moments = [
@@ -96,5 +100,48 @@ describe("mapIdealText", () => {
   it("nulls on missing text", () => {
     expect(mapIdealText({ key_phrases: [] })).toBeNull();
     expect(mapIdealText(null)).toBeNull();
+  });
+});
+
+describe("mapInstantIdealText (instant lane)", () => {
+  it("maps the instant payload: text + moments + paywall figures", () => {
+    const r = mapInstantIdealText({
+      arc_id: "a1",
+      variant: "instant",
+      text: "Draft text",
+      key_moments: [{ anchor: "Draft", snippet_id: "s", take_session_id: "k" }],
+      approved: false,
+      paywall: { price: 25, credits_current: 10 },
+    });
+    expect(r?.kind).toBe("instant");
+    expect(r?.ideal.text).toBe("Draft text");
+    expect(r?.ideal.approved).toBe(false);
+    expect(r?.ideal.notes).toBeNull();
+    expect(r?.paywall).toEqual({ priceCredits: 25, creditsCurrent: 10 });
+  });
+
+  it("reads alternate paywall spellings and nulls missing figures", () => {
+    expect(
+      mapInstantIdealText({ text: "t", paywall: { price_credits: 25 } })?.paywall
+    ).toEqual({ priceCredits: 25, creditsCurrent: null });
+    expect(mapInstantIdealText({ text: "t" })?.paywall).toEqual({
+      priceCredits: null,
+      creditsCurrent: null,
+    });
+  });
+
+  it("nulls when the payload has no text (caller degrades to pending)", () => {
+    expect(mapInstantIdealText({ variant: "instant", paywall: {} })).toBeNull();
+  });
+});
+
+describe("mapInstantIdealText entitlement (R-i1)", () => {
+  it("reads the already-paid signal across spellings, defaulting false", () => {
+    expect(mapInstantIdealText({ text: "t", entitled: true })?.entitled).toBe(true);
+    expect(mapInstantIdealText({ text: "t", paid: true })?.entitled).toBe(true);
+    expect(
+      mapInstantIdealText({ text: "t", paywall: { entitled: true } })?.entitled
+    ).toBe(true);
+    expect(mapInstantIdealText({ text: "t" })?.entitled).toBe(false);
   });
 });

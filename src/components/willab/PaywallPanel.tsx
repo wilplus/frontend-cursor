@@ -20,16 +20,29 @@ import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 export default function PaywallPanel({
   arcId,
   onUnlocked,
+  lead,
+  priceCredits = null,
+  creditsCurrent = null,
 }: {
   arcId: string;
   onUnlocked: () => void;
+  /** Optional lead copy override (the instant-lane upsell reads differently
+   *  from the hard 402 wall). */
+  lead?: string;
+  /** Payload-provided figures (instant lane). null → the constant / the
+   *  best-effort balance fetch below. */
+  priceCredits?: number | null;
+  creditsCurrent?: number | null;
 }) {
-  const [credits, setCredits] = useState<number | null>(null);
+  const [credits, setCredits] = useState<number | null>(creditsCurrent);
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const price = priceCredits ?? ARC_UNLOCK_CREDITS;
 
-  // Best-effort balance for the "you have N" line (same source as the header).
+  // Best-effort balance for the "you have N" line (same source as the header);
+  // skipped when the caller already has the figure from its payload.
   useEffect(() => {
+    if (creditsCurrent !== null) return;
     let active = true;
     void homeworkApi
       .getStatus()
@@ -40,7 +53,7 @@ export default function PaywallPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [creditsCurrent]);
 
   async function buy() {
     if (buying) return;
@@ -69,12 +82,14 @@ export default function PaywallPanel({
         <Lock className="h-5 w-5 text-muted-foreground" aria-hidden />
       </span>
       <p className="max-w-sm text-[16px] leading-relaxed text-foreground">
-        This costs {ARC_UNLOCK_CREDITS} credits
-        {credits !== null ? `, you have ${credits}` : ""}. Buy your ideal text
-        and behavioural analysis?
+        {lead ??
+          `This costs ${price} credits${
+            credits !== null ? `, you have ${credits}` : ""
+          }. Buy your ideal text and behavioural analysis?`}
       </p>
       <p className="max-w-sm text-[13px] text-muted-foreground">
         One unlock opens all three takes&apos; feedback and your ideal text.
+        {lead && credits !== null ? ` You have ${credits} credits.` : ""}
       </p>
       <Button
         type="button"
@@ -82,7 +97,7 @@ export default function PaywallPanel({
         disabled={buying}
         className="h-11 rounded-full bg-foreground px-7 text-[15px] font-medium text-background hover:bg-foreground/90"
       >
-        {buying ? "Unlocking…" : `Buy for ${ARC_UNLOCK_CREDITS} credits`}
+        {buying ? "Unlocking…" : `Buy for ${price} credits`}
       </Button>
       {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, PencilLine } from "lucide-react";
+import { Check, Copy, PencilLine, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
@@ -15,6 +15,7 @@ import {
   segmentIdealText,
   type IdealKeyMomentLink,
   type IdealText,
+  type InstantPaywall,
 } from "@/services/api/idealText";
 
 /* -------------------------------------------------------------------------- */
@@ -40,10 +41,36 @@ export default function IdealTextOverlay({
   // nested FeedbackOverlay, which pushes its own entry on top).
   useBackDismiss(onClose);
   const [status, setStatus] = useState<
-    "loading" | "ready" | "locked" | "pending" | "error"
+    "loading" | "ready" | "instant" | "locked" | "pending" | "error"
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
+  // Instant lane — the payload's paywall figures for the upsell CTA.
+  const [instantPaywall, setInstantPaywall] = useState<InstantPaywall | null>(
+    null
+  );
+  // The user unlocked from THIS overlay (or the payload says they're already
+  // entitled). The BE serves variant:"instant" for any unapproved arc, paid or
+  // not — so after a successful unlock the refetch lands back on instant and,
+  // without this flag, would re-show a "Buy" CTA for an arc the user just
+  // bought (review R-i1). Unlocked → the upsell swaps to a confirmation.
+  const [unlocked, setUnlocked] = useState(false);
+  // The last instant draft, kept so a post-unlock refetch that maps to
+  // "pending" (a BE serving instant strictly to unpaid arcs) doesn't make the
+  // text the user was just reading vanish behind a bare pending line (R-i2).
+  const lastInstantRef = useRef<{
+    ideal: IdealText;
+    paywall: InstantPaywall;
+  } | null>(null);
+  const unlockedRef = useRef(false);
   const [refetchNonce, setRefetchNonce] = useState(0);
+
+  // A different arc = a fresh entitlement question; never carry the unlocked
+  // flag or a cached draft across arcs.
+  useEffect(() => {
+    unlockedRef.current = false;
+    lastInstantRef.current = null;
+    setUnlocked(false);
+  }, [arcId]);
 
   // Notebook state: the personal copy wins for display once saved.
   const [notes, setNotes] = useState<string | null>(null);
@@ -65,6 +92,31 @@ export default function IdealTextOverlay({
         setIdeal(r.ideal);
         setNotes(r.ideal.notes);
         setStatus("ready");
+      } else if (r.kind === "instant") {
+        // The free machine draft — same reading view, plus the polishing
+        // banner + upsell; no personal-notes editing (perfected-lane feature).
+        setIdeal(r.ideal);
+        setNotes(null);
+        setInstantPaywall(r.paywall);
+        lastInstantRef.current = { ideal: r.ideal, paywall: r.paywall };
+        if (r.entitled) {
+          unlockedRef.current = true;
+          setUnlocked(true);
+        }
+        setStatus("instant");
+      } else if (
+        r.kind === "pending" &&
+        unlockedRef.current &&
+        lastInstantRef.current
+      ) {
+        // R-i2 — the user just unlocked and the BE stopped serving the instant
+        // draft (a strictly-unpaid instant lane). Keep showing the draft they
+        // were reading, with the unlocked confirmation, instead of swapping
+        // paid-for content for a bare pending line.
+        setIdeal(lastInstantRef.current.ideal);
+        setNotes(null);
+        setInstantPaywall(lastInstantRef.current.paywall);
+        setStatus("instant");
       } else {
         setStatus(r.kind);
       }
@@ -90,29 +142,31 @@ export default function IdealTextOverlay({
           Your ideal text
         </span>
         <div className="flex items-center gap-1.5">
+          {(status === "ready" || status === "instant") && !editing ? (
+            <button
+              type="button"
+              onClick={copyText}
+              aria-label={copied ? "Copied" : "Copy the text"}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {copied ? (
+                <Check className="h-4 w-4 text-success" aria-hidden />
+              ) : (
+                <Copy className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          ) : null}
+          {/* Personal-notes editing is a perfected-lane feature — no pencil on
+              the instant draft. */}
           {status === "ready" && !editing ? (
-            <>
-              <button
-                type="button"
-                onClick={copyText}
-                aria-label={copied ? "Copied" : "Copy the text"}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-success" aria-hidden />
-                ) : (
-                  <Copy className="h-4 w-4" aria-hidden />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                aria-label="Edit your copy"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <PencilLine className="h-4 w-4" aria-hidden />
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Edit your copy"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <PencilLine className="h-4 w-4" aria-hidden />
+            </button>
           ) : null}
           <OverlayCloseButton onClick={onClose} />
         </div>
@@ -136,6 +190,52 @@ export default function IdealTextOverlay({
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
               Couldn&apos;t load your ideal text. Try again in a moment.
             </p>
+          ) : status === "instant" && ideal ? (
+            <div className="flex flex-col gap-5">
+              {/* The persistent instant banner — this text is a DRAFT the
+                  machine assembled; the coach-perfected version replaces it
+                  on this same screen once approved + unlocked. */}
+              <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+                <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <p className="text-[13px] leading-relaxed text-foreground">
+                  Instant draft. Your coach is polishing the full version.
+                </p>
+              </div>
+              <NotebookText
+                text={displayText}
+                ideal={ideal}
+                onMomentTap={setMomentAsk}
+              />
+              {/* The upsell — same unlock seam as the hard paywall, with the
+                  payload's figures and instant-specific lead copy. Once
+                  unlocked (here, or already entitled per the payload), the Buy
+                  CTA must never re-show for this arc: the perfected text just
+                  isn't approved yet, which is the coach's timeline, not a
+                  payment problem (review R-i1). */}
+              {unlocked ? (
+                <div className="flex items-center gap-2 rounded-2xl border border-success/40 bg-success/5 px-4 py-3">
+                  <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />
+                  <p className="text-[13px] leading-relaxed text-foreground">
+                    Full analysis unlocked. The coach-perfected version lands
+                    here as soon as your coach approves it.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border bg-card">
+                  <PaywallPanel
+                    arcId={arcId}
+                    onUnlocked={() => {
+                      unlockedRef.current = true;
+                      setUnlocked(true);
+                      setRefetchNonce((n) => n + 1);
+                    }}
+                    lead="Want the coach-perfected version? Unlock the full analysis."
+                    priceCredits={instantPaywall?.priceCredits ?? null}
+                    creditsCurrent={instantPaywall?.creditsCurrent ?? null}
+                  />
+                </div>
+              )}
+            </div>
           ) : editing && ideal ? (
             <NotebookEditor
               arcId={arcId}
