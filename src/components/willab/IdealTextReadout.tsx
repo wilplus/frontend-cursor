@@ -5,6 +5,7 @@ import { Check, Copy, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import { fetchIdealText, saveIdealUserEdit } from "@/services/api/idealText";
+import { MarkerToolbar } from "./RichText";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -174,6 +175,14 @@ export default function IdealTextReadout({
     el.style.height = `${el.scrollHeight}px`;
   }, [text, editing]);
 
+  // The one edit path — a keystroke or a toolbar wrap: mark dirty, reset the
+  // save flash, update the text (the debounce effect persists it).
+  const applyEdit = useCallback((next: string) => {
+    dirtyRef.current = true;
+    setSaveState("idle");
+    setText(next);
+  }, []);
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
@@ -218,16 +227,21 @@ export default function IdealTextReadout({
       </div>
 
       {editing ? (
-        <textarea
-          ref={editorRef}
-          value={text}
-          onChange={(e) => {
-            dirtyRef.current = true;
-            setSaveState("idle");
-            setText(e.target.value);
-          }}
-          className="w-full resize-none overflow-hidden rounded-2xl border border-primary bg-background px-4 py-4 text-[17px] leading-relaxed outline-none"
-        />
+        <div className="flex flex-col gap-2">
+          {/* Bold / underline / italic / orange — wraps the selection in the
+              shared marker contract; renders in the read view + everywhere. */}
+          <MarkerToolbar
+            textareaRef={editorRef}
+            value={text}
+            onChange={applyEdit}
+          />
+          <textarea
+            ref={editorRef}
+            value={text}
+            onChange={(e) => applyEdit(e.target.value)}
+            className="w-full resize-none overflow-hidden rounded-2xl border border-primary bg-background px-4 py-4 text-[17px] leading-relaxed outline-none"
+          />
+        </div>
       ) : (
         <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
           {text}

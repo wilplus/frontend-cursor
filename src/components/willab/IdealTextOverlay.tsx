@@ -8,7 +8,7 @@ import LoadingState from "./LoadingState";
 import PaywallPanel from "./PaywallPanel";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
-import { RichText } from "./RichText";
+import { MarkerToolbar, RichText } from "./RichText";
 import {
   fetchIdealText,
   saveIdealNotes,
@@ -633,6 +633,9 @@ function NotebookEditor({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
+      {/* Bold / underline / italic / orange — the same shared toolbar the coach
+          gets; wraps the selection in the pinned marker contract. */}
+      <MarkerToolbar textareaRef={ref} value={draft} onChange={setDraft} />
       <textarea
         ref={ref}
         value={draft}
