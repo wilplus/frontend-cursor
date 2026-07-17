@@ -12,6 +12,7 @@ import { RichText } from "./RichText";
 import {
   fetchIdealText,
   saveIdealNotes,
+  saveIdealUserEdit,
   segmentIdealText,
   type IdealKeyMomentLink,
   type IdealText,
@@ -322,8 +323,21 @@ export default function IdealTextOverlay({
             <NotebookEditor
               arcId={arcId}
               initial={displayText}
+              // #214 — SD edits persist through the user-edit PUT (the
+              // student's edit always wins; supersede retried inside the
+              // service). Legacy mode keeps the personal-notes PUT.
+              save={
+                sd
+                  ? async (t: string) =>
+                      (await saveIdealUserEdit(arcId, t, sd.version)).ok
+                  : undefined
+              }
               onSaved={(text) => {
-                setNotes(text);
+                if (sd) {
+                  setIdeal((prev) => (prev ? { ...prev, text } : prev));
+                } else {
+                  setNotes(text);
+                }
                 setEditing(false);
               }}
               onCancel={() => setEditing(false)}
@@ -580,11 +594,15 @@ function NotebookText({
 function NotebookEditor({
   arcId,
   initial,
+  save: saveOverride,
   onSaved,
   onCancel,
 }: {
   arcId: string;
   initial: string;
+  /** #214 — optional persistence override (the SD user-edit PUT); default is
+   *  the legacy personal-notes PUT. Returns success. */
+  save?: (text: string) => Promise<boolean>;
   onSaved: (text: string) => void;
   onCancel: () => void;
 }) {
@@ -605,7 +623,9 @@ function NotebookEditor({
     if (saving || empty) return;
     setSaving(true);
     setError(null);
-    const ok = await saveIdealNotes(arcId, draft);
+    const ok = saveOverride
+      ? await saveOverride(draft)
+      : await saveIdealNotes(arcId, draft);
     setSaving(false);
     if (ok) onSaved(draft);
     else setError("Couldn't save. Try again.");
@@ -620,7 +640,9 @@ function NotebookEditor({
         className="min-h-[50vh] w-full flex-1 resize-none rounded-2xl border border-border bg-background px-4 py-4 text-[18px] leading-relaxed outline-none focus:border-primary"
       />
       <p className="text-[12px] text-muted-foreground">
-        This is your personal copy. The coach-approved original stays unchanged.
+        {saveOverride
+          ? "Your edit becomes the text. Your coach sees it too."
+          : "This is your personal copy. The coach-approved original stays unchanged."}
       </p>
       <div className="flex items-center gap-2">
         <Button

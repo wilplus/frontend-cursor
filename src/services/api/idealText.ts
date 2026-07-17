@@ -63,6 +63,9 @@ export type IdealTextResult =
       version: number | null;
       momentsUnlocked: boolean;
       priceCredits: number | null;
+      /** #214 — the displayed text IS the student's saved edit (locked rule:
+       *  the student's edit always wins the text). false → machine/coach text. */
+      userEdited: boolean;
     }
   | { kind: "locked" } // 402 — the $25 unlock opens it (legacy lane)
   | { kind: "pending" } // 404 / not approved yet — coach still working
@@ -178,6 +181,7 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
         Number.isFinite(body.price_credits)
           ? body.price_credits
           : null,
+      userEdited: body.user_edited === true,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
@@ -192,6 +196,57 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
   if (!ideal) return { kind: "pending" };
   if (!ideal.approved) return { kind: "pending" };
   return { kind: "ready", ideal };
+}
+
+export type UserEditSaveResult =
+  | { ok: true; version: number | null }
+  | { ok: false };
+
+/**
+ * #214 — persist the student's edit of their ideal text. The student's edit
+ * always wins the displayed text (locked founder rule), so a 409
+ * VERSION_SUPERSEDED (a newer version assembled mid-edit) is retried ONCE
+ * against the server's current_version — same words, fresh version stamp.
+ * Soft-fails to {ok:false}; callers keep the local text either way.
+ */
+export async function saveIdealUserEdit(
+  arcId: string,
+  text: string,
+  version: number | null
+): Promise<UserEditSaveResult> {
+  // Header when available; otherwise the BFF's cookie-session fallback
+  // authenticates (same pattern as fetchIdealText / saveIdealNotes).
+  const token = await getAuthToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const put = async (v: number | null): Promise<Response | null> => {
+    try {
+      return await fetch(
+        `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/user-edit`,
+        {
+          method: "PUT",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ text, version: v }),
+        }
+      );
+    } catch {
+      return null;
+    }
+  };
+  let res = await put(version);
+  if (res && res.status === 409) {
+    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    const current =
+      typeof body?.current_version === "number" ? body.current_version : null;
+    res = await put(current);
+  }
+  if (!res || !res.ok) return { ok: false };
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  return {
+    ok: true,
+    version: typeof body?.version === "number" ? body.version : null,
+  };
 }
 
 /** Save the user's PERSONAL notebook copy (A6 — never the canonical). */
@@ -245,6 +300,9 @@ export interface CoachIdealText {
   /** The arc's deck (for the redesign's cover slide). Safe-ahead: null until
    *  the BE echoes presentation_ref here → the panel shows a blank cover. */
   presentationRef: string | null;
+  /** #214 — the STUDENT's own edit of the current version (read-only reference
+   *  for the coach; separate lane, never merged automatically). null = none. */
+  userEdit: { text: string; version: number | null; updatedAt: string | null } | null;
 }
 
 export async function fetchCoachIdealText(
@@ -296,6 +354,21 @@ export async function fetchCoachIdealText(
       body.presentation_ref.length > 0
         ? body.presentation_ref
         : null,
+    userEdit: (() => {
+      const ue = body.user_edit;
+      if (!ue || typeof ue !== "object") return null;
+      const u = ue as Record<string, unknown>;
+      const text = typeof u.text === "string" ? u.text : "";
+      if (!text) return null;
+      return {
+        text,
+        version:
+          typeof u.version === "number" && Number.isFinite(u.version)
+            ? u.version
+            : null,
+        updatedAt: typeof u.updated_at === "string" ? u.updated_at : null,
+      };
+    })(),
   };
 }
 

@@ -794,6 +794,7 @@ export default function LabOverlay({
               }
             }
             sessionId={labSessionId}
+            arcId={arcId}
             signedIn={signedIn}
             onAutoSent={() => {
               // Mirrors the old SendGate.onSent bookkeeping, minus the screen
