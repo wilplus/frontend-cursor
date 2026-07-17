@@ -43,6 +43,29 @@ describe("segmentIdealText (delivery layer notebook)", () => {
     expect(segs.map((s) => s.text).join("")).toBe("alpha beta gamma");
   });
 
+  it("never slices a rich-marker token (FE-9): in-token matches drop, contained tokens pass", () => {
+    // Key phrase sits INSIDE {{orange:…}} — accepting it would split the braces
+    // across segments and leak raw "{{orange:" / "}}" into the notebook.
+    const inToken = segmentIdealText(
+      "start {{orange:great opener}} end",
+      ["great opener"],
+      []
+    );
+    expect(inToken.filter((s) => s.bold).length).toBe(0);
+    expect(inToken.map((s) => s.text).join("")).toBe(
+      "start {{orange:great opener}} end"
+    );
+    // A token FULLY inside the matched range is fine — the segment's own
+    // marker rendering handles it.
+    const contained = segmentIdealText(
+      "the **great** opener works",
+      ["the **great** opener"],
+      []
+    );
+    expect(contained[0].bold).toBe(true);
+    expect(contained[0].text).toBe("the **great** opener");
+  });
+
   it("returns [] for empty text and whole-text single segment when nothing matches", () => {
     expect(segmentIdealText("", ["x"], [])).toEqual([]);
     expect(segmentIdealText("plain words", ["zzz"], [])).toEqual([

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -8,6 +8,7 @@ import LoadingState from "./LoadingState";
 import PaywallPanel from "./PaywallPanel";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
+import { RichText } from "./RichText";
 import {
   fetchIdealText,
   saveIdealNotes,
@@ -206,7 +207,15 @@ function NotebookText({
   ideal: IdealText;
   onMomentTap: (m: IdealKeyMomentLink) => void;
 }) {
-  const segments = segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments);
+  const segments = useMemo(
+    () => segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
+    [text, ideal.keyPhrases, ideal.keyMoments]
+  );
+  // FE-9 — an INLINE [[moment:…]] marker (coach-authored) is as tappable as an
+  // anchor-based key moment: bridge RichText's {snippetId, sessionId} shape to
+  // the overlay's IdealKeyMomentLink flow.
+  const onInlineMoment = (m: { snippetId: string; sessionId: string }) =>
+    onMomentTap({ anchor: "", snippetId: m.snippetId, takeSessionId: m.sessionId });
   return (
     <p className="whitespace-pre-line text-[24px] leading-relaxed text-foreground">
       {segments.map((s, i) =>
@@ -217,14 +226,20 @@ function NotebookText({
             onClick={() => onMomentTap(s.moment!)}
             className="inline underline decoration-primary decoration-2 underline-offset-4 transition-colors hover:text-primary"
           >
-            {s.text}
+            {/* No onMomentTap inside — never nest a button in a button. */}
+            <RichText text={s.text} />
           </button>
         ) : s.bold ? (
           <strong key={i} className="font-semibold">
-            {s.text}
+            <RichText text={s.text} onMomentTap={onInlineMoment} />
           </strong>
         ) : (
-          <span key={i}>{s.text}</span>
+          // FE-9 — the coach's inline markers (bold / italic / underline /
+          // orange / moment links) render here too, identically to the coach
+          // preview, instead of leaking raw marker syntax into the notebook.
+          <span key={i}>
+            <RichText text={s.text} onMomentTap={onInlineMoment} />
+          </span>
         )
       )}
     </p>

@@ -73,6 +73,12 @@ export default function CoachSnippetReviewCard({
   const [coachState, setCoachState] = useState<CoachSnippetState>(
     initialState ?? snippet.coachState
   );
+  // FE-5 — the freshest local state for async completions (a video upload
+  // finishing must merge against what the coach has edited SINCE the click,
+  // not the click-time closure — that stale replace was the "direction chip
+  // un-marks after upload" bug).
+  const coachStateRef = useRef(coachState);
+  coachStateRef.current = coachState;
   const [savingField, setSavingField] = useState<"breakthrough" | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -95,31 +101,40 @@ export default function CoachSnippetReviewCard({
 
   // The local merge: apply the patch, tell the overlay. This is the ONLY write
   // path for note/direction/tag/surfaced (server persistence happens at
-  // Publish via the full snippets[] payload).
+  // Publish via the full snippets[] payload). Reads through coachStateRef, not
+  // the render closure, so a call AFTER an await (the video upload/remove
+  // paths) merges against the coach's latest edits instead of click-time state.
   const applyLocal = useCallback(
     (patch: Partial<CoachSnippetState>) => {
-      const next = { ...coachState, ...patch };
+      const next = { ...coachStateRef.current, ...patch };
+      coachStateRef.current = next;
       setCoachState(next);
       onStateChange?.(snippet.id, next);
     },
-    [coachState, snippet.id, onStateChange]
+    [snippet.id, onStateChange]
   );
 
   // Post-upload save of the breakthrough ref. Returns a boolean so the capture
   // hook keeps the idempotency key if THIS save fails (retry re-runs under the
   // same key → deduped re-upload, no phantom take). Surfaces its own error via
   // the hook (videoCap.error + Retry), so it doesn't set the shared saveError.
+  //
+  // FE-5 — adopt ONLY the just-persisted video ref from the echo (same policy
+  // as removeVideo). note/direction/tag/surfaced live LOCALLY until the
+  // take-level Save, so local is always at least as fresh as the echo for
+  // those fields — writing any of them back would either revert a mid-upload
+  // edit (the "direction chip un-marks" bug) or resurrect a deliberately
+  // cleared value from the last save.
   const saveBreakthroughRef = useCallback(
     async (url: string): Promise<boolean> => {
-      const next = await saveCoachSnippet(sessionId, snippet.id, {
+      const echo = await saveCoachSnippet(sessionId, snippet.id, {
         breakthroughVideoRef: url,
       });
-      if (!next) return false;
-      setCoachState(next);
-      onStateChange?.(snippet.id, next);
+      if (!echo) return false;
+      applyLocal({ breakthroughVideoRef: echo.breakthroughVideoRef });
       return true;
     },
-    [sessionId, snippet.id, onStateChange]
+    [sessionId, snippet.id, applyLocal]
   );
 
   // Subsystem V: the breakthrough video upload owns its idempotency key +
@@ -216,6 +231,7 @@ export default function CoachSnippetReviewCard({
         durationMs={snippet.durationMs}
         transcript={snippet.transcript}
         acousticRead={snippet.acousticRead}
+        features={snippet.features}
       />
 
       {/* Coach controls — the §F.3 split-sink surface */}

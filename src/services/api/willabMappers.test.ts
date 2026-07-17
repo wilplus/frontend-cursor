@@ -496,12 +496,28 @@ describe("mapCoachReviewSession — acoustic_read + auto_comment (#190, coach-on
     expect(s?.snippets[0].acousticRead).toEqual({
       potentiometer: 1,
       outsideNormalRange: true,
+      baseline: null,
     });
     expect(s?.snippets[0].autoComment).toBe("Sounded rather confident here.");
     expect(s?.snippets[1].acousticRead).toEqual({
       potentiometer: -1,
       outsideNormalRange: false,
+      baseline: null,
     });
+  });
+
+  it("maps acoustic_read.baseline (FE-7): user / take / parent_take, junk → null", () => {
+    const s = mapCoachReviewSession({
+      session_id: "s",
+      snippets: [
+        { id: "n1", acoustic_read: { potentiometer: 0, baseline: "parent_take" } },
+        { id: "n2", acoustic_read: { potentiometer: 0, baseline: "user" } },
+        { id: "n3", acoustic_read: { potentiometer: 0, baseline: "galaxy" } },
+      ],
+    });
+    expect(s?.snippets[0].acousticRead?.baseline).toBe("parent_take");
+    expect(s?.snippets[1].acousticRead?.baseline).toBe("user");
+    expect(s?.snippets[2].acousticRead?.baseline).toBeNull();
   });
 
   it("nulls acoustic_read + auto_comment when absent / malformed", () => {

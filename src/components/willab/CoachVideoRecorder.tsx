@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Video, Square, Check, RotateCcw } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Video, Square, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useCoachVideoRecorder,
@@ -11,14 +11,16 @@ import {
 } from "@/hooks/useCoachVideoRecorder";
 
 /* -------------------------------------------------------------------------- */
-/*  CoachVideoRecorder — in-app camera+mic record flow (FP-2)                  */
+/*  CoachVideoRecorder — in-app camera+mic record flow (FP-2, FE-6)            */
 /*                                                                            */
 /*  A "Record" affordance that sits ALONGSIDE the file input in CoachVideoSlot */
-/*  and the per-snippet breakthrough block. Flow:                             */
-/*    Record → live preview + timer → Stop → playback → "Use this" / "Retake" */
-/*  "Use this" hands the assembled File up to onRecorded, which submits it     */
-/*  through the same idempotency/retry/provenance seam as a file pick (with    */
-/*  source: 'in-app-recording'). The file-input fallback stays put.           */
+/*  and the per-snippet breakthrough block. Flow (FE-6 — no confirm step):    */
+/*    Record → live preview + timer (Stop / Cancel) → stop AUTO-UPLOADS       */
+/*  The assembled File goes straight to onRecorded, through the same          */
+/*  idempotency/retry/provenance seam as a file pick (source:                 */
+/*  'in-app-recording'); the parent renders the upload progress + attached    */
+/*  state. Only an oversized clip (VBR overshoot past the BFF body limit)     */
+/*  pauses for a Retake. The file-input fallback stays put.                   */
 /* -------------------------------------------------------------------------- */
 
 function fmt(sec: number): string {
@@ -32,18 +34,18 @@ export default function CoachVideoRecorder({
   disabled,
   label = "Record",
 }: {
-  /** Fires with the assembled clip when the coach taps "Use this". */
+  /** Fires with the assembled clip as soon as recording stops (FE-6). */
   onRecorded: (file: File) => void;
-  /** Parent is busy (uploading) — block starting a new record / using a clip. */
+  /** Parent is busy (uploading) — block starting a new recording. */
   disabled?: boolean;
   /** Idle-button copy ("Record" vs "Record instead"). */
   label?: string;
 }) {
   const rec = useCoachVideoRecorder();
   const previewElRef = useRef<HTMLVideoElement | null>(null);
-  // Set when a stopped clip exceeds the upload budget (a VBR overshoot) — we
-  // keep the clip so the coach can Retake shorter instead of losing it.
-  const [tooBig, setTooBig] = useState(false);
+  // FE-6 — one auto-submit per assembled clip (guards StrictMode double-run
+  // and re-renders while in the stopped state).
+  const submittedRef = useRef<File | null>(null);
 
   // Bind the live stream to the muted preview element while recording.
   useEffect(() => {
@@ -59,11 +61,27 @@ export default function CoachVideoRecorder({
     }
   }, [rec.previewStream]);
 
+  // FE-6 — auto-upload on stop: the moment the clip is assembled, hand it up
+  // and reset to idle (the parent shows "Uploading…" then the attached video).
+  // An oversized clip stays on screen for a Retake instead of a doomed 413.
+  // While the parent is busy (`disabled` — e.g. a file-input upload already in
+  // flight), HOLD the clip instead of submitting: a concurrent submit would
+  // clobber the in-flight upload's idempotency key and race two uploads. The
+  // effect re-runs when `disabled` clears and submits then.
+  const { state, reset } = rec;
+  const tooBig =
+    state.status === "stopped" && state.file.size > MAX_UPLOAD_BYTES;
+  useEffect(() => {
+    if (state.status !== "stopped" || tooBig || disabled) return;
+    if (submittedRef.current === state.file) return;
+    submittedRef.current = state.file;
+    onRecorded(state.file);
+    reset();
+  }, [state, tooBig, disabled, onRecorded, reset]);
+
   // Feature-gate: no getUserMedia / no encodable container → render nothing, the
   // file input remains the way in.
   if (!isCoachVideoRecordingSupported()) return null;
-
-  const { state } = rec;
 
   if (state.status === "idle") {
     return (
@@ -121,21 +139,35 @@ export default function CoachVideoRecorder({
               · {fmt(remaining)} left
             </span>
           </span>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void rec.stop()}
-            className="rounded-full"
-          >
-            <Square className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-            Stop
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => rec.reset()}
+              className="rounded-full"
+            >
+              <X className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void rec.stop()}
+              className="rounded-full"
+            >
+              <Square className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Stop
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // stopped — playback + Use this / Retake
+  // stopped — normally invisible (the effect auto-uploads + resets). Lands
+  // here only for an oversized clip (playback + retake) or while the parent is
+  // busy and the submit is on hold.
   return (
     <div className="space-y-2">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -145,45 +177,22 @@ export default function CoachVideoRecorder({
         playsInline
         className="w-full rounded-xl bg-black"
       />
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            // Guard the ~4.5 MB BFF body limit: a VBR overshoot would 413.
-            if (state.file.size > MAX_UPLOAD_BYTES) {
-              setTooBig(true);
-              return;
-            }
-            onRecorded(state.file);
-            rec.reset();
-          }}
-          disabled={disabled}
-          className="rounded-full"
-        >
-          <Check className="mr-1.5 h-4 w-4" aria-hidden />
-          Use this
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setTooBig(false);
-            void rec.start();
-          }}
-          disabled={disabled}
-          className="rounded-full"
-        >
-          <RotateCcw className="mr-1.5 h-4 w-4" aria-hidden />
-          Retake
-        </Button>
-      </div>
       {tooBig ? (
         <p className="text-[12px] text-destructive">
-          That clip is a little too large to upload. Retake a shorter one.
+          That clip is a little too large to upload. Record a shorter one.
         </p>
       ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => void rec.start()}
+        disabled={disabled}
+        className="rounded-full"
+      >
+        <RotateCcw className="mr-1.5 h-4 w-4" aria-hidden />
+        Record again
+      </Button>
     </div>
   );
 }

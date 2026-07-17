@@ -52,6 +52,10 @@ export interface AcousticRead {
   /** -1..1, clamped. Left = stress, right = charisma. */
   potentiometer: number;
   outsideNormalRange: boolean;
+  /** FE-7 — what the needle was measured against: the speaker's own history
+   *  ("user"), within this take ("take"), or — for a re-read — its parent
+   *  take's distribution ("parent_take"). null on older packets. */
+  baseline: "user" | "take" | "parent_take" | null;
 }
 
 /** Identity-stripped snippet payload (§S.4). NO control/salience score, NO
@@ -179,6 +183,10 @@ function pickAcousticRead(raw: unknown): AcousticRead | null {
   return {
     potentiometer: Math.max(-1, Math.min(1, p)),
     outsideNormalRange: r.outside_normal_range === true,
+    baseline:
+      r.baseline === "user" || r.baseline === "take" || r.baseline === "parent_take"
+        ? r.baseline
+        : null,
   };
 }
 
@@ -386,7 +394,14 @@ export async function uploadBreakthroughVideo(
   const data = await res.json().catch(() => null);
   if (!data || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
-  const ref = d.breakthrough_video_ref ?? d.video_ref ?? d.public_url;
+  // FE-5 — the BE now echoes the authoritative coach_state alongside; prefer
+  // the ref inside it, then the older top-level shapes.
+  const cs =
+    d.coach_state && typeof d.coach_state === "object"
+      ? (d.coach_state as Record<string, unknown>)
+      : null;
+  const ref =
+    cs?.breakthrough_video_ref ?? d.breakthrough_video_ref ?? d.video_ref ?? d.public_url;
   return typeof ref === "string" && ref.length > 0 ? ref : null;
 }
 
