@@ -240,7 +240,7 @@ export default function IdealTextOverlay({
           ) : null}
           {/* Personal-notes editing is a legacy perfected-lane feature — no
               pencil on the instant draft or in the SD living document. */}
-          {status === "ready" && !editing && !sd ? (
+          {status === "ready" && !editing ? (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -341,8 +341,8 @@ export default function IdealTextOverlay({
                     }`}
                   >
                     {sd.status === "verified"
-                      ? "Verified by your coach"
-                      : "Not verified yet"}
+                      ? "Verified"
+                      : "Pending verification by the coach"}
                   </span>
                   {sd.status === "unverified" && onReadAloud ? (
                     <button
