@@ -8,10 +8,12 @@ import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 // Use system fonts instead of Google Fonts to avoid build-time network dependency
 // Inter font will be loaded at runtime if available
 
+// Honest positioning (founder 2026-07-17): metadata promises the deliverable
+// (the ideal text of your talk + your strongest moments), not "charisma now".
 const SITE_URL = "https://www.willpowerlab.com";
-const SITE_TITLE = "WillpowerLab — Turning stress into charisma";
+const SITE_TITLE = "WillpowerLab - Your best talk, in your own words";
 const SITE_DESCRIPTION =
-  "Turning stress into charisma. WillpowerLab analyses your voice and shows you the exact moments where you sound powerful — and where stress takes over.";
+  "Record your talk three times. WillpowerLab gives you the ideal text of your presentation, in your own words, and shows you which moments landed best.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

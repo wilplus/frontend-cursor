@@ -15,7 +15,7 @@ export default function LoginPage() {
             <Logo size="lg" />
           </h1>
           <p className="mt-2 text-base text-muted-foreground sm:text-sm">
-            Turning stress into charisma
+            Your best talk, in your own words
           </p>
         </div>
         <LoginForm />

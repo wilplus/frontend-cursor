@@ -1498,13 +1498,15 @@ function Bubble({
 
 function LoungeEmptyState() {
   // B3 — "Will" greeting (de-dashed; §3.12 librarian behaviour unchanged).
+  // Honest positioning (founder 2026-07-17): Will states the DELIVERABLE (the
+  // ideal text + your strongest moments), never "charisma now".
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
       <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-        Hi, I am Will and I will (hehe) assist you in your training. I suggest
-        you jump into the{" "}
-        <span className="font-medium">official recording</span>, but I can answer
-        any other of your communication-related questions.
+        Hi, I am Will and I will (hehe) assist you in your training. Jump into
+        the <span className="font-medium">official recording</span>: three takes
+        give you the ideal text of your talk, in your own words, and show you
+        which moments landed best.
       </p>
     </div>
   );

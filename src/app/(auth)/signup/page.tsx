@@ -14,8 +14,10 @@ export default function SignupPage() {
           <h1 className="flex justify-center">
             <Logo size="lg" />
           </h1>
+          {/* Honest positioning (founder 2026-07-17): this screen follows the
+              user's first recording, so "minutes away" is a promise we keep. */}
           <p className="mt-2 text-sm text-muted-foreground">
-            Turning stress into charisma
+            Your ideal text is minutes away
           </p>
         </div>
         <SignupForm />

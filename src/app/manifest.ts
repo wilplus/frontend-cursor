@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "WillpowerLab",
     short_name: "WillpowerLab",
-    description: "WillpowerLab — the willpower lab for your confidence on stage",
+    description: "The ideal text of your presentation, in your own words.",
     start_url: "/",
     scope: "/",
     display: "standalone",
