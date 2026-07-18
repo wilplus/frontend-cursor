@@ -105,12 +105,18 @@ function MomentSheetBody({
         )
       ) : null}
       {suggestion ? (
-        <MomentSuggestionCard
-          suggestion={suggestion}
-          applied={applied}
-          onApprove={onApprove}
-          onRevert={onRevert}
-        />
+        suggestion.kind === "structure" ? (
+          // STRUCTURAL_STARS — a delivery prompt, not an edit: no Approve, no
+          // fold, no unlock. The star persists and always re-opens.
+          <StructuralPracticeCard suggestion={suggestion} />
+        ) : (
+          <MomentSuggestionCard
+            suggestion={suggestion}
+            applied={applied}
+            onApprove={onApprove}
+            onRevert={onRevert}
+          />
+        )
       ) : momentContent === null ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
           Loading…
@@ -161,7 +167,7 @@ function MomentSuggestionCard({
   onApprove,
   onRevert,
 }: {
-  suggestion: MomentSuggestion;
+  suggestion: Extract<MomentSuggestion, { kind: "emphasize" | "replace" }>;
   applied: boolean;
   onApprove: () => void;
   onRevert: () => void;
@@ -212,6 +218,31 @@ function MomentSuggestionCard({
       >
         Approve
       </Button>
+    </div>
+  );
+}
+
+/** STRUCTURAL_STARS — the amber-star card (free): a rhetorical device found in
+ *  the user's own words, with the fixed practice prompt. Fixed, signed-off
+ *  copy keyed off `device`; the quote is verbatim from their transcript. */
+function StructuralPracticeCard({
+  suggestion,
+}: {
+  suggestion: Extract<MomentSuggestion, { kind: "structure" }>;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[14px] font-semibold text-foreground">Practice this:</p>
+      <p className="text-[14px] leading-relaxed text-foreground">
+        {suggestion.device === "contrast"
+          ? "Contrast: Make the second half stand out."
+          : "List of three: Make the last one count."}
+      </p>
+      {suggestion.quote ? (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[14px] italic leading-relaxed text-foreground">
+          &ldquo;{suggestion.quote}&rdquo;
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -323,21 +354,35 @@ export function MomentStarText({
           const star = m.star;
           if (star === "suggestion" || star === "verified") {
             const verified = star === "verified";
+            // STRUCTURAL_STARS — a distinct AMBER affordance: text-derived
+            // practice prompts must never look like the measured (acoustic)
+            // grey suggestions or the coach-verified orange.
+            const structural = !verified && m.suggestion?.kind === "structure";
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => onMomentTap(m)}
-                aria-label={verified ? "Coach-verified moment" : "Suggested edit"}
+                aria-label={
+                  verified
+                    ? "Coach-verified moment"
+                    : structural
+                      ? "Practice suggestion"
+                      : "Suggested edit"
+                }
                 className="inline align-baseline transition-colors hover:text-primary"
               >
                 {/* No onMomentTap inside — never nest a button in a button. */}
                 <RichText text={s.text} />
                 <Star
                   className={`ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 ${
-                    verified ? "text-primary" : "text-muted-foreground"
+                    verified
+                      ? "text-primary"
+                      : structural
+                        ? "text-amber-500"
+                        : "text-muted-foreground"
                   }`}
-                  fill={verified ? "currentColor" : "none"}
+                  fill={verified || structural ? "currentColor" : "none"}
                   aria-hidden
                 />
               </button>
@@ -495,7 +540,8 @@ export function useMomentStars({
   // bridges the gap. Reversible until the sheet closes (Undo).
   const approveMoment = useCallback((m: IdealKeyMomentLink) => {
     const sg = m.suggestion;
-    if (!sg) return;
+    // A structural star is a delivery prompt, not an edit — nothing to fold.
+    if (!sg || sg.kind === "structure") return;
     const fold: LocalFold =
       sg.kind === "emphasize"
         ? { kind: "emphasize", text: emphasizeMarker(m.anchor) }
@@ -511,7 +557,7 @@ export function useMomentStars({
 
   const revertMoment = useCallback((m: IdealKeyMomentLink) => {
     const sg = m.suggestion;
-    if (!sg) return;
+    if (!sg || sg.kind === "structure") return;
     setAppliedLocal((prev) => {
       const next = new Map(prev);
       next.delete(momentKey(m));

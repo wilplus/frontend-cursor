@@ -18,13 +18,26 @@ import { markerTokenSpans } from "@/lib/willab/richMarkers";
 /** MOMENT_SUGGESTIONS — the machine suggestion behind a grey star. `emphasize`
  *  (Approve → the phrase becomes bold+orange, a charisma key moment) or
  *  `replace` (Approve → swap in an audience-fit rephrase; threat / swearing /
- *  very-low stickiness). `replacement` is null for emphasize. */
-export interface MomentSuggestion {
-  kind: "emphasize" | "replace";
-  replacement: string | null;
-  /** A short, qualitative "why" line (model-generated, digit-free). */
-  why: string;
-}
+ *  very-low stickiness). `replacement` is null for emphasize.
+ *
+ *  STRUCTURAL_STARS — `structure` is the third family: a rhetorical device
+ *  detected in the transcript (a contrast or a list of three). It is a
+ *  DELIVERY prompt, not an edit: no Approve, no fold, fixed signed-off copy
+ *  rendered from `device`; `quote` is the user's own verbatim words. */
+export type MomentSuggestion =
+  | {
+      kind: "emphasize" | "replace";
+      replacement: string | null;
+      /** A short, qualitative "why" line (model-generated, digit-free). */
+      why: string;
+    }
+  | {
+      kind: "structure";
+      device: "contrast" | "list_of_three";
+      /** The detected device, verbatim from the transcript (BE-validated as a
+       *  substring). null → the sheet shows the copy without an excerpt. */
+      quote: string | null;
+    };
 
 export interface IdealKeyMomentLink {
   /** The literal text fragment inside `text` to underline. */
@@ -137,7 +150,21 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
               : null,
           why: str(sgRaw.why),
         }
-      : null;
+      : sgRaw &&
+          sgRaw.kind === "structure" &&
+          (sgRaw.device === "contrast" || sgRaw.device === "list_of_three")
+        ? {
+            // STRUCTURAL_STARS — an unknown device degrades to a plain moment
+            // (same R-ms3 rule as a missing suggestion): the fixed copy is
+            // keyed off `device`, so a device we can't name has no sheet.
+            kind: "structure",
+            device: sgRaw.device,
+            quote:
+              typeof sgRaw.quote === "string" && sgRaw.quote.trim().length > 0
+                ? sgRaw.quote
+                : null,
+          }
+        : null;
   // A "suggestion" star MUST carry a usable suggestion — without one it
   // degrades to a plain moment, never to the paid coach path (a grey star
   // showing an unlock prompt would sell free content — review R-ms3).
