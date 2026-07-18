@@ -208,22 +208,22 @@ export default function LibraryOverlay({
   const goL2 = (p: PresentationGroup) => setNav({ level: "L2", presentation: p });
 
   const crumbs: { label: string; onClick?: () => void }[] = (() => {
-    if (nav.level === "L1") return [{ label: "Trainings" }];
+    if (nav.level === "L1") return [{ label: "Your presentations" }];
     if (nav.level === "L2") {
       return [
-        { label: "Trainings", onClick: goL1 },
+        { label: "Your presentations", onClick: goL1 },
         { label: nav.presentation.topic || "Presentation" },
       ];
     }
     if (nav.level === "L2g") {
       return [
-        { label: "Trainings", onClick: goL1 },
+        { label: "Your presentations", onClick: goL1 },
         { label: "Other moments" },
       ];
     }
     if (nav.level === "T2") {
       return [
-        { label: "Trainings", onClick: goL1 },
+        { label: "Your presentations", onClick: goL1 },
         { label: nav.arc.topic },
       ];
     }
@@ -239,7 +239,7 @@ export default function LibraryOverlay({
               else goL1();
             };
       return [
-        { label: "Trainings", onClick: goL1 },
+        { label: "Your presentations", onClick: goL1 },
         { label: nav.topic, onClick: goBackToL2 },
         { label: nav.deck.takeTitle || nav.takeLabel },
       ];
@@ -254,7 +254,7 @@ export default function LibraryOverlay({
         else goL1();
       };
       return [
-        { label: "Trainings", onClick: goL1 },
+        { label: "Your presentations", onClick: goL1 },
         { label: nav.topic, onClick: goBackToL2 },
         {
           label: nav.deck.takeTitle || nav.takeLabel,
@@ -269,7 +269,7 @@ export default function LibraryOverlay({
         { label: `Slide ${nav.slideIdx + 1}` },
       ];
     }
-    return [{ label: "Trainings" }];
+    return [{ label: "Your presentations" }];
   })();
 
   /* ── delete handlers ── */
