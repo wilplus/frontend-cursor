@@ -13,7 +13,6 @@ import { MarkerToolbar, RichText } from "./RichText";
 import {
   MomentSheet,
   MomentStarText,
-
   useMomentStars,
   type LocalFold,
 } from "./MomentStars";
@@ -34,6 +33,7 @@ import {
   type MomentExplanationResult,
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -459,6 +459,13 @@ export default function IdealTextOverlay({
         onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
         onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
         onBuy={stars.buyMoments}
+        onReRecord={async (snippetId, audio, durationSec) => {
+          const r = await reRecordSnippet(arcId, snippetId, audio, durationSec);
+          // Re-pull the served text so the improved snippet + new version flow
+          // in; the sheet stays open on its success confirmation.
+          if (r.ok) setRefetchNonce((n) => n + 1);
+          return r.ok;
+        }}
       />
     </div>
   );
@@ -521,13 +528,17 @@ function NotebookEditor({
           : "This is your personal copy. The coach-approved original stays unchanged."}
       </p>
       <div className="flex items-center gap-2">
+        {/* FE-5 (bug 3b) — no "Save" CTA: the text is already saved and an
+            edit persists on exiting edit mode, so "Save" would promise
+            something that already happened. "Done" persists and closes; Cancel
+            discards. */}
         <Button
           type="button"
           onClick={() => void save()}
           disabled={saving || empty}
           className="h-10 rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? "Saving…" : "Done"}
         </Button>
         <Button
           type="button"

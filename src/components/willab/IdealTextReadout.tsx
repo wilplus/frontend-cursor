@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
+import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import {
   fetchIdealText,
   isUnappliedPolish,
@@ -14,7 +15,6 @@ import { MarkerToolbar } from "./RichText";
 import {
   MomentSheet,
   MomentStarText,
-
   useMomentStars,
 } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
@@ -102,6 +102,12 @@ export default function IdealTextReadout({
     momentsUnlocked: boolean;
     priceCredits: number | null;
   } | null>(null);
+  // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
+  const [sdNonce, setSdNonce] = useState(0);
+  // FE-3 (bug 1c) — true once the SD fetch has RESOLVED (any outcome). Until
+  // then a signed-in user sees a brief loading rather than the locally composed
+  // text that then swaps to the star layer — the "stars pop in late" bug.
+  const [sdSettled, setSdSettled] = useState(false);
   // State (not a ref) so arming re-runs the debounce effect — an edit typed
   // BEFORE the version fetch lands must still save once arming completes.
   const [canPersist, setCanPersist] = useState(false);
@@ -140,26 +146,31 @@ export default function IdealTextReadout({
     if (!signedIn || !arcId) return;
     let active = true;
     void fetchIdealText(arcId).then((r) => {
-      if (!active || r.kind !== "single") return;
-      versionRef.current = r.version;
-      persistArmedRef.current = true;
-      setCanPersist(true);
-      setSd({
-        ideal: r.ideal,
-        status: r.status,
-        version: r.version,
-        momentsUnlocked: r.momentsUnlocked,
-        priceCredits: r.priceCredits,
-      });
-      if (!dirtyRef.current && r.ideal.text.trim()) {
-        savedTextRef.current = r.ideal.text;
-        setText(r.ideal.text);
+      if (!active) return;
+      if (r.kind === "single") {
+        versionRef.current = r.version;
+        persistArmedRef.current = true;
+        setCanPersist(true);
+        setSd({
+          ideal: r.ideal,
+          status: r.status,
+          version: r.version,
+          momentsUnlocked: r.momentsUnlocked,
+          priceCredits: r.priceCredits,
+        });
+        if (!dirtyRef.current && r.ideal.text.trim()) {
+          savedTextRef.current = r.ideal.text;
+          setText(r.ideal.text);
+        }
       }
+      // Resolve the gate whatever the outcome — flag OFF / pending must not
+      // hang the screen on the loading state forever.
+      setSdSettled(true);
     });
     return () => {
       active = false;
     };
-  }, [signedIn, arcId]);
+  }, [signedIn, arcId, sdNonce]);
 
   // #214 — debounced save of a DIRTY edit (never the untouched composed text).
   // saveIdealUserEdit retries once on VERSION_SUPERSEDED with the server's
@@ -327,6 +338,12 @@ export default function IdealTextReadout({
             className="w-full resize-none overflow-hidden rounded-2xl border border-primary bg-background px-4 py-4 text-[17px] leading-relaxed outline-none"
           />
         </div>
+      ) : signedIn && arcId && !sdSettled ? (
+        // FE-3 — hold until the served text + its stars are in hand, so they
+        // land together instead of the text rendering then stars popping in.
+        <p className="py-10 text-center text-[13px] text-muted-foreground">
+          Putting your ideal text together…
+        </p>
       ) : sd ? (
         // SD — the SAME star layer as the notebook: grey suggestion stars to
         // Approve, orange coach-verified stars behind the unlock.
@@ -370,22 +387,26 @@ export default function IdealTextReadout({
           Create an account to keep this text
         </Button>
       ) : onReRead ? (
-        // FE-3 — the re-read mic is a PERSISTENT bottom control, not a one-off
-        // card: reading the corrected text aloud is the next take, and it is
-        // the main way the text keeps improving.
-        <div className="mt-1 flex flex-col gap-2.5 border-t border-border pt-4">
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Read it as if you were presenting. Your reading becomes the next
-            version of this text.
-          </p>
+        // FE-4 — the re-read is a SMALL bottom mic now (it superseded the big
+        // "Save"/"Read it aloud" CTA); FE-6 — the take nudge sits under it on
+        // the 1st and 2nd overview only (encouragement, never a progress
+        // counter).
+        <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
           <Button
             type="button"
             onClick={onReRead}
-            className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+            variant="outline"
+            className="h-10 rounded-full px-5 text-[14px] font-medium"
           >
             <Mic className="mr-2 h-4 w-4" aria-hidden />
-            Read it aloud
+            continue refining ideal text
           </Button>
+          {sd?.version === 1 || sd?.version === 2 ? (
+            <p className="max-w-xs text-center text-[12px] leading-relaxed text-muted-foreground">
+              Your ideal text gets sharper with more takes. Three is where it
+              really lands. Record another when you&apos;re ready.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -397,6 +418,22 @@ export default function IdealTextReadout({
         onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
         onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
         onBuy={stars.buyMoments}
+        onReRecord={
+          arcId
+            ? async (snippetId, audio, durationSec) => {
+                const r = await reRecordSnippet(
+                  arcId,
+                  snippetId,
+                  audio,
+                  durationSec
+                );
+                // Re-pull the served text so the improved snippet + new version
+                // flow in; leave the sheet open on its success confirmation.
+                if (r.ok) setSdNonce((n) => n + 1);
+                return r.ok;
+              }
+            : undefined
+        }
       />
     </div>
   );

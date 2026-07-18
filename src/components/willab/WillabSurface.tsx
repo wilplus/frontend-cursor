@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import LoadingState from "./LoadingState";
 import { usePublishLiveSubscription } from "@/hooks/usePublishLiveSubscription";
-import { useWillabFlow } from "./useWillabFlow";
+import { isLabOverlay, useWillabFlow } from "./useWillabFlow";
 import { useSignedIn } from "./useSignedIn";
 import { useUserId } from "./useUserId";
 import { useStatusHydration, reconcileWillabStatus } from "./useStatusHydration";
@@ -56,8 +56,20 @@ export default function WillabSurface({
   // instant the coach publishes (realtime sub + 20s poll fallback), reusing the
   // same reconcile so the publish event is the single source of truth (no 2nd write).
   const { goTo } = flow;
+  // FE-2 (bug 1a) — the publish signal must NEVER navigate the user out of the
+  // Lab. When a signed-in take auto-delivers, mergeSession sets review_pending;
+  // the very next publish tick (realtime or the 20s poll) then reconciled to
+  // review_pending and yanked the user off their fresh ideal-text readout ~10s
+  // after it landed. Read the live state through a ref so onPublish stays
+  // stable (adding it to deps would tear down + resubscribe the channel on
+  // every navigation), and defer the reconcile until they leave the Lab — the
+  // sub keeps firing, so it still lands the moment they return to the Lounge.
+  const stateRef = useRef(flow.state);
+  stateRef.current = flow.state;
   const onPublish = useCallback(() => {
     if (getReviewPending() == null) return; // only relevant while awaiting a coach
+    const st = stateRef.current;
+    if (st !== null && isLabOverlay(st)) return; // never interrupt the readout
     void reconcileWillabStatus(goTo);
   }, [goTo]);
   usePublishLiveSubscription(userId, onPublish);

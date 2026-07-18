@@ -273,6 +273,34 @@ describe("mapIdealText", () => {
     });
   });
 
+  it("maps a DELIVERY suggestion by device, and degrades an unknown device", () => {
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "d1",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "delivery", device: "pace_fast", why: "faster than usual" },
+        },
+        {
+          anchor: "world",
+          snippet_id: "d2",
+          take_session_id: "t1",
+          star: "suggestion",
+          // Not one of the four measured devices → no sheet copy → degrade.
+          suggestion: { kind: "delivery", device: "mumbling" },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({
+      star: "suggestion",
+      suggestion: { kind: "delivery", device: "pace_fast" },
+    });
+    expect(v?.keyMoments[1]).toMatchObject({ star: null, suggestion: null });
+  });
+
   it("degrades a structural star with an UNKNOWN device to a plain moment", () => {
     // The fixed copy is keyed off device, so a device we can't name has no
     // sheet to show — same degrade rule as a missing suggestion (R-ms3).
