@@ -205,6 +205,59 @@ describe("mapIdealText", () => {
     });
   });
 
+  it("maps a STRUCTURAL suggestion (device + verbatim quote) behind the star", () => {
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "s8",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: {
+            kind: "structure",
+            device: "contrast",
+            quote: "not this, but that",
+          },
+        },
+        {
+          anchor: "world",
+          snippet_id: "s9",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "structure", device: "list_of_three", quote: "  " },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({
+      star: "suggestion",
+      suggestion: { kind: "structure", device: "contrast", quote: "not this, but that" },
+    });
+    // A blank quote maps to null; the sheet shows the copy without an excerpt.
+    expect(v?.keyMoments[1]).toMatchObject({
+      star: "suggestion",
+      suggestion: { kind: "structure", device: "list_of_three", quote: null },
+    });
+  });
+
+  it("degrades a structural star with an UNKNOWN device to a plain moment", () => {
+    // The fixed copy is keyed off device, so a device we can't name has no
+    // sheet to show — same degrade rule as a missing suggestion (R-ms3).
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "s10",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "structure", device: "rhetorical-question", quote: "x" },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({ star: null, suggestion: null });
+  });
+
   it("degrades a suggestion star WITHOUT a usable suggestion to a plain moment (R-ms3)", () => {
     // A grey (free) star must never fall through to the paid coach path; with
     // no suggestion payload the star drops and the moment renders plain.
