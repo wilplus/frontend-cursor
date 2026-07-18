@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Lock, PencilLine, Sparkles, Star } from "lucide-react";
+import { Check, Copy, Lock, Mic, PencilLine, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -13,11 +13,13 @@ import { MarkerToolbar, RichText } from "./RichText";
 import {
   MomentSheet,
   MomentStarText,
+
   useMomentStars,
   type LocalFold,
 } from "./MomentStars";
 import {
   fetchIdealText,
+  isUnappliedPolish,
   saveIdealNotes,
   saveIdealUserEdit,
   segmentIdealText,
@@ -181,6 +183,17 @@ export default function IdealTextOverlay({
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
   });
 
+  // FE-2 — polish stars on this text, and the ones still awaiting a decision.
+  const allPolish = useMemo(
+    () => (ideal?.keyMoments ?? []).filter(isUnappliedPolish),
+    [ideal]
+  );
+  const pendingPolish = useMemo(
+    () => allPolish.filter((m) => !stars.isApplied(m)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allPolish, stars.appliedLocal]
+  );
+
   // Legacy (non-SD) lane keeps the "Go to this moment?" confirm bubble; a
   // legacy moment with no snippet link stays inert (it has nowhere to
   // deep-link — R-sd4). Under SD every tap goes to the shared sheet.
@@ -266,6 +279,10 @@ export default function IdealTextOverlay({
                   Instant draft. Your coach is polishing the full version.
                 </p>
               </div>
+              {/* No bulk control in the INSTANT lane: this view renders
+                  MomentStarText without foldFor, so an approval would record
+                  server-side while changing nothing on screen (review R-p6).
+                  The SD lane below owns it. */}
               <MomentStarText
                 text={displayText}
                 ideal={ideal}
@@ -340,22 +357,26 @@ export default function IdealTextOverlay({
                       ? "Verified"
                       : "Pending verification by the coach"}
                   </span>
-                  {sd.status === "unverified" && onReadAloud ? (
-                    <button
-                      type="button"
-                      onClick={() => onReadAloud(sd.version)}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left transition-colors hover:border-primary/60"
-                    >
-                      <span className="text-[13px] leading-relaxed text-foreground">
-                        Read it aloud. Your reading becomes your next
-                        recording, and your text gets sharper.
-                      </span>
-                      <span className="shrink-0 text-[12px] font-medium text-primary">
-                        Record
-                      </span>
-                    </button>
-                  ) : null}
                 </div>
+              ) : null}
+              {/* FE-2 — one tap applies every smoother-version suggestion.
+                  Polish only; acoustic and structural stars stay per-star. */}
+              {sd && stars.bulkApplied ? (
+                <button
+                  type="button"
+                  onClick={() => stars.revertAllPolish(allPolish)}
+                  className="self-start text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Undo all
+                </button>
+              ) : sd && pendingPolish.length >= 2 ? (
+                <button
+                  type="button"
+                  onClick={() => stars.approveAllPolish(pendingPolish)}
+                  className="self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  Approve all
+                </button>
               ) : null}
               <MomentStarText
                 text={displayText}
@@ -391,6 +412,29 @@ export default function IdealTextOverlay({
               Stay
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {/* FE-3 — the re-read mic as a PERSISTENT bottom control (it used to be
+          a card buried in the header chrome). Reading the corrected text aloud
+          is the next take, and it is the main way this text keeps improving. */}
+      {status === "ready" &&
+      !editing &&
+      sd?.status === "unverified" &&
+      onReadAloud ? (
+        <div className="shrink-0 border-t border-border bg-background px-4 pb-5 pt-4">
+          <p className="mb-2.5 text-[13px] leading-relaxed text-muted-foreground">
+            Read it as if you were presenting. Your reading becomes the next
+            version of this text.
+          </p>
+          <Button
+            type="button"
+            onClick={() => onReadAloud(sd.version)}
+            className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+          >
+            <Mic className="mr-2 h-4 w-4" aria-hidden />
+            Read it aloud
+          </Button>
         </div>
       ) : null}
 

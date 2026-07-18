@@ -8,6 +8,7 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import {
+  isUnappliedPolish,
   segmentIdealText,
   type IdealKeyMomentLink,
   type IdealText,
@@ -199,7 +200,10 @@ function MomentSuggestionCard({
       {isReplace && suggestion.replacement ? (
         <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
           <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Try instead
+            {/* POLISH_AS_SUGGESTIONS — a polish is the compose LLM smoothing
+                the flow, not a "your words were weak" rewrite, so it gets its
+                own label. Absent trigger keeps today's copy (safe-ahead). */}
+            {suggestion.trigger === "polish" ? "Smoother version" : "Try instead"}
           </p>
           <p className="text-[15px] leading-relaxed text-foreground">
             {suggestion.replacement}
@@ -496,6 +500,10 @@ export function useMomentStars({
   const [appliedLocal, setAppliedLocal] = useState<Map<string, LocalFold>>(
     () => new Map()
   );
+  // The keys "Approve all" folded, so Undo all reverts EXACTLY those and never
+  // an individually-approved star (review R-p3). Per-star Undo shrinks it; when
+  // it empties, the control offers "Approve all" again.
+  const [bulkKeys, setBulkKeys] = useState<Set<string>>(() => new Set());
   // Staleness guard for the moment-explanation fetches: a slow response for a
   // closed/replaced sheet must never overwrite the currently open one (R-sd3).
   const momentReqRef = useRef(0);
@@ -558,9 +566,18 @@ export function useMomentStars({
   const revertMoment = useCallback((m: IdealKeyMomentLink) => {
     const sg = m.suggestion;
     if (!sg || sg.kind === "structure") return;
+    const key = momentKey(m);
     setAppliedLocal((prev) => {
       const next = new Map(prev);
-      next.delete(momentKey(m));
+      next.delete(key);
+      return next;
+    });
+    // Leaving the bulk set keeps the control honest: undo every bulk-folded
+    // star one by one and it returns to "Approve all".
+    setBulkKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
       return next;
     });
     void sendSuggestionFeedback({
@@ -594,7 +611,70 @@ export function useMomentStars({
 
   /** A different arc is a different entitlement question and a different text
    *  — never carry folds across. */
-  const resetFolds = useCallback(() => setAppliedLocal(new Map()), []);
+  const resetFolds = useCallback(() => {
+    setAppliedLocal(new Map());
+    setBulkKeys(new Set());
+  }, []);
+
+  // POLISH_AS_SUGGESTIONS — "Approve all" applies every un-applied POLISH star
+  // in one tap. Polish only: flow smoothing is mechanical, while acoustic and
+  // structural stars are judgment calls and stay strictly per-star (the
+  // founder's no-apply-all rule still holds for them).
+  const approveAllPolish = useCallback((moments: IdealKeyMomentLink[]) => {
+    const targets = moments.filter(isUnappliedPolish);
+    if (targets.length === 0) return;
+    // One optimistic fold for the whole set, then N per-star writes: each
+    // approval stays individually recorded and individually revertible, and a
+    // partial failure just returns those stars on the next refetch.
+    setAppliedLocal((prev) => {
+      const next = new Map(prev);
+      for (const m of targets) {
+        const sg = m.suggestion;
+        if (sg?.kind !== "replace") continue;
+        next.set(momentKey(m), {
+          kind: "replace",
+          text: sg.replacement ?? m.anchor,
+        });
+      }
+      return next;
+    });
+    setBulkKeys(new Set(targets.map(momentKey)));
+    for (const m of targets) {
+      void sendSuggestionFeedback({
+        snippetId: m.snippetId,
+        sessionId: m.takeSessionId,
+        target: "moment_replace",
+        action: "applied",
+      });
+    }
+  }, []);
+
+  /** Undo all — unfolds EXACTLY the stars "Approve all" folded and still holds
+   *  folded, and records one revert each. Never touches a star the user
+   *  approved individually, and never re-reverts one they already undid
+   *  (review R-p3). Per-star Undo keeps working independently. */
+  const revertAllPolish = useCallback(
+    (moments: IdealKeyMomentLink[]) => {
+      const targets = moments.filter(
+        (m) => bulkKeys.has(momentKey(m)) && appliedLocal.has(momentKey(m))
+      );
+      setAppliedLocal((prev) => {
+        const next = new Map(prev);
+        for (const m of targets) next.delete(momentKey(m));
+        return next;
+      });
+      setBulkKeys(new Set());
+      for (const m of targets) {
+        void sendSuggestionFeedback({
+          snippetId: m.snippetId,
+          sessionId: m.takeSessionId,
+          target: "moment_replace",
+          action: "reverted",
+        });
+      }
+    },
+    [bulkKeys, appliedLocal]
+  );
 
   return {
     momentOpen,
@@ -607,6 +687,10 @@ export function useMomentStars({
     buyMoments,
     foldFor,
     resetFolds,
+    approveAllPolish,
+    revertAllPolish,
+    /** True while "Approve all" still holds folds — the control reads "Undo all". */
+    bulkApplied: bulkKeys.size > 0,
     /** Convenience for the sheet's `applied` prop. */
     isApplied: (m: IdealKeyMomentLink) => appliedLocal.has(momentKey(m)),
   };
