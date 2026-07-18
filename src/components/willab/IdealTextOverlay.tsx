@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, PencilLine, Sparkles } from "lucide-react";
+import { Check, Copy, Lock, PencilLine, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
@@ -17,12 +17,35 @@ import {
   type IdealKeyMomentLink,
   type IdealText,
   type InstantPaywall,
+  type MomentSuggestion,
 } from "@/services/api/idealText";
 import {
   fetchMomentExplanation,
   unlockMoments,
   type MomentExplanationResult,
 } from "@/services/api/momentExplanation";
+import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+
+/** MOMENT_SUGGESTIONS — the local fold a just-Approved suggestion applies over
+ *  the served text: emphasize wraps the phrase bold+orange; replace swaps in
+ *  the rephrase. Optimistic + reversible until the sheet closes; the BE folds
+ *  it into the served text on the next fetch. `text` is a marker string. */
+type LocalFold = { kind: "emphasize" | "replace"; text: string };
+
+/** The bold+orange emphasis marker for an approved charisma phrase — rendered
+ *  through the same RichText path as everywhere else so the styling matches. */
+function emphasizeMarker(anchor: string): string {
+  return `**{{orange:${anchor}}}**`;
+}
+
+/** The fold map's key — a stable PER-MOMENT identity (review R-ms1). Never
+ *  snippetId alone: SD moments keyed by momentId carry snippetId "" (all of
+ *  them would collide on one key), and two moments may share a snippet. Mirrors
+ *  the explanation fetch's `momentId ?? snippetId` identity, disambiguated by
+ *  the anchor. */
+function momentKey(m: IdealKeyMomentLink): string {
+  return m.momentId ?? `${m.snippetId}|${m.anchor}`;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -87,6 +110,13 @@ export default function IdealTextOverlay({
   const [momentOpen, setMomentOpen] = useState<IdealKeyMomentLink | null>(null);
   const [momentContent, setMomentContent] =
     useState<MomentExplanationResult | null>(null);
+  // MOMENT_SUGGESTIONS — snippets whose suggestion the user just Approved,
+  // keyed by snippet id → the local fold. Optimistic + reversible until the
+  // sheet closes; the BE folds it into the served text on the next fetch, so
+  // this only bridges the moment between the tap and the refetch.
+  const [appliedLocal, setAppliedLocal] = useState<Map<string, LocalFold>>(
+    () => new Map()
+  );
 
   // A different arc = a fresh entitlement question; never carry the unlocked
   // flag or a cached draft across arcs.
@@ -94,6 +124,7 @@ export default function IdealTextOverlay({
     unlockedRef.current = false;
     lastInstantRef.current = null;
     setUnlocked(false);
+    setAppliedLocal(new Map());
   }, [arcId]);
 
   // Notebook state: the personal copy wins for display once saved.
@@ -187,12 +218,57 @@ export default function IdealTextOverlay({
       return;
     }
     setMomentOpen(m);
+    // MOMENT_SUGGESTIONS — a grey suggestion star is FREE: its alternative +
+    // why + snippet audio are already in the payload, so no coach fetch. Bump
+    // the request seq so any in-flight coach fetch can't land in this sheet.
+    if (m.star === "suggestion" && m.suggestion) {
+      momentReqRef.current++;
+      setMomentContent(null);
+      return;
+    }
+    // Verified star (or a plain SD moment) — the coach message is paid.
     if (!sd.momentsUnlocked) {
       momentReqRef.current++;
       setMomentContent({ kind: "locked", priceCredits: sd.priceCredits });
       return;
     }
     await loadMomentContent(m);
+  }
+
+  // MOMENT_SUGGESTIONS — Approve folds the suggestion optimistically (emphasize
+  // → bold+orange phrase; replace → the rephrase) and records it; the star
+  // vanishes. The BE folds it into the served text on the next fetch, so this
+  // local map only bridges the gap. Reversible until the sheet closes (Revert).
+  function approveMoment(m: IdealKeyMomentLink) {
+    const sg = m.suggestion;
+    if (!sg) return;
+    const fold: LocalFold =
+      sg.kind === "emphasize"
+        ? { kind: "emphasize", text: emphasizeMarker(m.anchor) }
+        : { kind: "replace", text: sg.replacement ?? m.anchor };
+    setAppliedLocal((prev) => new Map(prev).set(momentKey(m), fold));
+    void sendSuggestionFeedback({
+      snippetId: m.snippetId,
+      sessionId: m.takeSessionId,
+      target: sg.kind === "emphasize" ? "moment_emphasize" : "moment_replace",
+      action: "applied",
+    });
+  }
+
+  function revertMoment(m: IdealKeyMomentLink) {
+    const sg = m.suggestion;
+    if (!sg) return;
+    setAppliedLocal((prev) => {
+      const next = new Map(prev);
+      next.delete(momentKey(m));
+      return next;
+    });
+    void sendSuggestionFeedback({
+      snippetId: m.snippetId,
+      sessionId: m.takeSessionId,
+      target: sg.kind === "emphasize" ? "moment_emphasize" : "moment_replace",
+      action: "reverted",
+    });
   }
 
   async function buyMoments(): Promise<string | null> {
@@ -379,6 +455,7 @@ export default function IdealTextOverlay({
                 text={displayText}
                 ideal={ideal}
                 onMomentTap={(m) => void openMoment(m)}
+                foldFor={(m) => appliedLocal.get(momentKey(m)) ?? null}
               />
             </div>
           ) : null}
@@ -448,43 +525,14 @@ export default function IdealTextOverlay({
                 ariaLabel="Close key moment"
               />
             </div>
-            {momentContent === null ? (
-              <p className="py-6 text-center text-[13px] text-muted-foreground">
-                Loading…
-              </p>
-            ) : momentContent.kind === "locked" ? (
-              <MomentUnlockPrompt
-                priceCredits={momentContent.priceCredits}
-                onBuy={buyMoments}
-              />
-            ) : momentContent.kind === "error" ? (
-              <p className="py-6 text-center text-[13px] text-muted-foreground">
-                Couldn&apos;t load this moment just now. Try again in a moment.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {momentContent.videoRef ? (
-                  // eslint-disable-next-line jsx-a11y/media-has-caption
-                  <video
-                    src={momentContent.videoRef}
-                    controls
-                    playsInline
-                    className="w-full rounded-xl bg-black"
-                  />
-                ) : null}
-                {momentContent.note ? (
-                  <p className="text-[15px] leading-relaxed text-foreground">
-                    {momentContent.note}
-                  </p>
-                ) : null}
-                {!momentContent.videoRef && !momentContent.note ? (
-                  <p className="py-4 text-center text-[13px] text-muted-foreground">
-                    Your coach hasn&apos;t added the explanation for this moment
-                    yet.
-                  </p>
-                ) : null}
-              </div>
-            )}
+            <MomentSheetBody
+              moment={momentOpen}
+              momentContent={momentContent}
+              applied={appliedLocal.has(momentKey(momentOpen))}
+              onApprove={() => approveMoment(momentOpen)}
+              onRevert={() => revertMoment(momentOpen)}
+              onBuy={buyMoments}
+            />
           </div>
         </div>
       ) : null}
@@ -499,12 +547,154 @@ function SheetBackDismiss({ onClose }: { onClose: () => void }) {
   return null;
 }
 
-/** SD — the unlock prompt inside the moment sheet: one price, one button. */
+/** MOMENT_SUGGESTIONS — the moment sheet body. Snippet playback is always free
+ *  at the top; then either the grey suggestion card (free) or the verified
+ *  coach message (paid — locked shows the blurred teaser + unlock). */
+function MomentSheetBody({
+  moment,
+  momentContent,
+  applied,
+  onApprove,
+  onRevert,
+  onBuy,
+}: {
+  moment: IdealKeyMomentLink;
+  momentContent: MomentExplanationResult | null;
+  applied: boolean;
+  onApprove: () => void;
+  onRevert: () => void;
+  onBuy: () => Promise<string | null>;
+}) {
+  const suggestion =
+    moment.star === "suggestion" ? moment.suggestion ?? null : null;
+  return (
+    <div className="flex flex-col gap-4">
+      {/* The moment as you said it — always free. */}
+      {moment.snippetAudioRef ? (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <audio src={moment.snippetAudioRef} controls className="w-full" />
+      ) : null}
+      {suggestion ? (
+        <MomentSuggestionCard
+          suggestion={suggestion}
+          applied={applied}
+          onApprove={onApprove}
+          onRevert={onRevert}
+        />
+      ) : momentContent === null ? (
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          Loading…
+        </p>
+      ) : momentContent.kind === "locked" ? (
+        <MomentUnlockPrompt
+          priceCredits={momentContent.priceCredits}
+          hasVideo={moment.coach?.hasVideo ?? false}
+          onBuy={onBuy}
+        />
+      ) : momentContent.kind === "error" ? (
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          Couldn&apos;t load this moment just now. Try again in a moment.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {momentContent.videoRef ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              src={momentContent.videoRef}
+              controls
+              playsInline
+              className="w-full rounded-xl bg-black"
+            />
+          ) : null}
+          {momentContent.note ? (
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {momentContent.note}
+            </p>
+          ) : null}
+          {!momentContent.videoRef && !momentContent.note ? (
+            <p className="py-4 text-center text-[13px] text-muted-foreground">
+              Your coach hasn&apos;t added the explanation for this moment yet.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** MOMENT_SUGGESTIONS — the grey-star card (free): a replace shows the
+ *  alternative, an emphasize shows the "why it landed". Approve folds it into
+ *  the text (reversible via Undo until the sheet closes). */
+function MomentSuggestionCard({
+  suggestion,
+  applied,
+  onApprove,
+  onRevert,
+}: {
+  suggestion: MomentSuggestion;
+  applied: boolean;
+  onApprove: () => void;
+  onRevert: () => void;
+}) {
+  const isReplace = suggestion.kind === "replace";
+  if (applied) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5">
+          <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />
+          <p className="text-[13px] leading-relaxed text-foreground">
+            {isReplace
+              ? "Swapped into your text."
+              : "Marked as a strong phrase in your text."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRevert}
+          className="self-start text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Undo
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      {isReplace && suggestion.replacement ? (
+        <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Try instead
+          </p>
+          <p className="text-[15px] leading-relaxed text-foreground">
+            {suggestion.replacement}
+          </p>
+        </div>
+      ) : null}
+      {suggestion.why ? (
+        <p className="text-[14px] leading-relaxed text-muted-foreground">
+          {suggestion.why}
+        </p>
+      ) : null}
+      <Button
+        type="button"
+        onClick={onApprove}
+        className="h-10 self-start rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
+      >
+        Approve
+      </Button>
+    </div>
+  );
+}
+
+/** SD — the unlock prompt inside the moment sheet: one price, one button. A
+ *  verified moment with a coach video shows a blurred teaser above it. */
 function MomentUnlockPrompt({
   priceCredits,
+  hasVideo,
   onBuy,
 }: {
   priceCredits: number | null;
+  hasVideo?: boolean;
   onBuy: () => Promise<string | null>;
 }) {
   const [buying, setBuying] = useState(false);
@@ -512,6 +702,15 @@ function MomentUnlockPrompt({
   const price = priceCredits ?? 5;
   return (
     <div className="flex flex-col items-center gap-3 py-2 text-center">
+      {hasVideo ? (
+        // The coach's video sits here, blurred until the unlock.
+        <div className="relative w-full overflow-hidden rounded-xl">
+          <div className="aspect-video w-full bg-gradient-to-br from-muted to-muted-foreground/40 blur-sm" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Lock className="h-6 w-6 text-foreground/70" aria-hidden />
+          </div>
+        </div>
+      ) : null}
       <p className="text-[14px] leading-relaxed text-foreground">
         See why these were your key moments, from your coach.
       </p>
@@ -539,16 +738,22 @@ function MomentUnlockPrompt({
   );
 }
 
-/** The big, clean reading view: bold key phrases, underlined tappable key
- *  moments. A1-size type, no playback, no chrome. */
+/** The clean reading view in the medium style: bold key phrases, key-moment
+ *  stars (grey = a suggestion to Approve, orange = coach-verified), no chrome.
+ *  A just-approved suggestion renders its fold in place of the star. */
 function NotebookText({
   text,
   ideal,
   onMomentTap,
+  foldFor,
 }: {
   text: string;
   ideal: IdealText;
   onMomentTap: (m: IdealKeyMomentLink) => void;
+  /** MOMENT_SUGGESTIONS — a just-approved moment's optimistic local fold, or
+   *  null to render the star. Keyed per moment (momentKey), never snippetId
+   *  alone (R-ms1). Absent (instant/legacy lane) → never folded. */
+  foldFor?: (m: IdealKeyMomentLink) => LocalFold | null;
 }) {
   const segments = useMemo(
     () => segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
@@ -560,31 +765,75 @@ function NotebookText({
   const onInlineMoment = (m: { snippetId: string; sessionId: string }) =>
     onMomentTap({ anchor: "", snippetId: m.snippetId, takeSessionId: m.sessionId });
   return (
-    <p className="whitespace-pre-line text-[24px] leading-relaxed text-foreground">
-      {segments.map((s, i) =>
-        s.moment ? (
-          <button
-            key={i}
-            type="button"
-            onClick={() => onMomentTap(s.moment!)}
-            className="inline underline decoration-primary decoration-2 underline-offset-4 transition-colors hover:text-primary"
-          >
-            {/* No onMomentTap inside — never nest a button in a button. */}
-            <RichText text={s.text} />
-          </button>
-        ) : s.bold ? (
-          <strong key={i} className="font-semibold">
-            <RichText text={s.text} onMomentTap={onInlineMoment} />
-          </strong>
-        ) : (
-          // FE-9 — the coach's inline markers (bold / italic / underline /
-          // orange / moment links) render here too, identically to the coach
-          // preview, instead of leaking raw marker syntax into the notebook.
+    <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
+      {segments.map((s, i) => {
+        if (s.moment) {
+          const m = s.moment;
+          const fold = foldFor?.(m) ?? null;
+          // Approved suggestion — render its fold, no star (it "disappears").
+          // Emphasize is bold+orange; replace is the plain rephrase.
+          if (fold) {
+            return fold.kind === "emphasize" ? (
+              <strong key={i} className="font-semibold">
+                <RichText text={fold.text} />
+              </strong>
+            ) : (
+              <span key={i}>
+                <RichText text={fold.text} />
+              </span>
+            );
+          }
+          const star = m.star;
+          if (star === "suggestion" || star === "verified") {
+            const verified = star === "verified";
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onMomentTap(m)}
+                aria-label={verified ? "Coach-verified moment" : "Suggested edit"}
+                className="inline align-baseline transition-colors hover:text-primary"
+              >
+                {/* No onMomentTap inside — never nest a button in a button. */}
+                <RichText text={s.text} />
+                <Star
+                  className={`ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 ${
+                    verified ? "text-primary" : "text-muted-foreground"
+                  }`}
+                  fill={verified ? "currentColor" : "none"}
+                  aria-hidden
+                />
+              </button>
+            );
+          }
+          // Legacy underlined moment (no star field — today's behavior).
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onMomentTap(m)}
+              className="inline underline decoration-primary decoration-2 underline-offset-4 transition-colors hover:text-primary"
+            >
+              <RichText text={s.text} />
+            </button>
+          );
+        }
+        if (s.bold) {
+          return (
+            <strong key={i} className="font-semibold">
+              <RichText text={s.text} onMomentTap={onInlineMoment} />
+            </strong>
+          );
+        }
+        // FE-9 — the coach's inline markers (bold / italic / underline / orange
+        // / moment links) render here too, identically to the coach preview,
+        // instead of leaking raw marker syntax into the notebook.
+        return (
           <span key={i}>
             <RichText text={s.text} onMomentTap={onInlineMoment} />
           </span>
-        )
-      )}
+        );
+      })}
     </p>
   );
 }
