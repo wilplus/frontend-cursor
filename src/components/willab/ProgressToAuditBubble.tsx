@@ -132,7 +132,7 @@ export default function ProgressToAuditBubble({
             aria-valuenow={pct}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Progress to the full training"
+            aria-label="Progress to your ideal text"
           />
         </div>
       )}

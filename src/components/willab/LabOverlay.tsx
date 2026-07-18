@@ -228,6 +228,12 @@ export default function LabOverlay({
   // The 202 accept's arc bookkeeping, held back until the analysis actually
   // SUCCEEDS — committing at accept would burn a take slot on a failed
   // analysis (and a retry would then re-submit with an inflated take_index).
+  // FE-2 — the next upload is a RE-READ of this session (the student reading
+  // their ideal text aloud), not a fresh spoken take. Stamped on the upload as
+  // recording_kind:"read" + paired_session_id so the BE folds the reading into
+  // the same living text instead of treating it as a new talk. Cleared once
+  // used, so an ordinary later take is spoken again.
+  const reReadOfRef = useRef<string | null>(null);
   const pendingCarryRef = useRef<{
     returnedArcId: string;
     nextIdx: number;
@@ -347,9 +353,19 @@ export default function LabOverlay({
         // (they skip the panel).
         primingCondition: primingRef.current?.condition,
         primingPhrase: primingRef.current?.phrase,
+        // FE-2 — a reading of the ideal text refines it; a spoken take starts
+        // from what you said. The BE branches on this.
+        recordingKind: reReadOfRef.current ? "read" : undefined,
+        pairedSessionId: reReadOfRef.current ?? undefined,
       });
       if (!active) return;
       if (result.kind === "ok") {
+        // The re-read stamp is CONSUMED only once the BE has accepted the
+        // upload. Clearing it eagerly would drop it on the retry / 422
+        // re-record paths, which re-run this effect with the same reading and
+        // would then send it as an ordinary spoken take (mirrors the
+        // recordedFeelingRef guard above).
+        reReadOfRef.current = null;
         // Carry the arc: write the returned arc_id + next take_index to
         // localStorage so the next LabOverlay session picks it up. (3-take
         // batch cycle: trust the BE's take_index when present — the BE returns
@@ -373,6 +389,7 @@ export default function LabOverlay({
         onRecordingProgress?.(result.recordingProgress);
         goTo("readout");
       } else if (result.kind === "processing") {
+        reReadOfRef.current = null;
         // Async analysis (delivery layer): the BE accepted the upload (202)
         // and finishes the analysis in a background daemon — it now SURVIVES a
         // closed tab / locked phone. Poll the readout until ready/failed; the
@@ -804,6 +821,8 @@ export default function LabOverlay({
             }}
             onSignUp={() => goTo("sendgate_unsigned")}
             onReRead={() => {
+              // This recording is a re-read of the take we are looking at.
+              reReadOfRef.current = labSessionId;
               // A re-read is just the next take on THIS presentation: keep the
               // deck (context) and arc (arcTakeIndex was already advanced on the
               // prior upload), drop the current take's readout/session/blob, and

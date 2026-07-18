@@ -4,8 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
-import { fetchIdealText, saveIdealUserEdit } from "@/services/api/idealText";
+import {
+  fetchIdealText,
+  saveIdealUserEdit,
+  type IdealText,
+} from "@/services/api/idealText";
 import { MarkerToolbar } from "./RichText";
+import { MomentSheet, MomentStarText, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -84,6 +89,16 @@ export default function IdealTextReadout({
   // hands us the current version. Until then (flag OFF / guest) edits are
   // local-only, exactly the pre-#214 behavior.
   const versionRef = useRef<number | null>(null);
+  // SD — the served living document: its text (the star anchors live in it),
+  // verification status, and the moments entitlement. null until the GET lands
+  // (or forever when the flag is OFF), and the screen stays exactly as before.
+  const [sd, setSd] = useState<{
+    ideal: IdealText;
+    status: "unverified" | "verified";
+    version: number | null;
+    momentsUnlocked: boolean;
+    priceCredits: number | null;
+  } | null>(null);
   // State (not a ref) so arming re-runs the debounce effect — an edit typed
   // BEFORE the version fetch lands must still save once arming completes.
   const [canPersist, setCanPersist] = useState(false);
@@ -112,8 +127,12 @@ export default function IdealTextReadout({
     });
   }, [signedIn, sessionId, onAutoSent]);
 
-  // #214 — arm persistence: read the current version from the SD GET. A
-  // non-single result (flag OFF, older BE) leaves persistence off.
+  // #214 — arm persistence AND adopt the served ideal text. The SD GET is the
+  // authority: its text carries the key-moment anchors (and any folds the BE
+  // already applied), so the stars can only land if we render THAT text rather
+  // than the locally composed one. Adopt it only while the text is still
+  // untouched — a dirty edit always wins (locked rule), and a saved user_edit
+  // is what the BE serves back anyway.
   useEffect(() => {
     if (!signedIn || !arcId) return;
     let active = true;
@@ -122,6 +141,17 @@ export default function IdealTextReadout({
       versionRef.current = r.version;
       persistArmedRef.current = true;
       setCanPersist(true);
+      setSd({
+        ideal: r.ideal,
+        status: r.status,
+        version: r.version,
+        momentsUnlocked: r.momentsUnlocked,
+        priceCredits: r.priceCredits,
+      });
+      if (!dirtyRef.current && r.ideal.text.trim()) {
+        savedTextRef.current = r.ideal.text;
+        setText(r.ideal.text);
+      }
     });
     return () => {
       active = false;
@@ -179,6 +209,15 @@ export default function IdealTextReadout({
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [text, editing]);
+
+  // SD — the shared star layer (sheet, Approve/Revert folds, 5-credit unlock).
+  const stars = useMomentStars({
+    arcId: arcId ?? "",
+    momentsUnlocked: sd?.momentsUnlocked ?? false,
+    priceCredits: sd?.priceCredits ?? null,
+    onUnlocked: () =>
+      setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
+  });
 
   // The one edit path — a keystroke or a toolbar wrap: mark dirty, reset the
   // save flash, update the text (the debounce effect persists it).
@@ -247,6 +286,16 @@ export default function IdealTextReadout({
             className="w-full resize-none overflow-hidden rounded-2xl border border-primary bg-background px-4 py-4 text-[17px] leading-relaxed outline-none"
           />
         </div>
+      ) : sd ? (
+        // SD — the SAME star layer as the notebook: grey suggestion stars to
+        // Approve, orange coach-verified stars behind the unlock.
+        <MomentStarText
+          text={text}
+          ideal={sd.ideal}
+          onMomentTap={(m) => void stars.openMoment(m)}
+          foldFor={stars.foldFor}
+          textSizeClass="text-[17px]"
+        />
       ) : (
         <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
           {text}
@@ -297,6 +346,16 @@ export default function IdealTextReadout({
           </Button>
         </div>
       ) : null}
+
+      <MomentSheet
+        moment={stars.momentOpen}
+        momentContent={stars.momentContent}
+        applied={stars.momentOpen ? stars.isApplied(stars.momentOpen) : false}
+        onClose={stars.closeMoment}
+        onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
+        onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
+        onBuy={stars.buyMoments}
+      />
     </div>
   );
 }

@@ -102,7 +102,6 @@ export default function WillabSurface({
         onStart={flow.startRecording}
         goTo={flow.goTo}
         initialReviewSessionId={reviewSessionId}
-        initialInsightSessionId={insightSessionId}
         initialBestPresentationArcId={bestPresentationArcId}
         recordingProgress={recordingProgress}
       />

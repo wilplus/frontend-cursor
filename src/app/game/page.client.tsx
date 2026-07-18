@@ -162,7 +162,7 @@ export default function GamePageClient({
         ) : status === "empty" ? (
           <Centered>
             <p className="max-w-sm text-center text-[15px] text-muted-foreground">
-              Record a training first, then come back to play your key moments.
+              Record a presentation first, then come back to play your key moments.
             </p>
           </Centered>
         ) : status === "error" || !session ? (

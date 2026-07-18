@@ -16,7 +16,7 @@ export type ChipAction =
   | "arc_checkout";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
-  trainings: "Trainings",
+  trainings: "Your presentations",
   audit: "Open audit",
   arc_checkout: "Unlock the full audit",
 };

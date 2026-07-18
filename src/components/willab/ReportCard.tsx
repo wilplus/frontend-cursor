@@ -132,6 +132,18 @@ export default function ReportCard({
     const open = () => {
       if (arcId && onOpenIdealText) onOpenIdealText(arcId);
     };
+    // FE-3 — the thread is the HISTORY OF VERSIONS: every assembled version
+    // posts its own card, 1.0 unverified through N.0 verified. The version and
+    // the verification state both ride on the BE metadata.
+    const rawV = message.metadata?.version;
+    const version =
+      typeof rawV === "number" && Number.isFinite(rawV)
+        ? rawV
+        : typeof rawV === "string" && rawV.trim() && Number.isFinite(Number(rawV))
+          ? Number(rawV)
+          : null;
+    const verified = message.metadata?.variant === "verified";
+    const versionLabel = version === null ? null : `Ideal text ${version}.0`;
     if (message.metadata?.variant === "instant") {
       return (
         <div
@@ -166,21 +178,42 @@ export default function ReportCard({
         </div>
       );
     }
+    const keyDown = openable
+      ? (e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            open();
+          }
+        }
+      : undefined;
+    // A version that is NOT yet verified reads as a plain card, so the purple
+    // still marks the moment the coach signs it off rather than repeating.
+    if (versionLabel && !verified) {
+      return (
+        <div
+          role={openable ? "button" : undefined}
+          tabIndex={openable ? 0 : undefined}
+          onClick={openable ? open : undefined}
+          onKeyDown={keyDown}
+          className={`my-1 rounded-2xl border border-border bg-chat-bot px-4 py-3 ${
+            openable ? "cursor-pointer" : ""
+          }`}
+        >
+          <p className="text-[15px] font-semibold leading-snug text-foreground">
+            {versionLabel}
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            Pending verification by your coach
+          </p>
+        </div>
+      );
+    }
     return (
       <div
         role={openable ? "button" : undefined}
         tabIndex={openable ? 0 : undefined}
         onClick={openable ? open : undefined}
-        onKeyDown={
-          openable
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  open();
-                }
-              }
-            : undefined
-        }
+        onKeyDown={keyDown}
         className={`my-1 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 px-4 py-3.5 text-white shadow-sm ${
           openable ? "cursor-pointer" : ""
         }`}
@@ -188,14 +221,12 @@ export default function ReportCard({
         <div className="flex items-center gap-2">
           <Crown className="h-5 w-5 shrink-0 text-amber-300" aria-hidden />
           <p className="text-[15px] font-semibold leading-snug">
-            Your ideal text
+            {versionLabel ?? "Your ideal text"}
           </p>
         </div>
-        {message.body ? (
-          <p className="mt-1 text-[14px] leading-relaxed text-white/85">
-            {message.body}
-          </p>
-        ) : null}
+        <p className="mt-1 text-[14px] leading-relaxed text-white/85">
+          {verified ? "Verified by your coach" : message.body}
+        </p>
       </div>
     );
   }
@@ -246,18 +277,13 @@ export default function ReportCard({
       ? message.metadata.session_id
       : null;
   const date = reportDateLabel(message.client_created_at);
-  const openable = !!(sessionId && onViewInsights);
-  const open = () => {
-    if (sessionId && onViewInsights) onViewInsights(sessionId);
-  };
-  const openKeyDown = openable
-    ? (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          open();
-        }
-      }
-    : undefined;
+  // FE-5 — the legacy per-piece Approve walker (ReadoutCard, reached through
+  // InsightsOverlay) is retired under the single-deliverable model: the ideal
+  // text IS the deliverable. So the recording bubble is pure history now, and
+  // the coach insight card is a read-only note. Nothing here opens.
+  const openable = false;
+  const open = undefined;
+  const openKeyDown = undefined;
 
   if (message.kind === "insight") {
     // COACH feedback — GREY, full width.

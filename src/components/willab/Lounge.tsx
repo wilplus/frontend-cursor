@@ -27,7 +27,6 @@ import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
 import LoadingState from "./LoadingState";
-import InsightsOverlay from "./InsightsOverlay";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
@@ -104,7 +103,6 @@ export default function Lounge({
   onStart,
   goTo,
   initialReviewSessionId = null,
-  initialInsightSessionId = null,
   initialBestPresentationArcId = null,
   recordingProgress = null,
 }: {
@@ -114,9 +112,6 @@ export default function Lounge({
   /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
    *  that session once on mount. Coach-gated; ignored for non-coaches. */
   initialReviewSessionId?: string | null;
-  /** D3 — when set (from /chat?insight=<id>), open the InsightsOverlay for that
-   *  session once on mount (user results email deep-link). */
-  initialInsightSessionId?: string | null;
   /** C — when set (from /chat?arc=<arc_id>), open the BestPresentationOverlay
    *  for that arc once on mount. */
   initialBestPresentationArcId?: string | null;
@@ -137,7 +132,6 @@ export default function Lounge({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [draftText]);
   const [botThinking, setBotThinking] = useState(false);
-  const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
@@ -277,21 +271,24 @@ export default function Lounge({
   // that the top banner is gone: open the overlay, and if we were in the unread
   // insights_ready state, clear the flag + return the status machine to idle
   // (exactly what the banner's "Read ›" button used to do).
-  function handleViewInsights(sessionId: string): void {
-    setActiveInsight(sessionId);
-    if (state === "insights_ready") {
-      clearInsightsReady();
-      goTo("lounge_idle");
+  // FE-4 — the newest ideal-text version the thread has announced (the BE
+  // stamps metadata.version on every version bubble). null before the first.
+  const latestIdealVersion = useMemo(() => {
+    let v: number | null = null;
+    for (const m of messages) {
+      if (m.kind !== "ideal_text") continue;
+      const raw = m.metadata?.version;
+      const n =
+        typeof raw === "number" && Number.isFinite(raw)
+          ? raw
+          : typeof raw === "string" && raw.trim() && Number.isFinite(Number(raw))
+            ? Number(raw)
+            : null;
+      if (n !== null && (v === null || n > v)) v = n;
     }
-  }
+    return v;
+  }, [messages]);
 
-  // Closing the insights overlay just returns to the thread. Wave-3 B-1 removed
-  // the post-feedback chip offer here; the proactive strong-sides offer now
-  // fires at the post-send moment (A-4 / B-2), and intent-driven buttons come
-  // from the BE's suggested_action (B-1).
-  function handleInsightsClose(): void {
-    setActiveInsight(null);
-  }
 
   // C8 — every quick-action CTA lands in ONE place: the Trainings library
   // (strong_sides / trainings / audit). audit previously routed to /audits; it
@@ -319,12 +316,6 @@ export default function Lounge({
   // D3 — user results email deep-link (/chat?insight=<id>): open the insights
   // overlay for that session once on mount. Not coach-gated (InsightsOverlay
   // fetches the owner-auth readout); fire-once so closing it doesn't reopen.
-  const insightLinkOpenedRef = useRef(false);
-  useEffect(() => {
-    if (insightLinkOpenedRef.current || !initialInsightSessionId) return;
-    insightLinkOpenedRef.current = true;
-    setActiveInsight(initialInsightSessionId);
-  }, [initialInsightSessionId]);
 
   // C — best-presentation deep-link (/chat?arc=<arc_id>): open the
   // BestPresentationOverlay for that arc once on mount; fire-once so closing it
@@ -712,7 +703,7 @@ export default function Lounge({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      <StatusRegion state={state} goTo={goTo} />
+      <StatusRegion state={state} goTo={goTo} idealVersion={latestIdealVersion} />
 
       <div
         ref={scrollRef}
@@ -740,12 +731,20 @@ export default function Lounge({
               <Bubble
                 key={item.reactKey}
                 message={item.message}
-                onViewInsights={handleViewInsights}
-                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+                        onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
-                onOpenIdealText={setIdealTextArcId}
+                onOpenIdealText={(arcId) => {
+            // FE-5 — opening the deliverable is the "seen" signal now that the
+            // legacy insight walker is gone; without this the status machine
+            // would stick in insights_ready forever.
+            if (state === "insights_ready") {
+              clearInsightsReady();
+              goTo("lounge_idle");
+            }
+            setIdealTextArcId(arcId);
+          }}
                 onChip={onChip}
                 activeOffer={activeOffer}
                 onOpenOffer={setActiveOffer}
@@ -948,9 +947,6 @@ export default function Lounge({
             onStart();
           }}
         />
-      )}
-      {activeInsight && (
-        <InsightsOverlay sessionId={activeInsight} onClose={handleInsightsClose} />
       )}
       {libraryOpen && (
         <LibraryOverlay
@@ -1293,9 +1289,9 @@ function LoungeEmptyState() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
       <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-        Hi, I am Will and I will (hehe) assist you in your training. Jump into
-        the <span className="font-medium">official recording</span>: three takes
-        give you the ideal text of your talk, in your own words, and show you
+        Hi, I am Will and I will (hehe) help you sound like you. Jump into
+        the <span className="font-medium">official recording</span>: every take
+        gives you the ideal text of your talk, in your own words, and shows you
         which moments landed best.
       </p>
     </div>
@@ -1308,16 +1304,21 @@ function LoungeEmptyState() {
 function StatusRegion({
   state,
   goTo,
+  idealVersion,
 }: {
   state: WillabState;
   goTo: (s: WillabState) => void;
+  /** FE-4 — the live version announced in the thread, so the parked card names
+   *  the deliverable ("Ideal text 3.0") instead of an unfinished "training". */
+  idealVersion: number | null;
 }) {
   if (state === "parked") {
     return (
       <StatusCard tone="hold">
-        {/* B5 — training vocabulary. */}
         <p className="text-[15px] text-foreground">
-          Your training isn&apos;t finished.
+          {idealVersion === null
+            ? "Your ideal text is waiting for you."
+            : `Ideal text ${idealVersion}.0 is waiting for you.`}
         </p>
         {/* TODO(slice: Readout): restore the held Readout data on resume. */}
         <Button
@@ -1326,7 +1327,7 @@ function StatusRegion({
           onClick={() => goTo("readout")}
           className="mt-2 rounded-full"
         >
-          Resume
+          Review
         </Button>
       </StatusCard>
     );
