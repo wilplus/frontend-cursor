@@ -42,6 +42,15 @@ export type MomentSuggestion =
       /** The detected device, verbatim from the transcript (BE-validated as a
        *  substring). null → the sheet shows the copy without an excerpt. */
       quote: string | null;
+    }
+  | {
+      /** DELIVERY_STARS — a MEASURED delivery observation, deterministic and
+       *  self-referential (z-scored against the speaker's own baseline; no
+       *  LLM). The FE renders fixed founder-approved copy keyed on `device`,
+       *  same contract shape as structure. Not an edit — the modal offers a
+       *  re-record of that snippet, not a text change. */
+      kind: "delivery";
+      device: "emphasis" | "pace_fast" | "pace_slow" | "pause";
     };
 
 export interface IdealKeyMomentLink {
@@ -143,6 +152,54 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
+/** Parse the `suggestion` object behind a grey star. Each family has a distinct
+ *  shape; an unrecognized kind/device degrades to null (→ a plain moment, never
+ *  the paid path — R-ms3). Kept as its own function so adding a family is one
+ *  branch, not another level of ternary. */
+function parseSuggestion(raw: unknown): MomentSuggestion | null {
+  if (!raw || typeof raw !== "object") return null;
+  const s = raw as Record<string, unknown>;
+  if (s.kind === "emphasize" || s.kind === "replace") {
+    return {
+      kind: s.kind,
+      replacement:
+        typeof s.replacement === "string" && s.replacement.length > 0
+          ? s.replacement
+          : null,
+      why: str(s.why),
+      // POLISH_AS_SUGGESTIONS — anything but the exact "polish" token is null,
+      // so an unknown/internal trigger can never change the copy.
+      trigger: s.trigger === "polish" ? "polish" : null,
+    };
+  }
+  // STRUCTURAL_STARS — the fixed copy is keyed off device, so a device we
+  // can't name has no sheet: degrade to a plain moment.
+  if (
+    s.kind === "structure" &&
+    (s.device === "contrast" || s.device === "list_of_three")
+  ) {
+    return {
+      kind: "structure",
+      device: s.device,
+      quote:
+        typeof s.quote === "string" && s.quote.trim().length > 0
+          ? s.quote
+          : null,
+    };
+  }
+  // DELIVERY_STARS — likewise keyed off device (4 measured observations).
+  if (
+    s.kind === "delivery" &&
+    (s.device === "emphasis" ||
+      s.device === "pace_fast" ||
+      s.device === "pace_slow" ||
+      s.device === "pause")
+  ) {
+    return { kind: "delivery", device: s.device };
+  }
+  return null;
+}
+
 function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -157,38 +214,7 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
   if (!anchor || (!snippetId && !momentId)) return null;
   // MOMENT_SUGGESTIONS — all safe-ahead: an older payload omits these and the
   // moment degrades to today's plain underlined link (star === null).
-  const sgRaw =
-    r.suggestion && typeof r.suggestion === "object"
-      ? (r.suggestion as Record<string, unknown>)
-      : null;
-  const suggestion: MomentSuggestion | null =
-    sgRaw && (sgRaw.kind === "emphasize" || sgRaw.kind === "replace")
-      ? {
-          kind: sgRaw.kind,
-          replacement:
-            typeof sgRaw.replacement === "string" && sgRaw.replacement.length > 0
-              ? sgRaw.replacement
-              : null,
-          why: str(sgRaw.why),
-          // POLISH_AS_SUGGESTIONS — anything but the exact "polish" token is
-          // null, so an unknown/internal trigger can never change the copy.
-          trigger: sgRaw.trigger === "polish" ? "polish" : null,
-        }
-      : sgRaw &&
-          sgRaw.kind === "structure" &&
-          (sgRaw.device === "contrast" || sgRaw.device === "list_of_three")
-        ? {
-            // STRUCTURAL_STARS — an unknown device degrades to a plain moment
-            // (same R-ms3 rule as a missing suggestion): the fixed copy is
-            // keyed off `device`, so a device we can't name has no sheet.
-            kind: "structure",
-            device: sgRaw.device,
-            quote:
-              typeof sgRaw.quote === "string" && sgRaw.quote.trim().length > 0
-                ? sgRaw.quote
-                : null,
-          }
-        : null;
+  const suggestion = parseSuggestion(r.suggestion);
   // A "suggestion" star MUST carry a usable suggestion — without one it
   // degrades to a plain moment, never to the paid coach path (a grey star
   // showing an unlock prompt would sell free content — review R-ms3).

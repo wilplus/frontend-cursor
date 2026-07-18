@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Check, Lock, Star } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, Lock, Mic, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -20,6 +20,7 @@ import {
   type MomentExplanationResult,
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 
 /* -------------------------------------------------------------------------- */
 /*  MomentStars — the SD key-moment star layer, shared by BOTH surfaces         */
@@ -77,6 +78,7 @@ function MomentSheetBody({
   onApprove,
   onRevert,
   onBuy,
+  onReRecord,
 }: {
   moment: IdealKeyMomentLink;
   momentContent: MomentExplanationResult | null;
@@ -84,6 +86,13 @@ function MomentSheetBody({
   onApprove: () => void;
   onRevert: () => void;
   onBuy: () => Promise<string | null>;
+  /** DELIVERY_STARS — re-record this snippet with the feedback applied. Absent
+   *  → the delivery card shows the observation without a mic. */
+  onReRecord?: (
+    snippetId: string,
+    audio: Blob,
+    durationSec: number
+  ) => Promise<boolean>;
 }) {
   const suggestion =
     moment.star === "suggestion" ? moment.suggestion ?? null : null;
@@ -110,6 +119,14 @@ function MomentSheetBody({
           // STRUCTURAL_STARS — a delivery prompt, not an edit: no Approve, no
           // fold, no unlock. The star persists and always re-opens.
           <StructuralPracticeCard suggestion={suggestion} />
+        ) : suggestion.kind === "delivery" ? (
+          // DELIVERY_STARS — a measured observation; the action is a re-record
+          // of this snippet, not a text edit.
+          <DeliveryStarCard
+            suggestion={suggestion}
+            snippetId={moment.snippetId}
+            onReRecord={onReRecord}
+          />
         ) : (
           <MomentSuggestionCard
             suggestion={suggestion}
@@ -251,6 +268,116 @@ function StructuralPracticeCard({
   );
 }
 
+/** DELIVERY_STARS — the fixed founder-approved copy keyed on the measured
+ *  device. Self-referential ("your usual"), qualitative, no numbers. */
+const DELIVERY_COPY: Record<
+  Extract<MomentSuggestion, { kind: "delivery" }>["device"],
+  string
+> = {
+  emphasis: "Emphasis: This came out flatter than your usual. Lift it.",
+  pace_fast: "Pace: You moved faster here than you usually do. Slow it down.",
+  pace_slow: "Pace: This one dragged compared to your usual. Pick it up.",
+  pause: "Pause: You ran this together. Take a breath before it.",
+};
+
+/** DELIVERY_STARS — a measured observation + a mic to re-record THIS snippet
+ *  with the feedback applied (not a text edit). The mic records in-modal and
+ *  hands the blob to the host, which uploads + refetches. Degrades: no mic
+ *  when onReRecord is absent (the flag is off / older host). */
+function DeliveryStarCard({
+  suggestion,
+  snippetId,
+  onReRecord,
+}: {
+  suggestion: Extract<MomentSuggestion, { kind: "delivery" }>;
+  snippetId: string;
+  onReRecord?: (
+    snippetId: string,
+    audio: Blob,
+    durationSec: number
+  ) => Promise<boolean>;
+}) {
+  const mic = useDualCaptureMic({ transcript: false });
+  const [phase, setPhase] = useState<"idle" | "sending" | "done" | "failed">(
+    "idle"
+  );
+  const sendingRef = useRef(false);
+  // The blob we already handled — a PER-BLOB latch (review R-dl1). The upload
+  // effect depends on onReRecord, whose identity flips whenever the host
+  // re-renders (it bumps a refetch nonce on success). Without this latch that
+  // re-render would re-run the effect on the SAME still-"stopped" blob and
+  // re-upload it, bumping the nonce again → a runaway loop the instant the BE
+  // endpoint returns 200. A fresh recording produces a new blob and re-arms.
+  const sentBlobRef = useRef<Blob | null>(null);
+  const st = mic.state;
+
+  // Upload each recorded blob exactly once, whatever re-renders happen.
+  useEffect(() => {
+    if (st.status !== "stopped" || sendingRef.current || !onReRecord) return;
+    const blob = st.audioBlob;
+    if (!blob || blob.size === 0) {
+      setPhase("failed");
+      return;
+    }
+    if (sentBlobRef.current === blob) return; // already handled this take
+    sendingRef.current = true;
+    sentBlobRef.current = blob;
+    setPhase("sending");
+    void onReRecord(snippetId, blob, st.durationSec).then((ok) => {
+      sendingRef.current = false;
+      setPhase(ok ? "done" : "failed");
+    });
+  }, [st, snippetId, onReRecord]);
+
+  const recording = st.status === "recording";
+  // A momentId-keyed moment carries snippetId "" — the re-record URL needs a
+  // real snippet, so hide the mic (show the observation only) rather than post
+  // to a dead .../snippet//re-record path (review R-dl3).
+  const canReRecord = !!onReRecord && snippetId !== "";
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[14px] leading-relaxed text-foreground">
+        {DELIVERY_COPY[suggestion.device]}
+      </p>
+      {phase === "done" ? (
+        <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5">
+          <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />
+          <p className="text-[13px] leading-relaxed text-foreground">
+            Got it. We&apos;re working your new take into the text.
+          </p>
+        </div>
+      ) : canReRecord ? (
+        <>
+          <Button
+            type="button"
+            onClick={() =>
+              recording ? void mic.stop() : void mic.start().catch(() => {})
+            }
+            disabled={phase === "sending"}
+            className="h-11 self-start rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
+          >
+            <Mic className="mr-2 h-4 w-4" aria-hidden />
+            {phase === "sending"
+              ? "Sending…"
+              : recording
+                ? "Stop and send"
+                : "Record it again"}
+          </Button>
+          {phase === "failed" ? (
+            <p className="text-[12px] text-muted-foreground">
+              Couldn&apos;t send that just now. Give it another go.
+            </p>
+          ) : (
+            <p className="text-[12px] text-muted-foreground">
+              Read just this line again, applying the note above.
+            </p>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /** SD — the unlock prompt inside the moment sheet: one price, one button. A
  *  verified moment with a coach video shows a blurred teaser above it. */
 function MomentUnlockPrompt({
@@ -358,10 +485,12 @@ export function MomentStarText({
           const star = m.star;
           if (star === "suggestion" || star === "verified") {
             const verified = star === "verified";
-            // STRUCTURAL_STARS — a distinct AMBER affordance: text-derived
-            // practice prompts must never look like the measured (acoustic)
-            // grey suggestions or the coach-verified orange.
-            const structural = !verified && m.suggestion?.kind === "structure";
+            // AMBER = a PRACTICE prompt (structural device or a measured
+            // delivery observation): a re-record/practice cue, never a text
+            // edit. It must not look like the grey edit-suggestions or the
+            // coach-verified orange.
+            const k = m.suggestion?.kind;
+            const practice = !verified && (k === "structure" || k === "delivery");
             return (
               <button
                 key={i}
@@ -370,7 +499,7 @@ export function MomentStarText({
                 aria-label={
                   verified
                     ? "Coach-verified moment"
-                    : structural
+                    : practice
                       ? "Practice suggestion"
                       : "Suggested edit"
                 }
@@ -382,11 +511,11 @@ export function MomentStarText({
                   className={`ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 ${
                     verified
                       ? "text-primary"
-                      : structural
+                      : practice
                         ? "text-amber-500"
                         : "text-muted-foreground"
                   }`}
-                  fill={verified || structural ? "currentColor" : "none"}
+                  fill={verified || practice ? "currentColor" : "none"}
                   aria-hidden
                 />
               </button>
@@ -435,6 +564,7 @@ export function MomentSheet({
   onApprove,
   onRevert,
   onBuy,
+  onReRecord,
 }: {
   moment: IdealKeyMomentLink | null;
   momentContent: MomentExplanationResult | null;
@@ -443,6 +573,12 @@ export function MomentSheet({
   onApprove: () => void;
   onRevert: () => void;
   onBuy: () => Promise<string | null>;
+  /** DELIVERY_STARS — re-record this snippet with the feedback applied. */
+  onReRecord?: (
+    snippetId: string,
+    audio: Blob,
+    durationSec: number
+  ) => Promise<boolean>;
 }) {
   if (!moment) return null;
   return (
@@ -473,6 +609,7 @@ export function MomentSheet({
           onApprove={onApprove}
           onRevert={onRevert}
           onBuy={onBuy}
+          onReRecord={onReRecord}
         />
       </div>
     </div>
@@ -548,8 +685,9 @@ export function useMomentStars({
   // bridges the gap. Reversible until the sheet closes (Undo).
   const approveMoment = useCallback((m: IdealKeyMomentLink) => {
     const sg = m.suggestion;
-    // A structural star is a delivery prompt, not an edit — nothing to fold.
-    if (!sg || sg.kind === "structure") return;
+    // Only emphasize/replace fold the text. Structure and delivery are prompts,
+    // not edits — nothing to fold.
+    if (!sg || (sg.kind !== "emphasize" && sg.kind !== "replace")) return;
     const fold: LocalFold =
       sg.kind === "emphasize"
         ? { kind: "emphasize", text: emphasizeMarker(m.anchor) }
@@ -565,7 +703,7 @@ export function useMomentStars({
 
   const revertMoment = useCallback((m: IdealKeyMomentLink) => {
     const sg = m.suggestion;
-    if (!sg || sg.kind === "structure") return;
+    if (!sg || (sg.kind !== "emphasize" && sg.kind !== "replace")) return;
     const key = momentKey(m);
     setAppliedLocal((prev) => {
       const next = new Map(prev);
