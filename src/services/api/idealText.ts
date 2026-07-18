@@ -30,6 +30,11 @@ export type MomentSuggestion =
       replacement: string | null;
       /** A short, qualitative "why" line (model-generated, digit-free). */
       why: string;
+      /** POLISH_AS_SUGGESTIONS — "polish" marks a replace whose alternative is
+       *  the compose LLM's flow smoothing rather than a "your words were weak"
+       *  rewrite. The BE clamps this to "polish" | null so the internal trigger
+       *  vocabulary never rides a user payload. null/absent → today's copy. */
+      trigger: "polish" | null;
     }
   | {
       kind: "structure";
@@ -72,6 +77,22 @@ export interface IdealKeyMomentLink {
    *  null → no usable slice, play the ref unclamped. */
   startOffsetMs?: number | null;
   durationMs?: number | null;
+}
+
+/** POLISH_AS_SUGGESTIONS — a polish star: the compose LLM's flow smoothing,
+ *  offered as an approvable replace. Only these are eligible for "Approve
+ *  all"; acoustic and structural stars are judgment calls and stay strictly
+ *  per-star. Pure predicate over the wire shape. */
+export function isPolish(m: IdealKeyMomentLink): boolean {
+  const sg = m.suggestion;
+  return (
+    m.star === "suggestion" && sg?.kind === "replace" && sg.trigger === "polish"
+  );
+}
+
+/** A polish star the BE has NOT already folded into the served text. */
+export function isUnappliedPolish(m: IdealKeyMomentLink): boolean {
+  return isPolish(m) && m.applied !== true;
 }
 
 export interface IdealText {
@@ -149,6 +170,9 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
               ? sgRaw.replacement
               : null,
           why: str(sgRaw.why),
+          // POLISH_AS_SUGGESTIONS — anything but the exact "polish" token is
+          // null, so an unknown/internal trigger can never change the copy.
+          trigger: sgRaw.trigger === "polish" ? "polish" : null,
         }
       : sgRaw &&
           sgRaw.kind === "structure" &&

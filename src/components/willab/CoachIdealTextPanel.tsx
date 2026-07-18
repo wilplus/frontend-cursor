@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlideRender } from "./pdfSlides";
@@ -53,6 +53,10 @@ export default function CoachIdealTextPanel({
   );
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [approved, setApproved] = useState(false);
+  // FE-7 — true once the coach has scrolled to the END OF THE TEXT this
+  // session. Stable identity so the sensor's observer isn't rebuilt per render.
+  const [hasRead, setHasRead] = useState(false);
+  const onRead = useCallback(() => setHasRead(true), []);
   const [takesDone, setTakesDone] = useState<number | null>(null);
   const [takesTarget, setTakesTarget] = useState<number | null>(null);
   const [source, setSource] = useState<"machine" | "coach" | null>(null);
@@ -212,6 +216,9 @@ export default function CoachIdealTextPanel({
 
   // ready — the slide + editable paragraphs editor
   return (
+    // FE-7 — ONLY this shell reports read-ness. The loading / error / empty
+    // shells have no text in them, so letting them fire would mark the coach
+    // as having read a draft that had not rendered yet (review R-p4).
     <PanelShell>
       <div className="mx-auto w-full max-w-2xl">
         {/* Cover slide (deck first page; a blank card when there's no deck). */}
@@ -261,6 +268,10 @@ export default function CoachIdealTextPanel({
             )
           )}
 
+          {/* FE-7 — read-ness is measured HERE, at the end of the text, not at
+              the end of the panel (the Verify button sits below). */}
+          <ReadSensor onRead={onRead} />
+
           {/* #214 — the student's edit, read-only reference. The coach
               reconciles by hand; the lanes never merge automatically. */}
           {userEdit ? (
@@ -293,7 +304,10 @@ export default function CoachIdealTextPanel({
               <Button
                 type="button"
                 onClick={() => void approve()}
-                disabled={saving || approving}
+                disabled={saving || approving || !hasRead}
+                title={
+                  hasRead ? undefined : "Read the whole text before verifying"
+                }
                 className="h-9 rounded-full bg-foreground px-5 text-[13px] text-background hover:bg-foreground/90"
               >
                 {approving ? (
@@ -321,6 +335,42 @@ export default function CoachIdealTextPanel({
 /** A scroll container so the panel fills its host (BestPresentationOverlay). */
 function PanelShell({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 overflow-y-auto">{children}</div>;
+}
+
+/** FE-7 — the read sensor: an invisible marker placed after the LAST
+ *  paragraph. It reports once the end of the TEXT has been scrolled into view,
+ *  which gates Verify so a coach cannot sign off on a draft they never opened.
+ *
+ *  Two things this deliberately does NOT do. It does not measure the scroll
+ *  container, because the Verify button lives at the bottom of that container
+ *  and scrolling far enough to see the button would satisfy the gate on its
+ *  own. And it does not measure once, because the cover slide renders its PDF
+ *  canvas asynchronously: an early measurement sees a ~16px placeholder, the
+ *  text appears to fit, and the gate opens before the slide pushes it below
+ *  the fold. IntersectionObserver re-evaluates on every layout change, so a
+ *  late-arriving slide simply moves the marker back out of view. */
+function ReadSensor({ onRead }: { onRead: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      // No observer (older browser / test env) — do not lock the coach out.
+      onRead();
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          onRead();
+          io.disconnect();
+        }
+      },
+      { threshold: 0.99 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [onRead]);
+  return <div ref={ref} aria-hidden className="h-px w-full" />;
 }
 
 /** One paragraph rendered read-only with the shared marker renderer (bold key

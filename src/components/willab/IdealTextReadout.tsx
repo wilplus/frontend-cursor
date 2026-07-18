@@ -6,44 +6,47 @@ import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import {
   fetchIdealText,
+  isUnappliedPolish,
   saveIdealUserEdit,
   type IdealText,
 } from "@/services/api/idealText";
 import { MarkerToolbar } from "./RichText";
-import { MomentSheet, MomentStarText, useMomentStars } from "./MomentStars";
+import {
+  MomentSheet,
+  MomentStarText,
+
+  useMomentStars,
+} from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextReadout — the post-recording screen IS the ideal text (SD)        */
 /*                                                                            */
 /*  Replaces the per-piece approve walker: the moment analysis lands, the      */
-/*  user sees their ideal text 1.0 — every suggestion already applied, one     */
-/*  continuous text in paragraphs, font one step up, editable — under a grey   */
+/*  user sees their ideal text 1.0 in THEIR OWN WORDS, one continuous text in  */
+/*  paragraphs, font one step up, editable — under a grey                      */
 /*  "Pending verification by the coach" badge. No Approve buttons, no "Send    */
 /*  for analysis": a signed-in take is sent to the coach AUTOMATICALLY on      */
 /*  arrival (mergeSession, once); a guest gets one button to save the text by  */
 /*  creating an account (that is account creation, not a send step).           */
 /* -------------------------------------------------------------------------- */
 
-/** First-occurrence replace (mirrors ReadoutCard's applyUpgradeText). */
-function applyUpgrade(text: string, original: string, upgrade: string): string {
-  const i = text.indexOf(original);
-  return i < 0 ? text : text.slice(0, i) + upgrade + text.slice(i + original.length);
-}
-
-/** The ideal text 1.0: every piece with ALL its suggestions applied (a saved
- *  user edit is already-composed text and wins), joined into paragraphs. */
+/** The speaker's own words, joined into paragraphs. A saved user edit wins.
+ *
+ *  FE-5 (P0) — this NO LONGER splices Say-It-Stronger upgrades into the text.
+ *  It used to apply every upgrade unconditionally (a blind first-occurrence
+ *  string replace, run sequentially over already-mutated text, ignoring the
+ *  approval set the BE persists), which silently rewrote the speaker's words
+ *  with no affordance to see or undo it. Under POLISH_AS_SUGGESTIONS the BE
+ *  serves the verbatim words and offers each polish as an approvable star, so
+ *  a client-side rewrite here would undo exactly what that feature fixes.
+ *  The ONLY text mutations are now user-approved star folds. */
 export function composeIdealText(payload: ReadoutPayload): string {
   const parts: string[] = [];
   if (payload.instantChunks.length > 0) {
     for (const p of payload.instantChunks) {
-      let t = p.userEditedText ?? p.text;
-      if (!p.userEditedText) {
-        for (const u of p.sayItStronger?.upgrades ?? []) {
-          t = applyUpgrade(t, u.original, u.upgrade);
-        }
-      }
-      if (t.trim()) parts.push(t.trim());
+      const t = (p.userEditedText ?? p.text).trim();
+      if (t) parts.push(t);
     }
   } else {
     for (const c of payload.fullTranscriptChunks) {
@@ -219,6 +222,20 @@ export default function IdealTextReadout({
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
   });
 
+  // FE-2 — every polish star on this text, and the subset still awaiting a
+  // decision. 2+ pending earns the bulk control; the full list is what
+  // "Undo all" walks back.
+  const allPolish = useMemo(
+    () => (sd?.ideal.keyMoments ?? []).filter(isUnappliedPolish),
+    [sd]
+  );
+  const pendingPolish = useMemo(
+    () => allPolish.filter((m) => !stars.isApplied(m)),
+    // stars.isApplied reads appliedLocal, so track the map itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allPolish, stars.appliedLocal]
+  );
+
   // The one edit path — a keystroke or a toolbar wrap: mark dirty, reset the
   // save flash, update the text (the debounce effect persists it).
   const applyEdit = useCallback((next: string) => {
@@ -270,6 +287,30 @@ export default function IdealTextReadout({
         </div>
       </div>
 
+      {/* FE-2 — one tap applies every smoother-version suggestion. Polish only:
+          flow smoothing is mechanical, while acoustic and structural stars are
+          judgment calls and stay strictly per-star. Each still POSTs
+          individually, so every approval is separately recorded and revertible.
+          Hidden while editing: folds live in the render layer, so approving
+          behind the raw textarea would look like it did nothing (R-p1). */}
+      {editing ? null : stars.bulkApplied ? (
+        <button
+          type="button"
+          onClick={() => stars.revertAllPolish(allPolish)}
+          className="self-start text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Undo all
+        </button>
+      ) : pendingPolish.length >= 2 ? (
+        <button
+          type="button"
+          onClick={() => stars.approveAllPolish(pendingPolish)}
+          className="self-start rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          Approve all
+        </button>
+      ) : null}
+
       {editing ? (
         <div className="flex flex-col gap-2">
           {/* Bold / underline / italic / orange — wraps the selection in the
@@ -318,31 +359,32 @@ export default function IdealTextReadout({
         </p>
       ) : null}
 
+      {/* FE-6 — a guest's edits are local-only (persistence arms on the SD
+          fetch, which needs auth), so the CTA must not promise saving. */}
       {signedIn === false ? (
         <Button
           type="button"
           onClick={onSignUp}
           className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
         >
-          Save your ideal text
+          Create an account to keep this text
         </Button>
       ) : onReRead ? (
-        // Re-read loop — reading the ideal text aloud is just the next take.
-        // The reading goes back through analysis and the text gets sharper and
-        // more yours. Small mic'd CTA at the bottom, under the ask.
-        <div className="mt-1 flex flex-col gap-2.5 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-4">
-          <p className="text-[13px] leading-relaxed text-foreground">
-            Please read the text as if you were presenting. It helps us spot
-            whether it feels good, and make it even more your style and engaging
-            for your specific audience.
+        // FE-3 — the re-read mic is a PERSISTENT bottom control, not a one-off
+        // card: reading the corrected text aloud is the next take, and it is
+        // the main way the text keeps improving.
+        <div className="mt-1 flex flex-col gap-2.5 border-t border-border pt-4">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            Read it as if you were presenting. Your reading becomes the next
+            version of this text.
           </p>
           <Button
             type="button"
             onClick={onReRead}
-            className="h-11 w-full rounded-full bg-foreground text-[14px] font-medium text-background hover:bg-foreground/90"
+            className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
           >
             <Mic className="mr-2 h-4 w-4" aria-hidden />
-            Send for analysis
+            Read it aloud
           </Button>
         </div>
       ) : null}

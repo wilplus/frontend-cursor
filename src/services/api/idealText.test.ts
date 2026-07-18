@@ -205,6 +205,39 @@ describe("mapIdealText", () => {
     });
   });
 
+  it("maps the polish trigger, and clamps anything else to null (POLISH_AS_SUGGESTIONS)", () => {
+    const v = mapIdealText({
+      text: "hello world there",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "p1",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "replace", replacement: "hi", why: null, trigger: "polish" },
+        },
+        {
+          anchor: "world",
+          snippet_id: "p2",
+          take_session_id: "t1",
+          star: "suggestion",
+          // An internal trigger must never reach the copy layer.
+          suggestion: { kind: "replace", replacement: "earth", why: "w", trigger: "stickiness" },
+        },
+        {
+          anchor: "there",
+          snippet_id: "p3",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "replace", replacement: "here", why: "w" },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0].suggestion).toMatchObject({ trigger: "polish" });
+    expect(v?.keyMoments[1].suggestion).toMatchObject({ trigger: null });
+    expect(v?.keyMoments[2].suggestion).toMatchObject({ trigger: null });
+  });
+
   it("maps a STRUCTURAL suggestion (device + verbatim quote) behind the star", () => {
     const v = mapIdealText({
       text: "hello world",
