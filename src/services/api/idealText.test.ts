@@ -103,6 +103,8 @@ describe("mapIdealText", () => {
         applied: false,
         coach: null,
         snippetAudioRef: null,
+        startOffsetMs: null,
+        durationMs: null,
       },
     ]);
     expect(v?.approved).toBe(true);
@@ -169,6 +171,38 @@ describe("mapIdealText", () => {
       ],
     });
     expect(v?.keyMoments[0]).toMatchObject({ star: null, suggestion: null });
+  });
+
+  it("maps the playback slice, and nulls unusable offsets so the player falls back to unclamped", () => {
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "s6",
+          take_session_id: "t1",
+          snippet_audio_ref: "https://cdn/full.webm",
+          start_offset_ms: 12_000,
+          duration_ms: 4_500,
+        },
+        {
+          anchor: "world",
+          snippet_id: "s7",
+          take_session_id: "t1",
+          snippet_audio_ref: "https://cdn/full.webm",
+          start_offset_ms: null,
+          duration_ms: "nope",
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({
+      startOffsetMs: 12_000,
+      durationMs: 4_500,
+    });
+    expect(v?.keyMoments[1]).toMatchObject({
+      startOffsetMs: null,
+      durationMs: null,
+    });
   });
 
   it("degrades a suggestion star WITHOUT a usable suggestion to a plain moment (R-ms3)", () => {

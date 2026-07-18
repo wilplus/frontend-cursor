@@ -32,7 +32,12 @@ export function RichText({
     <>
       {segments.map((seg, i) => {
         const cls = [
-          seg.bold ? "font-semibold" : "",
+          // An APPROVED key phrase reads bold+orange: that is an accent
+          // INSIDE a moment wrapper, which is exactly what the serve-time
+          // fold emits. A standalone accent (the coach's orange toolbar
+          // button) stays colour-only, so approving never restyles text
+          // somebody hand-marked.
+          seg.bold || (seg.highlight && seg.moment) ? "font-semibold" : "",
           seg.italic ? "italic" : "",
           seg.underline ? "underline underline-offset-2" : "",
           seg.highlight || seg.moment ? "text-primary" : "",

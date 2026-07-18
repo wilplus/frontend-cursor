@@ -54,6 +54,11 @@ export interface IdealKeyMomentLink {
   /** The student's own recording of this snippet — free playback in the modal
    *  (never gated). null → no player. */
   snippetAudioRef?: string | null;
+  /** Where this moment starts inside snippetAudioRef, and how long it runs.
+   *  The ref is usually the whole take, so the player clamps to this window.
+   *  null → no usable slice, play the ref unclamped. */
+  startOffsetMs?: number | null;
+  durationMs?: number | null;
 }
 
 export interface IdealText {
@@ -153,6 +158,12 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
       }
     : null;
   const snippetAudioRef = str(r.snippet_audio_ref) || str(r.audio_ref) || null;
+  // Parent+offset model: snippet_audio_ref is usually the WHOLE take's audio,
+  // so the player must clamp to [start, start+duration]. Absent/unusable
+  // offsets (older payload, un-sliced row) → null, and the sheet falls back to
+  // unclamped playback rather than a dead player.
+  const ms = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
   return {
     anchor,
     snippetId,
@@ -164,6 +175,8 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
     applied: r.applied === true,
     coach,
     snippetAudioRef,
+    startOffsetMs: ms(r.start_offset_ms),
+    durationMs: ms(r.duration_ms),
   };
 }
 

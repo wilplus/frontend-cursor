@@ -40,6 +40,12 @@ export interface RichSegment {
 const TOKEN_RE =
   /\[\[moment:(?<mSnip>[^\]|]*)\|(?<mSess>[^\]]*)\]\](?<mText>[\s\S]+?)\[\[\/moment\]\]|\*\*(?<bold>[\s\S]+?)\*\*|__(?<under>[\s\S]+?)__|\{\{orange:(?<orange>[\s\S]+?)\}\}|==(?<hl>.+?)==|\/\/(?<ital>(?:[^/\n]|\/(?!\/))+?)\/\/|\*(?<italLegacy>.+?)\*/g;
 
+/** A FRESH matcher per scan. TOKEN_RE is /g, so its lastIndex is shared
+ *  mutable state — parseRichMarkers recurses (a moment wrapper composes with
+ *  the marks inside it), and a nested scan sharing one regex would clobber the
+ *  outer loop's position. */
+const matcher = () => new RegExp(TOKEN_RE.source, TOKEN_RE.flags);
+
 const PLAIN = { bold: false, italic: false, underline: false, highlight: false };
 
 /** Split marked text into flat render segments. Unmarked text passes through;
@@ -51,23 +57,28 @@ export function parseRichMarkers(text: string): RichSegment[] {
   };
   let last = 0;
   let m: RegExpExecArray | null;
-  TOKEN_RE.lastIndex = 0;
-  while ((m = TOKEN_RE.exec(text)) !== null) {
+  const re = matcher();
+  while ((m = re.exec(text)) !== null) {
     const g = m.groups ?? {};
     // Protocol guard (see the header invariant): "https://…" must never
     // italicize. Skip just this candidate and rescan from the next char —
     // the region stays part of the surrounding plain run.
     if (g.ital !== undefined && m.index > 0 && text[m.index - 1] === ":") {
-      TOKEN_RE.lastIndex = m.index + 1;
+      re.lastIndex = m.index + 1;
       continue;
     }
     if (m.index > last) plain(text.slice(last, m.index));
     if (g.mText !== undefined) {
-      out.push({
-        text: g.mText,
-        ...PLAIN,
-        moment: { snippetId: g.mSnip ?? "", sessionId: g.mSess ?? "" },
-      });
+      // A moment wrapper COMPOSES with the marks inside it. The serve-time
+      // fold of an approved emphasize is [[moment:…]]{{orange:…}}[[/moment]],
+      // so pushing mText flat would print the inner marker as raw syntax to
+      // the student. Parse the inner run and stamp the moment on each segment.
+      // (The token match is non-greedy and requires a closer, so the inner
+      // text can never contain another complete moment token — no runaway.)
+      const moment = { snippetId: g.mSnip ?? "", sessionId: g.mSess ?? "" };
+      for (const seg of parseRichMarkers(g.mText)) {
+        out.push({ ...seg, moment });
+      }
     } else if (g.bold !== undefined) {
       out.push({ text: g.bold, ...PLAIN, bold: true });
     } else if (g.under !== undefined) {
@@ -93,11 +104,11 @@ export function parseRichMarkers(text: string): RichSegment[] {
 export function markerTokenSpans(text: string): Array<[number, number]> {
   const spans: Array<[number, number]> = [];
   let m: RegExpExecArray | null;
-  TOKEN_RE.lastIndex = 0;
-  while ((m = TOKEN_RE.exec(text)) !== null) {
+  const re = matcher();
+  while ((m = re.exec(text)) !== null) {
     const g = m.groups ?? {};
     if (g.ital !== undefined && m.index > 0 && text[m.index - 1] === ":") {
-      TOKEN_RE.lastIndex = m.index + 1;
+      re.lastIndex = m.index + 1;
       continue;
     }
     spans.push([m.index, m.index + m[0].length]);
@@ -144,8 +155,9 @@ export function wrapSelection(
 
 /** Markers → minimal HTML for the print/PDF export. Styling mirrors the
  *  RichText renderer (RichText.tsx): the accent is orange TEXT (not a
- *  background), a key moment is an orange dotted underline — keep the two in
- *  step when either changes. Text is HTML-escaped before markers become tags. */
+ *  background) and turns BOLD inside a moment (an approved key phrase), a key
+ *  moment is an orange dotted underline — keep the two in step when either
+ *  changes. Text is HTML-escaped before markers become tags. */
 export function richMarkersToHtml(text: string): string {
   const esc = (t: string) =>
     t
@@ -158,7 +170,12 @@ export function richMarkersToHtml(text: string): string {
       if (s.bold) h = `<b>${h}</b>`;
       if (s.italic) h = `<i>${h}</i>`;
       if (s.underline) h = `<u>${h}</u>`;
-      if (s.highlight) h = `<span style="color:#ee7a2b">${h}</span>`;
+      // Accent inside a moment = an approved key phrase (bold+orange); a
+      // standalone accent stays colour-only. Mirrors RichText.
+      if (s.highlight)
+        h = `<span style="color:#ee7a2b${
+          s.moment ? ";font-weight:600" : ""
+        }">${h}</span>`;
       if (s.moment)
         h = `<span style="color:#ee7a2b;text-decoration:underline dotted;text-underline-offset:3px">${h}</span>`;
       return h;
