@@ -17,7 +17,12 @@ export type SuggestionFeedbackTarget =
   | "rewrite_your_voice"
   | "rewrite_polished"
   | "comment" // the qualitative comment row (auto_comment / coach note)
-  | "comment_video";
+  | "comment_video"
+  // MOMENT_SUGGESTIONS — a key-moment star's Approve/Revert. `moment_emphasize`
+  // = a charisma phrase made bold+orange; `moment_replace` = a threat/swearing/
+  // low-stickiness span swapped for an audience-fit rephrase.
+  | "moment_emphasize"
+  | "moment_replace";
 
 /** R6-FE2 — "reverted" fires when the user un-approves a row (the toggle's
  *  second click); the BE accepts it alongside the original actions. */

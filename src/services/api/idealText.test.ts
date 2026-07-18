@@ -97,10 +97,98 @@ describe("mapIdealText", () => {
         takeSessionId: "k",
         momentId: null,
         hasExplanation: false,
+        // MOMENT_SUGGESTIONS — all default to no-star (safe-ahead).
+        star: null,
+        suggestion: null,
+        applied: false,
+        coach: null,
+        snippetAudioRef: null,
       },
     ]);
     expect(v?.approved).toBe(true);
     expect(v?.notes).toBeNull();
+  });
+
+  it("maps MOMENT_SUGGESTIONS fields — a grey replace suggestion", () => {
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "world",
+          snippet_id: "s1",
+          take_session_id: "t1",
+          star: "suggestion",
+          applied: false,
+          suggestion: { kind: "replace", replacement: "everyone", why: "warmer" },
+          snippet_audio_ref: "https://cdn/a.mp3",
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({
+      star: "suggestion",
+      applied: false,
+      suggestion: { kind: "replace", replacement: "everyone", why: "warmer" },
+      coach: null,
+      snippetAudioRef: "https://cdn/a.mp3",
+    });
+  });
+
+  it("maps a verified (orange) star with a coach video, applied", () => {
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "s2",
+          take_session_id: "t1",
+          star: "verified",
+          applied: true,
+          coach: { has_message: true, has_video: true },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({
+      star: "verified",
+      applied: true,
+      suggestion: null,
+      coach: { hasMessage: true, hasVideo: true },
+    });
+  });
+
+  it("ignores a bad star value and a non-object suggestion (safe-ahead)", () => {
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "s3",
+          take_session_id: "t1",
+          star: "bogus",
+          suggestion: "not-an-object",
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({ star: null, suggestion: null });
+  });
+
+  it("degrades a suggestion star WITHOUT a usable suggestion to a plain moment (R-ms3)", () => {
+    // A grey (free) star must never fall through to the paid coach path; with
+    // no suggestion payload the star drops and the moment renders plain.
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        { anchor: "hello", snippet_id: "s4", take_session_id: "t1", star: "suggestion" },
+        {
+          anchor: "world",
+          snippet_id: "s5",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "bogus-kind" },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({ star: null, suggestion: null });
+    expect(v?.keyMoments[1]).toMatchObject({ star: null, suggestion: null });
   });
 
   it("nulls on missing text", () => {

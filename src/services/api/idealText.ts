@@ -15,6 +15,17 @@ import { markerTokenSpans } from "@/lib/willab/richMarkers";
 /*  unapproved) are first-class states, not errors.                            */
 /* -------------------------------------------------------------------------- */
 
+/** MOMENT_SUGGESTIONS — the machine suggestion behind a grey star. `emphasize`
+ *  (Approve → the phrase becomes bold+orange, a charisma key moment) or
+ *  `replace` (Approve → swap in an audience-fit rephrase; threat / swearing /
+ *  very-low stickiness). `replacement` is null for emphasize. */
+export interface MomentSuggestion {
+  kind: "emphasize" | "replace";
+  replacement: string | null;
+  /** A short, qualitative "why" line (model-generated, digit-free). */
+  why: string;
+}
+
 export interface IdealKeyMomentLink {
   /** The literal text fragment inside `text` to underline. */
   anchor: string;
@@ -25,6 +36,24 @@ export interface IdealKeyMomentLink {
    *  payloads. */
   momentId?: string | null;
   hasExplanation?: boolean;
+  /** MOMENT_SUGGESTIONS (MOMENT_SUGGESTIONS_ENABLED) — the per-moment star.
+   *  "suggestion" = grey (a machine suggestion awaiting Approve); "verified" =
+   *  orange (the coach attached a message). null/absent → today's plain moment
+   *  (no star). A coach-verified star wins over a suggestion on the same
+   *  snippet. */
+  star?: "suggestion" | "verified" | null;
+  /** The suggestion behind a grey star (free to read). null for a verified or
+   *  plain moment. */
+  suggestion?: MomentSuggestion | null;
+  /** Whether the user already approved this suggestion. The BE folds the served
+   *  text for an applied one and drops its star; this is informational. */
+  applied?: boolean;
+  /** Verified-star flags — what sits behind the 5-credit paywall. The content
+   *  itself (coach note + video) is served only by the paid moments GET. */
+  coach?: { hasMessage: boolean; hasVideo: boolean } | null;
+  /** The student's own recording of this snippet — free playback in the modal
+   *  (never gated). null → no player. */
+  snippetAudioRef?: string | null;
 }
 
 export interface IdealText {
@@ -87,12 +116,54 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
     typeof v === "string" ? v : typeof v === "number" && Number.isFinite(v) ? String(v) : "";
   const momentId = idOf(r.id) || idOf(r.moment_id) || null;
   if (!anchor || (!snippetId && !momentId)) return null;
+  // MOMENT_SUGGESTIONS — all safe-ahead: an older payload omits these and the
+  // moment degrades to today's plain underlined link (star === null).
+  const sgRaw =
+    r.suggestion && typeof r.suggestion === "object"
+      ? (r.suggestion as Record<string, unknown>)
+      : null;
+  const suggestion: MomentSuggestion | null =
+    sgRaw && (sgRaw.kind === "emphasize" || sgRaw.kind === "replace")
+      ? {
+          kind: sgRaw.kind,
+          replacement:
+            typeof sgRaw.replacement === "string" && sgRaw.replacement.length > 0
+              ? sgRaw.replacement
+              : null,
+          why: str(sgRaw.why),
+        }
+      : null;
+  // A "suggestion" star MUST carry a usable suggestion — without one it
+  // degrades to a plain moment, never to the paid coach path (a grey star
+  // showing an unlock prompt would sell free content — review R-ms3).
+  const star =
+    r.star === "verified"
+      ? ("verified" as const)
+      : r.star === "suggestion" && suggestion
+        ? ("suggestion" as const)
+        : null;
+  const coachRaw =
+    r.coach && typeof r.coach === "object"
+      ? (r.coach as Record<string, unknown>)
+      : null;
+  const coach = coachRaw
+    ? {
+        hasMessage: coachRaw.has_message === true,
+        hasVideo: coachRaw.has_video === true,
+      }
+    : null;
+  const snippetAudioRef = str(r.snippet_audio_ref) || str(r.audio_ref) || null;
   return {
     anchor,
     snippetId,
     takeSessionId,
     momentId,
     hasExplanation: r.has_explanation === true,
+    star,
+    suggestion,
+    applied: r.applied === true,
+    coach,
+    snippetAudioRef,
   };
 }
 
