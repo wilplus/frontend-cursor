@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Lock, PencilLine, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import PaywallPanel from "./PaywallPanel";
@@ -32,10 +33,14 @@ import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
  *  it into the served text on the next fetch. `text` is a marker string. */
 type LocalFold = { kind: "emphasize" | "replace"; text: string };
 
-/** The bold+orange emphasis marker for an approved charisma phrase — rendered
- *  through the same RichText path as everywhere else so the styling matches. */
+/** The emphasis marker for an approved charisma phrase. ONE marker, never
+ *  nested: the rich-marker parser is FLAT, so `**{{orange:…}}**` would match
+ *  the bold token and print the inner `{{orange:…}}` as raw syntax. The accent
+ *  marker alone carries "these words hold particular value" and renders
+ *  bold+orange (RichText). Byte-identical to the BE's serve-time fold, so the
+ *  optimistic text and the refetched text agree. */
 function emphasizeMarker(anchor: string): string {
-  return `**{{orange:${anchor}}}**`;
+  return `{{orange:${anchor}}}`;
 }
 
 /** The fold map's key — a stable PER-MOMENT identity (review R-ms1). Never
@@ -569,10 +574,21 @@ function MomentSheetBody({
     moment.star === "suggestion" ? moment.suggestion ?? null : null;
   return (
     <div className="flex flex-col gap-4">
-      {/* The moment as you said it — always free. */}
+      {/* The moment as you said it — always free. The ref is usually the whole
+          take, so clamp to this moment's slice; without a usable duration
+          there is nothing to clamp to, and an unclamped player beats a player
+          that pauses instantly (MediaPlayer stops at start+duration). */}
       {moment.snippetAudioRef ? (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio src={moment.snippetAudioRef} controls className="w-full" />
+        moment.durationMs && moment.durationMs > 0 ? (
+          <MediaPlayer
+            src={moment.snippetAudioRef}
+            startOffsetMs={moment.startOffsetMs ?? 0}
+            durationMs={moment.durationMs}
+          />
+        ) : (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <audio src={moment.snippetAudioRef} controls className="w-full" />
+        )
       ) : null}
       {suggestion ? (
         <MomentSuggestionCard

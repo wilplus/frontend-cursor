@@ -114,9 +114,62 @@ describe("wrapSelection", () => {
 });
 
 describe("richMarkersToHtml", () => {
-  it("escapes HTML then applies tags (accent = orange text, mirroring RichText)", () => {
+  it("escapes HTML then applies tags (a standalone accent stays colour-only)", () => {
     expect(richMarkersToHtml("**a<b>** ==x==")).toBe(
       '<b>a&lt;b&gt;</b> <span style="color:#ee7a2b">x</span>'
     );
+  });
+
+  it("bolds an accent INSIDE a moment (an approved key phrase reads bold+orange)", () => {
+    expect(richMarkersToHtml("say [[moment:s1|k1]]{{orange:this bit}}[[/moment]] louder")).toBe(
+      'say <span style="color:#ee7a2b;text-decoration:underline dotted;text-underline-offset:3px">' +
+        '<span style="color:#ee7a2b;font-weight:600">this bit</span></span> louder'
+    );
+  });
+});
+
+describe("moment wrappers compose with the marks inside them", () => {
+  it("parses the serve-time fold shape instead of leaking raw marker syntax", () => {
+    // The BE's applied-emphasize fold serves
+    // [[moment:id|sess]]{{orange:…}}[[/moment]]. A flat push would print
+    // "{{orange:…}}" to the student — the exact failure the single-marker
+    // contract exists to avoid.
+    expect(parseRichMarkers("[[moment:s1|k1]]{{orange:this bit}}[[/moment]]")).toEqual([
+      {
+        text: "this bit",
+        bold: false,
+        italic: false,
+        underline: false,
+        highlight: true,
+        moment: { snippetId: "s1", sessionId: "k1" },
+      },
+    ]);
+  });
+
+  it("stamps the moment across several inner marks and keeps surrounding text", () => {
+    const segs = parseRichMarkers("a [[moment:s|k]]plain **b**[[/moment]] z");
+    expect(segs.map((s) => s.text)).toEqual(["a ", "plain ", "b", " z"]);
+    expect(segs[1]).toMatchObject({ moment: { snippetId: "s", sessionId: "k" }, bold: false });
+    expect(segs[2]).toMatchObject({ moment: { snippetId: "s", sessionId: "k" }, bold: true });
+    expect(segs[3].moment).toBeUndefined();
+  });
+
+  it("an unmarked moment still yields one plain segment (no regression)", () => {
+    expect(parseRichMarkers("[[moment:s1|k1]]hello[[/moment]]")).toEqual([
+      {
+        text: "hello",
+        bold: false,
+        italic: false,
+        underline: false,
+        highlight: false,
+        moment: { snippetId: "s1", sessionId: "k1" },
+      },
+    ]);
+  });
+
+  it("a lone accent marker parses to a single highlighted segment, no moment", () => {
+    expect(parseRichMarkers("{{orange:x}}")).toEqual([
+      { text: "x", bold: false, italic: false, underline: false, highlight: true },
+    ]);
   });
 });
