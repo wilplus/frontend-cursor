@@ -141,6 +141,25 @@ export default function LabOverlay({
   const recordStartRef = useRef(0);
   const { append: appendToThread, reload: reloadThread } = useLoungeThreadCtx();
   const reportedRef = useRef(false);
+  // Timeline order (founder 2026-07-20): each bubble holds its publish moment.
+  // The recording bubble is appended when the upload is ACCEPTED (before the
+  // analysis finishes), so the BE's ideal-text bubble (analysis end) lands
+  // AFTER it, and the "record the next take" line comes last at readout entry.
+  const summaryAppendRef = useRef<Promise<unknown> | null>(null);
+  const appendRecordingSummary = (sessionId: string | null) => {
+    if (reportedRef.current || !context) return;
+    reportedRef.current = true;
+    summaryAppendRef.current = appendToThread(
+      readoutSummaryDraft({
+        topic: context.topic,
+        recordingId: sessionId ?? undefined,
+        sessionId: sessionId ?? undefined,
+        arcId: arcId ?? undefined,
+        takeIndex: recordedTakeRef.current ?? undefined,
+        feeling: recordedFeelingRef.current ?? undefined,
+      })
+    );
+  };
   // R4-5 — the Pre-record screen was removed: the Setup "Start recording" submit
   // now starts the mic directly and flips to lab_recording optimistically. This
   // flags the one pending initial start so the mic-state effect inits the slide
@@ -271,6 +290,7 @@ export default function LabOverlay({
     if (s.status === "recording" && startPendingRef.current) {
       startPendingRef.current = false;
       reportedRef.current = false; // fresh recording → allow a new history entry
+      readoutEnteredRef.current = false;
       // T8 — start the slide timeline: slide 0 is on screen at t=0. State was
       // already flipped to lab_recording on the Setup submit (optimistic), so
       // there's no goTo here — this only pins t=0 to the real recording start.
@@ -366,6 +386,7 @@ export default function LabOverlay({
           setArcId(carried.returnedArcId);
           setArcTakeIndex(carried.nextIdx);
         }
+        appendRecordingSummary(result.sessionId);
         setReadout(result.readout);
         setLabSessionId(result.sessionId);
         setUploadError(null);
@@ -384,6 +405,7 @@ export default function LabOverlay({
         pendingCarryRef.current = carried
           ? { ...carried, sessionId: result.sessionId }
           : null;
+        appendRecordingSummary(result.sessionId);
         setLabSessionId(result.sessionId);
         setUploadError(null);
         setUploadPaywall(false);
@@ -519,40 +541,32 @@ export default function LabOverlay({
   // Persist a Readout report into the Lounge history once the recording
   // completes, so the user can scroll back to it (topic now; the §3.3 hero
   // metrics fill in when seam ③ returns real data).
+  const readoutEnteredRef = useRef(false);
   useEffect(() => {
-    if (state === "readout" && context && !reportedRef.current) {
-      reportedRef.current = true;
-      const hero = readout?.snippets[0]?.features;
-      void appendToThread(
-        readoutSummaryDraft({
-          topic: context.topic,
-          recordingId: labSessionId ?? undefined,
-          sessionId: labSessionId ?? undefined,
-          arcId: arcId ?? undefined,
-          takeIndex: recordedTakeRef.current ?? undefined,
-          feeling: recordedFeelingRef.current ?? undefined,
-          speechRate: hero?.speechRate ?? undefined,
-          pauseRatio: hero?.pauseRatio ?? undefined,
-        })
-        // FE-B — the BE appended the ideal-text bubble at the END of analysis;
-        // pull it into the thread now. Chained AFTER the summary append's POST
-        // lands, because reload() wholesale-replaces the message list with a
-        // server snapshot — reloading first would race the optimistic append
-        // and wipe the just-recorded take's bubble (review R-cb2).
-      ).then(() => reloadThread());
-      // After the batch's FIRST take, one short informational bubble that the
-      // next take is up.
-      if (
-        exploreEnabled &&
-        recordedTakeRef.current !== null &&
-        batchTake(recordedTakeRef.current) === 1
-      ) {
-        void appendToThread({
-          role: "bot",
-          kind: "text",
-          body: "When you're ready, record the next take.",
+    if (state === "readout" && context && !readoutEnteredRef.current) {
+      readoutEnteredRef.current = true;
+      // The recording bubble was already appended at upload-accept (event
+      // order). Here: pull the BE's ideal-text bubble (inserted at analysis
+      // end), THEN the nudge line, so the thread reads recording → ideal text
+      // → "record the next take". The reload chains after the summary POST —
+      // reload() wholesale-replaces the list, so running it early would wipe
+      // the optimistic bubble (review R-cb2). A parked restore (summary
+      // already persisted, ref null) skips straight to the reload.
+      void (summaryAppendRef.current ?? Promise.resolve())
+        .then(() => reloadThread())
+        .then(() => {
+          if (
+            exploreEnabled &&
+            recordedTakeRef.current !== null &&
+            batchTake(recordedTakeRef.current) === 1
+          ) {
+            void appendToThread({
+              role: "bot",
+              kind: "text",
+              body: "When you're ready, record the next take.",
+            });
+          }
         });
-      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, context, appendToThread, readout, labSessionId, arcId, exploreEnabled]);
