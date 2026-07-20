@@ -120,6 +120,85 @@ export interface IdealText {
   notes: string | null;
 }
 
+/* ------------------- discernment provenance (version badges) --------------- */
+
+/** DISCERNMENT (DISCERNMENT_PROVENANCE_ENABLED) — the closed reason-key set
+ *  behind a pending swap's one why line. The BE clamps to this vocabulary;
+ *  the FE renders fixed copy per key and NOTHING for anything else. */
+export type SwapWhy = "energy" | "steadiness" | "coverage" | "overall";
+
+/** One piece of the master text with its provenance: which take the shown
+ *  words come from (the badge), and — when a newer take beat it but nothing
+ *  swapped yet — the challenger awaiting the user's decision (the glow). */
+export interface IdealPiece {
+  pieceKey: number;
+  /** The piece's CURRENT text (machine lane). Badges anchor to the top-level
+   *  `text`'s paragraphs, never to a reconstruction from these. */
+  text: string;
+  /** 1-based take the shown words come from → the "vN.0" pill. null hides
+   *  the pill for this piece (a row predating the index). */
+  takeIndex: number | null;
+  snippetId: string;
+  takeSessionId: string;
+  status: "settled" | "pending_swap";
+  challenger: {
+    snippetId: string;
+    takeIndex: number | null;
+    text: string;
+    /** null → render no why line (never guess). */
+    why: SwapWhy | null;
+  } | null;
+}
+
+/** Map the GET's `pieces` block. ABSENT key (flag off / pre-migration) →
+ *  null: no badge layer, today's view exactly. A present-but-broken row is
+ *  dropped; an unknown status degrades to settled (no glow, no dead sheet). */
+export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: IdealPiece[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const pieceKey =
+      typeof r.piece_key === "number" && Number.isFinite(r.piece_key)
+        ? r.piece_key
+        : null;
+    const text = str(r.text);
+    if (pieceKey === null || !text) continue;
+    const take = (v: unknown): number | null =>
+      typeof v === "number" && Number.isFinite(v) && v >= 1 ? v : null;
+    const chRaw =
+      r.challenger && typeof r.challenger === "object"
+        ? (r.challenger as Record<string, unknown>)
+        : null;
+    // A pending swap without a usable challenger cannot open a comparison —
+    // degrade to settled rather than a glowing pill with an empty sheet.
+    const why = (v: unknown): SwapWhy | null =>
+      v === "energy" || v === "steadiness" || v === "coverage" || v === "overall"
+        ? v
+        : null;
+    const challenger =
+      chRaw && str(chRaw.snippet_id) && str(chRaw.text)
+        ? {
+            snippetId: str(chRaw.snippet_id),
+            takeIndex: take(chRaw.take_index),
+            text: str(chRaw.text),
+            why: why(chRaw.why),
+          }
+        : null;
+    out.push({
+      pieceKey,
+      text,
+      takeIndex: take(r.take_index),
+      snippetId: str(r.snippet_id),
+      takeSessionId: str(r.take_session_id),
+      status: r.status === "pending_swap" && challenger ? "pending_swap" : "settled",
+      challenger,
+    });
+  }
+  return out;
+}
+
 /** Instant-lane paywall figures from the BE payload; null → the UI falls back
  *  to the ARC_UNLOCK_CREDITS constant / its own balance fetch. */
 export interface InstantPaywall {
@@ -167,6 +246,10 @@ export type IdealTextResult =
       /** True when this version has already been re-read → the mic becomes
        *  "Record another take". */
       rereadDone: boolean;
+      /** DISCERNMENT — per-piece provenance (the version-badge layer). null =
+       *  the key was absent (flag off / pre-migration): render exactly
+       *  today's view, no badges. */
+      pieces: IdealPiece[] | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -450,6 +533,7 @@ export async function fetchIdealText(
           ? body.latest_take_session_id
           : null,
       rereadDone: body.reread_done === true,
+      pieces: mapIdealPieces(body.pieces),
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

@@ -12,6 +12,7 @@ import {
   isUnappliedPolish,
   segmentIdealText,
   type IdealKeyMomentLink,
+  type IdealSegment,
   type IdealText,
   type MomentSuggestion,
 } from "@/services/api/idealText";
@@ -508,11 +509,20 @@ export function MomentStarText({
   onMomentTap,
   foldFor,
   sdStars,
+  segments: preSegmented,
+  trailing,
   textSizeClass = "text-[18px]",
 }: {
   text: string;
   ideal: IdealText;
   onMomentTap: (m: IdealKeyMomentLink) => void;
+  /** DISCERNMENT — pre-computed segments (document-level matching sliced per
+   *  paragraph by PieceBadgeText). Overrides local segmentation so an anchor
+   *  can never re-match in every paragraph it textually appears in. */
+  segments?: IdealSegment[];
+  /** Rendered INSIDE the closing paragraph, after the last segment — the
+   *  version pill sits inline at the paragraph's end, not on its own line. */
+  trailing?: React.ReactNode;
   /** The medium reading size by default (the notebook); the post-recording
    *  screen passes its own so the two surfaces keep their own scale. */
   textSizeClass?: string;
@@ -526,10 +536,12 @@ export function MomentStarText({
    *  Absent (instant/ready lanes): the classic underline links stay. */
   sdStars?: boolean;
 }) {
-  const segments = useMemo(
-    () => segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
-    [text, ideal.keyPhrases, ideal.keyMoments]
+  const localSegments = useMemo(
+    () =>
+      preSegmented ?? segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
+    [preSegmented, text, ideal.keyPhrases, ideal.keyMoments]
   );
+  const segments = localSegments;
   // The wrapper-id → payload-moment index. The SD text wraps every key moment
   // in [[moment:snip|sess]] markers, so both the star decor AND the tap must
   // resolve the wrapper's ids to the FULL payload moment (suggestion, audio,
@@ -733,6 +745,7 @@ export function MomentStarText({
           </span>
         );
       })}
+      {trailing}
     </p>
   );
 }

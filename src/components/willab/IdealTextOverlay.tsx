@@ -23,6 +23,7 @@ import {
   saveIdealUserEdit,
   segmentIdealText,
   type IdealKeyMomentLink,
+  type IdealPiece,
   type IdealText,
   type InstantPaywall,
   type MomentSuggestion,
@@ -34,6 +35,8 @@ import {
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
+import { swapPiece } from "@/services/api/pieceSwap";
+import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import IdealReadMic from "./IdealReadMic";
 
@@ -103,6 +106,8 @@ export default function IdealTextOverlay({
   } | null>(null);
   const unlockedRef = useRef(false);
   const [refetchNonce, setRefetchNonce] = useState(0);
+  // Staleness fence for the GET (same rule as the readout, review R-db4).
+  const fetchGenRef = useRef(0);
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the 5-credit moments unlock has run.
   const [sd, setSd] = useState<{
@@ -114,7 +119,10 @@ export default function IdealTextOverlay({
     title: string | null;
     latestTakeSessionId: string | null;
     rereadDone: boolean;
+    pieces: IdealPiece[] | null;
   } | null>(null);
+  // DISCERNMENT — the pending-swap comparison sheet's open piece.
+  const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
   // A different arc = a fresh entitlement question; never carry the unlocked
   // flag or a cached draft across arcs.
   useEffect(() => {
@@ -140,8 +148,9 @@ export default function IdealTextOverlay({
     let active = true;
     setStatus("loading");
     setHistorical(null);
+    const gen = ++fetchGenRef.current;
     void fetchIdealText(arcId, requestedVersion).then((r) => {
-      if (!active) return;
+      if (!active || gen !== fetchGenRef.current) return;
       if (r.kind === "historical") {
         // FE-3b — a frozen step: that version's text + that version's
         // reasoning, read-only. No SD chrome, no editing, no paywall.
@@ -173,6 +182,7 @@ export default function IdealTextOverlay({
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
+          pieces: r.pieces,
         });
         setStatus("ready");
       } else if (r.kind === "ready") {
@@ -452,14 +462,18 @@ export default function IdealTextOverlay({
                   Approve all
                 </button>
               ) : null}
-              <MomentStarText
+              <PieceBadgeText
                 text={displayText}
                 ideal={ideal}
+                // DISCERNMENT — SD only; a legacy payload has pieces null and
+                // renders exactly today's view.
+                pieces={sd?.pieces ?? null}
                 onMomentTap={(m) => void openMoment(m)}
                 foldFor={stars.foldFor}
                 // FE-2 — the star treatment only under SD (a legacy "ready"
                 // payload keeps its classic underline links).
                 sdStars={sd !== null}
+                onOpenSwap={setSwapOpen}
               />
             </div>
           ) : null}
@@ -522,6 +536,42 @@ export default function IdealTextOverlay({
         />
       ) : null}
 
+      {/* DISCERNMENT — accept lands the challenger (BE reassembles → full
+          refetch); reject pins the incumbent (apply the echoed piece, the
+          glow dies). Both 409s refetch SILENTLY — never an error surface. */}
+      <PieceSwapSheet
+        piece={swapOpen}
+        onClose={() => setSwapOpen(null)}
+        onDecide={async (action) => {
+          const p = swapOpen;
+          if (!p?.challenger) return false;
+          const r = await swapPiece({
+            arcId,
+            pieceKey: p.pieceKey,
+            action,
+            challengerSnippetId: p.challenger.snippetId,
+          });
+          if (r.kind === "error") return false;
+          setSwapOpen(null);
+          if (r.kind === "stale" || action === "accept" || r.piece === null) {
+            setRefetchNonce((n) => n + 1);
+          } else {
+            const echoed = r.piece;
+            fetchGenRef.current++; // fence out any in-flight pre-decision GET
+            setSd((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    pieces: (prev.pieces ?? []).map((x) =>
+                      x.pieceKey === echoed.pieceKey ? echoed : x
+                    ),
+                  }
+                : prev
+            );
+          }
+          return true;
+        }}
+      />
       {/* SD — the shared key-moment sheet (free playback → the suggestion to
           Approve, or the coach's message behind the 5-credit unlock). */}
       <MomentSheet
