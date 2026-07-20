@@ -428,7 +428,7 @@ export function IdealTextHeroCard({
 
 
 /* -------------------------------------------------------------------------- */
-/*  FE-C — the crucial bubble: the app's ONE deliverable, rendered large.      */
+/*  FE-C — the crucial bubble: the app's ONE deliverable, a tall grey card.    */
 /*  Pulls the live SD GET on mount (free for the owner, never 402s) so the     */
 /*  title / status / version / date reflect the document as it is NOW, not as  */
 /*  it was when the bubble row was written. Falls back gracefully while the    */
@@ -471,32 +471,33 @@ function CrucialIdealTextCard({
         year: "numeric",
       })
     : null;
+  // Founder 2026-07-20: a NORMAL grey bubble like the rest of the thread —
+  // just taller, normal type, with the Open button inside as the affordance.
   return (
-    <div className="my-2 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-700 px-5 py-6 text-white shadow-md">
+    <div className="my-2 rounded-2xl bg-chat-bot px-5 py-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Crown className="h-6 w-6 shrink-0 text-amber-300" aria-hidden />
-            <p className="truncate text-[19px] font-semibold leading-snug">
-              {live?.title ?? "Your ideal text"}
-            </p>
-          </div>
+          <p className="text-[16px] font-semibold leading-snug text-foreground">
+            {live?.title ?? "Your ideal text"}
+          </p>
           {dateLabel ? (
-            <p className="mt-1 text-[12px] text-white/70">
+            <p className="mt-1 text-[13px] text-muted-foreground">
               Last updated {dateLabel}
             </p>
           ) : null}
         </div>
         {live?.version !== null && live?.version !== undefined ? (
-          <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[13px] font-semibold tabular-nums">
+          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
             {live.version}.0
           </span>
         ) : null}
       </div>
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3">
         <span
           className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
-            verified ? "bg-emerald-400/25 text-emerald-100" : "bg-white/15 text-white/85"
+            verified
+              ? "bg-success/10 text-success"
+              : "bg-muted text-muted-foreground"
           }`}
         >
           {verified ? "Verified" : "Not verified"}
@@ -505,7 +506,7 @@ function CrucialIdealTextCard({
       <Button
         type="button"
         onClick={onOpen}
-        className="mt-5 h-12 w-full rounded-full bg-white text-[15px] font-semibold text-indigo-700 hover:bg-white/90"
+        className="mt-4 h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
       >
         Open your ideal text
       </Button>
