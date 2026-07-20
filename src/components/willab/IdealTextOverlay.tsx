@@ -34,6 +34,7 @@ import {
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
+import IdealReadMic from "./IdealReadMic";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -93,6 +94,9 @@ export default function IdealTextOverlay({
     version: number | null;
     momentsUnlocked: boolean;
     priceCredits: number | null;
+    title: string | null;
+    latestTakeSessionId: string | null;
+    rereadDone: boolean;
   } | null>(null);
   // A different arc = a fresh entitlement question; never carry the unlocked
   // flag or a cached draft across arcs.
@@ -131,6 +135,9 @@ export default function IdealTextOverlay({
           version: r.version,
           momentsUnlocked: r.momentsUnlocked,
           priceCredits: r.priceCredits,
+          title: r.title,
+          latestTakeSessionId: r.latestTakeSessionId,
+          rereadDone: r.rereadDone,
         });
         setStatus("ready");
       } else if (r.kind === "ready") {
@@ -418,23 +425,19 @@ export default function IdealTextOverlay({
       {/* FE-3 — the re-read mic as a PERSISTENT bottom control (it used to be
           a card buried in the header chrome). Reading the corrected text aloud
           is the next take, and it is the main way this text keeps improving. */}
-      {status === "ready" &&
-      !editing &&
-      sd?.status === "unverified" &&
-      onReadAloud ? (
-        <div className="shrink-0 border-t border-border bg-background px-4 pb-5 pt-4">
-          <p className="mb-2.5 text-[13px] leading-relaxed text-muted-foreground">
-            Read it as if you were presenting. Your reading becomes the next
-            version of this text.
-          </p>
-          <Button
-            type="button"
-            onClick={() => onReadAloud(sd.version)}
-            className="h-12 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
-          >
-            <Mic className="mr-2 h-4 w-4" aria-hidden />
-            Read it aloud
-          </Button>
+      {status === "ready" && !editing && sd && onReadAloud ? (
+        // FE-D — the ONE two-state mic: an in-place read of the ideal text, or
+        // "Record another take" once this version has been read.
+        <div className="shrink-0 bg-background px-4 pb-4">
+          <IdealReadMic
+            arcId={arcId}
+            version={sd.version}
+            title={sd.title}
+            latestTakeSessionId={sd.latestTakeSessionId}
+            rereadDone={sd.rereadDone}
+            onNewTake={() => onReadAloud(sd.version)}
+            onReadUploaded={() => setRefetchNonce((n) => n + 1)}
+          />
         </div>
       ) : null}
 
