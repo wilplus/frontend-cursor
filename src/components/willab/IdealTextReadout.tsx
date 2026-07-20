@@ -102,6 +102,7 @@ export default function IdealTextReadout({
     version: number | null;
     momentsUnlocked: boolean;
     priceCredits: number | null;
+    explanationsAvailable: boolean;
     title: string | null;
     latestTakeSessionId: string | null;
     rereadDone: boolean;
@@ -161,6 +162,7 @@ export default function IdealTextReadout({
           version: r.version,
           momentsUnlocked: r.momentsUnlocked,
           priceCredits: r.priceCredits,
+          explanationsAvailable: r.explanationsAvailable,
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
@@ -236,6 +238,7 @@ export default function IdealTextReadout({
     arcId: arcId ?? "",
     momentsUnlocked: sd?.momentsUnlocked ?? false,
     priceCredits: sd?.priceCredits ?? null,
+    explanationsAvailable: sd?.explanationsAvailable ?? false,
     onUnlocked: () =>
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
   });
@@ -359,6 +362,9 @@ export default function IdealTextReadout({
           ideal={sd.ideal}
           onMomentTap={(m) => void stars.openMoment(m)}
           foldFor={stars.foldFor}
+          // FE-2 — stars at moment ends, narrow quote underlines, never the
+          // full-span underline (this branch only renders under SD).
+          sdStars
           textSizeClass="text-[17px]"
         />
       ) : (

@@ -238,6 +238,45 @@ describe("mapIdealText", () => {
     expect(v?.keyMoments[2].suggestion).toMatchObject({ trigger: null });
   });
 
+  it("maps the narrow quote on edit suggestions, nulling blank/absent (FE-2)", () => {
+    const v = mapIdealText({
+      text: "hello world there",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "q1",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: {
+            kind: "replace",
+            replacement: "hi",
+            why: "w",
+            quote: "the turn",
+          },
+        },
+        {
+          anchor: "world",
+          snippet_id: "q2",
+          take_session_id: "t1",
+          star: "suggestion",
+          // Whitespace-only → null: never underline an invisible span.
+          suggestion: { kind: "emphasize", replacement: null, why: "w", quote: "  " },
+        },
+        {
+          anchor: "there",
+          snippet_id: "q3",
+          take_session_id: "t1",
+          star: "suggestion",
+          // Older BE payload without the field → null (icon-only star).
+          suggestion: { kind: "replace", replacement: "here", why: "w" },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0].suggestion).toMatchObject({ quote: "the turn" });
+    expect(v?.keyMoments[1].suggestion).toMatchObject({ quote: null });
+    expect(v?.keyMoments[2].suggestion).toMatchObject({ quote: null });
+  });
+
   it("maps a STRUCTURAL suggestion (device + verbatim quote) behind the star", () => {
     const v = mapIdealText({
       text: "hello world",

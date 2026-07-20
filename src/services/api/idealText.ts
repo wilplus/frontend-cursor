@@ -35,6 +35,12 @@ export type MomentSuggestion =
        *  rewrite. The BE clamps this to "polish" | null so the internal trigger
        *  vocabulary never rides a user payload. null/absent → today's copy. */
       trigger: "polish" | null;
+      /** FE-2 (gradual refinement) — the NARROW span to underline: exactly the
+       *  changed words (polish diff) or the carrying sentence (profanity). The
+       *  BE guarantees a character-exact substring of the served text. null →
+       *  no underline at all, the star icon alone marks the moment. Anchors
+       *  are never underline targets any more. */
+      quote: string | null;
     }
   | {
       kind: "structure";
@@ -140,6 +146,11 @@ export type IdealTextResult =
       version: number | null;
       momentsUnlocked: boolean;
       priceCredits: number | null;
+      /** FE-1 (gradual refinement) — true only when at least one coach
+       *  explanation actually exists behind the 5-credit unlock. false (or
+       *  absent, older BE) → NO paywall surface renders anywhere: there is
+       *  nothing to sell yet. Automatic moments stay free regardless. */
+      explanationsAvailable: boolean;
       /** #214 — the displayed text IS the student's saved edit (locked rule:
        *  the student's edit always wins the text). false → machine/coach text. */
       userEdited: boolean;
@@ -183,6 +194,12 @@ function parseSuggestion(raw: unknown): MomentSuggestion | null {
       // POLISH_AS_SUGGESTIONS — anything but the exact "polish" token is null,
       // so an unknown/internal trigger can never change the copy.
       trigger: s.trigger === "polish" ? "polish" : null,
+      // FE-2 — the narrow underline span; blank/absent (older BE) → null and
+      // the star renders icon-only.
+      quote:
+        typeof s.quote === "string" && s.quote.trim().length > 0
+          ? s.quote
+          : null,
     };
   }
   // STRUCTURAL_STARS — the fixed copy is keyed off device, so a device we
@@ -350,6 +367,7 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
           ? body.version
           : null,
       momentsUnlocked: body.moments_unlocked === true,
+      explanationsAvailable: body.explanations_available === true,
       priceCredits:
         typeof body.price_credits === "number" &&
         Number.isFinite(body.price_credits)
