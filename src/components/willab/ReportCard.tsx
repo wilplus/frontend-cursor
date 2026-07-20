@@ -72,8 +72,10 @@ export default function ReportCard({
   onOpenTranscripts?: () => void;
   /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
-  /** Delivery layer — the purple bubble opens the ideal-text notebook. */
-  onOpenIdealText?: (arcId: string) => void;
+  /** Delivery layer — the purple bubble opens the ideal-text notebook.
+   *  FE-3b: an OLD version bubble passes its version so the notebook opens
+   *  that version's read-only step; the latest (hero) passes none (live). */
+  onOpenIdealText?: (arcId: string, version?: number | null) => void;
   /** FE-C — true on the LATEST ideal_text bubble (highest version): it renders
    *  as the large crucial card; older ones stay compact version history. */
   heroIdealText?: boolean;
@@ -136,16 +138,6 @@ export default function ReportCard({
     const arcId =
       typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
     const openable = !!(arcId && onOpenIdealText);
-    const open = () => {
-      if (arcId && onOpenIdealText) onOpenIdealText(arcId);
-    };
-    // FE-C — the crucial bubble: the latest version renders as a large, tall
-    // card with the live GET's title/status/version/date and one Open button.
-    if (heroIdealText && arcId && onOpenIdealText) {
-      return (
-        <CrucialIdealTextCard arcId={arcId} onOpen={() => onOpenIdealText(arcId)} />
-      );
-    }
     // FE-3 — the thread is the HISTORY OF VERSIONS: every assembled version
     // posts its own card, 1.0 unverified through N.0 verified. The version and
     // the verification state both ride on the BE metadata.
@@ -156,6 +148,18 @@ export default function ReportCard({
         : typeof rawV === "string" && rawV.trim() && Number.isFinite(Number(rawV))
           ? Number(rawV)
           : null;
+    // FE-3b — an old bubble opens ITS version's read-only step (the GET's
+    // ?version form); the hero card below always opens the live notebook.
+    const open = () => {
+      if (arcId && onOpenIdealText) onOpenIdealText(arcId, version);
+    };
+    // FE-C — the crucial bubble: the latest version renders as a large, tall
+    // card with the live GET's title/status/version/date and one Open button.
+    if (heroIdealText && arcId && onOpenIdealText) {
+      return (
+        <CrucialIdealTextCard arcId={arcId} onOpen={() => onOpenIdealText(arcId)} />
+      );
+    }
     const verified = message.metadata?.variant === "verified";
     const versionLabel = version === null ? null : `Ideal text ${version}.0`;
     if (message.metadata?.variant === "instant") {

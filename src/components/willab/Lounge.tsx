@@ -425,6 +425,9 @@ export default function Lounge({
   const [feedbackTarget, setFeedbackTarget] =
     useState<FeedbackBubbleTarget | null>(null);
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
+  // FE-3b — non-null when an OLD version bubble opened the notebook: the
+  // overlay shows that version's read-only step. Cleared on close/open-live.
+  const [idealTextVersion, setIdealTextVersion] = useState<number | null>(null);
 
   // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
   // server-side; resume its persisted marker and poll until terminal. Re-runs
@@ -751,7 +754,8 @@ export default function Lounge({
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
-                onOpenIdealText={(arcId) => {
+                onOpenIdealText={(arcId, version) => {
+                  setIdealTextVersion(version ?? null);
             // FE-5 — opening the deliverable is the "seen" signal now that the
             // legacy insight walker is gone; without this the status machine
             // would stick in insights_ready forever.
@@ -942,7 +946,11 @@ export default function Lounge({
       {idealTextArcId && (
         <IdealTextOverlay
           arcId={idealTextArcId}
-          onClose={() => setIdealTextArcId(null)}
+          version={idealTextVersion}
+          onClose={() => {
+            setIdealTextArcId(null);
+            setIdealTextVersion(null);
+          }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
           // BE reconciles the real take index on upload) and open the Lab.
@@ -960,6 +968,7 @@ export default function Lounge({
               );
             }
             setIdealTextArcId(null);
+            setIdealTextVersion(null);
             onStart();
           }}
         />
@@ -1226,8 +1235,9 @@ function Bubble({
   onOpenTranscripts?: () => void;
   /** Delivery layer — the grey feedback bubbles open their take's page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
-  /** Delivery layer — the purple bubble opens the ideal-text notebook. */
-  onOpenIdealText?: (arcId: string) => void;
+  /** Delivery layer — the purple bubble opens the ideal-text notebook.
+   *  FE-3b: old version bubbles pass their version (read-only step). */
+  onOpenIdealText?: (arcId: string, version?: number | null) => void;
   onChip?: (action: ChipAction) => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;

@@ -105,6 +105,7 @@ function MomentSheetBody({
   moment,
   momentContent,
   applied,
+  readOnly,
   onApprove,
   onRevert,
   onBuy,
@@ -113,6 +114,10 @@ function MomentSheetBody({
   moment: IdealKeyMomentLink;
   momentContent: MomentExplanationResult | null;
   applied: boolean;
+  /** FE-3b — a historical step is a record, not a workbench: suggestion
+   *  cards show their reasoning without Approve, and the host omits the
+   *  re-record mic. */
+  readOnly?: boolean;
   onApprove: () => void;
   onRevert: () => void;
   onBuy: () => Promise<string | null>;
@@ -163,6 +168,7 @@ function MomentSheetBody({
           <MomentSuggestionCard
             suggestion={suggestion}
             applied={applied}
+            readOnly={readOnly}
             onApprove={onApprove}
             onRevert={onRevert}
           />
@@ -224,16 +230,20 @@ function MomentSheetBody({
 function MomentSuggestionCard({
   suggestion,
   applied,
+  readOnly,
   onApprove,
   onRevert,
 }: {
   suggestion: Extract<MomentSuggestion, { kind: "emphasize" | "replace" }>;
   applied: boolean;
+  /** FE-3b — historical steps show the reasoning only: no Approve, no Undo
+   *  (there is no local fold on a frozen version). */
+  readOnly?: boolean;
   onApprove: () => void;
   onRevert: () => void;
 }) {
   const isReplace = suggestion.kind === "replace";
-  if (applied) {
+  if (applied && !readOnly) {
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5">
@@ -274,13 +284,15 @@ function MomentSuggestionCard({
           {suggestion.why}
         </p>
       ) : null}
-      <Button
-        type="button"
-        onClick={onApprove}
-        className="h-10 self-start rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
-      >
-        Approve
-      </Button>
+      {readOnly ? null : (
+        <Button
+          type="button"
+          onClick={onApprove}
+          className="h-10 self-start rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
+        >
+          Approve
+        </Button>
+      )}
     </div>
   );
 }
@@ -732,6 +744,7 @@ export function MomentSheet({
   moment,
   momentContent,
   applied,
+  readOnly,
   onClose,
   onApprove,
   onRevert,
@@ -741,6 +754,8 @@ export function MomentSheet({
   moment: IdealKeyMomentLink | null;
   momentContent: MomentExplanationResult | null;
   applied: boolean;
+  /** FE-3b — read-only historical step: reasoning without actions. */
+  readOnly?: boolean;
   onClose: () => void;
   onApprove: () => void;
   onRevert: () => void;
@@ -779,6 +794,7 @@ export function MomentSheet({
           moment={moment}
           momentContent={momentContent}
           applied={applied}
+          readOnly={readOnly}
           onApprove={onApprove}
           onRevert={onRevert}
           onBuy={onBuy}

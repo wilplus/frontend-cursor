@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  inferHistoricalStars,
   mapIdealText,
   mapInstantIdealText,
   segmentIdealText,
@@ -275,6 +276,45 @@ describe("mapIdealText", () => {
     expect(v?.keyMoments[0].suggestion).toMatchObject({ quote: "the turn" });
     expect(v?.keyMoments[1].suggestion).toMatchObject({ quote: null });
     expect(v?.keyMoments[2].suggestion).toMatchObject({ quote: null });
+  });
+
+  it("inferHistoricalStars: grey star for un-applied suggestions, never for applied/starred/plain (FE-3b)", () => {
+    const ideal = mapIdealText({
+      text: "alpha beta gamma delta",
+      key_moments: [
+        // Historical snapshot shape: suggestion WITHOUT a star field.
+        {
+          anchor: "alpha",
+          snippet_id: "h1",
+          take_session_id: "t1",
+          suggestion: { kind: "replace", replacement: "x", why: "w" },
+        },
+        // Applied → the BE folded it; must stay star-less.
+        {
+          anchor: "beta",
+          snippet_id: "h2",
+          take_session_id: "t1",
+          applied: true,
+          suggestion: { kind: "replace", replacement: "y", why: "w" },
+        },
+        // Already starred (live shape) → untouched.
+        {
+          anchor: "gamma",
+          snippet_id: "h3",
+          take_session_id: "t1",
+          star: "verified",
+        },
+        // Plain, no suggestion → untouched.
+        { anchor: "delta", snippet_id: "h4", take_session_id: "t1" },
+      ],
+    });
+    const out = inferHistoricalStars(ideal!);
+    expect(out.keyMoments.map((m) => m.star)).toEqual([
+      "suggestion",
+      null,
+      "verified",
+      null,
+    ]);
   });
 
   it("maps a STRUCTURAL suggestion (device + verbatim quote) behind the star", () => {
