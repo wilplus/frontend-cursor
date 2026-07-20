@@ -9,16 +9,15 @@ import {
   fetchIdealText,
   isUnappliedPolish,
   saveIdealUserEdit,
+  type IdealPiece,
   type IdealText,
 } from "@/services/api/idealText";
+import { swapPiece } from "@/services/api/pieceSwap";
+import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { MarkerToolbar } from "./RichText";
 import IdealReadMic from "./IdealReadMic";
-import {
-  MomentSheet,
-  MomentStarText,
-  useMomentStars,
-} from "./MomentStars";
+import { MomentSheet, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
 /* -------------------------------------------------------------------------- */
@@ -107,9 +106,16 @@ export default function IdealTextReadout({
     title: string | null;
     latestTakeSessionId: string | null;
     rereadDone: boolean;
+    pieces: IdealPiece[] | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
+  // Staleness fence for the SD GET: local sd writes (a reject's echoed piece)
+  // bump the generation so an in-flight GET from BEFORE the decision can
+  // never land on top of them (review R-db4).
+  const sdGenRef = useRef(0);
+  // DISCERNMENT — the pending-swap comparison sheet's open piece.
+  const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
   // FE-3 (bug 1c) — true once the SD fetch has RESOLVED (any outcome). Until
   // then a signed-in user sees a brief loading rather than the locally composed
   // text that then swaps to the star layer — the "stars pop in late" bug.
@@ -151,8 +157,9 @@ export default function IdealTextReadout({
   useEffect(() => {
     if (!signedIn || !arcId) return;
     let active = true;
+    const gen = ++sdGenRef.current;
     void fetchIdealText(arcId).then((r) => {
-      if (!active) return;
+      if (!active || gen !== sdGenRef.current) return;
       if (r.kind === "single") {
         versionRef.current = r.version;
         persistArmedRef.current = true;
@@ -167,6 +174,7 @@ export default function IdealTextReadout({
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
+          pieces: r.pieces,
         });
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
@@ -358,15 +366,17 @@ export default function IdealTextReadout({
       ) : sd ? (
         // SD — the SAME star layer as the notebook: grey suggestion stars to
         // Approve, orange coach-verified stars behind the unlock.
-        <MomentStarText
+        // DISCERNMENT — the same star text, with each paragraph wearing its
+        // piece's version pill (badges hide on any paragraph/piece mismatch).
+        <PieceBadgeText
           text={text}
           ideal={sd.ideal}
+          pieces={sd.pieces}
           onMomentTap={(m) => void stars.openMoment(m)}
           foldFor={stars.foldFor}
-          // FE-2 — stars at moment ends, narrow quote underlines, never the
-          // full-span underline (this branch only renders under SD).
           sdStars
           textSizeClass="text-[17px]"
+          onOpenSwap={setSwapOpen}
         />
       ) : (
         <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
@@ -437,6 +447,50 @@ export default function IdealTextReadout({
         </div>
       ) : null}
 
+      {/* DISCERNMENT — accept lands the challenger (the BE reassembles →
+          refetch the whole document); reject pins the incumbent (apply the
+          echoed piece locally, the glow dies). Both 409s (a newer take moved
+          the offer mid-view) refetch SILENTLY — never an error surface. */}
+      <PieceSwapSheet
+        piece={swapOpen}
+        onClose={() => setSwapOpen(null)}
+        onDecide={async (action) => {
+          const p = swapOpen;
+          if (!p?.challenger || !arcId) return false;
+          const r = await swapPiece({
+            arcId,
+            pieceKey: p.pieceKey,
+            action,
+            challengerSnippetId: p.challenger.snippetId,
+          });
+          if (r.kind === "error") return false;
+          setSwapOpen(null);
+          if (r.kind === "stale" || action === "accept" || r.piece === null) {
+            // The master text changed under us (accept reassembled it; stale
+            // means a newer take already did). The user's decision here IS
+            // the newer intent, so release the local edit lane — otherwise a
+            // dirty flag would block adoption of the accepted text and the
+            // next keystroke would PUT the stale words back (review R-db6).
+            dirtyRef.current = false;
+            savedTextRef.current = null;
+            setSdNonce((n) => n + 1);
+          } else {
+            const echoed = r.piece;
+            sdGenRef.current++; // fence out any in-flight pre-decision GET
+            setSd((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    pieces: (prev.pieces ?? []).map((x) =>
+                      x.pieceKey === echoed.pieceKey ? echoed : x
+                    ),
+                  }
+                : prev
+            );
+          }
+          return true;
+        }}
+      />
       <MomentSheet
         moment={stars.momentOpen}
         momentContent={stars.momentContent}
