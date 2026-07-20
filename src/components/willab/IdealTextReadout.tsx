@@ -12,6 +12,7 @@ import {
   type IdealText,
 } from "@/services/api/idealText";
 import { MarkerToolbar } from "./RichText";
+import IdealReadMic from "./IdealReadMic";
 import {
   MomentSheet,
   MomentStarText,
@@ -101,6 +102,9 @@ export default function IdealTextReadout({
     version: number | null;
     momentsUnlocked: boolean;
     priceCredits: number | null;
+    title: string | null;
+    latestTakeSessionId: string | null;
+    rereadDone: boolean;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -157,6 +161,9 @@ export default function IdealTextReadout({
           version: r.version,
           momentsUnlocked: r.momentsUnlocked,
           priceCredits: r.priceCredits,
+          title: r.title,
+          latestTakeSessionId: r.latestTakeSessionId,
+          rereadDone: r.rereadDone,
         });
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
@@ -386,11 +393,30 @@ export default function IdealTextReadout({
         >
           Create an account to keep this text
         </Button>
+      ) : sd && arcId && onReRead ? (
+        // FE-D — the ONE two-state mic: reread_done false → record the reading
+        // IN PLACE (recording_kind "read", paired to the latest spoken take);
+        // true → "Record another take" into the regular record flow. FE-6 —
+        // the take nudge sits under it on the 1st/2nd version only.
+        <>
+          <IdealReadMic
+            arcId={arcId}
+            version={sd.version}
+            title={sd.title}
+            latestTakeSessionId={sd.latestTakeSessionId}
+            rereadDone={sd.rereadDone}
+            onNewTake={onReRead}
+            onReadUploaded={() => setSdNonce((n) => n + 1)}
+          />
+          {sd.version === 1 || sd.version === 2 ? (
+            <p className="max-w-xs self-center text-center text-[12px] leading-relaxed text-muted-foreground">
+              Your ideal text gets sharper with more takes. Three is where it
+              really lands. Record another when you&apos;re ready.
+            </p>
+          ) : null}
+        </>
       ) : onReRead ? (
-        // FE-4 — the re-read is a SMALL bottom mic now (it superseded the big
-        // "Save"/"Read it aloud" CTA); FE-6 — the take nudge sits under it on
-        // the 1st and 2nd overview only (encouragement, never a progress
-        // counter).
+        // Flag OFF / no SD payload — the plain small mic into the record flow.
         <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
           <Button
             type="button"
@@ -401,12 +427,6 @@ export default function IdealTextReadout({
             <Mic className="mr-2 h-4 w-4" aria-hidden />
             continue refining ideal text
           </Button>
-          {sd?.version === 1 || sd?.version === 2 ? (
-            <p className="max-w-xs text-center text-[12px] leading-relaxed text-muted-foreground">
-              Your ideal text gets sharper with more takes. Three is where it
-              really lands. Record another when you&apos;re ready.
-            </p>
-          ) : null}
         </div>
       ) : null}
 

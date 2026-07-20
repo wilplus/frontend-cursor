@@ -143,6 +143,19 @@ export type IdealTextResult =
       /** #214 — the displayed text IS the student's saved edit (locked rule:
        *  the student's edit always wins the text). false → machine/coach text. */
       userEdited: boolean;
+      /** Additive BE fields (2026-07-20) — all null-safe fallbacks until the
+       *  BE deploy lands. */
+      /** The latest take's topic; null → the FE falls back to "Your ideal text". */
+      title: string | null;
+      /** ISO timestamp of the last ideal-text update; null → no date line. */
+      updatedAt: string | null;
+      /** The latest SPOKEN take (excludes reads) — the re-read pairing target.
+       *  null → the in-place read mic hides (a read without a pair is
+       *  invisible on every surface). */
+      latestTakeSessionId: string | null;
+      /** True when this version has already been re-read → the mic becomes
+       *  "Record another take". */
+      rereadDone: boolean;
     }
   | { kind: "locked" } // 402 — the $25 unlock opens it (legacy lane)
   | { kind: "pending" } // 404 / not approved yet — coach still working
@@ -343,6 +356,19 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
           ? body.price_credits
           : null,
       userEdited: body.user_edited === true,
+      // Additive 2026-07-20 fields — null-safe until the BE deploy lands.
+      title:
+        typeof body.title === "string" && body.title.trim() ? body.title : null,
+      updatedAt:
+        typeof body.updated_at === "string" && body.updated_at
+          ? body.updated_at
+          : null,
+      latestTakeSessionId:
+        typeof body.latest_take_session_id === "string" &&
+        body.latest_take_session_id
+          ? body.latest_take_session_id
+          : null,
+      rereadDone: body.reread_done === true,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

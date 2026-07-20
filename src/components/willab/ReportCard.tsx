@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Crown, Mic, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { fetchIdealText } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { bestPresentationView, insightView, readoutView } from "./loungeReports";
 
@@ -59,6 +62,7 @@ export default function ReportCard({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
+  heroIdealText = false,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
@@ -70,6 +74,9 @@ export default function ReportCard({
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — the purple bubble opens the ideal-text notebook. */
   onOpenIdealText?: (arcId: string) => void;
+  /** FE-C — true on the LATEST ideal_text bubble (highest version): it renders
+   *  as the large crucial card; older ones stay compact version history. */
+  heroIdealText?: boolean;
 }) {
   // Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
   // behind the tap: the feedback page itself renders the unlock panel).
@@ -132,6 +139,13 @@ export default function ReportCard({
     const open = () => {
       if (arcId && onOpenIdealText) onOpenIdealText(arcId);
     };
+    // FE-C — the crucial bubble: the latest version renders as a large, tall
+    // card with the live GET's title/status/version/date and one Open button.
+    if (heroIdealText && arcId && onOpenIdealText) {
+      return (
+        <CrucialIdealTextCard arcId={arcId} onOpen={() => onOpenIdealText(arcId)} />
+      );
+    }
     // FE-3 — the thread is the HISTORY OF VERSIONS: every assembled version
     // posts its own card, 1.0 unverified through N.0 verified. The version and
     // the verification state both ride on the BE metadata.
@@ -278,12 +292,40 @@ export default function ReportCard({
       : null;
   const date = reportDateLabel(message.client_created_at);
   // FE-5 — the legacy per-piece Approve walker (ReadoutCard, reached through
-  // InsightsOverlay) is retired under the single-deliverable model: the ideal
-  // text IS the deliverable. So the recording bubble is pure history now, and
-  // the coach insight card is a read-only note. Nothing here opens.
-  const openable = false;
-  const open = undefined;
-  const openKeyDown = undefined;
+  // InsightsOverlay) is retired under the single-deliverable model. The coach
+  // insight card stays a read-only note. FE-E — the recording bubble opens its
+  // OWN take's feedback page (metadata carries arc_id + session_id since the
+  // draft was extended); legacy rows without arc_id stay plain history.
+  const rsArcId =
+    typeof message.metadata?.arc_id === "string" ? message.metadata.arc_id : null;
+  const rsSessionId =
+    typeof message.metadata?.session_id === "string"
+      ? message.metadata.session_id
+      : null;
+  const rsTakeIndex =
+    typeof message.metadata?.take_index === "number" &&
+    Number.isFinite(message.metadata.take_index)
+      ? message.metadata.take_index
+      : null;
+  const openable =
+    message.kind === "recording_summary" &&
+    !!(rsArcId && rsSessionId && onOpenFeedback);
+  const open = openable
+    ? () =>
+        onOpenFeedback!({
+          arcId: rsArcId!,
+          takeSessionId: rsSessionId!,
+          takeIndex: rsTakeIndex,
+        })
+    : undefined;
+  const openKeyDown = openable
+    ? (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open?.();
+        }
+      }
+    : undefined;
 
   if (message.kind === "insight") {
     // COACH feedback — GREY, full width.
@@ -380,6 +422,93 @@ export function IdealTextHeroCard({
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+
+/* -------------------------------------------------------------------------- */
+/*  FE-C — the crucial bubble: the app's ONE deliverable, rendered large.      */
+/*  Pulls the live SD GET on mount (free for the owner, never 402s) so the     */
+/*  title / status / version / date reflect the document as it is NOW, not as  */
+/*  it was when the bubble row was written. Falls back gracefully while the    */
+/*  fetch is in flight or when the BE's additive fields are not deployed yet.  */
+/* -------------------------------------------------------------------------- */
+function CrucialIdealTextCard({
+  arcId,
+  onOpen,
+}: {
+  arcId: string;
+  onOpen: () => void;
+}) {
+  const [live, setLive] = useState<{
+    title: string | null;
+    updatedAt: string | null;
+    status: "unverified" | "verified" | null;
+    version: number | null;
+  } | null>(null);
+  useEffect(() => {
+    let active = true;
+    void fetchIdealText(arcId).then((r) => {
+      if (!active || r.kind !== "single") return;
+      setLive({
+        title: r.title,
+        updatedAt: r.updatedAt,
+        status: r.status,
+        version: r.version,
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [arcId]);
+
+  const verified = live?.status === "verified";
+  const dateLabel = live?.updatedAt
+    ? new Date(live.updatedAt).toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+  return (
+    <div className="my-2 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-700 px-5 py-6 text-white shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Crown className="h-6 w-6 shrink-0 text-amber-300" aria-hidden />
+            <p className="truncate text-[19px] font-semibold leading-snug">
+              {live?.title ?? "Your ideal text"}
+            </p>
+          </div>
+          {dateLabel ? (
+            <p className="mt-1 text-[12px] text-white/70">
+              Last updated {dateLabel}
+            </p>
+          ) : null}
+        </div>
+        {live?.version !== null && live?.version !== undefined ? (
+          <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[13px] font-semibold tabular-nums">
+            {live.version}.0
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
+            verified ? "bg-emerald-400/25 text-emerald-100" : "bg-white/15 text-white/85"
+          }`}
+        >
+          {verified ? "Verified" : "Not verified"}
+        </span>
+      </div>
+      <Button
+        type="button"
+        onClick={onOpen}
+        className="mt-5 h-12 w-full rounded-full bg-white text-[15px] font-semibold text-indigo-700 hover:bg-white/90"
+      >
+        Open your ideal text
+      </Button>
     </div>
   );
 }

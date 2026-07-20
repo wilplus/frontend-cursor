@@ -49,6 +49,11 @@ export interface LabUploadInput {
   /** #191 — a fresh id so a read is its own session (the read never overwrites
    *  the spoken take). Sent for reads; omit for the spoken take. */
   guestSessionId?: string;
+  /** FE-D — what the read is OF. "ideal_text" marks a read of the ideal text
+   *  (rides session_context → intake_context); with idealVersion it is what
+   *  flips the GET's reread_done, so always send both together. */
+  readTarget?: "ideal_text";
+  idealVersion?: number;
 }
 
 export type LabUploadResult =
@@ -108,6 +113,12 @@ export async function submitLabRecording(
   if (input.recordingKind) form.append("recording_kind", input.recordingKind);
   if (input.pairedSessionId) form.append("paired_session_id", input.pairedSessionId);
   if (input.guestSessionId) form.append("guest_session_id", input.guestSessionId);
+  // FE-D — read-of-ideal-text tagging (flips the BE's reread_done for this
+  // version and labels the coach fold "Re-read of ideal text vN").
+  if (input.readTarget) form.append("read_target", input.readTarget);
+  if (typeof input.idealVersion === "number" && Number.isFinite(input.idealVersion)) {
+    form.append("ideal_version", String(input.idealVersion));
+  }
   // Duration is measured server-side (A4 lists no audio_duration_sec field).
 
   const token = await getAuthToken(); // optional — public/guest endpoint

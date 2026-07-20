@@ -273,10 +273,16 @@ export default function Lounge({
   // (exactly what the banner's "Read ›" button used to do).
   // FE-4 — the newest ideal-text version the thread has announced (the BE
   // stamps metadata.version on every version bubble). null before the first.
-  const latestIdealVersion = useMemo(() => {
+  // FE-C — heroIdealTextId marks the crucial bubble: the LATEST ideal_text row
+  // (highest version; a versionless row wins only when nothing versioned
+  // exists, taking the last row in thread order).
+  const { latestIdealVersion, heroIdealTextId } = useMemo(() => {
     let v: number | null = null;
+    let heroId: string | null = null;
+    let lastAnyId: string | null = null;
     for (const m of messages) {
       if (m.kind !== "ideal_text") continue;
+      lastAnyId = m.id ?? null;
       const raw = m.metadata?.version;
       const n =
         typeof raw === "number" && Number.isFinite(raw)
@@ -284,9 +290,12 @@ export default function Lounge({
           : typeof raw === "string" && raw.trim() && Number.isFinite(Number(raw))
             ? Number(raw)
             : null;
-      if (n !== null && (v === null || n > v)) v = n;
+      if (n !== null && (v === null || n >= v)) {
+        v = n;
+        heroId = m.id ?? null;
+      }
     }
-    return v;
+    return { latestIdealVersion: v, heroIdealTextId: heroId ?? lastAnyId };
   }, [messages]);
 
 
@@ -478,6 +487,10 @@ export default function Lounge({
         clearProcessingTake(marker!.sessionId);
         setProcessingResume(null);
         clearInterval(id);
+        // FE-B — analysis just completed with the user back in the Lounge; the
+        // BE appended the ideal-text bubble at the end of the pipeline, so
+        // pull it into the thread now.
+        void reload();
       }
     }
     void tick();
@@ -731,7 +744,10 @@ export default function Lounge({
               <Bubble
                 key={item.reactKey}
                 message={item.message}
-                        onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
+                heroIdealText={
+                  item.message.id != null && item.message.id === heroIdealTextId
+                }
+                onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
@@ -1186,6 +1202,7 @@ function SequentialBotBubbles({
 
 function Bubble({
   message,
+  heroIdealText,
   onViewInsights,
   onOpenBestPresentation,
   onOpenBreakthroughs,
@@ -1198,6 +1215,8 @@ function Bubble({
   animate = false,
 }: {
   message: LoungeMessage;
+  /** FE-C — true on the LATEST ideal_text bubble (the crucial card). */
+  heroIdealText?: boolean;
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
@@ -1239,6 +1258,7 @@ function Bubble({
     return (
       <ReportCard
         message={message}
+        heroIdealText={heroIdealText}
         onViewInsights={onViewInsights}
         onOpenBestPresentation={onOpenBestPresentation}
         onOpenBreakthroughs={onOpenBreakthroughs}
