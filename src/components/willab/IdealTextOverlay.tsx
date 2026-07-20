@@ -34,6 +34,7 @@ import {
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
+import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import IdealReadMic from "./IdealReadMic";
 
 /* -------------------------------------------------------------------------- */
@@ -50,10 +51,15 @@ import IdealReadMic from "./IdealReadMic";
 
 export default function IdealTextOverlay({
   arcId,
+  version = null,
   onClose,
   onReadAloud,
 }: {
   arcId: string;
+  /** FE-3b — open an OLD version's read-only step (the GET's ?version form).
+   *  null/absent → the live notebook. If the BE has no snapshot for it
+   *  (historical_unavailable), the overlay falls back to the live view. */
+  version?: number | null;
   onClose: () => void;
   /** SD — "Read it aloud": the host closes this overlay into the record flow
    *  for this presentation (a re-read is just another recording). Receives the
@@ -65,9 +71,19 @@ export default function IdealTextOverlay({
   // nested FeedbackOverlay, which pushes its own entry on top).
   useBackDismiss(onClose);
   const [status, setStatus] = useState<
-    "loading" | "ready" | "instant" | "locked" | "pending" | "error"
+    "loading" | "ready" | "instant" | "locked" | "pending" | "error" | "historical"
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
+  // FE-3b — the frozen step being viewed (its version chip), and the fall-back
+  // switch: historical_unavailable clears the requested version so the effect
+  // refetches the live document, exactly the pre-FE-3b behavior.
+  const [historical, setHistorical] = useState<{ version: number | null } | null>(
+    null
+  );
+  const [requestedVersion, setRequestedVersion] = useState<number | null>(version);
+  useEffect(() => {
+    setRequestedVersion(version);
+  }, [version, arcId]);
   // Instant lane — the payload's paywall figures for the upsell CTA.
   const [instantPaywall, setInstantPaywall] = useState<InstantPaywall | null>(
     null
@@ -123,8 +139,25 @@ export default function IdealTextOverlay({
   useEffect(() => {
     let active = true;
     setStatus("loading");
-    void fetchIdealText(arcId).then((r) => {
+    setHistorical(null);
+    void fetchIdealText(arcId, requestedVersion).then((r) => {
       if (!active) return;
+      if (r.kind === "historical") {
+        // FE-3b — a frozen step: that version's text + that version's
+        // reasoning, read-only. No SD chrome, no editing, no paywall.
+        setIdeal(r.ideal);
+        setNotes(null);
+        setSd(null);
+        setHistorical({ version: r.version });
+        setStatus("historical");
+        return;
+      }
+      if (r.kind === "historicalUnavailable") {
+        // No snapshot for that version (pre-history arc) — fall back to the
+        // live notebook, exactly as bubbles behaved before FE-3b.
+        setRequestedVersion(null);
+        return;
+      }
       if (r.kind === "single") {
         // SD — the ONE living text: both statuses free to read; the only paid
         // thing is opening the key moments. Renders through the ready view
@@ -178,7 +211,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce]);
+  }, [arcId, refetchNonce, requestedVersion]);
 
   const displayText = notes ?? ideal?.text ?? "";
 
@@ -208,6 +241,13 @@ export default function IdealTextOverlay({
   // legacy moment with no snippet link stays inert (it has nowhere to
   // deep-link — R-sd4). Under SD every tap goes to the shared sheet.
   async function openMoment(m: IdealKeyMomentLink) {
+    // FE-3b — historical steps use the shared sheet too (read-only): a
+    // suggestion star opens its reasoning, a plain moment gets the honest
+    // no-explanation line. Never the legacy "Go to this moment?" confirm.
+    if (status === "historical") {
+      await stars.openMoment(m);
+      return;
+    }
     if (!sd) {
       if (!m.snippetId) return;
       setMomentAsk(m);
@@ -217,7 +257,7 @@ export default function IdealTextOverlay({
   }
 
   function copyText() {
-    void navigator.clipboard?.writeText(displayText).then(() => {
+    void navigator.clipboard?.writeText(stripRichMarkers(displayText)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     });
@@ -230,7 +270,8 @@ export default function IdealTextOverlay({
           Your ideal text
         </span>
         <div className="flex items-center gap-1.5">
-          {(status === "ready" || status === "instant") && !editing ? (
+          {(status === "ready" || status === "instant" || status === "historical") &&
+          !editing ? (
             <button
               type="button"
               onClick={copyText}
@@ -274,6 +315,29 @@ export default function IdealTextOverlay({
               Your coach is still shaping your ideal text. It lands here the
               moment it&apos;s approved.
             </p>
+          ) : status === "historical" && ideal ? (
+            // FE-3b — the read-only step view: the frozen text with that
+            // version's stars (their reasoning opens in the read-only sheet).
+            // No editing, no bulk controls, no read-aloud, no paywall.
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                {historical?.version !== null &&
+                historical?.version !== undefined ? (
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium tabular-nums text-muted-foreground">
+                    {historical.version}.0
+                  </span>
+                ) : null}
+                <span className="rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
+                  Earlier version, read-only
+                </span>
+              </div>
+              <MomentStarText
+                text={ideal.text}
+                ideal={ideal}
+                onMomentTap={(m) => void openMoment(m)}
+                sdStars
+              />
+            </div>
           ) : status === "error" ? (
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
               Couldn&apos;t load your ideal text. Try again in a moment.
@@ -464,23 +528,31 @@ export default function IdealTextOverlay({
         moment={stars.momentOpen}
         momentContent={stars.momentContent}
         applied={stars.momentOpen ? stars.isApplied(stars.momentOpen) : false}
+        // FE-3b — a historical step's sheet is a record: reasoning without
+        // Approve, and no re-record mic (a mic here would record against a
+        // superseded version's snippet).
+        readOnly={status === "historical"}
         onClose={stars.closeMoment}
         onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
         onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
         onBuy={stars.buyMoments}
-        onReRecord={async (snippetId, takeSessionId, audio, durationSec) => {
-          const r = await reRecordSnippet({
-            snippetId,
-            takeSessionId,
-            topic: sd?.title ?? null,
-            audio,
-            durationSec,
-          });
-          // Re-pull the served text so the improved snippet + new version flow
-          // in; the sheet stays open on its success confirmation.
-          if (r.ok) setRefetchNonce((n) => n + 1);
-          return r.ok;
-        }}
+        onReRecord={
+          status === "historical"
+            ? undefined
+            : async (snippetId, takeSessionId, audio, durationSec) => {
+                const r = await reRecordSnippet({
+                  snippetId,
+                  takeSessionId,
+                  topic: sd?.title ?? null,
+                  audio,
+                  durationSec,
+                });
+                // Re-pull the served text so the improved snippet + new version
+                // flow in; the sheet stays open on its success confirmation.
+                if (r.ok) setRefetchNonce((n) => n + 1);
+                return r.ok;
+              }
+        }
       />
     </div>
   );

@@ -27,9 +27,12 @@ export async function GET(
   }
 
   const id = encodeURIComponent(params.arcId);
+  // FE-3b — ?version=N requests an old version's read-only snapshot.
+  const version = req.nextUrl.searchParams.get("version");
+  const query = version ? `?version=${encodeURIComponent(version)}` : "";
   let upstream: Response;
   try {
-    upstream = await fetch(`${backend}/v2/explore/arc/${id}/ideal-text`, {
+    upstream = await fetch(`${backend}/v2/explore/arc/${id}/ideal-text${query}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store",
     });

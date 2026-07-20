@@ -11,6 +11,7 @@ import {
   saveIdealUserEdit,
   type IdealText,
 } from "@/services/api/idealText";
+import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { MarkerToolbar } from "./RichText";
 import IdealReadMic from "./IdealReadMic";
 import {
@@ -277,7 +278,7 @@ export default function IdealTextReadout({
           <button
             type="button"
             onClick={() => {
-              void navigator.clipboard?.writeText(text).then(() => {
+              void navigator.clipboard?.writeText(stripRichMarkers(text)).then(() => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1600);
               });

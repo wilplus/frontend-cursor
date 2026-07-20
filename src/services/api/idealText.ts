@@ -168,6 +168,19 @@ export type IdealTextResult =
        *  "Record another take". */
       rereadDone: boolean;
     }
+  // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
+  // step: that version's text + that version's reasoning, read-only. Served
+  // by GET …/ideal-text?version=N when a snapshot exists.
+  | {
+      kind: "historical";
+      ideal: IdealText;
+      version: number | null;
+      currentVersion: number | null;
+      createdAt: string | null;
+    }
+  // ?version=N with no snapshot (assembled before history existed) — the FE
+  // falls back to the live notebook, exactly as before.
+  | { kind: "historicalUnavailable"; currentVersion: number | null }
   | { kind: "locked" } // 402 — the $25 unlock opens it (legacy lane)
   | { kind: "pending" } // 404 / not approved yet — coach still working
   | { kind: "error" };
@@ -334,15 +347,41 @@ export function mapInstantIdealText(
   };
 }
 
-/** Student fetch — gated by the $25 unlock; pending until the coach approves. */
-export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
+/** FE-3b — a historical snapshot's key_moments carry `suggestion` but NO
+ *  `star` field (the snapshot predates star states), so the mapper leaves
+ *  them plain and the step's reasoning would be invisible. Infer the grey
+ *  star for any moment with a usable, un-applied suggestion. HISTORICAL
+ *  PAYLOADS ONLY — on the live lane a missing star is the BE deliberately
+ *  dropping a consumed suggestion's star, which must stay dropped. Pure. */
+export function inferHistoricalStars(ideal: IdealText): IdealText {
+  return {
+    ...ideal,
+    keyMoments: ideal.keyMoments.map((m) =>
+      m.star == null && m.suggestion && m.applied !== true
+        ? { ...m, star: "suggestion" as const }
+        : m
+    ),
+  };
+}
+
+/** Student fetch — gated by the $25 unlock; pending until the coach approves.
+ *  `version` (FE-3b) requests an OLD version's read-only snapshot; omit for
+ *  the live document. N == current serves the live notebook unchanged. */
+export async function fetchIdealText(
+  arcId: string,
+  version?: number | null
+): Promise<IdealTextResult> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
+  const query =
+    typeof version === "number" && Number.isFinite(version)
+      ? `?version=${encodeURIComponent(version)}`
+      : "";
   let res: Response;
   try {
     res = await fetch(
-      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text`,
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text${query}`,
       { headers, credentials: "include", cache: "no-store" }
     );
   } catch {
@@ -352,6 +391,30 @@ export async function fetchIdealText(arcId: string): Promise<IdealTextResult> {
   if (res.status === 404) return { kind: "pending" };
   if (!res.ok) return { kind: "error" };
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  // FE-3b — the two historical answers, checked FIRST (they only ever arrive
+  // for a ?version request; a live payload carries neither flag).
+  if (body?.historical_unavailable === true) {
+    return {
+      kind: "historicalUnavailable",
+      currentVersion: num(body.current_version),
+    };
+  }
+  if (body?.historical === true) {
+    const ideal = mapIdealText(body);
+    if (!ideal) return { kind: "pending" };
+    return {
+      kind: "historical",
+      ideal: inferHistoricalStars(ideal),
+      version: num(body.version),
+      currentVersion: num(body.current_version),
+      createdAt:
+        typeof body.created_at === "string" && body.created_at
+          ? body.created_at
+          : null,
+    };
+  }
   // Single-deliverable contract (SINGLE_DELIVERABLE_ENABLED): the payload
   // carries `status` — both statuses free to read, no approved coercion.
   // Checked FIRST; absent status → the older lanes below, byte-for-byte.
