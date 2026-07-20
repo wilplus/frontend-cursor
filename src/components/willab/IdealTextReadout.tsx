@@ -440,13 +440,14 @@ export default function IdealTextReadout({
         onBuy={stars.buyMoments}
         onReRecord={
           arcId
-            ? async (snippetId, audio, durationSec) => {
-                const r = await reRecordSnippet(
-                  arcId,
+            ? async (snippetId, takeSessionId, audio, durationSec) => {
+                const r = await reRecordSnippet({
                   snippetId,
+                  takeSessionId,
+                  topic: sd?.title ?? null,
                   audio,
-                  durationSec
-                );
+                  durationSec,
+                });
                 // Re-pull the served text so the improved snippet + new version
                 // flow in; leave the sheet open on its success confirmation.
                 if (r.ok) setSdNonce((n) => n + 1);

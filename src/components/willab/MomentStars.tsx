@@ -90,6 +90,7 @@ function MomentSheetBody({
    *  → the delivery card shows the observation without a mic. */
   onReRecord?: (
     snippetId: string,
+    takeSessionId: string,
     audio: Blob,
     durationSec: number
   ) => Promise<boolean>;
@@ -125,6 +126,7 @@ function MomentSheetBody({
           <DeliveryStarCard
             suggestion={suggestion}
             snippetId={moment.snippetId}
+            takeSessionId={moment.takeSessionId}
             onReRecord={onReRecord}
           />
         ) : (
@@ -287,12 +289,16 @@ const DELIVERY_COPY: Record<
 function DeliveryStarCard({
   suggestion,
   snippetId,
+  takeSessionId,
   onReRecord,
 }: {
   suggestion: Extract<MomentSuggestion, { kind: "delivery" }>;
   snippetId: string;
+  /** The snippet's spoken take — the read's REQUIRED pairing target. */
+  takeSessionId: string;
   onReRecord?: (
     snippetId: string,
+    takeSessionId: string,
     audio: Blob,
     durationSec: number
   ) => Promise<boolean>;
@@ -313,7 +319,14 @@ function DeliveryStarCard({
 
   // Upload each recorded blob exactly once, whatever re-renders happen.
   useEffect(() => {
-    if (st.status !== "stopped" || sendingRef.current || !onReRecord) return;
+    if (
+      st.status !== "stopped" ||
+      sendingRef.current ||
+      !onReRecord ||
+      snippetId === "" ||
+      takeSessionId === ""
+    )
+      return;
     const blob = st.audioBlob;
     if (!blob || blob.size === 0) {
       setPhase("failed");
@@ -323,17 +336,18 @@ function DeliveryStarCard({
     sendingRef.current = true;
     sentBlobRef.current = blob;
     setPhase("sending");
-    void onReRecord(snippetId, blob, st.durationSec).then((ok) => {
+    void onReRecord(snippetId, takeSessionId, blob, st.durationSec).then((ok) => {
       sendingRef.current = false;
       setPhase(ok ? "done" : "failed");
     });
-  }, [st, snippetId, onReRecord]);
+  }, [st, snippetId, takeSessionId, onReRecord]);
 
   const recording = st.status === "recording";
-  // A momentId-keyed moment carries snippetId "" — the re-record URL needs a
-  // real snippet, so hide the mic (show the observation only) rather than post
-  // to a dead .../snippet//re-record path (review R-dl3).
-  const canReRecord = !!onReRecord && snippetId !== "";
+  // Both ids are load-bearing: paired_snippet_id labels the fold and
+  // paired_session_id is the read's REQUIRED pairing target (a read without a
+  // pair is invisible on every surface). A momentId-keyed moment can carry
+  // either as "" — then show the observation without the mic (review R-dl3).
+  const canReRecord = !!onReRecord && snippetId !== "" && takeSessionId !== "";
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[14px] leading-relaxed text-foreground">
@@ -576,6 +590,7 @@ export function MomentSheet({
   /** DELIVERY_STARS — re-record this snippet with the feedback applied. */
   onReRecord?: (
     snippetId: string,
+    takeSessionId: string,
     audio: Blob,
     durationSec: number
   ) => Promise<boolean>;

@@ -462,8 +462,14 @@ export default function IdealTextOverlay({
         onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
         onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
         onBuy={stars.buyMoments}
-        onReRecord={async (snippetId, audio, durationSec) => {
-          const r = await reRecordSnippet(arcId, snippetId, audio, durationSec);
+        onReRecord={async (snippetId, takeSessionId, audio, durationSec) => {
+          const r = await reRecordSnippet({
+            snippetId,
+            takeSessionId,
+            topic: sd?.title ?? null,
+            audio,
+            durationSec,
+          });
           // Re-pull the served text so the improved snippet + new version flow
           // in; the sheet stays open on its success confirmation.
           if (r.ok) setRefetchNonce((n) => n + 1);
