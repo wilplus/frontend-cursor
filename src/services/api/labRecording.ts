@@ -49,11 +49,17 @@ export interface LabUploadInput {
   /** #191 — a fresh id so a read is its own session (the read never overwrites
    *  the spoken take). Sent for reads; omit for the spoken take. */
   guestSessionId?: string;
-  /** FE-D — what the read is OF. "ideal_text" marks a read of the ideal text
-   *  (rides session_context → intake_context); with idealVersion it is what
-   *  flips the GET's reread_done, so always send both together. */
+  /** FE-D — what the read is OF. "ideal_text" marks a read of the ideal text;
+   *  with idealVersion it is what flips the GET's reread_done, so always send
+   *  both together. FLAT multipart fields (BE PR #222): the intake validator
+   *  strips unknown keys from session_context, so nesting would silently drop
+   *  them. */
   readTarget?: "ideal_text";
   idealVersion?: number;
+  /** DELIVERY_STARS (BE PR #222) — a snippet re-record's target snippet. The
+   *  re-record IS a read on this endpoint: recording_kind "read" +
+   *  paired_session_id (the take) + this. Flat field, same rule as above. */
+  pairedSnippetId?: string;
 }
 
 export type LabUploadResult =
@@ -116,6 +122,7 @@ export async function submitLabRecording(
   // FE-D — read-of-ideal-text tagging (flips the BE's reread_done for this
   // version and labels the coach fold "Re-read of ideal text vN").
   if (input.readTarget) form.append("read_target", input.readTarget);
+  if (input.pairedSnippetId) form.append("paired_snippet_id", input.pairedSnippetId);
   if (typeof input.idealVersion === "number" && Number.isFinite(input.idealVersion)) {
     form.append("ideal_version", String(input.idealVersion));
   }
