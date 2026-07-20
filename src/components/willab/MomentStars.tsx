@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
-import { RichText } from "./RichText";
+import { RichText, type MomentDecor } from "./RichText";
+import { markerTokenSpans } from "@/lib/willab/richMarkers";
 import {
   isUnappliedPolish,
   segmentIdealText,
@@ -59,6 +60,35 @@ export function emphasizeMarker(anchor: string): string {
  *  the anchor. */
 export function momentKey(m: IdealKeyMomentLink): string {
   return m.momentId ?? `${m.snippetId}|${m.anchor}`;
+}
+
+/** FE-2 — split `text` around the first occurrence of `quote`, refusing a
+ *  split that would slice a rich-marker token in half (leaking raw syntax).
+ *  A token FULLY inside the quote is fine — the underline just spans it. */
+function splitOnQuote(
+  text: string,
+  quote: string
+): [string, string, string] | null {
+  const at = text.indexOf(quote);
+  if (at < 0) return null;
+  const end = at + quote.length;
+  const slices = markerTokenSpans(text).some(
+    ([ts, te]) => (at > ts && at < te) || (end > ts && end < te)
+  );
+  if (slices) return null;
+  return [text.slice(0, at), quote, text.slice(end)];
+}
+
+/** FE-2 — the narrow underline span behind a grey edit star, or null (icon
+ *  only). Practice families never underline: delivery carries no quote, and a
+ *  structural quote stays a sheet excerpt (unchanged by this pass). */
+function quoteOf(m: IdealKeyMomentLink): string | null {
+  const sg = m.suggestion;
+  return m.star === "suggestion" &&
+    sg &&
+    (sg.kind === "emphasize" || sg.kind === "replace")
+    ? sg.quote
+    : null;
 }
 
 /** D-3 — a mount-scoped back-dismiss entry for the moment sheet (hooks can't
@@ -141,6 +171,16 @@ function MomentSheetBody({
         <p className="py-6 text-center text-[13px] text-muted-foreground">
           Loading…
         </p>
+      ) : momentContent.kind === "unavailable" ? (
+        // FE-1 — no coach explanation exists yet: the free playback above is
+        // the whole sheet. No unlock CTA, no price, no locks — there is
+        // nothing behind them. Without playback either, say so honestly
+        // (reuses the existing line) instead of an empty dialog.
+        moment.snippetAudioRef ? null : (
+          <p className="py-6 text-center text-[13px] text-muted-foreground">
+            Your coach hasn&apos;t added the explanation for this moment yet.
+          </p>
+        )
       ) : momentContent.kind === "locked" ? (
         <MomentUnlockPrompt
           priceCredits={momentContent.priceCredits}
@@ -455,6 +495,7 @@ export function MomentStarText({
   ideal,
   onMomentTap,
   foldFor,
+  sdStars,
   textSizeClass = "text-[18px]",
 }: {
   text: string;
@@ -467,16 +508,80 @@ export function MomentStarText({
    *  null to render the star. Keyed per moment (momentKey), never snippetId
    *  alone (R-ms1). Absent (instant/legacy lane) → never folded. */
   foldFor?: (m: IdealKeyMomentLink) => LocalFold | null;
+  /** FE-2 (gradual refinement) — the SD star treatment: [[moment:…]] wrapper
+   *  spans and anchors are NEVER underlined; the star icon at the span's end
+   *  is the affordance, and only a suggestion's narrow `quote` underlines.
+   *  Absent (instant/ready lanes): the classic underline links stay. */
+  sdStars?: boolean;
 }) {
   const segments = useMemo(
     () => segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
     [text, ideal.keyPhrases, ideal.keyMoments]
   );
-  // FE-9 — an INLINE [[moment:…]] marker (coach-authored) is as tappable as an
-  // anchor-based key moment: bridge RichText's {snippetId, sessionId} shape to
-  // the shared IdealKeyMomentLink flow.
-  const onInlineMoment = (m: { snippetId: string; sessionId: string }) =>
-    onMomentTap({ anchor: "", snippetId: m.snippetId, takeSessionId: m.sessionId });
+  // The wrapper-id → payload-moment index. The SD text wraps every key moment
+  // in [[moment:snip|sess]] markers, so both the star decor AND the tap must
+  // resolve the wrapper's ids to the FULL payload moment (suggestion, audio,
+  // star) — a moment can share a snippet, hence pair-first with a snippet
+  // fallback.
+  const momentIndex = useMemo(() => {
+    const byPair = new Map<string, IdealKeyMomentLink>();
+    const bySnip = new Map<string, IdealKeyMomentLink>();
+    for (const m of ideal.keyMoments) {
+      const pair = `${m.snippetId}|${m.takeSessionId}`;
+      if (!byPair.has(pair)) byPair.set(pair, m);
+      if (m.snippetId && !bySnip.has(m.snippetId)) bySnip.set(m.snippetId, m);
+    }
+    return { byPair, bySnip };
+  }, [ideal.keyMoments]);
+  const resolveWrapped = (w: {
+    snippetId: string;
+    sessionId: string;
+  }): IdealKeyMomentLink | null =>
+    momentIndex.byPair.get(`${w.snippetId}|${w.sessionId}`) ??
+    momentIndex.bySnip.get(w.snippetId) ??
+    null;
+  // FE-9 — an INLINE [[moment:…]] marker is as tappable as an anchor-based key
+  // moment. Resolve to the payload moment when it exists (so the sheet gets
+  // the suggestion / audio / star, not an empty bridge — a grey star's tap
+  // must open its FREE card, never the paid path); a coach-authored link with
+  // no payload row falls back to the bare bridge as before.
+  const onInlineMoment = (w: { snippetId: string; sessionId: string }) =>
+    onMomentTap(
+      resolveWrapped(w) ?? {
+        anchor: "",
+        snippetId: w.snippetId,
+        takeSessionId: w.sessionId,
+      }
+    );
+  // FE-2 — the star treatment for wrapper spans: hand RichText each moment's
+  // decor. Not in the current payload (baked/consumed, or an id drift) → null
+  // → plain text: the view renders exactly the CURRENT GET's stars, nothing
+  // cached or merged across versions (FE-3a). A locally folded (just-approved)
+  // moment also decors null — its star vanishes the moment Approve lands.
+  const decorFor = useMemo(() => {
+    if (!sdStars) return undefined;
+    return (w: { snippetId: string; sessionId: string }): MomentDecor | null => {
+      const m = resolveWrapped(w);
+      if (!m) return null;
+      // A just-approved moment hands its optimistic fold to the renderer —
+      // the run repaints as the folded text (star gone) instead of silently
+      // keeping the old words while the sheet claims a swap happened.
+      const fold = foldFor?.(m);
+      if (fold) return { star: null, quote: null, fold };
+      const k = m.suggestion?.kind;
+      const star =
+        m.star === "verified"
+          ? ("verified" as const)
+          : m.star === "suggestion"
+            ? k === "structure" || k === "delivery"
+              ? ("practice" as const)
+              : ("suggestion" as const)
+            : null;
+      return { star, quote: quoteOf(m) };
+    };
+    // resolveWrapped closes over momentIndex — the real dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sdStars, momentIndex, foldFor]);
   return (
     <p className={`whitespace-pre-line leading-relaxed text-foreground ${textSizeClass}`}>
       {segments.map((s, i) => {
@@ -505,22 +610,35 @@ export function MomentStarText({
             // coach-verified orange.
             const k = m.suggestion?.kind;
             const practice = !verified && (k === "structure" || k === "delivery");
+            // FE-2 — a suggestion's narrow quote is the ONLY underline; the
+            // anchor span itself never underlines. Quote absent / not found /
+            // marker-slicing → icon only.
+            const quote = quoteOf(m);
+            const parts = quote ? splitOnQuote(s.text, quote) : null;
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => onMomentTap(m)}
-                aria-label={
-                  verified
-                    ? "Coach-verified moment"
-                    : practice
-                      ? "Practice suggestion"
-                      : "Suggested edit"
-                }
-                className="inline align-baseline transition-colors hover:text-primary"
+                // No aria-label: it would REPLACE the accessible name and
+                // erase the anchor text for screen readers — the content
+                // names the button, the sr-only suffix adds the family.
+                className={`inline align-baseline transition-colors hover:text-primary${
+                  sdStars ? " text-left" : ""
+                }`}
               >
                 {/* No onMomentTap inside — never nest a button in a button. */}
-                <RichText text={s.text} />
+                {parts ? (
+                  <>
+                    <RichText text={parts[0]} />
+                    <span className="underline decoration-2 underline-offset-4">
+                      <RichText text={parts[1]} />
+                    </span>
+                    <RichText text={parts[2]} />
+                  </>
+                ) : (
+                  <RichText text={s.text} />
+                )}
                 <Star
                   className={`ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 ${
                     verified
@@ -532,10 +650,39 @@ export function MomentStarText({
                   fill={verified || practice ? "currentColor" : "none"}
                   aria-hidden
                 />
+                <span className="sr-only">
+                  ,{" "}
+                  {verified
+                    ? "Coach-verified moment"
+                    : practice
+                      ? "Practice suggestion"
+                      : "Suggested edit"}
+                </span>
               </button>
             );
           }
-          // Legacy underlined moment (no star field — today's behavior).
+          // Plain moment (no star). FE-2: under the SD treatment anchors are
+          // never underline targets — a quiet grey star marks the spot and
+          // keeps the playback sheet reachable. Legacy lanes (instant/ready)
+          // keep the classic underline link, their only affordance.
+          if (sdStars) {
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onMomentTap(m)}
+                className="inline align-baseline text-left transition-colors hover:text-primary"
+              >
+                <RichText text={s.text} />
+                <Star
+                  className="ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 text-muted-foreground"
+                  fill="none"
+                  aria-hidden
+                />
+                <span className="sr-only">, Key moment</span>
+              </button>
+            );
+          }
           return (
             <button
               key={i}
@@ -550,16 +697,27 @@ export function MomentStarText({
         if (s.bold) {
           return (
             <strong key={i} className="font-semibold">
-              <RichText text={s.text} onMomentTap={onInlineMoment} />
+              <RichText
+                text={s.text}
+                onMomentTap={onInlineMoment}
+                momentDecor={decorFor}
+              />
             </strong>
           );
         }
         // FE-9 — the coach's inline markers (bold / italic / underline / orange
         // / moment links) render here too, identically to the coach preview,
-        // instead of leaking raw marker syntax into the notebook.
+        // instead of leaking raw marker syntax into the notebook. Under the SD
+        // treatment (decorFor set) the [[moment:…]] wrapper spans — which the
+        // BE emits around EVERY key moment, whole paragraphs included — render
+        // as plain text + a star, never the old full-span dotted underline.
         return (
           <span key={i}>
-            <RichText text={s.text} onMomentTap={onInlineMoment} />
+            <RichText
+              text={s.text}
+              onMomentTap={onInlineMoment}
+              momentDecor={decorFor}
+            />
           </span>
         );
       })}
@@ -639,11 +797,16 @@ export function useMomentStars({
   arcId,
   momentsUnlocked,
   priceCredits,
+  explanationsAvailable,
   onUnlocked,
 }: {
   arcId: string;
   momentsUnlocked: boolean;
   priceCredits: number | null;
+  /** FE-1 — true only when coach explanations actually exist behind the
+   *  unlock. false → a locked moment shows NO paywall (kind "unavailable"):
+   *  nothing is for sale yet. */
+  explanationsAvailable: boolean;
   onUnlocked?: () => void;
 }) {
   const [momentOpen, setMomentOpen] = useState<IdealKeyMomentLink | null>(null);
@@ -682,14 +845,20 @@ export function useMomentStars({
         return;
       }
       // Verified star (or a plain SD moment) — the coach message is paid.
+      // FE-1: sell it ONLY when something actually exists behind the unlock;
+      // otherwise the sheet stays free-content-only, no paywall anywhere.
       if (!momentsUnlocked) {
         momentReqRef.current++;
-        setMomentContent({ kind: "locked", priceCredits });
+        setMomentContent(
+          explanationsAvailable
+            ? { kind: "locked", priceCredits }
+            : { kind: "unavailable" }
+        );
         return;
       }
       await loadMomentContent(m);
     },
-    [momentsUnlocked, priceCredits, loadMomentContent]
+    [momentsUnlocked, explanationsAvailable, priceCredits, loadMomentContent]
   );
 
   const closeMoment = useCallback(() => setMomentOpen(null), []);

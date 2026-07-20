@@ -13,6 +13,10 @@ import { getAuthToken } from "@/lib/api/auth-client";
 export type MomentExplanationResult =
   | { kind: "ready"; note: string | null; videoRef: string | null }
   | { kind: "locked"; priceCredits: number | null }
+  // FE-1 (gradual refinement) — nothing is behind the paywall yet (the coach
+  // hasn't explained anything): the sheet shows the free content only, and NO
+  // unlock CTA exists anywhere. Client-derived, never fetched.
+  | { kind: "unavailable" }
   | { kind: "error" };
 
 export async function fetchMomentExplanation(

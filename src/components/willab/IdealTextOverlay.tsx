@@ -94,6 +94,7 @@ export default function IdealTextOverlay({
     version: number | null;
     momentsUnlocked: boolean;
     priceCredits: number | null;
+    explanationsAvailable: boolean;
     title: string | null;
     latestTakeSessionId: string | null;
     rereadDone: boolean;
@@ -135,6 +136,7 @@ export default function IdealTextOverlay({
           version: r.version,
           momentsUnlocked: r.momentsUnlocked,
           priceCredits: r.priceCredits,
+          explanationsAvailable: r.explanationsAvailable,
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
@@ -186,6 +188,7 @@ export default function IdealTextOverlay({
     arcId,
     momentsUnlocked: sd?.momentsUnlocked ?? false,
     priceCredits: sd?.priceCredits ?? null,
+    explanationsAvailable: sd?.explanationsAvailable ?? false,
     onUnlocked: () =>
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
   });
@@ -390,6 +393,9 @@ export default function IdealTextOverlay({
                 ideal={ideal}
                 onMomentTap={(m) => void openMoment(m)}
                 foldFor={stars.foldFor}
+                // FE-2 — the star treatment only under SD (a legacy "ready"
+                // payload keeps its classic underline links).
+                sdStars={sd !== null}
               />
             </div>
           ) : null}

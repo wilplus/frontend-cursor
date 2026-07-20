@@ -1,12 +1,41 @@
 "use client";
 
 import { useMemo } from "react";
-import { Bold, Italic, Underline, type LucideIcon } from "lucide-react";
+import { Bold, Italic, Star, Underline, type LucideIcon } from "lucide-react";
 import {
   parseRichMarkers,
   wrapSelection,
   type RichMark,
 } from "@/lib/willab/richMarkers";
+
+/** FE-2 (gradual refinement) — how a [[moment:…]] span should decorate in the
+ *  SD star treatment. `star` picks the icon family; `quote` is the narrow
+ *  substring to underline inside the span (null → icon only, NO underline).
+ *  Returned by the host's lookup; a null RETURN means the moment is not in the
+ *  current payload (consumed/baked) → plain text, no icon, not tappable. */
+export interface MomentDecor {
+  star: "suggestion" | "verified" | "practice" | null;
+  quote: string | null;
+  /** A just-approved suggestion's optimistic local fold: render THIS instead
+   *  of the run's original text (emphasize → bold+orange marker, replace →
+   *  the rephrase), star-less and non-tappable, until the BE refetch bakes
+   *  it. Absent/null → render the run normally. */
+  fold?: { kind: "emphasize" | "replace"; text: string } | null;
+}
+
+const STAR_STYLE: Record<
+  NonNullable<MomentDecor["star"]> | "plain",
+  { cls: string; fill: boolean; label: string }
+> = {
+  verified: { cls: "text-primary", fill: true, label: "Coach-verified moment" },
+  practice: { cls: "text-amber-500", fill: true, label: "Practice suggestion" },
+  suggestion: {
+    cls: "text-muted-foreground",
+    fill: false,
+    label: "Suggested edit",
+  },
+  plain: { cls: "text-muted-foreground", fill: false, label: "Key moment" },
+};
 
 /* -------------------------------------------------------------------------- */
 /*  RichText — the ONE renderer for the FE-9 marker contract, shared by the    */
@@ -17,20 +46,39 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Render marked text as styled spans. A key moment ([[moment:…]]) becomes a
- *  tappable button (orange dotted underline) when `onMomentTap` is provided;
- *  WITHOUT a handler it renders as plain orange text — never underlined, so a
- *  surface with no moment flow doesn't paint a dead link-looking affordance. */
+ *  tappable button when `onMomentTap` is provided; WITHOUT a handler it renders
+ *  as plain orange text — never underlined, so a surface with no moment flow
+ *  doesn't paint a dead link-looking affordance.
+ *
+ *  Two moment treatments (FE-2, gradual refinement):
+ *  - WITHOUT `momentDecor` (coach editor preview, best-presentation): the
+ *    classic orange dotted underline over the whole span — those are
+ *    hand-placed links, and the underline is their affordance.
+ *  - WITH `momentDecor` (the SD ideal text, where the BE wraps every key
+ *    moment and spans run whole paragraphs): NO span underline ever — the
+ *    star icon at the end of the span is the affordance, and only the narrow
+ *    `quote` substring (if any) is underlined. A null decor return renders
+ *    plain text: the moment is not in the current payload (baked/consumed),
+ *    so there is nothing to open. */
 export function RichText({
   text,
   onMomentTap,
+  momentDecor,
 }: {
   text: string;
   onMomentTap?: (moment: { snippetId: string; sessionId: string }) => void;
+  momentDecor?: (moment: {
+    snippetId: string;
+    sessionId: string;
+  }) => MomentDecor | null;
 }) {
   const segments = useMemo(() => parseRichMarkers(text), [text]);
   return (
     <>
       {segments.map((seg, i) => {
+        const decor =
+          momentDecor && seg.moment ? momentDecor(seg.moment) : undefined;
+        const sdMoment = decor !== undefined; // the SD star treatment applies
         const cls = [
           // An APPROVED key phrase reads bold+orange: that is an accent
           // INSIDE a moment wrapper, which is exactly what the serve-time
@@ -40,23 +88,81 @@ export function RichText({
           seg.bold || (seg.highlight && seg.moment) ? "font-semibold" : "",
           seg.italic ? "italic" : "",
           seg.underline ? "underline underline-offset-2" : "",
-          seg.highlight || seg.moment ? "text-primary" : "",
-          seg.moment && onMomentTap
+          // Under the star treatment moment-ness itself adds NO colour — only
+          // a real accent ({{orange:…}}) does. Elsewhere: today's behavior.
+          seg.highlight || (seg.moment && !sdMoment) ? "text-primary" : "",
+          seg.moment && onMomentTap && !sdMoment
             ? "underline decoration-dotted decoration-2 underline-offset-4"
             : "",
         ]
           .filter(Boolean)
           .join(" ");
-        if (seg.moment && onMomentTap) {
+        // The star sits after the LAST segment of a moment run (inner marks
+        // split one wrapper into several segments sharing the same `moment`
+        // object, so reference identity marks the run's end / start).
+        const runEnd =
+          seg.moment !== undefined && segments[i + 1]?.moment !== seg.moment;
+        const runStart =
+          seg.moment !== undefined && segments[i - 1]?.moment !== seg.moment;
+        // A just-approved suggestion's optimistic fold replaces the WHOLE run:
+        // render the fold once at the run's start (emphasize = bold+orange via
+        // its marker, replace = the plain rephrase — mirrors the anchor path),
+        // star-less and non-tappable; swallow the run's remaining segments.
+        // Undo restores decor.fold to null and the original run returns.
+        if (seg.moment && decor?.fold) {
+          if (!runStart) return null;
+          return decor.fold.kind === "emphasize" ? (
+            <strong key={i} className="font-semibold">
+              <RichText text={decor.fold.text} />
+            </strong>
+          ) : (
+            <span key={i}>
+              <RichText text={decor.fold.text} />
+            </span>
+          );
+        }
+        if (seg.moment && onMomentTap && (!sdMoment || decor !== null)) {
           const m = seg.moment;
+          const style = decor ? STAR_STYLE[decor.star ?? "plain"] : null;
+          // Underline the quote in at most ONE segment per run (the first that
+          // contains it) — the BE pins one exact spot, and a repeated phrase
+          // must not paint twice. Pure lookback keeps rendering idempotent.
+          const paintQuote =
+            !!decor?.quote &&
+            seg.text.includes(decor.quote) &&
+            !segments.some(
+              (p, j) =>
+                j < i &&
+                p.moment === seg.moment &&
+                p.text.includes(decor.quote as string)
+            );
           return (
             <button
               key={i}
               type="button"
               onClick={() => onMomentTap(m)}
-              className={`inline transition-colors hover:opacity-80 ${cls}`}
+              // No aria-label here: it would REPLACE the button's accessible
+              // name and erase the whole paragraph for screen readers. The
+              // content names the button; the sr-only suffix adds the family.
+              className={`inline transition-colors ${
+                sdMoment ? "text-left hover:text-primary" : "hover:opacity-80"
+              } ${cls}`}
             >
-              {seg.text}
+              {paintQuote && decor?.quote ? (
+                <QuoteUnderlined text={seg.text} quote={decor.quote} />
+              ) : (
+                seg.text
+              )}
+              {style && runEnd ? (
+                <>
+                  <Star
+                    className={`ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 ${style.cls}`}
+                    fill={style.fill ? "currentColor" : "none"}
+                    aria-hidden
+                  />
+                  <span className="sr-only">, {style.label}</span>
+                </>
+              ) : null}
             </button>
           );
         }
@@ -66,6 +172,21 @@ export function RichText({
           </span>
         );
       })}
+    </>
+  );
+}
+
+/** FE-2 — underline exactly the quote substring inside a moment segment's
+ *  (already marker-free) text. Not found in THIS segment → plain text; a quote
+ *  split across segments by an inner mark degrades to icon-only, by design. */
+function QuoteUnderlined({ text, quote }: { text: string; quote: string }) {
+  const at = text.indexOf(quote);
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className="underline decoration-2 underline-offset-4">{quote}</span>
+      {text.slice(at + quote.length)}
     </>
   );
 }

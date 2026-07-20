@@ -12,7 +12,7 @@ describe("polish predicates (Approve-all eligibility)", () => {
     const m: IdealKeyMomentLink = {
       ...base,
       star: "suggestion",
-      suggestion: { kind: "replace", replacement: "x", why: "", trigger: "polish" },
+      suggestion: { kind: "replace", replacement: "x", why: "", trigger: "polish", quote: null },
     };
     expect(isPolish(m)).toBe(true);
     expect(isUnappliedPolish(m)).toBe(true);
@@ -23,7 +23,7 @@ describe("polish predicates (Approve-all eligibility)", () => {
       ...base,
       star: "suggestion",
       applied: true,
-      suggestion: { kind: "replace", replacement: "x", why: "", trigger: "polish" },
+      suggestion: { kind: "replace", replacement: "x", why: "", trigger: "polish", quote: null },
     };
     expect(isPolish(m)).toBe(true);
     expect(isUnappliedPolish(m)).toBe(false);
@@ -36,12 +36,12 @@ describe("polish predicates (Approve-all eligibility)", () => {
       {
         ...base,
         star: "suggestion",
-        suggestion: { kind: "replace", replacement: "x", why: "w", trigger: null },
+        suggestion: { kind: "replace", replacement: "x", why: "w", trigger: null, quote: null },
       },
       {
         ...base,
         star: "suggestion",
-        suggestion: { kind: "emphasize", replacement: null, why: "w", trigger: null },
+        suggestion: { kind: "emphasize", replacement: null, why: "w", trigger: null, quote: null },
       },
       {
         ...base,
@@ -51,7 +51,7 @@ describe("polish predicates (Approve-all eligibility)", () => {
       {
         ...base,
         star: "verified",
-        suggestion: { kind: "replace", replacement: "x", why: "", trigger: "polish" },
+        suggestion: { kind: "replace", replacement: "x", why: "", trigger: "polish", quote: null },
       },
       { ...base, star: null },
     ];
