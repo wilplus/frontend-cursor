@@ -185,7 +185,8 @@ export interface DocumentSuggestion {
   takeSessionId: string | null;
 }
 
-/** Map the GET's `suggestions` block. ABSENT/unusable → null, and the FE
+/** Map the GET's `changes` block (the BE's field; `suggestions` tolerated as
+ *  an alias). ABSENT/unusable → null, and the FE
  *  renders exactly today's view (the tracked-changes lane is safe-ahead of
  *  BE-C). Every entry is validated hard: a bad span or a missing quote would
  *  corrupt the document, so it is dropped, never repaired. Pure. */
@@ -248,7 +249,9 @@ export function mapDocumentSuggestions(
     // rule as every other unusable field. Advice carries no decision, so it
     // needs no pair.
     if (kind !== "advice" && (!snippetId || !takeSessionId)) continue;
-    const why = r.why;
+    // The four-key reason rides `why_key` (BE tracked_changes); `why` is
+    // free-text/null there. Prefer the key, validate it to the closed set.
+    const why = r.why_key ?? r.why;
     const source = r.source;
     const status = r.status;
     out.push({
@@ -695,7 +698,9 @@ export async function fetchIdealText(
           : null,
       rereadDone: body.reread_done === true,
       pieces: mapIdealPieces(body.pieces),
-      suggestions: mapDocumentSuggestions(body.suggestions),
+      // BE tracked_changes serves the lane as `changes`; keep `suggestions`
+      // as a tolerated alias so a later rename can't silently blank the lane.
+      suggestions: mapDocumentSuggestions(body.changes ?? body.suggestions),
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
