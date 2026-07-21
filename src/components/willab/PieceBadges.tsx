@@ -12,7 +12,14 @@ import {
   splitBadgeParagraphSpans,
 } from "@/lib/willab/pieceBadges";
 import {
+  rebaseSuggestionsToSpan,
+  resolveAdviceSpans,
+  resolveTrackedSuggestions,
+} from "@/lib/willab/trackedChanges";
+import { TrackedText, type TrackedDecision } from "./TrackedText";
+import {
   segmentIdealText,
+  type DocumentSuggestion,
   type IdealKeyMomentLink,
   type IdealPiece,
   type IdealText,
@@ -43,7 +50,7 @@ import type { LocalFold } from "./MomentStars";
 /** The one fixed line behind each swap reason. Closed key set (BE-clamped);
  *  anything else renders NO line — never guess. Copy pending founder
  *  sign-off. */
-const WHY_COPY: Record<SwapWhy, string> = {
+export const WHY_COPY: Record<SwapWhy, string> = {
   energy: "This take carried more energy in the delivery.",
   steadiness: "This take gave the words more room to breathe.",
   coverage: "This take stayed tighter to your slide.",
@@ -117,12 +124,23 @@ export function PieceBadgeText({
   text,
   ideal,
   pieces,
+  suggestions,
+  onDecideTracked,
   onMomentTap,
   foldFor,
   sdStars,
   textSizeClass,
   onOpenSwap,
 }: {
+  /** LIVING TRANSCRIPT — span-anchored tracked changes over `text`. When
+   *  present this lane owns the text rendering (strikes, proposals, advice
+   *  stars) and the version pills still compose on top; absent → today's
+   *  star/quote view. */
+  suggestions?: DocumentSuggestion[] | null;
+  onDecideTracked?: (
+    s: DocumentSuggestion,
+    d: TrackedDecision
+  ) => Promise<boolean>;
   text: string;
   ideal: IdealText;
   pieces: IdealPiece[] | null;
@@ -149,8 +167,38 @@ export function PieceBadgeText({
       spans
     );
   }, [pieces, spans, text, ideal.keyPhrases, ideal.keyMoments]);
+  // Which lane owns the WORDS. Two hard conditions (review R-lt6/R-lt1):
+  //
+  //  1. The tracked lane may never DELETE the star layer. key_moments carries
+  //     the moment stars, approve folds, the moment sheet (the only entry to
+  //     the 5-credit unlock) and the delivery re-record. Under BE-C those
+  //     lanes MERGE into `suggestions`, so the BE stops sending key_moments —
+  //     which is exactly when this flips on. While both are served, today's
+  //     view wins and the new lane simply is not drawn yet.
+  //  2. Gate on what actually RESOLVES, not the raw list: an all-advice,
+  //     all-stale or all-decided payload resolves to nothing, and rendering
+  //     the tracked lane then would paint a bare paragraph with no stars,
+  //     no pills and no affordances at all.
+  const starsPresent = ideal.keyMoments.length > 0;
+  const rendersTracked = (
+    t: string,
+    list: DocumentSuggestion[] | null | undefined
+  ): boolean =>
+    !!onDecideTracked &&
+    !starsPresent &&
+    (resolveTrackedSuggestions(t, list ?? null).length > 0 ||
+      resolveAdviceSpans(t, list ?? null).length > 0);
   if (!pieces || !spans || !perParagraph) {
-    return (
+    // No badges (no pieces, or a paragraph/piece mismatch) — the document
+    // still renders its tracked changes when the BE serves them.
+    return rendersTracked(text, suggestions) && onDecideTracked ? (
+      <TrackedText
+        text={text}
+        suggestions={suggestions ?? null}
+        onDecide={onDecideTracked}
+        textSizeClass={textSizeClass}
+      />
+    ) : (
       <MomentStarText
         text={text}
         ideal={ideal}
@@ -166,7 +214,29 @@ export function PieceBadgeText({
     <div className="flex flex-col gap-4">
       {spans.map((span, i) => {
         const piece = pieces[i];
-        return (
+        const pill = (
+          <PiecePill
+            piece={piece}
+            fresh={latest !== null && piece.takeIndex === latest}
+            onOpenSwap={onOpenSwap}
+          />
+        );
+        // FE-3+FE-4 compose: tracked changes render the words, the version
+        // pill still rides at the paragraph's end. Suggestions are rebased to
+        // paragraph-local offsets (one straddling a boundary is dropped), and
+        // the decision is PER PARAGRAPH — a paragraph whose suggestions all
+        // went stale keeps its stars instead of going bare.
+        const local = rebaseSuggestionsToSpan(suggestions ?? null, span);
+        return rendersTracked(span.text, local) && onDecideTracked ? (
+          <TrackedText
+            key={piece.pieceKey}
+            text={span.text}
+            suggestions={local}
+            onDecide={onDecideTracked}
+            textSizeClass={textSizeClass}
+            trailing={pill}
+          />
+        ) : (
           <MomentStarText
             key={piece.pieceKey}
             text={span.text}
@@ -176,13 +246,7 @@ export function PieceBadgeText({
             foldFor={foldFor}
             sdStars={sdStars}
             textSizeClass={textSizeClass}
-            trailing={
-              <PiecePill
-                piece={piece}
-                fresh={latest !== null && piece.takeIndex === latest}
-                onOpenSwap={onOpenSwap}
-              />
-            }
+            trailing={pill}
           />
         );
       })}

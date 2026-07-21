@@ -9,9 +9,12 @@ import {
   fetchIdealText,
   isUnappliedPolish,
   saveIdealUserEdit,
+  type DocumentSuggestion,
   type IdealPiece,
   type IdealText,
 } from "@/services/api/idealText";
+import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
@@ -107,6 +110,7 @@ export default function IdealTextReadout({
     latestTakeSessionId: string | null;
     rereadDone: boolean;
     pieces: IdealPiece[] | null;
+    suggestions: DocumentSuggestion[] | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -175,6 +179,7 @@ export default function IdealTextReadout({
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
           pieces: r.pieces,
+          suggestions: r.suggestions,
         });
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
@@ -241,6 +246,62 @@ export default function IdealTextReadout({
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [text, editing]);
+
+
+  // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
+  // text; Keep mine = the suggestion is refused and never re-offered. Both
+  // ride the existing per-snippet feedback POST (the ledger remembers them),
+  // and an ACCEPT reassembles the document BE-side, so we refetch.
+  const decideTracked = useCallback(
+    async (s: DocumentSuggestion, d: "accept" | "keep"): Promise<boolean> => {
+      const snippetId = s.snippetId;
+      const sessionId = s.takeSessionId;
+      // Without the pair the ledger has nothing to key on — refuse rather
+      // than pretend the decision was saved.
+      if (!snippetId || !sessionId) return false;
+      const r = await sendSuggestionFeedback({
+        snippetId,
+        sessionId,
+        target: s.kind === "bold" ? "document_bold" : "document_replace",
+        action: d === "accept" ? "applied" : "dismissed",
+        suggestionId: s.id,
+      });
+      if (!r.saved) return false;
+      // Remember the decision on the served list so a remount never re-offers
+      // it (the ledger agrees server-side).
+      setSd((prev) =>
+        prev
+          ? {
+              ...prev,
+              suggestions: (prev.suggestions ?? []).map((x) =>
+                x.id === s.id
+                  ? { ...x, status: d === "accept" ? "approved" : "dismissed" }
+                  : x
+              ),
+            }
+          : prev
+      );
+      if (d === "accept") {
+        // The accepted words must become the DOCUMENT, not just a painted
+        // span: Copy, the editor and the user-edit PUT all read `text`. Commit
+        // the fold WITHOUT marking dirty, and release the edit lane so no
+        // debounce can PUT the pre-accept words back over the BE's
+        // reassembly. Then refetch — the BE bumped the version (review
+        // R-lt3/R-lt7).
+        const base = textRef.current;
+        const next = applyAcceptedReplacements(base, [s], new Set([s.id]));
+        if (next !== base) {
+          savedTextRef.current = next;
+          setText(next);
+        }
+        dirtyRef.current = false;
+        sdGenRef.current++; // fence any in-flight pre-decision GET
+        setSdNonce((n) => n + 1);
+      }
+      return true;
+    },
+    []
+  );
 
   // SD — the shared star layer (sheet, Approve/Revert folds, 5-credit unlock).
   const stars = useMomentStars({
@@ -372,6 +433,12 @@ export default function IdealTextReadout({
           text={text}
           ideal={sd.ideal}
           pieces={sd.pieces}
+          // LIVING TRANSCRIPT — when the BE serves span-anchored tracked
+          // changes they render the words (strikes, proposals, advice stars)
+          // and the version pills still compose on top; absent → today's
+          // star/quote view, unchanged.
+          suggestions={sd.suggestions}
+          onDecideTracked={decideTracked}
           onMomentTap={(m) => void stars.openMoment(m)}
           foldFor={stars.foldFor}
           sdStars

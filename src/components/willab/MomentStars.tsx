@@ -325,7 +325,7 @@ function StructuralPracticeCard({
 
 /** DELIVERY_STARS — the fixed founder-approved copy keyed on the measured
  *  device. Self-referential ("your usual"), qualitative, no numbers. */
-const DELIVERY_COPY: Record<
+export const DELIVERY_COPY: Record<
   Extract<MomentSuggestion, { kind: "delivery" }>["device"],
   string
 > = {

@@ -71,9 +71,58 @@ export type LabUploadResult =
   | { kind: "rejected"; message: string } // 422 — min-content gate
   | { kind: "error"; status: number; message: string };
 
-export async function submitLabRecording(
+/** FE-1 (P0, 2026-07-20) — the recording state machine's ONE invariant, at the
+ *  single choke point every upload passes through.
+ *
+ *  Two founder-reported live bugs shared a root cause: read state leaking onto
+ *  a spoken take. A spoken take that carried a read's `paired_session_id` (or
+ *  the read's session id) landed ON the re-read's session, so the app
+ *  "analysed the re-read" instead of the new take, and the re-read counted as
+ *  a take. The BE now hard-guards both sides (unpaired read → 422, used
+ *  session id → a fresh one is minted); this is the FE half:
+ *
+ *    - A SPOKEN take carries NO read state, ever — every read-only field is
+ *      stripped here rather than trusted from the call site, so no future
+ *      caller can reintroduce the leak.
+ *    - A READ without its pairing target never reaches the network: an
+ *      unpaired read is invisible on every surface AND would now be a 422, so
+ *      we answer with the same rejection locally.
+ *
+ *  Returns the sanitized input, or a rejection to return as-is. Pure. */
+export function guardRecordingInput(
   input: LabUploadInput
+): { ok: true; input: LabUploadInput } | { ok: false; message: string } {
+  if (input.recordingKind === "read") {
+    if (!input.pairedSessionId) {
+      return {
+        ok: false,
+        message: "That reading needs its take. Record a take first.",
+      };
+    }
+    return { ok: true, input };
+  }
+  // Spoken (or unspecified = the BE's spoken default): strip every read field.
+  const {
+    recordingKind: _kind,
+    pairedSessionId: _paired,
+    pairedSnippetId: _snippet,
+    readTarget: _target,
+    idealVersion: _version,
+    // A spoken take never reuses a session id — the BE mints one and the FE
+    // adopts the returned `session_id` (a reused id is what made a new take
+    // inherit the read's state).
+    guestSessionId: _guest,
+    ...spoken
+  } = input;
+  return { ok: true, input: spoken };
+}
+
+export async function submitLabRecording(
+  rawInput: LabUploadInput
 ): Promise<LabUploadResult> {
+  const guard = guardRecordingInput(rawInput);
+  if (!guard.ok) return { kind: "rejected", message: guard.message };
+  const input = guard.input;
   const form = new FormData();
   // BE Q4 (field names): audio part + domain_vocabulary encoding are the FE's
   // best read of the multipart contract — isolated here, trivial to adjust.

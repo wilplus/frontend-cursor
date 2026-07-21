@@ -49,6 +49,10 @@ export default function IdealReadMic({
 }) {
   const mic = useDualCaptureMic({ transcript: false });
   const [phase, setPhase] = useState<"idle" | "sending" | "failed">("idle");
+  // FE-1 — the BE's reason when it refuses the read (422: a read needs its
+  // paired take). Shown instead of the generic retry line, because retrying
+  // an unpaired read can never succeed.
+  const [rejected, setRejected] = useState<string | null>(null);
   // Per-blob latch (same rule as the delivery re-record): upload each recorded
   // blob exactly once, whatever re-renders happen around us.
   const sentBlobRef = useRef<Blob | null>(null);
@@ -61,6 +65,8 @@ export default function IdealReadMic({
     if (!readPossible || st.status !== "stopped" || sendingRef.current) return;
     const blob = st.audioBlob;
     if (!blob || blob.size === 0) {
+      // A local mic failure is not the previous upload's rejection reason.
+      setRejected(null);
       setPhase("failed");
       return;
     }
@@ -88,9 +94,13 @@ export default function IdealReadMic({
     }).then((r) => {
       sendingRef.current = false;
       if (r.kind === "ok" || r.kind === "processing") {
+        setRejected(null);
         setPhase("idle");
         onReadUploaded();
       } else {
+        // 422 = the BE (or the FE's own guard) refuses this read; its message
+        // is the honest one. Any other failure keeps the retry line.
+        setRejected(r.kind === "rejected" ? r.message : null);
         setPhase("failed");
       }
     });
@@ -119,9 +129,17 @@ export default function IdealReadMic({
     <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
       <Button
         type="button"
-        onClick={() =>
-          recording ? void mic.stop() : void mic.start().catch(() => {})
-        }
+        onClick={() => {
+          if (recording) {
+            void mic.stop();
+            return;
+          }
+          // A fresh attempt starts clean — no stale failure line hanging over
+          // the new recording.
+          setRejected(null);
+          setPhase("idle");
+          void mic.start().catch(() => {});
+        }}
         disabled={phase === "sending"}
         variant={recording ? "default" : "outline"}
         className={`h-10 rounded-full px-5 text-[14px] font-medium ${
@@ -154,7 +172,8 @@ export default function IdealReadMic({
       </Button>
       {phase === "failed" ? (
         <p className="text-[12px] text-muted-foreground">
-          Couldn&apos;t send that reading just now. Give it another go.
+          {rejected ??
+            "Couldn't send that reading just now. Give it another go."}
         </p>
       ) : recording ? (
         <p className="text-[12px] text-muted-foreground">
