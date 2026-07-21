@@ -204,47 +204,51 @@ export default function ReportCard({
           }
         }
       : undefined;
-    // A version that is NOT yet verified reads as a plain card, so the purple
-    // still marks the moment the coach signs it off rather than repeating.
-    if (versionLabel && !verified) {
-      return (
-        <div
-          role={openable ? "button" : undefined}
-          tabIndex={openable ? 0 : undefined}
-          onClick={openable ? open : undefined}
-          onKeyDown={keyDown}
-          className={`my-1 rounded-2xl border border-border bg-chat-bot px-4 py-3 ${
-            openable ? "cursor-pointer" : ""
-          }`}
-        >
-          <p className="text-[15px] font-semibold leading-snug text-foreground">
-            {versionLabel}
-          </p>
-          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-            Pending verification by your coach
-          </p>
-        </div>
-      );
-    }
+    // FE-2 — EVERY version is an extended bubble in the chat flow: same tall
+    // grey card as the latest, its own version, its own Open button, sitting
+    // chronologically in the conversation (nothing is pinned anywhere).
     return (
-      <div
-        role={openable ? "button" : undefined}
-        tabIndex={openable ? 0 : undefined}
-        onClick={openable ? open : undefined}
-        onKeyDown={keyDown}
-        className={`my-1 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 px-4 py-3.5 text-white shadow-sm ${
-          openable ? "cursor-pointer" : ""
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <Crown className="h-5 w-5 shrink-0 text-amber-300" aria-hidden />
-          <p className="text-[15px] font-semibold leading-snug">
-            {versionLabel ?? "Your ideal text"}
-          </p>
+      <div className="my-2 rounded-2xl bg-chat-bot px-5 py-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[16px] font-semibold leading-snug text-foreground">
+              {versionLabel ?? "Your ideal text"}
+            </p>
+            {/* The BE's own sentence stays the degrade path (matches the
+                feedback + instant branches). */}
+            {message.body ? (
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                {message.body}
+              </p>
+            ) : null}
+          </div>
+          {version !== null ? (
+            <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
+              {version}.0
+            </span>
+          ) : null}
         </div>
-        <p className="mt-1 text-[14px] leading-relaxed text-white/85">
-          {verified ? "Verified by your coach" : message.body}
-        </p>
+        <div className="mt-3">
+          <span
+            className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
+              verified
+                ? "bg-success/10 text-success"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {verified ? "Verified" : "Not verified"}
+          </span>
+        </div>
+        {openable ? (
+          <Button
+            type="button"
+            onClick={open}
+            onKeyDown={keyDown}
+            className="mt-4 h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+          >
+            Open this version
+          </Button>
+        ) : null}
       </div>
     );
   }

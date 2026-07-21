@@ -127,6 +127,164 @@ export interface IdealText {
  *  the FE renders fixed copy per key and NOTHING for anything else. */
 export type SwapWhy = "energy" | "steadiness" | "coverage" | "overall";
 
+/* ------------------------- tracked changes (BE-C) ------------------------- */
+
+/** LIVING TRANSCRIPT (founder 2026-07-20) — the document is the FULL literal
+ *  transcript, and every word change is a VISIBLE, span-anchored suggestion
+ *  (only fillers + punctuation are silently smoothed BE-side).
+ *
+ *  `kind`:
+ *    replace — the span is crossed out and `proposedText` offered in its place
+ *    bold    — the span is proposed for emphasis (no text change)
+ *    advice  — delivery/structural coaching: no text change at all. The FE
+ *              leaves these to the existing star layer, which already owns
+ *              that rendering (FE-3), so they never draw a strike.
+ *
+ *  `source` names which lane produced it; `prior_take` is the cross-take
+ *  discernment suggestion (a previous take's fragment ranked better). */
+export interface DocumentSuggestion {
+  id: string;
+  /** [start, end) into the served `text`. */
+  start: number;
+  end: number;
+  /** The exact substring the BE anchored on. FE-5's safety rule: render from
+   *  the span, VERIFY against this, and drop the suggestion when it no longer
+   *  matches — never guess a new position. */
+  quote: string;
+  kind: "replace" | "bold" | "advice";
+  /** The offered replacement (replace only). */
+  proposedText: string | null;
+  /** advice only — which coaching observation this is. The FE renders the
+   *  SAME founder-approved copy it already uses for delivery/structural
+   *  stars (BE-C: "popover copy from device as today"). null → no copy, so
+   *  the advice star is not drawn at all rather than an empty modal. */
+  device:
+    | "emphasis"
+    | "pace_fast"
+    | "pace_slow"
+    | "pause"
+    | "contrast"
+    | "list_of_three"
+    | null;
+  /** Template key for the reason line, or null → no reason line (never
+   *  invent one). Shares the four-key vocabulary with the swap sheet. */
+  why: SwapWhy | null;
+  source:
+    | "polish"
+    | "prior_take"
+    | "profanity"
+    | "delivery"
+    | "structural"
+    | null;
+  /** Server-remembered decision. Anything already decided is not re-offered
+   *  (dismissed suggestions must never come back — FE-5). */
+  status: "pending" | "approved" | "dismissed" | null;
+  /** The piece this suggestion sits on, when the BE carries it — lets an
+   *  approve report back through the existing per-snippet feedback POST. */
+  snippetId: string | null;
+  takeSessionId: string | null;
+}
+
+/** Map the GET's `suggestions` block. ABSENT/unusable → null, and the FE
+ *  renders exactly today's view (the tracked-changes lane is safe-ahead of
+ *  BE-C). Every entry is validated hard: a bad span or a missing quote would
+ *  corrupt the document, so it is dropped, never repaired. Pure. */
+export function mapDocumentSuggestions(
+  raw: unknown
+): DocumentSuggestion[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: DocumentSuggestion[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const span = (r.span ?? r) as Record<string, unknown>;
+    const num = (v: unknown): number | null =>
+      typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+    const start = num(span.start);
+    const end = num(span.end);
+    const quote = typeof r.quote === "string" ? r.quote : "";
+    const kind =
+      r.kind === "replace" || r.kind === "bold" || r.kind === "advice"
+        ? r.kind
+        : null;
+    // A suggestion without a usable span, quote or kind cannot be rendered
+    // safely — drop it rather than anchor it by guesswork.
+    if (start === null || end === null || end <= start || !quote || !kind) {
+      continue;
+    }
+    const id =
+      typeof r.id === "string" && r.id
+        ? r.id
+        : typeof r.id === "number" && Number.isFinite(r.id)
+          ? String(r.id)
+          : `${start}:${end}:${kind}`;
+    const proposed =
+      typeof r.proposed_text === "string" && r.proposed_text.length > 0
+        ? r.proposed_text
+        : null;
+    const dev = r.device;
+    const device =
+      dev === "emphasis" ||
+      dev === "pace_fast" ||
+      dev === "pace_slow" ||
+      dev === "pause" ||
+      dev === "contrast" ||
+      dev === "list_of_three"
+        ? dev
+        : null;
+    // An advice entry with no nameable device has no copy to show — drop it
+    // rather than draw a star that opens an empty modal.
+    if (kind === "advice" && !device) continue;
+    // A replace with nothing to propose is not a change — drop it.
+    if (kind === "replace" && !proposed) continue;
+    const snippetId =
+      typeof r.snippet_id === "string" && r.snippet_id ? r.snippet_id : null;
+    const takeSessionId =
+      typeof r.take_session_id === "string" && r.take_session_id
+        ? r.take_session_id
+        : null;
+    // A text change whose decision the FE cannot report would draw an Accept
+    // and a Keep mine that can NEVER succeed — drop it, same "never repair"
+    // rule as every other unusable field. Advice carries no decision, so it
+    // needs no pair.
+    if (kind !== "advice" && (!snippetId || !takeSessionId)) continue;
+    const why = r.why;
+    const source = r.source;
+    const status = r.status;
+    out.push({
+      id,
+      start,
+      end,
+      quote,
+      kind,
+      proposedText: proposed,
+      device,
+      why:
+        why === "energy" ||
+        why === "steadiness" ||
+        why === "coverage" ||
+        why === "overall"
+          ? why
+          : null,
+      source:
+        source === "polish" ||
+        source === "prior_take" ||
+        source === "profanity" ||
+        source === "delivery" ||
+        source === "structural"
+          ? source
+          : null,
+      status:
+        status === "pending" || status === "approved" || status === "dismissed"
+          ? status
+          : null,
+      snippetId,
+      takeSessionId,
+    });
+  }
+  return out;
+}
+
 /** One piece of the master text with its provenance: which take the shown
  *  words come from (the badge), and — when a newer take beat it but nothing
  *  swapped yet — the challenger awaiting the user's decision (the glow). */
@@ -250,6 +408,9 @@ export type IdealTextResult =
        *  the key was absent (flag off / pre-migration): render exactly
        *  today's view, no badges. */
       pieces: IdealPiece[] | null;
+      /** LIVING TRANSCRIPT (BE-C) — span-anchored tracked changes over the
+       *  served text. null (absent) → today's star/quote view. */
+      suggestions: DocumentSuggestion[] | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -534,6 +695,7 @@ export async function fetchIdealText(
           : null,
       rereadDone: body.reread_done === true,
       pieces: mapIdealPieces(body.pieces),
+      suggestions: mapDocumentSuggestions(body.suggestions),
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

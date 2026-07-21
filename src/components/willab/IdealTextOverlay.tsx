@@ -23,6 +23,7 @@ import {
   saveIdealUserEdit,
   segmentIdealText,
   type IdealKeyMomentLink,
+  type DocumentSuggestion,
   type IdealPiece,
   type IdealText,
   type InstantPaywall,
@@ -120,6 +121,7 @@ export default function IdealTextOverlay({
     latestTakeSessionId: string | null;
     rereadDone: boolean;
     pieces: IdealPiece[] | null;
+    suggestions: DocumentSuggestion[] | null;
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
@@ -183,6 +185,7 @@ export default function IdealTextOverlay({
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
           pieces: r.pieces,
+          suggestions: r.suggestions,
         });
         setStatus("ready");
       } else if (r.kind === "ready") {
@@ -224,6 +227,44 @@ export default function IdealTextOverlay({
   }, [arcId, refetchNonce, requestedVersion]);
 
   const displayText = notes ?? ideal?.text ?? "";
+
+  // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
+  // text; Keep mine = the suggestion is refused and never re-offered. Both
+  // ride the existing per-snippet feedback POST (the ledger remembers them).
+  const decideTracked = async (
+    s: DocumentSuggestion,
+    d: "accept" | "keep"
+  ): Promise<boolean> => {
+    // Without the snippet+session pair the ledger has nothing to key on —
+    // refuse rather than pretend the decision was saved.
+    if (!s.snippetId || !s.takeSessionId) return false;
+    const r = await sendSuggestionFeedback({
+      snippetId: s.snippetId,
+      sessionId: s.takeSessionId,
+      target: s.kind === "bold" ? "document_bold" : "document_replace",
+      action: d === "accept" ? "applied" : "dismissed",
+      suggestionId: s.id,
+    });
+    if (!r.saved) return false;
+    setSd((prev) =>
+      prev
+        ? {
+            ...prev,
+            suggestions: (prev.suggestions ?? []).map((x) =>
+              x.id === s.id
+                ? { ...x, status: d === "accept" ? "approved" : "dismissed" }
+                : x
+            ),
+          }
+        : prev
+    );
+    // An accept reassembles the document BE-side (version bump) — pull it.
+    if (d === "accept") {
+      fetchGenRef.current++; // fence any in-flight pre-decision GET
+      setRefetchNonce((n) => n + 1);
+    }
+    return true;
+  };
 
   // SD — the shared star layer owns the sheet, the Approve/Revert folds and
   // the 5-credit unlock. The notebook keeps only its legacy wrapper below.
@@ -468,6 +509,10 @@ export default function IdealTextOverlay({
                 // DISCERNMENT — SD only; a legacy payload has pieces null and
                 // renders exactly today's view.
                 pieces={sd?.pieces ?? null}
+                // LIVING TRANSCRIPT — tracked changes own the words when the
+                // BE serves them; the version pills compose on top.
+                suggestions={sd?.suggestions ?? null}
+                onDecideTracked={decideTracked}
                 onMomentTap={(m) => void openMoment(m)}
                 foldFor={stars.foldFor}
                 // FE-2 — the star treatment only under SD (a legacy "ready"

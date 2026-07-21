@@ -22,7 +22,11 @@ export type SuggestionFeedbackTarget =
   // = a charisma phrase made bold+orange; `moment_replace` = a threat/swearing/
   // low-stickiness span swapped for an audience-fit rephrase.
   | "moment_emphasize"
-  | "moment_replace";
+  | "moment_replace"
+  // LIVING TRANSCRIPT (BE-C) — a span-anchored tracked change on the document.
+  // `document_replace` = a word change; `document_bold` = a proposed emphasis.
+  | "document_replace"
+  | "document_bold";
 
 /** R6-FE2 — "reverted" fires when the user un-approves a row (the toggle's
  *  second click); the BE accepts it alongside the original actions. */
@@ -30,7 +34,10 @@ export type SuggestionFeedbackAction =
   | "applied"
   | "preferred"
   | "apply_all"
-  | "reverted";
+  | "reverted"
+  // LIVING TRANSCRIPT (FE-5) — "Keep mine": the suggestion is refused and must
+  // never be offered again (the BE remembers it in the decision ledger).
+  | "dismissed";
 
 export interface SuggestionFeedbackInput {
   snippetId: string;
@@ -42,6 +49,9 @@ export interface SuggestionFeedbackInput {
   /** The card version shown (say_it_stronger.version), so the tap targets the
    *  exact version. Omitted when the payload didn't carry one. */
   suggestionVersion?: number | null;
+  /** LIVING TRANSCRIPT — the tracked change's own id, so the ledger can
+   *  remember THIS span's decision (a document carries many). */
+  suggestionId?: string;
 }
 
 export async function sendSuggestionFeedback(
@@ -56,6 +66,7 @@ export async function sendSuggestionFeedback(
     target: input.target,
     action: input.action,
   };
+  if (input.suggestionId) payload.suggestion_id = input.suggestionId;
   if (input.upgradeIndex != null) payload.upgrade_index = input.upgradeIndex;
   if (input.suggestionVersion != null) {
     payload.suggestion_version = input.suggestionVersion;
