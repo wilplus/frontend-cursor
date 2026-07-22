@@ -25,16 +25,25 @@ export interface MomentDecor {
 
 const STAR_STYLE: Record<
   NonNullable<MomentDecor["star"]> | "plain",
-  { cls: string; fill: boolean; label: string }
+  { cls: string; fill: boolean; label: string } | null
 > = {
-  verified: { cls: "text-primary", fill: true, label: "Coach-verified moment" },
-  practice: { cls: "text-amber-500", fill: true, label: "Practice suggestion" },
+  // The ONLY filled star in the app: the coach verified this.
+  verified: { cls: "text-yellow-400", fill: true, label: "Coach-verified moment" },
+  // Every unverified suggestion reads the same — an empty star. The kind
+  // (text / delivery / structural / tracked change) never changes the icon;
+  // the BE's `star` field is the whole vocabulary (founder 2026-07-22).
+  practice: {
+    cls: "text-muted-foreground",
+    fill: false,
+    label: "Practice suggestion",
+  },
   suggestion: {
     cls: "text-muted-foreground",
     fill: false,
     label: "Suggested edit",
   },
-  plain: { cls: "text-muted-foreground", fill: false, label: "Key moment" },
+  // No star value → no star at all.
+  plain: null,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -145,7 +154,7 @@ export function RichText({
               // name and erase the whole paragraph for screen readers. The
               // content names the button; the sr-only suffix adds the family.
               className={`inline transition-colors ${
-                sdMoment ? "text-left hover:text-primary" : "hover:opacity-80"
+                sdMoment ? "text-left hover:opacity-80" : "hover:opacity-80"
               } ${cls}`}
             >
               {paintQuote && decor?.quote ? (
