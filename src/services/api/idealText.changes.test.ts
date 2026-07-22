@@ -127,3 +127,31 @@ describe("MASTER DOCUMENT — new_take upgrade offers", () => {
     expect(out![0].status).toBeNull(); // pending — awaiting the user
   });
 });
+
+describe("MASTER DOCUMENT — the save state as the BE actually serves it", () => {
+  // _ideal_save_state serves {saved_version, saved_at, is_saved}; `is_saved`
+  // is saved_version == version AND no pending offers, so a document
+  // UN-saves when a new take brings offers.
+  const parse = (body: Record<string, unknown>): boolean | null =>
+    typeof body.is_saved === "boolean"
+      ? body.is_saved
+      : typeof body.saved === "boolean"
+        ? body.saved
+        : null;
+
+  it("reads is_saved, the BE's field", () => {
+    expect(parse({ is_saved: true, saved_version: 3 })).toBe(true);
+    expect(parse({ is_saved: false, saved_version: 2 })).toBe(false);
+  });
+
+  it("tolerates a `saved` alias so a rename cannot strand the lane", () => {
+    expect(parse({ saved: true })).toBe(true);
+  });
+
+  it("absent (master flag off / never saved) → null, today's CTA unchanged", () => {
+    // The whole block is omitted by _ideal_save_state in that case — the
+    // re-read mic must NOT vanish behind a field that is not there.
+    expect(parse({})).toBeNull();
+    expect(parse({ saved_version: 3 })).toBeNull();
+  });
+});
