@@ -24,6 +24,10 @@ export type WillabState =
   | "welcome_consent"
   | "intake_in_progress"
   | "lounge_idle"
+  /** Context-aware setup (founder 2026-07-22) — recording from the dashboard
+   *  asks first whether this is a new topic or another take of an existing
+   *  project. Not a Lab-overlay state: it precedes the Lab entirely. */
+  | "lab_project_pick"
   | "lab_feelings"
   | "lab_session_context"
   | "lab_prerecord"
@@ -98,6 +102,9 @@ export interface UseWillabFlowReturn {
   acceptConsent: () => void;
   finishIntake: () => void;
   startRecording: () => void;
+  /** Enter the Lab past the project picker (a title was chosen, or the user
+   *  chose a new topic). */
+  startRecordingSetup: () => void;
   closeLab: () => void;
 }
 
@@ -133,9 +140,15 @@ export function useWillabFlow(): UseWillabFlowReturn {
   }, []);
   const startRecording = useCallback(() => {
     clearReviewPending();
-    // C7 — every official recording opens the feelings check-in before the setup
-    // form (not just the first); the user names how they feel fresh each time
-    // and the named feeling is stamped on that take.
+    // Context-aware setup — the dashboard asks WHICH project first. Picking a
+    // title (or starting a new topic) hands off to the feelings check-in.
+    setState("lab_project_pick");
+  }, []);
+  /** Past the picker: C7 — every official recording opens the feelings
+   *  check-in before the setup form (not just the first); the user names how
+   *  they feel fresh each time and it is stamped on that take. */
+  const startRecordingSetup = useCallback(() => {
+    clearReviewPending();
     setState("lab_feelings");
   }, []);
   // TODO(slice: Lab): a Readout/parked close should → "parked" (held chip),
@@ -149,6 +162,7 @@ export function useWillabFlow(): UseWillabFlowReturn {
     acceptConsent,
     finishIntake,
     startRecording,
+    startRecordingSetup,
     closeLab,
   };
 }

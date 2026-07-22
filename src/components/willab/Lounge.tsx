@@ -101,6 +101,7 @@ type ThreadItem =
 export default function Lounge({
   state,
   onStart,
+  onStartInProject,
   goTo,
   initialReviewSessionId = null,
   initialBestPresentationArcId = null,
@@ -108,6 +109,10 @@ export default function Lounge({
 }: {
   state: WillabState;
   onStart: () => void;
+  /** Scenario B (founder 2026-07-22) — recording from INSIDE a project: the
+   *  project is already known, so the picker is skipped entirely and the Lab
+   *  opens straight onto the prefilled setup. */
+  onStartInProject?: () => void;
   goTo: (s: WillabState) => void;
   /** U12 — when set (from /chat?review=<id>), open the CoachReviewOverlay for
    *  that session once on mount. Coach-gated; ignored for non-coaches. */
@@ -969,7 +974,8 @@ export default function Lounge({
             }
             setIdealTextArcId(null);
             setIdealTextVersion(null);
-            onStart();
+            // The arc is already seeded above — never ask WHICH project.
+            (onStartInProject ?? onStart)();
           }}
         />
       )}

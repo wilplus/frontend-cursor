@@ -361,6 +361,11 @@ export default function LabOverlay({
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
+        // Context-aware setup — the project this take continues, sent
+        // ALONGSIDE arc_id/take_index (the deployed BE resolves the arc from
+        // those; dropping them for a field it does not read yet would mint a
+        // new project on every take).
+        continueArcId: arcId ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
         // R5 — the framing manipulation shown on the priming panel, logged for
         // the threat/challenge/balanced correlation. undefined for uploads
