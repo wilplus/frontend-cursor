@@ -40,6 +40,7 @@ import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import IdealReadMic from "./IdealReadMic";
+import IdealTextActions from "./IdealTextActions";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -122,6 +123,7 @@ export default function IdealTextOverlay({
     rereadDone: boolean;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
+    saved: boolean | null;
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
@@ -186,6 +188,7 @@ export default function IdealTextOverlay({
           rereadDone: r.rereadDone,
           pieces: r.pieces,
           suggestions: r.suggestions,
+          saved: r.saved,
         });
         setStatus("ready");
       } else if (r.kind === "ready") {
@@ -508,7 +511,8 @@ export default function IdealTextOverlay({
                 ideal={ideal}
                 // DISCERNMENT — SD only; a legacy payload has pieces null and
                 // renders exactly today's view.
-                pieces={sd?.pieces ?? null}
+                // MASTER DOCUMENT — a saved version shows the clean script.
+                pieces={sd?.saved === true ? null : sd?.pieces ?? null}
                 // LIVING TRANSCRIPT — tracked changes own the words when the
                 // BE serves them; the version pills compose on top.
                 suggestions={sd?.suggestions ?? null}
@@ -558,15 +562,30 @@ export default function IdealTextOverlay({
         // FE-D — the ONE two-state mic: an in-place read of the ideal text, or
         // "Record another take" once this version has been read.
         <div className="shrink-0 bg-background px-4 pb-4">
-          <IdealReadMic
-            arcId={arcId}
-            version={sd.version}
-            title={sd.title}
-            latestTakeSessionId={sd.latestTakeSessionId}
-            rereadDone={sd.rereadDone}
-            onNewTake={() => onReadAloud(sd.version)}
-            onReadUploaded={() => setRefetchNonce((n) => n + 1)}
-          />
+          {sd.saved !== null ? (
+            // MASTER DOCUMENT (FE-3) — Save → re-read (gated) → next take.
+            <IdealTextActions
+              arcId={arcId}
+              version={sd.version}
+              title={sd.title}
+              latestTakeSessionId={sd.latestTakeSessionId}
+              rereadDone={sd.rereadDone}
+              saved={sd.saved}
+              onSaved={() => setRefetchNonce((n) => n + 1)}
+              onNewTake={() => onReadAloud(sd.version)}
+              onReadUploaded={() => setRefetchNonce((n) => n + 1)}
+            />
+          ) : (
+            <IdealReadMic
+              arcId={arcId}
+              version={sd.version}
+              title={sd.title}
+              latestTakeSessionId={sd.latestTakeSessionId}
+              rereadDone={sd.rereadDone}
+              onNewTake={() => onReadAloud(sd.version)}
+              onReadUploaded={() => setRefetchNonce((n) => n + 1)}
+            />
+          )}
         </div>
       ) : null}
 

@@ -33,6 +33,7 @@ export default function IdealReadMic({
   rereadDone,
   onNewTake,
   onReadUploaded,
+  micOnly = false,
 }: {
   arcId: string;
   version: number | null;
@@ -46,6 +47,10 @@ export default function IdealReadMic({
   /** Fires after a read upload is ACCEPTED — the host refetches the GET so
    *  reread_done flips this button to State 2. */
   onReadUploaded: () => void;
+  /** MASTER DOCUMENT (FE-3) — the three-button layout owns "record the next
+   *  take" as its own button, so this component renders the READ mic only.
+   *  When a read is impossible it renders nothing at all. */
+  micOnly?: boolean;
 }) {
   const mic = useDualCaptureMic({ transcript: false });
   const [phase, setPhase] = useState<"idle" | "sending" | "failed">("idle");
@@ -109,6 +114,9 @@ export default function IdealReadMic({
   // State 2 — a fresh spoken take (also the fallback when no pairing target
   // exists, since a read without a pair is invisible on every surface).
   if (!readPossible) {
+    // The three-button layout renders its own "next take" button; here a
+    // read that cannot happen simply draws nothing.
+    if (micOnly) return null;
     return (
       <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
         <Button

@@ -16,6 +16,7 @@ const sug = (o: Partial<DocumentSuggestion> & Pick<DocumentSuggestion, "start" |
   kind: o.kind ?? "replace",
   proposedText: o.proposedText ?? "NEW",
   device: o.device ?? null,
+  takeIndex: o.takeIndex ?? null,
   why: o.why ?? null,
   source: o.source ?? null,
   status: o.status ?? null,
