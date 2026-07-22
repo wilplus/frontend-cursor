@@ -225,6 +225,23 @@ export default function IdealTextReadout({
     return () => clearTimeout(id);
   }, [text, arcId, canPersist, enqueueSave]);
 
+  /** MASTER DOCUMENT (review R-md1) — drain the edit lane BEFORE an
+   *  accept-and-freeze. Save snapshots whatever text the server holds, so a
+   *  still-debounced edit (800ms) would be frozen out: the student would see
+   *  "Saved. This is your script." over words the master never received.
+   *  enqueueSave no-ops when nothing changed and each chained save reads
+   *  textRef at execution, so running it early is safe AND always sends the
+   *  newest words. Resolves false when the PUT did not land, so the caller
+   *  can refuse to freeze a document it could not persist. */
+  const flushEdits = useCallback(async (): Promise<boolean> => {
+    const aid = arcIdRef.current;
+    if (!aid || !persistArmedRef.current) return true;
+    if (savedTextRef.current === textRef.current) return true;
+    enqueueSave(aid);
+    await chainRef.current;
+    return savedTextRef.current === textRef.current;
+  }, [enqueueSave]);
+
   // Unmount flush (R-ue3): a close inside the debounce window must not drop
   // the final edit — fire the save on the way out (the request outlives the
   // component; state setters after unmount are React no-ops).
@@ -497,7 +514,16 @@ export default function IdealTextReadout({
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
               saved={sd.saved}
-              onSaved={() => setSdNonce((n) => n + 1)}
+              // The freeze waits for the edit lane (R-md1).
+              onBeforeSave={flushEdits}
+              onSaved={() => {
+                // The server now holds the student's newest words AND has
+                // frozen them, so the local edit lane is settled — release it
+                // or the refetch below refuses to adopt the served text.
+                dirtyRef.current = false;
+                savedTextRef.current = null;
+                setSdNonce((n) => n + 1);
+              }}
               onNewTake={onReRead}
               onReadUploaded={() => setSdNonce((n) => n + 1)}
             />

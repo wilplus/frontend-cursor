@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import IdealReadMic from "./IdealReadMic";
@@ -33,6 +33,7 @@ export default function IdealTextActions({
   latestTakeSessionId,
   rereadDone,
   saved,
+  onBeforeSave,
   onSaved,
   onNewTake,
   onReadUploaded,
@@ -44,6 +45,12 @@ export default function IdealTextActions({
   rereadDone: boolean;
   /** Whether THIS version is already saved (drives the re-read gate). */
   saved: boolean;
+  /** MASTER DOCUMENT (review R-md1) — commit any pending local edit BEFORE
+   *  the freeze: the snapshot must be the text on screen, not the last text a
+   *  debounce happened to send. Resolving false means the edit could not be
+   *  persisted, and the freeze is abandoned rather than freezing the wrong
+   *  words under a green confirmation. */
+  onBeforeSave?: () => Promise<boolean>;
   /** The save landed — the host refetches so the clean, badge-free script
    *  replaces the working view. */
   onSaved: () => void;
@@ -53,18 +60,38 @@ export default function IdealTextActions({
 }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Released only when the host's refetch reports `saved` (review R-md3):
+  // dropping `saving` on the POST's resolution re-enables the button for the
+  // whole refetch round trip, and a second tap re-runs accept-and-freeze.
+  const [justSaved, setJustSaved] = useState(false);
+  const busy = saving || justSaved;
+  useEffect(() => {
+    if (saved) setJustSaved(false);
+  }, [saved]);
 
-  const save = () => {
-    if (saving || saved) return;
+  const save = async () => {
+    if (busy || saved) return;
     setSaving(true);
     setFailed(false);
-    void saveIdealText(arcId).then((r) => {
+    // Drain the edit lane first — the freeze must capture the words on
+    // screen. A failed flush abandons the freeze: better an honest retry than
+    // a green tick over text the master never got.
+    const flushed = (await onBeforeSave?.()) ?? true;
+    if (!flushed) {
       setSaving(false);
-      // "unavailable" means the BE lane is not deployed — say nothing rather
-      // than blame the student for a button that cannot work yet.
-      if (r.kind === "saved") onSaved();
-      else setFailed(true);
-    });
+      setFailed(true);
+      return;
+    }
+    const r = await saveIdealText(arcId);
+    setSaving(false);
+    // "unavailable" means the BE lane is not deployed — say nothing rather
+    // than blame the student for a button that cannot work yet.
+    if (r.kind === "saved") {
+      setJustSaved(true);
+      onSaved();
+    } else {
+      setFailed(true);
+    }
   };
 
   return (
@@ -78,11 +105,11 @@ export default function IdealTextActions({
       ) : (
         <Button
           type="button"
-          onClick={save}
-          disabled={saving}
+          onClick={() => void save()}
+          disabled={busy}
           className="h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
         >
-          {saving ? (
+          {busy ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
               Saving…
