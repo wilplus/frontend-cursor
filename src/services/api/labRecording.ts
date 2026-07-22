@@ -33,6 +33,13 @@ export interface LabUploadInput {
   exploreSession?: boolean;
   arcId?: string;
   takeIndex?: number;
+  /** Context-aware setup (founder 2026-07-22) — the project this take
+   *  continues. Sent ALONGSIDE arc_id/take_index, never instead of them: the
+   *  deployed BE resolves the arc from `arc_id` + `take_index`, so dropping
+   *  those for a field it does not read yet would make every next take mint a
+   *  NEW project (and therefore a new master document). When the BE reads
+   *  continue_arc_id, the legacy pair can be retired in one edit. */
+  continueArcId?: string;
   /** Pre-recording feeling — private correlation input (AC-9, never shown back). */
   feeling?: Feeling;
   /** R5 — the pre-take priming manipulation the user saw (threat/challenge/
@@ -155,6 +162,9 @@ export async function submitLabRecording(
   // Explore-session arc fields — omit entirely for standalone recordings.
   if (input.exploreSession) form.append("explore_session", "true");
   if (input.arcId) form.append("arc_id", input.arcId);
+  if (input.continueArcId) {
+    form.append("continue_arc_id", input.continueArcId);
+  }
   if (input.takeIndex != null) form.append("take_index", String(input.takeIndex));
   // Pre-recording feeling — private correlation input; AC-9 bars it from any
   // user-facing surface. Omit when absent so the field never arrives as "null".

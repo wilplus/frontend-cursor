@@ -14,6 +14,12 @@ import WelcomeConsent from "./WelcomeConsent";
 import Intake from "./Intake";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
+import ProjectPicker from "./ProjectPicker";
+import {
+  clearExploreArc,
+  readExploreArc,
+  writeExploreArc,
+} from "@/lib/willab/exploreArc";
 import { LoungeThreadProvider } from "./LoungeThreadContext";
 
 /* -------------------------------------------------------------------------- */
@@ -112,11 +118,39 @@ export default function WillabSurface({
       <Lounge
         state={flow.state}
         onStart={flow.startRecording}
+        onStartInProject={flow.startRecordingSetup}
         goTo={flow.goTo}
         initialReviewSessionId={reviewSessionId}
         initialBestPresentationArcId={bestPresentationArcId}
         recordingProgress={recordingProgress}
       />
+      {/* Context-aware setup — WHICH project, asked before the Lab opens.
+          Picking a title seeds the arc so the setup form prefills from it and
+          the take continues that project's master document; "new topic"
+          clears the seed so the blank flow is genuinely blank. */}
+      {flow.state === "lab_project_pick" && (
+        <ProjectPicker
+          onNewTopic={() => {
+            clearExploreArc();
+            flow.startRecordingSetup();
+          }}
+          onContinue={(arc) => {
+            const cached = readExploreArc();
+            // Seed the arc WITHOUT inventing a take index: the cached entry
+            // owns the real one when it is this same project; otherwise start
+            // the counter at the next take and let the BE reconcile.
+            if (cached?.arcId !== arc.arcId) {
+              writeExploreArc(arc.arcId, (arc.takeCount ?? 0) + 1, {
+                topic: arc.topic,
+                presentationRef: null,
+                slides: [],
+              });
+            }
+            flow.startRecordingSetup();
+          }}
+          onClose={flow.closeLab}
+        />
+      )}
       {flow.labOverlayOpen && (
         <LabOverlay
           state={flow.state}
