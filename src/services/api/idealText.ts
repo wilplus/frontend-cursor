@@ -426,11 +426,14 @@ export type IdealTextResult =
       /** LIVING TRANSCRIPT (BE-C) — span-anchored tracked changes over the
        *  served text. null (absent) → today's star/quote view. */
       suggestions: DocumentSuggestion[] | null;
-      /** MASTER DOCUMENT (BE-3) — whether THIS version has been saved
-       *  (accept-and-freeze). true → badges hide, the clean script shows and
-       *  the re-read unlocks. null = the BE has not shipped the save lane →
-       *  today's bottom CTA, unchanged (never hide a live affordance behind
-       *  a field that does not exist yet). */
+      /** MASTER DOCUMENT (BE-3) — whether THIS version is saved
+       *  (accept-and-freeze). The BE serves it as `is_saved`, computed as
+       *  saved_version == version AND no pending offers, so a document
+       *  UN-saves the moment a new take brings offers (an offers-only take
+       *  bumps no version). true → badges hide, the clean script shows, the
+       *  re-read unlocks. null = the master flag is off / nothing ever saved
+       *  → today's bottom CTA, unchanged (never hide a live affordance
+       *  behind a field that does not exist yet). */
       saved: boolean | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
@@ -719,7 +722,14 @@ export async function fetchIdealText(
       // BE tracked_changes serves the lane as `changes`; keep `suggestions`
       // as a tolerated alias so a later rename can't silently blank the lane.
       suggestions: mapDocumentSuggestions(body.changes ?? body.suggestions),
-      saved: typeof body.saved === "boolean" ? body.saved : null,
+      // `is_saved` is the BE's field; `saved` tolerated as an alias so a
+      // rename cannot silently strand the whole save lane.
+      saved:
+        typeof body.is_saved === "boolean"
+          ? body.is_saved
+          : typeof body.saved === "boolean"
+            ? body.saved
+            : null,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

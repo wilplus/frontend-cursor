@@ -84,11 +84,14 @@ export default function IdealTextActions({
     }
     const r = await saveIdealText(arcId);
     setSaving(false);
-    // "unavailable" means the BE lane is not deployed — say nothing rather
-    // than blame the student for a button that cannot work yet.
-    if (r.kind === "saved") {
+    // "unavailable" = the lane is not deployed; "nothing" = there was nothing
+    // pending to freeze. Neither is the student's fault, so neither shows a
+    // failure line — both just re-sync with the server.
+    if (r.kind === "saved" || r.kind === "nothing") {
       setJustSaved(true);
       onSaved();
+    } else if (r.kind === "unavailable") {
+      // Nothing to say: the button simply cannot work until the BE ships.
     } else {
       setFailed(true);
     }
