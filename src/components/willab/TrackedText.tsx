@@ -121,12 +121,14 @@ export function TrackedText({
                 key={i}
                 type="button"
                 onClick={() => setOpen(s)}
-                className="inline text-left transition-colors hover:text-primary"
+                className="inline text-left transition-opacity hover:opacity-80"
               >
                 <RichText text={seg.text} />
+                {/* Unverified suggestion → EMPTY star. Only coach-verified
+                    feedback is ever filled (and yellow). */}
                 <Star
-                  className="ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 text-amber-500"
-                  fill="currentColor"
+                  className="ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 text-muted-foreground"
+                  fill="none"
                   aria-hidden
                 />
                 <span className="sr-only">, practice suggestion</span>
@@ -139,7 +141,7 @@ export function TrackedText({
                 key={i}
                 type="button"
                 onClick={() => setOpen(s)}
-                className="inline text-left font-semibold text-foreground underline decoration-dotted decoration-2 underline-offset-4 transition-colors hover:text-primary"
+                className="inline text-left font-semibold text-foreground underline decoration-dotted decoration-2 underline-offset-4 transition-opacity hover:opacity-80"
               >
                 <RichText text={seg.text} />
                 <span className="sr-only">, suggested emphasis</span>
@@ -156,7 +158,7 @@ export function TrackedText({
               <span className="text-muted-foreground line-through decoration-muted-foreground/70">
                 <RichText text={seg.text} />
               </span>{" "}
-              <span className="rounded bg-primary/10 px-0.5 text-primary">
+              <span className="rounded bg-muted px-0.5 text-foreground underline decoration-dotted decoration-1 underline-offset-2">
                 <RichText text={s.proposedText ?? ""} />
               </span>
               <span className="sr-only">, suggested change</span>

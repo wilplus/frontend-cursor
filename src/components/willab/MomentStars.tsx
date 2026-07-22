@@ -647,7 +647,7 @@ export function MomentStarText({
                 // No aria-label: it would REPLACE the accessible name and
                 // erase the anchor text for screen readers — the content
                 // names the button, the sr-only suffix adds the family.
-                className={`inline align-baseline transition-colors hover:text-primary${
+                className={`inline align-baseline transition-opacity hover:opacity-80${
                   sdStars ? " text-left" : ""
                 }`}
               >
@@ -663,15 +663,15 @@ export function MomentStarText({
                 ) : (
                   <RichText text={s.text} />
                 )}
+                {/* Two states only (founder 2026-07-22): coach-verified is a
+                    FILLED YELLOW star; every unverified suggestion — text,
+                    delivery, structural, tracked change alike — is an EMPTY
+                    one. The kind never changes the icon. */}
                 <Star
                   className={`ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 ${
-                    verified
-                      ? "text-primary"
-                      : practice
-                        ? "text-amber-500"
-                        : "text-muted-foreground"
+                    verified ? "text-yellow-400" : "text-muted-foreground"
                   }`}
-                  fill={verified || practice ? "currentColor" : "none"}
+                  fill={verified ? "currentColor" : "none"}
                   aria-hidden
                 />
                 <span className="sr-only">
@@ -695,14 +695,11 @@ export function MomentStarText({
                 key={i}
                 type="button"
                 onClick={() => onMomentTap(m)}
-                className="inline align-baseline text-left transition-colors hover:text-primary"
+                className="inline align-baseline text-left transition-opacity hover:opacity-80"
               >
                 <RichText text={s.text} />
-                <Star
-                  className="ml-0.5 inline h-3.5 w-3.5 -translate-y-1.5 text-muted-foreground"
-                  fill="none"
-                  aria-hidden
-                />
+                {/* No `star` value → NO star icon (founder 2026-07-22). The
+                    moment stays tappable so playback is still reachable. */}
                 <span className="sr-only">, Key moment</span>
               </button>
             );
@@ -712,7 +709,7 @@ export function MomentStarText({
               key={i}
               type="button"
               onClick={() => onMomentTap(m)}
-              className="inline underline decoration-primary decoration-2 underline-offset-4 transition-colors hover:text-primary"
+              className="inline underline decoration-primary decoration-2 underline-offset-4 transition-opacity hover:opacity-80"
             >
               <RichText text={s.text} />
             </button>
