@@ -862,7 +862,10 @@ export default function Lounge({
               setUploadPickError(null);
               stageLabUpload(f);
               setUploadAskActive(false);
-              onStart();
+              // A staged upload is a standalone deckless file, never a take of
+              // a project — skip the picker so the Lab mounts on the same tick
+              // and consumes the staged File atomically (review R-pp2).
+              (onStartInProject ?? onStart)();
             }}
             className="hidden"
           />
@@ -883,7 +886,10 @@ export default function Lounge({
       ) : (
         <Button
           type="button"
-          onClick={onStart}
+          // An active cached arc IS the known project, and the label commits
+          // to continuing it — so that CTA must not stop to ask which project
+          // (review R-pp4). A fresh start still goes through the picker.
+          onClick={practiceArcActive ? onStartInProject ?? onStart : onStart}
           className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
         >
           <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
@@ -1003,7 +1009,10 @@ export default function Lounge({
               arc.sessionId ?? latestArcSessionId(arc.arcId)
             );
             setLibraryOpen(false);
-            onStart();
+            // The arc is seeded immediately above — never ask WHICH project
+            // (the picker's new-topic exit would clear it, and the take would
+            // mint a new project instead of joining this one — review R-pp0).
+            (onStartInProject ?? onStart)();
           }}
         />
       )}
@@ -1087,7 +1096,8 @@ export default function Lounge({
               );
             }
             setBestPresentationArcId(null);
-            onStart();
+            // Seeded above — same rule as the library entry (review R-pp0).
+            (onStartInProject ?? onStart)();
           }}
         />
       )}

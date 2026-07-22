@@ -136,18 +136,43 @@ export default function WillabSurface({
           }}
           onContinue={(arc) => {
             const cached = readExploreArc();
-            // Seed the arc WITHOUT inventing a take index: the cached entry
-            // owns the real one when it is this same project; otherwise start
-            // the counter at the next take and let the BE reconcile.
-            if (cached?.arcId !== arc.arcId) {
-              writeExploreArc(arc.arcId, (arc.takeCount ?? 0) + 1, {
-                topic: arc.topic,
-                presentationRef: null,
-                slides: [],
-              });
+            // Already on this project (mid-sitting): the cached entry owns the
+            // real take index AND the deck — never overwrite it with a
+            // thinner seed.
+            if (cached?.arcId === arc.arcId) {
+              flow.startRecordingSetup();
+              return;
             }
+            // The LATEST take is what the setup restore reads: LabOverlay
+            // re-fetches that session and adopts its full setup (audience,
+            // target length, slides, the served PDF). Without a sessionId the
+            // restore never fires and the student would have to re-upload
+            // their deck — the prefill is the whole point of picking a title.
+            const latest = [...(arc.takes ?? [])].sort(
+              (a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0)
+            ).pop();
+            writeExploreArc(
+              arc.arcId,
+              // Prefer the real last index; takeCount is the fallback.
+              (latest?.takeIndex ?? arc.takeCount ?? 0) + 1,
+              // NO deck literal (review R-pp1): LabOverlay seeds preloadDeck
+              // from initArc.deck and its restore effect bails when that is
+              // truthy — a thin {topic, slides: []} seed would BLOCK the very
+              // restore the sessionId exists to trigger, leaving the student
+              // with no slides and a stopwatch instead of their countdown.
+              // Undefined lets the restore adopt the FULL server setup
+              // (topic, audience, target length, slides, served PDF), which is
+              // exactly what the two sibling seed sites already rely on.
+              undefined,
+              latest?.sessionId
+            );
             flow.startRecordingSetup();
           }}
+          // Nothing to choose (no projects, or the list is unreachable) →
+          // skip the question entirely rather than leave "Start a new topic"
+          // as the only answer, which would WIPE a seeded arc (review R-pp7).
+          // Deliberately NOT onNewTopic: this must not clear the seed.
+          onSkip={flow.startRecordingSetup}
           onClose={flow.closeLab}
         />
       )}
