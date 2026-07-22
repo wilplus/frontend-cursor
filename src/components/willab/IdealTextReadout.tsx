@@ -20,6 +20,7 @@ import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { MarkerToolbar } from "./RichText";
 import IdealReadMic from "./IdealReadMic";
+import IdealTextActions from "./IdealTextActions";
 import { MomentSheet, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
@@ -111,6 +112,7 @@ export default function IdealTextReadout({
     rereadDone: boolean;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
+    saved: boolean | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -180,6 +182,7 @@ export default function IdealTextReadout({
           rereadDone: r.rereadDone,
           pieces: r.pieces,
           suggestions: r.suggestions,
+          saved: r.saved,
         });
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
@@ -432,7 +435,9 @@ export default function IdealTextReadout({
         <PieceBadgeText
           text={text}
           ideal={sd.ideal}
-          pieces={sd.pieces}
+          // MASTER DOCUMENT — after a save the script is clean: the take
+          // badges go (the pending state is resolved server-side).
+          pieces={sd.saved === true ? null : sd.pieces}
           // LIVING TRANSCRIPT — when the BE serves span-anchored tracked
           // changes they render the words (strikes, proposals, advice stars)
           // and the version pills still compose on top; absent → today's
@@ -483,15 +488,30 @@ export default function IdealTextReadout({
         // true → "Record another take" into the regular record flow. FE-6 —
         // the take nudge sits under it on the 1st/2nd version only.
         <>
-          <IdealReadMic
-            arcId={arcId}
-            version={sd.version}
-            title={sd.title}
-            latestTakeSessionId={sd.latestTakeSessionId}
-            rereadDone={sd.rereadDone}
-            onNewTake={onReRead}
-            onReadUploaded={() => setSdNonce((n) => n + 1)}
-          />
+          {sd.saved !== null ? (
+            // MASTER DOCUMENT (FE-3) — Save → re-read (gated) → next take.
+            <IdealTextActions
+              arcId={arcId}
+              version={sd.version}
+              title={sd.title}
+              latestTakeSessionId={sd.latestTakeSessionId}
+              rereadDone={sd.rereadDone}
+              saved={sd.saved}
+              onSaved={() => setSdNonce((n) => n + 1)}
+              onNewTake={onReRead}
+              onReadUploaded={() => setSdNonce((n) => n + 1)}
+            />
+          ) : (
+            <IdealReadMic
+              arcId={arcId}
+              version={sd.version}
+              title={sd.title}
+              latestTakeSessionId={sd.latestTakeSessionId}
+              rereadDone={sd.rereadDone}
+              onNewTake={onReRead}
+              onReadUploaded={() => setSdNonce((n) => n + 1)}
+            />
+          )}
           {sd.version === 1 || sd.version === 2 ? (
             <p className="max-w-xs self-center text-center text-[12px] leading-relaxed text-muted-foreground">
               Your ideal text gets sharper with more takes. Three is where it

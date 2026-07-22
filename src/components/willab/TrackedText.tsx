@@ -46,6 +46,9 @@ function adviceCopy(s: DocumentSuggestion): string | null {
 }
 
 function leadLine(s: DocumentSuggestion): string {
+  // MASTER DOCUMENT — a NEW take beat this block of the master. Approve-gated
+  // like everything else: the words only change on a tap.
+  if (s.source === "new_take") return "Your newest take said this better.";
   if (s.source === "prior_take") return "Your previous version landed better here.";
   if (s.source === "profanity") return "This might land differently than you meant.";
   if (s.kind === "bold") return "Worth leaning on these words.";
@@ -248,9 +251,18 @@ function TrackedPopover({
                 </p>
               </div>
               <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5">
-                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-primary">
-                  Suggested
-                </p>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-primary">
+                    Suggested
+                  </p>
+                  {/* MASTER DOCUMENT — which take the offered wording is
+                      from, so provenance is visible before deciding. */}
+                  {suggestion.takeIndex !== null ? (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                      {suggestion.takeIndex}.0
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-[15px] leading-relaxed text-foreground">
                   {stripRichMarkers(suggestion.proposedText ?? "")}
                 </p>

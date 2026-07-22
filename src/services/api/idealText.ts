@@ -175,6 +175,10 @@ export interface DocumentSuggestion {
     | "profanity"
     | "delivery"
     | "structural"
+    /** MASTER DOCUMENT (founder 2026-07-22) — a NEW take beat this block of
+     *  the persistent master text. Approve-gated like every other change:
+     *  the master never changes without a tap. */
+    | "new_take"
     | null;
   /** Server-remembered decision. Anything already decided is not re-offered
    *  (dismissed suggestions must never come back — FE-5). */
@@ -183,6 +187,9 @@ export interface DocumentSuggestion {
    *  approve report back through the existing per-snippet feedback POST. */
   snippetId: string | null;
   takeSessionId: string | null;
+  /** MASTER DOCUMENT — the take the OFFERED wording comes from, so the
+   *  comparison can show its badge ("from take 2"). null → no badge. */
+  takeIndex: number | null;
 }
 
 /** Map the GET's `changes` block (the BE's field; `suggestions` tolerated as
@@ -274,7 +281,8 @@ export function mapDocumentSuggestions(
         source === "prior_take" ||
         source === "profanity" ||
         source === "delivery" ||
-        source === "structural"
+        source === "structural" ||
+        source === "new_take"
           ? source
           : null,
       status:
@@ -283,6 +291,10 @@ export function mapDocumentSuggestions(
           : null,
       snippetId,
       takeSessionId,
+      takeIndex:
+        typeof r.take_index === "number" && Number.isFinite(r.take_index)
+          ? r.take_index
+          : null,
     });
   }
   return out;
@@ -414,6 +426,12 @@ export type IdealTextResult =
       /** LIVING TRANSCRIPT (BE-C) — span-anchored tracked changes over the
        *  served text. null (absent) → today's star/quote view. */
       suggestions: DocumentSuggestion[] | null;
+      /** MASTER DOCUMENT (BE-3) — whether THIS version has been saved
+       *  (accept-and-freeze). true → badges hide, the clean script shows and
+       *  the re-read unlocks. null = the BE has not shipped the save lane →
+       *  today's bottom CTA, unchanged (never hide a live affordance behind
+       *  a field that does not exist yet). */
+      saved: boolean | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -701,6 +719,7 @@ export async function fetchIdealText(
       // BE tracked_changes serves the lane as `changes`; keep `suggestions`
       // as a tolerated alias so a later rename can't silently blank the lane.
       suggestions: mapDocumentSuggestions(body.changes ?? body.suggestions),
+      saved: typeof body.saved === "boolean" ? body.saved : null,
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served

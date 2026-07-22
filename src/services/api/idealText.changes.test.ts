@@ -93,3 +93,37 @@ describe("mapDocumentSuggestions — hardened BE `changes` shape", () => {
     expect(mapDocumentSuggestions({})).toBeNull();
   });
 });
+
+describe("MASTER DOCUMENT — new_take upgrade offers", () => {
+  it("maps source new_take with its origin take badge", () => {
+    const out = mapDocumentSuggestions([
+      {
+        ...replace,
+        source: "new_take",
+        take_index: 2,
+        why_key: "energy",
+      },
+    ]);
+    expect(out![0]).toMatchObject({
+      source: "new_take",
+      takeIndex: 2,
+      why: "energy",
+      kind: "replace",
+      proposedText: "believe",
+    });
+  });
+
+  it("nulls a non-numeric take_index rather than guessing a badge", () => {
+    const out = mapDocumentSuggestions([
+      { ...replace, source: "new_take", take_index: "two" },
+    ]);
+    expect(out![0].takeIndex).toBeNull();
+  });
+
+  it("an upgrade offer is still approve-gated (it maps as a change, never applied)", () => {
+    // The master text must never move without a tap: the mapper produces an
+    // OFFER; nothing here mutates text.
+    const out = mapDocumentSuggestions([{ ...replace, source: "new_take" }]);
+    expect(out![0].status).toBeNull(); // pending — awaiting the user
+  });
+});
