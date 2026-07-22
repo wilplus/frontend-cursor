@@ -28,33 +28,57 @@ import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 export default function ProjectPicker({
   onNewTopic,
   onContinue,
+  onSkip,
   onClose,
 }: {
-  /** Today's blank setup flow, unchanged. */
+  /** Today's blank setup flow, unchanged. CLEARS the arc seed. */
   onNewTopic: () => void;
   /** Continue this project — the caller seeds the arc and opens setup. */
   onContinue: (arc: TrainingArc) => void;
+  /** There is nothing to choose between: go straight on WITHOUT clearing the
+   *  seed. Never route this to onNewTopic — a seeded in-project entry would
+   *  lose its arc (review R-pp7/R-pp8). */
+  onSkip: () => void;
   onClose: () => void;
 }) {
   useBackDismiss(onClose);
-  const [arcs, setArcs] = useState<TrainingArc[] | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [arcs, setArcs] = useState<TrainingArc[]>([]);
+  // Three-way, so "still loading" and "couldn't load" are never mistaken for
+  // "you have no projects" — that mistake steers the student into starting a
+  // new topic when they meant to continue one (review R-pp3/R-pp6).
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading"
+  );
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setStatus("loading");
     void fetchTrainings().then((r) => {
       if (!active) return;
+      if (r === null) {
+        setStatus("error");
+        return;
+      }
       setArcs(r);
-      setLoaded(true);
+      setStatus("ready");
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
 
   // Only projects with a real title are offerable — an untitled arc cannot be
   // told apart from another in a list of words.
-  const titled = (arcs ?? []).filter((a) => a.topic.trim().length > 0);
+  const titled = arcs.filter((a) => a.topic.trim().length > 0);
+
+  // Nothing to choose between → don't ask. Skipping (not "new topic") keeps
+  // any seeded arc intact.
+  const nothingToPick = status === "ready" && titled.length === 0;
+  useEffect(() => {
+    if (nothingToPick) onSkip();
+  }, [nothingToPick, onSkip]);
+  if (nothingToPick) return null;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -76,8 +100,26 @@ export default function ProjectPicker({
             Start a new topic
           </Button>
 
+          {status === "loading" ? (
+            <p className="px-1 text-[13px] text-muted-foreground">
+              Looking for your projects…
+            </p>
+          ) : status === "error" ? (
+            <div className="flex flex-col items-start gap-2 px-1">
+              <p className="text-[13px] text-muted-foreground">
+                Couldn&apos;t load your projects.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="text-[13px] text-foreground underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </div>
+          ) : null}
           {/* The list only exists once there is something to continue. */}
-          {loaded && titled.length > 0 ? (
+          {status === "ready" && titled.length > 0 ? (
             <div className="flex flex-col gap-1">
               <p className="px-1 pb-1 text-[13px] text-muted-foreground">
                 Or another take of:
