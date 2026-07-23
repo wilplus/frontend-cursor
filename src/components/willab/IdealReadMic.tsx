@@ -111,6 +111,15 @@ export default function IdealReadMic({
     });
   }, [st, readPossible, latestTakeSessionId, title, version, onReadUploaded]);
 
+  // FE-1 (founder 2026-07-22) — the button state is read STRICTLY from the
+  // server's `rereadDone`; there is NO local optimistic flip anywhere in this
+  // component. Whether "record another take" appears before the re-read has
+  // actually FINISHED is therefore owned entirely by the BE gating
+  // reread_done on analysis_state == ready. (An earlier FE gate keyed on the
+  // INITIAL take's poll/marker was removed: it never fired for a re-read, and
+  // a stale marker could pin it on forever — review R-rr1/R-rr2. The orphaned
+  // -mic safety net lives in LabOverlay's Guard A, independent of the button.)
+
   // State 2 — a fresh spoken take (also the fallback when no pairing target
   // exists, since a read without a pair is invisible on every surface).
   if (!readPossible) {
