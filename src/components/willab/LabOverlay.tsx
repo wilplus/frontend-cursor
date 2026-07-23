@@ -307,6 +307,22 @@ export default function LabOverlay({
     }
   }, [mic.state, state, goTo]);
 
+  // FE-2 GUARD (founder 2026-07-22) — the recording screen owns the foreground:
+  // the mic must NEVER keep running once the screen has moved off it. The mic
+  // lives here in LabOverlay and only tears down on stop / cancel / unmount, so
+  // if any BACKGROUND actor (a late re-read completion, a status reconcile,
+  // a parked restore) moves `state` away from lab_recording while LabOverlay
+  // stays mounted, the stream would keep capturing invisibly — the founder's
+  // "recording vanished but the mic was still on." This is the airtight
+  // backstop: an active recording while the screen is no longer the recorder is
+  // an orphan, so cancel it. A normal stop never trips this (mic is "stopped",
+  // not "recording", before the state leaves lab_recording).
+  useEffect(() => {
+    if (mic.state.status === "recording" && state !== "lab_recording") {
+      cancelMic();
+    }
+  }, [mic.state.status, state, cancelMic]);
+
   // seam ③ — fire the synchronous upload once on entering processing.
   useEffect(() => {
     if (state !== "lab_processing") {
