@@ -187,7 +187,16 @@ export default function IdealReadMic({
           variant="outline"
           className="h-10 rounded-full px-5 text-[14px] font-medium"
         >
-          <Mic className="mr-2 h-4 w-4" aria-hidden />
+          {/* MASTER DOCUMENT (founder 2026-07-23) — the RED recording dot: this
+              is an OFFICIAL take, not a re-read. onNewTake drops straight into
+              the recorder with this project's setup (deck/timer/audience)
+              already loaded, and the take appends to this project
+              (continue_arc_id) so its number climbs — never a bounce back to
+              the chat's global record entry. */}
+          <span
+            className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-red-500"
+            aria-hidden
+          />
           Record another take
         </Button>
       </div>
