@@ -263,6 +263,14 @@ export default function Lounge({
   // (no regression), and a multi-session group opens the local list built from
   // the queue rows. Either way each recording still opens CoachReviewOverlay.
   function openReviewGroup(group: ReviewStudentGroup): void {
+    // T4 — an annotation upload is never a student: open its own session
+    // directly, NEVER a per-student roster detail (its user_id, if any, must not
+    // route here). Grouping already nulls the id; this guard makes the
+    // destination explicit and stays correct even if a group ever backfills one.
+    if (group.annotationMode) {
+      if (group.rows[0]) openReview(group.rows[0].sessionId);
+      return;
+    }
     if (group.userId) {
       setStudentDetail({ id: group.userId, pseudonym: group.pseudonym });
     } else if (group.rows.length === 1) {

@@ -94,37 +94,59 @@ describe("mapDocumentSuggestions — hardened BE `changes` shape", () => {
   });
 });
 
-describe("MASTER DOCUMENT — new_take upgrade offers", () => {
-  it("maps source new_take with its origin take badge", () => {
-    const out = mapDocumentSuggestions([
-      {
-        ...replace,
-        source: "new_take",
-        take_index: 2,
-        why_key: "energy",
-      },
-    ]);
+describe("MASTER DOCUMENT — new_take block upgrade offers", () => {
+  // The real BE shape: a new_take carries block_key + take_session_id, and its
+  // snippet_id is deliberately NULL (the decision routes to blocks/decide).
+  const blockUpgrade = {
+    id: "block:10",
+    snippet_id: null,
+    take_session_id: "t9",
+    block_key: 10,
+    kind: "replace",
+    source: "new_take",
+    span: { start: 2, end: 7 },
+    quote: "think",
+    proposed_text: "believe",
+    take_index: 2,
+    why_key: "energy",
+  };
+
+  it("maps a block upgrade with block_key + origin badge (snippet_id null)", () => {
+    const out = mapDocumentSuggestions([blockUpgrade]);
+    expect(out).toHaveLength(1);
     expect(out![0]).toMatchObject({
       source: "new_take",
+      blockKey: 10,
       takeIndex: 2,
       why: "energy",
       kind: "replace",
       proposedText: "believe",
+      snippetId: null,
+      takeSessionId: "t9",
     });
   });
 
-  it("nulls a non-numeric take_index rather than guessing a badge", () => {
-    const out = mapDocumentSuggestions([
-      { ...replace, source: "new_take", take_index: "two" },
-    ]);
-    expect(out![0].takeIndex).toBeNull();
+  it("DROPS a new_take with no block_key (unroutable — the earlier silent-drop bug)", () => {
+    const { block_key: _b, ...noBlock } = blockUpgrade;
+    void _b;
+    expect(mapDocumentSuggestions([noBlock])).toEqual([]);
   });
 
-  it("an upgrade offer is still approve-gated (it maps as a change, never applied)", () => {
-    // The master text must never move without a tap: the mapper produces an
-    // OFFER; nothing here mutates text.
-    const out = mapDocumentSuggestions([{ ...replace, source: "new_take" }]);
-    expect(out![0].status).toBeNull(); // pending — awaiting the user
+  it("DROPS a new_take with no take_session_id (blocks/decide needs the echo)", () => {
+    expect(
+      mapDocumentSuggestions([{ ...blockUpgrade, take_session_id: null }])
+    ).toEqual([]);
+  });
+
+  it("nulls a non-numeric take_index rather than guessing a badge", () => {
+    expect(
+      mapDocumentSuggestions([{ ...blockUpgrade, take_index: "two" }])![0]
+        .takeIndex
+    ).toBeNull();
+  });
+
+  it("is approve-gated — maps as a pending OFFER, never applied", () => {
+    expect(mapDocumentSuggestions([blockUpgrade])![0].status).toBeNull();
   });
 });
 
