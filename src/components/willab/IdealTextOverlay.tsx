@@ -35,6 +35,7 @@ import {
   type MomentExplanationResult,
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
@@ -121,6 +122,7 @@ export default function IdealTextOverlay({
     title: string | null;
     latestTakeSessionId: string | null;
     rereadDone: boolean;
+    rereadProcessing: boolean | null;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
@@ -186,6 +188,7 @@ export default function IdealTextOverlay({
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
+          rereadProcessing: r.rereadProcessing,
           pieces: r.pieces,
           suggestions: r.suggestions,
           saved: r.saved,
@@ -238,31 +241,49 @@ export default function IdealTextOverlay({
     s: DocumentSuggestion,
     d: "accept" | "keep"
   ): Promise<boolean> => {
-    // Without the snippet+session pair the ledger has nothing to key on —
-    // refuse rather than pretend the decision was saved.
-    if (!s.snippetId || !s.takeSessionId) return false;
-    const r = await sendSuggestionFeedback({
-      snippetId: s.snippetId,
-      sessionId: s.takeSessionId,
-      target: s.kind === "bold" ? "document_bold" : "document_replace",
-      action: d === "accept" ? "applied" : "dismissed",
-      suggestionId: s.id,
-    });
-    if (!r.saved) return false;
+    const accept = d === "accept";
+    // Route by SOURCE — each lane has its own decision endpoint (§2/§3); a
+    // block upgrade posted to suggestion-feedback would never flip the block.
+    let outcome: "ok" | "stale" | "error";
+    if (s.source === "new_take") {
+      if (s.blockKey === null || !s.takeSessionId) return false;
+      outcome = (
+        await decideBlock(arcId, s.blockKey, accept ? "accept" : "keep", s.takeSessionId)
+      ).kind;
+    } else if (s.source === "prior_take") {
+      outcome = (await decidePriorTake(arcId, s, accept ? "accept" : "keep")).kind;
+    } else {
+      if (!s.snippetId || !s.takeSessionId) return false;
+      const r = await sendSuggestionFeedback({
+        snippetId: s.snippetId,
+        sessionId: s.takeSessionId,
+        target: s.kind === "bold" ? "document_bold" : "document_replace",
+        action: accept ? "applied" : "dismissed",
+        suggestionId: s.id,
+      });
+      outcome = r.saved ? "ok" : "error";
+    }
+    if (outcome === "error") return false;
+    // 409 STALE_OFFER / NOT_PENDING — silently refetch, treat as handled.
+    if (outcome === "stale") {
+      fetchGenRef.current++;
+      setRefetchNonce((n) => n + 1);
+      return true;
+    }
     setSd((prev) =>
       prev
         ? {
             ...prev,
             suggestions: (prev.suggestions ?? []).map((x) =>
               x.id === s.id
-                ? { ...x, status: d === "accept" ? "approved" : "dismissed" }
+                ? { ...x, status: accept ? "approved" : "dismissed" }
                 : x
             ),
           }
         : prev
     );
     // An accept reassembles the document BE-side (version bump) — pull it.
-    if (d === "accept") {
+    if (accept) {
       fetchGenRef.current++; // fence any in-flight pre-decision GET
       setRefetchNonce((n) => n + 1);
     }
@@ -570,6 +591,7 @@ export default function IdealTextOverlay({
               title={sd.title}
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
+              rereadProcessing={sd.rereadProcessing}
               saved={sd.saved}
               onSaved={() => setRefetchNonce((n) => n + 1)}
               onNewTake={() => onReadAloud(sd.version)}
@@ -582,6 +604,7 @@ export default function IdealTextOverlay({
               title={sd.title}
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
+              rereadProcessing={sd.rereadProcessing}
               onNewTake={() => onReadAloud(sd.version)}
               onReadUploaded={() => setRefetchNonce((n) => n + 1)}
             />

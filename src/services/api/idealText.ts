@@ -190,6 +190,11 @@ export interface DocumentSuggestion {
   /** MASTER DOCUMENT — the take the OFFERED wording comes from, so the
    *  comparison can show its badge ("from take 2"). null → no badge. */
   takeIndex: number | null;
+  /** MASTER DOCUMENT — a `new_take` block upgrade carries the block it acts
+   *  on (top-level on the payload; also baked into `id` as "block:<key>").
+   *  Its decision routes to the block-decide endpoint, NOT suggestion-
+   *  feedback. null on non-block changes. */
+  blockKey: number | null;
 }
 
 /** Map the GET's `changes` block (the BE's field; `suggestions` tolerated as
@@ -251,15 +256,43 @@ export function mapDocumentSuggestions(
       typeof r.take_session_id === "string" && r.take_session_id
         ? r.take_session_id
         : null;
-    // A text change whose decision the FE cannot report would draw an Accept
-    // and a Keep mine that can NEVER succeed — drop it, same "never repair"
-    // rule as every other unusable field. Advice carries no decision, so it
-    // needs no pair.
-    if (kind !== "advice" && (!snippetId || !takeSessionId)) continue;
+    const rawSource = r.source;
+    const source =
+      rawSource === "polish" ||
+      rawSource === "prior_take" ||
+      rawSource === "profanity" ||
+      rawSource === "delivery" ||
+      rawSource === "structural" ||
+      rawSource === "new_take"
+        ? rawSource
+        : null;
+    const blockKey =
+      typeof r.block_key === "number" && Number.isFinite(r.block_key)
+        ? r.block_key
+        : null;
+    // A text change whose decision the FE cannot report would draw an Accept /
+    // Keep that can NEVER succeed — drop it (same "never repair" rule). The
+    // actionable identity is SOURCE-SPECIFIC (each routes to a different
+    // decision endpoint):
+    //   new_take (block upgrade) → blocks/<block_key>/decide: needs block_key
+    //     + take_session_id. Its snippet_id is deliberately null, so the old
+    //     "needs snippet_id" rule was silently dropping EVERY block offer.
+    //   prior_take → prior-take/decide: needs snippet_id + proposed_text
+    //     (proposed already required for a replace above).
+    //   everything else → suggestion-feedback: needs snippet_id + session.
+    //   advice carries no decision → no pair needed.
+    if (kind !== "advice") {
+      if (source === "new_take") {
+        if (blockKey === null || !takeSessionId) continue;
+      } else if (source === "prior_take") {
+        if (!snippetId) continue;
+      } else if (!snippetId || !takeSessionId) {
+        continue;
+      }
+    }
     // The four-key reason rides `why_key` (BE tracked_changes); `why` is
     // free-text/null there. Prefer the key, validate it to the closed set.
     const why = r.why_key ?? r.why;
-    const source = r.source;
     const status = r.status;
     out.push({
       id,
@@ -276,15 +309,7 @@ export function mapDocumentSuggestions(
         why === "overall"
           ? why
           : null,
-      source:
-        source === "polish" ||
-        source === "prior_take" ||
-        source === "profanity" ||
-        source === "delivery" ||
-        source === "structural" ||
-        source === "new_take"
-          ? source
-          : null,
+      source,
       status:
         status === "pending" || status === "approved" || status === "dismissed"
           ? status
@@ -295,6 +320,7 @@ export function mapDocumentSuggestions(
         typeof r.take_index === "number" && Number.isFinite(r.take_index)
           ? r.take_index
           : null,
+      blockKey,
     });
   }
   return out;
@@ -426,6 +452,11 @@ export type IdealTextResult =
       /** True when this version has already been re-read → the mic becomes
        *  "Record another take". */
       rereadDone: boolean;
+      /** True while a re-read of THIS version is still being analysed (BE
+       *  serves it; §4). The two-state mic shows the loading line in the
+       *  button's place until this clears. null/absent → the FE falls back to
+       *  its local submission latch. */
+      rereadProcessing: boolean | null;
       /** DISCERNMENT — per-piece provenance (the version-badge layer). null =
        *  the key was absent (flag off / pre-migration): render exactly
        *  today's view, no badges. */
@@ -729,6 +760,10 @@ export async function fetchIdealText(
           ? body.latest_take_session_id
           : null,
       rereadDone: body.reread_done === true,
+      rereadProcessing:
+        typeof body.reread_processing === "boolean"
+          ? body.reread_processing
+          : null,
       pieces: mapIdealPieces(body.pieces),
       // BE tracked_changes serves the lane as `changes`; keep `suggestions`
       // as a tolerated alias so a later rename can't silently blank the lane.

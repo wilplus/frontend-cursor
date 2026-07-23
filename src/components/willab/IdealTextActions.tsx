@@ -32,6 +32,7 @@ export default function IdealTextActions({
   title,
   latestTakeSessionId,
   rereadDone,
+  rereadProcessing = null,
   saved,
   onBeforeSave,
   onSaved,
@@ -43,6 +44,8 @@ export default function IdealTextActions({
   title: string | null;
   latestTakeSessionId: string | null;
   rereadDone: boolean;
+  /** §4 — the BE's re-read-in-flight signal, threaded to the read mic. */
+  rereadProcessing?: boolean | null;
   /** Whether THIS version is already saved (drives the re-read gate). */
   saved: boolean;
   /** MASTER DOCUMENT (review R-md1) — commit any pending local edit BEFORE
@@ -136,6 +139,7 @@ export default function IdealTextActions({
           title={title}
           latestTakeSessionId={latestTakeSessionId}
           rereadDone={rereadDone}
+          rereadProcessing={rereadProcessing}
           onNewTake={onNewTake}
           onReadUploaded={onReadUploaded}
           micOnly

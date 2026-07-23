@@ -33,6 +33,10 @@ export interface ReviewQueueRow {
   state: ReviewQueueState;
   /** ISO-8601 timestamp the session entered the review queue. */
   sentAt: string;
+  /** T4 (§7) — a COACH audio annotation upload (not a student take): no
+   *  student, no arc. Badged in the queue and kept OUT of the per-student
+   *  roster grouping. */
+  annotationMode: boolean;
 }
 
 /** Map a BE row (snake_case) → ReviewQueueRow. Strict-bool / defensive: a
@@ -59,6 +63,7 @@ export function mapReviewQueueRow(raw: unknown): ReviewQueueRow | null {
         ? state
         : "pending",
     sentAt: typeof r.sent_at === "string" ? r.sent_at : "",
+    annotationMode: r.annotation_mode === true,
   };
 }
 
@@ -114,6 +119,9 @@ export interface ReviewStudentGroup {
   /** Earliest sent_at across the group — its thread sort key, so the
    *  longest-waiting student surfaces first (matches the per-row FIFO). */
   earliestSentAt: string;
+  /** T4 (§7) — this "group" is a coach annotation upload, not a student. It
+   *  never merges with a student and the bubble badges it as an annotation. */
+  annotationMode: boolean;
 }
 
 /**
@@ -131,7 +139,11 @@ export function groupReviewQueueByStudent(
     // user_id (BE-4) is the real key; pseudonym is the pre-BE-4 fallback. An
     // identity-less row (no id AND no pseudonym) keys by its own session so two
     // distinct blank-pseudonym students never merge into one bubble.
-    const key = row.userId
+    // T4 — an annotation upload has no student, so it must NEVER merge into a
+    // per-student bubble: key it by its own session and flag the group.
+    const key = row.annotationMode
+      ? `a:${row.sessionId}`
+      : row.userId
       ? `u:${row.userId}`
       : row.pseudonym
       ? `p:${row.pseudonym}`
@@ -140,13 +152,18 @@ export function groupReviewQueueByStudent(
     if (!g) {
       g = {
         key,
-        userId: row.userId ?? null,
+        // T4 — an annotation row may carry the student's user_id (it was left
+        // ON their take), but the annotation is NOT that student: never let its
+        // group inherit the id, or a tap would open the student's roster detail
+        // instead of the annotation (it stays keyed a:<sessionId> regardless).
+        userId: row.annotationMode ? null : row.userId ?? null,
         pseudonym: row.pseudonym,
         domain: row.domain,
         rows: [],
         toReviewCount: 0,
         state: "done",
         earliestSentAt: row.sentAt || "",
+        annotationMode: row.annotationMode,
       };
       byKey.set(key, g);
       order.push(key);
@@ -155,7 +172,8 @@ export function groupReviewQueueByStudent(
     // Backfill identity from a later row if the first one lacked it.
     if (!g.pseudonym && row.pseudonym) g.pseudonym = row.pseudonym;
     if (!g.domain && row.domain) g.domain = row.domain;
-    if (!g.userId && row.userId) g.userId = row.userId;
+    // Never backfill an id onto an annotation group (see above).
+    if (!g.annotationMode && !g.userId && row.userId) g.userId = row.userId;
     if (row.sentAt && (!g.earliestSentAt || row.sentAt < g.earliestSentAt)) {
       g.earliestSentAt = row.sentAt;
     }

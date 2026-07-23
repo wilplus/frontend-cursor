@@ -14,6 +14,7 @@ import {
   type IdealText,
 } from "@/services/api/idealText";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
 import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
@@ -110,6 +111,7 @@ export default function IdealTextReadout({
     title: string | null;
     latestTakeSessionId: string | null;
     rereadDone: boolean;
+    rereadProcessing: boolean | null;
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
@@ -180,6 +182,7 @@ export default function IdealTextReadout({
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
           rereadDone: r.rereadDone,
+          rereadProcessing: r.rereadProcessing,
           pieces: r.pieces,
           suggestions: r.suggestions,
           saved: r.saved,
@@ -274,34 +277,61 @@ export default function IdealTextReadout({
   // and an ACCEPT reassembles the document BE-side, so we refetch.
   const decideTracked = useCallback(
     async (s: DocumentSuggestion, d: "accept" | "keep"): Promise<boolean> => {
-      const snippetId = s.snippetId;
-      const sessionId = s.takeSessionId;
-      // Without the pair the ledger has nothing to key on — refuse rather
-      // than pretend the decision was saved.
-      if (!snippetId || !sessionId) return false;
-      const r = await sendSuggestionFeedback({
-        snippetId,
-        sessionId,
-        target: s.kind === "bold" ? "document_bold" : "document_replace",
-        action: d === "accept" ? "applied" : "dismissed",
-        suggestionId: s.id,
-      });
-      if (!r.saved) return false;
+      const accept = d === "accept";
+      // Route by SOURCE — each lane has its own decision endpoint doing a
+      // different server operation (§2/§3): a block upgrade must flip the
+      // block's incumbent, which suggestion-feedback never does, so posting it
+      // there would silently no-op the accept.
+      let outcome: "ok" | "stale" | "error";
+      if (s.source === "new_take") {
+        if (!arcId || s.blockKey === null || !s.takeSessionId) return false;
+        outcome = (
+          await decideBlock(
+            arcId,
+            s.blockKey,
+            accept ? "accept" : "keep",
+            s.takeSessionId
+          )
+        ).kind;
+      } else if (s.source === "prior_take") {
+        if (!arcId) return false;
+        outcome = (
+          await decidePriorTake(arcId, s, accept ? "accept" : "keep")
+        ).kind;
+      } else {
+        if (!s.snippetId || !s.takeSessionId) return false;
+        const r = await sendSuggestionFeedback({
+          snippetId: s.snippetId,
+          sessionId: s.takeSessionId,
+          target: s.kind === "bold" ? "document_bold" : "document_replace",
+          action: accept ? "applied" : "dismissed",
+          suggestionId: s.id,
+        });
+        outcome = r.saved ? "ok" : "error";
+      }
+      if (outcome === "error") return false;
+      // 409 STALE_OFFER / NOT_PENDING — a newer take moved the offer. Silently
+      // refetch (the served suggestions refresh regardless of the edit lane)
+      // and treat the decision as handled.
+      if (outcome === "stale") {
+        setSdNonce((n) => n + 1);
+        return true;
+      }
       // Remember the decision on the served list so a remount never re-offers
-      // it (the ledger agrees server-side).
+      // it (the server agrees).
       setSd((prev) =>
         prev
           ? {
               ...prev,
               suggestions: (prev.suggestions ?? []).map((x) =>
                 x.id === s.id
-                  ? { ...x, status: d === "accept" ? "approved" : "dismissed" }
+                  ? { ...x, status: accept ? "approved" : "dismissed" }
                   : x
               ),
             }
           : prev
       );
-      if (d === "accept") {
+      if (accept) {
         // The accepted words must become the DOCUMENT, not just a painted
         // span: Copy, the editor and the user-edit PUT all read `text`. Commit
         // the fold WITHOUT marking dirty, and release the edit lane so no
@@ -320,7 +350,7 @@ export default function IdealTextReadout({
       }
       return true;
     },
-    []
+    [arcId]
   );
 
   // SD — the shared star layer (sheet, Approve/Revert folds, 5-credit unlock).
@@ -513,6 +543,7 @@ export default function IdealTextReadout({
               title={sd.title}
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
+              rereadProcessing={sd.rereadProcessing}
               saved={sd.saved}
               // The freeze waits for the edit lane (R-md1).
               onBeforeSave={flushEdits}
@@ -534,6 +565,7 @@ export default function IdealTextReadout({
               title={sd.title}
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
+              rereadProcessing={sd.rereadProcessing}
               onNewTake={onReRead}
               onReadUploaded={() => setSdNonce((n) => n + 1)}
             />

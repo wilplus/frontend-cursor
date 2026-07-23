@@ -31,6 +31,7 @@ export default function IdealReadMic({
   title,
   latestTakeSessionId,
   rereadDone,
+  rereadProcessing = null,
   onNewTake,
   onReadUploaded,
   micOnly = false,
@@ -42,6 +43,10 @@ export default function IdealReadMic({
   title: string | null;
   latestTakeSessionId: string | null;
   rereadDone: boolean;
+  /** §4 — the BE's authoritative "a re-read of this version is still being
+   *  analysed" signal. Preferred over the local latch (it survives a reload /
+   *  device switch); null → the FE falls back to the latch. */
+  rereadProcessing?: boolean | null;
   /** State 2 — route into the regular recording screen (a spoken take). */
   onNewTake: () => void;
   /** Fires after a read upload is ACCEPTED — the host refetches the GET so
@@ -75,13 +80,26 @@ export default function IdealReadMic({
   // readout during a re-read (so it never fired) and could go stale (so it
   // over-suppressed). Local + version-scoped avoids both (review R-rr1/R-rr2).
   const [readSubmitted, setReadSubmitted] = useState(false);
+  // FE-1 fail-open (review R-rr3): once the poll below waits out its cap we
+  // STOP waiting and release the loading state EVEN IF the server is still
+  // serving reread_processing=true (a stuck / slow analysis — the exact case
+  // the cap exists for). Without this latch the `rereadProcessing === true`
+  // disjunct in `readProcessing` re-holds the loading line forever after the
+  // cap, trapping the user on "Finishing up your reading…". Reset whenever a
+  // fresh wait begins: a new version, or a new re-read upload this session.
+  const [cappedOut, setCappedOut] = useState(false);
   // A new version is a fresh document with no re-read of its own yet.
   useEffect(() => {
     setReadSubmitted(false);
+    setCappedOut(false);
   }, [version]);
   // Pending only while the server has NOT yet flipped rereadDone true. The
-  // moment it does (analysis ready), this falls false and the button reveals.
-  const readProcessing = readSubmitted && !rereadDone;
+  // BE's `reread_processing` is authoritative (survives reload/device); the
+  // local latch is the fallback for a payload that predates the field OR the
+  // brief window before the first refetch lands. Either way it clears the
+  // instant rereadDone flips.
+  const readProcessing =
+    !rereadDone && !cappedOut && (rereadProcessing === true || readSubmitted);
 
   // Poll for completion: the button waits for "finished", not "submitted", so
   // refetch the SD GET on a cadence until rereadDone flips. Fail-open after a
@@ -98,7 +116,13 @@ export default function IdealReadMic({
     const startedAt = Date.now();
     const id = setInterval(() => {
       if (Date.now() - startedAt > 180_000) {
+        // Genuine fail-open: force the loading state off regardless of what the
+        // server still reports, then stop polling. `cappedOut` (not merely
+        // clearing the local latch) is what releases the server-held case where
+        // reread_processing stays true — otherwise readProcessing re-latches and
+        // this branch fires forever without ever refetching again.
         setReadSubmitted(false);
+        setCappedOut(true);
         return;
       }
       onReadUploadedRef.current(); // the host's SD refetch trigger
@@ -144,7 +168,9 @@ export default function IdealReadMic({
         setRejected(null);
         setPhase("idle");
         // The read is in — now WAIT for its analysis to finish before offering
-        // the next take. The poll effect drives refetches until rereadDone.
+        // the next take. The poll effect drives refetches until rereadDone. A
+        // fresh upload begins a NEW wait, so clear any prior fail-open cap.
+        setCappedOut(false);
         setReadSubmitted(true);
         onReadUploaded();
       } else {

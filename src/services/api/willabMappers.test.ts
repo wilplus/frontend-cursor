@@ -157,6 +157,7 @@ describe("mapReviewQueueRow", () => {
       nSnippets: 8,
       state: "pending",
       sentAt: "2026-06-01T00:00:00Z",
+      annotationMode: false,
     });
   });
 
@@ -182,7 +183,19 @@ describe("mapReviewQueueRow", () => {
       nSnippets: 0,
       state: "pending",
       sentAt: "",
+      annotationMode: false,
     });
+  });
+
+  it("maps annotation_mode true (T4 — coach annotation upload)", () => {
+    expect(
+      mapReviewQueueRow({ session_id: "s", annotation_mode: true })
+        ?.annotationMode
+    ).toBe(true);
+    // strict-bool: a truthy-but-not-true value is not an annotation.
+    expect(
+      mapReviewQueueRow({ session_id: "s", annotation_mode: 1 })?.annotationMode
+    ).toBe(false);
   });
 
   it("accepts in_progress and done states", () => {
@@ -213,6 +226,7 @@ describe("reconcileReviewQueue (C2)", () => {
     nSnippets: 1,
     state,
     sentAt: "2026-06-01T00:00:00Z",
+    annotationMode: false,
   });
 
   it("retains a published row the BE dropped on refresh, as done", () => {
@@ -248,6 +262,7 @@ describe("groupReviewQueueByStudent (FP-4)", () => {
     nSnippets: 1,
     state: "pending",
     sentAt: "2026-06-01T00:00:00Z",
+    annotationMode: false,
     ...over,
   });
 
@@ -299,6 +314,25 @@ describe("groupReviewQueueByStudent (FP-4)", () => {
       row("b", { userId: "u1" }),
     ]);
     expect(groups.map((g) => g.userId)).toEqual(["u2", "u1"]);
+  });
+
+  it("keeps annotation rows OUT of a student's group (T4)", () => {
+    // Same user_id, but one row is a coach annotation upload — it must never
+    // fold into the student's bubble; it keys by its own session and is flagged.
+    const groups = groupReviewQueueByStudent([
+      row("take", { userId: "u1" }),
+      row("anno", { userId: "u1", annotationMode: true }),
+    ]);
+    expect(groups).toHaveLength(2);
+    const student = groups.find((g) => !g.annotationMode);
+    const anno = groups.find((g) => g.annotationMode);
+    expect(student?.userId).toBe("u1");
+    expect(student?.rows.map((r) => r.sessionId)).toEqual(["take"]);
+    expect(anno?.key).toBe("a:anno");
+    expect(anno?.rows.map((r) => r.sessionId)).toEqual(["anno"]);
+    // The annotation must NOT inherit the student's id, or a tap would open the
+    // student's roster detail instead of the annotation (review R-t4).
+    expect(anno?.userId).toBeNull();
   });
 });
 
