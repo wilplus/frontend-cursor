@@ -64,6 +64,48 @@ export default function IdealReadMic({
   const sendingRef = useRef(false);
   const st = mic.state;
 
+  // FE-1 (founder 2026-07-22) — a re-read this session was accepted and is
+  // still being analysed until the server confirms it FINISHED (rereadDone,
+  // which the BE gates on analysis_state == ready). While that is pending the
+  // next-take button must NOT show; a loading line stands in its place, and
+  // the button appears only once the analysis is genuinely done.
+  //
+  // This latch is OWNED HERE, keyed to THIS component's own upload — the
+  // earlier attempt read the INITIAL take's poll/marker, which is null on the
+  // readout during a re-read (so it never fired) and could go stale (so it
+  // over-suppressed). Local + version-scoped avoids both (review R-rr1/R-rr2).
+  const [readSubmitted, setReadSubmitted] = useState(false);
+  // A new version is a fresh document with no re-read of its own yet.
+  useEffect(() => {
+    setReadSubmitted(false);
+  }, [version]);
+  // Pending only while the server has NOT yet flipped rereadDone true. The
+  // moment it does (analysis ready), this falls false and the button reveals.
+  const readProcessing = readSubmitted && !rereadDone;
+
+  // Poll for completion: the button waits for "finished", not "submitted", so
+  // refetch the SD GET on a cadence until rereadDone flips. Fail-open after a
+  // cap so a stuck analysis can't trap the user (Guard A still prevents any
+  // orphaned mic); after the cap the read mic simply returns, letting them
+  // read again. The callback rides a ref so the effect depends ONLY on
+  // readProcessing — otherwise the host's inline onReadUploaded would give a
+  // fresh identity each render and every refetch-driven re-render would reset
+  // the interval (the 3s tick would never land and the cap never accrue).
+  const onReadUploadedRef = useRef(onReadUploaded);
+  onReadUploadedRef.current = onReadUploaded;
+  useEffect(() => {
+    if (!readProcessing) return;
+    const startedAt = Date.now();
+    const id = setInterval(() => {
+      if (Date.now() - startedAt > 180_000) {
+        setReadSubmitted(false);
+        return;
+      }
+      onReadUploadedRef.current(); // the host's SD refetch trigger
+    }, 3000);
+    return () => clearInterval(id);
+  }, [readProcessing]);
+
   const readPossible = !rereadDone && latestTakeSessionId !== null;
 
   useEffect(() => {
@@ -101,6 +143,9 @@ export default function IdealReadMic({
       if (r.kind === "ok" || r.kind === "processing") {
         setRejected(null);
         setPhase("idle");
+        // The read is in — now WAIT for its analysis to finish before offering
+        // the next take. The poll effect drives refetches until rereadDone.
+        setReadSubmitted(true);
         onReadUploaded();
       } else {
         // 422 = the BE (or the FE's own guard) refuses this read; its message
@@ -111,14 +156,22 @@ export default function IdealReadMic({
     });
   }, [st, readPossible, latestTakeSessionId, title, version, onReadUploaded]);
 
-  // FE-1 (founder 2026-07-22) — the button state is read STRICTLY from the
-  // server's `rereadDone`; there is NO local optimistic flip anywhere in this
-  // component. Whether "record another take" appears before the re-read has
-  // actually FINISHED is therefore owned entirely by the BE gating
-  // reread_done on analysis_state == ready. (An earlier FE gate keyed on the
-  // INITIAL take's poll/marker was removed: it never fired for a re-read, and
-  // a stale marker could pin it on forever — review R-rr1/R-rr2. The orphaned
-  // -mic safety net lives in LabOverlay's Guard A, independent of the button.)
+  // FE-1 — the button reads STRICTLY from the server (rereadDone + this local
+  // submission latch); there is NO optimistic flip. While the just-submitted
+  // re-read is still analysing, a loading line stands where the next-take
+  // button will be — it appears only once the analysis is genuinely finished.
+  // (The BE gates rereadDone on analysis_state == ready; the LabOverlay Guard A
+  // is the independent safety net against an orphaned mic.)
+  if (readProcessing) {
+    return (
+      <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Finishing up your reading…
+        </div>
+      </div>
+    );
+  }
 
   // State 2 — a fresh spoken take (also the fallback when no pairing target
   // exists, since a read without a pair is invisible on every surface).
