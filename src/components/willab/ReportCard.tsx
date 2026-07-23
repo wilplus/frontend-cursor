@@ -454,6 +454,7 @@ function CrucialIdealTextCard({
     updatedAt: string | null;
     status: "unverified" | "verified" | null;
     version: number | null;
+    takeCount: number | null;
   } | null>(null);
   useEffect(() => {
     let active = true;
@@ -464,6 +465,7 @@ function CrucialIdealTextCard({
         updatedAt: r.updatedAt,
         status: r.status,
         version: r.version,
+        takeCount: r.takeCount,
       });
     });
     return () => {
@@ -494,11 +496,19 @@ function CrucialIdealTextCard({
             </p>
           ) : null}
         </div>
-        {live?.version !== null && live?.version !== undefined ? (
-          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
-            {live.version}.0
-          </span>
-        ) : null}
+        {/* MASTER DOCUMENT (founder 2026-07-23) — the badge is the project's
+            OFFICIAL-TAKE count ("15.0"), which climbs on every take. `version`
+            only moves when the text changes, so it under-counts under the
+            master model. take_count is safe-ahead of BE #236: null → fall
+            back to version, exactly today. */}
+        {(() => {
+          const badge = live?.takeCount ?? live?.version ?? null;
+          return badge !== null ? (
+            <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
+              {badge}.0
+            </span>
+          ) : null;
+        })()}
       </div>
       <div className="mt-3">
         <span

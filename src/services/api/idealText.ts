@@ -412,6 +412,13 @@ export type IdealTextResult =
       title: string | null;
       /** ISO timestamp of the last ideal-text update; null → no date line. */
       updatedAt: string | null;
+      /** MASTER DOCUMENT (BE #236) — the project's OFFICIAL-take count (reads
+       *  excluded), per-arc. The DOCUMENT badge is "{takeCount}.0": it climbs
+       *  on every recorded take, unlike `version`, which only moves when the
+       *  text actually changes (a take that lands only offers bumps no
+       *  version). null until #236 deploys → the badge falls back to
+       *  `version`, exactly today's behavior. */
+      takeCount: number | null;
       /** The latest SPOKEN take (excludes reads) — the re-read pairing target.
        *  null → the in-place read mic hides (a read without a pair is
        *  invisible on every surface). */
@@ -711,6 +718,10 @@ export async function fetchIdealText(
       updatedAt:
         typeof body.updated_at === "string" && body.updated_at
           ? body.updated_at
+          : null,
+      takeCount:
+        typeof body.take_count === "number" && Number.isFinite(body.take_count)
+          ? body.take_count
           : null,
       latestTakeSessionId:
         typeof body.latest_take_session_id === "string" &&

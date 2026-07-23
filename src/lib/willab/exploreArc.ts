@@ -19,6 +19,9 @@ const KEY = "willab_explore_arc";
  *  re-entry. */
 export interface ExploreArcDeck {
   topic: string;
+  /** The project's audience, inherited into a continued take's setup form.
+   *  null/absent = not carried (older seeds). */
+  audience?: string | null;
   presentationRef: string | null;
   slides: { title: string; body: string }[];
   /** R5 fix — the training's set length, so takes 2/3 restore the countdown
@@ -51,6 +54,7 @@ function pickDeck(raw: unknown): ExploreArcDeck | undefined {
     }));
   return {
     topic: typeof d.topic === "string" ? d.topic : "",
+    audience: typeof d.audience === "string" ? d.audience : null,
     presentationRef:
       typeof d.presentationRef === "string" && d.presentationRef.length > 0
         ? d.presentationRef

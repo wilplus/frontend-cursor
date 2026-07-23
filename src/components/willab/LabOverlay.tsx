@@ -11,6 +11,7 @@ import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
+import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
@@ -191,13 +192,39 @@ export default function LabOverlay({
     initArc?.deck ?? null
   );
 
-  // FE-1 — restore a continuing arc's deck from the server when localStorage
-  // lost it: if we have the arc's session id but no cached deck, re-read that
-  // session and adopt its `setup` (slides + served PDF). Inert until the BE
-  // ships `setup` (r.setup is null → no-op → today's deckless behavior).
+  // FE (founder 2026-07-23) — CONTEXT-AWARE OFFICIAL RECORDING: a continued
+  // project inherits its full setup from the ARC, not a specific session —
+  // topic, audience, target length, slides + the served deck PDF. This is the
+  // robust prefill for the in-project "record another take" AND for picking a
+  // project from the dashboard, so either drops straight into the recorder
+  // with everything set. Owner-only upstream, so signed-in only; a 404 (not
+  // owner / no takes) → null → the session/deckless fallbacks below.
+  useEffect(() => {
+    const aid = initArc?.arcId;
+    if (!aid || preloadDeck || signedIn !== true) return;
+    let active = true;
+    void fetchArcSetup(aid).then((setup) => {
+      if (!active || !setup) return;
+      setPreloadDeck({
+        topic: setup.topic,
+        audience: setup.audience,
+        presentationRef: setup.presentationRef,
+        slides: setup.slides,
+        targetLengthSeconds: setup.targetLengthSeconds,
+      });
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initArc?.arcId, signedIn]);
+
+  // Legacy fallback — restore a continuing arc's deck from a prior SESSION
+  // readout when we have a session id but NO arc id (the arc-setup path above
+  // owns the project case). Inert until the BE ships `setup`.
   useEffect(() => {
     const sid = initArc?.sessionId;
-    if (!sid || preloadDeck || signedIn === null) return;
+    if (!sid || preloadDeck || signedIn === null || initArc?.arcId) return;
     let active = true;
     const fetcher = signedIn ? fetchSessionReadout : fetchGuestLabReadout;
     void fetcher(sid).then((r) => {
@@ -356,6 +383,11 @@ export default function LabOverlay({
         const deck = context
           ? {
               topic: context.topic,
+              // Persist audience too (review R-car1): on the SAME-project
+              // "record another take" the cached deck is reused and the
+              // arc-setup fetch is gated out (preloadDeck already set), so the
+              // cached deck is the ONLY source of audience for that prefill.
+              audience: context.audience || null,
               presentationRef: context.presentationRef,
               slides: context.slides,
               targetLengthSeconds: context.target_length_seconds,
@@ -951,6 +983,8 @@ function SessionContextForm({
     if (didPreloadRef.current || !preloadDeck) return;
     didPreloadRef.current = true;
     if (preloadDeck.topic) setTopic(preloadDeck.topic);
+    // The project's audience carries into the continued take's setup.
+    if (preloadDeck.audience) setAudience(preloadDeck.audience);
     if (preloadDeck.slides.length > 0) setSlides(preloadDeck.slides);
     setPresentationRef(preloadDeck.presentationRef);
     // R5 fix — restore the set length so take 2/3's timer counts down from it
