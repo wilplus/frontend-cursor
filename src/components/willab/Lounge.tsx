@@ -313,14 +313,12 @@ export default function Lounge({
 
 
   // C8 — every quick-action CTA lands in ONE place: the Trainings library
-  // (strong_sides / trainings / audit). audit previously routed to /audits; it
-  // now opens the Trainings library like the rest so the chips don't scatter.
-  // No record chip: the bot points at the permanent record button in words.
-  // The ONE exception: the BE pay note's arc_checkout taps into the audit
-  // checkout (clean paywall — never an error).
-  function onChip(action: ChipAction): void {
-    if (action === "arc_checkout") router.push("/dashboard/pricing");
-    else setLibraryOpen(true);
+  // (trainings / audit). audit previously routed to /audits; it now opens the
+  // Trainings library like the rest so the chips don't scatter. No record chip:
+  // the bot points at the permanent record button in words. (arc_checkout, the
+  // $25 pay note, was retired with the paywall — only $5 moments is paid now.)
+  function onChip(): void {
+    setLibraryOpen(true);
   }
 
   // U12 — coach email deep-link (/chat?review=<id>): open the review overlay for
@@ -1262,7 +1260,7 @@ function Bubble({
   /** Delivery layer — the purple bubble opens the ideal-text notebook.
    *  FE-3b: old version bubbles pass their version (read-only step). */
   onOpenIdealText?: (arcId: string, version?: number | null) => void;
-  onChip?: (action: ChipAction) => void;
+  onChip?: () => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
   /** Tap a persisted offer bubble to re-arm its action pair in the footer. */
@@ -1323,7 +1321,7 @@ function Bubble({
           animate={animate}
         />
         {action && (
-          <ActionButton action={action} onClick={() => onChip!(action)} />
+          <ActionButton action={action} onClick={() => onChip!()} />
         )}
       </>
     );
