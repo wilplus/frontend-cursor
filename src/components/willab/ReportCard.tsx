@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, Mic, Sparkles } from "lucide-react";
+import { Check, Crown, FileText, Mic, ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchIdealText } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -196,60 +196,18 @@ export default function ReportCard({
         </div>
       );
     }
-    const keyDown = openable
-      ? (e: React.KeyboardEvent) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            open();
-          }
-        }
-      : undefined;
-    // FE-2 — EVERY version is an extended bubble in the chat flow: same tall
-    // grey card as the latest, its own version, its own Open button, sitting
-    // chronologically in the conversation (nothing is pinned anywhere).
+    // FE-2 — EVERY version is its own bubble in the chat flow (nothing pinned):
+    // the same IDEAL RECORDING card as the latest, with its version + Open. The
+    // BE's own sentence rides as the meta line (the degrade path).
     return (
-      <div className="my-2 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-5 py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[16px] font-semibold leading-snug text-foreground">
-              {versionLabel ?? "Your ideal text"}
-            </p>
-            {/* The BE's own sentence stays the degrade path (matches the
-                feedback + instant branches). */}
-            {message.body ? (
-              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                {message.body}
-              </p>
-            ) : null}
-          </div>
-          {version !== null ? (
-            <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
-              {version}.0
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-3">
-          <span
-            className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
-              verified
-                ? "bg-success/10 text-success"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {verified ? "Verified" : "Not verified"}
-          </span>
-        </div>
-        {openable ? (
-          <Button
-            type="button"
-            onClick={open}
-            onKeyDown={keyDown}
-            className="mt-4 h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
-          >
-            Open this version
-          </Button>
-        ) : null}
-      </div>
+      <IdealRecordingCard
+        title={versionLabel ?? "Your ideal text"}
+        meta={message.body || null}
+        badge={version !== null ? `${version}.0` : null}
+        verified={verified}
+        ctaLabel="Open this version"
+        onOpen={openable ? open : null}
+      />
     );
   }
   // The unpaid/unreviewed >=3-takes card: the BE-written body ("Your full
@@ -442,6 +400,87 @@ export function IdealTextHeroCard({
 /*  it was when the bubble row was written. Falls back gracefully while the    */
 /*  fetch is in flight or when the BE's additive fields are not deployed yet.  */
 /* -------------------------------------------------------------------------- */
+/** IDEAL RECORDING card (token-mapped restyle) — the ideal-text bubble as a
+ *  coach attachment. Bottom-left tail so it reads as a coach message; a distinct
+ *  `bg-card` surface + border/shadow so it stands out from the grey text bubbles
+ *  as an artifact. Colours map to theme tokens (success = verified); the app has
+ *  no amber token, so the unverified pill uses a dark-safe amber (informational,
+ *  never red). Presentation only — the caller owns all data + the open handler. */
+function IdealRecordingCard({
+  title,
+  meta,
+  badge,
+  verified,
+  ctaLabel,
+  onOpen,
+}: {
+  title: string;
+  /** Second line under the title (a date, or the BE's sentence). null hides it. */
+  meta: string | null;
+  /** The version/take badge, e.g. "22.0". null hides the chip. */
+  badge: string | null;
+  verified: boolean;
+  ctaLabel: string;
+  /** null → no CTA (an un-openable historical bubble). */
+  onOpen: (() => void) | null;
+}) {
+  return (
+    <div className="my-2 mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04),0_8px_24px_-12px_rgba(15,15,15,0.12)]">
+      {/* Attachment label — marks the card as an artifact, not chat text. */}
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        <Sparkles className="h-3 w-3" aria-hidden />
+        Ideal recording
+      </div>
+      {/* Header: icon tile + title/meta + version chip. */}
+      <div className="mt-3 flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
+          <FileText className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[16px] font-semibold leading-snug tracking-tight text-foreground">
+            {title}
+          </p>
+          {meta ? (
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              {meta}
+            </p>
+          ) : null}
+        </div>
+        {badge ? (
+          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold tabular-nums text-foreground">
+            {badge}
+          </span>
+        ) : null}
+      </div>
+      {/* Verified / unverified pill (amber = informational, never red). */}
+      <div className="mt-4">
+        {verified ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-medium text-success ring-1 ring-success/25">
+            <Check className="h-3.5 w-3.5" aria-hidden />
+            Verified by the coach
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-400/25">
+            <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+            Not verified by the coach
+          </span>
+        )}
+      </div>
+      {/* CTA — rounded-xl to echo the icon tile + card corners. */}
+      {onOpen ? (
+        <Button
+          type="button"
+          onClick={onOpen}
+          className="mt-4 h-11 w-full rounded-xl bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90 active:scale-[0.99]"
+        >
+          <Sparkles className="mr-2 h-4 w-4" aria-hidden />
+          {ctaLabel}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 function CrucialIdealTextCard({
   arcId,
   onOpen,
@@ -481,55 +520,21 @@ function CrucialIdealTextCard({
         year: "numeric",
       })
     : null;
-  // Founder 2026-07-20: a NORMAL grey bubble like the rest of the thread —
-  // just taller, normal type, with the Open button inside as the affordance.
-  // Width matches the coach/user text bubbles (max-w-[85%], left-aligned) so
-  // the ideal-text card reads as a coach message, not a full-column panel.
+  // MASTER DOCUMENT (founder 2026-07-23) — the badge is the project's
+  // OFFICIAL-TAKE count ("15.0"), which climbs on every take; `version` only
+  // moves when the text changes, so it under-counts under the master model.
+  // take_count is safe-ahead of BE #236 (null → version). Rendered through the
+  // shared IDEAL RECORDING card so the hero matches every other ideal-text
+  // bubble in the thread.
+  const badge = live?.takeCount ?? live?.version ?? null;
   return (
-    <div className="my-2 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-5 py-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[16px] font-semibold leading-snug text-foreground">
-            {live?.title ?? "Your ideal text"}
-          </p>
-          {dateLabel ? (
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Last updated {dateLabel}
-            </p>
-          ) : null}
-        </div>
-        {/* MASTER DOCUMENT (founder 2026-07-23) — the badge is the project's
-            OFFICIAL-TAKE count ("15.0"), which climbs on every take. `version`
-            only moves when the text changes, so it under-counts under the
-            master model. take_count is safe-ahead of BE #236: null → fall
-            back to version, exactly today. */}
-        {(() => {
-          const badge = live?.takeCount ?? live?.version ?? null;
-          return badge !== null ? (
-            <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[13px] font-medium tabular-nums text-foreground">
-              {badge}.0
-            </span>
-          ) : null;
-        })()}
-      </div>
-      <div className="mt-3">
-        <span
-          className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
-            verified
-              ? "bg-success/10 text-success"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          {verified ? "Verified" : "Not verified"}
-        </span>
-      </div>
-      <Button
-        type="button"
-        onClick={onOpen}
-        className="mt-4 h-11 w-full rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
-      >
-        Open your ideal text
-      </Button>
-    </div>
+    <IdealRecordingCard
+      title={live?.title ?? "Your ideal text"}
+      meta={dateLabel ? `Ideal text · Updated ${dateLabel}` : null}
+      badge={badge !== null ? `${badge}.0` : null}
+      verified={verified}
+      ctaLabel="Open your ideal text"
+      onOpen={onOpen}
+    />
   );
 }
