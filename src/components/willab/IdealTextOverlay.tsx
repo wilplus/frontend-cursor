@@ -24,6 +24,7 @@ import {
   type IdealKeyMomentLink,
   type DocumentSuggestion,
   type IdealPiece,
+  type KeyPoint,
   type IdealText,
   type MomentSuggestion,
 } from "@/services/api/idealText";
@@ -40,6 +41,7 @@ import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
+import KeyPointsView from "./KeyPointsView";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -106,6 +108,7 @@ export default function IdealTextOverlay({
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
+    keyPoints: KeyPoint[] | null;
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
@@ -118,6 +121,8 @@ export default function IdealTextOverlay({
   // Notebook state: the personal copy wins for display once saved.
   const [notes, setNotes] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // E-2 — key-words presentation mode (only reachable when the BE serves cues).
+  const [presentationMode, setPresentationMode] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // The tapped key moment awaiting "Go to this moment?" confirmation.
@@ -168,6 +173,7 @@ export default function IdealTextOverlay({
           pieces: r.pieces,
           suggestions: r.suggestions,
           saved: r.saved,
+          keyPoints: r.keyPoints,
         });
         setStatus("ready");
       } else if (r.kind === "ready") {
@@ -450,24 +456,58 @@ export default function IdealTextOverlay({
                   Approve all
                 </button>
               ) : null}
-              <PieceBadgeText
-                text={displayText}
-                ideal={ideal}
-                // DISCERNMENT — SD only; a legacy payload has pieces null and
-                // renders exactly today's view.
-                // MASTER DOCUMENT — a saved version shows the clean script.
-                pieces={sd?.saved === true ? null : sd?.pieces ?? null}
-                // LIVING TRANSCRIPT — tracked changes own the words when the
-                // BE serves them; the version pills compose on top.
-                suggestions={sd?.suggestions ?? null}
-                onDecideTracked={decideTracked}
-                onMomentTap={(m) => void openMoment(m)}
-                foldFor={stars.foldFor}
-                // FE-2 — the star treatment only under SD (a legacy "ready"
-                // payload keeps its classic underline links).
-                sdStars={sd !== null}
-                onOpenSwap={setSwapOpen}
-              />
+              {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
+              {sd?.keyPoints && sd.keyPoints.length > 0 ? (
+                <div className="inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setPresentationMode(false)}
+                    className={`rounded-full px-3 py-1 transition-colors ${
+                      presentationMode
+                        ? "text-muted-foreground"
+                        : "bg-background text-foreground shadow-sm"
+                    }`}
+                  >
+                    Full text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPresentationMode(true)}
+                    className={`rounded-full px-3 py-1 transition-colors ${
+                      presentationMode
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    Key words
+                  </button>
+                </div>
+              ) : null}
+              {presentationMode && sd?.keyPoints && sd.keyPoints.length > 0 ? (
+                <KeyPointsView
+                  keyPoints={sd.keyPoints}
+                  onExit={() => setPresentationMode(false)}
+                />
+              ) : (
+                <PieceBadgeText
+                  text={displayText}
+                  ideal={ideal}
+                  // DISCERNMENT — SD only; a legacy payload has pieces null and
+                  // renders exactly today's view.
+                  // MASTER DOCUMENT — a saved version shows the clean script.
+                  pieces={sd?.saved === true ? null : sd?.pieces ?? null}
+                  // LIVING TRANSCRIPT — tracked changes own the words when the
+                  // BE serves them; the version pills compose on top.
+                  suggestions={sd?.suggestions ?? null}
+                  onDecideTracked={decideTracked}
+                  onMomentTap={(m) => void openMoment(m)}
+                  foldFor={stars.foldFor}
+                  // FE-2 — the star treatment only under SD (a legacy "ready"
+                  // payload keeps its classic underline links).
+                  sdStars={sd !== null}
+                  onOpenSwap={setSwapOpen}
+                />
+              )}
             </div>
           ) : null}
         </div>
