@@ -14,7 +14,7 @@ import { bestPresentationView, insightView, readoutView } from "./loungeReports"
 /*  EXCEPT the ideal-text hero):                                               */
 /*    recording_summary  → USER: short ORANGE voice-message bubble, right-      │
 /*                         aligned. "Your Recording {name}, take {n}, {date}".  */
-/*    insight            → COACH: GREY full-width. "Feedback on {name}, …".     */
+/*    insight            → COACH: GREY, 85%-wide. "Feedback on {name}, …".      */
 /*    best_presentation_ready → the HERO: full-width indigo/violet card, gold   │
 /*                         crown, "Ideal Text for {name} is ready!", with both  */
 /*                         CTAs (best presentation / breakthroughs) merged in.  */
@@ -113,7 +113,7 @@ export default function ReportCard({
               }
             : undefined
         }
-        className={`my-1 rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+        className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
       >
         <p className="text-[15px] leading-relaxed text-foreground">
           <span className="font-semibold">
@@ -178,7 +178,7 @@ export default function ReportCard({
                 }
               : undefined
           }
-          className={`my-1 rounded-2xl border border-primary/30 bg-chat-bot px-4 py-3 ${
+          className={`my-1 mr-auto max-w-[85%] rounded-2xl border border-primary/30 bg-chat-bot px-4 py-3 ${
             openable ? "cursor-pointer" : ""
           }`}
         >
@@ -208,7 +208,7 @@ export default function ReportCard({
     // grey card as the latest, its own version, its own Open button, sitting
     // chronologically in the conversation (nothing is pinned anywhere).
     return (
-      <div className="my-2 rounded-2xl bg-chat-bot px-5 py-5">
+      <div className="my-2 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-5 py-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[16px] font-semibold leading-snug text-foreground">
@@ -272,7 +272,7 @@ export default function ReportCard({
               }
             : undefined
         }
-        className={`my-1 rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+        className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
       >
         <p className="text-[15px] leading-relaxed text-foreground">
           {message.body}
@@ -336,7 +336,7 @@ export default function ReportCard({
     : undefined;
 
   if (message.kind === "insight") {
-    // COACH feedback — GREY, full width.
+    // COACH feedback — GREY, capped at max-w-[85%] like the coach bubbles.
     const v = insightView(message.metadata);
     const detail = detailLine(v.topic, v.takeIndex, date);
     return (
@@ -345,7 +345,7 @@ export default function ReportCard({
         tabIndex={openable ? 0 : undefined}
         onClick={openable ? open : undefined}
         onKeyDown={openKeyDown}
-        className={`my-1 rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
+        className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
       >
         <p className="text-[15px] leading-relaxed text-foreground">
           <span className="font-semibold">Feedback</span>
@@ -483,8 +483,10 @@ function CrucialIdealTextCard({
     : null;
   // Founder 2026-07-20: a NORMAL grey bubble like the rest of the thread —
   // just taller, normal type, with the Open button inside as the affordance.
+  // Width matches the coach/user text bubbles (max-w-[85%], left-aligned) so
+  // the ideal-text card reads as a coach message, not a full-column panel.
   return (
-    <div className="my-2 rounded-2xl bg-chat-bot px-5 py-5">
+    <div className="my-2 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-5 py-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[16px] font-semibold leading-snug text-foreground">
