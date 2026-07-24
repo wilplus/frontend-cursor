@@ -12,6 +12,7 @@ import {
   type DocumentSuggestion,
   type IdealPiece,
   type IdealText,
+  type KeyPoint,
 } from "@/services/api/idealText";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
 import { decideBlock, decidePriorTake } from "@/services/api/documentDecide";
@@ -63,6 +64,40 @@ export function composeIdealText(payload: ReadoutPayload): string {
   return parts.join("\n\n");
 }
 
+/** E-2 — key-words presentation view: the verbatim cues in order, each under
+ *  its block label. Tapping a cue returns to the full read (the exact
+ *  scroll-to-offset via start/end is a later refinement). Presentation only. */
+function KeyPointsView({
+  keyPoints,
+  onExit,
+}: {
+  keyPoints: KeyPoint[];
+  onExit: () => void;
+}) {
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {keyPoints.map((kp, i) => (
+        <li key={`${kp.blockKey ?? "b"}-${i}`}>
+          <button
+            type="button"
+            onClick={onExit}
+            className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40"
+          >
+            {kp.blockLabel ? (
+              <span className="block text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                {kp.blockLabel}
+              </span>
+            ) : null}
+            <span className="mt-1 block text-[17px] font-medium leading-snug text-foreground">
+              {kp.text}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function IdealTextReadout({
   payload,
   sessionId,
@@ -90,6 +125,10 @@ export default function IdealTextReadout({
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   const [editing, setEditing] = useState(false);
+  // E-2 — presentation mode: swap the full read for the key-words cues. Only
+  // reachable when the BE serves key_points (the toggle is otherwise hidden);
+  // a version without cues falls through to the full read regardless.
+  const [presentationMode, setPresentationMode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
@@ -115,6 +154,7 @@ export default function IdealTextReadout({
     pieces: IdealPiece[] | null;
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
+    keyPoints: KeyPoint[] | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -186,6 +226,7 @@ export default function IdealTextReadout({
           pieces: r.pieces,
           suggestions: r.suggestions,
           saved: r.saved,
+          keyPoints: r.keyPoints,
         });
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
@@ -452,6 +493,34 @@ export default function IdealTextReadout({
         </button>
       ) : null}
 
+      {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
+      {!editing && sd?.keyPoints && sd.keyPoints.length > 0 ? (
+        <div className="mb-3 inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
+          <button
+            type="button"
+            onClick={() => setPresentationMode(false)}
+            className={`rounded-full px-3 py-1 transition-colors ${
+              presentationMode
+                ? "text-muted-foreground"
+                : "bg-background text-foreground shadow-sm"
+            }`}
+          >
+            Full text
+          </button>
+          <button
+            type="button"
+            onClick={() => setPresentationMode(true)}
+            className={`rounded-full px-3 py-1 transition-colors ${
+              presentationMode
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground"
+            }`}
+          >
+            Key words
+          </button>
+        </div>
+      ) : null}
+
       {editing ? (
         <div className="flex flex-col gap-2">
           {/* Bold / underline / italic / orange — wraps the selection in the
@@ -474,6 +543,13 @@ export default function IdealTextReadout({
         <p className="py-10 text-center text-[13px] text-muted-foreground">
           Putting your ideal text together…
         </p>
+      ) : sd && presentationMode && sd.keyPoints && sd.keyPoints.length > 0 ? (
+        // E-2 — key-words presentation mode: the verbatim cues, each labelled
+        // by its block. Tapping one returns to the full read.
+        <KeyPointsView
+          keyPoints={sd.keyPoints}
+          onExit={() => setPresentationMode(false)}
+        />
       ) : sd ? (
         // SD — the SAME star layer as the notebook: grey suggestion stars to
         // Approve, orange coach-verified stars behind the unlock.

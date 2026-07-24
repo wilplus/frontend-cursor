@@ -3,8 +3,33 @@ import {
   inferHistoricalStars,
   mapIdealText,
   mapInstantIdealText,
+  mapKeyPoints,
   segmentIdealText,
 } from "./idealText";
+
+describe("mapKeyPoints (E-2 presentation cues)", () => {
+  it("maps rows; absent block → null; drops textless rows", () => {
+    const out = mapKeyPoints([
+      { block_key: 3, block_label: "Opening", text: "Land the hook", start: 0, end: 13 },
+      { text: "" }, // no cue text → dropped
+      { block_label: "Close", text: "One ask" }, // no key/range → nulls, still maps
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out![0]).toEqual({
+      blockKey: 3,
+      blockLabel: "Opening",
+      text: "Land the hook",
+      start: 0,
+      end: 13,
+    });
+    expect(out![1]).toMatchObject({ blockKey: null, start: null, end: null });
+  });
+
+  it("returns null when absent (flag off) → toggle hidden", () => {
+    expect(mapKeyPoints(undefined)).toBeNull();
+    expect(mapKeyPoints({})).toBeNull();
+  });
+});
 
 describe("segmentIdealText (delivery layer notebook)", () => {
   const moments = [

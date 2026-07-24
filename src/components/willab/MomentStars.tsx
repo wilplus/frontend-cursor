@@ -308,6 +308,12 @@ function StructuralPracticeCard({
 }) {
   return (
     <div className="flex flex-col gap-3">
+      {/* D-3 — the rule-of-three tag: "123" marks a list-of-three device. */}
+      {suggestion.device === "list_of_three" ? (
+        <span className="w-fit rounded-md bg-amber-500/15 px-2 py-0.5 text-[12px] font-bold tabular-nums tracking-[0.12em] text-amber-700 dark:text-amber-300">
+          123
+        </span>
+      ) : null}
       <p className="text-[14px] font-semibold text-foreground">Practice this:</p>
       <p className="text-[14px] leading-relaxed text-foreground">
         {suggestion.device === "contrast"
@@ -403,6 +409,13 @@ function DeliveryStarCard({
   const canReRecord = !!onReRecord && snippetId !== "" && takeSessionId !== "";
   return (
     <div className="flex flex-col gap-3">
+      {/* D-3 — the pace tag: an at-a-glance arrow for the measured pace device
+          (pace_fast = moved faster = up; pace_slow = dragged = down). */}
+      {suggestion.device === "pace_fast" || suggestion.device === "pace_slow" ? (
+        <span className="inline-flex w-fit items-center gap-0.5 rounded-md bg-amber-500/15 px-2 py-0.5 text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+          pace {suggestion.device === "pace_fast" ? "↑" : "↓"}
+        </span>
+      ) : null}
       <p className="text-[14px] leading-relaxed text-foreground">
         {DELIVERY_COPY[suggestion.device]}
       </p>

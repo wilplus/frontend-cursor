@@ -398,6 +398,42 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
   return out;
 }
 
+/** E-2 (KEY_POINTS_ENABLED) — a presentation-mode cue: a verbatim milestone
+ *  from one block of the ideal text, with its char range INTO the top-level
+ *  `text` so the toggle can scroll/anchor back into the full read. */
+export interface KeyPoint {
+  blockKey: number | null;
+  blockLabel: string;
+  text: string;
+  /** Char range into the served `text` (start inclusive, end exclusive); null
+   *  when the BE omits it (the cue still renders, it just can't anchor). */
+  start: number | null;
+  end: number | null;
+}
+
+/** Map the GET's `key_points` block. ABSENT (flag off / older BE) → null: the
+ *  toggle stays hidden, today's view exactly. A row with no cue text is dropped. */
+export function mapKeyPoints(raw: unknown): KeyPoint[] | null {
+  if (!Array.isArray(raw)) return null;
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const out: KeyPoint[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const text = str(r.text);
+    if (!text) continue;
+    out.push({
+      blockKey: num(r.block_key),
+      blockLabel: str(r.block_label),
+      text,
+      start: num(r.start),
+      end: num(r.end),
+    });
+  }
+  return out;
+}
+
 export type IdealTextResult =
   | { kind: "ready"; ideal: IdealText } // the coach-perfected text (approved)
   // The FREE machine draft (founder re-lock 2026-07-17): served the moment the
@@ -465,6 +501,10 @@ export type IdealTextResult =
        *  → today's bottom CTA, unchanged (never hide a live affordance
        *  behind a field that does not exist yet). */
       saved: boolean | null;
+      /** E-2 (KEY_POINTS_ENABLED) — presentation-mode cues (verbatim milestones
+       *  per block). null (flag off / older BE) → the full↔key-words toggle
+       *  stays hidden, today's view unchanged. */
+      keyPoints: KeyPoint[] | null;
     }
   // FE-3b (gradual refinement) — an OLD version bubble opens its own frozen
   // step: that version's text + that version's reasoning, read-only. Served
@@ -750,6 +790,9 @@ export async function fetchIdealText(
           : typeof body.saved === "boolean"
             ? body.saved
             : null,
+      // E-2 — presentation-mode cues (flag-gated BE-side); absent → null → the
+      // toggle stays hidden.
+      keyPoints: mapKeyPoints(body.key_points),
     };
   }
   // Instant lane (INSTANT_IDEAL_TEXT_ENABLED): the free machine draft, served
