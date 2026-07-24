@@ -167,6 +167,23 @@ export function PieceBadgeText({
       spans
     );
   }, [pieces, spans, text, ideal.keyPhrases, ideal.keyMoments]);
+  // D-2 (paragraph spacing) — even WITHOUT the piece-badge layer, split the
+  // same "\n\n" paragraphs the BE joins on (offset-safe: no chars change) and
+  // slice the document segments per paragraph, so the no-pieces fallback spaces
+  // its paragraphs with `gap-4` like the badged path instead of one tight block.
+  // Passing the pre-sliced `segments` avoids re-matching a recurring anchor's
+  // star into every paragraph it textually appears in.
+  const fbSpans = useMemo(() => splitBadgeParagraphSpans(text), [text]);
+  const fbSlices = useMemo(
+    () =>
+      fbSpans.length > 1
+        ? sliceSegmentsByParagraphs(
+            segmentIdealText(text, ideal.keyPhrases, ideal.keyMoments),
+            fbSpans
+          )
+        : null,
+    [fbSpans, text, ideal.keyPhrases, ideal.keyMoments]
+  );
   // Which lane owns the WORDS. Two hard conditions (review R-lt6/R-lt1):
   //
   //  1. The tracked lane may never DELETE the star layer. key_moments carries
@@ -198,6 +215,23 @@ export function PieceBadgeText({
         onDecide={onDecideTracked}
         textSizeClass={textSizeClass}
       />
+    ) : fbSlices ? (
+      // D-2 — multi-paragraph doc without pieces: one MomentStarText per
+      // paragraph in a gap-4 stack, so paragraphs read spaced (no pills).
+      <div className="flex flex-col gap-4">
+        {fbSpans.map((span, i) => (
+          <MomentStarText
+            key={i}
+            text={span.text}
+            segments={fbSlices[i]}
+            ideal={ideal}
+            onMomentTap={onMomentTap}
+            foldFor={foldFor}
+            sdStars={sdStars}
+            textSizeClass={textSizeClass}
+          />
+        ))}
+      </div>
     ) : (
       <MomentStarText
         text={text}
