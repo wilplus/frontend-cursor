@@ -23,6 +23,7 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import { MarkerToolbar } from "./RichText";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
+import KeyPointsView from "./KeyPointsView";
 import { MomentSheet, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
@@ -62,40 +63,6 @@ export function composeIdealText(payload: ReadoutPayload): string {
     }
   }
   return parts.join("\n\n");
-}
-
-/** E-2 — key-words presentation view: the verbatim cues in order, each under
- *  its block label. Tapping a cue returns to the full read (the exact
- *  scroll-to-offset via start/end is a later refinement). Presentation only. */
-function KeyPointsView({
-  keyPoints,
-  onExit,
-}: {
-  keyPoints: KeyPoint[];
-  onExit: () => void;
-}) {
-  return (
-    <ul className="flex flex-col gap-2.5">
-      {keyPoints.map((kp, i) => (
-        <li key={`${kp.blockKey ?? "b"}-${i}`}>
-          <button
-            type="button"
-            onClick={onExit}
-            className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40"
-          >
-            {kp.blockLabel ? (
-              <span className="block text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                {kp.blockLabel}
-              </span>
-            ) : null}
-            <span className="mt-1 block text-[17px] font-medium leading-snug text-foreground">
-              {kp.text}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 export default function IdealTextReadout({
