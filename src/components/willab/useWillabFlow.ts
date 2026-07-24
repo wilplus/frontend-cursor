@@ -17,12 +17,11 @@ import { clearReviewPending } from "./sendStatus";
 /*  two ever merge.                                                            */
 /*                                                                            */
 /*  Surfaces are stubbed for now; later slices replace each stub with the     */
-/*  real Welcome / Intake / Lab / Readout / Insights surface.                 */
+/*  real Welcome / Lab / Readout / Insights surface.                          */
 /* -------------------------------------------------------------------------- */
 
 export type WillabState =
   | "welcome_consent"
-  | "intake_in_progress"
   | "lounge_idle"
   /** Context-aware setup (founder 2026-07-22) — recording from the dashboard
    *  asks first whether this is a new topic or another take of an existing
@@ -57,25 +56,22 @@ export function isLabOverlay(state: WillabState): boolean {
   return LAB_OVERLAY_STATES.has(state);
 }
 
-/** Pure local-state derivation for the onboarding + parked gates (testable).
- *  Post-intake active state (review_pending / insights_ready) is BE-owned —
+/** Pure local-state derivation for the consent + parked gates (testable).
+ *  Post-consent active state (review_pending / insights_ready) is BE-owned —
  *  see useWillabFlow where fetchSessionState() is called for those. */
 export function initialWillabState(flags: {
   consentAccepted: boolean;
-  intakeDone: boolean;
   parked?: boolean;
 }): WillabState {
   if (!flags.consentAccepted) return "welcome_consent";
-  if (!flags.intakeDone) return "intake_in_progress";
   if (flags.parked) return "parked";
   return "lounge_idle";
 }
 
-/* First-run flags. These are localStorage stubs in the shell; the real
- * Welcome (§12) writes the consent flag and the real Intake (§2) writes the
- * profile, which later supersedes `intake_done`. */
+/* First-run flag. The real Welcome (§12) writes the consent flag; onboarding
+ * past consent is now the recording setup itself, so there is no separate
+ * intake gate. */
 const CONSENT_KEY = "willab.consent_accepted";
-const INTAKE_KEY = "willab.intake_done";
 
 function readFlag(key: string): boolean {
   if (typeof window === "undefined") return false;
@@ -100,7 +96,6 @@ export interface UseWillabFlowReturn {
   labOverlayOpen: boolean;
   goTo: (s: WillabState) => void;
   acceptConsent: () => void;
-  finishIntake: () => void;
   startRecording: () => void;
   /** Enter the Lab past the project picker (a title was chosen, or the user
    *  chose a new topic). */
@@ -113,11 +108,9 @@ export function useWillabFlow(): UseWillabFlowReturn {
   const [state, setState] = useState<WillabState | null>(null);
   useEffect(() => {
     const consent = readFlag(CONSENT_KEY);
-    const intake = readFlag(INTAKE_KEY);
 
-    // Pre-session states are FE-local (onboarding gates + parked readout).
+    // Pre-session states are FE-local (consent gate + parked readout).
     if (!consent) { setState("welcome_consent"); return; }
-    if (!intake) { setState("intake_in_progress"); return; }
     if (hasParkedReadout()) { setState("parked"); return; }
 
     // Post-intake active state is BE-owned (seam 8). Fetch once on mount;
@@ -132,10 +125,8 @@ export function useWillabFlow(): UseWillabFlowReturn {
   const goTo = useCallback((s: WillabState) => setState(s), []);
   const acceptConsent = useCallback(() => {
     writeFlag(CONSENT_KEY);
-    setState("intake_in_progress");
-  }, []);
-  const finishIntake = useCallback(() => {
-    writeFlag(INTAKE_KEY);
+    // Onboarding past consent is the recording setup itself now; a freshly
+    // consented (brand-new) user has no session, so land on the Lounge.
     setState("lounge_idle");
   }, []);
   const startRecording = useCallback(() => {
@@ -160,7 +151,6 @@ export function useWillabFlow(): UseWillabFlowReturn {
     labOverlayOpen: state != null && isLabOverlay(state),
     goTo,
     acceptConsent,
-    finishIntake,
     startRecording,
     startRecordingSetup,
     closeLab,

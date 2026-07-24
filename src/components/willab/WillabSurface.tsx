@@ -11,7 +11,6 @@ import { useUserId } from "./useUserId";
 import { useStatusHydration, reconcileWillabStatus } from "./useStatusHydration";
 import { getReviewPending } from "./sendStatus";
 import WelcomeConsent from "./WelcomeConsent";
-import Intake from "./Intake";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
 import ProjectPicker from "./ProjectPicker";
@@ -25,9 +24,9 @@ import { LoungeThreadProvider } from "./LoungeThreadContext";
 /* -------------------------------------------------------------------------- */
 /*  WillabSurface — restructure SHELL root (feature-flagged)                   */
 /*                                                                            */
-/*  Renders the willab-beta structure: first-run screens (Welcome → Intake),  */
+/*  Renders the willab-beta structure: the first-run Welcome consent screen,   */
 /*  then the always-mounted Lounge home with the Lab as an overlay layered     */
-/*  over it. Welcome (§12), Intake (§2), Lounge (§3) and the Lab front-half     */
+/*  over it. Welcome (§12), Lounge (§3) and the Lab front-half                  */
 /*  (§4: session_context + record capture) are real; the Lab's processing /     */
 /*  Readout / Send tail (§5/§13) is the BE-gated seam, walkable via stubs       */
 /*  inside LabOverlay until the upload handler (BE ③) lands.                   */
@@ -81,7 +80,7 @@ export default function WillabSurface({
   usePublishLiveSubscription(userId, onPublish);
 
   // A2 — `flush` drops the TOP padding so the chat sits flush under the navbar
-  // (no gap). Scoped to the home/Lounge call only; welcome + intake keep py-6.
+  // (no gap). Scoped to the home/Lounge call only; welcome keeps py-6.
   const shell = (children: React.ReactNode, flush = false) => (
     <main className="willab-chat flex h-full flex-col overflow-hidden bg-background">
       <div className="shrink-0">
@@ -105,9 +104,6 @@ export default function WillabSurface({
   // First-run, full-screen (no Lounge underneath yet).
   if (flow.state === "welcome_consent") {
     return shell(<WelcomeConsent onAccept={flow.acceptConsent} />);
-  }
-  if (flow.state === "intake_in_progress") {
-    return shell(<Intake onDone={flow.finishIntake} />);
   }
 
   // Home: the always-mounted Lounge, with the Lab overlay layered when open.
