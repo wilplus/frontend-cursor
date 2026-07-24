@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Crown, FileDown, Loader2, Sparkles } from "lucide-react";
+import { Crown, FileDown, Sparkles } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import { SlideRender } from "./pdfSlides";
@@ -11,7 +10,6 @@ import {
   type BestPresentationResult,
   type BestPresentationSlide,
 } from "@/services/api/bestPresentation";
-import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 import { useUserProfile } from "./useUserProfile";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import { useBackDismiss } from "./useBackDismiss";
@@ -44,53 +42,23 @@ export default function BestPresentationOverlay({
    *  the explore arc THIS overlay shows (not whatever localStorage holds). */
   onRecordNext?: (takesDone: number) => void;
 }) {
-  const router = useRouter();
   const [status, setStatus] = useState<
-    "loading" | "ready" | "error" | "paywall" | "preparing"
+    "loading" | "ready" | "error" | "preparing"
   >("loading");
   const [result, setResult] = useState<BestPresentationResult | null>(null);
-  // Bumped after a successful unlock to re-run the fetch (now entitled).
+  // Bumped by the error-state "Try again" retry to re-run the fetch.
   const [refetchNonce, setRefetchNonce] = useState(0);
-  const [unlocking, setUnlocking] = useState(false);
-  // Soft, retryable notice under the unlock button — never an error screen.
-  const [unlockError, setUnlockError] = useState<string | null>(null);
   // Delivery layer — the coach flow lives in CoachIdealTextPanel now.
   const { isCoach } = useUserProfile();
 
   // R7 — the shared stack-aware back-dismiss (an inline popstate listener would
-  // bypass the overlay stack and cascade-close everything underneath). The
-  // returned suppressor replaces the old leftViaNavRef: call it right before a
-  // FORWARD navigation (pricing top-up, the game link) so the unmount cleanup
-  // doesn't history.back() over it.
-  const suppressBackDismiss = useBackDismiss(onClose);
-
-  async function handleUnlock() {
-    if (unlocking) return;
-    setUnlockError(null);
-    setUnlocking(true);
-    const r = await unlockArc(arcId);
-    setUnlocking(false);
-    if (r.ok) {
-      setStatus("loading");
-      setRefetchNonce((n) => n + 1);
-      return;
-    }
-    if (r.reason === "insufficient") {
-      suppressBackDismiss();
-      router.push("/dashboard/pricing");
-      return;
-    }
-    setUnlockError(r.message);
-  }
+  // bypass the overlay stack and cascade-close everything underneath).
+  useBackDismiss(onClose);
 
   useEffect(() => {
     let active = true;
     void fetchBestPresentation(arcId).then((r) => {
       if (!active) return;
-      if (r && "paymentRequired" in r) {
-        setStatus("paywall");
-        return;
-      }
       if (r && "preparing" in r) {
         setStatus("preparing");
         return;
@@ -195,40 +163,6 @@ export default function BestPresentationOverlay({
     );
   }
 
-  if (status === "paywall") {
-    return (
-      <PreShellOverlay onClose={onClose}>
-        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-          <Crown className="h-6 w-6 text-amber-500" aria-hidden />
-          <p className="text-[15px] font-semibold text-foreground">
-            This is part of the full audit
-          </p>
-          <p className="text-[14px] leading-relaxed text-muted-foreground">
-            Unlock it for ${ARC_UNLOCK_CREDITS}: your coach-corrected ideal text,
-            every breakthrough moment, and more. Money-back guaranteed.
-          </p>
-          <button
-            type="button"
-            onClick={() => void handleUnlock()}
-            disabled={unlocking}
-            className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            {unlocking ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Unlocking...
-              </>
-            ) : (
-              `Unlock for ${ARC_UNLOCK_CREDITS} credits`
-            )}
-          </button>
-          {unlockError ? (
-            <p className="text-[13px] text-muted-foreground">{unlockError}</p>
-          ) : null}
-        </div>
-      </PreShellOverlay>
-    );
-  }
   if (status === "preparing") {
     return (
       <PreShellOverlay onClose={onClose}>

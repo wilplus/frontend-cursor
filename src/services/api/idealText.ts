@@ -398,22 +398,14 @@ export function mapIdealPieces(raw: unknown): IdealPiece[] | null {
   return out;
 }
 
-/** Instant-lane paywall figures from the BE payload; null → the UI falls back
- *  to the ARC_UNLOCK_CREDITS constant / its own balance fetch. */
-export interface InstantPaywall {
-  priceCredits: number | null;
-  creditsCurrent: number | null;
-}
-
 export type IdealTextResult =
-  | { kind: "ready"; ideal: IdealText } // the coach-perfected text (paid + approved)
+  | { kind: "ready"; ideal: IdealText } // the coach-perfected text (approved)
   // The FREE machine draft (founder re-lock 2026-07-17): served the moment the
-  // eager assembler has output, before payment/approval. Text + key moments
-  // only — no notes (the personal notebook copy stays a perfected-lane
-  // feature). The BE flags this with variant:"instant". `entitled` = the user
-  // already paid (the arc just isn't approved yet) — true suppresses the Buy
-  // CTA; false/absent → the upsell shows (safe-ahead of the BE field).
-  | { kind: "instant"; ideal: IdealText; paywall: InstantPaywall; entitled: boolean }
+  // eager assembler has output, before the coach-perfected version is approved.
+  // Text + key moments only — no notes (the personal notebook copy stays a
+  // perfected-lane feature). The BE flags this with variant:"instant". Reading
+  // it is free; the only paid thing in the app is the 5-credit moments unlock.
+  | { kind: "instant"; ideal: IdealText }
   // Single-deliverable (SINGLE_DELIVERABLE_ENABLED): the ONE living ideal text.
   // Both statuses are FREE to read; the only paid thing in the app is opening
   // the key-moment explanations (momentsUnlocked + priceCredits drive that).
@@ -487,7 +479,6 @@ export type IdealTextResult =
   // ?version=N with no snapshot (assembled before history existed) — the FE
   // falls back to the live notebook, exactly as before.
   | { kind: "historicalUnavailable"; currentVersion: number | null }
-  | { kind: "locked" } // 402 — the $25 unlock opens it (legacy lane)
   | { kind: "pending" } // 404 / not approved yet — coach still working
   | { kind: "error" };
 
@@ -626,31 +617,14 @@ export function mapIdealText(raw: unknown): IdealText | null {
   };
 }
 
-/** Map a variant:"instant" payload → the instant result. Pure; null when the
- *  payload carries no usable text (the caller degrades to pending). Paywall
- *  figures read defensively across the plausible key spellings; missing →
- *  null (the UI falls back to its own constant/balance fetch). */
+/** Map a variant:"instant" payload → the free instant draft. Pure; null when
+ *  the payload carries no usable text (the caller degrades to pending). */
 export function mapInstantIdealText(
   raw: Record<string, unknown>
 ): Extract<IdealTextResult, { kind: "instant" }> | null {
   const ideal = mapIdealText(raw);
   if (!ideal) return null;
-  const count = (v: unknown): number | null =>
-    typeof v === "number" && Number.isFinite(v) ? v : null;
-  const pw = (raw.paywall ?? {}) as Record<string, unknown>;
-  return {
-    kind: "instant",
-    ideal,
-    paywall: {
-      priceCredits:
-        count(pw.price) ?? count(pw.price_credits) ?? count(pw.credits),
-      creditsCurrent: count(pw.credits_current) ?? count(pw.balance),
-    },
-    // Already-paid signal, read across plausible spellings; absent → false
-    // (the upsell shows). Prevents re-selling an unlock the user owns.
-    entitled:
-      raw.entitled === true || raw.paid === true || pw.entitled === true,
-  };
+  return { kind: "instant", ideal };
 }
 
 /** FE-3b — a historical snapshot's key_moments carry `suggestion` but NO
@@ -670,9 +644,10 @@ export function inferHistoricalStars(ideal: IdealText): IdealText {
   };
 }
 
-/** Student fetch — gated by the $25 unlock; pending until the coach approves.
- *  `version` (FE-3b) requests an OLD version's read-only snapshot; omit for
- *  the live document. N == current serves the live notebook unchanged. */
+/** Student fetch — the ideal text is free to read (SD + instant lanes); pending
+ *  until the coach approves the perfected version. `version` (FE-3b) requests an
+ *  OLD version's read-only snapshot; omit for the live document. N == current
+ *  serves the live notebook unchanged. */
 export async function fetchIdealText(
   arcId: string,
   version?: number | null
@@ -693,7 +668,6 @@ export async function fetchIdealText(
   } catch {
     return { kind: "error" };
   }
-  if (res.status === 402) return { kind: "locked" };
   if (res.status === 404) return { kind: "pending" };
   if (!res.ok) return { kind: "error" };
   const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
@@ -785,7 +759,6 @@ export async function fetchIdealText(
   if (body?.variant === "instant") {
     return mapInstantIdealText(body) ?? { kind: "pending" };
   }
-  if (body?.locked === true) return { kind: "locked" };
   const ideal = mapIdealText(body);
   if (!ideal) return { kind: "pending" };
   if (!ideal.approved) return { kind: "pending" };

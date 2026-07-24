@@ -1,18 +1,16 @@
 import { getAuthToken } from "@/lib/api/auth-client";
-import type { BestPresentationPaywall } from "./bestPresentation";
 
 /* -------------------------------------------------------------------------- */
-/*  arcGame — the key-moment game (E5), a paid deliverable behind the $25 gate */
+/*  arcGame — the key-moment game (E5)                                          */
 /*                                                                            */
 /*  Rounds mix the arc owner's coach-confirmed key moments with their own       */
 /*  unmarked moments as decoys; the user guesses which is which, and the "why"   */
 /*  reveal teaches through their own patterns (E4). Every answer is second-     */
 /*  order signal (L2/L3: never joined into coach truth) — the FE just plays.    */
 /*                                                                            */
-/*  Safe ahead of the BE: 402 → the same clean paywall as ideal-text /          */
-/*  breakthroughs; 404/501 (engine not shipped yet) → a notAvailable sentinel   */
-/*  rendered as "coming soon", never an error. All mappers are defensive; a      */
-/*  malformed round is dropped, not crashed on.                                 */
+/*  Safe ahead of the BE: 404/501 (engine not shipped yet) → a notAvailable     */
+/*  sentinel rendered as "coming soon", never an error. All mappers are          */
+/*  defensive; a malformed round is dropped, not crashed on.                    */
 /* -------------------------------------------------------------------------- */
 
 export interface GameRound {
@@ -74,7 +72,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 export async function fetchArcGame(
   arcId: string,
   snippetId?: string | null
-): Promise<GameSession | BestPresentationPaywall | GameNotAvailable | null> {
+): Promise<GameSession | GameNotAvailable | null> {
   const headers = await authHeaders();
   const qs = snippetId ? `?snippet=${encodeURIComponent(snippetId)}` : "";
   let res: Response;
@@ -88,7 +86,6 @@ export async function fetchArcGame(
   } catch {
     return null;
   }
-  if (res.status === 402) return { paymentRequired: true };
   if (res.status === 404 || res.status === 501) return { notAvailable: true };
   if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as Record<

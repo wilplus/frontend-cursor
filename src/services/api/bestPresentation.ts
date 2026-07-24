@@ -174,35 +174,19 @@ export async function fetchBestPresentationProgress(
 // Delivery layer: per-slide text editing is retired — the coach edits the
 // ONE-BLOCK ideal text (idealText.ts) and the user edits their notebook copy.
 
-/** Full payload — fetched once when the overlay opens.
- *  Soft-fails to null. */
-/** 402 sentinel — the deliverable exists but is behind the $25 audit paywall.
- *  The overlay renders a clean unlock CTA, NEVER an error (founder rule: a
- *  paid-but-unpurchased open is a paywall, not a failure). */
-export interface BestPresentationPaywall {
-  paymentRequired: true;
-}
-
-/** "Still being prepared" sentinel — the arc is PAID (past the 402 gate) and its
- *  takes are done, but the coach hasn't finalized every slide's ideal text yet.
- *  Distinct from the paywall (a money state) and from the not-ready progress
- *  state (takes still owed): the FE shows a calm "your coach is putting this
- *  together" panel and NEVER the raw auto-draft. Detected on a 200 body via
+/** "Still being prepared" sentinel — the arc's takes are done, but the coach
+ *  hasn't finalized every slide's ideal text yet. Distinct from the not-ready
+ *  progress state (takes still owed): the FE shows a calm "your coach is putting
+ *  this together" panel and NEVER the raw auto-draft. Detected on a 200 body via
  *  `ready === true && coach_finalized === false` (the BE serves empty slide text
- *  until then). There is NO 202 / sentinel field — this endpoint only 402s or
- *  200s (confirmed against the BE route). */
+ *  until then). */
 export interface BestPresentationPreparing {
   preparing: true;
 }
 
 export async function fetchBestPresentation(
   arcId: string
-): Promise<
-  | BestPresentationResult
-  | BestPresentationPaywall
-  | BestPresentationPreparing
-  | null
-> {
+): Promise<BestPresentationResult | BestPresentationPreparing | null> {
   const headers = await authHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -223,7 +207,6 @@ export async function fetchBestPresentation(
   } finally {
     clearTimeout(timeout);
   }
-  if (res.status === 402) return { paymentRequired: true };
   if (!res.ok) return null;
   const body = (await res.json().catch(() => null)) as Record<
     string,
@@ -333,12 +316,10 @@ function mapBreakthrough(raw: unknown, i: number): ArcBreakthrough | null {
   };
 }
 
-/** Fetch the arc's coach-confirmed breakthroughs. The list is a PAID deliverable
- *  (same $25 gate as the ideal text), so a 402 returns the paywall sentinel — a
- *  clean unlock, never an error. Anything else soft-fails to null. */
+/** Fetch the arc's coach-confirmed breakthroughs (free). Soft-fails to null. */
 export async function fetchArcBreakthroughs(
   arcId: string
-): Promise<ArcBreakthroughsResult | BestPresentationPaywall | null> {
+): Promise<ArcBreakthroughsResult | null> {
   const headers = await authHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -359,7 +340,6 @@ export async function fetchArcBreakthroughs(
   } finally {
     clearTimeout(timeout);
   }
-  if (res.status === 402) return { paymentRequired: true };
   if (!res.ok) return null;
   const body: unknown = await res.json().catch(() => null);
   if (!body || typeof body !== "object") return null;
