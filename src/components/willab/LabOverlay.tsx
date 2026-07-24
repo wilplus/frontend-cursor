@@ -36,6 +36,7 @@ import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
 import PresentationInput from "./PresentationInput";
+import ContextDocumentInput from "./ContextDocumentInput";
 import SlideStage from "./SlideStage";
 import {
   readExploreArc,
@@ -723,6 +724,14 @@ export default function LabOverlay({
             applyNonce={applyLastNonce}
             // SD — the 3-take arc is retired: no "Take N of 3" banner.
             activeArcTake={null}
+            // Context document attaches to the arc; a staged standalone upload
+            // is detached (arc nulled on submit), so suppress the field there —
+            // same guard as preloadDeck. Also signed-in only: the endpoint is
+            // owner-scoped and 401s without a token, and a guest can still hold
+            // a locally-cached arcId, so gate on signedIn like the arc prefill.
+            contextArcId={
+              stagedUploadRef.current || signedIn !== true ? null : arcId
+            }
             preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
             onSubmit={(ctx, explore) => {
@@ -951,6 +960,7 @@ function SessionContextForm({
   lastSetup,
   applyNonce,
   activeArcTake,
+  contextArcId,
   preloadDeck,
   hideDeck = false,
   onSubmit,
@@ -959,6 +969,10 @@ function SessionContextForm({
   applyNonce: number;
   /** Set when continuing an active arc (take 2+). null = no active arc. */
   activeArcTake: number | null;
+  /** Arc this setup records into, or null for a brand-new project / a detached
+   *  standalone upload. Gates the background context-document field (X-1), which
+   *  attaches to an existing arc. */
+  contextArcId: string | null;
   /** When recording another take into a known deck, pre-fill topic + slides +
    *  the already-served PDF so the user doesn't re-enter them. */
   preloadDeck: ExploreArcDeck | null;
@@ -1094,6 +1108,15 @@ function SessionContextForm({
             />
           </Field>
         )}
+
+        {/* X-1 — context document: attaches to the arc, so it only appears once
+            the project exists (continuing a project). A brand-new arc has no id
+            yet; the affordance surfaces on the next take. */}
+        {contextArcId ? (
+          <Field label="Context document">
+            <ContextDocumentInput arcId={contextArcId} />
+          </Field>
+        ) : null}
       </div>
 
       {/* Sticky CTA (design spec) — disabled until there's a topic. */}
