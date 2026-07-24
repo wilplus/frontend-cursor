@@ -24,9 +24,9 @@ afterEach(() => {
 });
 
 describe("fetchArcGame", () => {
-  it("402 → paywall sentinel (same $25 gate)", async () => {
+  it("402 → null (payment gate removed; the game is free)", async () => {
     mockFetch(402, { code: "PAID_ARC_REQUIRED" });
-    expect(await fetchArcGame("a")).toEqual({ paymentRequired: true });
+    expect(await fetchArcGame("a")).toBeNull();
   });
 
   it("501 (stub) and 404 (unshipped) → notAvailable, never an error", async () => {

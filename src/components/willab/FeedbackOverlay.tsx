@@ -5,7 +5,6 @@ import { Info } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
-import PaywallPanel from "./PaywallPanel";
 import { useBackDismiss } from "./useBackDismiss";
 import {
   fetchArcFeedback,
@@ -23,8 +22,8 @@ import {
 /*    1. The take's coach-verified full text — all together, NO playback.      */
 /*    2. Key moments, grouped per slide (one group when ≤1 slide): each is a   */
 /*       playback of that snippet + the coach's comment (text and/or video).   */
-/*  No suggestions, no scores (AC-9). A locked take (2/3 pre-unlock) renders   */
-/*  the paywall panel; unlocking refetches in place.                           */
+/*  No suggestions, no scores (AC-9). Feedback is free (the only paid thing is  */
+/*  the 5-credit moments unlock on the ideal text).                            */
 /*                                                                            */
 /*  Each key moment is anchor-addressable (`moment-<snippetId>`) so the ideal  */
 /*  text's underlined moments can deep-link here.                              */
@@ -54,7 +53,6 @@ export default function FeedbackOverlay({
   useBackDismiss(onClose);
   const [data, setData] = useState<ArcFeedback | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refetchNonce, setRefetchNonce] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +65,7 @@ export default function FeedbackOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce]);
+  }, [arcId]);
 
   const take: FeedbackTake | null = (() => {
     if (!data || data.takes.length === 0) return null;
@@ -84,7 +82,7 @@ export default function FeedbackOverlay({
 
   // Deep-link: once the take is rendered, scroll its anchored moment into view.
   useEffect(() => {
-    if (!anchorSnippetId || loading || !take || take.locked) return;
+    if (!anchorSnippetId || loading || !take) return;
     const el = document.getElementById(`moment-${anchorSnippetId}`);
     if (el) el.scrollIntoView({ block: "center" });
   }, [anchorSnippetId, loading, take]);
@@ -111,11 +109,6 @@ export default function FeedbackOverlay({
               Your coach is still putting this feedback together. Check back
               soon.
             </p>
-          ) : take.locked ? (
-            <PaywallPanel
-              arcId={arcId}
-              onUnlocked={() => setRefetchNonce((n) => n + 1)}
-            />
           ) : (
             <TakeFeedback take={take} anchorSnippetId={anchorSnippetId} />
           )}

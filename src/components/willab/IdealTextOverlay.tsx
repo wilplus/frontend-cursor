@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
-import PaywallPanel from "./PaywallPanel";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { MarkerToolbar, RichText } from "./RichText";
@@ -26,7 +25,6 @@ import {
   type DocumentSuggestion,
   type IdealPiece,
   type IdealText,
-  type InstantPaywall,
   type MomentSuggestion,
 } from "@/services/api/idealText";
 import {
@@ -77,7 +75,7 @@ export default function IdealTextOverlay({
   // nested FeedbackOverlay, which pushes its own entry on top).
   useBackDismiss(onClose);
   const [status, setStatus] = useState<
-    "loading" | "ready" | "instant" | "locked" | "pending" | "error" | "historical"
+    "loading" | "ready" | "instant" | "pending" | "error" | "historical"
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
   // FE-3b — the frozen step being viewed (its version chip), and the fall-back
@@ -90,24 +88,6 @@ export default function IdealTextOverlay({
   useEffect(() => {
     setRequestedVersion(version);
   }, [version, arcId]);
-  // Instant lane — the payload's paywall figures for the upsell CTA.
-  const [instantPaywall, setInstantPaywall] = useState<InstantPaywall | null>(
-    null
-  );
-  // The user unlocked from THIS overlay (or the payload says they're already
-  // entitled). The BE serves variant:"instant" for any unapproved arc, paid or
-  // not — so after a successful unlock the refetch lands back on instant and,
-  // without this flag, would re-show a "Buy" CTA for an arc the user just
-  // bought (review R-i1). Unlocked → the upsell swaps to a confirmation.
-  const [unlocked, setUnlocked] = useState(false);
-  // The last instant draft, kept so a post-unlock refetch that maps to
-  // "pending" (a BE serving instant strictly to unpaid arcs) doesn't make the
-  // text the user was just reading vanish behind a bare pending line (R-i2).
-  const lastInstantRef = useRef<{
-    ideal: IdealText;
-    paywall: InstantPaywall;
-  } | null>(null);
-  const unlockedRef = useRef(false);
   const [refetchNonce, setRefetchNonce] = useState(0);
   // Staleness fence for the GET (same rule as the readout, review R-db4).
   const fetchGenRef = useRef(0);
@@ -129,12 +109,8 @@ export default function IdealTextOverlay({
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
-  // A different arc = a fresh entitlement question; never carry the unlocked
-  // flag or a cached draft across arcs.
+  // A different arc = a fresh document; clear any local moment folds.
   useEffect(() => {
-    unlockedRef.current = false;
-    lastInstantRef.current = null;
-    setUnlocked(false);
     stars.resetFolds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arcId]);
@@ -199,29 +175,10 @@ export default function IdealTextOverlay({
         setNotes(r.ideal.notes);
         setStatus("ready");
       } else if (r.kind === "instant") {
-        // The free machine draft — same reading view, plus the polishing
-        // banner + upsell; no personal-notes editing (perfected-lane feature).
+        // The free machine draft — same reading view plus the polishing banner;
+        // no personal-notes editing (that stays a perfected-lane feature).
         setIdeal(r.ideal);
         setNotes(null);
-        setInstantPaywall(r.paywall);
-        lastInstantRef.current = { ideal: r.ideal, paywall: r.paywall };
-        if (r.entitled) {
-          unlockedRef.current = true;
-          setUnlocked(true);
-        }
-        setStatus("instant");
-      } else if (
-        r.kind === "pending" &&
-        unlockedRef.current &&
-        lastInstantRef.current
-      ) {
-        // R-i2 — the user just unlocked and the BE stopped serving the instant
-        // draft (a strictly-unpaid instant lane). Keep showing the draft they
-        // were reading, with the unlocked confirmation, instead of swapping
-        // paid-for content for a bare pending line.
-        setIdeal(lastInstantRef.current.ideal);
-        setNotes(null);
-        setInstantPaywall(lastInstantRef.current.paywall);
         setStatus("instant");
       } else {
         setStatus(r.kind);
@@ -380,11 +337,6 @@ export default function IdealTextOverlay({
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
           {status === "loading" ? (
             <LoadingState />
-          ) : status === "locked" ? (
-            <PaywallPanel
-              arcId={arcId}
-              onUnlocked={() => setRefetchNonce((n) => n + 1)}
-            />
           ) : status === "pending" ? (
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
               Your coach is still shaping your ideal text. It lands here the
@@ -419,9 +371,9 @@ export default function IdealTextOverlay({
             </p>
           ) : status === "instant" && ideal ? (
             <div className="flex flex-col gap-5">
-              {/* The persistent instant banner — this text is a DRAFT the
+              {/* The persistent instant banner — this text is a free DRAFT the
                   machine assembled; the coach-perfected version replaces it
-                  on this same screen once approved + unlocked. */}
+                  on this same screen once the coach approves it. */}
               <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
                 <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                 <p className="text-[13px] leading-relaxed text-foreground">
@@ -437,35 +389,6 @@ export default function IdealTextOverlay({
                 ideal={ideal}
                 onMomentTap={setMomentAsk}
               />
-              {/* The upsell — same unlock seam as the hard paywall, with the
-                  payload's figures and instant-specific lead copy. Once
-                  unlocked (here, or already entitled per the payload), the Buy
-                  CTA must never re-show for this arc: the perfected text just
-                  isn't approved yet, which is the coach's timeline, not a
-                  payment problem (review R-i1). */}
-              {unlocked ? (
-                <div className="flex items-center gap-2 rounded-2xl border border-success/40 bg-success/5 px-4 py-3">
-                  <Check className="h-4 w-4 shrink-0 text-success" aria-hidden />
-                  <p className="text-[13px] leading-relaxed text-foreground">
-                    Full analysis unlocked. The coach-perfected version lands
-                    here as soon as your coach approves it.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-border bg-card">
-                  <PaywallPanel
-                    arcId={arcId}
-                    onUnlocked={() => {
-                      unlockedRef.current = true;
-                      setUnlocked(true);
-                      setRefetchNonce((n) => n + 1);
-                    }}
-                    lead="Want the coach-perfected version? Unlock the full analysis."
-                    priceCredits={instantPaywall?.priceCredits ?? null}
-                    creditsCurrent={instantPaywall?.creditsCurrent ?? null}
-                  />
-                </div>
-              )}
             </div>
           ) : editing && ideal ? (
             <NotebookEditor

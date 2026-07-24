@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Crown, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import { readExploreArc } from "@/lib/willab/exploreArc";
-import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 import {
   fetchArcGame,
   submitGameAnswer,
@@ -26,8 +25,7 @@ import {
 /*  moments; they guess which is which, then the "Here is why" reveal teaches   */
 /*  through their own patterns. Rounds appear one at a time (the next reveals   */
 /*  after answering); the scroll ends in "Save to daily practice". Behind the    */
-/*  same $25 arc gate as the other paid deliverables — 402 renders the clean     */
-/*  unlock paywall, 404/501 a calm coming-soon (the engine ships BE-side).       */
+/*  404/501 renders a calm coming-soon (the engine ships BE-side); free.       */
 /* -------------------------------------------------------------------------- */
 
 export default function GamePageClient({
@@ -43,12 +41,9 @@ export default function GamePageClient({
     () => initialArcId ?? readExploreArc()?.arcId ?? null
   );
   const [status, setStatus] = useState<
-    "loading" | "ready" | "paywall" | "coming_soon" | "empty" | "error"
+    "loading" | "ready" | "coming_soon" | "empty" | "error"
   >("loading");
   const [session, setSession] = useState<GameSession | null>(null);
-  const [refetchNonce, setRefetchNonce] = useState(0);
-  const [unlocking, setUnlocking] = useState(false);
-  const [unlockError, setUnlockError] = useState<string | null>(null);
   // Archive (saved daily-practice sessions) — hidden when empty.
   const [saved, setSaved] = useState<SavedGameSession[]>([]);
 
@@ -64,10 +59,6 @@ export default function GamePageClient({
     let active = true;
     void fetchArcGame(arcId, initialSnippetId).then((r) => {
       if (!active) return;
-      if (r && "paymentRequired" in r) {
-        setStatus("paywall");
-        return;
-      }
       if (r && "notAvailable" in r) {
         setStatus("coming_soon");
         return;
@@ -78,27 +69,7 @@ export default function GamePageClient({
     return () => {
       active = false;
     };
-  }, [arcId, initialSnippetId, refetchNonce]);
-
-  // Spend credits to unlock — same flow as the ideal-text / breakthroughs
-  // paywalls (a paywall is never an error; a dead-tap never silent).
-  async function handleUnlock() {
-    if (unlocking || !arcId) return;
-    setUnlockError(null);
-    setUnlocking(true);
-    const r = await unlockArc(arcId);
-    setUnlocking(false);
-    if (r.ok) {
-      setStatus("loading");
-      setRefetchNonce((n) => n + 1);
-      return;
-    }
-    if (r.reason === "insufficient") {
-      router.push("/dashboard/pricing");
-      return;
-    }
-    setUnlockError(r.message);
-  }
+  }, [arcId, initialSnippetId]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col bg-background">
@@ -114,38 +85,6 @@ export default function GamePageClient({
         {status === "loading" ? (
           <Centered>
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </Centered>
-        ) : status === "paywall" ? (
-          <Centered>
-            <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-              <Crown className="h-6 w-6 text-amber-500" aria-hidden />
-              <p className="text-[15px] font-semibold text-foreground">
-                This is part of the full audit
-              </p>
-              <p className="text-[14px] leading-relaxed text-muted-foreground">
-                Unlock it for ${ARC_UNLOCK_CREDITS}: the key-moment game, your
-                coach-corrected ideal text, and every breakthrough moment.
-                Money-back guaranteed.
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleUnlock()}
-                disabled={unlocking}
-                className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-              >
-                {unlocking ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    Unlocking...
-                  </>
-                ) : (
-                  `Unlock for ${ARC_UNLOCK_CREDITS} credits`
-                )}
-              </button>
-              {unlockError ? (
-                <p className="text-[13px] text-muted-foreground">{unlockError}</p>
-              ) : null}
-            </div>
           </Centered>
         ) : status === "coming_soon" ? (
           <Centered>

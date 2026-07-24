@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Crown, Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import LoadingState from "./LoadingState";
@@ -14,7 +13,6 @@ import {
   type ArcBreakthrough,
   type ArcBreakthroughsResult,
 } from "@/services/api/bestPresentation";
-import { unlockArc, ARC_UNLOCK_CREDITS } from "@/services/api/arcUnlock";
 
 /* -------------------------------------------------------------------------- */
 /*  BreakthroughsOverlay (#5) — every coach-confirmed breakthrough in an arc,  */
@@ -30,24 +28,18 @@ export default function BreakthroughsOverlay({
   arcId: string;
   onClose: () => void;
 }) {
-  const router = useRouter();
-  const [status, setStatus] = useState<
-    "loading" | "ready" | "error" | "paywall"
-  >("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading"
+  );
   const [result, setResult] = useState<ArcBreakthroughsResult | null>(null);
   const [cursor, setCursor] = useState(0);
-  // Bumped after a successful unlock to re-run the fetch (now entitled).
-  const [refetchNonce, setRefetchNonce] = useState(0);
-  const [unlocking, setUnlocking] = useState(false);
-  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
   // R7 — the shared stack-aware back-dismiss (an inline listener would bypass
   // the overlay stack and cascade-close everything underneath). Back steps one
-  // breakthrough back first (onBack consumes), then closes. The suppressor
-  // replaces the old leftViaNavRef for the pricing top-up forward-nav.
-  const suppressBackDismiss = useBackDismiss(onClose, () => {
+  // breakthrough back first (onBack consumes), then closes.
+  useBackDismiss(onClose, () => {
     if (cursorRef.current > 0) {
       setCursor((c) => c - 1);
       return true;
@@ -55,77 +47,27 @@ export default function BreakthroughsOverlay({
     return false;
   });
 
-  // Spend credits to unlock this arc — mirrors BestPresentationOverlay. A paywall
-  // is never an error: on success refetch; short on credits → pricing top-up;
-  // transient / not-built (404) → a soft retry notice, never a silent dead-tap.
-  async function handleUnlock() {
-    if (unlocking) return;
-    setUnlockError(null);
-    setUnlocking(true);
-    const r = await unlockArc(arcId);
-    setUnlocking(false);
-    if (r.ok) {
-      setStatus("loading");
-      setRefetchNonce((n) => n + 1);
-      return;
-    }
-    if (r.reason === "insufficient") {
-      suppressBackDismiss();
-      router.push("/dashboard/pricing");
-      return;
-    }
-    setUnlockError(r.message);
-  }
-
   useEffect(() => {
     let active = true;
     void fetchArcBreakthroughs(arcId).then((r) => {
       if (!active) return;
-      // 402 = paid-but-unpurchased deliverable → a clean paywall, never an error.
-      if (r && "paymentRequired" in r) {
-        setStatus("paywall");
-        return;
-      }
       setResult(r);
       setStatus(r ? "ready" : "error");
     });
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce]);
+  }, [arcId]);
 
-  if (status === "paywall") {
+  // Error is checked BEFORE the `!result` guard: a failed fetch sets
+  // status="error" with result=null, so a `!result`-first order would trap it
+  // on the spinner forever (matches BestPresentationOverlay's ordering).
+  if (status === "error") {
     return (
       <PreShellOverlay onClose={onClose}>
-        <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-          <Crown className="h-6 w-6 text-amber-500" aria-hidden />
-          <p className="text-[15px] font-semibold text-foreground">
-            This is part of the full audit
-          </p>
-          <p className="text-[14px] leading-relaxed text-muted-foreground">
-            Unlock it for ${ARC_UNLOCK_CREDITS}: every breakthrough moment across
-            your takes, your coach-corrected ideal text, and more. Money-back
-            guaranteed.
-          </p>
-          <button
-            type="button"
-            onClick={() => void handleUnlock()}
-            disabled={unlocking}
-            className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            {unlocking ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Unlocking...
-              </>
-            ) : (
-              `Unlock for ${ARC_UNLOCK_CREDITS} credits`
-            )}
-          </button>
-          {unlockError ? (
-            <p className="text-[13px] text-muted-foreground">{unlockError}</p>
-          ) : null}
-        </div>
+        <p className="text-[15px] text-muted-foreground">
+          Couldn&apos;t load your breakthrough moments. Try again in a moment.
+        </p>
       </PreShellOverlay>
     );
   }
@@ -133,15 +75,6 @@ export default function BreakthroughsOverlay({
     return (
       <PreShellOverlay onClose={onClose}>
         <LoadingState />
-      </PreShellOverlay>
-    );
-  }
-  if (status === "error") {
-    return (
-      <PreShellOverlay onClose={onClose}>
-        <p className="text-[15px] text-muted-foreground">
-          Couldn&apos;t load your breakthrough moments. Try again in a moment.
-        </p>
       </PreShellOverlay>
     );
   }

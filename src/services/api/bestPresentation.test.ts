@@ -26,10 +26,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("fetchBestPresentation — paywall / preparing / ready state machine", () => {
-  it("402 → paywall sentinel (never an error)", async () => {
+describe("fetchBestPresentation — preparing / ready state machine", () => {
+  it("402 → null (payment gate removed; the ideal text is free)", async () => {
     mockFetch(402, { code: "PAYMENT_REQUIRED" });
-    expect(await fetchBestPresentation("a")).toEqual({ paymentRequired: true });
+    expect(await fetchBestPresentation("a")).toBeNull();
   });
 
   it("200 ready + coach_finalized:false → preparing (coach not done)", async () => {
@@ -79,10 +79,10 @@ describe("fetchBestPresentation — paywall / preparing / ready state machine", 
   });
 });
 
-describe("fetchArcBreakthroughs — paid deliverable, same $25 gate", () => {
-  it("402 → paywall sentinel (never an error)", async () => {
+describe("fetchArcBreakthroughs — free deliverable", () => {
+  it("402 → null (payment gate removed)", async () => {
     mockFetch(402, { code: "PAYMENT_REQUIRED" });
-    expect(await fetchArcBreakthroughs("a")).toEqual({ paymentRequired: true });
+    expect(await fetchArcBreakthroughs("a")).toBeNull();
   });
 
   it("200 → the breakthroughs list", async () => {
@@ -92,7 +92,6 @@ describe("fetchArcBreakthroughs — paid deliverable, same $25 gate", () => {
       breakthroughs: [{ snippet_id: "s1", transcript: "The line.", note: "why" }],
     });
     const r = await fetchArcBreakthroughs("a");
-    expect(r && "paymentRequired" in r).toBe(false);
     expect(r && "breakthroughs" in r && r.breakthroughs).toHaveLength(1);
   });
 });
