@@ -9,27 +9,19 @@
 /*  no FE intent logic — the classification is BE-owned.                        */
 /* -------------------------------------------------------------------------- */
 
-export type ChipAction =
-  | "trainings"
-  | "audit"
-  /** The $25 pay note (BE arc_notifications) — taps into the audit checkout. */
-  | "arc_checkout";
+export type ChipAction = "trainings" | "audit";
 
 export const CHIP_LABEL: Record<ChipAction, string> = {
   trainings: "Your presentations",
   audit: "Open audit",
-  arc_checkout: "Unlock the full audit",
 };
 
 // `record_again` is intentionally NOT a chip: the bot points at the permanent
 // "Start official recording" button in words instead of rendering an in-app
 // record CTA (#119 / reversal of #4). `strong_sides` was removed in R4-13
 // (the strong-sides surface is gone; the trainings tab is the destination).
-const VALID_ACTIONS: readonly ChipAction[] = [
-  "trainings",
-  "audit",
-  "arc_checkout",
-];
+// `arc_checkout` was removed with the $25/arc paywall (only $5 moments is paid).
+const VALID_ACTIONS: readonly ChipAction[] = ["trainings", "audit"];
 
 /**
  * S1 (B-1) — coerce the BE's `suggested_action` wire value into a known

@@ -5,7 +5,6 @@ describe("coerceSuggestedAction (B-1 / S1)", () => {
   it("passes through the known actions", () => {
     expect(coerceSuggestedAction("trainings")).toBe("trainings");
     expect(coerceSuggestedAction("audit")).toBe("audit");
-    expect(coerceSuggestedAction("arc_checkout")).toBe("arc_checkout");
   });
 
   it("returns null for absent / null / unknown (graceful degradation)", () => {
@@ -23,10 +22,13 @@ describe("coerceSuggestedAction (B-1 / S1)", () => {
     // strong_sides: the surface was removed in R4-13 — an old persisted
     // suggestion must degrade to no button, not crash.
     expect(coerceSuggestedAction("strong_sides")).toBeNull();
+    // arc_checkout: retired with the $25/arc paywall (only $5 moments is paid);
+    // an old pay-note bubble must degrade to no button.
+    expect(coerceSuggestedAction("arc_checkout")).toBeNull();
   });
 
   it("every action has a label", () => {
-    for (const a of ["trainings", "audit", "arc_checkout"] as const) {
+    for (const a of ["trainings", "audit"] as const) {
       expect(CHIP_LABEL[a]).toBeTruthy();
     }
   });
