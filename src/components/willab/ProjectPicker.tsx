@@ -82,15 +82,20 @@ export default function ProjectPicker({
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
-        <span className="text-[13px] font-medium text-foreground">
-          What are you recording?
-        </span>
+      <div className="flex h-12 shrink-0 items-center justify-end px-4">
         <OverlayCloseButton onClick={onClose} />
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-8">
+          <div>
+            <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+              New recording
+            </p>
+            <h2 className="mt-1.5 text-[22px] font-semibold leading-snug text-foreground">
+              What are you recording?
+            </h2>
+          </div>
           <Button
             type="button"
             onClick={onNewTopic}

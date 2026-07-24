@@ -3,26 +3,18 @@ import { initialWillabState, isLabOverlay, type WillabState } from "./useWillabF
 
 describe("initialWillabState", () => {
   it("routes a brand-new visitor to welcome_consent", () => {
-    expect(
-      initialWillabState({ consentAccepted: false, intakeDone: false })
-    ).toBe("welcome_consent");
+    expect(initialWillabState({ consentAccepted: false })).toBe(
+      "welcome_consent"
+    );
   });
 
-  it("routes a consented-but-not-intaked visitor to intake", () => {
-    expect(
-      initialWillabState({ consentAccepted: true, intakeDone: false })
-    ).toBe("intake_in_progress");
+  it("routes a consented user to the Lounge (no parked readout)", () => {
+    expect(initialWillabState({ consentAccepted: true })).toBe("lounge_idle");
   });
 
-  it("routes a fully-onboarded user to the Lounge (no parked readout)", () => {
+  it("routes a consented user with a parked Readout to the parked state", () => {
     expect(
-      initialWillabState({ consentAccepted: true, intakeDone: true })
-    ).toBe("lounge_idle");
-  });
-
-  it("routes an onboarded user with a parked Readout to the parked state", () => {
-    expect(
-      initialWillabState({ consentAccepted: true, intakeDone: true, parked: true })
+      initialWillabState({ consentAccepted: true, parked: true })
     ).toBe("parked");
   });
 
@@ -48,7 +40,6 @@ describe("isLabOverlay", () => {
   it("is false for the Lounge-level states", () => {
     const loungeStates: WillabState[] = [
       "welcome_consent",
-      "intake_in_progress",
       "lounge_idle",
       "parked",
       "review_pending",

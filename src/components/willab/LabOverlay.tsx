@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Loader2, Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
@@ -15,8 +14,6 @@ import { fetchArcSetup } from "@/services/api/arcSetup";
 import { takeLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import { useSayItStrongerPolling } from "./useSayItStrongerPolling";
-import { domainSpec } from "./domains";
-import { readWillabProfile } from "./willabProfile";
 import {
   batchTake,
   coerceTargetSeconds,
@@ -35,8 +32,7 @@ import FeelingsCheckIn from "./FeelingsCheckIn";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
-import PresentationInput from "./PresentationInput";
-import ContextDocumentInput from "./ContextDocumentInput";
+import RecordingSetup from "./RecordingSetup";
 import SlideStage from "./SlideStage";
 import {
   readExploreArc,
@@ -47,12 +43,7 @@ import {
   writeProcessingTake,
   clearProcessingTake,
 } from "@/lib/willab/processingTake";
-import {
-  clampSlides,
-  initialSlides,
-  nonEmptySlides,
-  type PresentationSlide,
-} from "./presentation";
+import { type PresentationSlide } from "./presentation";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -81,17 +72,11 @@ export interface LabSessionContext {
   slides: PresentationSlide[];
   /** The BE-served PDF url when a deck was uploaded; null for manual / none. */
   presentationRef: string | null;
+  /** ④ step 5 — a free-text strategic-context note (the stakes, the setting,
+   *  what the speaker wants to nail) sent as `strategic_context` to sharpen the
+   *  coaching. Optional; omitted when blank. */
+  strategicContext?: string;
 }
-
-const LENGTH_PRESETS = [
-  { label: "1 min", sec: 60 },
-  { label: "2 min", sec: 120 },
-  { label: "3 min", sec: 180 },
-  { label: "5 min", sec: 300 },
-  { label: "30 min", sec: 1800 },
-  { label: "45 min", sec: 2700 },
-  { label: "60 min", sec: 3600 },
-];
 
 export default function LabOverlay({
   state,
@@ -298,7 +283,6 @@ export default function LabOverlay({
   // then submits this file straight through (deckless) instead of live-record.
   const stagedUploadRef = useRef<File | null>(takeLabUpload());
 
-  const profile = useRef(readWillabProfile()).current;
   // "Same as last time" — the last set-up, sourced from the BE (cross-device,
   // survives a cache clear); null → no prior session → the button hides.
   // applyLastNonce bumps to trigger the form to re-fill.
@@ -405,6 +389,7 @@ export default function LabOverlay({
         domainVocabulary: context.domain_vocabulary,
         slides: context.slides,
         presentationRef: context.presentationRef,
+        strategicContext: context.strategicContext,
         slideAdvances: slideAdvancesRef.current,
         // Explore-arc fields — omitted for standalone recordings.
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
@@ -716,14 +701,9 @@ export default function LabOverlay({
         )}
 
         {state === "lab_session_context" && (
-          <SessionContextForm
+          <RecordingSetup
             lastSetup={lastSetup}
-            // A staged footer upload is an ad-hoc STANDALONE file — never a take
-            // of a persisted arc. Suppress the "Take N of 3" banner + the deck
-            // pre-fill (and hide the deck field) so no prior arc bleeds into it.
             applyNonce={applyLastNonce}
-            // SD — the 3-take arc is retired: no "Take N of 3" banner.
-            activeArcTake={null}
             // Context document attaches to the arc; a staged standalone upload
             // is detached (arc nulled on submit), so suppress the field there —
             // same guard as preloadDeck. Also signed-in only: the endpoint is
@@ -732,6 +712,9 @@ export default function LabOverlay({
             contextArcId={
               stagedUploadRef.current || signedIn !== true ? null : arcId
             }
+            // A staged footer upload is a STANDALONE file, never a take of a
+            // persisted arc: skip the deck pre-fill and hide the slide step so
+            // no prior arc bleeds into it.
             preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
             onSubmit={(ctx, explore) => {
@@ -924,215 +907,6 @@ export default function LabOverlay({
         )}
       </div>
     </div>
-  );
-}
-
-/* --------------------------- §4 step A: context --------------------------- */
-
-/** Setup-page input — one shared style (design spec). */
-const SETUP_INPUT_CLS =
-  "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
-
-/** A labelled setup section. One label style throughout; no badges / hints. */
-function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  htmlFor?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="py-4">
-      <label
-        htmlFor={htmlFor}
-        className="mb-3 block text-[15px] font-semibold text-foreground"
-      >
-        {label}
-      </label>
-      {children}
-    </section>
-  );
-}
-
-function SessionContextForm({
-  lastSetup,
-  applyNonce,
-  activeArcTake,
-  contextArcId,
-  preloadDeck,
-  hideDeck = false,
-  onSubmit,
-}: {
-  lastSetup: LabSessionContext | null;
-  applyNonce: number;
-  /** Set when continuing an active arc (take 2+). null = no active arc. */
-  activeArcTake: number | null;
-  /** Arc this setup records into, or null for a brand-new project / a detached
-   *  standalone upload. Gates the background context-document field (X-1), which
-   *  attaches to an existing arc. */
-  contextArcId: string | null;
-  /** When recording another take into a known deck, pre-fill topic + slides +
-   *  the already-served PDF so the user doesn't re-enter them. */
-  preloadDeck: ExploreArcDeck | null;
-  /** Hide the slide-deck field (deckless-only flows, e.g. a footer upload). */
-  hideDeck?: boolean;
-  onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
-}) {
-  const [topic, setTopic] = useState("");
-  const [audience, setAudience] = useState("");
-  const [lengthSec, setLengthSec] = useState<number | null>(null);
-  const [slides, setSlides] = useState<PresentationSlide[]>(initialSlides());
-  const [presentationRef, setPresentationRef] = useState<string | null>(null);
-  // Every recording is an explore (3-take) session — no user toggle. The "3
-  // takes" is always on; the BE owns the unlock + arc growth. (FE-4 removed
-  // the only opt-out, so this is a constant now — kept as state for the
-  // stable onSubmit signature.)
-  const [explore] = useState<boolean>(true);
-
-  // Pre-fill once from the arc's deck (record-another-take into a known deck).
-  const didPreloadRef = useRef(false);
-  useEffect(() => {
-    if (didPreloadRef.current || !preloadDeck) return;
-    didPreloadRef.current = true;
-    if (preloadDeck.topic) setTopic(preloadDeck.topic);
-    // The project's audience carries into the continued take's setup.
-    if (preloadDeck.audience) setAudience(preloadDeck.audience);
-    if (preloadDeck.slides.length > 0) setSlides(preloadDeck.slides);
-    setPresentationRef(preloadDeck.presentationRef);
-    // R5 fix — restore the set length so take 2/3's timer counts down from it
-    // instead of resetting to no-limit (a stopwatch that only counts up).
-    if (preloadDeck.targetLengthSeconds != null) {
-      setLengthSec(preloadDeck.targetLengthSeconds);
-    }
-  }, [preloadDeck]);
-
-  // "Same as last time" — when the header bumps applyNonce, re-fill every field
-  // from the last submitted set-up.
-  useEffect(() => {
-    if (applyNonce <= 0 || !lastSetup) return;
-    setTopic(lastSetup.topic);
-    setAudience(lastSetup.audience);
-    setLengthSec(lastSetup.target_length_seconds);
-    setSlides(lastSetup.slides.length > 0 ? lastSetup.slides : initialSlides());
-    setPresentationRef(lastSetup.presentationRef);
-  }, [applyNonce, lastSetup]);
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = topic.trim();
-    if (!t) return;
-    onSubmit(
-      {
-        topic: t,
-        audience: audience.trim(),
-        target_length_seconds: lengthSec,
-        domain_vocabulary: [],
-        slides: presentationRef ? clampSlides(slides) : nonEmptySlides(slides),
-        presentationRef,
-      },
-      explore
-    );
-  }
-
-  return (
-    <form onSubmit={submit}>
-      {/* pb clears the fixed CTA */}
-      <div className="pb-24">
-        {/* Explore-arc: a bare take indicator when continuing an active arc.
-            FE-4 — no framing copy or opt-out; every recording is a 3-take
-            batch, so the orange TAKE N OF 3 line is all that's needed. */}
-        {activeArcTake !== null ? (
-          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-            <p className="text-[13px] font-medium text-primary">
-              Take {batchTake(activeArcTake)} of 3
-            </p>
-          </div>
-        ) : null}
-
-        <Field label="What are you speaking on?" htmlFor="topic">
-          <input
-            id="topic"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g. my Q3 results pitch"
-            className={SETUP_INPUT_CLS}
-            autoFocus
-          />
-        </Field>
-
-        <Field label="Audience" htmlFor="aud">
-          <input
-            id="aud"
-            value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-            placeholder="e.g. the leadership team"
-            className={SETUP_INPUT_CLS}
-          />
-        </Field>
-
-        <Field label="Target length">
-          <div className="flex flex-wrap gap-2">
-            {LENGTH_PRESETS.map((p) => {
-              const active = lengthSec === p.sec;
-              return (
-                <button
-                  key={p.sec}
-                  type="button"
-                  onClick={() => setLengthSec(active ? null : p.sec)}
-                  aria-pressed={active}
-                  className={cn(
-                    "h-10 rounded-full border px-4 text-[14px] transition active:scale-[0.98]",
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border bg-background text-foreground hover:bg-muted"
-                  )}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-
-        {hideDeck ? null : (
-          <Field label="Your slides">
-            <PresentationInput
-              slides={slides}
-              presentationRef={presentationRef}
-              onChange={(s, ref) => {
-                setSlides(s);
-                setPresentationRef(ref);
-              }}
-            />
-          </Field>
-        )}
-
-        {/* X-1 — context document: attaches to the arc, so it only appears once
-            the project exists (continuing a project). A brand-new arc has no id
-            yet; the affordance surfaces on the next take. */}
-        {contextArcId ? (
-          <Field label="Context document">
-            <ContextDocumentInput arcId={contextArcId} />
-          </Field>
-        ) : null}
-      </div>
-
-      {/* Sticky CTA (design spec) — disabled until there's a topic. */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <div className="mx-auto max-w-2xl px-5 py-3">
-          <button
-            type="submit"
-            disabled={!topic.trim()}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground text-[14px] font-medium text-background transition hover:bg-foreground/90 active:scale-[0.99] disabled:opacity-40"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            Start recording
-          </button>
-        </div>
-      </div>
-    </form>
   );
 }
 

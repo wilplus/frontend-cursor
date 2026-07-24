@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
 import { recordFeeling, type Feeling } from "./willabFeelings";
 
 /* -------------------------------------------------------------------------- */
@@ -45,10 +44,21 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
   // time (the old one-tap "same as before" shortcut was removed).
   const [picked, setPicked] = useState<Feeling | null>(null);
   const reply = FEELINGS.find((f) => f.key === picked)?.reply ?? null;
+  // ④ — no "I'm ready" button: naming the feeling shows the reassuring line,
+  // then auto-advances into setup after a beat. The first tap wins.
+  const advanceRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (advanceRef.current) window.clearTimeout(advanceRef.current);
+    },
+    []
+  );
 
   function pick(feeling: Feeling) {
+    if (picked) return; // first tap wins; ignore taps while the reply shows
     setPicked(feeling);
     recordFeeling(feeling); // FE-local under the freeze; wires to the coach later
+    advanceRef.current = window.setTimeout(onReady, 1000);
   }
 
   return (
@@ -70,8 +80,9 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
               key={f.key}
               type="button"
               onClick={() => pick(f.key)}
+              disabled={picked !== null && !active}
               aria-pressed={active}
-              className={`rounded-full border px-4 py-2 text-[15px] transition-colors ${
+              className={`rounded-full border px-4 py-2 text-[15px] transition-colors disabled:opacity-50 ${
                 active
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-background text-foreground hover:border-primary/50"
@@ -88,17 +99,6 @@ export default function FeelingsCheckIn({ onReady }: { onReady: () => void }) {
           <p className="text-[15px] leading-relaxed text-foreground">{reply}</p>
         </div>
       ) : null}
-
-      <div className="mt-auto pt-6">
-        <Button
-          type="button"
-          onClick={onReady}
-          disabled={!picked}
-          className="w-full rounded-full"
-        >
-          I&apos;m ready
-        </Button>
-      </div>
     </div>
   );
 }

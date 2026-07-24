@@ -25,6 +25,10 @@ export interface LabUploadInput {
   slides?: PresentationSlide[];
   /** The BE-served PDF url linking the rendered deck; omitted = manual-only. */
   presentationRef?: string | null;
+  /** ④ step 5 — a free-text strategic-context note (the stakes, the setting,
+   *  what to nail). Sent as `strategic_context`; background context that sharpens
+   *  the coaching. Optional. */
+  strategicContext?: string;
   /** Tap timeline — which slide was advanced to, at t_ms from record start. */
   slideAdvances?: { index: number; tMs: number }[];
   /** Explore-session arc (Prompt B §F2). Set explore_session=true on take 1
@@ -150,6 +154,11 @@ export async function submitLabRecording(
   }
   if (input.presentationRef) {
     form.append("presentation_ref", input.presentationRef);
+  }
+  // ④ step 5 — strategic-context note; sharpens the coaching. Omit when blank so
+  // the field never arrives as an empty string. FLAT field (BE PR #222 rule).
+  if (input.strategicContext && input.strategicContext.trim()) {
+    form.append("strategic_context", input.strategicContext.trim());
   }
   if (input.slideAdvances && input.slideAdvances.length > 0) {
     form.append(

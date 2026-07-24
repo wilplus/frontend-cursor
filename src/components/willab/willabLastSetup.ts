@@ -41,6 +41,12 @@ export function mapLastSetup(raw: unknown): LabSessionContext | null {
     slides: parseSlides(r.slides),
     presentationRef:
       typeof r.presentation_ref === "string" ? r.presentation_ref : null,
+    // ④ step 5 — prefill the strategic-context note when the BE echoes it
+    // (inert until then; the field is optional so absence is fine).
+    strategicContext:
+      typeof r.strategic_context === "string" && r.strategic_context.trim()
+        ? r.strategic_context
+        : undefined,
   };
 }
 
@@ -65,6 +71,12 @@ export function mapReadoutSetup(raw: unknown): LabSessionContext | null {
     slides: parseSlides(r.slides),
     presentationRef:
       typeof r.presentation_ref === "string" ? r.presentation_ref : null,
+    // ④ step 5 — prefill the strategic-context note when the BE echoes it
+    // (inert until then; the field is optional so absence is fine).
+    strategicContext:
+      typeof r.strategic_context === "string" && r.strategic_context.trim()
+        ? r.strategic_context
+        : undefined,
   };
 }
 
