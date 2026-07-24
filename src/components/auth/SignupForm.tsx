@@ -339,7 +339,7 @@ function LegalConsent() {
         rel="noopener noreferrer"
         className="font-medium text-primary hover:underline"
       >
-        Terms of Use
+        Terms of Service
       </Link>{" "}
       and{" "}
       <Link
