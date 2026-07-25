@@ -25,6 +25,7 @@ import {
   adminListPosts,
   adminPresign,
   adminReorder,
+  adminRevalidate,
   adminSetPublished,
   adminUpdatePost,
   uploadToStorage,
@@ -33,7 +34,7 @@ import {
 } from "@/services/api/journalAdmin";
 
 /* -------------------------------------------------------------------------- */
-/*  /admin/journal — the Journal CMS                                           */
+/*  /cms — the Journal CMS                                           */
 /*                                                                            */
 /*  NOT linked in any nav, NOT under (protected), and NOT role-gated: auth is   */
 /*  the shared admin password checked on the BACKEND (it rides in each request  */
@@ -261,6 +262,7 @@ export default function JournalAdminPage() {
       // Updated with no echo: what's on screen is what we just sent.
       setSavedSnapshot(JSON.stringify(editing));
     }
+    await adminRevalidate(password, editing.slug);
     await load(password);
     flash("Saved.");
   }
@@ -293,6 +295,7 @@ export default function JournalAdminPage() {
         prev ? { ...prev, published_at: serverDate } : prev
       );
     }
+    await adminRevalidate(password, editing.slug);
     await load(password);
     flash(next ? "Published." : "Moved back to draft.");
   }
@@ -313,6 +316,7 @@ export default function JournalAdminPage() {
       setEditing(null);
       setSavedSnapshot("");
     }
+    await adminRevalidate(password, post.slug);
     await load(password);
     flash("Deleted.");
   }
@@ -441,7 +445,7 @@ export default function JournalAdminPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <Link
-              href="/journal"
+              href="/blog"
               className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground no-underline transition hover:text-foreground"
             >
               ← Journal
@@ -546,7 +550,7 @@ export default function JournalAdminPage() {
                           unavailable rather than linking into a dead end. */}
                       {p.status === "published" ? (
                         <Link
-                          href={`/journal/${p.slug}`}
+                          href={`/blog/${p.slug}`}
                           target="_blank"
                           aria-label={`Preview ${p.title || p.slug}`}
                           className={BTN_ICON}
@@ -772,7 +776,7 @@ export default function JournalAdminPage() {
                     </label>
                     <div className="flex items-center gap-2">
                       <span className="shrink-0 text-xs text-muted-foreground">
-                        /journal/
+                        /blog/
                       </span>
                       <input
                         id="j-slug"

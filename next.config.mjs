@@ -18,6 +18,24 @@ const nextConfig = {
         destination: "/icon",
         permanent: false,
       },
+      // The Journal moved to /blog. Permanent so anything already shared (and
+      // anything already indexed) keeps working and passes its ranking on.
+      {
+        source: "/journal",
+        destination: "/blog",
+        permanent: true,
+      },
+      {
+        source: "/journal/:slug",
+        destination: "/blog/:slug",
+        permanent: true,
+      },
+      // The CMS moved off /admin. Kept out of nav either way.
+      {
+        source: "/admin/journal",
+        destination: "/cms",
+        permanent: false,
+      },
     ];
   },
 };

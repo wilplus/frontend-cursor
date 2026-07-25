@@ -16,7 +16,7 @@ import {
 } from "@/services/api/journal";
 
 /* -------------------------------------------------------------------------- */
-/*  /journal/[slug] — one Journal post                                         */
+/*  /blog/[slug] — one Journal post                                         */
 /*                                                                            */
 /*  Server-rendered with ISR. Drafts and unknown slugs 404 (the public backend  */
 /*  only serves published posts, so a null read IS the 404).                    */
@@ -46,11 +46,11 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `/journal/${post.slug}` },
+    alternates: { canonical: `/blog/${post.slug}` },
     openGraph: {
       title,
       description,
-      url: `https://www.willpowerlab.com/journal/${post.slug}`,
+      url: `https://www.willpowerlab.com/blog/${post.slug}`,
       type: "article",
       ...(image ? { images: [{ url: image, alt: post.coverAlt ?? post.title }] } : {}),
     },
@@ -86,7 +86,7 @@ export default async function JournalPostPage({
       <main className="pb-20">
         <div className="mx-auto max-w-2xl px-6 pt-10">
           <Link
-            href="/journal"
+            href="/blog"
             className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.14em] text-muted-foreground no-underline transition hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
@@ -182,7 +182,7 @@ export default async function JournalPostPage({
           <hr className="my-14 border-border" />
           <div className="flex items-center justify-between text-sm">
             <Link
-              href="/journal"
+              href="/blog"
               className="text-muted-foreground no-underline transition hover:text-foreground"
             >
               ← All posts
