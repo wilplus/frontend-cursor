@@ -17,9 +17,10 @@ import {
 /*  go through the authed BFF (proxyJson/proxyMultipart 401 without a Supabase   */
 /*  session), which would make the whole Journal 401 for logged-out visitors.    */
 /*                                                                            */
-/*  Everything soft-fails (list → [], post → null) so a backend that is down —   */
-/*  or simply not shipped yet — renders an empty Journal / a 404 instead of      */
-/*  crashing the route.                                                         */
+/*  Failure handling is deliberately ASYMMETRIC, per the notes on each function: */
+/*  the list soft-fails to [] because it also runs at build time, while a single */
+/*  post throws on anything that is not a real 404, so a backend blip can never  */
+/*  bake a 404 into the ISR cache for a live post.                              */
 /* -------------------------------------------------------------------------- */
 
 /** ISR window, matched to the pages' `export const revalidate`. */
