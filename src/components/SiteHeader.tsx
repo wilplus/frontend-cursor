@@ -6,10 +6,10 @@ import { Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
 
 /**
- * Shared sticky header for the public marketing pages (About, Science).
- * The WillpowerLab logo links home; a small menu offers Home / About /
- * Science. This is the common chrome that makes those pages feel like
- * one site.
+ * Shared sticky header for the public marketing pages (About, Science,
+ * Journal). The WillpowerLab logo links home; a small menu offers Home /
+ * About / Science / Journal plus a way into the product. This is the common
+ * chrome that makes those pages feel like one site.
  */
 export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -43,6 +43,8 @@ export default function SiteHeader() {
                 { href: "/", label: "Home" },
                 { href: "/about", label: "About" },
                 { href: "/science", label: "Science" },
+                { href: "/journal", label: "Journal" },
+                { href: "/chat", label: "The lab" },
               ].map((l) => (
                 <Link
                   key={l.href}

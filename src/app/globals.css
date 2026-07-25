@@ -32,6 +32,10 @@
     --secondary: 0 0% 96%;
     --primary: 22 100% 52%;
     --radius: 0.75rem;
+    /* Journal: one warm off-white for audio/media panels. The Journal is
+       otherwise strictly neutral — `primary` (orange) is reserved for
+       live-action signals and never appears there. */
+    --journal-media: 40 30% 97%;
     /* System font stack — zero FOIT, no 200KB Inter download, honours
        the user's OS preference. DM Sans / DM Serif Display are retired. */
     --font-heading:

@@ -78,6 +78,8 @@ const config: Config = {
           foreground: "hsl(var(--accent-foreground))",
         },
         border: "hsl(var(--border))",
+        /* Journal audio/media panel — one warm off-white, neutral by design. */
+        "journal-media": "hsl(var(--journal-media))",
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
