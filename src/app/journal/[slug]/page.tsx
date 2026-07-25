@@ -168,7 +168,10 @@ export default async function JournalPostPage({
           {paragraphs.map((p, i) => (
             <p
               key={i}
-              className="text-[17px] leading-[1.75] text-foreground/90"
+              // whitespace-pre-line: when a body mixes blank-line paragraphs
+              // with single newlines inside one (a list, an address), those
+              // breaks must survive instead of collapsing into spaces.
+              className="whitespace-pre-line text-[17px] leading-[1.75] text-foreground/90"
             >
               {p}
             </p>
