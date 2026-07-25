@@ -132,12 +132,16 @@ export default async function JournalPostPage({
 
         {post.coverKind === "video" && post.mediaUrl ? (
           <div className="mx-auto mt-10 max-w-3xl px-6">
-            <div className="overflow-hidden rounded-3xl bg-muted">
+            {/* Fixed 16:9 box with object-contain: an unconstrained <video>
+                takes the aspect of its poster (or 300x150 until metadata
+                loads, which shifts the layout), so a portrait clip would
+                render taller than the screen. Letterbox instead of crop. */}
+            <div className="aspect-video overflow-hidden rounded-3xl bg-muted">
               <video
                 controls
                 preload="metadata"
                 poster={post.coverImageUrl ?? undefined}
-                className="h-full w-full"
+                className="h-full w-full object-contain"
               >
                 <source src={post.mediaUrl} />
               </video>
