@@ -21,6 +21,7 @@ import {
 import {
   adminCreatePost,
   adminDeletePost,
+  adminGetPost,
   adminListPosts,
   adminPresign,
   adminReorder,
@@ -279,9 +280,17 @@ export default function JournalAdminPage() {
     // server-assigned date when the post had none) — adopting the whole echo
     // would silently throw away whatever is unsaved in the editor.
     setEditingStatus(r.data?.status ?? (next ? "published" : "draft"));
-    if (r.data?.publishedAt && !editing.published_at) {
+    let serverDate = r.data?.publishedAt ?? null;
+    if (!r.data) {
+      // No echo: the backend may have stamped published_at itself. Read it back
+      // rather than leave the editor holding null, because the next Save PUTs
+      // the whole draft and would overwrite the server's date with it.
+      const fresh = await adminGetPost(password, editing.id);
+      if (fresh.ok && fresh.data) serverDate = fresh.data.publishedAt;
+    }
+    if (serverDate && !editing.published_at) {
       setEditing((prev) =>
-        prev ? { ...prev, published_at: r.data!.publishedAt } : prev
+        prev ? { ...prev, published_at: serverDate } : prev
       );
     }
     await load(password);
