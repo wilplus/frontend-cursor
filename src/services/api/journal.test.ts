@@ -92,10 +92,27 @@ describe("splitParagraphs", () => {
     ]);
   });
 
-  it("keeps single newlines inside a paragraph", () => {
-    expect(splitParagraphs("line one\nline two")).toEqual([
-      "line one\nline two",
+  // A body written with ONE Enter between paragraphs used to collapse into a
+  // single <p>, because HTML turns lone newlines into spaces — the published
+  // post came out as an unreadable wall of text.
+  it("treats single newlines as paragraph breaks when there are no blank lines", () => {
+    expect(splitParagraphs("para one\npara two\npara three")).toEqual([
+      "para one",
+      "para two",
+      "para three",
     ]);
+  });
+
+  it("keeps single newlines INSIDE a paragraph once blank lines are in use", () => {
+    expect(splitParagraphs("line one\nline two\n\nnext para")).toEqual([
+      "line one\nline two",
+      "next para",
+    ]);
+  });
+
+  it("normalizes CRLF so pasted text still splits", () => {
+    expect(splitParagraphs("one\r\n\r\ntwo")).toEqual(["one", "two"]);
+    expect(splitParagraphs("one\r\ntwo")).toEqual(["one", "two"]);
   });
 
   it("returns [] for empty or whitespace-only bodies", () => {

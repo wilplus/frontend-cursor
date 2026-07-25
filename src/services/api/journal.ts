@@ -129,8 +129,22 @@ export function mapJournalPost(raw: unknown): JournalPost | null {
  *  the ONLY body renderer — the result is rendered as <p> elements, so no
  *  HTML ever reaches the DOM. */
 export function splitParagraphs(body: string): string[] {
-  return body
+  // Normalize Windows / pasted line endings first, or "\r\n\r\n" would not
+  // match a blank-line split and the whole post would collapse into one block.
+  const text = body.replace(/\r\n?/g, "\n");
+
+  const byBlankLine = text
     .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  if (byBlankLine.length > 1) return byBlankLine;
+
+  // No blank lines anywhere: the author pressed Enter ONCE between paragraphs,
+  // which is what a textarea makes look correct. Honour that instead of
+  // rendering the entire post as a single paragraph (HTML collapses lone
+  // newlines to spaces, so the result was an unreadable wall of text).
+  return text
+    .split("\n")
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 }
