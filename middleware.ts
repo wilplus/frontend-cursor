@@ -19,6 +19,12 @@ function getCspDirectives(): string {
     "'self'",
     "https://*.supabase.co",
     "https://*.supabase.io",
+    // Cloudflare R2 (S3 API). Media uploads go DIRECT from the browser to
+    // object storage via a presigned PUT, and the backend is dual-host:
+    // R2 whenever the R2_* env vars are set, else a Supabase Storage signed
+    // upload (already covered above). Allowing both means uploads work
+    // whichever host the backend hands back, in any environment.
+    "https://*.r2.cloudflarestorage.com",
   ];
   
   // In development, allow localhost for Fast Refresh and HMR
@@ -33,12 +39,10 @@ function getCspDirectives(): string {
   if (apiUrl) connectSrc.push(apiUrl);
   if (supabaseUrl) connectSrc.push(supabaseUrl);
 
-  // Journal CMS: cover media is uploaded DIRECT to object storage from the
-  // browser via a presigned URL (never through the BFF — Vercel's ~4.5MB body
-  // limit 413s real media). That upload is a fetch(), so it is governed by
-  // connect-src, which is an allowlist: without the storage origin here the
-  // browser blocks the PUT and every upload fails. Set this to the storage /
-  // CDN origin once the backend ships presigning. Unset = unchanged policy.
+  // Escape hatch for a storage origin the defaults above don't cover: an R2
+  // CUSTOM domain, or a CDN in front of the bucket. The two default hosts
+  // (R2 s3 endpoint, Supabase Storage) need no configuration. Unset = the
+  // policy is unchanged.
   const mediaUploadOrigin = process.env.NEXT_PUBLIC_MEDIA_UPLOAD_ORIGIN || "";
   if (mediaUploadOrigin) connectSrc.push(mediaUploadOrigin);
   
