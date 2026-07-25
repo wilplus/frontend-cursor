@@ -157,6 +157,27 @@ export function adminReorder(password: string, ids: string[]) {
   return post("reorder", password, { ids }, () => true);
 }
 
+/** Push the public pages out of the ISR cache after a change, so a published
+ *  post is live immediately instead of up to a full revalidate window later
+ *  (and without the first visitor after expiry still getting the stale page).
+ *  Best-effort: publishing already succeeded, so a failure here is not an
+ *  error the author needs to act on. */
+export async function adminRevalidate(
+  password: string,
+  slug?: string | null
+): Promise<void> {
+  const paths = slug ? ["/blog", `/blog/${slug}`] : ["/blog"];
+  try {
+    await fetch("/api/v2/internal/journal/revalidate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, paths }),
+    });
+  } catch {
+    /* non-fatal: the page still refreshes on its own revalidate window */
+  }
+}
+
 export interface PresignResult {
   uploadUrl: string;
   publicUrl: string;

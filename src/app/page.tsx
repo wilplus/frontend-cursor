@@ -1,32 +1,41 @@
-"use client";
+import type { Metadata } from "next";
+import { fetchJournalPosts } from "@/services/api/journalServer";
+import { sortJournalPosts } from "@/services/api/journal";
+import LandingClient from "./page.client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+/* -------------------------------------------------------------------------- */
+/*  / — the landing                                                            */
+/*                                                                            */
+/*  Was a bare redirect to /chat for everyone. It is now a real public landing  */
+/*  for ANONYMOUS visitors (the WelcomeConsent hero + the most recent Journal   */
+/*  posts); signed-in visitors are still sent to /chat by the client half, so   */
+/*  marketing never sits in front of the app for an existing user.              */
+/*                                                                            */
+/*  Server-rendered with ISR so the posts strip is in the HTML crawlers see.    */
+/* -------------------------------------------------------------------------- */
 
-/**
- * / — legacy redirect.
- *
- * The cold-start onboarding moved onto /chat as part of the unified
- * conversation surface (record → metrics → signup → welcome → Q&A
- * all inside one continuous thread). The standalone HeroRecorder
- * landing was retired; any direct hits to the root bounce through
- * here into /chat. The chat page's own phase machine decides what to
- * render based on auth state + URL params (anonymous → new cold-
- * start onboarding; signed-in with session → review/roleplay loop).
- *
- * Replaces the old HeroRecorder + ExplainerVideo + ProcessingScreen
- * orchestration. Kept as a client component so the redirect happens
- * pre-paint without flashing the SSR placeholder.
- */
-export default function Home() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace("/chat");
-  }, [router]);
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-    </main>
+export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "WillpowerLab",
+  description:
+    "Record your talk. You get the ideal text of your presentation and see which moments landed best.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "WillpowerLab",
+    description:
+      "Record your talk. You get the ideal text of your presentation and see which moments landed best.",
+    url: "https://www.willpowerlab.com/",
+    type: "website",
+  },
+};
+
+export default async function Home() {
+  // Newest three. Soft-fails to [] (see journalServer), so a backend that is
+  // down or unshipped costs the strip, never the landing.
+  const posts = sortJournalPosts(await fetchJournalPosts(), "newest").slice(
+    0,
+    3
   );
+  return <LandingClient posts={posts} />;
 }

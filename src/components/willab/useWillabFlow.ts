@@ -90,6 +90,13 @@ function writeFlag(key: string): void {
   }
 }
 
+/** Accept consent from OUTSIDE the flow. The public landing shows the same
+ *  WelcomeConsent composition, so when its CTA is used the Lounge must not ask
+ *  again on arrival — it writes the same flag this hook reads on mount. */
+export function acceptConsentLocally(): void {
+  writeFlag(CONSENT_KEY);
+}
+
 export interface UseWillabFlowReturn {
   /** `null` while the initial state resolves post-mount (hydration-safe). */
   state: WillabState | null;

@@ -47,7 +47,7 @@ export default function JournalCard({ post }: { post: JournalPostSummary }) {
   const showWaveform = isAudio && !post.coverImageUrl;
 
   return (
-    <Link href={`/journal/${post.slug}`} className="group block no-underline">
+    <Link href={`/blog/${post.slug}`} className="group block no-underline">
       <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
         {post.coverImageUrl ? (
           // Plain <img>: covers are arbitrary remote URLs and next.config sets

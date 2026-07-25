@@ -43,7 +43,7 @@ export default function SiteHeader() {
                 { href: "/", label: "Home" },
                 { href: "/about", label: "About" },
                 { href: "/science", label: "Science" },
-                { href: "/journal", label: "Journal" },
+                { href: "/blog", label: "Journal" },
                 { href: "/chat", label: "The lab" },
               ].map((l) => (
                 <Link

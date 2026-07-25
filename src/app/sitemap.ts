@@ -17,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/", priority: 1 },
     { path: "/chat", priority: 0.9 },
     { path: "/about", priority: 0.8 },
-    { path: "/journal", priority: 0.8 },
+    { path: "/blog", priority: 0.8 },
     { path: "/science", priority: 0.7 },
     { path: "/terms", priority: 0.3 },
     { path: "/privacy", priority: 0.3 },
@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const postEntries: MetadataRoute.Sitemap = (await fetchJournalPosts()).map(
     (p) => ({
-      url: `${SITE_URL}/journal/${p.slug}`,
+      url: `${SITE_URL}/blog/${p.slug}`,
       lastModified: p.publishedAt ? new Date(p.publishedAt) : undefined,
       changeFrequency: "monthly",
       priority: 0.6,

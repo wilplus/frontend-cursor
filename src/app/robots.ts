@@ -12,7 +12,16 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/api", "/dashboard", "/profile", "/recordings"],
+      // /cms is the Journal CMS. It moved off /admin, so it needs its own
+      // entry or the move would silently make an internal tool crawlable.
+      disallow: [
+        "/admin",
+        "/cms",
+        "/api",
+        "/dashboard",
+        "/profile",
+        "/recordings",
+      ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,

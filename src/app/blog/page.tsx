@@ -4,7 +4,7 @@ import { fetchJournalPosts } from "@/services/api/journalServer";
 import JournalIndex from "./page.client";
 
 /* -------------------------------------------------------------------------- */
-/*  /journal — the public Journal index                                        */
+/*  /blog — the public Journal index                                        */
 /*                                                                            */
 /*  Server component: fetches published posts from the PUBLIC backend (never    */
 /*  the authed BFF, which 401s for logged-out visitors) and hands them to a     */
@@ -21,12 +21,12 @@ export const metadata: Metadata = {
   title: "Journal | WillpowerLab",
   description:
     "Notes on physiology, voice, language and philosophy from the WillpowerLab team. What we're reading, testing, and learning about speaking under pressure.",
-  alternates: { canonical: "/journal" },
+  alternates: { canonical: "/blog" },
   openGraph: {
     title: "Journal | WillpowerLab",
     description:
       "Notes on physiology, voice, language and philosophy from the WillpowerLab team.",
-    url: "https://www.willpowerlab.com/journal",
+    url: "https://www.willpowerlab.com/blog",
     type: "website",
   },
 };
