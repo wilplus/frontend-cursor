@@ -32,6 +32,15 @@ function getCspDirectives(): string {
   
   if (apiUrl) connectSrc.push(apiUrl);
   if (supabaseUrl) connectSrc.push(supabaseUrl);
+
+  // Journal CMS: cover media is uploaded DIRECT to object storage from the
+  // browser via a presigned URL (never through the BFF — Vercel's ~4.5MB body
+  // limit 413s real media). That upload is a fetch(), so it is governed by
+  // connect-src, which is an allowlist: without the storage origin here the
+  // browser blocks the PUT and every upload fails. Set this to the storage /
+  // CDN origin once the backend ships presigning. Unset = unchanged policy.
+  const mediaUploadOrigin = process.env.NEXT_PUBLIC_MEDIA_UPLOAD_ORIGIN || "";
+  if (mediaUploadOrigin) connectSrc.push(mediaUploadOrigin);
   
   return [
     "default-src 'self'",

@@ -25,6 +25,12 @@ export default function Footer() {
           Science
         </Link>
         <Link
+          href="/journal"
+          className="no-underline hover:text-foreground transition-colors"
+        >
+          Journal
+        </Link>
+        <Link
           href="/terms"
           className="no-underline hover:text-foreground transition-colors"
         >
