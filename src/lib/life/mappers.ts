@@ -39,6 +39,7 @@ import {
   type LifeStrategyProposal,
   type LifeTagDescriptor,
   type LifeTimelineEvent,
+  type LifeWeek,
 } from "./types";
 
 /* ------------------------------- primitives ------------------------------- */
@@ -277,10 +278,19 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
       generatedAt: strOrNull(m.generated_at ?? r.morning_generated_at),
       checks: mapChecks(m.checks ?? m.morning_checks),
       oneThing: str(m.one_thing),
+      // With Bet 3 eligible for daily tasks, the bet is what makes the rank
+      // visible on the card the rank governs.
+      oneThingBet: betKey(m.one_thing_bet),
       focusBlocks: arr(m.focus_blocks).flatMap((row) => {
         const b = rec(row);
         if (!b) return [];
-        return [{ text: str(b.text), box: strOrNull(b.box) }];
+        return [
+          {
+            text: str(b.text),
+            box: strOrNull(b.box),
+            betKey: betKey(b.bet ?? b.bet_key),
+          },
+        ];
       }),
       distractionFlagged: strOrNull(m.distraction_flagged),
       bets: arr(m.bets).flatMap((row) => {
@@ -324,6 +334,72 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
       // `line` is the legacy column name for the user's own answer.
       answer: str(evening.answer ?? evening.line),
     },
+  };
+}
+
+/* --------------------------------- the week ------------------------------- */
+
+/** A row that may arrive as a bare string or as an object. The corpus-era
+ *  exports carry both shapes for the same field, so both read. */
+function pairRow(
+  raw: unknown,
+  index: number,
+  primary: string[],
+  secondary: string[]
+): { id: string; a: string; b: string } | null {
+  if (typeof raw === "string") {
+    return raw.trim() ? { id: `row-${index}`, a: raw, b: "" } : null;
+  }
+  const r = rec(raw);
+  if (!r) return null;
+  const a = primary.map((k) => strOrNull(r[k])).find(Boolean) ?? "";
+  const b = secondary.map((k) => strOrNull(r[k])).find(Boolean) ?? "";
+  if (!a && !b) return null;
+  return { id: strOrNull(r.id) ?? `row-${index}`, a, b };
+}
+
+export function mapLifeWeek(raw: unknown): LifeWeek | null {
+  const r = rec(raw);
+  if (!r) return null;
+  const weekOf = strOrNull(r.week_of ?? r.date ?? r.reviewed_on);
+  if (!weekOf) return null;
+
+  return {
+    weekOf,
+    habitsFailed: arr(r.habits_failed).flatMap((row, i) => {
+      const pair = pairRow(row, i, ["label", "habit", "title"], ["why", "reason"]);
+      return pair ? [{ id: pair.id, label: pair.a, why: pair.b }] : [];
+    }),
+    goalsMoved: arr(r.goals_moved).flatMap((row, i) => {
+      const pair = pairRow(
+        row,
+        i,
+        ["title", "goal", "label"],
+        ["next_action", "next", "action"]
+      );
+      return pair ? [{ id: pair.id, title: pair.a, nextAction: pair.b }] : [];
+    }),
+    mainDistraction: str(r.main_distraction),
+    environmentalChange: str(r.environmental_change),
+    becomingSentence: str(r.becoming_sentence),
+    // L-2b — whatever the backend queued, capped at the ranked three. The cap
+    // is enforced here as well as server-side because a longer batch is the
+    // thing that turns approve into a rubber stamp, and the FE is the surface
+    // where that would actually happen.
+    proposals: mapProposals(r.proposals).slice(0, 3),
+    untagged: arr(r.untagged ?? r.untagged_notes).flatMap((row, i) => {
+      const n = rec(row);
+      if (!n) return [];
+      const body = str(n.body);
+      if (!body.trim()) return [];
+      return [
+        {
+          id: strOrNull(n.id) ?? `note-${i}`,
+          body,
+          createdAt: strOrNull(n.created_at),
+        },
+      ];
+    }),
   };
 }
 

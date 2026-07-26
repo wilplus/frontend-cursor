@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { DAY, EMPTY, VIEWS } from "@/lib/life/copy";
 import {
   betByKey,
+  type LifeBetKey,
   type LifeCheck,
   type LifeDay,
   type LifeDayEvening,
@@ -107,6 +108,10 @@ function MorningCard({ morning }: { morning: LifeDayMorning }) {
             <p className="mt-2 text-xl font-semibold leading-snug tracking-tight text-foreground">
               {morning.oneThing || "Not set."}
             </p>
+            {/* Which bet this serves. Load-bearing since Bet 3 became eligible
+                for daily tasks: with all three in play, an unlabelled card
+                makes the rank invisible on the surface the rank governs. */}
+            <BetTag betKey={morning.oneThingBet} className="mt-2" />
             <p className="mt-3 text-xs text-muted-foreground">{DAY.frameNote}</p>
             <p className="mt-1 text-xs text-muted-foreground">{DAY.editHint}</p>
           </div>
@@ -119,8 +124,11 @@ function MorningCard({ morning }: { morning: LifeDayMorning }) {
                     key={i}
                     className="flex items-baseline justify-between gap-4 rounded-lg border border-border px-3 py-2"
                   >
-                    <span className="text-[15px] text-foreground">
-                      {block.text}
+                    <span className="min-w-0">
+                      <span className="text-[15px] text-foreground">
+                        {block.text}
+                      </span>
+                      <BetTag betKey={block.betKey} className="mt-1" />
                     </span>
                     {block.box ? (
                       <span className="shrink-0 text-xs text-muted-foreground">
@@ -354,6 +362,31 @@ function EveningReview({ evening }: { evening: LifeDayEvening }) {
 }
 
 /* -------------------------------- shared ---------------------------------- */
+
+/** The bet a piece of the day serves, named with its rank.
+ *
+ *  The rank is the whole point: Bet 3 never outranks Bet 2 in a daily plan
+ *  (spec §3.2), and the only way to see that being honoured is to say which
+ *  bet, and which number, on the card itself. Renders nothing when the payload
+ *  carries no bet, rather than guessing one. */
+function BetTag({
+  betKey,
+  className = "",
+}: {
+  betKey: LifeBetKey | null;
+  className?: string;
+}) {
+  const meta = betByKey(betKey);
+  if (!meta) return null;
+  return (
+    <span
+      className={`block text-xs text-muted-foreground ${className}`}
+    >
+      <span aria-hidden>{meta.glyph} </span>
+      {meta.rank}. {meta.label}
+    </span>
+  );
+}
 
 function Block({
   label,

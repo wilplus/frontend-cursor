@@ -73,6 +73,22 @@ export default function ProposalDeck({
   );
 }
 
+/** Render proposals the caller already holds, e.g. the ranked batch of three
+ *  that arrives inside the weekly review payload (L-2b). Same cards, same
+ *  discipline, no second fetch. */
+export function ProposalItems({ proposals }: { proposals: LifeProposal[] }) {
+  if (proposals.length === 0) return null;
+  return (
+    <ul className="space-y-4">
+      {proposals.map((proposal) => (
+        <li key={proposal.id}>
+          <ProposalRow proposal={proposal} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Standalone list for a dedicated surface, where "nothing waiting" is worth
  *  saying out loud rather than rendering as blank space. */
 export function ProposalList() {

@@ -4,6 +4,7 @@ import {
   mapLifeDay,
   mapLifeItems,
   mapLifeState,
+  mapLifeWeek,
   mapPrincipleDetail,
   mapProposal,
   mapProposals,
@@ -279,6 +280,122 @@ describe("mapLifeDay", () => {
       evening: { line: "am I becoming him?" },
     })!;
     expect(day.evening.answer).toBe("am I becoming him?");
+  });
+
+  it("carries the bet on the one thing and on every focus block", () => {
+    // Load-bearing since Bet 3 became eligible for daily tasks: with all three
+    // in play, an unlabelled card makes the rank invisible on the surface the
+    // rank governs.
+    const day = mapLifeDay({
+      date: "2026-07-26",
+      one_thing: "Finish the deck",
+      one_thing_bet: "company",
+      focus_blocks: [
+        { text: "Deck", box: "09:00", bet: "company" },
+        { text: "7T reading", box: "20:00", bet: "dream" },
+        { text: "Unassigned", box: null },
+      ],
+    })!;
+    expect(day.morning.oneThingBet).toBe("company");
+    expect(day.morning.focusBlocks.map((b) => b.betKey)).toEqual([
+      "company",
+      "dream",
+      null,
+    ]);
+  });
+
+  it("never invents a bet the payload did not name", () => {
+    const day = mapLifeDay({
+      date: "2026-07-26",
+      one_thing: "x",
+      one_thing_bet: "spendings",
+    })!;
+    expect(day.morning.oneThingBet).toBeNull();
+  });
+});
+
+describe("mapLifeWeek", () => {
+  const payload = {
+    week_of: "2026-07-26",
+    habits_failed: [{ id: "h1", label: "Pompeiana", why: "travelling" }],
+    goals_moved: [{ id: "g1", title: "Ship the panel", next_action: "wire BE" }],
+    main_distraction: "phone in the morning",
+    environmental_change: "charger moved out of the bedroom",
+    becoming_sentence: "closer than in June",
+    untagged: [{ id: "n1", body: "a thought", created_at: "2026-07-24" }],
+  };
+
+  it("needs a week to key off", () => {
+    expect(mapLifeWeek({ main_distraction: "x" })).toBeNull();
+    expect(mapLifeWeek(null)).toBeNull();
+  });
+
+  it("maps the five review fields plus the untagged read", () => {
+    const week = mapLifeWeek(payload)!;
+    expect(week.habitsFailed[0]).toEqual({
+      id: "h1",
+      label: "Pompeiana",
+      why: "travelling",
+    });
+    expect(week.goalsMoved[0].nextAction).toBe("wire BE");
+    expect(week.environmentalChange).toBe("charger moved out of the bedroom");
+    expect(week.becomingSentence).toBe("closer than in June");
+    expect(week.untagged[0].body).toBe("a thought");
+  });
+
+  it("accepts a bare string where an object was expected", () => {
+    const week = mapLifeWeek({
+      week_of: "2026-07-26",
+      habits_failed: ["Pompeiana", "  "],
+      goals_moved: ["Ship the panel"],
+    })!;
+    expect(week.habitsFailed).toHaveLength(1);
+    expect(week.habitsFailed[0].label).toBe("Pompeiana");
+    expect(week.habitsFailed[0].why).toBe("");
+    expect(week.goalsMoved[0].title).toBe("Ship the panel");
+  });
+
+  it("CAPS the batch at three, whatever the backend queued", () => {
+    // L-2b — scarcity is what keeps "approve" meaningful. A longer batch is a
+    // rubber stamp, and the FE is the surface where that would happen, so the
+    // cap is enforced here as well as server-side.
+    const many = Array.from({ length: 7 }, (_, i) => ({
+      id: `p${i}`,
+      kind: "strategy",
+      contradicts: "x",
+      diff: [],
+      warrant: { id: "w", title: "a principle" },
+      report_only: false,
+    }));
+    const week = mapLifeWeek({ ...payload, proposals: many })!;
+    expect(week.proposals).toHaveLength(3);
+    expect(week.proposals.map((p) => p.id)).toEqual(["p0", "p1", "p2"]);
+  });
+
+  it("still drops a warrantless proposal inside the weekly batch", () => {
+    const week = mapLifeWeek({
+      ...payload,
+      proposals: [
+        { id: "p1", kind: "strategy", contradicts: "x", diff: [], warrant: null },
+        {
+          id: "p2",
+          kind: "strategy",
+          contradicts: "x",
+          diff: [],
+          warrant: { id: "w", title: "a principle" },
+          report_only: false,
+        },
+      ],
+    })!;
+    expect(week.proposals.map((p) => p.id)).toEqual(["p2"]);
+  });
+
+  it("tolerates a week with nothing in it", () => {
+    const week = mapLifeWeek({ week_of: "2026-07-26" })!;
+    expect(week.habitsFailed).toEqual([]);
+    expect(week.proposals).toEqual([]);
+    expect(week.untagged).toEqual([]);
+    expect(week.becomingSentence).toBe("");
   });
 });
 

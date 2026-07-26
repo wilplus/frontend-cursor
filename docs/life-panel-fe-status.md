@@ -116,6 +116,7 @@ against the backend prompt.
 | `GET /v2/life/items?kind=` | wins, phrases, distractions |
 | `GET /v2/life/goals` | FE-9 goals, bets in rank order |
 | `GET /v2/life/day` | FE-6 |
+| `GET`/`POST /v2/life/week` | the Sunday review (BE #262) |
 | `GET /v2/life/timeline` | FE-8 |
 | `GET /v2/life/proposals`, `POST /v2/life/proposals/:id/decide` | FE-7 |
 | `GET /v2/life/strategy`, `POST /v2/life/strategy/upload`, `POST /v2/life/strategy/apply` | FE-9 strategy |
@@ -152,6 +153,21 @@ against the backend prompt.
   and never rendered (L-2). Send the warrant or do not send the proposal.
 - `report_only` **defaults to true when absent** (L-2a), so an unknown payload
   can never grow an approve button over Section I or the bets' rank.
+  The backend session caught that it was never emitting the field, which would
+  have made every proposal un-approvable with a missing button as the only
+  symptom. It now sends `false` explicitly on approvable proposals and `true` on
+  the report shape. **This default does not change**: it is what stops an
+  unrecognised payload sprouting an approve button, and a guard that is also the
+  mechanism is not a guard.
+- The day card carries **`one_thing_bet`**, and each focus block carries
+  **`bet`**. Both are rendered with the bet's rank. Since Bet 3 became eligible
+  for daily tasks, an unlabelled card makes the rank invisible on the surface
+  the rank governs, and Bet 3 never outranks Bet 2 in a daily plan (§3.2).
+- The weekly payload's `proposals` are **capped at three by the FE as well as
+  the server** (L-2b). The FE is the surface where a longer batch would actually
+  turn approve into a rubber stamp, so the cap is enforced where the damage
+  would happen. `habits_failed` and `goals_moved` read either as objects or as
+  bare strings.
 
 ### Two endpoints the FE added beyond the prompt
 
@@ -249,9 +265,10 @@ approved.** Review that one file before the flag is flipped.
   There is no Spendings view; `#` proposals against Bet 3 are a backend routing
   decision the FE does not constrain, and it renders whatever the day payload
   contains.
-- The weekly review (P4) has no view yet: `life_weeks` is in the data model, and
-  L-2b routes the batch of three proposals to it, but the prompt lists no FE-*
-  item for it and none was invented.
+- ~~The weekly review has no view~~ — **built** as `/panel/week`, against the
+  live `GET`/`POST /v2/life/week` contract. The prompt lists no FE-* item for
+  it; it exists because the backend endpoint does and the spec's §3.3 names its
+  five fields. Its labels and section order still want the weekly document.
 - FE-6's `#edit` refusal path ("any other target is refused with a one-line
   explanation") is enforced backend-side; the FE renders whatever reply comes
   back. The refusal line is product copy and needs sign-off wherever it is

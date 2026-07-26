@@ -103,6 +103,8 @@ export const EMPTY = {
   wins: "No wins kept yet. #win in the chat puts one here.",
   phrases: "The wall is empty. #add followed by a line puts it here, and it can come back to you later.",
   today: "No card for today yet. It is written at five in the morning and waits here.",
+  week: "No review for this week yet.",
+  untagged: "Nothing untagged this week.",
   goals: "No goals yet. They come from setup, and you can change them there whenever you want.",
   timeline: "Nothing dated yet. Goals with a date and events show up here once they exist.",
   distractions: "Nothing here yet. A distraction is only worth writing down next to the change that answers it.",
@@ -123,6 +125,7 @@ export const VIEWS = {
     lede: "Your own lines, ready to come back at the right moment.",
   },
   today: { title: "Today", lede: "" },
+  week: { title: "Week", lede: "Sunday. What held, what did not, and one change." },
   goals: {
     title: "Goals",
     lede: "Three bets, in order. The order is the point.",
@@ -191,6 +194,23 @@ export const DAY = {
   /** The fallback when the payload carries no question of its own. */
   questionFallback: "Am I becoming the man I described?",
   answerLabel: "Your answer",
+} as const;
+
+/** The Sunday review. Reads what happened; it does not grade it. */
+export const WEEK = {
+  habitsLabel: "Habits that did not run, and why",
+  goalsLabel: "Goals that moved, and what is next",
+  distractionLabel: "The main distraction",
+  changeLabel: "One change to how things are set up",
+  changeHint:
+    "One a week. Answer the distraction with a change to the room, the phone or the calendar, not with resolve.",
+  becomingLabel: "The becoming sentence",
+  batchLabel: "The three from this week",
+  batchHint:
+    "What did not fit the one a day. Three of them, in order. The rest expire rather than pile up.",
+  untaggedLabel: "Notes you left untagged",
+  untaggedHint: "Captured, and nothing was done with them. That was the point.",
+  whyPlaceholderNote: "",
 } as const;
 
 export const SETUP = {

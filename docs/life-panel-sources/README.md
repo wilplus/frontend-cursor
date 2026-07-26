@@ -35,14 +35,16 @@ wording, the framing and the layout are written to fit those, not ported.
 
 **Where it is now:** same.
 
-**What was built without it:** nothing. There is no weekly-review view. `life_weeks`
-is in the data model and L-2b routes the batch of three proposals to it, but no
-FE item specifies the surface and none was invented.
+**What was built without it:** `/panel/week`, against the live
+`GET`/`POST /v2/life/week` contract (BE #262): habits that failed and why, goals
+that moved and what is next, the main distraction, the one environmental change,
+the becoming sentence, the L-2b batch of three, and the untagged-note read.
 
 **What lands here:** `weekly.md`.
 
-**What changes when it does:** a new `/panel/week` view, built from the
-template's own sections. It is the last unbuilt view in the spec.
+**What changes when it does:** labels and section order only. An earlier version
+of this file called the weekly view blocked on the document. It was not: the
+data contract was already there.
 
 ---
 
@@ -68,21 +70,21 @@ file, so this one is safe to commit as-is.
 
 ---
 
-## Before committing the two documents, read this
+## Do not commit the two documents
 
-They are not code. They contain the founder's anchor, bets, goals, distractions
-and habits. Committing them puts that in git history permanently, readable by
-anyone with repo access, and git history is not something you can quietly amend
-later.
+Not just risky, **redundant** (backend session, 2026-07-26). The content already
+has a designed home: `life_strategy` rows behind RLS, one version per horizon,
+written either by setup generation or by `plan_strategy` in the importer.
+Committing the documents would put a second, permanent, unprotected copy of that
+material in git history, readable by anyone with repo access, of exactly the
+class of data the schema exists to protect.
 
-**The default should be that they never get committed.** The card only needs the
-FRAME: section order, exact labels, the wording of the fixed parts. The content
-is rendered from `life_days` at runtime. So:
+**The frame belongs in `copy.ts`. The content belongs in a table with RLS on it.**
 
-- **Preferred** — paste the documents in chat. The frame is extracted into
-  `copy.ts` and the Today view; the personal content is not written to any file.
-- **If you want them in the repo anyway** — that is your call, it is your repo,
-  and the spec's own privacy fence (§2) covers the `life_*` corpus rather than
-  these. Say so explicitly and they get committed here.
+So: **paste the documents in chat for frame extraction only.** Section order,
+exact labels, the wording of the fixed parts get written into `copy.ts` and the
+views; nothing personal is written to any file. The runtime content comes from
+`life_days` / `life_weeks` / `life_strategy` where it already lives.
 
-The timeline HTML has no such question. It is code.
+The timeline HTML has no such question. It is code, the events are not in it,
+and it can be committed here normally.

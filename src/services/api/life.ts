@@ -13,7 +13,10 @@
 /*    GET    /v2/life/principles/:id        the five slots + application log   */
 /*    GET    /v2/life/items?kind=           wins / phrases / distractions      */
 /*    GET    /v2/life/goals                 bets in rank order, goals beneath  */
-/*    GET    /v2/life/day                   today's card (written at 05:00)    */
+/*    GET    /v2/life/day                   the day: 05:00 plan + 23:00 summary*/
+/*    PATCH  /v2/life/day                   habit ticks + the evening review   */
+/*    GET    /v2/life/week                  the Sunday review (BE #262)        */
+/*    POST   /v2/life/week                  the user's half of it              */
 /*    GET    /v2/life/timeline              events + dated goals               */
 /*    GET    /v2/life/proposals             proposal / conflict / retire       */
 /*    POST   /v2/life/proposals/:id/decide  { decision }                       */
@@ -40,6 +43,7 @@ import {
   mapPrinciples,
   mapProposals,
   mapStrategy,
+  mapLifeWeek,
   mapStrategyDiff,
   mapTimelineEvents,
 } from "@/lib/life/mappers";
@@ -55,6 +59,7 @@ import type {
   LifeStrategy,
   LifeStrategyDiff,
   LifeTimelineEvent,
+  LifeWeek,
 } from "@/lib/life/types";
 
 const BASE = "/api/v2/life";
@@ -300,6 +305,50 @@ export async function saveDayEvening(patch: {
   if (patch.distraction !== undefined) evening.distraction = patch.distraction;
   if (patch.answer !== undefined) evening.answer = patch.answer;
   await call("/day", { method: "PATCH", body: { evening } });
+}
+
+/* --------------------------------- the week ------------------------------- */
+
+/** The Sunday review. Live since BE #262, alongside the ranked batch of three
+ *  queued proposals (L-2b) and the untagged-note read. */
+export async function fetchWeek(): Promise<LifeWeek | null> {
+  return mapLifeWeek(await call("/week"));
+}
+
+/** Save the user's half of the review. Their own words, only ever sent because
+ *  they typed them: nothing here asks the system to draft any of it (L-1). */
+export async function saveWeek(patch: {
+  habitsFailed?: Array<{ id: string; label: string; why: string }>;
+  goalsMoved?: Array<{ id: string; title: string; nextAction: string }>;
+  mainDistraction?: string;
+  environmentalChange?: string;
+  becomingSentence?: string;
+}): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (patch.habitsFailed) {
+    body.habits_failed = patch.habitsFailed.map((h) => ({
+      id: h.id,
+      label: h.label,
+      why: h.why,
+    }));
+  }
+  if (patch.goalsMoved) {
+    body.goals_moved = patch.goalsMoved.map((g) => ({
+      id: g.id,
+      title: g.title,
+      next_action: g.nextAction,
+    }));
+  }
+  if (patch.mainDistraction !== undefined) {
+    body.main_distraction = patch.mainDistraction;
+  }
+  if (patch.environmentalChange !== undefined) {
+    body.environmental_change = patch.environmentalChange;
+  }
+  if (patch.becomingSentence !== undefined) {
+    body.becoming_sentence = patch.becomingSentence;
+  }
+  await call("/week", { method: "POST", body });
 }
 
 /* -------------------------------- timeline -------------------------------- */
