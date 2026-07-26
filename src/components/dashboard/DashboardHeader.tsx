@@ -272,13 +272,18 @@ export default function DashboardHeader() {
                             menu byte-identical to today for every other user. */}
                         {lifeMenu.length > 0 && (
                           <div className="border-b border-border pb-1">
-                            {lifeMenu.map((entry) =>
+                            {lifeMenu.map((entry, i) =>
                               entry.external ? (
                                 // Prayer lives on its own subdomain: separate
                                 // service worker scope, separate PWA install,
                                 // works signed out and offline (spec §3.4).
                                 <a
                                   key={entry.key}
+                                  // Opening by keyboard focuses the FIRST item,
+                                  // which is a panel entry whenever there is
+                                  // one. Leaving the ref on Support below would
+                                  // skip past them.
+                                  ref={i === 0 ? firstLinkRef : undefined}
                                   href={entry.href}
                                   rel="noopener"
                                   className={MENU_ITEM_CLASS}
@@ -289,6 +294,7 @@ export default function DashboardHeader() {
                               ) : (
                                 <Link
                                   key={entry.key}
+                                  ref={i === 0 ? firstLinkRef : undefined}
                                   href={entry.href}
                                   className={MENU_ITEM_CLASS}
                                   onClick={() => setMenuOpen(false)}
@@ -300,7 +306,7 @@ export default function DashboardHeader() {
                           </div>
                         )}
                         <a
-                          ref={firstLinkRef}
+                          ref={lifeMenu.length === 0 ? firstLinkRef : undefined}
                           href={`mailto:${SUPPORT_EMAIL}`}
                           className={MENU_ITEM_CLASS}
                           onClick={() => setMenuOpen(false)}

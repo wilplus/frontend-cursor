@@ -2,8 +2,9 @@
 
 import { createContext, useContext } from "react";
 import Link from "next/link";
-import { notFound, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import PanelNotFound from "@/components/life/PanelNotFound";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { STATUS, VIEWS } from "@/lib/life/copy";
 import { hasConsented, type LifeState } from "@/lib/life/types";
@@ -56,9 +57,20 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // Render-time, not in an effect, so Next resolves it as a real 404 response
-  // rather than throwing after paint.
-  if (!state) notFound();
+  // Rendered inline rather than through `notFound()`. This component IS the
+  // panel layout, so throwing NEXT_NOT_FOUND from here would be caught by
+  // whichever boundary happens to sit above the layout, and if that boundary
+  // renders `panel/not-found.tsx` back INSIDE this layout the shell re-enters
+  // and throws again. The user-visible result is identical either way, and
+  // this way it does not depend on where Next places the boundary.
+  if (!state) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col bg-background">
+        <DashboardHeader />
+        <PanelNotFound />
+      </div>
+    );
+  }
 
   return (
     <LifeStateContext.Provider value={{ state, refresh }}>
