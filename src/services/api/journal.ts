@@ -215,3 +215,33 @@ export function slugify(title: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Client-side read of the PUBLIC list                                        */
+/*                                                                            */
+/*  The public pages read the backend server-side (journalServer.ts, ISR).     */
+/*  This is for BROWSER surfaces that need the list live — the coach choosing  */
+/*  a post to attach to a moment. Same-origin, no token, soft-fails to [] so a  */
+/*  picker degrades to "nothing to choose" instead of breaking its host.        */
+/* -------------------------------------------------------------------------- */
+
+export async function fetchPublishedPosts(): Promise<JournalPostSummary[]> {
+  let res: Response;
+  try {
+    res = await fetch("/api/v2/journal/posts?limit=100", {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+  const body = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  const rows = Array.isArray(body?.posts) ? (body.posts as unknown[]) : [];
+  return rows
+    .map(mapJournalSummary)
+    .filter((p): p is JournalPostSummary => p !== null);
+}
