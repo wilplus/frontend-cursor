@@ -11,6 +11,10 @@ import {
   splitParagraphs,
   type JournalPostSummary,
 } from "./journal";
+import {
+  mapCommunityPost,
+  sortCommunityByCadence,
+} from "./journalAdmin";
 
 function row(over: Record<string, unknown> = {}) {
   return {
@@ -223,5 +227,100 @@ describe("categoryLabel", () => {
   it("labels known keys and falls back to Others", () => {
     expect(categoryLabel("physical_exercise")).toBe("Physical Exercise");
     expect(categoryLabel("bogus")).toBe("Others");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Community Content Studio                                                   */
+/*                                                                            */
+/*  These drafts are never journal posts, so the data layer is where the       */
+/*  invariants live: an unusable row is dropped rather than half-rendered, and  */
+/*  a flag always survives mapping so the warning can be shown.                 */
+/* -------------------------------------------------------------------------- */
+
+function communityRow(over: Record<string, unknown> = {}) {
+  return {
+    id: "c1",
+    journal_post_id: "p1",
+    kind: "fear",
+    label: "Fear",
+    day: "Tue",
+    title: "The freeze",
+    body: "one\n\ntwo",
+    char_count: 8,
+    flags: [],
+    pillar_id: 6,
+    pillar_name: "Focus & attention",
+    theme: "The Re-Entry Note",
+    soft_cta_line: "",
+    app_proof_line: "proof",
+    generated_at: "2026-07-25T00:00:00Z",
+    updated_at: null,
+    ...over,
+  };
+}
+
+describe("sortCommunityByCadence", () => {
+  it("orders by posting day, not by the order the API returned", () => {
+    const items = [
+      { kind: "win" as const },
+      { kind: "myth_bust" as const },
+      { kind: "fear" as const },
+    ];
+    expect(sortCommunityByCadence(items).map((i) => i.kind)).toEqual([
+      "fear", // Tue
+      "myth_bust", // Thu
+      "win", // Sat
+    ]);
+  });
+
+  it("does not mutate the input", () => {
+    const items = [{ kind: "win" as const }, { kind: "fear" as const }];
+    sortCommunityByCadence(items);
+    expect(items.map((i) => i.kind)).toEqual(["win", "fear"]);
+  });
+});
+
+describe("mapCommunityPost", () => {
+  it("maps a row and keeps the batch-level fields", () => {
+    const p = mapCommunityPost(communityRow());
+    expect(p?.kind).toBe("fear");
+    expect(p?.label).toBe("Fear");
+    expect(p?.pillarName).toBe("Focus & attention");
+    expect(p?.theme).toBe("The Re-Entry Note");
+    expect(p?.appProofLine).toBe("proof");
+  });
+
+  it("keeps a verify flag so the warning can be rendered", () => {
+    expect(mapCommunityPost(communityRow({ flags: ["verify"] }))?.flags).toEqual(
+      ["verify"]
+    );
+    expect(
+      mapCommunityPost(communityRow({ flags: ["construct", "verify"] }))?.flags
+    ).toEqual(["construct", "verify"]);
+  });
+
+  it("drops flags it does not understand rather than rendering them raw", () => {
+    expect(
+      mapCommunityPost(communityRow({ flags: ["verify", "nonsense"] }))?.flags
+    ).toEqual(["verify"]);
+  });
+
+  it("returns null without an id or with an unknown kind", () => {
+    // No id: nothing to update or delete against.
+    expect(mapCommunityPost(communityRow({ id: "" }))).toBeNull();
+    // Unknown kind: cannot be placed in the cadence.
+    expect(mapCommunityPost(communityRow({ kind: "rant" }))).toBeNull();
+  });
+
+  it("falls back to the body length when char_count is missing", () => {
+    const p = mapCommunityPost(
+      communityRow({ char_count: null, body: "12345" })
+    );
+    expect(p?.charCount).toBe(5);
+  });
+
+  it("treats an absent soft CTA as empty, so it is simply not rendered", () => {
+    expect(mapCommunityPost(communityRow())?.softCtaLine).toBe("");
   });
 });
