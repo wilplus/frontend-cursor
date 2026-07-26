@@ -405,6 +405,30 @@ describe("mapIdealText", () => {
     expect(v?.keyMoments[1]).toMatchObject({ star: null, suggestion: null });
   });
 
+  it("maps the CONGRUENCE delivery device through the same star path", () => {
+    // The content↔delivery gap is a fifth device on the EXISTING family, not a
+    // new surface: it must parse into the same {kind:"delivery"} shape so it
+    // draws the same grey star and opens the same DeliveryStarCard.
+    const v = mapIdealText({
+      text: "hello world",
+      key_moments: [
+        {
+          anchor: "hello",
+          snippet_id: "d1",
+          take_session_id: "t1",
+          star: "suggestion",
+          suggestion: { kind: "delivery", device: "congruence" },
+        },
+      ],
+    });
+    expect(v?.keyMoments[0]).toMatchObject({
+      star: "suggestion",
+      // Anchored at the fragment, exactly like every other feedback.
+      anchor: "hello",
+      suggestion: { kind: "delivery", device: "congruence" },
+    });
+  });
+
   it("degrades a structural star with an UNKNOWN device to a plain moment", () => {
     // The fixed copy is keyed off device, so a device we can't name has no
     // sheet to show — same degrade rule as a missing suggestion (R-ms3).

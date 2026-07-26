@@ -329,8 +329,10 @@ function StructuralPracticeCard({
   );
 }
 
-/** DELIVERY_STARS — the fixed founder-approved copy keyed on the measured
- *  device. Self-referential ("your usual"), qualitative, no numbers. */
+/** DELIVERY_STARS — the fixed founder-approved copy keyed on the device.
+ *  Qualitative, no numbers. The four measured devices are self-referential
+ *  ("your usual"); `congruence` compares the delivery to the SPEAKER'S OWN
+ *  WORDS instead, which is the only reference that case has. */
 export const DELIVERY_COPY: Record<
   Extract<MomentSuggestion, { kind: "delivery" }>["device"],
   string
@@ -339,6 +341,11 @@ export const DELIVERY_COPY: Record<
   pace_fast: "Pace: You moved faster here than you usually do. Slow it down.",
   pace_slow: "Pace: This one dragged compared to your usual. Pick it up.",
   pause: "Pause: You ran this together. Take a breath before it.",
+  // Founder-signed-off 2026-07-26. Hedged on purpose: the read is a
+  // content↔delivery gap, not a verdict on the speaker. "Worth another take"
+  // pairs with the card's re-record mic.
+  congruence:
+    "Match: Your delivery landed flatter than your words here. Worth another take.",
 };
 
 /** DELIVERY_STARS — a measured observation + a mic to re-record THIS snippet
