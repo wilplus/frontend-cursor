@@ -1,15 +1,14 @@
-import { getAuthToken } from "@/lib/api/auth-client";
 import { type LabSessionContext } from "./LabOverlay";
 import { type PresentationSlide } from "./presentation";
 import { coerceTargetSeconds } from "./willabHelpers";
 
 /* -------------------------------------------------------------------------- */
-/*  willabLastSetup — "Same as last time" prefill, sourced from the BE          */
+/*  willabLastSetup — restore a take's setup from a readout payload            */
 /*                                                                            */
-/*  GET /api/v2/user/last-setup → the user's most-recent session's intake       */
-/*  context (topic / audience / length / key words / slides / deck). BE-sourced  */
-/*  so it survives a cache clear and works cross-device. slide_advances is       */
-/*  deliberately omitted (the new run makes its own tap timeline).              */
+/*  The manual "Same as last time" affordance was removed (FE-2), and with it   */
+/*  the /last-setup fetch. What remains is the readout's own `setup` block,      */
+/*  which restores a take's context (topic / audience / length / slides / deck)  */
+/*  so a next take works even when localStorage lost the arc's deck.            */
 /* -------------------------------------------------------------------------- */
 
 function parseSlides(raw: unknown): PresentationSlide[] {
@@ -20,34 +19,6 @@ function parseSlides(raw: unknown): PresentationSlide[] {
       title: typeof s.title === "string" ? s.title : "",
       body: typeof s.body === "string" ? s.body : "",
     }));
-}
-
-/** Map the /last-setup response → a re-fillable context, or null when there's
- *  no prior session (`available: false`) or the payload is malformed. */
-export function mapLastSetup(raw: unknown): LabSessionContext | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  if (r.available !== true) return null;
-  if (typeof r.topic !== "string" || r.topic.trim() === "") return null;
-  return {
-    topic: r.topic,
-    audience: typeof r.audience === "string" ? r.audience : "",
-    // R5 — coerce a numeric string too, so a string length restores the
-    // countdown on takes 2/3 instead of being dropped.
-    target_length_seconds: coerceTargetSeconds(r.target_length_seconds),
-    domain_vocabulary: Array.isArray(r.domain_vocabulary)
-      ? r.domain_vocabulary.filter((x): x is string => typeof x === "string")
-      : [],
-    slides: parseSlides(r.slides),
-    presentationRef:
-      typeof r.presentation_ref === "string" ? r.presentation_ref : null,
-    // ④ step 5 — prefill the strategic-context note when the BE echoes it
-    // (inert until then; the field is optional so absence is fine).
-    strategicContext:
-      typeof r.strategic_context === "string" && r.strategic_context.trim()
-        ? r.strategic_context
-        : undefined,
-  };
 }
 
 /** Map a readout re-read's top-level `setup` block → a re-fillable context.
@@ -80,20 +51,3 @@ export function mapReadoutSetup(raw: unknown): LabSessionContext | null {
   };
 }
 
-/** Fetch the last set-up for "Same as last time". null = nothing to repeat
- *  (guest, no prior session, or any failure → the button hides). */
-export async function fetchLastSetup(): Promise<LabSessionContext | null> {
-  const token = await getAuthToken();
-  if (!token) return null;
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/user/last-setup", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-  } catch {
-    return null;
-  }
-  if (!res.ok) return null;
-  return mapLastSetup(await res.json().catch(() => null));
-}

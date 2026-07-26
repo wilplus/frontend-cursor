@@ -72,15 +72,11 @@ function StepHead({
 }
 
 export default function RecordingSetup({
-  lastSetup,
-  applyNonce,
   contextArcId,
   preloadDeck,
   hideDeck = false,
   onSubmit,
 }: {
-  lastSetup: LabSessionContext | null;
-  applyNonce: number;
   /** Arc this setup records into, or null (new project / detached upload). Gates
    *  the real context-document upload in step 5 (which needs an existing arc). */
   contextArcId: string | null;
@@ -119,19 +115,6 @@ export default function RecordingSetup({
       setLengthSec(preloadDeck.targetLengthSeconds);
     }
   }, [preloadDeck]);
-
-  // "Same as last time" — the header bumps applyNonce; refill every field from
-  // the last submitted set-up and restart the flow at the top to review it.
-  useEffect(() => {
-    if (applyNonce <= 0 || !lastSetup) return;
-    setTopic(lastSetup.topic);
-    setAudience(lastSetup.audience);
-    setLengthSec(lastSetup.target_length_seconds);
-    setSlides(lastSetup.slides.length > 0 ? lastSetup.slides : initialSlides());
-    setPresentationRef(lastSetup.presentationRef);
-    setStrategicContext(lastSetup.strategicContext ?? "");
-    setStep(0);
-  }, [applyNonce, lastSetup]);
 
   // Length auto-advances shortly after a tap (Typeform feel). The guard pins the
   // advance to the length step so a late timer can never over-step the flow.

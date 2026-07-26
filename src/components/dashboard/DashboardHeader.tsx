@@ -20,6 +20,9 @@ import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 
 const SUPPORT_EMAIL = "artur@willonski.com";
+/** The Skool community. Off-site, so it always opens in a new tab. */
+const COMMUNITY_URL =
+  "https://www.skool.com/willab-willpower-lab-6989/about";
 const HEADER_MENU_ID = "dashboard-header-menu";
 type AuthState = "unknown" | "anonymous" | "signed_in";
 // Shared menu-item styling so Support / Log in / Log out read identically.
@@ -321,6 +324,17 @@ export default function DashboardHeader() {
                           onClick={() => setMenuOpen(false)}
                         >
                           Support
+                        </a>
+                        {/* The Skool community. Off-site, so a new tab with
+                            noopener/noreferrer rather than a client route. */}
+                        <a
+                          href={COMMUNITY_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={MENU_ITEM_CLASS}
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Community
                         </a>
                         {/* Credits count → checkout. Shown EVERYWHERE incl.
                             /chat since the $25-per-analysis credit model

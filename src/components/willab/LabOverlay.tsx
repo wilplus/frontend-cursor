@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Loader2, Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
-import { fetchLastSetup } from "./willabLastSetup";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording, fetchGuestLabReadout } from "@/services/api/labRecording";
 import { fetchSessionReadout } from "@/services/api/sessionReadout";
@@ -284,18 +283,6 @@ export default function LabOverlay({
   // then submits this file straight through (deckless) instead of live-record.
   const stagedUploadRef = useRef<File | null>(takeLabUpload());
 
-  // "Same as last time" — the last set-up, sourced from the BE (cross-device,
-  // survives a cache clear); null → no prior session → the button hides.
-  // applyLastNonce bumps to trigger the form to re-fill.
-  const [lastSetup, setLastSetup] = useState<LabSessionContext | null>(null);
-  const [applyLastNonce, setApplyLastNonce] = useState(0);
-  useEffect(() => {
-    let active = true;
-    void fetchLastSetup().then((s) => active && setLastSetup(s));
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // Drive flow transitions off the mic state machine.
   useEffect(() => {
@@ -694,20 +681,12 @@ export default function LabOverlay({
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      {/* Unified X-only header: no status title on any step; the set-up step
-          also gets the "Same as last time" re-fill on the left. */}
-      <header className="flex h-12 shrink-0 items-center justify-between px-4">
-        {state === "lab_session_context" && lastSetup ? (
-          <button
-            type="button"
-            onClick={() => setApplyLastNonce((n) => n + 1)}
-            className="inline-flex h-9 items-center rounded-full px-3 text-[14px] text-foreground/70 transition hover:bg-muted"
-          >
-            Same as last time
-          </button>
-        ) : (
-          <span />
-        )}
+      {/* Unified X-only header, on every step. The manual "Same as last time"
+          re-fill was removed (FE-2): continuing a project still prefills from
+          the server, so the button only duplicated that with a worse guess.
+          The X is deliberately the only control here and sits right-aligned
+          rather than opposite an empty slot. */}
+      <header className="flex h-12 shrink-0 items-center justify-end px-4">
         <OverlayCloseButton onClick={handleClose} />
       </header>
 
@@ -718,8 +697,6 @@ export default function LabOverlay({
 
         {state === "lab_session_context" && (
           <RecordingSetup
-            lastSetup={lastSetup}
-            applyNonce={applyLastNonce}
             // Context document attaches to the arc; a staged standalone upload
             // is detached (arc nulled on submit), so suppress the field there —
             // same guard as preloadDeck. Also signed-in only: the endpoint is
