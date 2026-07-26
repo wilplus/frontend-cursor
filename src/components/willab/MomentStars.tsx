@@ -221,6 +221,28 @@ function MomentSheetBody({
           ) : null}
         </div>
       )}
+
+      {/* A post the coach attached to this moment. Deliberately OUTSIDE the
+          branch above: a public blog link is not paywalled, so it shows even
+          while the coach's own note is still locked. The key is absent (never
+          null-with-a-dead-slug) when there is no reference, and the backend
+          also omits it for an unpublished or deleted post, so this cannot
+          render a link that 404s. Styled as a reference, not an action. */}
+      {moment.coach?.reference ? (
+        <div className="mt-4 border-t border-border pt-3">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Reference
+          </p>
+          <a
+            href={moment.coach.reference.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-[13px] leading-snug text-foreground underline underline-offset-4 transition hover:text-foreground/70"
+          >
+            {moment.coach.reference.title}
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 }

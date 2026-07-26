@@ -91,7 +91,15 @@ export interface IdealKeyMomentLink {
   applied?: boolean;
   /** Verified-star flags — what sits behind the 5-credit paywall. The content
    *  itself (coach note + video) is served only by the paid moments GET. */
-  coach?: { hasMessage: boolean; hasVideo: boolean } | null;
+  coach?: {
+    hasMessage: boolean;
+    hasVideo: boolean;
+    /** A blog post the coach attached to this verified moment. Absent when
+     *  there is none, and absent for an unpublished or deleted post, so this
+     *  can never render a dead link. NOT paywalled: unlike the coach's note,
+     *  a public post sits outside the 5-credit gate. */
+    reference?: { slug: string; title: string; url: string } | null;
+  } | null;
   /** The student's own recording of this snippet — free playback in the modal
    *  (never gated). null → no player. */
   snippetAudioRef?: string | null;
@@ -620,10 +628,28 @@ function mapKeyMoment(raw: unknown): IdealKeyMomentLink | null {
     r.coach && typeof r.coach === "object"
       ? (r.coach as Record<string, unknown>)
       : null;
+  const refRaw =
+    coachRaw && typeof coachRaw.reference === "object" && coachRaw.reference
+      ? (coachRaw.reference as Record<string, unknown>)
+      : null;
+  // Need a slug AND a title to render something a reader can act on. Prefer
+  // the server's url, but fall back to building it from the slug so an older
+  // payload still links correctly.
+  const referenceSlug = refRaw ? str(refRaw.slug) : "";
+  const referenceTitle = refRaw ? str(refRaw.title) : "";
+  const reference =
+    referenceSlug && referenceTitle
+      ? {
+          slug: referenceSlug,
+          title: referenceTitle,
+          url: str(refRaw?.url) || `/blog/${referenceSlug}`,
+        }
+      : null;
   const coach = coachRaw
     ? {
         hasMessage: coachRaw.has_message === true,
         hasVideo: coachRaw.has_video === true,
+        reference,
       }
     : null;
   const snippetAudioRef = str(r.snippet_audio_ref) || str(r.audio_ref) || null;

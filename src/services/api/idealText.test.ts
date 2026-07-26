@@ -492,3 +492,67 @@ describe("mapInstantIdealText (instant lane, free)", () => {
     expect(mapInstantIdealText({ variant: "instant" })).toBeNull();
   });
 });
+
+describe("coach reference (FE-5)", () => {
+  // A key moment is keyed on `anchor`; a row without one is dropped.
+  const withCoach = (coach: unknown) => ({
+    text: "hello world",
+    key_moments: [
+      {
+        anchor: "hello",
+        snippet_id: "s1",
+        take_session_id: "t1",
+        coach,
+      },
+    ],
+  });
+
+  it("maps a reference the coach attached", () => {
+    const r = mapIdealText(
+      withCoach({
+        has_message: true,
+        has_video: false,
+        reference: {
+          slug: "why-your-voice-shakes",
+          title: "Why your voice shakes",
+          url: "/blog/why-your-voice-shakes",
+        },
+      })
+    );
+    const ref = r?.keyMoments?.[0]?.coach?.reference;
+    expect(ref?.title).toBe("Why your voice shakes");
+    expect(ref?.url).toBe("/blog/why-your-voice-shakes");
+  });
+
+  it("is null when the key is absent, so nothing renders", () => {
+    const r = mapIdealText(
+      withCoach({ has_message: true, has_video: false })
+    );
+    const coach = r?.keyMoments?.[0]?.coach;
+    expect(coach?.reference ?? null).toBeNull();
+  });
+
+  it("builds the /blog path from the slug when url is missing", () => {
+    const r = mapIdealText(
+      withCoach({
+        has_message: true,
+        has_video: false,
+        reference: { slug: "a-post", title: "A post" },
+      })
+    );
+    const ref = r?.keyMoments?.[0]?.coach?.reference;
+    expect(ref?.url).toBe("/blog/a-post");
+  });
+
+  it("drops a reference with no usable title, rather than linking blank text", () => {
+    const r = mapIdealText(
+      withCoach({
+        has_message: true,
+        has_video: false,
+        reference: { slug: "a-post", title: "" },
+      })
+    );
+    const coach = r?.keyMoments?.[0]?.coach;
+    expect(coach?.reference ?? null).toBeNull();
+  });
+});
