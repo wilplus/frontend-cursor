@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import PanelNotFound from "@/components/life/PanelNotFound";
 import { useLifeState } from "@/lib/life/useLifeState";
+import { panelMenu } from "@/lib/life/menu";
 import { STATUS, VIEWS } from "@/lib/life/copy";
-import { hasConsented, type LifeState } from "@/lib/life/types";
+import { hasConsented, type LifeMenuEntry, type LifeState } from "@/lib/life/types";
 
 /* -------------------------------------------------------------------------- */
 /*  PanelShell — chrome and gate for every /panel/* view (FE-1)                */
@@ -76,7 +77,9 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
     <LifeStateContext.Provider value={{ state, refresh }}>
       <div className="flex min-h-[100dvh] flex-col bg-background">
         <DashboardHeader />
-        <PanelNav menu={state.menu} pathname={pathname} />
+        {/* Same derivation as the hamburger, so the two can never disagree
+            about which views exist. */}
+        <PanelNav menu={panelMenu(state)} pathname={pathname} />
         <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
           {children}
         </main>
@@ -103,7 +106,7 @@ function PanelNav({
   menu,
   pathname,
 }: {
-  menu: LifeState["menu"];
+  menu: LifeMenuEntry[];
   pathname: string | null;
 }) {
   if (menu.length === 0) return null;

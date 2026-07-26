@@ -20,6 +20,31 @@ Every surface here is dark by default. `GET /v2/life/state` 404s while
 So this branch is deployable ahead of the backend without changing anything a
 user sees. Flipping the flag is what turns it on.
 
+### The smallest payload that lights it up
+
+Once `LIFE_PANEL_ENABLED=1`, this is the entire response BE-2 has to return for
+**Principles to appear in the hamburger for every signed-in user**, and for the
+guide → consent → setup flow to be reachable:
+
+```json
+{
+  "consent": { "required_version": "2026-07-26", "accepted_version": null },
+  "setup":   { "complete": false, "resume_step": null }
+}
+```
+
+No `menu` needed. Set `accepted_version` to the required version once the user
+consents, flip `setup.complete` when they finish setup, and the other seven
+entries turn on by themselves, in the hamburger and in the panel nav, without a
+page reload.
+
+`consent.required_version` is the one field that cannot be omitted: without a
+version there is no gate to pass, so the FE treats the payload as "no panel"
+rather than guessing one.
+
+The flow still needs `POST /v2/life/consent` and `PUT/POST /v2/life/setup*` to
+exist, or the user reaches consent and the write fails.
+
 ## 2. Files
 
 ```
@@ -106,8 +131,17 @@ against the backend prompt.
 
 ### Response-shape notes
 
-- `state.menu` is the whole nav. **Anything not in it does not render**, so the
-  backend decides which of the nine views exist for this user, including Prayer.
+- `state.menu` is **optional** (founder, 2026-07-26). Leave it empty and the FE
+  derives the nav in two stages: **Principles alone** for any signed-in user the
+  panel exists for, and the other seven the moment that user is participating
+  (consented AND setup complete). Principles is the entrance, so it must be
+  reachable before the user has done anything; the rest would open on nothing,
+  because every route into the data runs through setup.
+  Send a **non-empty** `menu` and it wins wholesale, which is the only way an
+  allowlisted entry can appear: Prayer is founder-only, the FE cannot know the
+  allowlist, so it is never derived. A payload that wants Prayer sends the full
+  list. This also lets the server pull a view without an FE deploy.
+  N1 is intact either way: entries the user cannot use are absent, never greyed.
 - `state.tags` (optional) overrides the picker list. Absent → the FE registry is
   used, which lists five canonical tags and keeps `#sin` working but unlisted.
 - The life chat card rides in the bot message's `metadata.life_card`, the same

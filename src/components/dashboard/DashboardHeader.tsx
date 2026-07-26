@@ -15,7 +15,8 @@ import {
   type CreditsCheckoutSuccessDetail,
 } from "@/lib/willabWindowEvents";
 import { pollCreditsAfterCheckout } from "@/lib/homework/pollCreditsAfterCheckout";
-import { loadLifeState } from "@/lib/life/useLifeState";
+import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
+import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 
 const SUPPORT_EMAIL = "artur@willonski.com";
@@ -144,18 +145,26 @@ export default function DashboardHeader() {
   /** FE-1 — one read of the panel gate per page load (the promise is cached in
    *  `useLifeState`). A 404 resolves to null and leaves the menu byte-identical
    *  to today: no entries, no error, no console noise. Signed-in only, because
-   *  the panel is signed-in only and a guest read would just be a wasted 401. */
+   *  the panel is signed-in only and a guest read would just be a wasted 401.
+   *
+   *  Principles alone until the user is through consent and setup; the other
+   *  seven the moment they are (see `panelMenu`). The subscription is what
+   *  makes "the moment" literal: finishing setup inside /panel re-reads the
+   *  gate, and this menu grows without a page reload. */
   useEffect(() => {
     if (authState !== "signed_in") {
       setLifeMenu([]);
       return;
     }
     let cancelled = false;
-    void loadLifeState().then((state) => {
-      if (!cancelled && state) setLifeMenu(state.menu);
-    });
+    const apply = (state: Parameters<typeof panelMenu>[0]) => {
+      if (!cancelled) setLifeMenu(panelMenu(state));
+    };
+    void loadLifeState().then(apply);
+    const unsubscribe = subscribeLifeState(apply);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [authState]);
 
