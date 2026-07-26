@@ -279,6 +279,29 @@ export async function setDayCheck(
   });
 }
 
+/**
+ * Save the evening review: the two booleans, what pulled at you, and the answer
+ * to the closing question.
+ *
+ * Same endpoint, same reasoning as `setDayCheck`. `answer` is the user's own
+ * prose and is only ever sent because they typed it. Nothing here asks the
+ * system to draft it, and the field is rendered with no placeholder that would
+ * write for them (L-1 / N6).
+ */
+export async function saveDayEvening(patch: {
+  habitsRan?: boolean;
+  oneThingDone?: boolean;
+  distraction?: string;
+  answer?: string;
+}): Promise<void> {
+  const evening: Record<string, unknown> = {};
+  if (patch.habitsRan !== undefined) evening.habits_ran = patch.habitsRan;
+  if (patch.oneThingDone !== undefined) evening.one_thing = patch.oneThingDone;
+  if (patch.distraction !== undefined) evening.distraction = patch.distraction;
+  if (patch.answer !== undefined) evening.answer = patch.answer;
+  await call("/day", { method: "PATCH", body: { evening } });
+}
+
 /* -------------------------------- timeline -------------------------------- */
 
 export async function fetchTimeline(): Promise<LifeTimelineEvent[]> {

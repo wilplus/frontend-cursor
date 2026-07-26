@@ -264,47 +264,65 @@ export function mapLifeDay(raw: unknown): LifeDay | null {
   if (!r) return null;
   const date = strOrNull(r.date);
   if (!date) return null;
+
+  // The 05:00 fields may arrive nested under `morning` (the two-pass shape) or
+  // flat on the row (the shape `life_days` actually stores). Both read the
+  // same, so the backend can send either without an FE deploy.
+  const m = rec(r.morning) ?? r;
   const evening = rec(r.evening) ?? {};
+
   return {
     date,
-    morningChecks: mapChecks(r.morning_checks),
-    oneThing: str(r.one_thing),
-    focusBlocks: arr(r.focus_blocks).flatMap((row) => {
-      const b = rec(row);
-      if (!b) return [];
-      return [{ text: str(b.text), box: strOrNull(b.box) }];
-    }),
-    distractionFlagged: strOrNull(r.distraction_flagged),
-    bets: arr(r.bets).flatMap((row) => {
-      const b = rec(row);
-      const key = betKey(b?.key);
-      if (!key) return [];
-      return [
-        {
-          key,
-          rank: num(b?.rank, 0),
-          label: str(b?.label),
-          goals: arr(b?.goals).flatMap((g) => {
-            const gr = rec(g);
-            const id = strOrNull(gr?.id);
-            if (!id) return [];
-            return [
-              {
-                id,
-                title: str(gr?.title),
-                dueLabel: strOrNull(gr?.due_label),
-              },
-            ];
-          }),
-        },
-      ];
-    }),
-    dailyHabits: mapChecks(r.daily_habits),
+    morning: {
+      generatedAt: strOrNull(m.generated_at ?? r.morning_generated_at),
+      checks: mapChecks(m.checks ?? m.morning_checks),
+      oneThing: str(m.one_thing),
+      focusBlocks: arr(m.focus_blocks).flatMap((row) => {
+        const b = rec(row);
+        if (!b) return [];
+        return [{ text: str(b.text), box: strOrNull(b.box) }];
+      }),
+      distractionFlagged: strOrNull(m.distraction_flagged),
+      bets: arr(m.bets).flatMap((row) => {
+        const b = rec(row);
+        const key = betKey(b?.key);
+        if (!key) return [];
+        return [
+          {
+            key,
+            rank: num(b?.rank, 0),
+            label: str(b?.label),
+            goals: arr(b?.goals).flatMap((g) => {
+              const gr = rec(g);
+              const id = strOrNull(gr?.id);
+              if (!id) return [];
+              return [
+                {
+                  id,
+                  title: str(gr?.title),
+                  dueLabel: strOrNull(gr?.due_label),
+                },
+              ];
+            }),
+          },
+        ];
+      }),
+      habits: mapChecks(m.habits ?? m.daily_habits),
+    },
     evening: {
+      // Null until the 23:00 pass has run. The view reads this, not the length
+      // of `summary`, so a pass that legitimately produced no lines still
+      // renders as written rather than as pending.
+      generatedAt: strOrNull(evening.generated_at),
+      summary: arr(evening.summary).flatMap((line) =>
+        typeof line === "string" && line.trim() ? [line] : []
+      ),
       habitsRan: bool(evening.habits_ran),
       oneThingDone: bool(evening.one_thing),
       distraction: str(evening.distraction),
-      line: str(evening.line),
+      question: str(evening.question),
+      // `line` is the legacy column name for the user's own answer.
+      answer: str(evening.answer ?? evening.line),
     },
   };
 }

@@ -161,12 +161,45 @@ Both are flagged here because they are contract additions, not assumptions:
    wording and a distraction's environmental response. FE-9 asks for inline edit
    on Wins, and the distraction/response pairing is unusable read-only. Edits the
    user's own text only; it is never a path for accepting a proposal.
-2. `PATCH /v2/life/day` with `{checks: [{id, done}]}` — ticking a checkbox on
-   today's card. The card's frame includes habit checkboxes, and a checkbox that
-   cannot be ticked is not a checkbox. The alternative reading, that every tick
-   goes through `#edit` in the chat, makes the morning routine a typing exercise.
-   This writes a boolean only: the one thing, the focus blocks and all strategy
-   text still change through `#edit` and approved proposals.
+2. `PATCH /v2/life/day` — ticking a checkbox on today's card
+   (`{checks: [{id, done}]}`) and saving the evening review
+   (`{evening: {habits_ran, one_thing, distraction, answer}}`). The card's frame
+   includes habit checkboxes, and a checkbox that cannot be ticked is not a
+   checkbox; the evening review is four fields the user fills in. The
+   alternative reading, that every tick goes through `#edit` in the chat, makes
+   the morning routine a typing exercise. This writes booleans and the user's
+   own text only: the one thing, the focus blocks and all strategy text still
+   change through `#edit` and approved proposals.
+
+### The day is two passes
+
+`GET /v2/life/day` returns one row with two moments:
+
+```json
+{
+  "date": "2026-07-26",
+  "morning": { "generated_at": "...T05:00:00Z", "one_thing": "...",
+               "checks": [], "focus_blocks": [], "bets": [], "habits": [] },
+  "evening": { "generated_at": null, "summary": [],
+               "habits_ran": false, "one_thing": false,
+               "distraction": "", "question": "...", "answer": "" }
+}
+```
+
+- The 05:00 fields may also arrive **flat on the row** (`one_thing`,
+  `daily_habits`, …), which is the shape `life_days` stores. Both read the same.
+- `evening.generated_at` is **null until the 23:00 pass has run**, and the view
+  branches on it rather than on `summary` being non-empty, so a pass that
+  legitimately produced no lines still renders as written.
+- `evening.summary` is the **system's factual recap**: what the one thing was,
+  which habits ran, what got flagged. L-1 means it reports and stops.
+  `evening.answer` is the **user's** prose (the legacy `line` column is read as
+  a fallback), rendered with no placeholder and no draft button (N6).
+- **Nothing is delivered.** Both passes are scheduled; neither pings. If the
+  23:00 summary is also appended to the chat, it rides in the bot message's
+  `metadata.life_card` like every other life turn and renders through the
+  existing card, so it needs no new FE surface, and it must not be paired with
+  a push notification (L-4 / N3).
 
 If the backend would rather not have these, say so and the two views degrade to
 read-only in one commit each.
@@ -176,6 +209,14 @@ read-only in one commit each.
 - **One catch-all BFF route** instead of ~15 files. The endpoint list is still
   moving, and the prefix is fixed to `/v2/life/`, so the blast radius is the same
   while the FE stops re-deploying for every new backend route.
+- **The daily card's design is mine, not a port of the founder's template.**
+  The spec's `life_days` columns (§3.3) gave the field list and FE-6 gave the
+  section order; the actual wording, framing and layout are written to fit
+  those. The founder's daily and weekly documents, which §4.1 lists as "pasted
+  in this thread", never reached this repo. **Diff the card against them before
+  ship.** The 23:00 summary has no source at all beyond the four `evening_*`
+  columns, so its shape is entirely invented and is the most likely thing to
+  need rewriting.
 - **The timeline canvas is written from the described behaviour, not copied.**
   The original single-file renderer lives on the founder's machine
   (`~/Documents/timeline/index.html`) and is not in this repo, so it could not be
