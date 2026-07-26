@@ -1,0 +1,134 @@
+"use client";
+
+import { createContext, useContext } from "react";
+import Link from "next/link";
+import { notFound, usePathname } from "next/navigation";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { useLifeState } from "@/lib/life/useLifeState";
+import { STATUS, VIEWS } from "@/lib/life/copy";
+import { hasConsented, type LifeState } from "@/lib/life/types";
+
+/* -------------------------------------------------------------------------- */
+/*  PanelShell — chrome and gate for every /panel/* view (FE-1)                */
+/*                                                                            */
+/*  N1, ABSENT NOT DISABLED, is enforced in two places here:                   */
+/*    · the nav renders `state.menu` and nothing else. There is no local list  */
+/*      of views to fall back to, so a surface the payload omits cannot appear */
+/*      even by accident, and there is no greyed "coming soon" to explain.     */
+/*    · no state at all (flag off, or this user is on no allowlist) → 404.     */
+/*      Not a message, not an empty shell. Nothing to discover.                */
+/*                                                                            */
+/*  The app header is reused rather than rebuilt so the panel is visibly the   */
+/*  same product, same session, one deploy (spec §1.1).                        */
+/* -------------------------------------------------------------------------- */
+
+interface LifePanelContextValue {
+  state: LifeState;
+  /** Re-read the gate. Called after consent and after setup completes, because
+   *  both change which of the Principles tab's three jobs is current. */
+  refresh: () => Promise<LifeState | null>;
+}
+
+const LifeStateContext = createContext<LifePanelContextValue | null>(null);
+
+/** The gate payload for the current view. Only ever called under PanelShell,
+ *  which does not render children until the state is loaded and non-null. */
+export function useLifePanel(): LifePanelContextValue {
+  const ctx = useContext(LifeStateContext);
+  if (!ctx) {
+    throw new Error("useLifePanel must be used inside PanelShell");
+  }
+  return ctx;
+}
+
+export default function PanelShell({ children }: { children: React.ReactNode }) {
+  const { state, loading, refresh } = useLifeState();
+  const pathname = usePathname();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col bg-background">
+        <DashboardHeader />
+        <div className="flex flex-1 items-center justify-center">
+          <p className="text-sm text-muted-foreground">{STATUS.loading}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render-time, not in an effect, so Next resolves it as a real 404 response
+  // rather than throwing after paint.
+  if (!state) notFound();
+
+  return (
+    <LifeStateContext.Provider value={{ state, refresh }}>
+      <div className="flex min-h-[100dvh] flex-col bg-background">
+        <DashboardHeader />
+        <PanelNav menu={state.menu} pathname={pathname} />
+        <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
+          {children}
+        </main>
+        {/* FE-10 — export and hard delete stay two clicks away for anyone who
+            has written anything, rather than being buried in account settings.
+            Not a gated menu entry: a person with data must always be able to
+            take it out or erase it. */}
+        {hasConsented(state) ? (
+          <footer className="mx-auto w-full max-w-3xl px-5 pb-10">
+            <Link
+              href="/panel/data"
+              className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              {VIEWS.data.title}
+            </Link>
+          </footer>
+        ) : null}
+      </div>
+    </LifeStateContext.Provider>
+  );
+}
+
+function PanelNav({
+  menu,
+  pathname,
+}: {
+  menu: LifeState["menu"];
+  pathname: string | null;
+}) {
+  if (menu.length === 0) return null;
+  return (
+    <nav
+      aria-label="Panel"
+      className="sticky top-[73px] z-20 border-b border-border/70 bg-background/90 backdrop-blur"
+    >
+      <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2">
+        {menu.map((entry) => {
+          const active =
+            !entry.external &&
+            pathname != null &&
+            (pathname === entry.href || pathname.startsWith(`${entry.href}/`));
+          const className = `whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] transition-colors ${
+            active
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground"
+          }`;
+          // Prayer leaves the app entirely: its own subdomain, its own service
+          // worker scope, its own PWA install (spec §3.4).
+          return entry.external ? (
+            <a
+              key={entry.key}
+              href={entry.href}
+              className={className}
+              rel="noopener"
+            >
+              {entry.label}
+            </a>
+          ) : (
+            <Link key={entry.key} href={entry.href} className={className}>
+              {entry.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

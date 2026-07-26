@@ -15,6 +15,8 @@ import {
   type CreditsCheckoutSuccessDetail,
 } from "@/lib/willabWindowEvents";
 import { pollCreditsAfterCheckout } from "@/lib/homework/pollCreditsAfterCheckout";
+import { loadLifeState } from "@/lib/life/useLifeState";
+import type { LifeMenuEntry } from "@/lib/life/types";
 
 const SUPPORT_EMAIL = "artur@willonski.com";
 const HEADER_MENU_ID = "dashboard-header-menu";
@@ -31,6 +33,13 @@ export default function DashboardHeader() {
   const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // FE-1 — the Life Panel's entries, straight from `GET /v2/life/state`. Empty
+  // for everyone the panel is not on for, which is the normal case: that
+  // endpoint 404s unless the feature is enabled AND this user passes the gate.
+  // N1 — we render what the payload contains and nothing more. There is no
+  // local list of panel views here, so a surface the server omits cannot
+  // appear, and nothing is ever rendered greyed out as "coming soon".
+  const [lifeMenu, setLifeMenu] = useState<LifeMenuEntry[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
@@ -131,6 +140,24 @@ export default function DashboardHeader() {
       cleanupListeners?.();
     };
   }, [supabase]);
+
+  /** FE-1 — one read of the panel gate per page load (the promise is cached in
+   *  `useLifeState`). A 404 resolves to null and leaves the menu byte-identical
+   *  to today: no entries, no error, no console noise. Signed-in only, because
+   *  the panel is signed-in only and a guest read would just be a wasted 401. */
+  useEffect(() => {
+    if (authState !== "signed_in") {
+      setLifeMenu([]);
+      return;
+    }
+    let cancelled = false;
+    void loadLifeState().then((state) => {
+      if (!cancelled && state) setLifeMenu(state.menu);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authState]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -238,6 +265,38 @@ export default function DashboardHeader() {
                             title={userEmail}
                           >
                             {userEmail}
+                          </div>
+                        )}
+                        {/* FE-1 — Life Panel entries. Absent for everyone the
+                            payload does not list them for, which keeps this
+                            menu byte-identical to today for every other user. */}
+                        {lifeMenu.length > 0 && (
+                          <div className="border-b border-border pb-1">
+                            {lifeMenu.map((entry) =>
+                              entry.external ? (
+                                // Prayer lives on its own subdomain: separate
+                                // service worker scope, separate PWA install,
+                                // works signed out and offline (spec §3.4).
+                                <a
+                                  key={entry.key}
+                                  href={entry.href}
+                                  rel="noopener"
+                                  className={MENU_ITEM_CLASS}
+                                  onClick={() => setMenuOpen(false)}
+                                >
+                                  {entry.label}
+                                </a>
+                              ) : (
+                                <Link
+                                  key={entry.key}
+                                  href={entry.href}
+                                  className={MENU_ITEM_CLASS}
+                                  onClick={() => setMenuOpen(false)}
+                                >
+                                  {entry.label}
+                                </Link>
+                              )
+                            )}
                           </div>
                         )}
                         <a
