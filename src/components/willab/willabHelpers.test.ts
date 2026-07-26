@@ -8,6 +8,7 @@ import {
   loungeToHistory,
   parseVocabulary,
   splitBotMessage,
+  measureSlideClockOffset,
 } from "./willabHelpers";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 
@@ -186,5 +187,44 @@ describe("isUploadAsk", () => {
     expect(isUploadAsk("how do I sound more confident?")).toBe(false);
     expect(isUploadAsk("what are my strong sides?")).toBe(false);
     expect(isUploadAsk("start recording")).toBe(false);
+  });
+});
+
+describe("measureSlideClockOffset", () => {
+  // The contract: offset = t_recorderFirstAudio - t_zeroUsedForTapTimes, and
+  // the backend SUBTRACTS it from every tap. Getting the sign backwards would
+  // double the drift instead of removing it, so pin it explicitly.
+  it("is positive when the recorder started after the tap clock's zero", () => {
+    // UI zero at 1000, audio actually began at 1120 => taps run 120ms ahead.
+    expect(measureSlideClockOffset(1120, 1000)).toBe(120);
+  });
+
+  it("is negative when the tap zero was stamped after audio began", () => {
+    // recordStart is set from a React effect, so it can land after the
+    // recorder's start event; the correction has to go the other way.
+    expect(measureSlideClockOffset(1000, 1080)).toBe(-80);
+  });
+
+  it("rounds to whole milliseconds", () => {
+    expect(measureSlideClockOffset(1000.6, 1000)).toBe(1);
+  });
+
+  it("sends nothing when the recorder never reported a start", () => {
+    expect(measureSlideClockOffset(null, 1000)).toBeUndefined();
+  });
+
+  it("sends nothing when no live take was timed (an uploaded file)", () => {
+    expect(measureSlideClockOffset(1120, 0)).toBeUndefined();
+  });
+
+  it("drops implausible values rather than failing the upload", () => {
+    // The backend 422s out-of-range input, and a 422 here costs the user their
+    // recording — so an impossible measurement is withheld, not sent.
+    expect(measureSlideClockOffset(31_000, 100)).toBeUndefined();
+    expect(measureSlideClockOffset(100, 31_000)).toBeUndefined();
+  });
+
+  it("keeps values at the edge of the accepted range", () => {
+    expect(measureSlideClockOffset(30_000, 0.5)).toBe(30_000);
   });
 });

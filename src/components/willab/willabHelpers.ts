@@ -131,3 +131,44 @@ export function parseVocabulary(text: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+/** F1 — the offset between the two clocks a take is measured on.
+ *
+ *  Slide taps are timed from a UI timestamp; Whisper's word times come from the
+ *  audio file. MediaRecorder does not start capturing the instant `start()`
+ *  returns, so audio time runs BEHIND UI time and the first words after a tap
+ *  bucket to the previous slide. This is the number of ms to subtract from
+ *  every tap to move it into audio time:
+ *
+ *      offset = t_recorderFirstAudio - t_zeroUsedForTapTimes
+ *
+ *  Returns `undefined` when there is nothing trustworthy to send (an uploaded
+ *  file rather than a live take, or a recorder that never reported a start),
+ *  which leaves the backend on exactly its previous behaviour.
+ *
+ *  Out-of-range values are also dropped, and this is a deliberate departure
+ *  worth knowing about: the backend rejects them with a 422 so a unit mistake
+ *  fails loudly instead of corrupting transcripts. But a 422 on this endpoint
+ *  fails the whole upload, which costs the user their recording over a
+ *  diagnostic field. Both timestamps here come from one monotonic clock, so a
+ *  wild value means something pathological rather than a unit error; we warn
+ *  (visible in testing, which is where the loud failure was wanted) and send
+ *  nothing (safe in production). */
+export function measureSlideClockOffset(
+  audioStartedAt: number | null,
+  tapZero: number
+): number | undefined {
+  if (audioStartedAt == null) return undefined;
+  // tapZero is 0 when no live recording was timed, e.g. a footer file upload.
+  if (!Number.isFinite(tapZero) || tapZero <= 0) return undefined;
+  const offset = Math.round(audioStartedAt - tapZero);
+  if (!Number.isFinite(offset)) return undefined;
+  if (offset > 30_000 || offset < -5_000) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[F1] implausible slide clock offset (${offset}ms), not sending it`
+    );
+    return undefined;
+  }
+  return offset;
+}

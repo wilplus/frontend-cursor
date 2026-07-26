@@ -18,6 +18,7 @@ import {
   batchTake,
   coerceTargetSeconds,
   formatRecordingClock,
+  measureSlideClockOffset,
 } from "./willabHelpers";
 import { pickPrimingPhrase, type PrimingCondition } from "./primingPhrases";
 import { useLoungeThreadCtx } from "./LoungeThreadContext";
@@ -391,6 +392,21 @@ export default function LabOverlay({
         presentationRef: context.presentationRef,
         strategicContext: context.strategicContext,
         slideAdvances: slideAdvancesRef.current,
+        // F1 — the gap between the two clocks the app runs on. Tap times are
+        // measured from recordStartRef (a UI timestamp), while Whisper's word
+        // times come from the audio file, and MediaRecorder does not begin
+        // capturing the instant start() returns. Measuring the gap here means
+        // the BE can shift taps into audio time instead of inferring the shift
+        // from nearby silence, which only works when the speaker pauses to tap.
+        //
+        // Sign follows the BE contract exactly: audio start MINUS the zero the
+        // taps were measured from, so it stays correct whichever of the two
+        // lands first (recordStartRef is set from a React effect, so its
+        // ordering against the recorder's start event is not guaranteed).
+        slideClockOffsetMs: measureSlideClockOffset(
+          mic.getAudioStartedAt(),
+          recordStartRef.current
+        ),
         // Explore-arc fields — omitted for standalone recordings.
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
         arcId: arcId ?? undefined,

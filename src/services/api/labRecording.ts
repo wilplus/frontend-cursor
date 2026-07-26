@@ -31,6 +31,13 @@ export interface LabUploadInput {
   strategicContext?: string;
   /** Tap timeline — which slide was advanced to, at t_ms from record start. */
   slideAdvances?: { index: number; tMs: number }[];
+  /** F1 — ms to SUBTRACT from every slideAdvances[].tMs to convert UI time to
+   *  AUDIO time: `t_recorderFirstAudio - t_zeroUsedForTapTimes`. The recorder
+   *  warms up after start(), so audio runs behind the UI clock and the first
+   *  words after a tap would otherwise bucket to the PREVIOUS slide. Measured
+   *  per take, normally small and positive. Omitted when unmeasurable, which
+   *  leaves the BE on exactly its previous behaviour. */
+  slideClockOffsetMs?: number;
   /** Explore-session arc (Prompt B §F2). Set explore_session=true on take 1
    *  (no arc_id yet); subsequent takes carry the returned arc_id + incremented
    *  take_index. undefined = standalone recording, arc_id null on response. */
@@ -166,6 +173,18 @@ export async function submitLabRecording(
       JSON.stringify(
         input.slideAdvances.map((a) => ({ index: a.index, t_ms: a.tMs }))
       )
+    );
+  }
+  // F1 — the recorder/UI clock gap. Sent even when 0 (an explicit "measured,
+  // and it was zero"), but never when unmeasurable, so the BE can tell the
+  // difference between a measurement and a missing sender.
+  if (
+    typeof input.slideClockOffsetMs === "number" &&
+    Number.isFinite(input.slideClockOffsetMs)
+  ) {
+    form.append(
+      "slide_clock_offset_ms",
+      String(Math.round(input.slideClockOffsetMs))
     );
   }
   // Explore-session arc fields — omit entirely for standalone recordings.
