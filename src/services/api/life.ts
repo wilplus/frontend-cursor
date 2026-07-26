@@ -167,32 +167,17 @@ export async function putSetup(
   await call("/setup", { method: "PUT", body: { step, answers } });
 }
 
-export interface LifeSetupCompletion {
-  /** Notes typed before the gate, now run through the engine. Shown to the
-   *  user, because they typed them for a reason (spec §6.2). */
-  replayed: Array<{ id: string; body: string; outcome: string | null }>;
-}
-
-export async function completeSetup(): Promise<LifeSetupCompletion> {
-  const raw = (await call("/setup/complete", { method: "POST", body: {} })) as
-    | Record<string, unknown>
-    | null;
-  const list = Array.isArray(raw?.replayed) ? (raw!.replayed as unknown[]) : [];
-  return {
-    replayed: list.flatMap((row) => {
-      if (!row || typeof row !== "object") return [];
-      const r = row as Record<string, unknown>;
-      const id = typeof r.id === "string" ? r.id : null;
-      if (!id) return [];
-      return [
-        {
-          id,
-          body: typeof r.body === "string" ? r.body : "",
-          outcome: typeof r.outcome === "string" ? r.outcome : null,
-        },
-      ];
-    }),
-  };
+/**
+ * Finish setup: generates the document set.
+ *
+ * There is NO replay step (BE, 2026-07-26, superseding §6.2). A `#` typed
+ * before onboarding is finished falls through as ordinary chat and stores
+ * nothing, so there is nothing held back to run through the engine afterwards.
+ * The reader that used to unpack a `replayed` list is gone rather than left
+ * tolerating a field that can no longer arrive.
+ */
+export async function completeSetup(): Promise<void> {
+  await call("/setup/complete", { method: "POST", body: {} });
 }
 
 /* ------------------------------ principles -------------------------------- */

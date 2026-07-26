@@ -35,10 +35,13 @@ Not FE work, but nothing ships without them, in this order:
    setup flow is reachable. `POST /v2/life/consent` and the setup writes must
    exist too, or the user hits consent and the write fails.
 2. **Founder sign-off on `src/lib/life/copy.ts`.** One file, every user-visible
-   string, including all five items the prompt flags. Once the flag flips, the
-   guide and consent screens are the first thing every user reads. `copy.test.ts`
-   holds the mechanical half (no em-dashes, no score or streak, no line telling
-   the user they fell behind); it cannot hold the judgement half.
+   string. Once the flag flips, the guide and consent screens are the first
+   thing every user reads. `copy.test.ts` holds the mechanical half (no
+   em-dashes, no score or streak, no line telling the user they fell behind, and
+   **every export is imported by something**); it cannot hold the judgement
+   half. That last check exists because `SETUP_GATE_REDIRECT` sat in the file
+   for four commits describing a mechanic, was asserted on by two tests, and was
+   never rendered by anything. It read as shipped in every review.
 3. **`LIFE_PANEL_ENABLED=1`.**
 
 ## 3. Remaining FE work, in order

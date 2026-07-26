@@ -163,6 +163,15 @@ against the backend prompt.
   **`bet`**. Both are rendered with the bet's rank. Since Bet 3 became eligible
   for daily tasks, an unlabelled card makes the rank invisible on the surface
   the rank governs, and Bet 3 never outranks Bet 2 in a daily plan (§3.2).
+- **A `#` before onboarding stores nothing** (BE 2026-07-26, superseding §6.2).
+  The tag falls through as ordinary chat and `POST /v2/life/notes` 409s. So
+  `POST /v2/life/setup/complete` returns **no replay list**, the FE no longer
+  reads one, and there is no redirect copy. A user who never onboards leaves no
+  life rows at all.
+- `evening.generated_at` is additionally gated on `LIFE_PANEL_EVENING_HOUR_UTC`
+  (default 21) **on the read path**, so a card opened at breakfast does not come
+  back with the evening already open. The FE needs no change for this: it
+  branches on the field either way.
 - The weekly payload's `proposals` are **capped at three by the FE as well as
   the server** (L-2b). The FE is the surface where a longer batch would actually
   turn approve into a rubber stamp, so the cap is enforced where the damage

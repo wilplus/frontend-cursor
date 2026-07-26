@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as copy from "./copy";
 
@@ -112,17 +115,18 @@ describe("panel copy", () => {
       expect(point.heading.trim()).not.toBe("");
       expect(point.body.trim()).not.toBe("");
     }
-    expect(copy.SETUP_GATE_REDIRECT.trim()).not.toBe("");
     expect(copy.DELETE.body.trim()).not.toBe("");
     for (const [key, text] of Object.entries(copy.EMPTY)) {
       expect(text.trim(), key).not.toBe("");
     }
   });
 
-  it("tells the user the pre-setup note was kept, not dropped", () => {
-    // Losing a #mistake note to a redirect teaches that the tag costs
-    // something, so the redirect line has to say the note survived.
-    expect(copy.SETUP_GATE_REDIRECT.toLowerCase()).toMatch(/saved|kept/);
+  it("has no copy for a state that no longer exists", () => {
+    // A `#` typed before onboarding is finished falls through as ordinary chat
+    // and stores nothing (BE 2026-07-26, superseding §6.2). There is no
+    // redirect line, so there must be no copy for one: putting a string back
+    // here would be putting the half-working tag back with it.
+    expect("SETUP_GATE_REDIRECT" in copy).toBe(false);
   });
 
   it("says the delete cannot be undone", () => {
@@ -143,5 +147,73 @@ describe("panel copy", () => {
 
   it("does not pre-accept consent in its own label", () => {
     expect(copy.CONSENT.checkboxLabel.toLowerCase()).toMatch(/i have read/);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Reachability                                                               */
+/*                                                                            */
+/*  `SETUP_GATE_REDIRECT` sat in this file for four commits, described a       */
+/*  mechanic, was asserted on by two tests, and was never rendered by anything.*/
+/*  It read as shipped behaviour in every review. This is the fence that stops */
+/*  the next one: copy that no component imports is copy that does not exist,  */
+/*  and a founder signing off this file should be signing off what users       */
+/*  actually see.                                                              */
+/* -------------------------------------------------------------------------- */
+
+const SRC = fileURLToPath(new URL("../../", import.meta.url));
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walk(full, out);
+    else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/** Names imported from `@/lib/life/copy` anywhere in the app (not tests). */
+function importedCopyNames(): Set<string> {
+  const names = new Set<string>();
+  // `[^}]` rather than a lazy `[\s\S]*?`: the lazy form starts matching at the
+  // FIRST `import {` in the file and runs on until it reaches the copy import's
+  // closing brace, capturing every import statement in between as one blob.
+  // Excluding `}` pins the match to a single brace pair, and still spans lines,
+  // which the longer import lists here need.
+  const importFrom = /import\s*\{([^}]*)\}\s*from\s*["']@\/lib\/life\/copy["']/g;
+  for (const file of walk(SRC)) {
+    if (file.endsWith(join("lib", "life", "copy.ts"))) continue;
+    const source = readFileSync(file, "utf8");
+    for (const match of source.matchAll(importFrom)) {
+      for (const raw of match[1].split(",")) {
+        const name = raw.trim().split(/\s+as\s+/)[0].trim();
+        if (name) names.add(name);
+      }
+    }
+  }
+  return names;
+}
+
+describe("copy reachability", () => {
+  it("extracts identifiers, not blobs", () => {
+    // Guards the extractor, and this one has already earned its keep: a count
+    // check alone passed while the regex was capturing three whole import
+    // statements as a single "name", which silently reported live copy as
+    // orphaned. Shape is the assertion that catches that; size is not.
+    const names = [...importedCopyNames()];
+    expect(names.length).toBeGreaterThan(3);
+    for (const name of names) {
+      expect(name, name).toMatch(/^[A-Z][A-Z0-9_]*$/);
+    }
+  });
+
+  it("has no export that nothing imports", () => {
+    const imported = importedCopyNames();
+    const orphans = Object.keys(copy).filter((name) => !imported.has(name));
+    // An orphan is either copy for a screen that was never built, or copy for
+    // a screen that was removed. Both read as shipped. Delete it or wire it.
+    expect(orphans).toEqual([]);
   });
 });
