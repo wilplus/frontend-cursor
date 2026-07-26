@@ -28,6 +28,12 @@ import {
 
 export const revalidate = 300;
 
+/** The post's media box. ONE definition for image and video so a post's cover
+ *  occupies the same proportion of the page either way, and so the two can
+ *  never drift apart. 16:9 matches the widest common source and keeps the
+ *  cover subordinate to the article rather than filling the first screen. */
+const COVER_BOX = "aspect-video overflow-hidden rounded-3xl bg-muted";
+
 export async function generateStaticParams() {
   const posts = await fetchJournalPosts();
   return posts.map((p) => ({ slug: p.slug }));
@@ -116,14 +122,23 @@ export default async function JournalPostPage({
           </div>
         </div>
 
-        {/* Cover — slightly wider than the reading column. */}
+        {/* Cover — slightly wider than the reading column.
+            Image and video share ONE fixed 16:9 box (COVER_BOX), so the media
+            always takes the same share of the page whatever the source file
+            is. Left unconstrained, a portrait photo or clip renders at its
+            natural height and swamps the article, and every post ends up a
+            different shape. The video additionally needs the box because an
+            unconstrained <video> is 300x150 until metadata loads, which
+            shifts the layout. */}
         {post.coverKind === "image" && post.coverImageUrl ? (
           <div className="mx-auto mt-10 max-w-3xl px-6">
-            <div className="overflow-hidden rounded-3xl bg-muted">
+            <div className={COVER_BOX}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={post.coverImageUrl}
                 alt={post.coverAlt ?? ""}
+                // cover: fill the box and crop evenly, the standard hero
+                // treatment, and what the index card already does.
                 className="h-full w-full object-cover"
               />
             </div>
@@ -132,15 +147,13 @@ export default async function JournalPostPage({
 
         {post.coverKind === "video" && post.mediaUrl ? (
           <div className="mx-auto mt-10 max-w-3xl px-6">
-            {/* Fixed 16:9 box with object-contain: an unconstrained <video>
-                takes the aspect of its poster (or 300x150 until metadata
-                loads, which shifts the layout), so a portrait clip would
-                render taller than the screen. Letterbox instead of crop. */}
-            <div className="aspect-video overflow-hidden rounded-3xl bg-muted">
+            <div className={COVER_BOX}>
               <video
                 controls
                 preload="metadata"
                 poster={post.coverImageUrl ?? undefined}
+                // contain, not cover: cropping a photo is fine, cropping the
+                // frame of a talk is not. Letterbox against the muted panel.
                 className="h-full w-full object-contain"
               >
                 <source src={post.mediaUrl} />
