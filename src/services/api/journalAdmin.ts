@@ -157,6 +157,155 @@ export function adminReorder(password: string, ids: string[]) {
   return post("reorder", password, { ids }, () => true);
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Community Content Studio                                                   */
+/*                                                                            */
+/*  The week's journal post IS format ① Technique; these are the three other   */
+/*  formats derived from it. They are NOT journal posts and can never become   */
+/*  one: the row has no slug, no status and no published_at, and no public      */
+/*  route serves them. Anything that would imply publishing belongs nowhere    */
+/*  near this type.                                                           */
+/* -------------------------------------------------------------------------- */
+
+export type CommunityKind = "myth_bust" | "fear" | "win";
+
+/** Why a draft needs a human eye before it goes out. Never a reason to drop it. */
+export type CommunityFlag = "construct" | "verify";
+
+export interface CommunityPost {
+  id: string;
+  journalPostId: string;
+  kind: CommunityKind;
+  /** Server-supplied display label. Deliberately not re-derived from `kind`. */
+  label: string;
+  /** Posting day from the content model's cadence. */
+  day: string;
+  title: string;
+  /** Plain text, blank-line paragraphs — same shape as a journal body. */
+  body: string;
+  charCount: number;
+  flags: CommunityFlag[];
+  /** Batch-level: identical across all three items of a post. */
+  pillarId: number | null;
+  pillarName: string;
+  theme: string;
+  /** "" unless the batch is pillar 6. Render only when non-empty. */
+  softCtaLine: string;
+  appProofLine: string;
+  generatedAt: string | null;
+  updatedAt: string | null;
+}
+
+const KINDS: CommunityKind[] = ["myth_bust", "fear", "win"];
+
+/** Posting order from the content model's cadence: Tue Fear, Thu Myth-bust,
+ *  Sat Win. Deliberately NOT the order the API returns (generation order), and
+ *  defined once here so the queue and the editor can never disagree. */
+export const COMMUNITY_CADENCE: readonly CommunityKind[] = [
+  "fear",
+  "myth_bust",
+  "win",
+];
+
+/** Sort a post's drafts into posting order. */
+export function sortCommunityByCadence<T extends { kind: CommunityKind }>(
+  items: T[]
+): T[] {
+  return [...items].sort(
+    (a, b) =>
+      COMMUNITY_CADENCE.indexOf(a.kind) - COMMUNITY_CADENCE.indexOf(b.kind)
+  );
+}
+
+export function mapCommunityPost(raw: unknown): CommunityPost | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = typeof r.id === "string" ? r.id : String(r.id ?? "");
+  const kind = KINDS.find((k) => k === r.kind);
+  // Without an id there is nothing to update or delete, and an unknown kind
+  // cannot be placed in the cadence — drop rather than render something broken.
+  if (!id || !kind) return null;
+  const flags = Array.isArray(r.flags)
+    ? r.flags.filter(
+        (f): f is CommunityFlag => f === "construct" || f === "verify"
+      )
+    : [];
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  return {
+    id,
+    journalPostId: str(r.journal_post_id),
+    kind,
+    label: str(r.label),
+    day: str(r.day),
+    title: str(r.title),
+    body: str(r.body),
+    charCount:
+      typeof r.char_count === "number" && Number.isFinite(r.char_count)
+        ? r.char_count
+        : str(r.body).length,
+    flags,
+    pillarId:
+      typeof r.pillar_id === "number" && Number.isFinite(r.pillar_id)
+        ? r.pillar_id
+        : null,
+    pillarName: str(r.pillar_name),
+    theme: str(r.theme),
+    softCtaLine: str(r.soft_cta_line),
+    appProofLine: str(r.app_proof_line),
+    generatedAt: typeof r.generated_at === "string" ? r.generated_at : null,
+    updatedAt: typeof r.updated_at === "string" ? r.updated_at : null,
+  };
+}
+
+function mapCommunityList(data: unknown): CommunityPost[] {
+  const d = (data ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d.items) ? d.items : Array.isArray(data) ? data : [];
+  return (rows as unknown[])
+    .map(mapCommunityPost)
+    .filter((p): p is CommunityPost => p !== null);
+}
+
+/** Derive the community formats from a post. Returns the post's FULL current
+ *  set, not only what was regenerated, so a single-format reroll still yields
+ *  the whole batch. Slow (10-25s): the caller must show progress. */
+export function adminGenerateCommunity(
+  password: string,
+  postId: string,
+  opts?: { formats?: CommunityKind[]; notes?: string }
+) {
+  const payload: Record<string, unknown> = { post_id: postId };
+  if (opts?.formats && opts.formats.length > 0) payload.formats = opts.formats;
+  if (opts?.notes && opts.notes.trim()) payload.notes = opts.notes.trim();
+  return post("community/generate", password, payload, mapCommunityList);
+}
+
+/** One post's drafts, or every draft when postId is omitted (CMS boot). */
+export function adminListCommunity(password: string, postId?: string) {
+  return post(
+    "community/list",
+    password,
+    postId ? { post_id: postId } : {},
+    mapCommunityList
+  );
+}
+
+/** Only title/body are writable. Editing clears the flags server-side — they
+ *  exist to make the founder look at the draft, and he just has. */
+export function adminUpdateCommunity(
+  password: string,
+  id: string,
+  changes: { title?: string; body?: string }
+) {
+  return post("community/update", password, { id, ...changes }, (d) => {
+    const row = (d as Record<string, unknown>)?.item ?? d;
+    return mapCommunityPost(row);
+  });
+}
+
+export function adminDeleteCommunity(password: string, id: string) {
+  return post("community/delete", password, { id }, () => true);
+}
+
 /** Push the public pages out of the ISR cache after a change, so a published
  *  post is live immediately instead of up to a full revalidate window later
  *  (and without the first visitor after expiry still getting the stale page).
