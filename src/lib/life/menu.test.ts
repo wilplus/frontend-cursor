@@ -40,6 +40,7 @@ describe("panelMenu", () => {
       "wins",
       "phrases",
       "today",
+      "week",
       "goals",
       "timeline",
       "distractions",

@@ -239,7 +239,21 @@ export interface LifeDayMorning {
   checks: LifeCheck[];
   /** 🎯 THE one thing. The FRAME is fixed; the CONTENT is editable via #edit. */
   oneThing: string;
-  focusBlocks: Array<{ text: string; box: string | null }>;
+  /**
+   * Which bet the one thing serves.
+   *
+   * Load-bearing since Bet 3 became eligible for daily tasks: with all three
+   * bets in play, an unlabelled card makes the RANK invisible on the surface
+   * the rank governs. Bet 3 never outranks Bet 2 in a daily plan (spec §3.2),
+   * and the only way to see that being honoured is to name the bet.
+   */
+  oneThingBet: LifeBetKey | null;
+  /** Each block carries its bet, for the same reason. */
+  focusBlocks: Array<{
+    text: string;
+    box: string | null;
+    betKey: LifeBetKey | null;
+  }>;
   distractionFlagged: string | null;
   bets: Array<{
     key: LifeBetKey;
@@ -280,6 +294,42 @@ export interface LifeCheck {
   id: string;
   label: string;
   done: boolean;
+}
+
+/* ------------------------------ the week ---------------------------------- */
+
+/** `GET /v2/life/week` — the Sunday review (spec §3.3).
+ *
+ *  Where the L-2b budget lands: proposals that did not fit the one-per-day
+ *  allowance queue here and arrive as a RANKED BATCH OF THREE. Scarcity is what
+ *  keeps "approve" meaningful, so this view must never grow a "show all
+ *  queued" affordance, and the batch is the batch.
+ *
+ *  Also where untagged notes get their read: a note typed with no hashtag
+ *  captures and does nothing, and this is the "nothing" being surfaced once a
+ *  week rather than pinged about (spec §5). */
+export interface LifeWeek {
+  /** The week's date, however the backend keys it. */
+  weekOf: string;
+  /** Habits that failed, and the user's own account of why. */
+  habitsFailed: Array<{ id: string; label: string; why: string }>;
+  /** Goals that moved, and what happens next. */
+  goalsMoved: Array<{ id: string; title: string; nextAction: string }>;
+  mainDistraction: string;
+  /**
+   * ONE environmental change per week.
+   *
+   * Singular on purpose: Section IV answers every distraction with a design
+   * response rather than with willpower, and one change a week is the rate the
+   * founder set. Not a list, not a backlog.
+   */
+  environmentalChange: string;
+  /** The becoming sentence. The user's, never drafted (L-1 / N6). */
+  becomingSentence: string;
+  /** The ranked batch of three (L-2b). Empty is a normal week. */
+  proposals: LifeProposal[];
+  /** Notes that carried no tag. Captured, never executed. */
+  untagged: Array<{ id: string; body: string; createdAt: string | null }>;
 }
 
 /* ------------------------------- proposals -------------------------------- */

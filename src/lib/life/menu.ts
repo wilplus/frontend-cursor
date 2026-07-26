@@ -56,6 +56,9 @@ export const LIFE_VIEWS: readonly LifeViewSpec[] = [
     needsSetup: true,
   },
   { key: "today", label: VIEWS.today.title, href: "/panel/today", needsSetup: true },
+  // The Sunday review. Sits next to Today because it is the same loop at a
+  // different cadence, and because that is where the L-2b batch of three lands.
+  { key: "week", label: VIEWS.week.title, href: "/panel/week", needsSetup: true },
   { key: "goals", label: VIEWS.goals.title, href: "/panel/goals", needsSetup: true },
   {
     key: "timeline",

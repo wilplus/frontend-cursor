@@ -48,11 +48,18 @@ Not FE work, but nothing ships without them, in this order:
 `docs/life-panel-sources/README.md` is the landing zone and says what changes
 when each arrives. Both are marked invented in the status doc until then.
 
+**Corrected by the backend session, 2026-07-26.** An earlier draft of this file
+said the weekly view and the daily card were blocked on the documents. They are
+not: `GET`/`POST /v2/life/week` and `build_daily_card` have both been live since
+BE #262. **The data contract was never the blocker; only the labels and the
+section order are.** `/panel/week` is now built, and the daily card renders the
+live frame. What remains below is fidelity, not function.
+
 | Item | Blocked on | Work when unblocked |
 |---|---|---|
-| Daily card design | the founder's **daily document** | Replace `DAY` labels in `copy.ts` verbatim; match section order in `MorningCard`. The field list and section order came from spec §3.3 + FE-6, so the structure is right; the wording is mine. |
-| The 23:00 summary | same, plus a decision on what it says | **The most likely thing to need rewriting.** It has no source at all beyond the four `evening_*` columns, so its shape is entirely invented. |
-| Weekly review view | the founder's **weekly document** | The last unbuilt view. `life_weeks` is in the model and L-2b routes the ranked batch of three proposals to it, but no FE item specifies the surface, so none was invented. New `/panel/week`. |
+| Daily card wording | the founder's **daily document** | Replace `DAY` labels in `copy.ts` verbatim; match section order in `MorningCard`. The fields are live and rendered; the wording is mine. |
+| The 23:00 summary wording | same, plus a decision on what it says | **The most likely thing to need rewriting.** No source beyond the four `evening_*` columns, so its shape is invented. |
+| Weekly view wording | the founder's **weekly document** | `/panel/week` is built against the live contract. The document settles labels and section order only. |
 | Timeline fidelity | `~/Documents/timeline/index.html` | Diff `TimelineCanvas.tsx` against it and take whatever the original does better. Styling stays the app's (FE-8); only the interaction model is up for adoption. |
 
 ### 3.2 Blocked on a backend yes/no
@@ -68,8 +75,8 @@ read-only in one commit.
 
 ### 3.3 Unblocked, do any time
 
-- Nothing. Every FE-1…FE-10 item is built. What is left is fidelity and the
-  weekly view, both of which need the artifacts above.
+- Nothing. Every FE-1…FE-10 item is built, plus `/panel/week`. What is left is
+  wording fidelity against the two documents, and the timeline diff.
 
 ## 4. Fences — where they are enforced, so you know what you would be breaking
 
@@ -93,12 +100,19 @@ The two that are easiest to break by accident: **`report_only` defaulting to
 true**, and **the conflict card's two halves sharing one component**. Both look
 like tidy-ups.
 
+On `report_only`: the backend session found that it was never emitting the
+field, so every proposal would have rendered un-approvable, with a missing
+button as the only symptom. It now sends `false` explicitly on approvable
+proposals and `true` on the report shape. **The FE default stays as it is** —
+it is what stops an unrecognised payload sprouting an approve button over
+Section I, and a guard that is also the mechanism is not a guard.
+
 ## 5. Verify before handing back
 
 ```
-npx vitest run --dir src      # 443 pass, 41 files
+npx vitest run --dir src      # 451 pass, 41 files
 npx tsc --noEmit
-npx next lint --dir src
+npx next lint --dir src       # 5 warnings, all pre-existing, none in life/
 npx next build                # needs OPENAI_API_KEY + the Supabase vars locally
 ```
 
@@ -107,8 +121,11 @@ npx next build                # needs OPENAI_API_KEY + the Supabase vars locally
 From the FE prompt, unanswered:
 
 - **Spendings** — is there a view at all in v1? There is none today.
-- **Bet 3 on the daily card** — display-only, or may tasks be proposed against
-  it? Backend routing decision; the FE renders whatever the day payload holds.
+- ~~**Bet 3 on the daily card**~~ — **answered.** Tasks may be proposed against
+  it, so the card names which bet the one thing and each focus block serves
+  (`one_thing_bet`, and `bet` per block). With all three bets eligible, an
+  unlabelled card makes the rank invisible on the surface the rank governs, and
+  Bet 3 never outranks Bet 2 in a daily plan.
 - **Strategy re-upload format** — shipped accepting markdown or plain text, not
   `.docx` (a `.docx` is a zip archive; reading it in the browser gives mojibake,
   not a document). The approve-the-diff step stands in front of every change
