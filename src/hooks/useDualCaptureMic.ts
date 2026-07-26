@@ -77,6 +77,11 @@ export interface DualCaptureMic {
   start: () => Promise<void>;
   stop: () => Promise<void>;
   cancel: () => void;
+  /** F1 — monotonic timestamp of the recorder's `start` event, or null if it
+   *  has not fired. Audio t=0: the caller measures its slide-tap clock against
+   *  this so taps can be converted to audio time. A getter rather than state,
+   *  so reading it never re-renders the recording screen. */
+  getAudioStartedAt: () => number | null;
 }
 
 /* ---- Minimal Web Speech typings (TS lacks them out of the box) ---------- */
@@ -165,6 +170,12 @@ export function useDualCaptureMic(opts?: {
   const partialRef = useRef<string>("");
   const finalRef = useRef<string>("");
   const startedAtRef = useRef<number>(0);
+  /** F1 — when the RECORDER actually began capturing, on the same monotonic
+   *  clock as startedAtRef. MediaRecorder warms up for tens to low-hundreds
+   *  of ms after start() returns, so audio time runs behind UI time; the Lab
+   *  measures that gap and sends it so slide taps land in audio time. null
+   *  until the start event fires (and again on every fresh take). */
+  const audioStartedAtRef = useRef<number | null>(null);
   const mimeRef = useRef<string>("audio/webm");
   // Re-entrancy latch (T2). start() awaits getUserMedia; a second tap during
   // that async gap would fire a concurrent start() whose teardown() rips out
@@ -303,6 +314,8 @@ export function useDualCaptureMic(opts?: {
       mimeRef.current = mime;
       startedAtRef.current =
         typeof performance !== "undefined" ? performance.now() : Date.now();
+      // A retake must never inherit the previous take's audio anchor.
+      audioStartedAtRef.current = null;
 
       // Cap the bitrate so a normal-length recording stays under the upload
       // route's request-body ceiling: the BFF buffers the body and Vercel
@@ -314,6 +327,13 @@ export function useDualCaptureMic(opts?: {
         mimeType: mime,
         audioBitsPerSecond: 48_000,
       });
+      // Fires when capture actually starts, which is what audio t=0 means.
+      // Not first-chunk timing: start() is called without a timeslice, so
+      // ondataavailable only fires once, at stop.
+      recorder.onstart = () => {
+        audioStartedAtRef.current =
+          typeof performance !== "undefined" ? performance.now() : Date.now();
+      };
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
       };
@@ -459,5 +479,9 @@ export function useDualCaptureMic(opts?: {
     };
   }, [teardown]);
 
-  return { state, start, stop, cancel };
+  /** Monotonic timestamp of the recorder's start event, or null if it never
+   *  fired. A getter, not state: reading it must not re-render the recorder. */
+  const getAudioStartedAt = useCallback(() => audioStartedAtRef.current, []);
+
+  return { state, start, stop, cancel, getAudioStartedAt };
 }
