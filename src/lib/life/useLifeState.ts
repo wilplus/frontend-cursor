@@ -19,9 +19,34 @@ import type { LifeState } from "./types";
 
 let cache: Promise<LifeState | null> | null = null;
 
+type Listener = (state: LifeState | null) => void;
+const listeners = new Set<Listener>();
+
+/**
+ * Watch the gate.
+ *
+ * The app header reads this once per page load, but the gate CHANGES mid-
+ * session: finishing setup turns seven menu entries on. Without a
+ * subscription the header would keep showing the single Principles entry until
+ * the next full reload, which reads as the setup not having worked.
+ */
+export function subscribeLifeState(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function loadLifeState(force = false): Promise<LifeState | null> {
   if (force || !cache) {
-    cache = fetchLifeState().catch(() => null);
+    const pending = fetchLifeState().catch(() => null);
+    cache = pending;
+    void pending.then((state) => {
+      // Only the newest read may notify: a stale in-flight request resolving
+      // after a refresh must not push the pre-refresh gate back out.
+      if (cache !== pending) return;
+      listeners.forEach((listener) => listener(state));
+    });
   }
   return cache;
 }

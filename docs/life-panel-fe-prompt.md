@@ -27,8 +27,7 @@ sign-off before ship.
 ## FE-1 — Panel shell
 
 Route group `/panel/*`, rendered inside the existing app (same auth, same
-session). Hamburger gains its entries from `GET /v2/life/state`; the client
-renders what the payload contains and nothing more (N1).
+session). The hamburger's entries follow `GET /v2/life/state`.
 
 Menu, in order:
 
@@ -36,6 +35,18 @@ Menu, in order:
 Principles · Wins · Phrases · Today · Goals · Timeline · Distractions · Strategy
 Prayer  → external link to pompeiana.willpowerlab.com   (allowlisted; absent for everyone else)
 ```
+
+**Two stages (founder, 2026-07-26).** Principles is the entrance and shows for
+any signed-in user the panel exists for, with no consent and no setup yet:
+tapping it lands on the guide, then consent, then setup. The other seven turn on
+the moment that user is participating, and they turn on live, without a page
+reload. Before that they would open on nothing, since every route into the data
+runs through setup.
+
+The server can still override: a non-empty `state.menu` replaces the derived
+list wholesale, and it is the only way an allowlisted entry such as Prayer can
+appear. N1 holds either way, entries the user cannot use are absent, never
+greyed.
 
 Flag off or unknown state → the hamburger is byte-identical to today.
 
