@@ -63,6 +63,12 @@ import {
   type ChipAction,
 } from "./loungePrompts";
 import type { RecordingProgress } from "@/services/api/recordingProgress";
+import { useLifeTags } from "@/lib/life/useLifeTags";
+import { applyPick } from "@/lib/life/hashtags";
+import {
+  LifeChatCard,
+  LifeTagPicker,
+} from "@/components/life/LifeChatLayer";
 
 /* -------------------------------------------------------------------------- */
 /*  Lounge — the always-mounted science-chat home (§3 / §6a / §7)             */
@@ -136,6 +142,13 @@ export default function Lounge({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [draftText]);
+  // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
+  // not consented AND completed setup, which is everyone until they opt in, so
+  // for them nothing below mounts and this component behaves exactly as it did
+  // before the panel existed. Anonymous visitors make no request for it at all.
+  // Sending is untouched either way: routing happens on the backend, and the
+  // composer still posts the same /v2/chat/query.
+  const lifeTags = useLifeTags(thread.signedIn);
   const [botThinking, setBotThinking] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
@@ -908,6 +921,19 @@ export default function Lounge({
       {/* A5 — the send button lives INSIDE the input (right edge): grey when the
           field is empty, black once there's text. A4 — the input height (h-12)
           matches the record CTA. B3 — "Will" persona in the placeholder + aria. */}
+      {/* Typing "#" alone opens the tag list. Renders nothing when the layer is
+          off, and nothing when the draft is not a leading "#" token. */}
+      {lifeTags.enabled && (
+        <LifeTagPicker
+          draft={draftText}
+          entries={lifeTags.entries}
+          onPick={(tag) => {
+            setDraftText((current) => applyPick(current, tag));
+            composerRef.current?.focus();
+          }}
+        />
+      )}
+
       <form onSubmit={handleSend} className="relative">
         <textarea
           ref={composerRef}
@@ -1323,6 +1349,11 @@ function Bubble({
         {action && (
           <ActionButton action={action} onClick={() => onChip!()} />
         )}
+        {/* FE-5 — the life card rides in metadata exactly like the B-1 chip
+            above, so it survives reload and scroll-back without a second write
+            path. A turn that carried none passes undefined and renders null,
+            which is every turn for a user who is not on the panel. */}
+        <LifeChatCard raw={message.metadata?.life_card} />
       </>
     );
   }
