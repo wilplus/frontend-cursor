@@ -238,8 +238,10 @@ export default function JournalAdminPage() {
 
   /* ------------------------------ mutations ------------------------------ */
 
-  async function save() {
-    if (!editing || busy) return;
+  /** Save the editor. Returns the post's server id, so a caller that needs one
+   *  (Publish) can save first and act on the result instead of giving up. */
+  async function save(): Promise<string | null> {
+    if (!editing || busy) return null;
     setBusy("save");
     setError(null);
     const { id, ...draft } = editing;
@@ -249,10 +251,12 @@ export default function JournalAdminPage() {
     setBusy(null);
     if (!r.ok) {
       setError(r.message);
-      return;
+      return null;
     }
+    let savedId: string | null = id;
     if (r.data) {
       adopt(r.data);
+      savedId = r.data.id;
     } else if (!id) {
       // Created, but the echo carried no usable id. Without adopting one, the
       // NEXT save would create a second post — so recover the id from the list
@@ -263,11 +267,12 @@ export default function JournalAdminPage() {
         : undefined;
       if (match) {
         adopt(match);
+        savedId = match.id;
       } else {
         setError(
           "Saved, but this post could not be re-identified. Reopen it from the list before editing again."
         );
-        return;
+        return null;
       }
     } else {
       // Updated with no echo: what's on screen is what we just sent.
@@ -276,14 +281,32 @@ export default function JournalAdminPage() {
     await adminRevalidate(password, editing.slug);
     await load(password);
     flash("Saved.");
+    return savedId;
   }
 
   async function togglePublished() {
-    if (!editing?.id || busy) return;
+    if (busy) return;
+    if (!editing) return;
     const next = editingStatus !== "published";
+
+    // Publishing must never be a dead click. The id can be missing for two
+    // reasons — the draft was never saved, or a create echo did not carry one
+    // — and previously both left the button inert with no request and no
+    // message, which reads exactly like "publishing is broken". Resolve an id
+    // instead: take the editor's, else the saved row with this slug, else save
+    // the draft first, which is what the click meant anyway.
+    let id = editing.id;
+    if (!id) {
+      id = posts.find((p) => p.slug === editing.slug)?.id ?? null;
+    }
+    if (!id) {
+      id = await save();
+      if (!id) return; // save() already surfaced why
+    }
+
     setBusy("publish");
     setError(null);
-    const r = await adminSetPublished(password, editing.id, next);
+    const r = await adminSetPublished(password, id, next);
     setBusy(null);
     if (!r.ok) {
       setError(r.message);
@@ -298,7 +321,7 @@ export default function JournalAdminPage() {
       // No echo: the backend may have stamped published_at itself. Read it back
       // rather than leave the editor holding null, because the next Save PUTs
       // the whole draft and would overwrite the server's date with it.
-      const fresh = await adminGetPost(password, editing.id);
+      const fresh = await adminGetPost(password, id);
       if (fresh.ok && fresh.data) serverDate = fresh.data.publishedAt;
     }
     if (serverDate && !editing.published_at) {
@@ -641,11 +664,11 @@ export default function JournalAdminPage() {
                     <button
                       type="button"
                       onClick={() => void togglePublished()}
-                      disabled={!editing.id || busy !== null}
+                      disabled={busy !== null}
                       title={
                         editing.id
                           ? undefined
-                          : "Save the draft before publishing it."
+                          : "This saves the draft first, then publishes it."
                       }
                       className={BTN_GHOST}
                     >
