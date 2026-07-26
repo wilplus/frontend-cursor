@@ -29,6 +29,8 @@ import type { ReadoutPayload } from "./readout";
 import IdealTextReadout from "./IdealTextReadout";
 import SendGate from "./SendGate";
 import FeelingsCheckIn from "./FeelingsCheckIn";
+import { VoiceMark } from "./LoadingState";
+import { pickWaitingTip } from "./waitingTips";
 import { clearFeeling, getLastFeeling, type Feeling } from "./willabFeelings";
 import { type WillabState } from "./useWillabFlow";
 import { useBackDismiss } from "./useBackDismiss";
@@ -1185,6 +1187,10 @@ function Processing({
   onClose: () => void;
 }) {
   const [lineIdx, setLineIdx] = useState(0);
+  // One tip for the whole wait, drawn after mount so the server and client
+  // never disagree about which one came up.
+  const [tip, setTip] = useState<string | null>(null);
+  useEffect(() => setTip(pickWaitingTip()), []);
   useEffect(() => {
     if (error) return;
     const id = setInterval(
@@ -1197,7 +1203,7 @@ function Processing({
   if (!error && slow) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <VoiceMark size={72} />
         <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
           This is taking longer than usual. Your recording is safe and the
           analysis keeps running on our side, even if you close this.
@@ -1262,14 +1268,19 @@ function Processing({
     );
   }
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+      <VoiceMark size={88} />
       <p className="flex min-h-[1.5rem] items-center text-[15px] text-foreground">
         {PROCESSING_LINES[lineIdx]}
       </p>
-      <p className="max-w-sm text-[12px] text-muted-foreground">
-        This usually takes a few seconds.
-      </p>
+      {/* ONE tip for this wait, drawn once. The status line above already says
+          what is happening; this slot is worth more as something to read than
+          as a duration guess we cannot keep. */}
+      {tip ? (
+        <p className="max-w-[34ch] text-[13px] leading-relaxed text-muted-foreground">
+          {tip}
+        </p>
+      ) : null}
     </div>
   );
 }
