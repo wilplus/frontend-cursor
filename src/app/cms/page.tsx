@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import CommunitySection from "./CommunitySection";
 import {
   ArrowDown,
   ArrowUp,
@@ -25,7 +26,10 @@ import {
   adminListPosts,
   adminPresign,
   adminReorder,
+  adminListCommunity,
+  sortCommunityByCadence,
   adminRevalidate,
+  type CommunityPost,
   adminSetPublished,
   adminUpdatePost,
   uploadToStorage,
@@ -151,6 +155,9 @@ export default function JournalAdminPage() {
   // work, so leaving the editor has to ask first (losing a written post to a
   // stray click is the worst thing this tool could do).
   const [savedSnapshot, setSavedSnapshot] = useState<string>("");
+  // Every community draft, loaded once on unlock and grouped by parent post.
+  const [community, setCommunity] = useState<CommunityPost[]>([]);
+  const [focusItemId, setFocusItemId] = useState<string | null>(null);
 
   const isDirty = editing !== null && JSON.stringify(editing) !== savedSnapshot;
 
@@ -203,6 +210,10 @@ export default function JournalAdminPage() {
       // server happened to return (e.g. created_at), silently destroying a
       // hand-tuned order that also drives the public "Curated" sort.
       setPosts(sortJournalPosts(r.data, "curated"));
+      // Community drafts ride along on the same refresh. Best-effort: they
+      // are a side panel, never a reason to fail opening the CMS.
+      const c = await adminListCommunity(pw);
+      if (c.ok) setCommunity(c.data);
       return true;
     },
     []
@@ -495,8 +506,8 @@ export default function JournalAdminPage() {
                 </p>
               ) : (
                 posts.map((p, i) => (
+                  <div key={p.id}>
                   <div
-                    key={p.id}
                     className={`flex items-start gap-3 px-4 py-3 ${
                       editing?.id === p.id ? "bg-muted/60" : ""
                     }`}
@@ -576,6 +587,35 @@ export default function JournalAdminPage() {
                         <Trash2 className="h-3.5 w-3.5" aria-hidden />
                       </button>
                     </div>
+                  </div>
+
+                  {/* This post's community drafts, indented beneath it. They
+                      are NOT publishable, so they carry no reorder, no preview
+                      and no publish control — the omission is the signal. */}
+                  {sortCommunityByCadence(
+                    community.filter((c) => c.journalPostId === p.id)
+                  )
+                    .map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          openEditor(toEditable(p), p.status);
+                          setFocusItemId(c.id);
+                        }}
+                        className="flex w-full items-center gap-2 py-1.5 pl-10 pr-4 text-left transition hover:bg-muted/40"
+                      >
+                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[9px] uppercase tracking-wider text-indigo-800">
+                          Community
+                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                          {c.label}
+                        </span>
+                        <span className="truncate text-[12px] text-foreground/80">
+                          {c.title}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 ))
               )}
@@ -904,6 +944,25 @@ export default function JournalAdminPage() {
                       className={`${INPUT_CLS} resize-y text-[15px] leading-[1.75]`}
                     />
                   </div>
+
+                  {/* 8 — community drafts derived from this post. Sits under
+                      the body because the body is what they are made from. */}
+                  <CommunitySection
+                    password={password}
+                    postId={editing.id}
+                    postBody={editing.body}
+                    items={community.filter(
+                      (c) => c.journalPostId === editing.id
+                    )}
+                    onItemsChanged={(postId, next) =>
+                      setCommunity((prev) => [
+                        ...prev.filter((c) => c.journalPostId !== postId),
+                        ...next,
+                      ])
+                    }
+                    focusItemId={focusItemId}
+                    onFocusHandled={() => setFocusItemId(null)}
+                  />
                 </div>
               </>
             )}
