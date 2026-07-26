@@ -217,12 +217,26 @@ export interface LifeApplication {
 
 /* ------------------------------- the day card ----------------------------- */
 
-/** `GET /v2/life/day` — the 05:00 card, waiting. A landing state, never a
- *  notification (N3 / L-4). */
+/** `GET /v2/life/day` — the day, in TWO moments (founder, 2026-07-26).
+ *
+ *  05:00 writes the morning card: the plan. 23:00 writes the evening summary:
+ *  the recap. One `life_days` row, two generation passes, two cards.
+ *
+ *  BOTH ARE LANDING STATES, NEVER NOTIFICATIONS (N3 / L-4). Generation is
+ *  scheduled; delivery is not. Nothing pings at 05:00 and nothing pings at
+ *  23:00 either: the card and the summary are simply there when the panel or
+ *  the chat is next opened. */
 export interface LifeDay {
   date: string;
+  morning: LifeDayMorning;
+  evening: LifeDayEvening;
+}
+
+export interface LifeDayMorning {
+  /** When the 05:00 pass ran. Null → not written yet. */
+  generatedAt: string | null;
   /** The habit checkboxes that ran this morning. */
-  morningChecks: LifeCheck[];
+  checks: LifeCheck[];
   /** 🎯 THE one thing. The FRAME is fixed; the CONTENT is editable via #edit. */
   oneThing: string;
   focusBlocks: Array<{ text: string; box: string | null }>;
@@ -233,14 +247,33 @@ export interface LifeDay {
     label: string;
     goals: Array<{ id: string; title: string; dueLabel: string | null }>;
   }>;
-  dailyHabits: LifeCheck[];
-  evening: {
-    habitsRan: boolean;
-    oneThingDone: boolean;
-    distraction: string;
-    /** "am I becoming the man I described?" */
-    line: string;
-  };
+  habits: LifeCheck[];
+}
+
+export interface LifeDayEvening {
+  /** When the 23:00 pass ran. NULL UNTIL IT HAS: the summary section renders
+   *  its frame and says when it gets written, rather than showing an empty
+   *  block or, worse, a count of what is missing. */
+  generatedAt: string | null;
+  /**
+   * The system's recap of the day, one line per item.
+   *
+   * FACTUAL ONLY — what the one thing was, which habits ran, what got flagged.
+   * L-1: the system never drafts reflections, so these lines report and stop.
+   * The reflective half of the evening is `answer` below, and that is the
+   * user's to write.
+   */
+  summary: string[];
+  habitsRan: boolean;
+  oneThingDone: boolean;
+  distraction: string;
+  /** The question the review ends on, e.g. "am I becoming the man I
+   *  described?". Frame, not content: it comes from the payload or falls back
+   *  to the copy default. */
+  question: string;
+  /** The user's answer to it. Written by them, never drafted, and rendered
+   *  with no placeholder that would write for them (L-1 / N6). */
+  answer: string;
 }
 
 export interface LifeCheck {

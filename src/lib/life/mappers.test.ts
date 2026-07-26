@@ -195,22 +195,90 @@ describe("mapProposal", () => {
 });
 
 describe("mapLifeDay", () => {
-  it("maps the card and needs a date to exist at all", () => {
+  it("needs a date to exist at all", () => {
     expect(mapLifeDay({ one_thing: "x" })).toBeNull();
+  });
+
+  it("reads the 05:00 fields flat on the row", () => {
+    // The shape life_days actually stores.
     const day = mapLifeDay({
       date: "2026-07-26",
       one_thing: "Finish the deck",
       focus_blocks: [{ text: "Deck", box: "09:00" }],
       daily_habits: [{ id: "h1", label: "Pompeiana", done: false }],
       bets: [
-        { key: "company", rank: 2, label: "The Company", goals: [{ id: "g1", title: "Ship" }] },
+        {
+          key: "company",
+          rank: 2,
+          label: "The Company",
+          goals: [{ id: "g1", title: "Ship" }],
+        },
       ],
-      evening: { habits_ran: false, one_thing: true, distraction: "", line: "am I becoming him?" },
     })!;
-    expect(day.oneThing).toBe("Finish the deck");
-    expect(day.dailyHabits[0].label).toBe("Pompeiana");
-    expect(day.bets[0].rank).toBe(2);
+    expect(day.morning.oneThing).toBe("Finish the deck");
+    expect(day.morning.habits[0].label).toBe("Pompeiana");
+    expect(day.morning.bets[0].rank).toBe(2);
+  });
+
+  it("reads the same fields nested under `morning`", () => {
+    // The two-pass shape. Both must work so the backend can send either.
+    const day = mapLifeDay({
+      date: "2026-07-26",
+      morning: {
+        generated_at: "2026-07-26T05:00:00Z",
+        one_thing: "Finish the deck",
+        habits: [{ id: "h1", label: "Pompeiana", done: true }],
+      },
+    })!;
+    expect(day.morning.generatedAt).toBe("2026-07-26T05:00:00Z");
+    expect(day.morning.oneThing).toBe("Finish the deck");
+    expect(day.morning.habits[0].done).toBe(true);
+  });
+
+  it("marks the evening summary as unwritten until the 23:00 pass has run", () => {
+    // The view branches on generatedAt, not on the summary being non-empty, so
+    // a pass that produced no lines still reads as written.
+    const pending = mapLifeDay({ date: "2026-07-26" })!;
+    expect(pending.evening.generatedAt).toBeNull();
+    expect(pending.evening.summary).toEqual([]);
+
+    const written = mapLifeDay({
+      date: "2026-07-26",
+      evening: { generated_at: "2026-07-26T23:00:00Z", summary: [] },
+    })!;
+    expect(written.evening.generatedAt).toBe("2026-07-26T23:00:00Z");
+  });
+
+  it("keeps the system recap and the user's answer apart", () => {
+    // L-1 — the summary lines are the system's and are factual. The answer is
+    // the user's, and nothing here may write it.
+    const day = mapLifeDay({
+      date: "2026-07-26",
+      evening: {
+        generated_at: "2026-07-26T23:00:00Z",
+        summary: ["The one thing was: finish the deck.", "", "Two habits ran."],
+        habits_ran: false,
+        one_thing: true,
+        distraction: "phone",
+        question: "Am I becoming the man I described?",
+        answer: "closer than in June",
+      },
+    })!;
+    expect(day.evening.summary).toEqual([
+      "The one thing was: finish the deck.",
+      "Two habits ran.",
+    ]);
     expect(day.evening.oneThingDone).toBe(true);
+    expect(day.evening.question).toBe("Am I becoming the man I described?");
+    expect(day.evening.answer).toBe("closer than in June");
+  });
+
+  it("accepts the legacy `line` column as the user's answer", () => {
+    const day = mapLifeDay({
+      date: "2026-07-26",
+      evening: { line: "am I becoming him?" },
+    })!;
+    expect(day.evening.answer).toBe("am I becoming him?");
   });
 });
 

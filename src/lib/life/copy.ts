@@ -161,7 +161,10 @@ export const CARDS = {
   expiresPrefix: "Expires",
 } as const;
 
-/** Day card chrome. The frame is fixed, the content is editable. */
+/** Day card chrome. The frame is fixed, the content is editable.
+ *
+ *  The day is two cards: the plan, written at five, and the summary, written at
+ *  eleven. Neither is announced. Both simply wait. */
 export const DAY = {
   oneThingLabel: "Today's one thing",
   focusLabel: "Focus blocks",
@@ -172,6 +175,22 @@ export const DAY = {
   betsLabel: "The three bets",
   editHint: "Change it with #edit in the chat, and say why.",
   frameNote: "There is always one thing. What it is, is yours to change.",
+
+  planTitle: "The plan",
+  planPending: "Today's card is written at five in the morning.",
+
+  summaryTitle: "The evening summary",
+  /** Shown before the 23:00 pass has run. Factual, not a prompt to do
+   *  something: it says when the summary arrives and nothing else (N3). */
+  summaryPending: "Written at eleven, and waiting here when you open it.",
+  summaryLabel: "What the day held",
+  reviewLabel: "Your review",
+  habitsRanLabel: "Habits ran",
+  oneThingDoneLabel: "The one thing got done",
+  eveningDistractionLabel: "What pulled at you",
+  /** The fallback when the payload carries no question of its own. */
+  questionFallback: "Am I becoming the man I described?",
+  answerLabel: "Your answer",
 } as const;
 
 export const SETUP = {

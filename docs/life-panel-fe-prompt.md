@@ -123,12 +123,24 @@ Everything else about the chat stays exactly as it is. This adds one behaviour.
 
 ## FE-6 — The daily card + `#edit`
 
-Rendered from `GET /v2/life/day`. Generated server-side at 05:00 and waiting; it
-is a landing state, never a notification (N3).
+Rendered from `GET /v2/life/day`. **The day is two cards** (founder,
+2026-07-26):
 
-Layout follows the founder's template exactly: morning checks · 🎯 ONE THING ·
-⚡ three focus blocks · 🔴 distraction check · the three bets with their goals ·
-⬜ daily habits · 🌙 evening review.
+- **05:00, the plan** — morning checks · 🎯 ONE THING · ⚡ three focus blocks ·
+  🔴 distraction check · the three bets with their goals · ⬜ daily habits.
+- **23:00, the summary** — the system's factual recap of what the day held,
+  then the user's own review: the two booleans, what pulled at them, and the
+  answer to the closing question.
+
+Both are generated on a schedule and **neither is delivered**. Generation is
+scheduled; delivery is not. The 23:00 summary waits exactly like the 05:00 card
+does: no ping, no badge, no unread count (N3 / L-4). The same summary may be
+appended to the chat as a bubble, where it is read when the chat is next opened
+and still notifies nobody.
+
+The split runs down the middle of L-1. The recap is the system's and is
+factual, what the one thing was and which habits ran. The answer below it is the
+user's, and that field has no placeholder and no suggest button (N6).
 
 Frame fixed, content editable. The card must make visually obvious that there is
 a ONE THING (not editable) and that what it is can change (editable). `#edit
