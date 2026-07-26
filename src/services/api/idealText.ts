@@ -50,13 +50,21 @@ export type MomentSuggestion =
       quote: string | null;
     }
   | {
-      /** DELIVERY_STARS — a MEASURED delivery observation, deterministic and
-       *  self-referential (z-scored against the speaker's own baseline; no
-       *  LLM). The FE renders fixed founder-approved copy keyed on `device`,
-       *  same contract shape as structure. Not an edit — the modal offers a
-       *  re-record of that snippet, not a text change. */
+      /** DELIVERY_STARS — a MEASURED delivery observation, self-referential
+       *  (z-scored against the speaker's own baseline). The FE renders fixed
+       *  founder-approved copy keyed on `device`, same contract shape as
+       *  structure. Not an edit — the modal offers a re-record of that
+       *  snippet, not a text change.
+       *
+       *  `congruence` is the one NON-deterministic device: a content↔delivery
+       *  gap (clearly positive words delivered flat), so it needs a sentiment
+       *  read the acoustic vector alone can't give. Only the DOWN case is ever
+       *  emitted — high-arousal "masked tension" is indistinguishable from
+       *  excitement on a phone mic, so it is never claimed. It renders through
+       *  the SAME star → sheet → DeliveryStarCard path as the other four; the
+       *  difference is upstream only. */
       kind: "delivery";
-      device: "emphasis" | "pace_fast" | "pace_slow" | "pause";
+      device: "emphasis" | "pace_fast" | "pace_slow" | "pause" | "congruence";
     };
 
 export interface IdealKeyMomentLink {
@@ -163,6 +171,7 @@ export interface DocumentSuggestion {
     | "pace_fast"
     | "pace_slow"
     | "pause"
+    | "congruence"
     | "contrast"
     | "list_of_three"
     | null;
@@ -241,6 +250,7 @@ export function mapDocumentSuggestions(
       dev === "pace_fast" ||
       dev === "pace_slow" ||
       dev === "pause" ||
+      dev === "congruence" ||
       dev === "contrast" ||
       dev === "list_of_three"
         ? dev
@@ -567,13 +577,15 @@ function parseSuggestion(raw: unknown): MomentSuggestion | null {
           : null,
     };
   }
-  // DELIVERY_STARS — likewise keyed off device (4 measured observations).
+  // DELIVERY_STARS — likewise keyed off device (4 measured observations, plus
+  // the content↔delivery `congruence` gap). An unnamed device still degrades.
   if (
     s.kind === "delivery" &&
     (s.device === "emphasis" ||
       s.device === "pace_fast" ||
       s.device === "pace_slow" ||
-      s.device === "pause")
+      s.device === "pause" ||
+      s.device === "congruence")
   ) {
     return { kind: "delivery", device: s.device };
   }
