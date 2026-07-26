@@ -12,32 +12,29 @@ import {
   type LifeSetupAnswers,
   type LifeSetupGoal,
 } from "@/lib/life/setupSteps";
-import {
-  completeSetup,
-  fetchSetup,
-  putSetup,
-  type LifeSetupCompletion,
-} from "@/services/api/life";
+import { completeSetup, fetchSetup, putSetup } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
 
 /* -------------------------------------------------------------------------- */
 /*  FE-3 — setup. Once, but editable forever.                                  */
 /*                                                                            */
-/*  SAVE-AND-RESUME IS LOAD-BEARING, not a nicety. Setup is a hard gate: a #   */
-/*  typed before it completes is stored but does not run the engine. Eight     */
-/*  horizons is long enough that people get interrupted partway, and without   */
-/*  resume an interruption becomes an abandonment, and the gate has no second  */
-/*  door. Every step writes (PUT /v2/life/setup), and the step the user        */
-/*  stopped on comes back from `/state.setup.resume_step`.                     */
+/*  SAVE-AND-RESUME IS LOAD-BEARING, not a nicety, and it got MORE load-       */
+/*  bearing on 2026-07-26. A `#` typed before this form is finished now falls  */
+/*  through as ordinary chat and stores nothing at all (BE, superseding §6.2:  */
+/*  a half-working tag teaches that it costs something louder than a redirect  */
+/*  does, because it answers, looks like it understood, and produces nothing). */
+/*  So an interruption partway through eight horizons is the ONLY thing        */
+/*  standing between a user and the feature, and resume is the only door back. */
+/*  Every step writes (PUT /v2/life/setup), and the step the user stopped on   */
+/*  comes back from `/state.setup.resume_step`.                                */
 /*                                                                            */
 /*  Consequence worth holding while reading this file: this form is the only   */
 /*  entrance to the feature, so its completion rate IS the feature's adoption  */
 /*  rate. Nothing here is allowed to be clever at the cost of being finishable.*/
 /*                                                                            */
-/*  On completion the backend generates the document set and replays notes     */
-/*  typed before the gate. Those results are shown, because the user typed     */
-/*  them for a reason (spec §6.2).                                            */
+/*  On completion the backend generates the document set. There is no replay   */
+/*  step, because nothing was held back to replay.                             */
 /* -------------------------------------------------------------------------- */
 
 export default function SetupFlow({
@@ -52,7 +49,7 @@ export default function SetupFlow({
   const [loadFailed, setLoadFailed] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [finishing, setFinishing] = useState(false);
-  const [completion, setCompletion] = useState<LifeSetupCompletion | null>(null);
+  const [done, setDone] = useState(false);
   const resumedRef = useRef(false);
 
   useEffect(() => {
@@ -92,9 +89,7 @@ export default function SetupFlow({
   if (loadFailed) return <ErrorLine />;
   if (!answers) return <LoadingLine />;
 
-  if (completion) {
-    return <SetupComplete completion={completion} onDone={onComplete} />;
-  }
+  if (done) return <SetupComplete onDone={onComplete} />;
 
   const step = LIFE_SETUP_STEPS[index];
   const isLast = index === LIFE_SETUP_STEPS.length - 1;
@@ -107,9 +102,9 @@ export default function SetupFlow({
     }
     setFinishing(true);
     try {
-      const result = await completeSetup();
+      await completeSetup();
       invalidateLifeState();
-      setCompletion(result);
+      setDone(true);
     } catch {
       setFinishing(false);
       setSaveState("idle");
@@ -409,48 +404,20 @@ function Field({
 
 /* ------------------------------- completion ------------------------------- */
 
-function SetupComplete({
-  completion,
-  onDone,
-}: {
-  completion: LifeSetupCompletion;
-  onDone: () => void;
-}) {
+/** No replay section (BE, 2026-07-26, superseding §6.2): a `#` typed before
+ *  onboarding finished stored nothing, so there is nothing waiting to show. */
+function SetupComplete({ onDone }: { onDone: () => void }) {
   return (
     <div className="mx-auto max-w-xl">
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        Setup is done
+        {SETUP.doneTitle}
       </h1>
-      {completion.replayed.length > 0 ? (
-        <section className="mt-6">
-          <Eyebrow>{SETUP.replayedTitle}</Eyebrow>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {SETUP.replayedNote}
-          </p>
-          <ul className="mt-4 space-y-3">
-            {completion.replayed.map((note) => (
-              <li key={note.id}>
-                <PanelCard>
-                  <p className="whitespace-pre-wrap text-sm text-foreground">
-                    {note.body}
-                  </p>
-                  {note.outcome ? (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {note.outcome}
-                    </p>
-                  ) : null}
-                </PanelCard>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
       <button
         type="button"
         onClick={onDone}
         className="mt-8 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background"
       >
-        Open the panel
+        {SETUP.doneLabel}
       </button>
     </div>
   );

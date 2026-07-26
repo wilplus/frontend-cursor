@@ -71,11 +71,22 @@ export const CONSENT = {
   declineLabel: "Not now",
 } as const;
 
-/** SIGN-OFF — shown when a hashtag is typed before setup is complete. The note
- *  is kept and replayed, and the line has to say so, or the redirect teaches
- *  the user that the tag costs something (spec §6.2). */
-export const SETUP_GATE_REDIRECT =
-  "Your note is saved. The engine needs your goals first, so it has something to check this against. Finish setup and this note runs through it straight away.";
+/* SETUP_GATE_REDIRECT is deliberately gone (BE, 2026-07-26, superseding §6.2).
+ *
+ * A `#` typed before onboarding is finished now falls through EXACTLY like an
+ * ordinary chat turn: no life row, no redirect line, no card. So there is no
+ * copy for this state, and adding some back would be a bug.
+ *
+ * §6.2's original rule was the opposite: keep the note and replay it, so the
+ * tag never teaches the user that reaching for it costs something. The backend
+ * is right that a half-working tag teaches that LOUDER, not more quietly. It
+ * answers, looks like it understood, and produces nothing. A user who never
+ * onboards now leaves no life rows at all, which is also the better privacy
+ * answer for a public feature.
+ *
+ * It was also, on this side, never rendered: the string existed and no
+ * component read it. `copy.test.ts` now asserts every export here is actually
+ * imported somewhere, so the next one cannot sit around unnoticed. */
 
 /** SIGN-OFF — the delete confirmation. Says plainly what goes and that it
  *  cannot be undone. Typed confirmation, no one-click destroy. */
@@ -220,8 +231,8 @@ export const SETUP = {
   workingLabel: "Writing your documents",
   nextLabel: "Next",
   backLabel: "Back",
-  replayedTitle: "What you wrote before setup",
-  replayedNote: "These ran through the engine just now.",
+  doneTitle: "Setup is done",
+  doneLabel: "Open the panel",
 } as const;
 
 export const STRATEGY = {

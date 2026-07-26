@@ -71,15 +71,24 @@ Eight horizons (daily / weekly / monthly / quarterly / yearly / 5y / 10y / 20y)
 with dates, quantities and the SMART fields per goal, plus the three bets and
 their rank.
 
-Save-and-resume is load-bearing, not a nicety. Setup is a hard gate: a `#` typed
-before completion does not run the engine, it redirects here. Eight horizons is
-long enough that people get interrupted; without resume, an interruption becomes
-an abandonment and the gate has no second door. `PUT /v2/life/setup` on every
-step.
+Save-and-resume is load-bearing, not a nicety. Setup is a hard gate. Eight
+horizons is long enough that people get interrupted; without resume, an
+interruption becomes an abandonment and the gate has no second door.
+`PUT /v2/life/setup` on every step.
 
-On completion → `POST /v2/life/setup/complete`, which generates the document set
-and replays any notes typed before the gate. Show those replayed results; the
-user typed them for a reason.
+**Superseded 2026-07-26 (backend), replacing §6.2's keep-the-note rule.** A `#`
+typed before onboarding is finished now **falls through exactly like an ordinary
+chat turn**: no life row, no redirect line, no card, and `POST /v2/life/notes`
+409s so the second door is locked too. §6.2 kept the note so the tag would not
+teach the user that reaching for it costs something. A half-working tag teaches
+that *louder*: it answers, looks like it understood, and produces nothing. A
+user who never onboards now leaves no life rows at all, which is also the better
+privacy answer for a public feature.
+
+Consequences for this screen: there is **no redirect copy** to write, and
+`POST /v2/life/setup/complete` **does not replay anything**, because nothing was
+held back. Resume is now the only path back into the feature after an
+interruption, which makes it the single most load-bearing mechanic here.
 
 Consequence to hold in mind while designing this screen: it is the only entrance
 to the feature, so its completion rate is the feature's adoption rate.
@@ -229,11 +238,15 @@ apart at sixty.
 
 1. The guide page (page 1).
 2. The consent screen (page 2), including the retention statement.
-3. The `#`-before-setup redirect line.
+3. ~~The `#`-before-setup redirect line.~~ **Gone.** There is no such state any
+   more: the tag falls through silently, so there is no line to write and
+   putting one back would be putting the half-working tag back with it.
 4. The delete confirmation.
-5. Any empty-state text on the eight views.
+5. Any empty-state text on the eight views, plus the weekly review.
 
-All of it lives in one file: `src/lib/life/copy.ts`.
+All of it lives in one file: `src/lib/life/copy.ts`, and `copy.test.ts` now
+asserts every export there is imported by something. Copy no component reads is
+copy that does not exist, and a sign-off should cover what users actually see.
 
 ## Open (do not guess)
 
