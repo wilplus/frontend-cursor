@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import PresentationInput from "./PresentationInput";
@@ -14,6 +14,7 @@ import {
   nonEmptySlides,
   type PresentationSlide,
 } from "./presentation";
+import { fetchRecordingConfig } from "@/services/api/recordingConfig";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordingSetup (④) — the recording setup as a one-question-per-screen flow  */
@@ -76,6 +77,7 @@ export default function RecordingSetup({
   preloadDeck,
   hideDeck = false,
   onSubmit,
+  onCancel,
 }: {
   /** Arc this setup records into, or null (new project / detached upload). Gates
    *  the real context-document upload in step 5 (which needs an existing arc). */
@@ -85,6 +87,10 @@ export default function RecordingSetup({
   /** Skip the slide step (deckless-only flows, e.g. a staged footer upload). */
   hideDeck?: boolean;
   onSubmit: (ctx: LabSessionContext, explore: boolean) => void;
+  /** FE-6 — leave the setup flow. Present → the ✕ is drawn on the step
+   *  indicator row, on EVERY step. Absent → no ✕ (the host has its own way
+   *  out and a second one would just be two crosses on one screen). */
+  onCancel?: () => void;
 }) {
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("");
@@ -93,6 +99,26 @@ export default function RecordingSetup({
   const [presentationRef, setPresentationRef] = useState<string | null>(null);
   const [strategicContext, setStrategicContext] = useState("");
   const [step, setStep] = useState(0);
+  // FE-5 — the threshold, read from the server. Never a literal: the number is
+  // served precisely so it can move without a deploy.
+  const [cautionSec, setCautionSec] = useState<number | null>(null);
+  // The caution is shown ONCE PER SETUP FLOW, not on every re-tap of a length
+  // chip — it is advice, and advice that repeats becomes noise to click past.
+  const [cautionOpen, setCautionOpen] = useState(false);
+  const cautionShownRef = useRef(false);
+  // FE-6 — confirm before discarding a half-filled setup. A mis-tap on the ✕
+  // must not silently destroy what the user already typed.
+  const [confirmExit, setConfirmExit] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetchRecordingConfig().then((c) => {
+      if (active) setCautionSec(c.longTakeCautionSec);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const steps: StepKey[] = hideDeck
     ? ["topic", "audience", "length", "context"]
@@ -125,15 +151,52 @@ export default function RecordingSetup({
     },
     []
   );
+  /** FE-5 — a long take earns a soft caution: at or ABOVE the served threshold
+   *  (>=, so 10 minutes itself triggers it), and "No limit" triggers it too —
+   *  an unbounded take is the longest take there is. Nothing is enforced
+   *  server-side; a long take records, uploads and processes exactly as
+   *  before. This is advice. */
+  function isLongTake(sec: number | null): boolean {
+    if (cautionSec === null) return false; // threshold unknown → never guess
+    return sec === null || sec >= cautionSec;
+  }
+
   function pickLength(sec: number | null) {
     setLengthSec(sec);
     if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+    if (isLongTake(sec) && !cautionShownRef.current) {
+      cautionShownRef.current = true;
+      setCautionOpen(true);
+      return; // the modal owns the step until it is answered
+    }
     const lengthIdx = steps.indexOf("length");
     advanceTimer.current = window.setTimeout(() => {
       setStep((s) =>
         s === lengthIdx && lengthIdx < steps.length - 1 ? s + 1 : s
       );
     }, 180);
+  }
+
+  /** The caution's primary action: proceed with the long take, exactly as if
+   *  the chip had auto-advanced. Never a block, never a downgrade. */
+  function proceedFromCaution() {
+    setCautionOpen(false);
+    const lengthIdx = steps.indexOf("length");
+    setStep((s) => (s === lengthIdx && lengthIdx < steps.length - 1 ? s + 1 : s));
+  }
+
+  /** FE-6 — the ✕. Anything already entered earns a confirm first. */
+  function requestExit() {
+    if (!onCancel) return;
+    const started =
+      topic.trim() !== "" ||
+      audience.trim() !== "" ||
+      lengthSec !== null ||
+      strategicContext.trim() !== "" ||
+      !!presentationRef ||
+      nonEmptySlides(slides).length > 0;
+    if (started) setConfirmExit(true);
+    else onCancel();
   }
 
   const hasSlides = !!presentationRef || nonEmptySlides(slides).length > 0;
@@ -215,17 +278,37 @@ export default function RecordingSetup({
             <span
               key={k}
               className={cn(
-                "h-1.5 rounded-full transition-all",
+                "rounded-full transition-all",
+                // FE-6 — the current step stays legible at a glance: it is both
+                // longer and taller than the rest, not just longer.
                 i === step
-                  ? "w-6 bg-foreground"
+                  ? "h-2 w-6 bg-foreground"
                   : i < step
-                    ? "w-1.5 bg-foreground/40"
-                    : "w-1.5 bg-muted-foreground/20"
+                    ? "h-1.5 w-1.5 bg-foreground/40"
+                    : "h-1.5 w-1.5 bg-muted-foreground/20"
               )}
             />
           ))}
         </div>
-        <div className="w-16" />
+        {/* FE-6 (founder 2026-07-27) — the "cross" on the "progress bar" is a
+            CANCEL button on the step indicator, not a position marker and not
+            a playhead: there is no moving playhead in this flow. It sits in
+            the wizard's top-right reference position on EVERY step — the
+            inconsistency of having it on some and not others IS the story.
+            A real 44px touch target inside a 16-unit slot that mirrors the
+            Back button's, so it can never overlap the dots at any width. */}
+        <div className="flex w-16 justify-end">
+          {onCancel ? (
+            <button
+              type="button"
+              onClick={requestExit}
+              aria-label="Cancel setup"
+              className="-mr-2.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Step body */}
@@ -346,6 +429,17 @@ export default function RecordingSetup({
         )}
       </div>
 
+      {cautionOpen ? (
+        <LongTakeCaution
+          onProceed={proceedFromCaution}
+          onBack={() => setCautionOpen(false)}
+        />
+      ) : null}
+
+      {confirmExit && onCancel ? (
+        <ExitConfirm onDiscard={onCancel} onStay={() => setConfirmExit(false)} />
+      ) : null}
+
       {/* Footer CTA — the final tap starts the mic synchronously via onSubmit. */}
       <div className="mt-auto pt-6">
         <Button
@@ -356,6 +450,130 @@ export default function RecordingSetup({
         >
           {primaryLabel}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/** FE-5 — the long-take caution. SOFT, ALWAYS: the primary action proceeds
+ *  with the long take, there is no forced downgrade, and Next is never
+ *  disabled. Dismissible with Esc, the backdrop, or the ✕. Nothing server-side
+ *  enforces any of this — a long take records, uploads and processes exactly
+ *  as before. The modal is advice.
+ *
+ *  The copy is founder-authored and signed off; render it VERBATIM. */
+const LONG_TAKE_COPY =
+  "Preparing for a long workshop? It's often better to practice just the " +
+  "beginning and the ending. Consider recording a few 2-3 minute takes to " +
+  "practice those vulnerable moments instead of focusing on a long speech. " +
+  "Note: Analysis of long speeches might take considerably longer.";
+
+function LongTakeCaution({
+  onProceed,
+  onBack,
+}: {
+  onProceed: () => void;
+  onBack: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onBack();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onBack]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={onBack}
+        className="absolute inset-0 bg-foreground/20"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="About long takes"
+        className="relative z-10 m-3 w-full max-w-md rounded-3xl border border-border bg-background p-5 shadow-lg"
+      >
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Dismiss"
+            className="-mr-1.5 -mt-1.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+        <p className="text-[15px] leading-relaxed text-foreground">
+          {LONG_TAKE_COPY}
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <Button type="button" onClick={onProceed} className="w-full rounded-full">
+            Continue with this length
+          </Button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="h-10 rounded-full text-[14px] text-muted-foreground transition hover:text-foreground"
+          >
+            Pick a different length
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** FE-6 — a mis-tap on the ✕ must not silently destroy a half-filled setup. */
+function ExitConfirm({
+  onDiscard,
+  onStay,
+}: {
+  onDiscard: () => void;
+  onStay: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onStay();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onStay]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <button
+        type="button"
+        aria-label="Keep setting up"
+        onClick={onStay}
+        className="absolute inset-0 bg-foreground/20"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Leave setup"
+        className="relative z-10 m-3 w-full max-w-sm rounded-3xl border border-border bg-background p-5 shadow-lg"
+      >
+        <p className="text-[15px] leading-relaxed text-foreground">
+          Leave setup? What you have entered here won&apos;t be kept.
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <Button
+            type="button"
+            onClick={onStay}
+            className="w-full rounded-full"
+          >
+            Keep setting up
+          </Button>
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="h-10 rounded-full text-[14px] text-muted-foreground transition hover:text-foreground"
+          >
+            Discard and leave
+          </button>
+        </div>
       </div>
     </div>
   );
