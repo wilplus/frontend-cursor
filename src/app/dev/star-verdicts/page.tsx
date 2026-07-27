@@ -26,12 +26,39 @@ declare global {
   }
 }
 
+// ~0.25s of 8kHz mono silence — a real, decodable WAV so MediaPlayer is
+// genuinely playable in the harness, not just present.
+const WAV =
+  "data:audio/wav;base64," +
+  btoaSafe();
+function btoaSafe(): string {
+  if (typeof window === "undefined") return "";
+  const samples = 2000;
+  const header = [
+    0x52, 0x49, 0x46, 0x46, (36 + samples) & 0xff, ((36 + samples) >> 8) & 0xff, 0, 0,
+    0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 16, 0, 0, 0, 1, 0, 1, 0,
+    0x40, 0x1f, 0, 0, 0x40, 0x1f, 0, 0, 1, 0, 8, 0, 0x64, 0x61, 0x74, 0x61,
+    samples & 0xff, (samples >> 8) & 0xff, 0, 0,
+  ];
+  const bytes = new Uint8Array(header.length + samples);
+  bytes.set(header);
+  bytes.fill(128, header.length);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
 const ROWS = [
   {
     snippet_id: "snip-pace",
     star_kind: "delivery",
     star_device: "pace_fast",
     trigger: "pace_fast",
+    get audio_ref() { return WAV; },
+    start_offset_ms: 0,
+    duration_ms: 250,
+    transcript: "and we shipped it in a week which nobody believed",
+    take_index: 2,
     why: "You moved faster here than you usually do.",
     replacement_text: null,
     verdict: null,
@@ -45,6 +72,11 @@ const ROWS = [
     star_kind: "replace",
     star_device: null,
     trigger: "profanity",
+    get audio_ref() { return WAV; },
+    start_offset_ms: 0,
+    duration_ms: 250,
+    transcript: "and that damn demo finally worked",
+    take_index: 3,
     why: "This word lands harder than you mean it to.",
     replacement_text: "and that honestly floored me",
     verdict: null,
