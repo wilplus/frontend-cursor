@@ -6,6 +6,10 @@ import Link from "next/link";
  *
  * "WillpowerLab 2026" on the left, link row on the right. Year is hardcoded
  * by the user's request — no ©/™, no dynamic stamp.
+ *
+ * Founder 2026-07-27: Science is out of the footer, Journal reads Blog, and
+ * Terms & Policy reads Privacy. /science still exists and is still linked from
+ * the site menu — only the footer entry is gone.
  */
 export default function Footer() {
   return (
@@ -19,22 +23,16 @@ export default function Footer() {
           About us
         </Link>
         <Link
-          href="/science"
-          className="no-underline hover:text-foreground transition-colors"
-        >
-          Science
-        </Link>
-        <Link
           href="/blog"
           className="no-underline hover:text-foreground transition-colors"
         >
-          Journal
+          Blog
         </Link>
         <Link
           href="/terms"
           className="no-underline hover:text-foreground transition-colors"
         >
-          Terms &amp; Policy
+          Privacy
         </Link>
       </div>
     </footer>

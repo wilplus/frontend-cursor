@@ -26,9 +26,17 @@ import type { LifeMenuEntry } from "@/lib/life/types";
 /*  having to know anything about credits or the Life Panel gate.              */
 /* -------------------------------------------------------------------------- */
 
-/** Shared item styling, so every row reads identically on both mounts. */
+/** Shared item styling, so every row reads identically on both mounts.
+ *
+ *  Founder 2026-07-27 — ONE font and ONE row height for every entry, with no
+ *  rules between them. The menu used to be three bordered groups (Lab, the
+ *  panel entries, then the account rows), which read as three menus stacked
+ *  rather than one list. The only survivor is the email at the very top: it is
+ *  not an entry, it is whose account this is, so it keeps its divider. Rows
+ *  are py-3.5 — a taller target, and the extra air is what separates them now
+ *  that no stroke does. */
 export const MENU_ITEM_CLASS =
-  "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
+  "block w-full px-4 py-3.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
 
 const MENU_ID = "app-header-menu";
 
@@ -137,32 +145,33 @@ export default function AppMenu({
           id={MENU_ID}
           className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
         >
-          {/* Lab, at the top, behind a light 1px stroke. Drawn signed in AND
-              signed out — the way into the product is never gated. */}
-          {labHref ? (
-            <div className="border-b border-border pb-1">
-              <Link
-                ref={firstRef()}
-                href={labHref}
-                className={MENU_ITEM_CLASS}
-                onClick={() => setOpen(false)}
-              >
-                Lab
-              </Link>
-            </div>
-          ) : null}
-
+          {/* The email first, and the ONLY divider in the menu: it names the
+              account rather than offering an action, so it is the one thing
+              that is not part of the list. */}
           {signedIn && userEmail ? (
             <div
-              className="truncate border-b border-border px-4 py-2 text-[13px] text-muted-foreground"
+              className="mb-1 truncate border-b border-border px-4 py-2.5 text-[13px] text-muted-foreground"
               title={userEmail}
             >
               {userEmail}
             </div>
           ) : null}
 
+          {/* Lab leads the entries. Drawn signed in AND signed out — the way
+              into the product is never gated. */}
+          {labHref ? (
+            <Link
+              ref={firstRef()}
+              href={labHref}
+              className={MENU_ITEM_CLASS}
+              onClick={() => setOpen(false)}
+            >
+              Lab
+            </Link>
+          ) : null}
+
           {signedIn && lifeMenu.length > 0 ? (
-            <div className="border-b border-border pb-1">
+            <>
               {lifeMenu.map((entry) =>
                 entry.external ? (
                   // Prayer lives on its own subdomain: separate service worker
@@ -189,7 +198,7 @@ export default function AppMenu({
                   </Link>
                 )
               )}
-            </div>
+            </>
           ) : null}
 
           <a

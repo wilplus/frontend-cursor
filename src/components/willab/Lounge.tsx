@@ -759,7 +759,7 @@ export default function Lounge({
         {thread.loading ? (
           <LoadingState />
         ) : threadItems.length === 0 ? (
-          <LoungeEmptyState />
+          <LoungeEmptyState onStart={onStart} />
         ) : (
           threadItems.map((item, i) =>
             item.kind === "message" ? (
@@ -949,11 +949,10 @@ export default function Lounge({
                 e.currentTarget.form?.requestSubmit();
               }
             }}
-            // Short enough to sit on ONE line at the narrowest supported width
-            // — the old copy wrapped to two, which is what made the composer
-            // look like a text area rather than a chat field. B3 — the "Will"
-            // persona stays.
-            placeholder="Ask Will anything…"
+            // Founder 2026-07-27. Short by design: it sits on one line at the
+            // narrowest supported width, where the original copy wrapped to
+            // two and made a chat field read as a text area.
+            placeholder="Type here"
             /* B9 — kill any autofill / password-manager overlay that can ghost
                a second line of placeholder text over a chat composer. R4-12 —
                autocorrect ON now (this is prose, not a password field). */
@@ -1396,18 +1395,24 @@ function Bubble({
   );
 }
 
-function LoungeEmptyState() {
-  // B3 — "Will" greeting (de-dashed; §3.12 librarian behaviour unchanged).
-  // Honest positioning (founder 2026-07-17): Will states the DELIVERABLE (the
-  // ideal text + your strongest moments), never "charisma now".
+function LoungeEmptyState({ onStart }: { onStart: () => void }) {
+  // Founder 2026-07-27 — the Will greeting is replaced by the thing it was
+  // asking for. An empty thread had a paragraph explaining that recording is
+  // the point; now it IS the point: one big oval button and nothing else
+  // competing with it.
+  //
+  // Same destination as the composer's Record: ALWAYS the project choice,
+  // never a last-used default (FE-4).
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-      <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-        Hi, I am Will and I will (hehe) help you sound like you. Jump into
-        the <span className="font-medium">official recording</span>: every take
-        gives you the ideal text of your talk, in your own words, and shows you
-        which moments landed best.
-      </p>
+    <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+      <button
+        type="button"
+        onClick={onStart}
+        className="flex w-full max-w-sm items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-5 text-[16px] font-medium leading-snug text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
+      >
+        <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" aria-hidden />
+        Jump into your first official recording!
+      </button>
     </div>
   );
 }
