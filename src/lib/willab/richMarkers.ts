@@ -86,8 +86,11 @@ export type RichMark = "bold" | "italic" | "underline" | "highlight";
 
 const PLAIN = { bold: false, italic: false, underline: false, highlight: false };
 
-/** The pinned wrappers (FE-9): italic is //…//, the accent is {{orange:…}}. */
-const WRAPPERS: Record<RichMark, [string, string]> = {
+/** The pinned wrappers (FE-9): italic is //…//, the accent is {{orange:…}}.
+ *  Exported because the styled editor stamps them onto a DOM node as the
+ *  node's identity — a span "is" its token pair, which is how an untouched
+ *  legacy spelling survives a round-trip through the editor. */
+export const WRAPPERS: Record<RichMark, [string, string]> = {
   bold: ["**", "**"],
   italic: ["//", "//"],
   underline: ["__", "__"],
@@ -349,22 +352,27 @@ export function stripRichMarkers(text: string): string {
  *  (Not byte-exact for a MALFORMED document — the tokens rule 3 dropped are
  *  gone, which is the whole point of dropping them. Every word survives.) */
 export function serializeRichSpans(spans: RichSpan[]): string {
+  // Grouped by the moment's IDS, not by object identity. Parsed spans do share
+  // one object per wrapper, but spans rebuilt from the styled editor's DOM
+  // carry a fresh object per node — identity there would emit a separate
+  // [[moment:…]] wrapper around every run and shred one key moment into
+  // several on the first save.
+  const key = (s: RichSpan) =>
+    s.moment ? `${s.moment.snippetId}|${s.moment.sessionId}` : null;
   let out = "";
   let i = 0;
   while (i < spans.length) {
+    const k = key(spans[i]);
+    let j = i;
+    while (j < spans.length && key(spans[j]) === k) j++;
     const m = spans[i].moment;
     if (m) {
-      let j = i;
-      while (j < spans.length && spans[j].moment === m) j++;
       out += `[[moment:${m.snippetId}|${m.sessionId}]]`;
       out += serializeStyles(spans.slice(i, j));
       out += MOMENT_CLOSE;
-      i = j;
-      continue;
+    } else {
+      out += serializeStyles(spans.slice(i, j));
     }
-    let j = i;
-    while (j < spans.length && !spans[j].moment) j++;
-    out += serializeStyles(spans.slice(i, j));
     i = j;
   }
   return out;

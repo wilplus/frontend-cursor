@@ -8,7 +8,9 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
-import { MarkerToolbar, RichText } from "./RichText";
+import { RichText } from "./RichText";
+import MarkedEditor from "./MarkedEditor";
+import { verificationLabel } from "@/lib/willab/verificationCopy";
 import {
   MomentSheet,
   MomentStarText,
@@ -431,9 +433,7 @@ export default function IdealTextOverlay({
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {sd.status === "verified"
-                      ? "Verified"
-                      : "Pending verification by the coach"}
+                    {verificationLabel(sd.status)}
                   </span>
                 </div>
               ) : null}
@@ -457,8 +457,11 @@ export default function IdealTextOverlay({
                 </button>
               ) : null}
               {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
-              {sd?.keyPoints && sd.keyPoints.length > 0 ? (
-                <div className="inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
+              {/* FE-7 — absent (flag-gated off) hides the toggle entirely;
+                  an EMPTY array keeps it, with KeyPointsView's empty state
+                  under it. FE-9 — centred at every breakpoint. */}
+              {sd?.keyPoints ? (
+                <div className="inline-flex self-center rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
                   <button
                     type="button"
                     onClick={() => setPresentationMode(false)}
@@ -483,7 +486,7 @@ export default function IdealTextOverlay({
                   </button>
                 </div>
               ) : null}
-              {presentationMode && sd?.keyPoints && sd.keyPoints.length > 0 ? (
+              {presentationMode && sd?.keyPoints ? (
                 <KeyPointsView
                   keyPoints={sd.keyPoints}
                   onExit={() => setPresentationMode(false)}
@@ -676,11 +679,6 @@ function NotebookEditor({
   const [draft, setDraft] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
-
   // An emptied draft can't save: the mapper reads an empty stored copy as
   // "no personal copy" on the next load, so it would silently revert to the
   // canonical — blocking it here keeps what you see and what persists aligned.
@@ -700,14 +698,13 @@ function NotebookEditor({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      {/* Bold / underline / italic / orange — the same shared toolbar the coach
-          gets; wraps the selection in the pinned marker contract. */}
-      <MarkerToolbar textareaRef={ref} value={draft} onChange={setDraft} />
-      <textarea
-        ref={ref}
+      {/* FE-1 — the SAME styled editor as the readout. Both surfaces edit one
+          document, so neither may show the marker source. */}
+      <MarkedEditor
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        className="min-h-[50vh] w-full flex-1 resize-none rounded-2xl border border-border bg-background px-4 py-4 text-[18px] leading-relaxed outline-none focus:border-primary"
+        onChange={setDraft}
+        textSizeClass="text-[18px]"
+        autoFocus
       />
       <p className="text-[12px] text-muted-foreground">
         {saveOverride
