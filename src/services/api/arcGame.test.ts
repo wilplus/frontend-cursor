@@ -29,11 +29,11 @@ describe("fetchArcGame", () => {
     expect(await fetchArcGame("a")).toBeNull();
   });
 
-  it("501 (stub) and 404 (unshipped) → notAvailable, never an error", async () => {
-    mockFetch(501, { code: "NOT_YET_AVAILABLE" });
-    expect(await fetchArcGame("a")).toEqual({ notAvailable: true });
-    mockFetch(404, null);
-    expect(await fetchArcGame("a")).toEqual({ notAvailable: true });
+  it("404 → null: not-owned is an error, not 'coming soon' (the engine is live; a coach opening a student's game gets 404 by design)", async () => {
+    mockFetch(404, { code: "NOT_FOUND" });
+    expect(await fetchArcGame("a")).toBeNull();
+    mockFetch(501, null);
+    expect(await fetchArcGame("a")).toBeNull();
   });
 
   it("200 → rounds mapped defensively (drops transcript-less rounds)", async () => {
@@ -51,8 +51,8 @@ describe("fetchArcGame", () => {
       ],
     });
     const r = await fetchArcGame("a");
-    expect(r && "rounds" in r && r.rounds).toHaveLength(1);
-    expect(r && "rounds" in r && r.rounds[0]).toEqual({
+    expect(r?.rounds).toHaveLength(1);
+    expect(r?.rounds[0]).toEqual({
       roundId: "r1",
       transcript: "The line.",
       audioRef: "https://a/x.mp3",
@@ -61,25 +61,63 @@ describe("fetchArcGame", () => {
     });
   });
 
-  it("200 with zero usable rounds → notAvailable (no empty game)", async () => {
-    mockFetch(200, { rounds: [] });
-    expect(await fetchArcGame("a")).toEqual({ notAvailable: true });
+  it("accepts snippet_id as the round-id alias (round_id IS the snippet id)", async () => {
+    mockFetch(200, {
+      rounds: [{ snippet_id: "snip-9", transcript: "Words." }],
+    });
+    expect((await fetchArcGame("a"))?.rounds[0]?.roundId).toBe("snip-9");
+  });
+
+  it("drops a round without a real id — a fabricated id would POST a junk peer label (N3)", async () => {
+    mockFetch(200, {
+      rounds: [
+        { transcript: "No id at all." },
+        { round_id: "r1", transcript: "Keeps." },
+      ],
+    });
+    expect((await fetchArcGame("a"))?.rounds.map((r) => r.roundId)).toEqual([
+      "r1",
+    ]);
+  });
+
+  it("200 with an empty rounds list is a VALID state — the coach hasn't labeled yet, not an error", async () => {
+    mockFetch(200, { arc_id: "a", rounds: [], reason: "NO_KEY_MOMENTS_YET" });
+    expect(await fetchArcGame("a")).toEqual({
+      gameSessionId: null,
+      rounds: [],
+    });
+  });
+
+  it("200 whose served rounds ALL fail mapping → null (malformed payload, never a fake empty state)", async () => {
+    mockFetch(200, { rounds: [{ round_id: "r1" }, { transcript: "" }] });
+    expect(await fetchArcGame("a")).toBeNull();
   });
 });
 
 describe("submitGameAnswer", () => {
-  it("maps verdict + why + video (accepts alternate field names)", async () => {
+  it("maps verdict + truth + why + video (accepts alternate field names)", async () => {
     mockFetch(200, {
       correct: true,
+      truth_is_key: true,
       why: ["You paused **right before** the line.", "", 42],
       breakthrough_video_ref: "https://v/x.mp4",
     });
     const v = await submitGameAnswer("a", "r1", true);
     expect(v).toEqual({
       correct: true,
+      truthIsKey: true,
       why: ["You paused **right before** the line."],
       videoRef: "https://v/x.mp4",
     });
+  });
+
+  it("truth_is_key maps strictly: false stays false, absent/junk degrades to null (the reveal line hides)", async () => {
+    mockFetch(200, { correct: false, truth_is_key: false, why: [] });
+    expect((await submitGameAnswer("a", "r1", true))?.truthIsKey).toBe(false);
+    mockFetch(200, { correct: true, truth_is_key: "yes", why: [] });
+    expect((await submitGameAnswer("a", "r1", true))?.truthIsKey).toBeNull();
+    mockFetch(200, { correct: true, why: [] });
+    expect((await submitGameAnswer("a", "r1", true))?.truthIsKey).toBeNull();
   });
 
   it("soft-fails to null on error", async () => {
