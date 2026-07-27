@@ -306,9 +306,27 @@ export default function IdealTextOverlay({
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
-        <span className="text-[13px] font-medium text-foreground">
-          Your ideal text
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-[13px] font-medium text-foreground">
+            Your ideal text
+          </span>
+          {/* Founder 2026-07-27 — the verification state belongs UP HERE, beside
+              the title. It used to sit on its own row under the header, which
+              spent a whole band of vertical space on a badge and pushed the
+              text itself further down the screen. It says what this document
+              is, which is what a header is for. */}
+          {sd ? (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                sd.status === "verified"
+                  ? "bg-success/10 text-success"
+                  : "bg-background text-muted-foreground"
+              }`}
+            >
+              {verificationLabel(sd.status)}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-1.5">
           {(status === "ready" || status === "instant" || status === "historical") &&
           !editing ? (
@@ -423,20 +441,8 @@ export default function IdealTextOverlay({
             />
           ) : ideal ? (
             <div className="flex flex-col gap-4">
-              {/* SD chrome — the living document's status + the read-aloud ask. */}
-              {sd ? (
-                <div className="flex flex-col gap-3">
-                  <span
-                    className={`self-start rounded-full px-2.5 py-1 text-[12px] font-medium ${
-                      sd.status === "verified"
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {verificationLabel(sd.status)}
-                  </span>
-                </div>
-              ) : null}
+              {/* The verification badge moved into the header (above) — a row
+                  of its own was a band of vertical space for one word. */}
               {/* FE-2 — one tap applies every smoother-version suggestion.
                   Polish only; acoustic and structural stars stay per-star. */}
               {sd && stars.bulkApplied ? (
