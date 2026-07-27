@@ -5,6 +5,8 @@ import { Download, Upload } from "lucide-react";
 import { EMPTY, STATUS, STRATEGY } from "@/lib/life/copy";
 import {
   applyStrategyDiff,
+  downloadStrategy,
+  extensionForContentType,
   fetchStrategy,
   uploadStrategy,
 } from "@/services/api/life";
@@ -37,16 +39,34 @@ export default function StrategyPanel({ compact = false }: { compact?: boolean }
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  function download(body: string, version: number) {
-    const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `strategy-v${version}.md`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  /** FE-11 — ask the server to render the file and save what comes back.
+   *
+   *  The extension is derived from the RESPONSE Content-Type, never from the
+   *  format we asked for. The endpoint degrades to markdown with a 200 when a
+   *  renderer is unavailable, so naming the file .pdf because we requested pdf
+   *  would save markdown inside a .pdf — a file the user's reader refuses to
+   *  open, with nothing anywhere to explain why. When the server sends a
+   *  filename we use it verbatim and derive nothing at all. */
+  async function download(format: "pdf" | "docx", version: number) {
+    setBusy(true);
+    setFailed(false);
+    try {
+      const file = await downloadStrategy(format);
+      const url = URL.createObjectURL(file.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        file.filename ??
+        `strategy-v${version}${extensionForContentType(file.contentType)}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function onFile(file: File) {
@@ -88,13 +108,26 @@ export default function StrategyPanel({ compact = false }: { compact?: boolean }
                 {strategy.reviewedOn ? ` · reviewed ${strategy.reviewedOn}` : ""}
               </Eyebrow>
               <div className="flex gap-2">
+                {/* Two explicit formats rather than one "Download": the
+                    founder asked for an editable Word file alongside the PDF,
+                    and a single button cannot offer both without a menu. */}
                 <button
                   type="button"
-                  onClick={() => download(strategy.body, strategy.version)}
-                  className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs text-foreground hover:bg-muted"
+                  onClick={() => void download("pdf", strategy.version)}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  {STRATEGY.downloadLabel}
+                  {STRATEGY.downloadPdfLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void download("docx", strategy.version)}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs text-foreground hover:bg-muted disabled:opacity-40"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {STRATEGY.downloadDocxLabel}
                 </button>
                 <button
                   type="button"

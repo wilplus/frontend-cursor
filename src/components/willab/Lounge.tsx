@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Linkified from "./Linkified";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -1282,7 +1283,8 @@ function SequentialBotBubbles({
           key={`${i}-${part.slice(0, 12)}`}
           className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
-          {part}
+          {/* FE-13 — Will's replies carry booking links; they were dead text. */}
+          <Linkified text={part} />
         </div>
       ))}
       {stillTyping ? <TypingDots /> : null}
@@ -1362,7 +1364,9 @@ function Bubble({
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
-        {message.body}
+        {/* FE-13 — both sides of the thread, so a link the user pasted works
+            the same as one Will sent. */}
+        <Linkified text={message.body} />
       </div>
     );
   }
