@@ -116,7 +116,7 @@ export default function ProjectPicker({
           </Button>
         </div>
       ) : (
-      <div className="flex-1 overflow-y-auto">
+      <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-8">
           <div>
             <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
