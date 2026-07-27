@@ -424,16 +424,10 @@ export default function Lounge({
   // whether to surface the install offer and the footer action pair.
   const install = useInstallOffer();
 
-  // #7 — practice mode: while a 3-take practice arc is active and has at least
-  // one take banked, the big record button reads "Record the next take" (the
-  // small in-card button is gone; this is the ONE record affordance). Post-mount
-  // effect (localStorage) so SSR/hydration stay clean; re-checked as the flow
-  // state / thread move (a take completing flips both).
-  const [practiceArcActive, setPracticeArcActive] = useState(false);
-  useEffect(() => {
-    const arc = readExploreArc();
-    setPracticeArcActive(!!arc && arc.nextTakeIndex >= 2);
-  }, [state, messages.length]);
+  // FE-4 — the "practice mode" state that made the record CTA read "Record the
+  // next take" and skip the project choice is gone with the shortcut it drove.
+  // A cached arc says where the LAST take went, which is not an answer to
+  // where this one should go.
 
   // When the user asks to upload a file, the footer's record button becomes a
   // file picker (deckless upload). Tracks the LATEST intent so it reverts once
@@ -905,14 +899,21 @@ export default function Lounge({
       ) : (
         <Button
           type="button"
-          // An active cached arc IS the known project, and the label commits
-          // to continuing it — so that CTA must not stop to ask which project
-          // (review R-pp4). A fresh start still goes through the picker.
-          onClick={practiceArcActive ? onStartInProject ?? onStart : onStart}
+          // FE-4 — ALWAYS the project choice. This used to skip the picker
+          // whenever a cached arc existed (review R-pp4), which is precisely
+          // the "continue where you left off" shortcut the story removes: a
+          // cached arc is a last-used DEFAULT, not something the user chose
+          // this time. A take submitted with the wrong continue_arc_id lands
+          // in the wrong project, splits the arc, and corrupts the cross-take
+          // comparison the ideal text is built from — a data defect, not a UX
+          // preference. The three in-context entries (a project's ideal text,
+          // the library card, best-presentation) still go straight in: there
+          // the user tapped a specific project, so nothing is being assumed.
+          onClick={onStart}
           className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
         >
           <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-          {practiceArcActive ? "Record the next take" : "Start official recording"}
+          Start official recording
         </Button>
       )}
 
