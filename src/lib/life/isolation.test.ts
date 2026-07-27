@@ -38,9 +38,27 @@ const LIFE_OWNED = [
   join("services", "api", "life.ts"),
 ];
 
-/** The only product modules allowed to import the panel. */
+/** The only product modules allowed to import the panel.
+ *
+ *  FE-3 (2026-07-27) moved the hamburger out of DashboardHeader into AppMenu +
+ *  useAppMenuData, so the panel's menu entries are read there now. Recorded
+ *  deliberately, because it is a real widening and not just a rename: the same
+ *  menu is mounted on the BLOG as well, so a signed-in visitor to a marketing
+ *  page can now see their panel entries.
+ *
+ *  That is intended — the story asks for the lab's menu on the blog, one
+ *  component with two mounts, and the lab's menu contains Principles. The
+ *  isolation that actually matters is unchanged: entries still come only from
+ *  `GET /v2/life/state`, which 404s unless the feature is on AND this user
+ *  passes the gate, so a visitor the payload does not list sees nothing. And
+ *  the panel reads stay signed-in only, which is why a signed-out blog reader
+ *  makes no panel request at all.
+ *
+ *  SiteHeader is deliberately NOT on this list: it mounts AppMenu and never
+ *  touches the panel itself, so the dependency stays contained to these two. */
 const PERMITTED_IMPORTERS = [
-  join("components", "dashboard", "DashboardHeader.tsx"),
+  join("components", "AppMenu.tsx"),
+  join("hooks", "useAppMenuData.ts"),
   join("components", "willab", "Lounge.tsx"),
 ];
 
