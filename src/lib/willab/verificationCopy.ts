@@ -33,6 +33,14 @@ export const PENDING_VERIFICATION = "Pending verification";
  *  module that owns this state's copy. */
 export const PENDING_SHORT = "Pending";
 
+/** Its pair: the coach has been through the text (founder 2026-07-27).
+ *
+ *  "Reviewed", not "Verified" — the coach reads the whole thing and works it,
+ *  which is a review; "verified" sounds like a checksum passed. Same reasoning
+ *  as PENDING_SHORT for why it is short: beside the project's title, the bar
+ *  has no room for a word the context already supplies. */
+export const REVIEWED_SHORT = "Reviewed";
+
 /** The coach has verified this text. */
 export const VERIFIED = "Verified";
 
