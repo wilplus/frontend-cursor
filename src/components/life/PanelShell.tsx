@@ -8,7 +8,12 @@ import PanelNotFound from "@/components/life/PanelNotFound";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import { STATUS, VIEWS } from "@/lib/life/copy";
-import { hasConsented, type LifeMenuEntry, type LifeState } from "@/lib/life/types";
+import {
+  hasConsented,
+  principlesTabView,
+  type LifeMenuEntry,
+  type LifeState,
+} from "@/lib/life/types";
 
 /* -------------------------------------------------------------------------- */
 /*  PanelShell — chrome and gate for every /panel/* view (FE-1)                */
@@ -43,21 +48,33 @@ export function useLifePanel(): LifePanelContextValue {
   return ctx;
 }
 
-/** FE-10 — the routes that ARE onboarding. They get the panel's chrome
- *  stripped: no nav pill row above the step header, no "Your data" link under
- *  it. One goal per screen means one thing on the screen, and a pill row that
- *  reads "Principles" over a heading that reads "Your three bets" is a second
- *  navigation offering itself mid-form. Everywhere else keeps both. */
-const ONBOARDING_ROUTES = ["/panel/setup"];
-
-function isOnboarding(pathname: string | null): boolean {
-  return !!pathname && ONBOARDING_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+/** FE-10 — is the user looking at ONBOARDING right now?
+ *
+ *  Onboarding gets the panel's chrome stripped: no nav pill row above the step
+ *  header, no "Your data" link under it. One goal per screen means one thing on
+ *  the screen, and a pill row reading "Principles" over a heading reading "Your
+ *  three bets" is a second navigation offering itself mid-form.
+ *
+ *  This asks the STATE, not the path. It used to be a route allowlist holding
+ *  only "/panel/setup", which missed the setup flow's OTHER mount: the
+ *  Principles tab renders SetupFlow itself whenever consent is given and setup
+ *  is unfinished (principlesTabView → "setup"). That is the mount most users
+ *  actually meet — it is where the resume lands — so the allowlist stripped the
+ *  chrome from the route almost nobody onboards on and left it on the one they
+ *  do. Consent and completion are the real condition, and they are the same on
+ *  every route. */
+function isOnboarding(state: LifeState, pathname: string | null): boolean {
+  if (pathname === "/panel/setup") return true;
+  // The Principles tab IS the setup form until setup is finished.
+  return (
+    pathname === "/panel/principles" && principlesTabView(state) !== "results"
+  );
 }
 
 export default function PanelShell({ children }: { children: React.ReactNode }) {
   const { state, loading, refresh } = useLifeState();
   const pathname = usePathname();
-  const onboarding = isOnboarding(pathname);
+  const onboarding = state ? isOnboarding(state, pathname) : false;
 
   if (loading) {
     return (
