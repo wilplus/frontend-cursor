@@ -7,6 +7,13 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /*  boot and shared, because it is a product constant rather than a per-       */
 /*  project field (the arc's /setup payload deliberately does not echo it).    */
 /*                                                                            */
+/*  CURRENTLY UNCONSUMED (founder 2026-07-27). This served the FE-5 long-take   */
+/*  caution, which fired on the setup wizard's LENGTH step. "Recording in       */
+/*  eternity" removed that step, so the caution has nothing to fire on and the  */
+/*  modal is gone. Kept, not deleted: the endpoint and the mapper are correct,  */
+/*  and re-pointing them at a new trigger (elapsed recording time, say) is a    */
+/*  smaller job than rebuilding both. Nothing calls this today.                 */
+/*                                                                            */
 /*  NEVER HARDCODE THE THRESHOLD. It is 600 today; the point of serving it is  */
 /*  that the founder can move it without a deploy, and a literal 600 anywhere  */
 /*  in the FE silently pins it. Unreachable → null, and the caution simply     */
