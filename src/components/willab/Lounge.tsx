@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Linkified from "./Linkified";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -424,16 +425,10 @@ export default function Lounge({
   // whether to surface the install offer and the footer action pair.
   const install = useInstallOffer();
 
-  // #7 — practice mode: while a 3-take practice arc is active and has at least
-  // one take banked, the big record button reads "Record the next take" (the
-  // small in-card button is gone; this is the ONE record affordance). Post-mount
-  // effect (localStorage) so SSR/hydration stay clean; re-checked as the flow
-  // state / thread move (a take completing flips both).
-  const [practiceArcActive, setPracticeArcActive] = useState(false);
-  useEffect(() => {
-    const arc = readExploreArc();
-    setPracticeArcActive(!!arc && arc.nextTakeIndex >= 2);
-  }, [state, messages.length]);
+  // FE-4 — the "practice mode" state that made the record CTA read "Record the
+  // next take" and skip the project choice is gone with the shortcut it drove.
+  // A cached arc says where the LAST take went, which is not an answer to
+  // where this one should go.
 
   // When the user asks to upload a file, the footer's record button becomes a
   // file picker (deckless upload). Tracks the LATEST intent so it reverts once
@@ -902,19 +897,13 @@ export default function Lounge({
             </p>
           ) : null}
         </>
-      ) : (
-        <Button
-          type="button"
-          // An active cached arc IS the known project, and the label commits
-          // to continuing it — so that CTA must not stop to ask which project
-          // (review R-pp4). A fresh start still goes through the picker.
-          onClick={practiceArcActive ? onStartInProject ?? onStart : onStart}
-          className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
-        >
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-          {practiceArcActive ? "Record the next take" : "Start official recording"}
-        </Button>
-      )}
+      ) : // FE-2 (founder 2026-07-27) — the full-width "Start official
+      // recording" CTA is DELETED. The record affordance is the small control
+      // inside the composer and nothing else, so there is no second, louder
+      // button competing with it. The upload picker above keeps its own
+      // full-width button: it is a different action, and it only appears when
+      // the user has asked to upload.
+      null}
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -934,7 +923,28 @@ export default function Lounge({
         />
       )}
 
-      <form onSubmit={handleSend} className="relative">
+      {/* FE-2 (founder 2026-07-27) — WhatsApp placement: the record control sits
+          INSIDE the composer, on the right, slightly wider than an icon button
+          (a recording dot plus a small "Record" label). The full-width CTA
+          above is a different control and is untouched by this.
+
+          A FLEX row rather than the old absolute button over a padded
+          textarea. The instruction if the label will not fit at the narrowest
+          breakpoint is "shrink the padding, not the input", and flex is that
+          rule as structure instead of a guess: the controls take exactly what
+          they need and the field takes the rest, at every width, instead of
+          the field paying a fixed pr-12 whether or not anything sits there.
+
+          NOTE: the "+" this story removes from the text-input area does not
+          exist in this composer — it is a WhatsApp affordance in the reference
+          screenshot, and there is no such control here to delete. So the width
+          it was meant to free up is not available, and the "Record" label
+          costs width the field previously kept. Flagged for the founder rather
+          than papered over: the input does not come out measurably wider. */}
+      <form
+        onSubmit={handleSend}
+        className="flex items-end gap-1 rounded-3xl border border-border bg-background py-1.5 pl-3 pr-1.5 focus-within:border-primary"
+      >
         <textarea
           ref={composerRef}
           rows={1}
@@ -956,14 +966,30 @@ export default function Lounge({
           autoCorrect="on"
           autoCapitalize="sentences"
           spellCheck
-          className="block max-h-40 min-h-[48px] w-full resize-none rounded-3xl border border-border bg-background py-3 pl-4 pr-12 text-[15px] leading-snug outline-none focus:border-primary"
+          className="block max-h-40 min-h-[36px] flex-1 resize-none self-center bg-transparent py-1.5 text-[15px] leading-snug outline-none"
           aria-label="Message Will"
         />
+        {/* The dot is the recording signal — the one place orange/red reads as
+            "live action". This is now the ONE record affordance in the Lounge
+            (the full-width CTA is gone), and it ALWAYS opens the project
+            choice: never a last-used default, never an auto-continue, even
+            when a cached arc exists. Founder 2026-07-27 — that disconnection
+            is deliberate. A take submitted with the wrong continue_arc_id
+            lands in the wrong project, splits the arc, and corrupts the
+            cross-take comparison the ideal text is ranked across. */}
+        <button
+          type="button"
+          onClick={onStart}
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+          Record
+        </button>
         <button
           type="submit"
           disabled={!draftText.trim() || botThinking}
           aria-label="Send"
-          className={`absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
             draftText.trim() ? "text-foreground" : "text-muted-foreground"
           }`}
         >
@@ -1249,7 +1275,8 @@ function SequentialBotBubbles({
           key={`${i}-${part.slice(0, 12)}`}
           className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
-          {part}
+          {/* FE-13 — Will's replies carry booking links; they were dead text. */}
+          <Linkified text={part} />
         </div>
       ))}
       {stillTyping ? <TypingDots /> : null}
@@ -1329,7 +1356,9 @@ function Bubble({
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
-        {message.body}
+        {/* FE-13 — both sides of the thread, so a link the user pasted works
+            the same as one Will sent. */}
+        <Linkified text={message.body} />
       </div>
     );
   }

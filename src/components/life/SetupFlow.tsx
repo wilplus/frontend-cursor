@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
-import { SETUP, STATUS, VIEWS } from "@/lib/life/copy";
+import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
 import {
   coerceSetupAnswers,
@@ -113,6 +113,9 @@ export default function SetupFlow({
 
   return (
     <div className="mx-auto max-w-xl">
+      {/* STEP n OF 9 stays — it is the one piece of chrome that tells the
+          user how much is left, and this form's completion rate is the
+          feature's adoption rate. (Eyebrow uppercases it.) */}
       <Eyebrow>
         Step {index + 1} of {LIFE_SETUP_STEPS.length}
       </Eyebrow>
@@ -122,9 +125,11 @@ export default function SetupFlow({
       {step.hint ? (
         <p className="mt-1 text-sm text-muted-foreground">{step.hint}</p>
       ) : null}
-      {index === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">{VIEWS.setup.lede}</p>
-      ) : null}
+      {/* FE-10 — the grey supporting paragraph ("Eight horizons. You can stop
+          anywhere…") is gone. It appeared on screen 1 ONLY, which is what made
+          screen 1 the odd one out: one goal per screen, one heading, and the
+          same spacing on all nine. Removing it is the audit — with it gone,
+          every step renders through exactly this path with nothing extra. */}
 
       <div className="mt-6">
         {step.kind === "bets" ? (

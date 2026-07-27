@@ -150,7 +150,10 @@ export const VIEWS = {
   data: { title: "Your data", lede: "" },
   setup: {
     title: "Setup",
-    lede: "Eight horizons. You can stop anywhere and pick it up later.",
+    // FE-10 — retired. This grey supporting paragraph rendered on setup screen
+    // 1 only, which is what made screen 1 the odd one out among the nine.
+    // Left empty rather than deleted so the VIEWS shape stays uniform.
+    lede: "",
   },
 } as const;
 
@@ -237,6 +240,10 @@ export const SETUP = {
 
 export const STRATEGY = {
   downloadLabel: "Download",
+  /** FE-11 — the founder asked for an editable Word file alongside the PDF. */
+  downloadPdfLabel: "PDF",
+  downloadDocxLabel: "Word (.docx)",
+  downloadFailed: "That download didn't come through. Try again.",
   uploadLabel: "Upload a revised copy",
   uploadNote:
     "An upload never overwrites silently. You get a diff to approve first.",

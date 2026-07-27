@@ -400,10 +400,17 @@ export default function LabOverlay({
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
-        // Context-aware setup — the project this take continues, sent
-        // ALONGSIDE arc_id/take_index (the deployed BE resolves the arc from
-        // those; dropping them for a field it does not read yet would mint a
-        // new project on every take).
+        // Context-aware setup — the project this take continues. This is the
+        // authoritative field: production overrides the arc to it and computes
+        // take_index itself, discarding anything we send. It is set from the
+        // SAME value as arcId above, which is what keeps us out of the one
+        // real hazard here — an arc_id sent WITHOUT continue_arc_id and
+        // without a take_index resolves to take 1 every time, so every take
+        // would land in the right project under a colliding number.
+        //
+        // NOT sending it at all is the other failure: resolve_arc mints a
+        // fresh arc whenever no arc is supplied, which is a new project per
+        // take. Both are FE-side; neither is fixed by a backend deploy.
         continueArcId: arcId ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
         // R5 — the framing manipulation shown on the priming panel, logged for
@@ -687,9 +694,19 @@ export default function LabOverlay({
           re-fill was removed (FE-2): continuing a project still prefills from
           the server, so the button only duplicated that with a worse guess.
           The X is deliberately the only control here and sits right-aligned
-          rather than opposite an empty slot. */}
+          rather than opposite an empty slot.
+
+          FE-6 — during SETUP the ✕ moves down onto the step indicator row,
+          where the story puts it, and this header renders an empty bar. It
+          moves rather than duplicating: two crosses stacked ~48px apart on one
+          screen is worse than either position, and the ✕ must stay the single
+          visible way out of the recording overlay. The one on the indicator
+          row confirms before discarding a half-filled setup; this one, on
+          every other step, has nothing to discard. */}
       <header className="flex h-12 shrink-0 items-center justify-end px-4">
-        <OverlayCloseButton onClick={handleClose} />
+        {state === "lab_session_context" ? null : (
+          <OverlayCloseButton onClick={handleClose} />
+        )}
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
@@ -712,6 +729,9 @@ export default function LabOverlay({
             // no prior arc bleeds into it.
             preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
+            // FE-6 — the same exit the header ✕ performs, now owned by the
+            // wizard so it can confirm before throwing away a part-filled form.
+            onCancel={handleClose}
             onSubmit={(ctx, explore) => {
               const staged = stagedUploadRef.current;
               if (staged) {
