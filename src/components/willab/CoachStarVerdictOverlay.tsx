@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Star } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -61,9 +61,13 @@ export default function CoachStarVerdictOverlay({
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading"
   );
-  // One in-flight save at a time (the id of the row being saved). Pills
-  // disable on the busy row only — judging star B while A settles is fine.
-  const [savingId, setSavingId] = useState<string | null>(null);
+  // In-flight saves PER ROW — judging star B while A settles is fine, and
+  // must actually be: a global lock with per-row disabling silently swallowed
+  // taps on other rows while one PUT was in flight (review 2026-07-28). The
+  // ref is the SYNCHRONOUS gate (state is too slow for a same-tick double
+  // tap); the state mirror drives the spinners.
+  const inFlightRef = useRef<Set<string>>(new Set());
+  const [savingKeys, setSavingKeys] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   // The wrong-kind picker open on at most one row (the gesture is per-row).
   const [pickerId, setPickerId] = useState<string | null>(null);
@@ -93,22 +97,27 @@ export default function CoachStarVerdictOverlay({
     verdict: StarVerdict,
     correctedDevice?: string
   ) {
-    if (savingId) return;
+    const key = starRowKey(star);
+    if (inFlightRef.current.has(key)) return;
     const body = buildVerdictBody(star, verdict, {
       correctedDevice: correctedDevice ?? null,
-      note: noteDrafts[starRowKey(star)] ?? star.note ?? "",
+      note: noteDrafts[key] ?? star.note ?? "",
     });
     // Unconstructable = wrong_kind without a pick; the picker is the only
     // path here with that verdict, so this is a guard, not a flow (N3).
     if (!body) return;
-    const key = starRowKey(star);
-    setSavingId(key);
+    inFlightRef.current.add(key);
+    setSavingKeys((k) => ({ ...k, [key]: true }));
     setErrors((e) => {
       const { [key]: _dropped, ...rest } = e;
       return rest;
     });
     const res = await saveStarVerdict(star.snippetId, body);
-    setSavingId(null);
+    inFlightRef.current.delete(key);
+    setSavingKeys((k) => {
+      const { [key]: _done, ...rest } = k;
+      return rest;
+    });
     if (!res.ok) {
       // The BE's 400 reason is verbatim-safe; the migration-gate 500 names
       // the missing migration — show exactly what it said (degrade gracefully).
@@ -245,14 +254,14 @@ export default function CoachStarVerdictOverlay({
                 <div className="flex flex-wrap items-center gap-2">
                   <VerdictPill
                     active={s.verdict === "keep"}
-                    disabled={savingId === key}
+                    disabled={savingKeys[key] === true}
                     onClick={() => void save(s, "keep")}
                   >
                     Keep
                   </VerdictPill>
                   <VerdictPill
                     active={s.verdict === "wrong_kind"}
-                    disabled={savingId === key}
+                    disabled={savingKeys[key] === true}
                     onClick={() =>
                       setPickerId((id) => (id === key ? null : key))
                     }
@@ -261,12 +270,12 @@ export default function CoachStarVerdictOverlay({
                   </VerdictPill>
                   <VerdictPill
                     active={s.verdict === "should_not_fire"}
-                    disabled={savingId === key}
+                    disabled={savingKeys[key] === true}
                     onClick={() => void save(s, "should_not_fire")}
                   >
                     Shouldn&apos;t fire
                   </VerdictPill>
-                  {savingId === key ? (
+                  {savingKeys[key] === true ? (
                     <Loader2
                       className="h-4 w-4 animate-spin text-muted-foreground"
                       aria-hidden
@@ -291,7 +300,7 @@ export default function CoachStarVerdictOverlay({
                             s.verdict === "wrong_kind" &&
                             s.correctedDevice === opt
                           }
-                          disabled={savingId === key}
+                          disabled={savingKeys[key] === true}
                           onClick={() => void save(s, "wrong_kind", opt)}
                           className={`rounded-full border px-3 py-1 text-[12px] transition-colors disabled:opacity-50 ${
                             s.verdict === "wrong_kind" &&
@@ -325,7 +334,7 @@ export default function CoachStarVerdictOverlay({
                     {s.verdict ? (
                       <button
                         type="button"
-                        disabled={savingId === key}
+                        disabled={savingKeys[key] === true}
                         onClick={() =>
                           void save(s, s.verdict as StarVerdict, s.correctedDevice ?? undefined)
                         }
