@@ -45,11 +45,14 @@ export interface LabUploadInput {
   arcId?: string;
   takeIndex?: number;
   /** Context-aware setup (founder 2026-07-22) — the project this take
-   *  continues. Sent ALONGSIDE arc_id/take_index, never instead of them: the
-   *  deployed BE resolves the arc from `arc_id` + `take_index`, so dropping
-   *  those for a field it does not read yet would make every next take mint a
-   *  NEW project (and therefore a new master document). When the BE reads
-   *  continue_arc_id, the legacy pair can be retired in one edit. */
+   *  continues.
+   *
+   *  FE-4 (2026-07-27) — this is now the FLAT, authoritative field and the BE
+   *  numbers the takes, so a continuation no longer sends `take_index`. It
+   *  used to ride alongside the legacy arc_id/take_index pair because the
+   *  deployed BE resolved the arc from those; sending a take_index the server
+   *  also computes is how a take lands under the wrong number, and a wrong
+   *  number splits the arc that the ideal text is ranked across. */
   continueArcId?: string;
   /** Pre-recording feeling — private correlation input (AC-9, never shown back). */
   feeling?: Feeling;
@@ -193,7 +196,12 @@ export async function submitLabRecording(
   if (input.continueArcId) {
     form.append("continue_arc_id", input.continueArcId);
   }
-  if (input.takeIndex != null) form.append("take_index", String(input.takeIndex));
+  // FE-4 — the server numbers takes on a continuation. Sending our own guess
+  // alongside continue_arc_id is a second, disagreeing opinion about where
+  // this take belongs, and the loser is the cross-take comparison.
+  if (input.takeIndex != null && !input.continueArcId) {
+    form.append("take_index", String(input.takeIndex));
+  }
   // Pre-recording feeling — private correlation input; AC-9 bars it from any
   // user-facing surface. Omit when absent so the field never arrives as "null".
   if (input.feeling) form.append("feeling", input.feeling);

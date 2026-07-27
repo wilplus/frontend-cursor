@@ -131,7 +131,12 @@ export function PieceBadgeText({
   sdStars,
   textSizeClass,
   onOpenSwap,
+  tint,
 }: {
+  /** FE-7 — document-absolute key-point ranges to accent in the full read.
+   *  Paragraphs carry their own `start`, so each one resolves the cues that
+   *  fall inside it and ignores the rest. */
+  tint?: Array<[number, number]>;
   /** LIVING TRANSCRIPT — span-anchored tracked changes over `text`. When
    *  present this lane owns the text rendering (strikes, proposals, advice
    *  stars) and the version pills still compose on top; absent → today's
@@ -214,6 +219,7 @@ export function PieceBadgeText({
         suggestions={suggestions ?? null}
         onDecide={onDecideTracked}
         textSizeClass={textSizeClass}
+        tint={tint}
       />
     ) : fbSlices ? (
       // D-2 — multi-paragraph doc without pieces: one MomentStarText per
@@ -229,6 +235,8 @@ export function PieceBadgeText({
             foldFor={foldFor}
             sdStars={sdStars}
             textSizeClass={textSizeClass}
+            srcOffset={span.start}
+            tint={tint}
           />
         ))}
       </div>
@@ -240,6 +248,7 @@ export function PieceBadgeText({
         foldFor={foldFor}
         sdStars={sdStars}
         textSizeClass={textSizeClass}
+        tint={tint}
       />
     );
   }
@@ -269,6 +278,8 @@ export function PieceBadgeText({
             onDecide={onDecideTracked}
             textSizeClass={textSizeClass}
             trailing={pill}
+            srcOffset={span.start}
+            tint={tint}
           />
         ) : (
           <MomentStarText
@@ -281,6 +292,8 @@ export function PieceBadgeText({
             sdStars={sdStars}
             textSizeClass={textSizeClass}
             trailing={pill}
+            srcOffset={span.start}
+            tint={tint}
           />
         );
       })}

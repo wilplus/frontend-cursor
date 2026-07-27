@@ -8,6 +8,7 @@ import { reRecordSnippet } from "@/services/api/reRecordSnippet";
 import {
   fetchIdealText,
   isUnappliedPolish,
+  keyPointTintRanges,
   saveIdealUserEdit,
   type DocumentSuggestion,
   type IdealPiece,
@@ -20,7 +21,9 @@ import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { MarkerToolbar } from "./RichText";
+import MarkedEditor from "./MarkedEditor";
+import MarkedParagraphs from "./MarkedParagraphs";
+import { PENDING_VERIFICATION } from "@/lib/willab/verificationCopy";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
 import KeyPointsView from "./KeyPointsView";
@@ -33,7 +36,7 @@ import type { ReadoutPayload } from "./readout";
 /*  Replaces the per-piece approve walker: the moment analysis lands, the      */
 /*  user sees their ideal text 1.0 in THEIR OWN WORDS, one continuous text in  */
 /*  paragraphs, font one step up, editable — under a grey                      */
-/*  "Pending verification by the coach" badge. No Approve buttons, no "Send    */
+/*  "Pending verification" badge. No Approve buttons, no "Send                 */
 /*  for analysis": a signed-in take is sent to the coach AUTOMATICALLY on      */
 /*  arrival (mergeSession, once); a guest gets one button to save the text by  */
 /*  creating an account (that is account creation, not a send step).           */
@@ -99,7 +102,6 @@ export default function IdealTextReadout({
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
   // #214 — edit persistence: armed once the SD GET confirms the contract and
   // hands us the current version. Until then (flag OFF / guest) edits are
   // local-only, exactly the pre-#214 behavior.
@@ -271,14 +273,6 @@ export default function IdealTextReadout({
     []
   );
 
-  useEffect(() => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [text, editing]);
-
-
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
   // text; Keep mine = the suggestion is refused and never re-offered. Both
   // ride the existing per-snippet feedback POST (the ledger remembers them),
@@ -385,6 +379,17 @@ export default function IdealTextReadout({
     [allPolish, stars.appliedLocal]
   );
 
+  // FE-7 — the key-point ranges the full read may accent. Computed against the
+  // text ACTUALLY on screen, not the served one: an accepted tracked change or
+  // a local edit shifts every offset after it, and a cue verified against stale
+  // text would tint the wrong words. keyPointTintRanges re-verifies each slice
+  // and drops silently on any mismatch, so an edit simply retires the cues it
+  // moved rather than mispainting them.
+  const tint = useMemo(
+    () => keyPointTintRanges(text, sd?.keyPoints ?? null),
+    [text, sd]
+  );
+
   // The one edit path — a keystroke or a toolbar wrap: mark dirty, reset the
   // save flash, update the text (the debounce effect persists it).
   const applyEdit = useCallback((next: string) => {
@@ -399,7 +404,7 @@ export default function IdealTextReadout({
         {/* The one status: grey now; flips to green on the ideal-text page
             once the coach verifies. */}
         <span className="rounded-lg bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
-          Pending verification by the coach
+          {PENDING_VERIFICATION}
         </span>
         <div className="flex items-center gap-1.5">
           <button
@@ -460,9 +465,14 @@ export default function IdealTextReadout({
         </button>
       ) : null}
 
-      {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
-      {!editing && sd?.keyPoints && sd.keyPoints.length > 0 ? (
-        <div className="mb-3 inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
+      {/* FE-7 — ABSENT is not EMPTY. key_points missing from the payload means
+          the field is flag-gated off server-side, so there is no such mode and
+          the toggle does not exist. An EMPTY array means the mode exists and
+          has nothing in it yet, so the toggle stays and KeyPointsView carries
+          the empty state.
+          FE-9 — centred horizontally (self-center), at every breakpoint. */}
+      {!editing && sd?.keyPoints ? (
+        <div className="mb-3 inline-flex self-center rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
           <button
             type="button"
             onClick={() => setPresentationMode(false)}
@@ -489,28 +499,17 @@ export default function IdealTextReadout({
       ) : null}
 
       {editing ? (
-        <div className="flex flex-col gap-2">
-          {/* Bold / underline / italic / orange — wraps the selection in the
-              shared marker contract; renders in the read view + everywhere. */}
-          <MarkerToolbar
-            textareaRef={editorRef}
-            value={text}
-            onChange={applyEdit}
-          />
-          <textarea
-            ref={editorRef}
-            value={text}
-            onChange={(e) => applyEdit(e.target.value)}
-            className="w-full resize-none overflow-hidden rounded-2xl border border-primary bg-background px-4 py-4 text-[17px] leading-relaxed outline-none"
-          />
-        </div>
+        // FE-1 — the editor shows STYLED text, never the marker source: a user
+        // must not see "{{orange:" while editing either. Saving serializes
+        // back to markers, byte-exact for any span they did not touch.
+        <MarkedEditor value={text} onChange={applyEdit} textSizeClass="text-[17px]" />
       ) : signedIn && arcId && !sdSettled ? (
         // FE-3 — hold until the served text + its stars are in hand, so they
         // land together instead of the text rendering then stars popping in.
         <p className="py-10 text-center text-[13px] text-muted-foreground">
           Putting your ideal text together…
         </p>
-      ) : sd && presentationMode && sd.keyPoints && sd.keyPoints.length > 0 ? (
+      ) : sd && presentationMode && sd.keyPoints ? (
         // E-2 — key-words presentation mode: the verbatim cues, each labelled
         // by its block. Tapping one returns to the full read.
         <KeyPointsView
@@ -539,11 +538,13 @@ export default function IdealTextReadout({
           sdStars
           textSizeClass="text-[17px]"
           onOpenSwap={setSwapOpen}
+          tint={tint}
         />
       ) : (
-        <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
-          {text}
-        </p>
+        // FE-1 — this fallback (no SD payload: guest, or the flag off) used to
+        // print `text` raw, markers and all. It is the same document, so it
+        // gets the same renderer.
+        <MarkedParagraphs text={text} textSizeClass="text-[17px]" />
       )}
 
       {saveState === "saved" ? (

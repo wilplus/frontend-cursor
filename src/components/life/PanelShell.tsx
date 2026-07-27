@@ -43,9 +43,21 @@ export function useLifePanel(): LifePanelContextValue {
   return ctx;
 }
 
+/** FE-10 — the routes that ARE onboarding. They get the panel's chrome
+ *  stripped: no nav pill row above the step header, no "Your data" link under
+ *  it. One goal per screen means one thing on the screen, and a pill row that
+ *  reads "Principles" over a heading that reads "Your three bets" is a second
+ *  navigation offering itself mid-form. Everywhere else keeps both. */
+const ONBOARDING_ROUTES = ["/panel/setup"];
+
+function isOnboarding(pathname: string | null): boolean {
+  return !!pathname && ONBOARDING_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
+
 export default function PanelShell({ children }: { children: React.ReactNode }) {
   const { state, loading, refresh } = useLifeState();
   const pathname = usePathname();
+  const onboarding = isOnboarding(pathname);
 
   if (loading) {
     return (
@@ -79,7 +91,9 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
         <DashboardHeader />
         {/* Same derivation as the hamburger, so the two can never disagree
             about which views exist. */}
-        <PanelNav menu={panelMenu(state)} pathname={pathname} />
+        {onboarding ? null : (
+          <PanelNav menu={panelMenu(state)} pathname={pathname} />
+        )}
         <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
           {children}
         </main>
@@ -87,7 +101,12 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
             has written anything, rather than being buried in account settings.
             Not a gated menu entry: a person with data must always be able to
             take it out or erase it. */}
-        {hasConsented(state) ? (
+        {/* FE-10 — not during onboarding. Export and hard delete stay two
+            clicks away for anyone who has WRITTEN anything, which is the point
+            of the link; a user still filling in the form has not written
+            anything yet, and the link is one more thing on a screen that is
+            meant to hold one. It returns the moment they are through. */}
+        {hasConsented(state) && !onboarding ? (
           <footer className="mx-auto w-full max-w-3xl px-5 pb-10">
             <Link
               href="/panel/data"
