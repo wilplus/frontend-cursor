@@ -31,13 +31,16 @@ export default function KeyPointsView({
   keyPoints: KeyPoint[];
   onExit: () => void;
 }) {
-  // key_points served but EMPTY is a real state, distinct from absent: the
-  // feature is on for this document, there is just nothing to cue yet. The
-  // host keeps the toggle up; this is what sits under it.
+  // key_points served but EMPTY is distinct from absent, and it does not mean
+  // "this document has none". Founder 2026-07-27: there are ALWAYS some — the
+  // cues are extracted from the text itself (the opening sentence, the key
+  // phrase, the good moment), so a document with words has cues. An empty
+  // array therefore means they have not been derived YET, and the copy must
+  // not tell the user they have none.
   if (keyPoints.length === 0) {
     return (
       <p className="py-10 text-center text-[13px] text-muted-foreground">
-        No key words for this version yet. They arrive as your text settles.
+        Your key words are still being pulled from your text.
       </p>
     );
   }

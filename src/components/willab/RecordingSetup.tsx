@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FileText, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
 import PresentationInput from "./PresentationInput";
 import ContextDocumentInput from "./ContextDocumentInput";
 import { type LabSessionContext } from "./LabOverlay";
@@ -57,33 +57,6 @@ const SETUP_INPUT_CLS =
   "w-full h-12 rounded-xl border border-border bg-background px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 transition";
 
 type StepKey = "topic" | "audience" | "length" | "slides" | "context";
-
-/** One question per screen: a small eyebrow, the question, an optional helper. */
-function StepHead({
-  eyebrow,
-  question,
-  helper,
-}: {
-  eyebrow: string;
-  question: string;
-  helper?: string;
-}) {
-  return (
-    <div className="mb-5">
-      <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-        {eyebrow}
-      </p>
-      <h2 className="mt-1.5 text-[22px] font-semibold leading-snug text-foreground">
-        {question}
-      </h2>
-      {helper ? (
-        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-          {helper}
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 export default function RecordingSetup({
   contextArcId,
@@ -258,48 +231,22 @@ export default function RecordingSetup({
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* Progress + Back */}
-      <div className="mb-6 flex items-center gap-3">
-        <div className="w-16">
-          {step > 0 ? (
-            <button
-              type="button"
-              onClick={goBack}
-              className="inline-flex h-8 items-center rounded-full px-2 text-[13px] text-muted-foreground transition hover:text-foreground"
-            >
-              ← Back
-            </button>
-          ) : null}
-        </div>
-        <div className="flex flex-1 items-center justify-center gap-1.5">
-          {steps.map((k, i) => (
-            <span
-              key={k}
-              className={cn(
-                "rounded-full transition-all",
-                // FE-6 — the current step stays legible at a glance: it is both
-                // longer and taller than the rest, not just longer.
-                i === step
-                  ? "h-2 w-6 bg-foreground"
-                  : i < step
-                    ? "h-1.5 w-1.5 bg-foreground/40"
-                    : "h-1.5 w-1.5 bg-muted-foreground/20"
-              )}
-            />
-          ))}
-        </div>
-        {/* FE-6 (founder 2026-07-27) — the "cross" on the "progress bar" is a
-            CANCEL button on the step indicator, not a position marker and not
-            a playhead: there is no moving playhead in this flow. It sits in
-            the wizard's top-right reference position on EVERY step — the
-            inconsistency of having it on some and not others IS the story.
-            A real 44px touch target inside a 16-unit slot that mirrors the
-            Back button's, so it can never overlap the dots at any width.
-
-            Founder 2026-07-27 — it leaves IMMEDIATELY. The confirm-before-
-            discard this shipped with is deleted along with its copy. */}
-        <div className="flex w-16 justify-end">
-          {onCancel ? (
+      {/* Progress + Back + the cancel ✕, from the shared wizard chrome — the
+          Life Panel's setup mounts the same components, so the product's two
+          onboarding flows cannot drift apart again. */}
+      <WizardProgress
+        count={steps.length}
+        current={step}
+        onBack={goBack}
+        trailing={
+          // FE-6 — the "cross" on the "progress bar" is a CANCEL button on the
+          // step indicator, not a position marker and not a playhead. It sits
+          // in the top-right reference position on EVERY step; the
+          // inconsistency of having it on some and not others IS the story.
+          // A real 44px target, and the slot mirrors Back's width so it can
+          // never overlap the dots. It leaves IMMEDIATELY — the
+          // confirm-before-discard was deleted with its copy.
+          onCancel ? (
             <button
               type="button"
               onClick={onCancel}
@@ -308,9 +255,9 @@ export default function RecordingSetup({
             >
               <X className="h-5 w-5" aria-hidden />
             </button>
-          ) : null}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
       {/* Step body */}
       <div className="flex-1">
@@ -350,25 +297,17 @@ export default function RecordingSetup({
           <div>
             <StepHead eyebrow="Length" question="How long should it run?" />
             <div className="flex flex-wrap gap-2">
-              {LENGTH_PRESETS.map((p) => {
-                const active = lengthSec === p.sec;
-                return (
-                  <button
-                    key={p.sec}
-                    type="button"
-                    onClick={() => pickLength(p.sec)}
-                    aria-pressed={active}
-                    className={cn(
-                      "h-10 rounded-full border px-4 text-[14px] transition active:scale-[0.98]",
-                      active
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border bg-background text-foreground hover:border-foreground/40"
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
+              {/* The chip WizardChip was extracted from — the Life Panel's due
+                  presets are the same control, so both render this one. */}
+              {LENGTH_PRESETS.map((p) => (
+                <WizardChip
+                  key={p.sec}
+                  active={lengthSec === p.sec}
+                  onClick={() => pickLength(p.sec)}
+                >
+                  {p.label}
+                </WizardChip>
+              ))}
             </div>
             <button
               type="button"

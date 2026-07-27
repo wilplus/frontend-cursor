@@ -10,6 +10,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    // e2e/ drives a real browser against a running dev server (see the header
+    // of each spec). It is not a vitest suite and must not be collected as one.
+    exclude: ["node_modules/**", "e2e/**"],
   },
   resolve: {
     alias: {
