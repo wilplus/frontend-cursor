@@ -142,10 +142,15 @@ export default function SetupFlow({
             FE-10 — the grey "Eight horizons…" paragraph is gone: it rendered on
             screen 1 only, which is exactly what made screen 1 the odd one out.
             With it gone all nine steps render through this one path. */}
+        {/* Founder 2026-07-27 — no grey supporting line under the question.
+            The step's `hint` is deliberately NOT passed: one goal per screen
+            means one heading and the thing you fill in, and a paragraph of
+            grey between them is what made this read as a form rather than a
+            question. (FE-10 removed the same kind of line from screen 1; this
+            finishes it on all nine.) */}
         <StepHead
           eyebrow={`Step ${index + 1} of ${LIFE_SETUP_STEPS.length}`}
           question={step.title}
-          helper={step.hint || undefined}
         />
 
         {step.kind === "bets" ? (
@@ -403,17 +408,14 @@ function GoalsStep({
             },
           ])
         }
-        className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+        // Centred, like every other CTA in the flow — a left-aligned button
+        // under centred content reads as a stray element rather than the next
+        // thing to do.
+        className="mx-auto flex w-fit items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
       >
         <Plus className="h-3.5 w-3.5" />
         Add a goal
       </button>
-
-      {goals.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          You can leave a horizon empty and come back to it.
-        </p>
-      ) : null}
     </div>
   );
 }

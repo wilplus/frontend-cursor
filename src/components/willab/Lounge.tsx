@@ -923,77 +923,79 @@ export default function Lounge({
         />
       )}
 
-      {/* FE-2 (founder 2026-07-27) — WhatsApp placement: the record control sits
-          INSIDE the composer, on the right, slightly wider than an icon button
-          (a recording dot plus a small "Record" label). The full-width CTA
-          above is a different control and is untouched by this.
+      {/* FE-2 (founder 2026-07-27, revised) — the record control is its own
+          bordered button NEXT TO the text input, not inside it. Two controls
+          on one row, and everything fits on a single line at every width:
+          the input flexes and the button takes only what it needs.
 
-          A FLEX row rather than the old absolute button over a padded
-          textarea. The instruction if the label will not fit at the narrowest
-          breakpoint is "shrink the padding, not the input", and flex is that
-          rule as structure instead of a guess: the controls take exactly what
-          they need and the field takes the rest, at every width, instead of
-          the field paying a fixed pr-12 whether or not anything sits there.
+          Send lives inside the input and only exists once there is something
+          to send. That is where the input's width comes back — an empty field
+          pays nothing for a button that could not be pressed anyway, which is
+          the "measurably wider input" the original story wanted and could not
+          get by removing a "+" this composer never had. */}
+      <form onSubmit={handleSend} className="flex items-end gap-2">
+        <div className="relative flex-1">
+          <textarea
+            ref={composerRef}
+            rows={1}
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
+            onKeyDown={(e) => {
+              // R4-12 — Enter sends; Shift+Enter inserts a newline.
+              // requestSubmit fires the form's onSubmit (handleSend) with a
+              // real submit event.
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            // Short enough to sit on ONE line at the narrowest supported width
+            // — the old copy wrapped to two, which is what made the composer
+            // look like a text area rather than a chat field. B3 — the "Will"
+            // persona stays.
+            placeholder="Ask Will anything…"
+            /* B9 — kill any autofill / password-manager overlay that can ghost
+               a second line of placeholder text over a chat composer. R4-12 —
+               autocorrect ON now (this is prose, not a password field). */
+            autoComplete="off"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
+            className={`block max-h-40 min-h-[48px] w-full resize-none rounded-3xl border border-border bg-background py-3 pl-4 text-[15px] leading-snug outline-none focus:border-primary ${
+              draftText.trim() ? "pr-12" : "pr-4"
+            }`}
+            aria-label="Message Will"
+          />
+          {/* Only once there is text: an always-present grey Send is a button
+              that cannot be pressed, and it costs the field 32px to say so. */}
+          {draftText.trim() ? (
+            <button
+              type="submit"
+              disabled={botThinking}
+              aria-label="Send"
+              className="absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors disabled:cursor-default disabled:text-muted-foreground"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          ) : null}
+        </div>
+        {/* Its own control, with its own stroke — recording is not a thing you
+            do TO the message you are typing. The dot is the recording signal
+            (the one place red reads as "live action").
 
-          NOTE: the "+" this story removes from the text-input area does not
-          exist in this composer — it is a WhatsApp affordance in the reference
-          screenshot, and there is no such control here to delete. So the width
-          it was meant to free up is not available, and the "Record" label
-          costs width the field previously kept. Flagged for the founder rather
-          than papered over: the input does not come out measurably wider. */}
-      <form
-        onSubmit={handleSend}
-        className="flex items-end gap-1 rounded-3xl border border-border bg-background py-1.5 pl-3 pr-1.5 focus-within:border-primary"
-      >
-        <textarea
-          ref={composerRef}
-          rows={1}
-          value={draftText}
-          onChange={(e) => setDraftText(e.target.value)}
-          onKeyDown={(e) => {
-            // R4-12 — Enter sends; Shift+Enter inserts a newline. requestSubmit
-            // fires the form's onSubmit (handleSend) with a real submit event.
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              e.currentTarget.form?.requestSubmit();
-            }
-          }}
-          placeholder="Ask Will about how communication works…"
-          /* B9 — kill any autofill / password-manager overlay that can ghost a
-             second line of placeholder text over a chat composer. R4-12 —
-             autocorrect ON now (this is prose, not a password field). */
-          autoComplete="off"
-          autoCorrect="on"
-          autoCapitalize="sentences"
-          spellCheck
-          className="block max-h-40 min-h-[36px] flex-1 resize-none self-center bg-transparent py-1.5 text-[15px] leading-snug outline-none"
-          aria-label="Message Will"
-        />
-        {/* The dot is the recording signal — the one place orange/red reads as
-            "live action". This is now the ONE record affordance in the Lounge
-            (the full-width CTA is gone), and it ALWAYS opens the project
-            choice: never a last-used default, never an auto-continue, even
-            when a cached arc exists. Founder 2026-07-27 — that disconnection
-            is deliberate. A take submitted with the wrong continue_arc_id
-            lands in the wrong project, splits the arc, and corrupts the
-            cross-take comparison the ideal text is ranked across. */}
+            It ALWAYS opens the project choice: never a last-used default,
+            never an auto-continue, even when a cached arc exists. Founder
+            2026-07-27 — that disconnection is deliberate. A take submitted
+            with the wrong continue_arc_id lands in the wrong project, splits
+            the arc, and corrupts the cross-take comparison the ideal text is
+            ranked across. */}
         <button
           type="button"
           onClick={onStart}
-          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+          className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
         >
           <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
           Record
-        </button>
-        <button
-          type="submit"
-          disabled={!draftText.trim() || botThinking}
-          aria-label="Send"
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
-            draftText.trim() ? "text-foreground" : "text-muted-foreground"
-          }`}
-        >
-          <Send className="h-5 w-5" />
         </button>
       </form>
 

@@ -53,10 +53,11 @@ function GuidePage({ onContinue }: { onContinue: () => void }) {
           </p>
         ))}
       </div>
+      {/* Centred, like every CTA in the onboarding. */}
       <button
         type="button"
         onClick={onContinue}
-        className="mt-8 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90"
+        className="mx-auto mt-8 block rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:bg-foreground/90"
       >
         {GUIDE.continueLabel}
       </button>
@@ -128,10 +129,14 @@ function ConsentPage({
       </label>
 
       {failed ? (
-        <p className="mt-3 text-sm text-muted-foreground">{STATUS.error}</p>
+        <p className="mt-3 text-center text-sm text-muted-foreground">
+          {STATUS.error}
+        </p>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      {/* Founder 2026-07-27 — CTAs are centred across the onboarding, never
+          left-aligned. */}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
           onClick={accept}
