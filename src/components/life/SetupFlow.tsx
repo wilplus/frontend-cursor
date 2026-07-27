@@ -15,6 +15,9 @@ import {
 import { completeSetup, fetchSetup, putSetup } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
+import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
+import { duePresets } from "@/lib/life/duePresets";
+import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
 /*  FE-3 — setup. Once, but editable forever.                                  */
@@ -111,32 +114,42 @@ export default function SetupFlow({
     }
   }
 
-  return (
-    <div className="mx-auto max-w-xl">
-      {/* STEP n OF 9 stays — it is the one piece of chrome that tells the
-          user how much is left, and this form's completion rate is the
-          feature's adoption rate. (Eyebrow uppercases it.) */}
-      <Eyebrow>
-        Step {index + 1} of {LIFE_SETUP_STEPS.length}
-      </Eyebrow>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-        {step.title}
-      </h1>
-      {step.hint ? (
-        <p className="mt-1 text-sm text-muted-foreground">{step.hint}</p>
-      ) : null}
-      {/* FE-10 — the grey supporting paragraph ("Eight horizons. You can stop
-          anywhere…") is gone. It appeared on screen 1 ONLY, which is what made
-          screen 1 the odd one out: one goal per screen, one heading, and the
-          same spacing on all nine. Removing it is the audit — with it gone,
-          every step renders through exactly this path with nothing extra. */}
+  const status = finishing
+    ? SETUP.workingLabel
+    : saveState === "saving"
+      ? STATUS.saving
+      : saveState === "saved"
+        ? SETUP.savedNote
+        : "";
 
-      <div className="mt-6">
+  // Founder 2026-07-27 — this flow now wears the recording onboarding's chrome:
+  // the dot row with Back, the eyebrow + question + helper head, and one
+  // full-width rounded CTA. Same components, so the two onboardings cannot
+  // drift apart again.
+  return (
+    <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col">
+      <WizardProgress
+        count={LIFE_SETUP_STEPS.length}
+        current={index}
+        onBack={() => setIndex((i) => Math.max(0, i - 1))}
+      />
+
+      <div className="flex-1">
+        {/* STEP n OF 9 stays — it is the one piece of chrome that tells the
+            user how much is left, and this form's completion rate is the
+            feature's adoption rate. It is the head's eyebrow now, which is
+            where the recording flow puts the same information.
+            FE-10 — the grey "Eight horizons…" paragraph is gone: it rendered on
+            screen 1 only, which is exactly what made screen 1 the odd one out.
+            With it gone all nine steps render through this one path. */}
+        <StepHead
+          eyebrow={`Step ${index + 1} of ${LIFE_SETUP_STEPS.length}`}
+          question={step.title}
+          helper={step.hint || undefined}
+        />
+
         {step.kind === "bets" ? (
-          <BetsStep
-            answers={answers}
-            onChange={(next) => setAnswers(next)}
-          />
+          <BetsStep answers={answers} onChange={(next) => setAnswers(next)} />
         ) : (
           <GoalsStep
             stepKey={step.key}
@@ -147,34 +160,20 @@ export default function SetupFlow({
         )}
       </div>
 
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <button
+      <div className="mt-8">
+        {status ? (
+          <p className="mb-2 text-center text-xs text-muted-foreground">
+            {status}
+          </p>
+        ) : null}
+        <Button
           type="button"
-          onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          disabled={index === 0}
-          className="rounded-full border border-border px-4 py-2 text-sm text-foreground disabled:opacity-40"
+          onClick={() => void goNext()}
+          disabled={finishing}
+          className="w-full rounded-full"
         >
-          {SETUP.backLabel}
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            {finishing
-              ? SETUP.workingLabel
-              : saveState === "saving"
-                ? STATUS.saving
-                : saveState === "saved"
-                  ? SETUP.savedNote
-                  : ""}
-          </span>
-          <button
-            type="button"
-            onClick={() => void goNext()}
-            disabled={finishing}
-            className="rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background disabled:opacity-40"
-          >
-            {isLast ? SETUP.completeLabel : SETUP.nextLabel}
-          </button>
-        </div>
+          {isLast ? SETUP.completeLabel : SETUP.nextLabel}
+        </Button>
       </div>
     </div>
   );
@@ -272,6 +271,9 @@ function GoalsStep({
   onChange: (next: LifeSetupAnswers) => void;
 }) {
   const goals = answers.horizons[stepKey] ?? [];
+  // Computed once per render from today's date — "[Aug]" has to mean the month
+  // the user is actually in, not one baked in at build time.
+  const presets = duePresets(stepKey, new Date());
 
   function write(next: LifeSetupGoal[]) {
     onChange({
@@ -315,6 +317,32 @@ function GoalsStep({
                 placeholder={duePlaceholder}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
               />
+              {/* Chips, not a date picker (spec §3.2): the label is the source
+                  of truth, and a picker would normalise "[Jul '27]" into a
+                  concrete day nobody chose. Tapping writes the label VERBATIM
+                  and the field stays typeable, so the common answers cost one
+                  tap and every other answer still fits. Same affordance as the
+                  recording flow's length presets. */}
+              {presets.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {presets.map((preset) => (
+                    <WizardChip
+                      key={preset}
+                      size="sm"
+                      active={goal.dueLabel === preset}
+                      onClick={() =>
+                        update(i, {
+                          // Tapping the active chip clears it — otherwise a
+                          // mis-tap can only be undone by selecting the text.
+                          dueLabel: goal.dueLabel === preset ? "" : preset,
+                        })
+                      }
+                    >
+                      {preset}
+                    </WizardChip>
+                  ))}
+                </div>
+              ) : null}
             </Field>
             <Field label="How much">
               <input
