@@ -61,6 +61,10 @@ export interface AppMenuProps {
   /** Where "Lab" goes. The blog links into the product; the lab itself is
    *  already there, so its mount passes null and the row is omitted. */
   labHref?: string | null;
+  /** Where the confidence game lives (founder 2026-07-28: "the game should
+   *  live in the hamburger"). Signed-in only — the game plays the user's own
+   *  coach-confirmed moments, which a guest does not have. */
+  gameHref?: string | null;
 }
 
 export default function AppMenu({
@@ -73,6 +77,7 @@ export default function AppMenu({
   onLogout,
   loggingOut = false,
   labHref = null,
+  gameHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -167,6 +172,17 @@ export default function AppMenu({
               onClick={() => setOpen(false)}
             >
               Lab
+            </Link>
+          ) : null}
+
+          {signedIn && gameHref ? (
+            <Link
+              ref={firstRef()}
+              href={gameHref}
+              className={MENU_ITEM_CLASS}
+              onClick={() => setOpen(false)}
+            >
+              Confidence game
             </Link>
           ) : null}
 

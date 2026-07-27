@@ -100,6 +100,7 @@ export default function DashboardHeader() {
             // Reachable from /panel/* too, which is where this header also
             // mounts — "Lab" is a real destination there, not a self-link.
             labHref="/chat"
+            gameHref="/game"
           />
         </div>
       </div>

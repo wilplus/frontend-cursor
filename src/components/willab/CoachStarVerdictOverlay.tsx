@@ -207,6 +207,20 @@ export default function CoachStarVerdictOverlay({
                       Take {s.takeIndex}
                     </span>
                   ) : null}
+                  {/* The edit→keep pair only enters the corpus when the star
+                      is KEPT (BE 2026-07-28) — so an edited star without a
+                      verdict wears the amber nudge until it gets one. */}
+                  {s.edited ? (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        s.verdict === null
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {s.verdict === null ? "Edited — add a verdict" : "Edited"}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* PLAYBACK FIRST (founder 2026-07-27) — a verdict on a star

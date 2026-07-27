@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Copy, Lock, Mic, PencilLine, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
@@ -97,6 +98,8 @@ export default function IdealTextOverlay({
   const fetchGenRef = useRef(0);
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the 5-credit moments unlock has run.
+  // Confidence-game entry navigates to /game (its own page, over from /chat).
+  const router = useRouter();
   const [sd, setSd] = useState<{
     status: "unverified" | "verified";
     version: number | null;
@@ -579,6 +582,22 @@ export default function IdealTextOverlay({
         // FE-D — the ONE two-state mic: an in-place read of the ideal text, or
         // "Record another take" once this version has been read.
         <div className="shrink-0 bg-background px-4 pb-4">
+          {/* Confidence game (founder 2026-07-28) — the per-arc first-time
+              entry lives HERE, in the same place as the re-read, once the
+              user has collected at least three coach-confirmed confident-
+              voice moments. (The always-offered end-of-arc play/skip comes
+              later, once the game is established.) */}
+          {(ideal?.keyMoments ?? []).filter((m) => m.star === "verified")
+            .length >= 3 ? (
+            <button
+              type="button"
+              onClick={() => router.push(`/game?arc=${encodeURIComponent(arcId)}`)}
+              className="mb-2 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-primary/40 bg-primary/5 text-[14px] font-medium text-foreground transition-colors hover:border-primary/70"
+            >
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+              Play the confidence game
+            </button>
+          ) : null}
           {sd.saved !== null ? (
             // MASTER DOCUMENT (FE-3) — Save → re-read (gated) → next take.
             <IdealTextActions

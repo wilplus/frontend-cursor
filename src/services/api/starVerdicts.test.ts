@@ -46,6 +46,7 @@ function star(over: Partial<ArcStar> = {}): ArcStar {
     durationMs: 0,
     transcript: null,
     takeIndex: null,
+    edited: false,
     ...over,
   };
 }
@@ -69,7 +70,14 @@ describe("mapArcStar — drop-not-repair", () => {
       durationMs: 0,
       transcript: null,
       takeIndex: null,
+      edited: false,
     });
+  });
+
+  it("maps the edited flag (aliases accepted) — the edit only trains when the star is also kept", () => {
+    expect(mapArcStar(deliveryRow({ edited: true }))?.edited).toBe(true);
+    expect(mapArcStar(deliveryRow({ is_edited: true }))?.edited).toBe(true);
+    expect(mapArcStar(deliveryRow({ edited: "yes" }))?.edited).toBe(false);
   });
 
   it("maps the playback context when served — the coach verifies by ear", () => {
