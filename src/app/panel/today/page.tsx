@@ -160,7 +160,10 @@ function MorningCard({ morning }: { morning: LifeDayMorning }) {
                       <li key={bet.key}>
                         <p className="text-sm font-medium text-foreground">
                           <span aria-hidden>{meta?.glyph} </span>
-                          {bet.rank}. {bet.label || meta?.label}
+                          {/* Known key → LIFE_BETS wins; see the same note on
+                              the goals screen. Stored rows still carry the old
+                              label the backend wrote when they were generated. */}
+                          {bet.rank}. {meta?.label || bet.label}
                         </p>
                         {bet.goals.length > 0 ? (
                           <ul className="mt-1 space-y-1 pl-6">
