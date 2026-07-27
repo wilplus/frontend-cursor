@@ -935,7 +935,28 @@ export default function Lounge({
         />
       )}
 
-      <form onSubmit={handleSend} className="relative">
+      {/* FE-2 (founder 2026-07-27) — WhatsApp placement: the record control sits
+          INSIDE the composer, on the right, slightly wider than an icon button
+          (a recording dot plus a small "Record" label). The full-width CTA
+          above is a different control and is untouched by this.
+
+          A FLEX row rather than the old absolute button over a padded
+          textarea. The instruction if the label will not fit at the narrowest
+          breakpoint is "shrink the padding, not the input", and flex is that
+          rule as structure instead of a guess: the controls take exactly what
+          they need and the field takes the rest, at every width, instead of
+          the field paying a fixed pr-12 whether or not anything sits there.
+
+          NOTE: the "+" this story removes from the text-input area does not
+          exist in this composer — it is a WhatsApp affordance in the reference
+          screenshot, and there is no such control here to delete. So the width
+          it was meant to free up is not available, and the "Record" label
+          costs width the field previously kept. Flagged for the founder rather
+          than papered over: the input does not come out measurably wider. */}
+      <form
+        onSubmit={handleSend}
+        className="flex items-end gap-1 rounded-3xl border border-border bg-background py-1.5 pl-3 pr-1.5 focus-within:border-primary"
+      >
         <textarea
           ref={composerRef}
           rows={1}
@@ -957,14 +978,25 @@ export default function Lounge({
           autoCorrect="on"
           autoCapitalize="sentences"
           spellCheck
-          className="block max-h-40 min-h-[48px] w-full resize-none rounded-3xl border border-border bg-background py-3 pl-4 pr-12 text-[15px] leading-snug outline-none focus:border-primary"
+          className="block max-h-40 min-h-[36px] flex-1 resize-none self-center bg-transparent py-1.5 text-[15px] leading-snug outline-none"
           aria-label="Message Will"
         />
+        {/* The dot is the recording signal — the one place orange/red reads as
+            "live action". Same destination as the CTA above, so it goes through
+            the project choice too (FE-4): no entry assumes a project. */}
+        <button
+          type="button"
+          onClick={onStart}
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+          Record
+        </button>
         <button
           type="submit"
           disabled={!draftText.trim() || botThinking}
           aria-label="Send"
-          className={`absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
             draftText.trim() ? "text-foreground" : "text-muted-foreground"
           }`}
         >
