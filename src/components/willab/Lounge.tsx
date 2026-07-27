@@ -1408,10 +1408,13 @@ function LoungeEmptyState({ onStart }: { onStart: () => void }) {
       <button
         type="button"
         onClick={onStart}
-        className="flex w-full max-w-sm items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-5 text-[16px] font-medium leading-snug text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
+        // ONE line, always: `whitespace-nowrap` is the guarantee, and the copy
+        // plus the padding are sized so it holds at the narrowest supported
+        // width without the label shrinking the dot or spilling the pill.
+        className="flex w-full max-w-sm items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-5 py-4 text-[16px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
       >
         <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" aria-hidden />
-        Jump into your first official recording!
+        Start your first recording
       </button>
     </div>
   );
