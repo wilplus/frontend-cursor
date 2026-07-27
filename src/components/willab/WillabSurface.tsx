@@ -133,7 +133,9 @@ export default function WillabSurface({
         <ProjectPicker
           onNewTopic={() => {
             clearExploreArc();
-            flow.startRecordingSetup();
+            // Founder 2026-07-27 — a new topic goes STRAIGHT to the setup
+            // form. The feelings check-in stays on every continuation.
+            flow.startNewTopicSetup();
           }}
           onContinue={(arc) => {
             // An EXISTING project opens the project itself — its ideal text —
