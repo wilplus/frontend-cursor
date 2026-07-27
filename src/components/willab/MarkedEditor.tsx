@@ -101,6 +101,38 @@ function node(span: RichSpan): Node {
   return el;
 }
 
+/** Drop `text` into the document at the caret and leave the caret AFTER it.
+ *
+ *  `outside` places it as a sibling of `span` rather than inside it — that is
+ *  the boundary rule. Written with Range rather than document.execCommand:
+ *  execCommand normalises whitespace around the insertion point, which quietly
+ *  ate a trailing space in testing, and silent content mutation is exactly what
+ *  this editor exists to avoid. */
+function insertTextAtCaret(
+  text: string,
+  span?: HTMLElement,
+  outside?: "before" | "after"
+) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const node = document.createTextNode(text);
+  if (span && outside) {
+    span.parentNode?.insertBefore(
+      node,
+      outside === "after" ? span.nextSibling : span
+    );
+  } else {
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(node);
+  }
+  const after = document.createRange();
+  after.setStart(node, node.length);
+  after.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(after);
+}
+
 /* -------------------------------------------------------------------------- */
 
 export default function MarkedEditor({
@@ -145,35 +177,47 @@ export default function MarkedEditor({
     onChange(next);
   }, [onChange]);
 
-  /** Typing at a styled span's edge must extend the UNSTYLED side. */
-  const onBeforeInput = useCallback((e: React.FormEvent<HTMLDivElement>) => {
-    const ev = e.nativeEvent as InputEvent;
-    // Composition (IME, mobile autocorrect) is left alone: interrupting it
-    // mid-word breaks the input method, and the swallow it can cause is a far
-    // smaller harm than a keyboard that stops working.
-    if (ev.inputType !== "insertText" || !ev.data) return;
-    const sel = window.getSelection();
-    if (!sel || !sel.isCollapsed || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    const text = range.startContainer;
-    if (text.nodeType !== Node.TEXT_NODE) return;
-    const span = text.parentElement;
-    if (!span || !span.dataset.open) return; // not inside a styled span
-    const atEnd =
-      range.startOffset === (text.textContent ?? "").length &&
-      text === span.lastChild;
-    const atStart = range.startOffset === 0 && text === span.firstChild;
-    if (!atEnd && !atStart) return; // interior: the span legitimately grows
+  /** Typing at a styled span's edge must extend the UNSTYLED side.
+   *
+   *  A NATIVE listener, deliberately. React's `onBeforeInput` is a synthetic
+   *  polyfill built on legacy textInput/composition events, NOT the native
+   *  `beforeinput`: its nativeEvent carries no `inputType`, so a guard reading
+   *  that field returns early on EVERY keystroke and silently does nothing.
+   *  This shipped that way and a browser test caught it — typing at the end of
+   *  an accent produced "{{orange:wordX}}", which is exactly the swallow the
+   *  spec forbids. Anything depending on `inputType` has to bind the real
+   *  event. */
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
 
-    e.preventDefault();
-    const fresh = document.createTextNode(ev.data);
-    span.parentNode?.insertBefore(fresh, atEnd ? span.nextSibling : span);
-    const after = document.createRange();
-    after.setStart(fresh, fresh.length);
-    after.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(after);
-    emit();
+    const onBeforeInput = (ev: InputEvent) => {
+      // Composition (IME, mobile autocorrect) is left alone: interrupting it
+      // mid-word breaks the input method, and the swallow it can cause is a far
+      // smaller harm than a keyboard that stops working. A composed word typed
+      // at a span's edge therefore still joins the span — a known, accepted
+      // gap, not an oversight.
+      if (ev.inputType !== "insertText" || !ev.data) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.isCollapsed || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const text = range.startContainer;
+      if (text.nodeType !== Node.TEXT_NODE) return;
+      const span = text.parentElement;
+      if (!span || !span.dataset.open) return; // not inside a styled span
+      const atEnd =
+        range.startOffset === (text.textContent ?? "").length &&
+        text === span.lastChild;
+      const atStart = range.startOffset === 0 && text === span.firstChild;
+      if (!atEnd && !atStart) return; // interior: the span legitimately grows
+
+      ev.preventDefault();
+      insertTextAtCaret(ev.data, span, atEnd ? "after" : "before");
+      emit();
+    };
+
+    root.addEventListener("beforeinput", onBeforeInput);
+    return () => root.removeEventListener("beforeinput", onBeforeInput);
   }, [emit]);
 
   /** The toolbar's B / U / I / orange. Wrapping the live DOM selection rather
@@ -220,13 +264,14 @@ export default function MarkedEditor({
         contentEditable
         suppressContentEditableWarning
         onInput={emit}
-        onBeforeInput={onBeforeInput}
         // Paste as plain text: pasted HTML would arrive as tags the save route
         // strips, so the words would land with their styling silently gone.
         onPaste={(e) => {
           e.preventDefault();
           const plain = e.clipboardData.getData("text/plain");
-          if (plain) document.execCommand("insertText", false, plain);
+          if (!plain) return;
+          insertTextAtCaret(plain);
+          emit();
         }}
         className={`flex w-full flex-col gap-4 rounded-2xl border border-primary bg-background px-4 py-4 outline-none ${textSizeClass}`}
       />
