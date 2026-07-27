@@ -41,7 +41,7 @@ export default function GamePageClient({
     () => initialArcId ?? readExploreArc()?.arcId ?? null
   );
   const [status, setStatus] = useState<
-    "loading" | "ready" | "coming_soon" | "empty" | "error"
+    "loading" | "ready" | "no_arc" | "not_labeled" | "error"
   >("loading");
   const [session, setSession] = useState<GameSession | null>(null);
   // Archive (saved daily-practice sessions) — hidden when empty.
@@ -53,18 +53,18 @@ export default function GamePageClient({
 
   useEffect(() => {
     if (!arcId) {
-      setStatus("empty");
+      setStatus("no_arc");
       return;
     }
     let active = true;
     void fetchArcGame(arcId, initialSnippetId).then((r) => {
       if (!active) return;
-      if (r && "notAvailable" in r) {
-        setStatus("coming_soon");
-        return;
-      }
       setSession(r);
-      setStatus(r ? "ready" : "error");
+      // Zero rounds is a VALID state (the coach hasn't challenge-labeled any
+      // moment on this arc yet), distinct from a failed load. 404 (not the
+      // arc's owner) soft-fails to null → the plain error line; no coach
+      // preview exists against these endpoints by design.
+      setStatus(r ? (r.rounds.length === 0 ? "not_labeled" : "ready") : "error");
     });
     return () => {
       active = false;
@@ -86,19 +86,15 @@ export default function GamePageClient({
           <Centered>
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </Centered>
-        ) : status === "coming_soon" ? (
+        ) : status === "not_labeled" ? (
+          // FE-1 — a valid state, not an error: rounds exist only once the
+          // coach has challenge-labeled moments on this arc.
           <Centered>
-            <div className="flex max-w-sm flex-col items-center gap-2 text-center">
-              <Sparkles className="h-6 w-6 text-primary" aria-hidden />
-              <p className="text-[15px] font-semibold text-foreground">
-                The game is almost ready
-              </p>
-              <p className="text-[14px] leading-relaxed text-muted-foreground">
-                Your key-moment game is being prepared. Check back soon.
-              </p>
-            </div>
+            <p className="max-w-sm text-center text-[15px] text-muted-foreground">
+              Your coach hasn&apos;t marked key moments here yet.
+            </p>
           </Centered>
-        ) : status === "empty" ? (
+        ) : status === "no_arc" ? (
           <Centered>
             <p className="max-w-sm text-center text-[15px] text-muted-foreground">
               Record a presentation first, then come back to play your key moments.
@@ -223,6 +219,11 @@ function RoundCard({
   onVerdict: (v: GameVerdict) => void;
 }) {
   const [submitting, setSubmitting] = useState<boolean | null>(null); // the answer in flight
+  // N3 — one POST per decision, enforced SYNCHRONOUSLY. The `submitting`
+  // state alone is not a guard: two clicks in the same tick both read it as
+  // null before React commits, and each answer persists as a peer label
+  // server-side — a double-click would append a duplicate into the corpus.
+  const inFlightRef = useRef(false);
   const [failed, setFailed] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   // Fresh rounds scroll into view as they reveal (round 1 stays put).
@@ -234,13 +235,19 @@ function RoundCard({
   }, []);
 
   async function answer(isKeyMoment: boolean) {
-    if (submitting !== null || verdict) return;
+    if (inFlightRef.current || verdict) return;
+    inFlightRef.current = true;
     setFailed(false);
     setSubmitting(isKeyMoment);
     const v = await submitGameAnswer(arcId, round.roundId, isKeyMoment);
     setSubmitting(null);
     if (v) onVerdict(v);
-    else setFailed(true);
+    else {
+      // Only a FAILED post re-arms the buttons — a success keeps the round
+      // answered forever (the label is already in the corpus).
+      inFlightRef.current = false;
+      setFailed(true);
+    }
   }
 
   return (
@@ -279,7 +286,7 @@ function RoundCard({
             disabled={submitting !== null}
             className="flex-1 rounded-full bg-muted py-2.5 text-[14px] font-medium text-foreground transition-colors hover:bg-muted/80 disabled:opacity-60"
           >
-            {submitting === false ? "Checking..." : "Neutral"}
+            {submitting === false ? "Checking..." : "Solid, not key"}
           </button>
         </div>
       ) : (
@@ -299,15 +306,29 @@ function RoundCard({
 function VerdictReveal({ verdict }: { verdict: GameVerdict }) {
   return (
     <div className="flex flex-col gap-3">
+      {/* The guess verdict — qualitative, and NEVER red: an incorrect guess
+          in this game usually means the user called their own solid moment a
+          key one, which is not a failure state (N5). Amber = informational. */}
       <span
         className={`self-start rounded-full px-3 py-1 text-[13px] font-semibold ${
           verdict.correct
             ? "bg-green-600/15 text-green-700 dark:text-green-400"
-            : "bg-red-500/15 text-red-600 dark:text-red-400"
+            : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
         }`}
       >
         {verdict.correct ? "Correct" : "Not quite"}
       </span>
+
+      {/* What the moment actually WAS. A decoy reads as neutral fact about
+          the user's own words — "solid" — never as criticism (N5); threat-
+          labeled decoys are indistinguishable from unmarked ones here. */}
+      {verdict.truthIsKey !== null ? (
+        <p className="text-[14px] text-muted-foreground">
+          {verdict.truthIsKey
+            ? "This was one of your key moments."
+            : "This one was solid — not a key moment."}
+        </p>
+      ) : null}
 
       {verdict.why.length > 0 ? (
         <div className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3">

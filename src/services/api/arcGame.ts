@@ -8,9 +8,13 @@ import { getAuthToken } from "@/lib/api/auth-client";
 /*  reveal teaches through their own patterns (E4). Every answer is second-     */
 /*  order signal (L2/L3: never joined into coach truth) — the FE just plays.    */
 /*                                                                            */
-/*  Safe ahead of the BE: 404/501 (engine not shipped yet) → a notAvailable     */
-/*  sentinel rendered as "coming soon", never an error. All mappers are          */
-/*  defensive; a malformed round is dropped, not crashed on.                    */
+/*  Engine 5 is LIVE BE-side (2026-07-11); the 2026-07-28 handoff supersedes    */
+/*  the old "coming soon" sentinel. 404 now MEANS not-owned (a coach opening    */
+/*  a student's game gets 404 by design) → error, and 200 with zero rounds is   */
+/*  a VALID state ("reason": NO_KEY_MOMENTS_YET — the coach hasn't labeled),    */
+/*  not an error. All mappers stay defensive; a malformed round is dropped,     */
+/*  and a round without a real id is dropped too — its answer POST would        */
+/*  append a junk peer label (N3), which is worse than one fewer round.         */
 /* -------------------------------------------------------------------------- */
 
 export interface GameRound {
@@ -23,15 +27,17 @@ export interface GameRound {
 
 export interface GameSession {
   gameSessionId: string | null;
+  /** Empty = the coach hasn't challenge-labeled any moment yet — a valid
+   *  state the surface renders as its own copy, never as an error. */
   rounds: GameRound[];
-}
-
-export interface GameNotAvailable {
-  notAvailable: true;
 }
 
 export interface GameVerdict {
   correct: boolean;
+  /** What the moment actually WAS. Drives the N5-neutral reveal line — a
+   *  decoy is the user's own solid moment, never a failure. null when the BE
+   *  omits it (older payloads); the reveal line simply doesn't render. */
+  truthIsKey: boolean | null;
   /** "Here is why" paragraphs (≤3, qualitative). Keywords arrive marked
    *  (**kw** or ==kw==) for the orange tint; render via renderTintedText. */
   why: string[];
@@ -43,15 +49,17 @@ const num = (v: unknown): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
-function mapRound(raw: unknown, i: number): GameRound | null {
+function mapRound(raw: unknown): GameRound | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const roundId =
-    str(r.round_id) || str(r.id) || (r.round_id === 0 ? "0" : "");
+  // round_id IS the snippet id; snippet_id is its explicit alias. A row
+  // without a real id is unanswerable — a fabricated id would POST a junk
+  // peer label (N3) — so it is dropped, never repaired.
+  const roundId = str(r.round_id) || str(r.snippet_id) || str(r.id);
   const transcript = str(r.transcript) || str(r.text);
-  if (!transcript) return null; // nothing to judge → drop
+  if (!roundId || !transcript) return null;
   return {
-    roundId: roundId || `round-${i}`,
+    roundId,
     transcript,
     audioRef:
       typeof r.audio_ref === "string" && r.audio_ref.length > 0
@@ -67,12 +75,13 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** Fetch the arc's game session. `snippetId` deep-link → the BE puts that
- *  round first. */
+/** Fetch the arc's game. `snippetId` deep-link → the BE pins that round
+ *  first when it is among the chosen rounds, and silently ignores a stale
+ *  link otherwise — never an error. Same arc → same rounds, same order. */
 export async function fetchArcGame(
   arcId: string,
   snippetId?: string | null
-): Promise<GameSession | GameNotAvailable | null> {
+): Promise<GameSession | null> {
   const headers = await authHeaders();
   const qs = snippetId ? `?snippet=${encodeURIComponent(snippetId)}` : "";
   let res: Response;
@@ -86,18 +95,18 @@ export async function fetchArcGame(
   } catch {
     return null;
   }
-  if (res.status === 404 || res.status === 501) return { notAvailable: true };
-  if (!res.ok) return null;
+  if (!res.ok) return null; // incl. 404 = not the arc's owner
   const body = (await res.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
-  if (!body) return null;
-  const rawRounds = Array.isArray(body.rounds) ? body.rounds : [];
-  const rounds = rawRounds
+  if (!body || !Array.isArray(body.rounds)) return null;
+  const rounds = body.rounds
     .map(mapRound)
     .filter((r): r is GameRound => r !== null);
-  if (rounds.length === 0) return { notAvailable: true };
+  // Served rounds that ALL failed mapping = a malformed payload (error);
+  // a served empty list = the coach hasn't labeled yet (valid, N/FE-1).
+  if (body.rounds.length > 0 && rounds.length === 0) return null;
   return {
     gameSessionId:
       typeof body.game_session_id === "string" && body.game_session_id
@@ -142,6 +151,12 @@ export async function submitGameAnswer(
       : [];
   return {
     correct: body.correct === true || body.verdict === "correct",
+    truthIsKey:
+      body.truth_is_key === true
+        ? true
+        : body.truth_is_key === false
+          ? false
+          : null,
     why: rawWhy.filter((p): p is string => typeof p === "string" && p.length > 0),
     videoRef:
       typeof body.video_ref === "string" && body.video_ref.length > 0
