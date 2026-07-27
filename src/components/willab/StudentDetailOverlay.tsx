@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, Loader2, FileAudio } from "lucide-react";
+import { Crown, Loader2, FileAudio, Star } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudentDetail,
@@ -92,6 +92,7 @@ export default function StudentDetailOverlay({
   onClose,
   onOpenReview,
   onOpenArcIdeal,
+  onOpenStarVerdicts,
 }: {
   userId: string;
   /** Shown in the header until the detail loads (carried from the roster row). */
@@ -101,6 +102,12 @@ export default function StudentDetailOverlay({
   /** FE-B — open the arc's ideal-text panel from the ready badge. Optional:
    *  without it the badge renders as a non-tappable cue. */
   onOpenArcIdeal?: (arcId: string) => void;
+  /** Star Verdict (2026-07-27) — open the arc's star-review overlay. THIS
+   *  screen is the entry on purpose (N1): the verdict surface shows the
+   *  machine's guesses, so its way in must never be the blind labeling flow
+   *  (the review overlay the session rows open) — a separate screen, a
+   *  separate navigation entry. Optional: absent, no entry renders. */
+  onOpenStarVerdicts?: (arcId: string) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
@@ -120,6 +127,22 @@ export default function StudentDetailOverlay({
               .map((s) => s.arcId as string)
           ),
         ];
+
+  // Star Verdict — one entry per ARC (the review GET is arc-scoped; there is
+  // no per-session variant), for every arc the student has, not just the
+  // ideal-ready ones: stars fire from take 1. The topic labels the entry when
+  // the student has more than one arc; a Map keeps the first (newest) topic
+  // seen per arc.
+  const starArcs =
+    detail === null
+      ? []
+      : [
+          ...new Map(
+            detail.sessions
+              .filter((s) => s.arcId)
+              .map((s) => [s.arcId as string, s.topic || "Recording"])
+          ),
+        ].map(([arcId, topic]) => ({ arcId, topic }));
 
   useEffect(() => {
     let active = true;
@@ -202,6 +225,37 @@ export default function StudentDetailOverlay({
                 ) : null}
               </button>
             ))}
+
+            {/* Star Verdict — the arc-level star-review entry, deliberately
+                HERE beside the arc's ideal-text cue and the per-take review
+                states, and deliberately NOT on the review overlay's wrap-up:
+                that overlay is the blind labeling flow, and this surface shows
+                the machine's guesses (N1). */}
+            {onOpenStarVerdicts
+              ? starArcs.map(({ arcId, topic }) => (
+                  <button
+                    key={`stars-${arcId}`}
+                    type="button"
+                    onClick={() => onOpenStarVerdicts(arcId)}
+                    className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50"
+                  >
+                    <Star
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
+                      fill="none"
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-foreground">
+                      Star review
+                      {starArcs.length > 1 ? (
+                        <span className="ml-2 font-normal text-muted-foreground">
+                          · {topic}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-[12px] text-primary">Open</span>
+                  </button>
+                ))
+              : null}
 
             <section>
               <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">

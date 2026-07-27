@@ -36,6 +36,7 @@ import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
+import CoachStarVerdictOverlay from "./CoachStarVerdictOverlay";
 import ReviewGroupOverlay from "./ReviewGroupOverlay";
 import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
 import { clearInsightsReady } from "./sendStatus";
@@ -164,6 +165,11 @@ export default function Lounge({
   const [libraryOpen, setLibraryOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
+  // Star Verdict (2026-07-27) — the coach's star-review overlay for one arc.
+  // A SIBLING of the review overlay on purpose (N1): the verdict surface
+  // shows the machine's guesses, so it never mounts inside the blind
+  // labeling flow — the two only meet here, in the hub.
+  const [starVerdictArcId, setStarVerdictArcId] = useState<string | null>(null);
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
   const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
   // F1 — credit gate. `canStartAnalysis` is server-owned (don't hardcode >=5);
@@ -1097,6 +1103,7 @@ export default function Lounge({
           // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
           // in every state, pre-3-takes included — never a dead end).
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenStarVerdicts={(arcId) => setStarVerdictArcId(arcId)}
         />
       )}
       {/* FP-4 — per-student drill-down opened from a grouped review bubble.
@@ -1112,6 +1119,7 @@ export default function Lounge({
           }}
           onOpenReview={openReview}
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenStarVerdicts={(arcId) => setStarVerdictArcId(arcId)}
         />
       )}
       {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
@@ -1139,13 +1147,15 @@ export default function Lounge({
       )}
 
       {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
-          panel lives here). Mounted LAST on purpose: every path OPENS INTO it
+          panel lives here). Mounted AFTER every overlay that opens into it
           (roster / student detail / review wrap-up all call
           setBestPresentationArcId), and nothing this mount renders opens on top
-          of it. Equal z-40 → last in DOM wins, so it paints ABOVE the overlay it
-          was opened from (that was the P0 "nothing happens" bug — it used to
+          of it. Equal z-40 → later in DOM wins, so it paints ABOVE the overlay
+          it was opened from (that was the P0 "nothing happens" bug — it used to
           render first and hide behind an opaque z-40 sibling). Mount order also
-          makes it the LIFO back-dismiss top, so Back closes it first. */}
+          puts it above those openers in the LIFO back-dismiss stack. (The star
+          verdict overlay below is a sibling, not an opener — neither ever opens
+          the other, so their relative order carries no weight.) */}
       {bestPresentationArcId && (
         <BestPresentationOverlay
           arcId={bestPresentationArcId}
@@ -1172,6 +1182,19 @@ export default function Lounge({
             // Seeded above — same rule as the library entry (review R-pp0).
             (onStartInProject ?? onStart)();
           }}
+        />
+      )}
+
+      {/* Star Verdict — the coach judges the machine's fired stars for one
+          arc. Mounted last for the same reason BestPresentationOverlay is
+          (equal z-40 → last in DOM paints on top): it opens FROM the student
+          detail overlay mounted above, so it must stack over it, and being
+          the LIFO back-dismiss top means Back returns to the detail. Never
+          opened from the review overlay (N1 — that flow labels blind). */}
+      {starVerdictArcId && (
+        <CoachStarVerdictOverlay
+          arcId={starVerdictArcId}
+          onClose={() => setStarVerdictArcId(null)}
         />
       )}
 

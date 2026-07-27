@@ -50,6 +50,7 @@ export default function StudentRosterOverlay({
   onClose,
   onOpenReview,
   onOpenArcIdeal,
+  onOpenStarVerdicts,
 }: {
   onClose: () => void;
   /** Open a session for review (threaded to the Lounge's openReview). */
@@ -57,6 +58,9 @@ export default function StudentRosterOverlay({
   /** FE-B — open an arc's ideal-text panel from the ready badge (threaded to
    *  the Lounge, which mounts the coach panel view for that arc). */
   onOpenArcIdeal?: (arcId: string) => void;
+  /** Star Verdict — open an arc's star-review overlay (threaded to the
+   *  Lounge; the entry itself renders on the student detail screen, N1). */
+  onOpenStarVerdicts?: (arcId: string) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
@@ -172,6 +176,7 @@ export default function StudentRosterOverlay({
       {selected && (
         <StudentDetailOverlay
           onOpenArcIdeal={onOpenArcIdeal}
+          onOpenStarVerdicts={onOpenStarVerdicts}
           userId={selected.id}
           fallbackPseudonym={selected.pseudonym}
           onClose={() => setSelected(null)}
