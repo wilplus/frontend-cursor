@@ -14,6 +14,7 @@ import WelcomeConsent from "./WelcomeConsent";
 import Lounge from "./Lounge";
 import LabOverlay from "./LabOverlay";
 import ProjectPicker from "./ProjectPicker";
+import IdealTextOverlay from "./IdealTextOverlay";
 import {
   clearExploreArc,
   readExploreArc,
@@ -52,6 +53,10 @@ export default function WillabSurface({
   const flow = useWillabFlow();
   const [recordingProgress, setRecordingProgress] =
     useState<RecordingProgress | null>(null);
+  // Founder 2026-07-27 — picking an EXISTING project from the picker opens
+  // that project, which is its ideal text. Only "Start a new topic" goes into
+  // the recording onboarding.
+  const [pickedArcId, setPickedArcId] = useState<string | null>(null);
   const signedIn = useSignedIn();
   const userId = useUserId();
   // Reconcile the at-home status (review_pending / insights) with server truth
@@ -131,38 +136,41 @@ export default function WillabSurface({
             flow.startRecordingSetup();
           }}
           onContinue={(arc) => {
+            // An EXISTING project opens the project itself — its ideal text —
+            // rather than dropping the user straight into another take. The
+            // arc is still seeded, so "Read it aloud" from inside the ideal
+            // text continues THIS project with its full setup restored.
+            //
+            // Seeding rules are unchanged. Already on this project
+            // (mid-sitting): the cached entry owns the real take index AND the
+            // deck, so never overwrite it with a thinner seed.
             const cached = readExploreArc();
-            // Already on this project (mid-sitting): the cached entry owns the
-            // real take index AND the deck — never overwrite it with a
-            // thinner seed.
-            if (cached?.arcId === arc.arcId) {
-              flow.startRecordingSetup();
-              return;
+            if (cached?.arcId !== arc.arcId) {
+              // The LATEST take is what the setup restore reads: LabOverlay
+              // re-fetches that session and adopts its full setup (audience,
+              // target length, slides, the served PDF). Without a sessionId
+              // the restore never fires and the student would have to
+              // re-upload their deck.
+              const latest = [...(arc.takes ?? [])].sort(
+                (a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0)
+              ).pop();
+              writeExploreArc(
+                arc.arcId,
+                // Prefer the real last index; takeCount is the fallback.
+                (latest?.takeIndex ?? arc.takeCount ?? 0) + 1,
+                // NO deck literal (review R-pp1): LabOverlay seeds preloadDeck
+                // from initArc.deck and its restore effect bails when that is
+                // truthy — a thin {topic, slides: []} seed would BLOCK the
+                // very restore the sessionId exists to trigger, leaving the
+                // student with no slides and a stopwatch instead of their
+                // countdown. Undefined lets the restore adopt the FULL server
+                // setup, which is what the sibling seed sites rely on.
+                undefined,
+                latest?.sessionId
+              );
             }
-            // The LATEST take is what the setup restore reads: LabOverlay
-            // re-fetches that session and adopts its full setup (audience,
-            // target length, slides, the served PDF). Without a sessionId the
-            // restore never fires and the student would have to re-upload
-            // their deck — the prefill is the whole point of picking a title.
-            const latest = [...(arc.takes ?? [])].sort(
-              (a, b) => (a.takeIndex ?? 0) - (b.takeIndex ?? 0)
-            ).pop();
-            writeExploreArc(
-              arc.arcId,
-              // Prefer the real last index; takeCount is the fallback.
-              (latest?.takeIndex ?? arc.takeCount ?? 0) + 1,
-              // NO deck literal (review R-pp1): LabOverlay seeds preloadDeck
-              // from initArc.deck and its restore effect bails when that is
-              // truthy — a thin {topic, slides: []} seed would BLOCK the very
-              // restore the sessionId exists to trigger, leaving the student
-              // with no slides and a stopwatch instead of their countdown.
-              // Undefined lets the restore adopt the FULL server setup
-              // (topic, audience, target length, slides, served PDF), which is
-              // exactly what the two sibling seed sites already rely on.
-              undefined,
-              latest?.sessionId
-            );
-            flow.startRecordingSetup();
+            setPickedArcId(arc.arcId);
+            flow.closeLab(); // dismiss the picker; the ideal text takes over
           }}
           // Nothing to choose (no projects, or the list is unreachable) →
           // skip the question entirely rather than leave "Start a new topic"
@@ -170,6 +178,22 @@ export default function WillabSurface({
           // Deliberately NOT onNewTopic: this must not clear the seed.
           onSkip={flow.startRecordingSetup}
           onClose={flow.closeLab}
+        />
+      )}
+      {/* The picked project's ideal text. Mounted here rather than in the
+          Lounge because the picker that opens it lives here too. */}
+      {pickedArcId && (
+        <IdealTextOverlay
+          arcId={pickedArcId}
+          version={null}
+          onClose={() => setPickedArcId(null)}
+          // "Read it aloud" — the re-read is just the next take of THIS
+          // project. The arc was seeded when it was picked, so the Lab restores
+          // its full setup.
+          onReadAloud={() => {
+            setPickedArcId(null);
+            flow.startRecordingSetup();
+          }}
         />
       )}
       {flow.labOverlayOpen && (
