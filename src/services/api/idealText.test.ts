@@ -5,6 +5,7 @@ import {
   mapInstantIdealText,
   mapKeyPoints,
   segmentIdealText,
+  keyPointTintRanges,
 } from "./idealText";
 
 describe("mapKeyPoints (E-2 presentation cues)", () => {
@@ -554,5 +555,66 @@ describe("coach reference (FE-5)", () => {
     );
     const coach = r?.keyMoments?.[0]?.coach;
     expect(coach?.reference ?? null).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  FE-7 — the key-point tint. The rule that matters is VERIFY BEFORE TINTING:  */
+/*  a stale offset that paints anyway accents words the coach never marked.     */
+/* -------------------------------------------------------------------------- */
+
+describe("keyPointTintRanges", () => {
+  const kp = (text: string, start: number | null, end: number | null) => ({
+    blockKey: null,
+    blockLabel: "",
+    text,
+    start,
+    end,
+  });
+
+  it("tints a cue whose slice matches the served text exactly", () => {
+    const text = "say it louder and clearer";
+    expect(keyPointTintRanges(text, [kp("louder", 7, 13)])).toEqual([[7, 13]]);
+  });
+
+  it("drops a cue whose slice does NOT match, silently", () => {
+    const text = "say it louder and clearer";
+    // The offsets point at "der an" — a stale anchor after an edit.
+    expect(keyPointTintRanges(text, [kp("louder", 10, 16)])).toEqual([]);
+  });
+
+  it("indexes the SERVED text, markers included", () => {
+    // The cue sits after an accent, so its offset includes the marker width.
+    // Computing on the stripped string would slide it left by 9 characters.
+    const text = "{{orange:say it}} louder";
+    expect(keyPointTintRanges(text, [kp("louder", 18, 24)])).toEqual([[18, 24]]);
+    expect(keyPointTintRanges(text, [kp("louder", 9, 15)])).toEqual([]);
+  });
+
+  it("keeps a cue with no offsets off the text (the card still renders)", () => {
+    expect(keyPointTintRanges("some text", [kp("some", null, null)])).toEqual([]);
+  });
+
+  it("refuses ranges that are out of bounds, inverted or empty", () => {
+    const text = "short";
+    expect(keyPointTintRanges(text, [kp("short", 0, 99)])).toEqual([]);
+    expect(keyPointTintRanges(text, [kp("short", 3, 1)])).toEqual([]);
+    expect(keyPointTintRanges(text, [kp("", 2, 2)])).toEqual([]);
+    expect(keyPointTintRanges(text, [kp("short", -1, 5)])).toEqual([]);
+  });
+
+  it("is empty for an absent or empty key-point list", () => {
+    expect(keyPointTintRanges("text", null)).toEqual([]);
+    expect(keyPointTintRanges("text", [])).toEqual([]);
+    expect(keyPointTintRanges("", [kp("x", 0, 1)])).toEqual([]);
+  });
+
+  it("returns positions only — no rank, no order index, no score (AC-9)", () => {
+    const text = "one two three";
+    const out = keyPointTintRanges(text, [kp("one", 0, 3), kp("three", 8, 13)]);
+    expect(out).toEqual([
+      [0, 3],
+      [8, 13],
+    ]);
   });
 });

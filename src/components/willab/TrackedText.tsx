@@ -63,8 +63,15 @@ export function TrackedText({
   onDecide,
   trailing,
   textSizeClass = "text-[17px]",
+  srcOffset = 0,
+  tint,
 }: {
   text: string;
+  /** FE-7 — where this paragraph's `text` begins in the served document, and
+   *  the document-absolute key-point ranges to accent. A proposal's replacement
+   *  text is NOT in the served document, so it never carries a cue. */
+  srcOffset?: number;
+  tint?: Array<[number, number]>;
   suggestions: DocumentSuggestion[] | null;
   /** Report the decision. Returning false leaves the suggestion on screen
    *  (the save failed), so the student can try again. */
@@ -91,17 +98,38 @@ export function TrackedText({
     () => buildTrackedSegments(text, suggestions),
     [text, suggestions]
   );
+  // FE-7 — segments are contiguous over `text`, so a running sum gives each
+  // one its document position (the same derivation MomentStarText uses).
+  const segOffsets = useMemo(() => {
+    const out: number[] = [];
+    let at = srcOffset;
+    for (const seg of segments) {
+      out.push(at);
+      at += seg.text.length;
+    }
+    return out;
+  }, [segments, srcOffset]);
 
   return (
     <>
+      {/* FE-1 layout — same reading measure as the star lane, so switching
+          between the two never reflows the document. */}
       <p
-        className={`whitespace-pre-line leading-relaxed text-foreground ${textSizeClass}`}
+        className={`max-w-[65ch] whitespace-pre-line leading-relaxed text-foreground ${textSizeClass}`}
       >
         {segments.map((seg, i) => {
           const s = seg.suggestion;
           // FE-9 markers must render as FORMATTING, never as literal syntax:
           // the served text can carry baked **bold** / {{orange:…}} folds.
-          if (!s) return <RichText key={i} text={seg.text} />;
+          if (!s)
+            return (
+              <RichText
+                key={i}
+                text={seg.text}
+                srcOffset={segOffsets[i]}
+                tint={tint}
+              />
+            );
           if (accepted.has(s.id)) {
             // Accepted: the crossed text is gone, the proposal is now just
             // the student's text (bold keeps its emphasis).
@@ -115,7 +143,15 @@ export function TrackedText({
               </span>
             );
           }
-          if (kept.has(s.id)) return <RichText key={i} text={seg.text} />;
+          if (kept.has(s.id))
+            return (
+              <RichText
+                key={i}
+                text={seg.text}
+                srcOffset={segOffsets[i]}
+                tint={tint}
+              />
+            );
           if (s.kind === "advice") {
             // FE-3 — coaching, NOT a text change: the amber star + modal it
             // has always had. No strike, no Accept.
@@ -126,7 +162,11 @@ export function TrackedText({
                 onClick={() => setOpen(s)}
                 className="inline text-left transition-opacity hover:opacity-80"
               >
-                <RichText text={seg.text} />
+                <RichText
+                  text={seg.text}
+                  srcOffset={segOffsets[i]}
+                  tint={tint}
+                />
                 {/* Unverified suggestion → EMPTY star. Only coach-verified
                     feedback is ever filled (and yellow). */}
                 <Star
@@ -146,7 +186,11 @@ export function TrackedText({
                 onClick={() => setOpen(s)}
                 className="inline text-left font-semibold text-foreground underline decoration-dotted decoration-2 underline-offset-4 transition-opacity hover:opacity-80"
               >
-                <RichText text={seg.text} />
+                <RichText
+                  text={seg.text}
+                  srcOffset={segOffsets[i]}
+                  tint={tint}
+                />
                 <span className="sr-only">, suggested emphasis</span>
               </button>
             );
@@ -159,7 +203,11 @@ export function TrackedText({
               className="inline text-left transition-opacity hover:opacity-80"
             >
               <span className="text-muted-foreground line-through decoration-muted-foreground/70">
-                <RichText text={seg.text} />
+                <RichText
+                  text={seg.text}
+                  srcOffset={segOffsets[i]}
+                  tint={tint}
+                />
               </span>{" "}
               <span className="rounded bg-muted px-0.5 text-foreground underline decoration-dotted decoration-1 underline-offset-2">
                 <RichText text={s.proposedText ?? ""} />

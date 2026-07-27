@@ -554,10 +554,18 @@ export function MomentStarText({
   segments: preSegmented,
   trailing,
   textSizeClass = "text-[18px]",
+  srcOffset = 0,
+  tint,
 }: {
   text: string;
   ideal: IdealText;
   onMomentTap: (m: IdealKeyMomentLink) => void;
+  /** FE-7 — where this paragraph's `text` begins in the WHOLE served document.
+   *  Key-point offsets index the served text, so a paragraph rendered in
+   *  isolation needs its own origin to resolve them. */
+  srcOffset?: number;
+  /** FE-7 — document-absolute key-point ranges to accent. */
+  tint?: Array<[number, number]>;
   /** DISCERNMENT — pre-computed segments (document-level matching sliced per
    *  paragraph by PieceBadgeText). Overrides local segmentation so an anchor
    *  can never re-match in every paragraph it textually appears in. */
@@ -584,6 +592,19 @@ export function MomentStarText({
     [preSegmented, text, ideal.keyPhrases, ideal.keyMoments]
   );
   const segments = localSegments;
+  // FE-7 — where each segment starts in the document. Segments are contiguous
+  // over this paragraph's text (segmentIdealText slices ranges, it never drops
+  // characters), so a running sum is exact — and it has to be, because a cue
+  // whose offset drifts tints the wrong words.
+  const segOffsets = useMemo(() => {
+    const out: number[] = [];
+    let at = srcOffset;
+    for (const s of segments) {
+      out.push(at);
+      at += s.text.length;
+    }
+    return out;
+  }, [segments, srcOffset]);
   // The wrapper-id → payload-moment index. The SD text wraps every key moment
   // in [[moment:snip|sess]] markers, so both the star decor AND the tap must
   // resolve the wrapper's ids to the FULL payload moment (suggestion, audio,
@@ -649,7 +670,15 @@ export function MomentStarText({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sdStars, momentIndex, foldFor]);
   return (
-    <p className={`whitespace-pre-line leading-relaxed text-foreground ${textSizeClass}`}>
+    // FE-1 layout — a reading measure of ~65 characters and a generous
+    // line-height. Paragraphs are REAL <p> elements spaced by the parent's
+    // gap; "\n\n" is never rendered as <br><br>. `pre-line` (not `pre-wrap`)
+    // stays: it keeps a soft single break inside a paragraph, and the reason
+    // the spec bans pre-wrap — stray markers looking like content — cannot
+    // happen any more now that no marker reaches the reader.
+    <p
+      className={`max-w-[65ch] whitespace-pre-line leading-relaxed text-foreground ${textSizeClass}`}
+    >
       {segments.map((s, i) => {
         if (s.moment) {
           const m = s.moment;
@@ -696,14 +725,32 @@ export function MomentStarText({
                 {/* No onMomentTap inside — never nest a button in a button. */}
                 {parts ? (
                   <>
-                    <RichText text={parts[0]} />
+                    <RichText
+                      text={parts[0]}
+                      srcOffset={segOffsets[i]}
+                      tint={tint}
+                    />
                     <span className="underline decoration-2 underline-offset-4">
-                      <RichText text={parts[1]} />
+                      <RichText
+                        text={parts[1]}
+                        srcOffset={segOffsets[i] + parts[0].length}
+                        tint={tint}
+                      />
                     </span>
-                    <RichText text={parts[2]} />
+                    <RichText
+                      text={parts[2]}
+                      srcOffset={
+                        segOffsets[i] + parts[0].length + parts[1].length
+                      }
+                      tint={tint}
+                    />
                   </>
                 ) : (
-                  <RichText text={s.text} />
+                  <RichText
+                    text={s.text}
+                    srcOffset={segOffsets[i]}
+                    tint={tint}
+                  />
                 )}
                 {/* Two states only (founder 2026-07-22): coach-verified is a
                     FILLED YELLOW star; every unverified suggestion — text,
@@ -739,7 +786,11 @@ export function MomentStarText({
                 onClick={() => onMomentTap(m)}
                 className="inline align-baseline text-left transition-opacity hover:opacity-80"
               >
-                <RichText text={s.text} />
+                <RichText
+                  text={s.text}
+                  srcOffset={segOffsets[i]}
+                  tint={tint}
+                />
                 {/* No `star` value → NO star icon (founder 2026-07-22). The
                     moment stays tappable so playback is still reachable. */}
                 <span className="sr-only">, Key moment</span>
@@ -753,7 +804,11 @@ export function MomentStarText({
               onClick={() => onMomentTap(m)}
               className="inline underline decoration-primary decoration-2 underline-offset-4 transition-opacity hover:opacity-80"
             >
-              <RichText text={s.text} />
+              <RichText
+                text={s.text}
+                srcOffset={segOffsets[i]}
+                tint={tint}
+              />
             </button>
           );
         }
@@ -764,6 +819,8 @@ export function MomentStarText({
                 text={s.text}
                 onMomentTap={onInlineMoment}
                 momentDecor={decorFor}
+                srcOffset={segOffsets[i]}
+                tint={tint}
               />
             </strong>
           );
@@ -780,6 +837,8 @@ export function MomentStarText({
               text={s.text}
               onMomentTap={onInlineMoment}
               momentDecor={decorFor}
+              srcOffset={segOffsets[i]}
+              tint={tint}
             />
           </span>
         );
