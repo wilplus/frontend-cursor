@@ -147,11 +147,13 @@ export const LIFE_BETS: ReadonlyArray<{
   color: string;
 }> = [
   { key: "life", rank: 1, glyph: "🟢", label: "The Life", color: "#2f9e44" },
-  // Founder 2026-07-27 — the LABEL is "Career"; the KEY stays `company`.
+  // Founder 2026-07-27 — the LABEL is "The Career"; the KEY stays `company`.
+  // "The", like its two neighbours: these are three named bets, not three
+  // categories, and the article is what makes them read as a set.
   // The key is what the backend stores on every goal, every day plan and every
   // timeline event already written, so renaming it would orphan them all. This
   // is a word on a screen, not an identity.
-  { key: "company", rank: 2, glyph: "🔵", label: "Career", color: "#1971c2" },
+  { key: "company", rank: 2, glyph: "🔵", label: "The Career", color: "#1971c2" },
   { key: "dream", rank: 3, glyph: "🟣", label: "The Dream", color: "#7048e8" },
 ];
 

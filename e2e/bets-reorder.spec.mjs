@@ -67,7 +67,7 @@ const rowBox = async (page, i) => {
 
   // Rank is re-derived from position, and the label follows the row.
   const firstLabel = await page.locator("ol > li p").first().innerText();
-  check("row 1 relabels to its new position", firstLabel === "1. Career", firstLabel);
+  check("row 1 relabels to its new position", firstLabel === "1. The Career", firstLabel);
 
   // Drag back up, this time past the top.
   const grip2 = page.locator("ol > li").nth(1).locator("[data-drag-handle]");
