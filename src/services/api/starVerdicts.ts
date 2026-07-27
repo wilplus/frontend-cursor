@@ -91,6 +91,11 @@ export interface ArcStar {
   transcript: string | null;
   /** Which take the snippet belongs to, when the BE says (1-based). */
   takeIndex: number | null;
+  /** The coach has edited what this star SAYS. The edit only enters the
+   *  training corpus when the star is also KEPT (BE 2026-07-28), so an
+   *  edited-but-unjudged row nudges toward a verdict. Defensive: absent →
+   *  false, no nudge. */
+  edited: boolean;
 }
 
 export interface ArcStars {
@@ -157,6 +162,8 @@ export function mapArcStar(raw: unknown): ArcStar | null {
       r.take_index > 0
         ? r.take_index
         : null,
+    edited:
+      r.edited === true || r.is_edited === true || r.coach_edited === true,
   };
 }
 

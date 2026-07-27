@@ -101,6 +101,32 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
+      if (/\/api\/v2\/explore\/arc\/[^/]+\/breakthroughs/.test(url)) {
+        return new Response(
+          JSON.stringify({
+            breakthroughs: [
+              {
+                id: "bt-1",
+                text: "and that quarter we tripled revenue with half the team",
+                breakthrough_note:
+                  "Your voice dropped and slowed here — the room leaned in.",
+                audio_ref: null,
+                start_offset_ms: 0,
+                duration_ms: 0,
+              },
+              {
+                id: "bt-2",
+                text: "we said no to the easy deal and it saved the company",
+                breakthrough_note: "Steady pace under a hard sentence.",
+                audio_ref: null,
+                start_offset_ms: 0,
+                duration_ms: 0,
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
       if (/\/api\/v2\/user\/game-sessions/.test(url)) {
         return new Response(JSON.stringify({ sessions: [] }), {
           status: 200,

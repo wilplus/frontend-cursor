@@ -39,6 +39,7 @@ export default function SiteHeader() {
         onLogout={menu.logout}
         loggingOut={menu.loggingOut}
         labHref="/chat"
+        gameHref="/game"
       />
     </header>
   );
