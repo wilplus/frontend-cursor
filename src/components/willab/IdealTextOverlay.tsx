@@ -10,7 +10,7 @@ import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import MarkedEditor from "./MarkedEditor";
-import { PENDING_SHORT, VERIFIED } from "@/lib/willab/verificationCopy";
+import { PENDING_SHORT, REVIEWED_SHORT } from "@/lib/willab/verificationCopy";
 import {
   MomentSheet,
   MomentStarText,
@@ -347,7 +347,7 @@ export default function IdealTextOverlay({
                   : "bg-background text-muted-foreground"
               }`}
             >
-              {sd.status === "verified" ? VERIFIED : PENDING_SHORT}
+              {sd.status === "verified" ? REVIEWED_SHORT : PENDING_SHORT}
             </span>
           ) : null}
         </div>
