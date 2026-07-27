@@ -897,26 +897,13 @@ export default function Lounge({
             </p>
           ) : null}
         </>
-      ) : (
-        <Button
-          type="button"
-          // FE-4 — ALWAYS the project choice. This used to skip the picker
-          // whenever a cached arc existed (review R-pp4), which is precisely
-          // the "continue where you left off" shortcut the story removes: a
-          // cached arc is a last-used DEFAULT, not something the user chose
-          // this time. A take submitted with the wrong continue_arc_id lands
-          // in the wrong project, splits the arc, and corrupts the cross-take
-          // comparison the ideal text is built from — a data defect, not a UX
-          // preference. The three in-context entries (a project's ideal text,
-          // the library card, best-presentation) still go straight in: there
-          // the user tapped a specific project, so nothing is being assumed.
-          onClick={onStart}
-          className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
-        >
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-          Start official recording
-        </Button>
-      )}
+      ) : // FE-2 (founder 2026-07-27) — the full-width "Start official
+      // recording" CTA is DELETED. The record affordance is the small control
+      // inside the composer and nothing else, so there is no second, louder
+      // button competing with it. The upload picker above keeps its own
+      // full-width button: it is a different action, and it only appears when
+      // the user has asked to upload.
+      null}
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -983,8 +970,13 @@ export default function Lounge({
           aria-label="Message Will"
         />
         {/* The dot is the recording signal — the one place orange/red reads as
-            "live action". Same destination as the CTA above, so it goes through
-            the project choice too (FE-4): no entry assumes a project. */}
+            "live action". This is now the ONE record affordance in the Lounge
+            (the full-width CTA is gone), and it ALWAYS opens the project
+            choice: never a last-used default, never an auto-continue, even
+            when a cached arc exists. Founder 2026-07-27 — that disconnection
+            is deliberate. A take submitted with the wrong continue_arc_id
+            lands in the wrong project, splits the arc, and corrupts the
+            cross-take comparison the ideal text is ranked across. */}
         <button
           type="button"
           onClick={onStart}

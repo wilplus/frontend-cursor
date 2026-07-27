@@ -106,9 +106,6 @@ export default function RecordingSetup({
   // chip — it is advice, and advice that repeats becomes noise to click past.
   const [cautionOpen, setCautionOpen] = useState(false);
   const cautionShownRef = useRef(false);
-  // FE-6 — confirm before discarding a half-filled setup. A mis-tap on the ✕
-  // must not silently destroy what the user already typed.
-  const [confirmExit, setConfirmExit] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -185,19 +182,7 @@ export default function RecordingSetup({
     setStep((s) => (s === lengthIdx && lengthIdx < steps.length - 1 ? s + 1 : s));
   }
 
-  /** FE-6 — the ✕. Anything already entered earns a confirm first. */
-  function requestExit() {
-    if (!onCancel) return;
-    const started =
-      topic.trim() !== "" ||
-      audience.trim() !== "" ||
-      lengthSec !== null ||
-      strategicContext.trim() !== "" ||
-      !!presentationRef ||
-      nonEmptySlides(slides).length > 0;
-    if (started) setConfirmExit(true);
-    else onCancel();
-  }
+
 
   const hasSlides = !!presentationRef || nonEmptySlides(slides).length > 0;
   const topicReady = topic.trim().length > 0;
@@ -296,12 +281,15 @@ export default function RecordingSetup({
             the wizard's top-right reference position on EVERY step — the
             inconsistency of having it on some and not others IS the story.
             A real 44px touch target inside a 16-unit slot that mirrors the
-            Back button's, so it can never overlap the dots at any width. */}
+            Back button's, so it can never overlap the dots at any width.
+
+            Founder 2026-07-27 — it leaves IMMEDIATELY. The confirm-before-
+            discard this shipped with is deleted along with its copy. */}
         <div className="flex w-16 justify-end">
           {onCancel ? (
             <button
               type="button"
-              onClick={requestExit}
+              onClick={onCancel}
               aria-label="Cancel setup"
               className="-mr-2.5 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
             >
@@ -436,10 +424,6 @@ export default function RecordingSetup({
         />
       ) : null}
 
-      {confirmExit && onCancel ? (
-        <ExitConfirm onDiscard={onCancel} onStay={() => setConfirmExit(false)} />
-      ) : null}
-
       {/* Footer CTA — the final tap starts the mic synchronously via onSubmit. */}
       <div className="mt-auto pt-6">
         <Button
@@ -519,59 +503,6 @@ function LongTakeCaution({
             className="h-10 rounded-full text-[14px] text-muted-foreground transition hover:text-foreground"
           >
             Pick a different length
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** FE-6 — a mis-tap on the ✕ must not silently destroy a half-filled setup. */
-function ExitConfirm({
-  onDiscard,
-  onStay,
-}: {
-  onDiscard: () => void;
-  onStay: () => void;
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onStay();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onStay]);
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        aria-label="Keep setting up"
-        onClick={onStay}
-        className="absolute inset-0 bg-foreground/20"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Leave setup"
-        className="relative z-10 m-3 w-full max-w-sm rounded-3xl border border-border bg-background p-5 shadow-lg"
-      >
-        <p className="text-[15px] leading-relaxed text-foreground">
-          Leave setup? What you have entered here won&apos;t be kept.
-        </p>
-        <div className="mt-5 flex flex-col gap-2">
-          <Button
-            type="button"
-            onClick={onStay}
-            className="w-full rounded-full"
-          >
-            Keep setting up
-          </Button>
-          <button
-            type="button"
-            onClick={onDiscard}
-            className="h-10 rounded-full text-[14px] text-muted-foreground transition hover:text-foreground"
-          >
-            Discard and leave
           </button>
         </div>
       </div>

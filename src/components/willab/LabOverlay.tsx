@@ -400,10 +400,17 @@ export default function LabOverlay({
         exploreSession: exploreEnabled && arcId === null ? true : undefined,
         arcId: arcId ?? undefined,
         takeIndex: exploreEnabled ? arcTakeIndex : undefined,
-        // Context-aware setup — the project this take continues, sent
-        // ALONGSIDE arc_id/take_index (the deployed BE resolves the arc from
-        // those; dropping them for a field it does not read yet would mint a
-        // new project on every take).
+        // Context-aware setup — the project this take continues. This is the
+        // authoritative field: production overrides the arc to it and computes
+        // take_index itself, discarding anything we send. It is set from the
+        // SAME value as arcId above, which is what keeps us out of the one
+        // real hazard here — an arc_id sent WITHOUT continue_arc_id and
+        // without a take_index resolves to take 1 every time, so every take
+        // would land in the right project under a colliding number.
+        //
+        // NOT sending it at all is the other failure: resolve_arc mints a
+        // fresh arc whenever no arc is supplied, which is a new project per
+        // take. Both are FE-side; neither is fixed by a backend deploy.
         continueArcId: arcId ?? undefined,
         feeling: recordedFeelingRef.current ?? undefined,
         // R5 — the framing manipulation shown on the priming panel, logged for
