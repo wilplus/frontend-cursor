@@ -19,6 +19,20 @@
 /** Awaiting the coach. The short form, on every surface. */
 export const PENDING_VERIFICATION = "Pending verification";
 
+/** The ideal-text overlay's HEADER badge only (founder 2026-07-27).
+ *
+ *  A deliberate exception to the one-wording rule above, and the only one. In
+ *  the header the badge sits directly beside the project's title, where the
+ *  surrounding context already says what is being verified — "verification"
+ *  there is a word doing no work in a bar that has none to spare. Everywhere
+ *  else the state stands alone and needs the full phrase.
+ *
+ *  It lives here rather than as a literal in the component for the same reason
+ *  the constant above exists: a second wording invented at the call site is
+ *  exactly how this drifted the first time. One exception, named, in the one
+ *  module that owns this state's copy. */
+export const PENDING_SHORT = "Pending";
+
 /** The coach has verified this text. */
 export const VERIFIED = "Verified";
 
