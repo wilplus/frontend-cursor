@@ -43,14 +43,17 @@ const SERVICE = join("services", "api", "starVerdicts.ts");
 const PERMITTED_OVERLAY_IMPORTERS = [join("components", "willab", "Lounge.tsx")];
 const PERMITTED_SERVICE_IMPORTERS = [OVERLAY];
 
-/** Matches an import of the lane from anywhere (alias or relative). */
-const STAR_LANE_IMPORT =
-  /from\s+["'](?:@\/services\/api\/starVerdicts|(?:\.{1,2}\/)+(?:services\/api\/)?starVerdicts|\.\/CoachStarVerdictOverlay|@\/components\/willab\/CoachStarVerdictOverlay)["']/;
+/** Any QUOTED module path naming the lane — deliberately shape-agnostic so it
+ *  catches `import x from`, `import type`, `import(...)`, `require(...)`,
+ *  `export * from`, and any alias/relative depth alike. A `from "..."`-shaped
+ *  regex was blind to dynamic import and require (review 2026-07-28); the
+ *  fence is only as strong as its dullest matcher. A comment merely NAMING
+ *  the lane inside a labeler file will also trip this — that is accepted:
+ *  it forces a deliberate decision, which is the fence's whole job. */
+const STAR_LANE_IMPORT = /["'][^"'\n]*(?:starVerdicts|CoachStarVerdictOverlay)["']/;
 
-const OVERLAY_IMPORT =
-  /from\s+["'](?:\.\/CoachStarVerdictOverlay|@\/components\/willab\/CoachStarVerdictOverlay)["']/;
-const SERVICE_IMPORT =
-  /from\s+["'](?:@\/services\/api\/starVerdicts|(?:\.{1,2}\/)+(?:services\/api\/)?starVerdicts)["']/;
+const OVERLAY_IMPORT = /["'][^"'\n]*CoachStarVerdictOverlay["']/;
+const SERVICE_IMPORT = /["'][^"'\n]*(?:\/|^)starVerdicts["']/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

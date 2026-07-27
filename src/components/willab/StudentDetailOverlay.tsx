@@ -131,18 +131,19 @@ export default function StudentDetailOverlay({
   // Star Verdict — one entry per ARC (the review GET is arc-scoped; there is
   // no per-session variant), for every arc the student has, not just the
   // ideal-ready ones: stars fire from take 1. The topic labels the entry when
-  // the student has more than one arc; a Map keeps the first (newest) topic
-  // seen per arc.
-  const starArcs =
-    detail === null
-      ? []
-      : [
-          ...new Map(
-            detail.sessions
-              .filter((s) => s.arcId)
-              .map((s) => [s.arcId as string, s.topic || "Recording"])
-          ),
-        ].map(([arcId, topic]) => ({ arcId, topic }));
+  // the student has more than one arc — the FIRST (newest, payload order)
+  // topic per arc, kept explicitly: `new Map(entries)` is last-write-wins for
+  // duplicate keys, which would label an arc with its OLDEST take's topic
+  // when the topic was refined between takes (review 2026-07-28).
+  const starArcs: { arcId: string; topic: string }[] = [];
+  if (detail !== null) {
+    const seen = new Set<string>();
+    for (const s of detail.sessions) {
+      if (!s.arcId || seen.has(s.arcId)) continue;
+      seen.add(s.arcId);
+      starArcs.push({ arcId: s.arcId, topic: s.topic || "Recording" });
+    }
+  }
 
   useEffect(() => {
     let active = true;
