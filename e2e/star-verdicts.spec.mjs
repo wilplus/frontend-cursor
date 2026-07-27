@@ -59,6 +59,33 @@ check(
   !(await page.locator("body").innerText()).includes("pace_fast->pace_slow")
 );
 
+/* --------------------- playback: verify the star by ear -------------------- */
+check(
+  "rows with served audio render a clamped player",
+  (await rows.nth(0).locator("audio").count()) === 1 &&
+    (await rows.nth(1).locator("audio").count()) === 1
+);
+check(
+  "the player is playable, not errored (real decodable WAV)",
+  (await rows.nth(0).locator('button[aria-label="Play snippet"]').count()) === 1
+);
+check(
+  "the transcript of the fired-on moment renders with the star",
+  (await rows.nth(0).innerText()).includes(
+    "and we shipped it in a week which nobody believed"
+  )
+);
+check(
+  "the take label renders when the BE says which take",
+  (await rows.nth(0).innerText()).includes("Take 2") &&
+    (await rows.nth(1).innerText()).includes("Take 3")
+);
+check(
+  "a payload without audio degrades to a text-only row, no broken player",
+  (await rows.nth(2).locator("audio").count()) === 0 &&
+    (await rows.nth(3).locator("audio").count()) === 0
+);
+
 /* ------------------------------- Keep saves ------------------------------- */
 await rows.nth(0).locator("button", { hasText: "Keep" }).click();
 await page.waitForTimeout(300);

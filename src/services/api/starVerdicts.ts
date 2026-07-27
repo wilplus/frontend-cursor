@@ -75,6 +75,22 @@ export interface ArcStar {
   deviceOptions: string[];
   /** Opaque passthrough: sent back on the PUT only when the row carried it. */
   starVersion: string | number | null;
+
+  /* --- playback context (founder 2026-07-27): the coach cannot verify a
+   *     star without HEARING the moment it fired on. Same wire vocabulary as
+   *     the labeler payload (audio_ref = resolved playable URL, offsets clamp
+   *     the slice out of the take's file) — mapped defensively, so a payload
+   *     that omits them degrades to a text-only row instead of breaking. --- */
+  /** Resolved playable URL of the take's audio (usually the whole file). */
+  audioRef: string | null;
+  /** Where this snippet's slice starts in that file (ms). */
+  startOffsetMs: number;
+  /** Slice length (ms). 0 = unknown — the clamped player needs a real one. */
+  durationMs: number;
+  /** What was said in the slice — the words the star fired on. */
+  transcript: string | null;
+  /** Which take the snippet belongs to, when the BE says (1-based). */
+  takeIndex: number | null;
 }
 
 export interface ArcStars {
@@ -88,6 +104,11 @@ function str(v: unknown): string {
 
 function strOrNull(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+/** Millisecond fields: a finite non-negative number, else 0. */
+function ms(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
 }
 
 function pickVerdict(v: unknown): StarVerdict | null {
@@ -123,6 +144,18 @@ export function mapArcStar(raw: unknown): ArcStar | null {
     starVersion:
       typeof r.star_version === "string" || typeof r.star_version === "number"
         ? r.star_version
+        : null,
+    // Playback context — same aliases the two existing payloads use
+    // (coachReview: audio_ref; student moments: snippet_audio_ref first).
+    audioRef: strOrNull(r.audio_ref) ?? strOrNull(r.snippet_audio_ref),
+    startOffsetMs: ms(r.start_offset_ms),
+    durationMs: ms(r.duration_ms),
+    transcript: strOrNull(r.transcript),
+    takeIndex:
+      typeof r.take_index === "number" &&
+      Number.isFinite(r.take_index) &&
+      r.take_index > 0
+        ? r.take_index
         : null,
   };
 }

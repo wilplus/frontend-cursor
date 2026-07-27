@@ -41,6 +41,11 @@ function star(over: Partial<ArcStar> = {}): ArcStar {
     note: null,
     deviceOptions: ["emphasis", "pace_fast", "pace_slow", "pause", "congruence"],
     starVersion: null,
+    audioRef: null,
+    startOffsetMs: 0,
+    durationMs: 0,
+    transcript: null,
+    takeIndex: null,
     ...over,
   };
 }
@@ -59,7 +64,54 @@ describe("mapArcStar — drop-not-repair", () => {
       note: null,
       deviceOptions: ["emphasis", "pace_fast", "pace_slow", "pause", "congruence"],
       starVersion: null,
+      audioRef: null,
+      startOffsetMs: 0,
+      durationMs: 0,
+      transcript: null,
+      takeIndex: null,
     });
+  });
+
+  it("maps the playback context when served — the coach verifies by ear", () => {
+    const m = mapArcStar(
+      deliveryRow({
+        audio_ref: "https://cdn.example/take-full.webm",
+        start_offset_ms: 12400,
+        duration_ms: 5200,
+        transcript: "and that is when everything changed for us",
+        take_index: 2,
+      })
+    );
+    expect(m?.audioRef).toBe("https://cdn.example/take-full.webm");
+    expect(m?.startOffsetMs).toBe(12400);
+    expect(m?.durationMs).toBe(5200);
+    expect(m?.transcript).toBe("and that is when everything changed for us");
+    expect(m?.takeIndex).toBe(2);
+  });
+
+  it("accepts the student-payload alias snippet_audio_ref, preferring audio_ref", () => {
+    expect(
+      mapArcStar(deliveryRow({ snippet_audio_ref: "https://cdn.example/a.webm" }))
+        ?.audioRef
+    ).toBe("https://cdn.example/a.webm");
+    expect(
+      mapArcStar(
+        deliveryRow({
+          audio_ref: "https://cdn.example/primary.webm",
+          snippet_audio_ref: "https://cdn.example/alias.webm",
+        })
+      )?.audioRef
+    ).toBe("https://cdn.example/primary.webm");
+  });
+
+  it("degrades malformed playback fields to a text-only row, never a broken player", () => {
+    const m = mapArcStar(
+      deliveryRow({ audio_ref: 7, start_offset_ms: "12", duration_ms: -5, take_index: 0 })
+    );
+    expect(m?.audioRef).toBeNull();
+    expect(m?.startOffsetMs).toBe(0);
+    expect(m?.durationMs).toBe(0);
+    expect(m?.takeIndex).toBeNull();
   });
 
   it("drops a row without a snippet id — the PUT is snippet-addressed, so the verdict would have nowhere to go", () => {

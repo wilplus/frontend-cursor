@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Star } from "lucide-react";
+import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import {
@@ -192,7 +193,34 @@ export default function CoachStarVerdictOverlay({
                   <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                     {starChipLabel(s)}
                   </span>
+                  {s.takeIndex !== null ? (
+                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                      Take {s.takeIndex}
+                    </span>
+                  ) : null}
                 </div>
+
+                {/* PLAYBACK FIRST (founder 2026-07-27) — a verdict on a star
+                    is a verdict on a spoken moment, and the coach cannot make
+                    it from the machine's why alone. The player clamps to
+                    exactly the snippet's slice of the take's file (the same
+                    parent+offset model the labeler uses). Rendered only when
+                    the payload carries the audio — a text-only payload
+                    degrades to a text-only row, never a broken player. */}
+                {s.audioRef && s.durationMs > 0 ? (
+                  <MediaPlayer
+                    src={s.audioRef}
+                    startOffsetMs={s.startOffsetMs}
+                    durationMs={s.durationMs}
+                  />
+                ) : null}
+                {s.transcript ? (
+                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+                    <p className="text-[15px] leading-relaxed text-foreground">
+                      {s.transcript}
+                    </p>
+                  </div>
+                ) : null}
 
                 {/* The machine's stated reason and/or its replacement text —
                     whichever is present; both may be. */}
