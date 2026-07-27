@@ -7,6 +7,7 @@ import {
   wrapSelection,
   type RichMark,
 } from "@/lib/willab/richMarkers";
+import { readingBlocks } from "@/lib/willab/readingBlocks";
 
 /** FE-2 (gradual refinement) — how a [[moment:…]] span should decorate in the
  *  SD star treatment. `star` picks the icon family; `quote` is the narrow
@@ -172,7 +173,7 @@ export function RichText({
               {paintQuote && decor?.quote ? (
                 <QuoteUnderlined text={seg.text} quote={decor.quote} />
               ) : (
-                <Tinted
+                <Spaced
                   text={seg.text}
                   absStart={srcOffset + seg.srcStart}
                   tint={tint}
@@ -193,7 +194,7 @@ export function RichText({
         }
         return (
           <span key={i} className={cls || undefined}>
-            <Tinted
+            <Spaced
               text={seg.text}
               absStart={srcOffset + seg.srcStart}
               tint={tint}
@@ -201,6 +202,45 @@ export function RichText({
           </span>
         );
       })}
+    </>
+  );
+}
+
+/** Founder 2026-07-27 — draw a run as spaced reading blocks: a gap between
+ *  the document's blocks, and another wherever a block would run well past
+ *  five lines.
+ *
+ *  The gap is a "\n\n" TEXT NODE rather than a margin or a <br>, for two
+ *  reasons. The reading containers are `white-space: pre-line`, so a blank
+ *  line is exactly a blank line there. And it is inline, so it works unchanged
+ *  inside a key-moment <button> — which matters, because the backend wraps
+ *  whole paragraphs in [[moment:…]], so the blocks that most need spacing are
+ *  usually inside one.
+ *
+ *  Nothing here edits the run: each block carries its own source offset, so the
+ *  key-point tint still resolves against the served text. Inserting whitespace
+ *  into the text instead would slide every offset after it. */
+function Spaced({
+  text,
+  absStart,
+  tint,
+}: {
+  text: string;
+  absStart: number;
+  tint?: Array<[number, number]>;
+}) {
+  const blocks = readingBlocks(text);
+  if (blocks.length <= 1) {
+    return <Tinted text={text} absStart={absStart} tint={tint} />;
+  }
+  return (
+    <>
+      {blocks.map((b, i) => (
+        <Fragment key={i}>
+          {i > 0 ? "\n\n" : null}
+          <Tinted text={b.text} absStart={absStart + b.offset} tint={tint} />
+        </Fragment>
+      ))}
     </>
   );
 }
