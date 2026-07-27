@@ -334,7 +334,7 @@ export default function CoachIdealTextPanel({
 
 /** A scroll container so the panel fills its host (BestPresentationOverlay). */
 function PanelShell({ children }: { children: React.ReactNode }) {
-  return <div className="flex-1 overflow-y-auto">{children}</div>;
+  return <div className="scrollbar-none flex-1 overflow-y-auto">{children}</div>;
 }
 
 /** FE-7 — the read sensor: an invisible marker placed after the LAST

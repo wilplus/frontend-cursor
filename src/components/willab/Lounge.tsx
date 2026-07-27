@@ -141,7 +141,17 @@ export default function Lounge({
     const el = composerRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    // The BORDER has to be added back. `scrollHeight` covers content + padding
+    // and stops there, but the box is `border-box` (Tailwind's global reset),
+    // so assigning that number as the height makes the browser fit the borders
+    // INSIDE it — the content box comes out 2px short of the text it was just
+    // measured from. The result was a permanently-overflowing field: from the
+    // second line on, the textarea grew to exactly the wrong height and drew a
+    // scrollbar over a box that had just been sized to fit.
+    const cs = window.getComputedStyle(el);
+    const border =
+      parseFloat(cs.borderTopWidth || "0") + parseFloat(cs.borderBottomWidth || "0");
+    el.style.height = `${Math.min(el.scrollHeight + border, 160)}px`;
   }, [draftText]);
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
@@ -743,7 +753,7 @@ export default function Lounge({
       <div
         ref={scrollRef}
         onScroll={handleThreadScroll}
-        className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
+        className="scrollbar-none flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
       >
         {thread.hasMore && (
           <button
@@ -960,7 +970,11 @@ export default function Lounge({
             autoCorrect="on"
             autoCapitalize="sentences"
             spellCheck
-            className={`block max-h-40 min-h-[48px] w-full resize-none rounded-3xl border border-border bg-background py-3 pl-4 text-[15px] leading-snug outline-none focus:border-primary ${
+            /* `scrollbar-none` + `overflow-x-hidden`: past the 160px cap the
+               field does scroll, but a bar inside a rounded chat input reads as
+               a broken control, and a textarea has no business scrolling
+               sideways at all — it soft-wraps. */
+            className={`scrollbar-none block max-h-40 min-h-[48px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-3 pl-4 text-[15px] leading-snug outline-none focus:border-primary ${
               draftText.trim() ? "pr-12" : "pr-4"
             }`}
             aria-label="Message Will"

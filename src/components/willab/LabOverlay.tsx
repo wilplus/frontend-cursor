@@ -709,7 +709,7 @@ export default function LabOverlay({
         )}
       </header>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
+      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {state === "lab_feelings" && (
           <FeelingsCheckIn onReady={() => goTo("lab_session_context")} />
         )}

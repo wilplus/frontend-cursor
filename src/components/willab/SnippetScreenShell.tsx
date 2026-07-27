@@ -66,7 +66,7 @@ export default function SnippetScreenShell({
       ) : null}
 
       {/* ── scrollable content — slide first (edge-to-edge), then padded body ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl">{children}</div>
       </div>
 

@@ -50,7 +50,7 @@ export default function ReviewGroupOverlay({
         />
       </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
+      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
         <section>
           <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
             Recordings

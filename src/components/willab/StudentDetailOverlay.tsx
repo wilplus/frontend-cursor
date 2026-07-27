@@ -148,7 +148,7 @@ export default function StudentDetailOverlay({
         <OverlayCloseButton onClick={onClose} ariaLabel="Close student" className="ml-3" />
       </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
+      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
         {status === "loading" ? (
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

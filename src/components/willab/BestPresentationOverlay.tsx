@@ -281,7 +281,7 @@ export default function BestPresentationOverlay({
         </div>
       </div>
 
-      <div ref={scrollRootRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRootRef} className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl">
           {/* Name header (crown identity). */}
           {result.name ? (

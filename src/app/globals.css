@@ -461,6 +461,35 @@ body {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*  .scrollbar-none — scroll, without the gutter                               */
+/*                                                                            */
+/*  Founder 2026-07-27. On a desktop browser a nested `overflow-y-auto` pane   */
+/*  draws a CLASSIC scrollbar: a permanent grey track carved out of the pane's */
+/*  own width. The product is a viewport-locked column — fixed header, fixed   */
+/*  composer, one scrolling middle — so every one of those panes was putting a */
+/*  second bar inside the page's own, and the chat read as a widget embedded   */
+/*  in a website rather than as the website. Touch platforms never showed this */
+/*  at all: their scrollbars are overlays that fade out on their own, which is */
+/*  exactly the behaviour this restores everywhere else.                       */
+/*                                                                            */
+/*  It hides the BAR, not the scrolling: wheel, trackpad, keyboard, drag-      */
+/*  select and scrollIntoView all behave identically, so the thread's          */
+/*  stick-to-bottom and load-older logic is untouched.                         */
+/*                                                                            */
+/*  Use it ONLY on panes whose scrollability is already obvious from the       */
+/*  content (a chat thread, a document body under a fixed header). Never on a  */
+/*  pane where the bar is the only clue there is more below.                   */
+/* -------------------------------------------------------------------------- */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.scrollbar-none::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Recording mode: lock body scroll; allow main content to scroll if needed (safe mobile pattern) */
 body.no-scroll {
   overflow: hidden;
