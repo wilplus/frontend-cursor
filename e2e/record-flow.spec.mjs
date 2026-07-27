@@ -94,7 +94,13 @@ const consent = async (p) => {
   console.log("A picker : " + (await body(p)));
   await p.getByRole("button", { name: /Start a new topic/i }).first().click();
   await p.waitForTimeout(2500);
-  expect("new topic → the recording onboarding", await body(p), "How are you feeling about this one?");
+  // A new topic lands on the setup form itself — the feelings check-in is
+  // skipped here and kept on every continuation (founder 2026-07-27).
+  expect("new topic → the setup form, no feelings check-in", await body(p), "What are you speaking on?");
+  if ((await body(p)).includes("How are you feeling")) {
+    failures.push("new topic still shows the feelings check-in");
+    console.log("FAIL  the feelings check-in is still in the new-topic path");
+  }
   await p.close();
 }
 
