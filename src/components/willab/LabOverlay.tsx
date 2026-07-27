@@ -696,12 +696,17 @@ export default function LabOverlay({
           The X is deliberately the only control here and sits right-aligned
           rather than opposite an empty slot.
 
-          FE-6 moved this ✕ down onto the setup wizard's step indicator row.
-          The wizard is one screen now with no step indicator, so the row it
-          moved to no longer exists and the ✕ comes back here — one cross, on
-          every state, in the position it has always had. */}
+          FE-6 — during SETUP the ✕ moves down onto the step indicator row,
+          where the story puts it, and this header renders an empty bar. It
+          moves rather than duplicating: two crosses stacked ~48px apart on one
+          screen is worse than either position, and the ✕ must stay the single
+          visible way out of the recording overlay. The one on the indicator
+          row confirms before discarding a half-filled setup; this one, on
+          every other step, has nothing to discard. */}
       <header className="flex h-12 shrink-0 items-center justify-end px-4">
-        <OverlayCloseButton onClick={handleClose} />
+        {state === "lab_session_context" ? null : (
+          <OverlayCloseButton onClick={handleClose} />
+        )}
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
@@ -711,11 +716,22 @@ export default function LabOverlay({
 
         {state === "lab_session_context" && (
           <RecordingSetup
+            // Context document attaches to the arc; a staged standalone upload
+            // is detached (arc nulled on submit), so suppress the field there —
+            // same guard as preloadDeck. Also signed-in only: the endpoint is
+            // owner-scoped and 401s without a token, and a guest can still hold
+            // a locally-cached arcId, so gate on signedIn like the arc prefill.
+            contextArcId={
+              stagedUploadRef.current || signedIn !== true ? null : arcId
+            }
             // A staged footer upload is a STANDALONE file, never a take of a
-            // persisted arc: skip the deck pre-fill and hide the deck field so
+            // persisted arc: skip the deck pre-fill and hide the slide step so
             // no prior arc bleeds into it.
             preloadDeck={stagedUploadRef.current ? null : preloadDeck}
             hideDeck={stagedUploadRef.current !== null}
+            // FE-6 — the same exit the header ✕ performs, now owned by the
+            // wizard so it can confirm before throwing away a part-filled form.
+            onCancel={handleClose}
             onSubmit={(ctx, explore) => {
               const staged = stagedUploadRef.current;
               if (staged) {
