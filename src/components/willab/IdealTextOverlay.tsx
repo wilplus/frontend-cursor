@@ -10,7 +10,7 @@ import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText } from "./RichText";
 import MarkedEditor from "./MarkedEditor";
-import { verificationLabel } from "@/lib/willab/verificationCopy";
+import { PENDING_SHORT, VERIFIED } from "@/lib/willab/verificationCopy";
 import {
   MomentSheet,
   MomentStarText,
@@ -303,12 +303,36 @@ export default function IdealTextOverlay({
     });
   }
 
+  // The project's own name heads this screen; the generic label is the
+  // fallback for a document served without one.
+  const headerTitle = sd?.title?.trim() || "Your ideal text";
+  const titleOverflows = headerTitle.length > 10;
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-[13px] font-medium text-foreground">
-            Your ideal text
+          {/* Founder 2026-07-27 — the PROJECT's title, not a fixed label: this
+              screen is a project, and which one matters more than restating
+              what the screen is.
+
+              It is capped at ~10 characters and FADES rather than being cut or
+              ellipsised. A hard clip reads as a rendering bug and an ellipsis
+              spends a character saying "there is more" — the fade says the same
+              thing without taking room, and it is a mask to transparency rather
+              than a gradient in a hard-coded colour, so it works on whatever
+              the header sits on and in either theme. The mask is applied ONLY
+              when the title actually overflows; on a short one it would fade
+              the last real letters of a title that fits. */}
+          <span
+            className={`block shrink-0 max-w-[10ch] overflow-hidden whitespace-nowrap text-[13px] font-medium text-foreground${
+              titleOverflows
+                ? " [-webkit-mask-image:linear-gradient(to_right,#000_60%,transparent_100%)] [mask-image:linear-gradient(to_right,#000_60%,transparent_100%)]"
+                : ""
+            }`}
+            title={headerTitle}
+          >
+            {headerTitle}
           </span>
           {/* Founder 2026-07-27 — the verification state belongs UP HERE, beside
               the title. It used to sit on its own row under the header, which
@@ -323,7 +347,7 @@ export default function IdealTextOverlay({
                   : "bg-background text-muted-foreground"
               }`}
             >
-              {verificationLabel(sd.status)}
+              {sd.status === "verified" ? VERIFIED : PENDING_SHORT}
             </span>
           ) : null}
         </div>
