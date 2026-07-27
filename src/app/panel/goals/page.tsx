@@ -45,7 +45,15 @@ export default function GoalsPage() {
                       <h2 className="flex items-baseline gap-2 text-lg font-semibold tracking-tight text-foreground">
                         <span aria-hidden>{meta?.glyph}</span>
                         <span>
-                          {bet.rank}. {bet.label || meta?.label}
+                          {/* LIFE_BETS wins over the served label for a key we
+                              know. The backend echoes a label back on every day
+                              plan and goal set it has ever written, so a rename
+                              here (Company → Career, 2026-07-27) would other-
+                              wise show the new word in setup and the old one on
+                              this screen until every stored row was rewritten.
+                              The served label still fills in for a key the
+                              frontend does not know. */}
+                          {bet.rank}. {meta?.label || bet.label}
                         </span>
                       </h2>
                       {bet.goals.length === 0 ? (

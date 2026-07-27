@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { GripVertical, Plus, X } from "lucide-react";
 import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
 import {
@@ -15,6 +15,7 @@ import {
 import { completeSetup, fetchSetup, putSetup } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
+import { useDragReorder } from "./useDragReorder";
 import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
 import { duePresets } from "@/lib/life/duePresets";
 import { Button } from "@/components/ui/button";
@@ -186,35 +187,52 @@ export default function SetupFlow({
 
 /* --------------------------------- steps ---------------------------------- */
 
-function BetsStep({
+export function BetsStep({
   answers,
   onChange,
 }: {
   answers: LifeSetupAnswers;
   onChange: (next: LifeSetupAnswers) => void;
 }) {
-  function move(from: number, to: number) {
-    if (to < 0 || to >= answers.bets.length) return;
-    const bets = [...answers.bets];
-    const [moved] = bets.splice(from, 1);
-    bets.splice(to, 0, moved);
-    onChange({ ...answers, bets: bets.map((b, i) => ({ ...b, rank: i + 1 })) });
-  }
+  // `useCallback` because the drag engine holds this in an effect for the life
+  // of a drag — a new function every render would tear the listeners down and
+  // put them back mid-gesture.
+  const move = useCallback(
+    (from: number, to: number) => {
+      if (to < 0 || to >= answers.bets.length) return;
+      const bets = [...answers.bets];
+      const [moved] = bets.splice(from, 1);
+      bets.splice(to, 0, moved);
+      // Rank is re-derived from position, never carried: it is load-bearing
+      // downstream (bet 3 never outranks bet 2 in a daily plan), so the list
+      // order and the stored rank cannot be allowed to disagree.
+      onChange({ ...answers, bets: bets.map((b, i) => ({ ...b, rank: i + 1 })) });
+    },
+    [answers, onChange]
+  );
+
+  const dnd = useDragReorder(answers.bets.length, move);
 
   return (
-    <ol className="space-y-3">
+    // Founder 2026-07-27 — the up/down arrows are replaced by press-hold-move.
+    // `select-none` on the list is what keeps a hold on a phone from raising
+    // the OS text-selection callout over the row being dragged; the textarea
+    // opts back in, because selecting the text you typed still has to work.
+    <ol className="select-none space-y-3">
       {answers.bets.map((bet, i) => {
         const meta = LIFE_BETS.find((b) => b.key === bet.key);
+        const label = meta?.label ?? bet.key;
+        const dragging = dnd.draggingIndex === i;
         return (
-          <li key={bet.key}>
-            <PanelCard>
+          <li key={bet.key} {...dnd.rowProps(i)}>
+            <PanelCard className={dragging ? "border-foreground/25 bg-card" : undefined}>
               <div className="flex items-start gap-3">
                 <span className="text-lg leading-none" aria-hidden>
                   {meta?.glyph}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">
-                    {i + 1}. {meta?.label ?? bet.key}
+                    {dnd.projectedIndex(i) + 1}. {label}
                   </p>
                   <textarea
                     value={bet.meaning}
@@ -225,27 +243,29 @@ function BetsStep({
                     }}
                     rows={2}
                     placeholder="What this one covers, in your words"
-                    className="mt-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                    /* `scrollbar-none` + `overflow-x-hidden`: same as the chat
+                       composer — a bar inside a small bordered field reads as a
+                       broken control, and a textarea soft-wraps, so it has no
+                       business scrolling sideways at all. */
+                    className="scrollbar-none mt-2 w-full select-text resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <button
-                    type="button"
-                    aria-label={`Move ${meta?.label ?? bet.key} up`}
-                    onClick={() => move(i, i - 1)}
-                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Move ${meta?.label ?? bet.key} down`}
-                    onClick={() => move(i, i + 1)}
-                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                {/* The grip. It is a real button so it takes focus and Up/Down
+                    still reorder from a keyboard — the arrows left the screen,
+                    not the product. */}
+                <button
+                  type="button"
+                  data-drag-handle
+                  aria-label={`Reorder ${label}. Position ${i + 1} of ${
+                    answers.bets.length
+                  }. Hold and move, or use the up and down arrow keys.`}
+                  className={`-mr-1 shrink-0 cursor-grab rounded-lg p-2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
+                    dragging ? "cursor-grabbing text-foreground" : ""
+                  }`}
+                  {...dnd.handleProps(i)}
+                >
+                  <GripVertical className="h-4 w-4" />
+                </button>
               </div>
             </PanelCard>
           </li>

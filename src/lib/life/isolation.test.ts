@@ -82,18 +82,52 @@ function isLifeOwned(relPath: string): boolean {
 
 const LIFE_IMPORT = /from\s+["']@\/(lib\/life|components\/life|services\/api\/life)/;
 
+/** Test fixtures under `app/dev/**`, which are not product modules.
+ *
+ *  The real bets screen lives behind `/panel`: signed-in only, then gated
+ *  again on the `/v2/life/state` payload. That is exactly right for a product
+ *  surface and exactly wrong for verifying a hand-rolled press-hold-move
+ *  reorder in a real browser, which is not reducible to unit tests — whether a
+ *  touch pans the page instead of dragging the row is a question only an
+ *  engine can answer.
+ *
+ *  So a dev harness may import the panel. It is not a hole in the fence,
+ *  because the fence is about what a USER can reach: the test below asserts
+ *  every one of these renders nothing in production. If that gate is ever
+ *  dropped, this stops being a fixture and the suite says so. */
+function isDevFixture(relPath: string): boolean {
+  return relPath.startsWith(join("app", "dev") + sep);
+}
+
 describe("life panel isolation", () => {
   it("is imported by exactly the two permitted product modules", () => {
     const importers: string[] = [];
     for (const file of walk(SRC)) {
       const rel = relative(SRC, file);
-      if (isLifeOwned(rel)) continue;
+      if (isLifeOwned(rel) || isDevFixture(rel)) continue;
       if (LIFE_IMPORT.test(readFileSync(file, "utf8"))) importers.push(rel);
     }
     // A new name in this list means something outside the panel started
     // depending on it. That is the drift this test exists to stop: decide
     // deliberately, do not just add the file here.
     expect(importers.sort()).toEqual(PERMITTED_IMPORTERS.sort());
+  });
+
+  it("renders nothing in production from every dev fixture that reaches the panel", () => {
+    const fixtures = walk(SRC)
+      .map((f) => relative(SRC, f))
+      .filter((rel) => isDevFixture(rel))
+      .filter((rel) => LIFE_IMPORT.test(readFileSync(join(SRC, rel), "utf8")));
+    // A fixture is only exempt from the importer list while it cannot be
+    // reached. The exemption and this gate are the same decision.
+    expect(fixtures.length).toBeGreaterThan(0);
+    for (const rel of fixtures) {
+      const src = readFileSync(join(SRC, rel), "utf8");
+      expect(
+        /process\.env\.NODE_ENV\s*===\s*["']production["'][\s\S]{0,40}return null/.test(src),
+        `${rel} imports the panel but is not gated out of production`
+      ).toBe(true);
+    }
   });
 
   it("gates the composer's tag picker on the participation flag", () => {
