@@ -97,6 +97,35 @@ function useDrawStatus(active: boolean): string {
   return label;
 }
 
+/** Milliseconds since the draw started, ticking. The ONE honest number on the
+ *  progress panel — everything else there is an estimate. */
+function useElapsedMs(active: boolean): number {
+  const [ms, setMs] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setMs(0);
+      return;
+    }
+    const started = Date.now();
+    const id = window.setInterval(() => setMs(Date.now() - started), 250);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return ms;
+}
+
+/** How full the bar is. There is no real progress to report — the backend does
+ *  not stream one — so this is a decay curve against the measured draws (23s
+ *  fast, 98s steered) that APPROACHES but never reaches full. It exists to show
+ *  the thing is alive and roughly how far in it is; the honest elapsed counter
+ *  sits next to it, and the bar is hidden from assistive tech so no invented
+ *  percentage is ever announced. */
+const PROGRESS_TAU_MS = 45_000;
+const PROGRESS_CEILING = 92;
+
+function progressPct(ms: number): number {
+  return PROGRESS_CEILING * (1 - Math.exp(-ms / PROGRESS_TAU_MS));
+}
+
 /** A refusal from the safety system fails identically on a retry of the same
  *  brief, and a dead kill switch is not going to come back this minute. Only
  *  a transient draw failure earns a retry button. */
@@ -139,6 +168,7 @@ export default function CoverImageStudio({
 
   const drawing = busy === "generate";
   const drawStatus = useDrawStatus(drawing);
+  const elapsedMs = useElapsedMs(drawing);
 
   // Load the post's existing attempts. The strip is server-held, so it must
   // survive a CMS reload — this is what makes that true.
@@ -316,10 +346,10 @@ export default function CoverImageStudio({
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        rows={1}
+        rows={4}
         placeholder="darker, no hands, less literal"
         aria-label="Notes to steer the next attempt"
-        className={`${INPUT_CLS} resize-y text-[13px]`}
+        className={`${INPUT_CLS} resize-y text-[13px] leading-relaxed`}
       />
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -327,17 +357,14 @@ export default function CoverImageStudio({
           type="button"
           onClick={() => void draw()}
           disabled={!canDraw || busy !== null}
-          title={disabledReason}
           className={BTN_PRIMARY}
         >
           {drawing ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
           ) : null}
-          {drawing
-            ? drawStatus
-            : items.length > 0
-              ? "Regenerate"
-              : "Draw a cover"}
+          {/* Static while drawing: the moving stage label lives in the panel
+              below, and a button whose text keeps changing length jumps. */}
+          {drawing ? "Drawing…" : items.length > 0 ? "Regenerate" : "Draw a cover"}
         </button>
         {!drawing && items.length > 0 ? (
           <span className="text-[11px] text-muted-foreground">
@@ -347,6 +374,44 @@ export default function CoverImageStudio({
           </span>
         ) : null}
       </div>
+
+      {/* WHY the button is dead, on screen. This used to be a `title` tooltip
+          only — which browsers largely refuse to show on a disabled control, so
+          the button read as simply broken. */}
+      {!drawing && disabledReason ? (
+        <p className="mt-2 text-[11px] text-muted-foreground">{disabledReason}</p>
+      ) : null}
+
+      {/* The draw runs 23-98s. Without something visibly alive for that long it
+          reads as a hang, or as never having started at all. */}
+      {drawing ? (
+        <div className="mt-3 rounded-xl border border-border bg-background px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="text-[12px] text-foreground"
+              aria-live="polite"
+              role="status"
+            >
+              {drawStatus}
+            </span>
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {Math.floor(elapsedMs / 1000)}s
+            </span>
+          </div>
+          <div
+            className="mt-2 h-1 overflow-hidden rounded-full bg-muted"
+            aria-hidden
+          >
+            <div
+              className="h-full rounded-full bg-foreground transition-[width] duration-300 ease-out"
+              style={{ width: `${progressPct(elapsedMs)}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            You can leave this open, the cover lands on the post by itself.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mt-3 rounded-lg bg-destructive/10 px-2.5 py-2">
@@ -394,9 +459,23 @@ export default function CoverImageStudio({
         </ul>
       ) : null}
 
-      {items.length > 0 ? (
+      {items.length > 0 || drawing ? (
         <>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            {/* The slot the new attempt will drop into, at the head of the
+                strip where it will actually appear. On a FIRST draw this is
+                the only thing on screen that shows the request went out. */}
+            {drawing ? (
+              <div
+                className="flex h-16 w-20 shrink-0 animate-pulse items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted"
+                aria-hidden
+              >
+                <Loader2
+                  className="h-4 w-4 animate-spin text-muted-foreground"
+                  aria-hidden
+                />
+              </div>
+            ) : null}
             {items.map((item) => {
               const isOn = !!currentImageUrl && item.imageUrl === currentImageUrl;
               return (
