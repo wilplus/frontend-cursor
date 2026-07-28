@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Lock, Mic, PencilLine, Sparkles, Star } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  Copy,
+  ListPlus,
+  Lock,
+  Mic,
+  PencilLine,
+  Sparkles,
+  Star,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
@@ -42,6 +51,8 @@ import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
 import KeyPointsView from "./KeyPointsView";
+import DocumentArranger from "./DocumentArranger";
+import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextOverlay — the user's ideal-text NOTEBOOK (delivery layer)         */
@@ -109,6 +120,10 @@ export default function IdealTextOverlay({
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
+    /** T1 · 1.2 — the served text IS the student's edit → no star layer. */
+    userEdited: boolean;
+    /** T1 · 1.2 — a superseded edit offered back (pending BE → null today). */
+    priorEdit: { text: string; version: number | null } | null;
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
@@ -121,6 +136,22 @@ export default function IdealTextOverlay({
   // Notebook state: the personal copy wins for display once saved.
   const [notes, setNotes] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // T1 · 1.2 — add/move mode, and the states the user-edit contract can put
+  // this screen into. `superseded` HOLDS the student's words after a take
+  // landed mid-edit; they are never re-sent without a tap.
+  const [arranging, setArranging] = useState(false);
+  const [superseded, setSuperseded] = useState<string | null>(null);
+  const [tooLong, setTooLong] = useState(false);
+  const [editLocked, setEditLocked] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  // The version every PUT is stamped with, advanced SYNCHRONOUSLY on each
+  // answer so a queued second save can never re-send the version the first
+  // one just consumed. Armed by the SD fetch; until then there is nothing to
+  // stamp and no edit may persist.
+  const versionRef = useRef<number | null>(null);
+  const versionArmedRef = useRef(false);
+  // Saves run one at a time (same rule as the readout's edit lane).
+  const chainRef = useRef<Promise<void>>(Promise.resolve());
   // E-2 — key-words presentation mode (only reachable when the BE serves cues).
   const [presentationMode, setPresentationMode] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -174,7 +205,12 @@ export default function IdealTextOverlay({
           suggestions: r.suggestions,
           saved: r.saved,
           keyPoints: r.keyPoints,
+          userEdited: r.userEdited,
+          priorEdit: r.priorEdit,
         });
+        versionRef.current = r.version;
+        versionArmedRef.current = true;
+        if (r.ideal.text.trim()) setEditLocked(false);
         setStatus("ready");
       } else if (r.kind === "ready") {
         setIdeal(r.ideal);
@@ -196,6 +232,121 @@ export default function IdealTextOverlay({
   }, [arcId, refetchNonce, requestedVersion]);
 
   const displayText = notes ?? ideal?.text ?? "";
+
+  /** T1 · 1.2 — persist the WHOLE resulting document after an add, a move, a
+   *  removal or a textarea edit. The document renders first (optimistically)
+   *  and the server answer only ever reconciles it, so the student never
+   *  waits on a round trip to see their own words.
+   *
+   *  VERSION_SUPERSEDED is NOT retried against the new version: a take landed
+   *  while they were editing, so we adopt the fresh text and HOLD their words
+   *  for a one-tap re-apply. Resolves true when the words are safe (saved, or
+   *  held for re-apply), false when the caller should keep its editor open. */
+  const saveDocument = useCallback(
+    async (next: string): Promise<boolean> => {
+      if (!versionArmedRef.current) return false;
+      const before = ideal?.text ?? "";
+      setIdeal((prev) => (prev ? { ...prev, text: next } : prev));
+      setTooLong(false);
+      setSaveFailed(false);
+      // Serialized, and stamped from versionRef rather than sd.version: two
+      // quick actions would otherwise race, and the second would arrive with
+      // the version the FIRST one just consumed — a 409 that looks exactly
+      // like a take landing when nothing of the sort happened.
+      const run = chainRef.current.then(() =>
+        saveIdealUserEdit(arcId, next, versionRef.current)
+      );
+      chainRef.current = run.then(
+        () => undefined,
+        () => undefined
+      );
+      const r = await run;
+      if (r.ok) {
+        versionRef.current = r.version ?? versionRef.current;
+        setSd((prev) =>
+          prev
+            ? { ...prev, version: versionRef.current, userEdited: true }
+            : prev
+        );
+        return true;
+      }
+      if (r.reason === "superseded") {
+        setSuperseded(next);
+        if (r.currentVersion !== null) versionRef.current = r.currentVersion;
+        setSd((prev) =>
+          prev ? { ...prev, version: versionRef.current } : prev
+        );
+        fetchGenRef.current++; // fence any in-flight pre-supersede GET
+        setRefetchNonce((n) => n + 1); // adopt the NEW version's text
+        return true;
+      }
+      if (r.reason === "nothingToEdit") {
+        // Nothing is assembled — there was no document to edit. Put back what
+        // was on screen and retire the affordances.
+        setIdeal((prev) => (prev ? { ...prev, text: before } : prev));
+        setEditLocked(true);
+        return false;
+      }
+      if (r.reason === "invalid") {
+        setTooLong(true);
+        return false; // the words stay on screen, unsaved
+      }
+      setSaveFailed(true);
+      return false;
+    },
+    [arcId, ideal?.text]
+  );
+
+  /** T1 · 1.2 — put the held version back on top of the new take's text. The
+   *  only caller that sends `reapplied`, and the only way a pre-take edit
+   *  wins over a newer version: because the student asked, having seen it. */
+  const reapplyEdit = useCallback(async () => {
+    const words = sd?.priorEdit?.text ?? superseded;
+    if (!words || !versionArmedRef.current) return;
+    const run = chainRef.current.then(() =>
+      saveIdealUserEdit(arcId, words, versionRef.current, { reapplied: true })
+    );
+    chainRef.current = run.then(
+      () => undefined,
+      () => undefined
+    );
+    const r = await run;
+    if (!r.ok) {
+      if (r.reason === "invalid") setTooLong(true);
+      else if (r.reason === "superseded") {
+        // Another take landed in between: re-stamp, keep the offer up so one
+        // more tap re-applies against the newest version.
+        if (r.currentVersion !== null) versionRef.current = r.currentVersion;
+        setSd((prev) => (prev ? { ...prev, version: versionRef.current } : prev));
+        fetchGenRef.current++;
+        setRefetchNonce((n) => n + 1);
+      } else setSaveFailed(true);
+      return;
+    }
+    versionRef.current = r.version ?? versionRef.current;
+    setSuperseded(null);
+    setIdeal((prev) => (prev ? { ...prev, text: words } : prev));
+    setSd((prev) =>
+      prev
+        ? {
+            ...prev,
+            version: versionRef.current,
+            priorEdit: null,
+            userEdited: true,
+          }
+        : prev
+    );
+    fetchGenRef.current++;
+    setRefetchNonce((n) => n + 1);
+  }, [arcId, sd?.priorEdit?.text, superseded]);
+
+  // T1 · 1.2 — the star fence: while the document is the student's own edit
+  // the BE serves no decoration, and re-anchoring stars into edited words
+  // client-side would attach a coach's read to a sentence they never saw.
+  const edited = sd?.userEdited === true;
+  // The held version to offer back: the BE's `prior_edit` once it ships, else
+  // the local buffer from the supersede we just handled.
+  const heldEdit = sd?.priorEdit?.text ?? superseded;
 
   // FE-3/4/5 — a tracked-change decision. Accept = the proposal becomes the
   // text; Keep mine = the suggestion is refused and never re-offered. Both
@@ -323,9 +474,34 @@ export default function IdealTextOverlay({
               )}
             </button>
           ) : null}
+          {/* T1 · 1.2 — add / move parts of the living document. SD only (the
+              legacy personal-notes lane has no version to stamp a PUT with),
+              and never while nothing is assembled to arrange. */}
+          {status === "ready" && sd && !editing && !editLocked && displayText.trim() ? (
+            <button
+              type="button"
+              onClick={() => setArranging((a) => !a)}
+              aria-label={
+                arranging
+                  ? IDEAL_EDIT_COPY.arrangeDone
+                  : IDEAL_EDIT_COPY.arrangeOpen
+              }
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
+                arranging
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {arranging ? (
+                <Check className="h-4 w-4" aria-hidden />
+              ) : (
+                <ListPlus className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          ) : null}
           {/* Personal-notes editing is a legacy perfected-lane feature — no
               pencil on the instant draft or in the SD living document. */}
-          {status === "ready" && !editing ? (
+          {status === "ready" && !editing && !arranging && !editLocked ? (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -403,18 +579,11 @@ export default function IdealTextOverlay({
               // #214 — SD edits persist through the user-edit PUT (the
               // student's edit always wins; supersede retried inside the
               // service). Legacy mode keeps the personal-notes PUT.
-              save={
-                sd
-                  ? async (t: string) =>
-                      (await saveIdealUserEdit(arcId, t, sd.version)).ok
-                  : undefined
-              }
+              save={sd ? saveDocument : undefined}
               onSaved={(text) => {
-                if (sd) {
-                  setIdeal((prev) => (prev ? { ...prev, text } : prev));
-                } else {
-                  setNotes(text);
-                }
+                // Under SD, saveDocument already reconciled the document (and
+                // a supersede already queued the refetch that replaces it).
+                if (!sd) setNotes(text);
                 setEditing(false);
               }}
               onCancel={() => setEditing(false)}
@@ -438,8 +607,10 @@ export default function IdealTextOverlay({
                 </div>
               ) : null}
               {/* FE-2 — one tap applies every smoother-version suggestion.
-                  Polish only; acoustic and structural stars stay per-star. */}
-              {sd && stars.bulkApplied ? (
+                  Polish only; acoustic and structural stars stay per-star.
+                  Hidden while arranging and on an edited document: no stars
+                  are drawn there, so approving would look like a dead tap. */}
+              {arranging || edited ? null : sd && stars.bulkApplied ? (
                 <button
                   type="button"
                   onClick={() => stars.revertAllPolish(allPolish)}
@@ -457,7 +628,7 @@ export default function IdealTextOverlay({
                 </button>
               ) : null}
               {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
-              {sd?.keyPoints && sd.keyPoints.length > 0 ? (
+              {!arranging && sd?.keyPoints && sd.keyPoints.length > 0 ? (
                 <div className="inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
                   <button
                     type="button"
@@ -483,11 +654,73 @@ export default function IdealTextOverlay({
                   </button>
                 </div>
               ) : null}
-              {presentationMode && sd?.keyPoints && sd.keyPoints.length > 0 ? (
+              {/* T1 · 1.2 — a take landed while the student was editing. The
+                  fresh text is already on screen; their version is held and
+                  goes back with one tap. Never applied for them. */}
+              {heldEdit ? (
+                <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3">
+                  <p className="text-[13px] font-medium text-foreground">
+                    {IDEAL_EDIT_COPY.supersededTitle}
+                  </p>
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">
+                    {IDEAL_EDIT_COPY.supersededBody}
+                  </p>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => void reapplyEdit()}
+                      className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-medium text-background"
+                    >
+                      {IDEAL_EDIT_COPY.supersededReapply}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSuperseded(null);
+                        setSd((prev) =>
+                          prev ? { ...prev, priorEdit: null } : prev
+                        );
+                      }}
+                      className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground hover:text-foreground"
+                    >
+                      {IDEAL_EDIT_COPY.supersededDismiss}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {tooLong ? (
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  {IDEAL_EDIT_COPY.tooLong}
+                </p>
+              ) : saveFailed ? (
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  Couldn&apos;t save your edit just now. It stays here; change
+                  something and it retries.
+                </p>
+              ) : null}
+
+              {arranging && sd ? (
+                // T1 · 1.2 — the parts view: tap a gap to add, drag to move.
+                // Each action persists the whole joined document.
+                <DocumentArranger
+                  text={displayText}
+                  onChange={(next) => void saveDocument(next)}
+                  textSizeClass="text-[18px]"
+                />
+              ) : presentationMode && sd?.keyPoints && sd.keyPoints.length > 0 ? (
                 <KeyPointsView
                   keyPoints={sd.keyPoints}
                   onExit={() => setPresentationMode(false)}
                 />
+              ) : edited ? (
+                // T1 · 1.2 — the student's own document: their words and their
+                // markers, NO stars and NO version pills. Both are anchored to
+                // machine text this document no longer is. They return when the
+                // next take supersedes the edit.
+                <p className="whitespace-pre-line text-[18px] leading-relaxed text-foreground">
+                  <RichText text={displayText} />
+                </p>
               ) : (
                 <PieceBadgeText
                   text={displayText}

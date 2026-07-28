@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { MAX_DOCUMENT_CHARS } from "@/lib/willab/documentSegments";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
 
 /* -------------------------------------------------------------------------- */
@@ -475,9 +476,23 @@ export type IdealTextResult =
        *  absent, older BE) → NO paywall surface renders anywhere: there is
        *  nothing to sell yet. Automatic moments stay free regardless. */
       explanationsAvailable: boolean;
-      /** #214 — the displayed text IS the student's saved edit (locked rule:
-       *  the student's edit always wins the text). false → machine/coach text. */
+      /** #214 — the displayed text IS the student's saved edit. false →
+       *  machine/coach text. While true the BE serves NO star decoration: an
+       *  edited document has no anchors the stars could honestly attach to,
+       *  and they return when the next take supersedes the edit (T1 · 1.2). */
       userEdited: boolean;
+      /** T1 · 1.2 — a previous edit that a NEWER version superseded, offered
+       *  back for one-click re-apply. PENDING BE: absent on every payload
+       *  today, so this is null and the FE falls back to its own local buffer.
+       *  Never applied automatically — re-applying replaces the new version's
+       *  words, which is the student's call, not ours. */
+      priorEdit: { text: string; version: number | null } | null;
+      /** T1 · 1.2 — the BE's own gate for "record another take", deliberately
+       *  independent of edit state. MAPPED, NOT ENFORCED: hiding a live
+       *  recording affordance behind a field the deploy may not send yet is
+       *  exactly the LIVE-LOOP risk the fences exist for, so nothing reads
+       *  this to hide a mic. null = absent. */
+      canRecordTake: boolean | null;
       /** Additive BE fields (2026-07-20) — all null-safe fallbacks until the
        *  BE deploy lands. */
       /** The latest take's topic; null → the FE falls back to "Your ideal text". */
@@ -795,6 +810,24 @@ export async function fetchIdealText(
           ? body.price_credits
           : null,
       userEdited: body.user_edited === true,
+      // T1 · 1.2 — feature-detected: shape-checked, never assumed. A prior
+      // edit with no words is no offer at all.
+      priorEdit: (() => {
+        const pe = body.prior_edit;
+        if (!pe || typeof pe !== "object") return null;
+        const r = pe as Record<string, unknown>;
+        const t = typeof r.text === "string" ? r.text : "";
+        if (!t.trim()) return null;
+        return {
+          text: t,
+          version:
+            typeof r.version === "number" && Number.isFinite(r.version)
+              ? r.version
+              : null,
+        };
+      })(),
+      canRecordTake:
+        typeof body.can_record_take === "boolean" ? body.can_record_take : null,
       // Additive 2026-07-20 fields — null-safe until the BE deploy lands.
       title:
         typeof body.title === "string" && body.title.trim() ? body.title : null,
@@ -848,49 +881,78 @@ export async function fetchIdealText(
 
 export type UserEditSaveResult =
   | { ok: true; version: number | null }
-  | { ok: false };
+  /** A newer version assembled while the student was typing. */
+  | { ok: false; reason: "superseded"; currentVersion: number | null }
+  /** Nothing is assembled yet — there is no document to edit. */
+  | { ok: false; reason: "nothingToEdit" }
+  /** Past the 20000-char ceiling, or a version the BE refused. */
+  | { ok: false; reason: "invalid" }
+  | { ok: false; reason: "error" };
 
 /**
- * #214 — persist the student's edit of their ideal text. The student's edit
- * always wins the displayed text (locked founder rule), so a 409
- * VERSION_SUPERSEDED (a newer version assembled mid-edit) is retried ONCE
- * against the server's current_version — same words, fresh version stamp.
- * Soft-fails to {ok:false}; callers keep the local text either way.
+ * #214 / T1 · 1.2 — persist the student's edit of their ideal text: the FULL
+ * resulting document, stamped with the version it was edited from.
+ *
+ * A 409 VERSION_SUPERSEDED is NO LONGER retried against the server's
+ * current_version. That retry (pre-T1·1.2) re-sent the pre-take words over
+ * the version a just-landed take had assembled — a silent overwrite of new
+ * F1 output by a stale edit. The supersede is now reported up so the caller
+ * can refetch the new text and RE-OFFER the student's pending changes on top
+ * (contract 2026-07-28). Nothing is dropped and nothing is clobbered.
+ *
+ * `reapplied` rides only on the explicit re-apply action (pending BE field;
+ * harmless on today's deploy). Soft-fails; callers keep the local text.
  */
 export async function saveIdealUserEdit(
   arcId: string,
   text: string,
-  version: number | null
+  version: number | null,
+  opts?: { reapplied?: boolean }
 ): Promise<UserEditSaveResult> {
+  // Refuse a doomed PUT locally: the BE rejects past its ceiling with 400,
+  // and the student's words must survive either way.
+  if (text.length > MAX_DOCUMENT_CHARS) return { ok: false, reason: "invalid" };
   // Header when available; otherwise the BFF's cookie-session fallback
   // authenticates (same pattern as fetchIdealText / saveIdealNotes).
   const token = await getAuthToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const put = async (v: number | null): Promise<Response | null> => {
-    try {
-      return await fetch(
-        `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/user-edit`,
-        {
-          method: "PUT",
-          headers,
-          credentials: "include",
-          body: JSON.stringify({ text, version: v }),
-        }
-      );
-    } catch {
-      return null;
-    }
-  };
-  let res = await put(version);
-  if (res && res.status === 409) {
-    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
-    const current =
-      typeof body?.current_version === "number" ? body.current_version : null;
-    res = await put(current);
+  let res: Response;
+  try {
+    res = await fetch(
+      `/api/v2/explore/arc/${encodeURIComponent(arcId)}/ideal-text/user-edit`,
+      {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          text,
+          version,
+          ...(opts?.reapplied ? { reapplied: true } : {}),
+        }),
+      }
+    );
+  } catch {
+    return { ok: false, reason: "error" };
   }
-  if (!res || !res.ok) return { ok: false };
-  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  const body = (await res.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (res.status === 409) {
+    // Two different 409s share the status; the code discriminates them.
+    if (body?.code === "NOTHING_TO_EDIT" || body?.error === "NOTHING_TO_EDIT") {
+      return { ok: false, reason: "nothingToEdit" };
+    }
+    return {
+      ok: false,
+      reason: "superseded",
+      currentVersion:
+        typeof body?.current_version === "number" ? body.current_version : null,
+    };
+  }
+  if (res.status === 400) return { ok: false, reason: "invalid" };
+  if (!res.ok) return { ok: false, reason: "error" };
   return {
     ok: true,
     version: typeof body?.version === "number" ? body.version : null,

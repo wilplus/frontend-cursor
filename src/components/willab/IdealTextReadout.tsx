@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Mic, PencilLine } from "lucide-react";
+import { Check, Copy, ListPlus, Mic, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 import { reRecordSnippet } from "@/services/api/reRecordSnippet";
@@ -20,7 +20,9 @@ import { applyAcceptedReplacements } from "@/lib/willab/trackedChanges";
 import { swapPiece } from "@/services/api/pieceSwap";
 import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
-import { MarkerToolbar } from "./RichText";
+import { MarkerToolbar, RichText } from "./RichText";
+import DocumentArranger from "./DocumentArranger";
+import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
 import KeyPointsView from "./KeyPointsView";
@@ -92,6 +94,9 @@ export default function IdealTextReadout({
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
   const [editing, setEditing] = useState(false);
+  // T1 · 1.2 — the add/move mode: tap a gap to add a part, drag one to move
+  // it. A sibling of the textarea, never a step before recording.
+  const [arranging, setArranging] = useState(false);
   // E-2 — presentation mode: swap the full read for the key-words cues. Only
   // reachable when the BE serves key_points (the toggle is otherwise hidden);
   // a version without cues falls through to the full read regardless.
@@ -122,6 +127,12 @@ export default function IdealTextReadout({
     suggestions: DocumentSuggestion[] | null;
     saved: boolean | null;
     keyPoints: KeyPoint[] | null;
+    /** T1 · 1.2 — the served text IS the student's edit. Drives the star
+     *  fence below (an edited document carries no honest anchors). */
+    userEdited: boolean;
+    /** T1 · 1.2 — a superseded edit the BE offers back (pending BE; null on
+     *  every payload today, and the local buffer covers it). */
+    priorEdit: { text: string; version: number | null } | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -139,12 +150,31 @@ export default function IdealTextReadout({
   // BEFORE the version fetch lands must still save once arming completes.
   const [canPersist, setCanPersist] = useState(false);
   const dirtyRef = useRef(false);
+  // A render-visible mirror of dirtyRef: the star fence has to react to a
+  // local edit, and a ref cannot re-render.
+  const [dirty, setDirty] = useState(false);
+  const markDirty = useCallback((v: boolean) => {
+    dirtyRef.current = v;
+    setDirty(v);
+  }, []);
+  // T1 · 1.2 — a newer version assembled while the student was typing. Their
+  // words are HELD here, never re-sent automatically (that would overwrite
+  // the take that just landed), and offered back for one tap.
+  const [superseded, setSuperseded] = useState<string | null>(null);
+  // 409 NOTHING_TO_EDIT — nothing is assembled yet, so the edit affordances
+  // have nothing to act on and hide entirely.
+  const [editLocked, setEditLocked] = useState(false);
+  // 400 INVALID_INPUT — past the document ceiling. The words stay on screen.
+  const [tooLong, setTooLong] = useState(false);
   // SEND-LATEST serialization (review R-ue2): saves run one at a time on a
   // promise chain, and each sends the text AS OF EXECUTION — overlapping PUTs
   // can therefore never commit an older edit over a newer one server-side.
   const textRef = useRef("");
   const savedTextRef = useRef<string | null>(null);
   const chainRef = useRef<Promise<void>>(Promise.resolve());
+  // The exact document the BE refused (400) — never re-sent unchanged, and
+  // never mistaken for a saved one.
+  const invalidTextRef = useRef<string | null>(null);
   const persistArmedRef = useRef(false);
   const arcIdRef = useRef<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">(
@@ -194,7 +224,11 @@ export default function IdealTextReadout({
           suggestions: r.suggestions,
           saved: r.saved,
           keyPoints: r.keyPoints,
+          userEdited: r.userEdited,
+          priorEdit: r.priorEdit,
         });
+        // A document exists again → the edit affordances come back.
+        if (r.ideal.text.trim()) setEditLocked(false);
         if (!dirtyRef.current && r.ideal.text.trim()) {
           savedTextRef.current = r.ideal.text;
           setText(r.ideal.text);
@@ -210,25 +244,102 @@ export default function IdealTextReadout({
   }, [signedIn, arcId, sdNonce]);
 
   // #214 — debounced save of a DIRTY edit (never the untouched composed text).
-  // saveIdealUserEdit retries once on VERSION_SUPERSEDED with the server's
-  // current version — the student's edit always wins (locked rule). Each
-  // chained save reads textRef at execution, so the newest words always land
-  // last; "Edit saved." shows only when the SAVED text is still the current
-  // text (a newer pending edit keeps the status quiet — R-ue3).
-  const enqueueSave = useCallback((aid: string) => {
-    chainRef.current = chainRef.current.then(async () => {
-      const t = textRef.current;
-      if (savedTextRef.current === t) return;
-      const r = await saveIdealUserEdit(aid, t, versionRef.current);
-      if (r.ok) {
-        versionRef.current = r.version ?? versionRef.current;
-        savedTextRef.current = t;
-        setSaveState(textRef.current === t ? "saved" : "idle");
-      } else {
+  // Each chained save reads textRef at execution, so the newest words always
+  // land last; "Edit saved." shows only when the SAVED text is still the
+  // current text (a newer pending edit keeps the status quiet — R-ue3).
+  //
+  // T1 · 1.2 — VERSION_SUPERSEDED is no longer retried against the server's
+  // current version. That retry re-sent pre-take words over the text a
+  // just-landed take had assembled. Now: hold the words, adopt the new
+  // version, offer the words back. Nothing dropped, nothing clobbered.
+  const enqueueSave = useCallback(
+    (aid: string) => {
+      chainRef.current = chainRef.current.then(async () => {
+        const t = textRef.current;
+        if (savedTextRef.current === t) return;
+        // The exact document the BE already refused — don't re-send it on
+        // every keystroke. Any other words get a fresh attempt.
+        if (invalidTextRef.current === t) return;
+        const r = await saveIdealUserEdit(aid, t, versionRef.current);
+        if (r.ok) {
+          versionRef.current = r.version ?? versionRef.current;
+          savedTextRef.current = t;
+          invalidTextRef.current = null;
+          setTooLong(false);
+          setSaveState(textRef.current === t ? "saved" : "idle");
+          return;
+        }
+        if (r.reason === "superseded") {
+          setSuperseded(t);
+          if (r.currentVersion !== null) versionRef.current = r.currentVersion;
+          // Release the edit lane so the refetch below may adopt the NEW
+          // text, and so no debounce can PUT these words back over it.
+          markDirty(false);
+          savedTextRef.current = null;
+          setSaveState("idle");
+          sdGenRef.current++; // fence any in-flight pre-supersede GET
+          setSdNonce((n) => n + 1);
+          return;
+        }
+        if (r.reason === "nothingToEdit") {
+          setEditLocked(true);
+          setSaveState("idle");
+          return;
+        }
+        if (r.reason === "invalid") {
+          // Keep the words on screen and stop retrying THESE words. Marking
+          // them saved instead would be a lie the master-document freeze
+          // believes: flushEdits would report success over a document the
+          // server never took.
+          invalidTextRef.current = t;
+          setTooLong(true);
+          setSaveState("idle");
+          return;
+        }
         setSaveState("failed");
-      }
-    });
-  }, []);
+      });
+    },
+    [markDirty]
+  );
+
+  /** T1 · 1.2 — put the student's held version back, on top of whatever the
+   *  new take assembled. The ONLY path that sends `reapplied`, and the only
+   *  path that lets a pre-take edit win over a newer version: because the
+   *  student asked for it, having seen the new text first. */
+  const reapplyEdit = useCallback(async () => {
+    const aid = arcIdRef.current;
+    const words = sd?.priorEdit?.text ?? superseded;
+    if (!aid || !words) return;
+    // On the SAME lane as the debounced saves: a `prior_edit` served straight
+    // from a GET can be re-applied while an ordinary save is still in flight,
+    // and the two must not race for the version stamp.
+    const run = chainRef.current.then(() =>
+      saveIdealUserEdit(aid, words, versionRef.current, { reapplied: true })
+    );
+    chainRef.current = run.then(
+      () => undefined,
+      () => undefined
+    );
+    const r = await run;
+    if (!r.ok) {
+      if (r.reason === "invalid") setTooLong(true);
+      else if (r.reason === "superseded") {
+        // Another take landed in between. Re-stamp and leave the offer up:
+        // one more tap re-applies against the newest version.
+        if (r.currentVersion !== null) versionRef.current = r.currentVersion;
+        sdGenRef.current++;
+        setSdNonce((n) => n + 1);
+      } else setSaveState("failed");
+      return;
+    }
+    versionRef.current = r.version ?? versionRef.current;
+    savedTextRef.current = words;
+    markDirty(false);
+    setText(words);
+    setSuperseded(null);
+    sdGenRef.current++;
+    setSdNonce((n) => n + 1);
+  }, [markDirty, sd?.priorEdit, superseded]);
 
   useEffect(() => {
     if (!dirtyRef.current || !canPersist || !arcId) return;
@@ -352,13 +463,13 @@ export default function IdealTextReadout({
           savedTextRef.current = next;
           setText(next);
         }
-        dirtyRef.current = false;
+        markDirty(false);
         sdGenRef.current++; // fence any in-flight pre-decision GET
         setSdNonce((n) => n + 1);
       }
       return true;
     },
-    [arcId]
+    [arcId, markDirty]
   );
 
   // SD — the shared star layer (sheet, Approve/Revert folds, 5-credit unlock).
@@ -385,13 +496,29 @@ export default function IdealTextReadout({
     [allPolish, stars.appliedLocal]
   );
 
-  // The one edit path — a keystroke or a toolbar wrap: mark dirty, reset the
-  // save flash, update the text (the debounce effect persists it).
-  const applyEdit = useCallback((next: string) => {
-    dirtyRef.current = true;
-    setSaveState("idle");
-    setText(next);
-  }, []);
+  // The one edit path — a keystroke, a toolbar wrap, an add or a move: mark
+  // dirty, reset the save flash, update the text (the debounce effect
+  // persists it). Add/move go through here too, so the whole joined document
+  // rides the same single save lane.
+  const applyEdit = useCallback(
+    (next: string) => {
+      markDirty(true);
+      setSaveState("idle");
+      setText(next);
+    },
+    [markDirty]
+  );
+
+  // T1 · 1.2 — the star fence. While the document is the student's edit, the
+  // BE serves no decoration, and re-anchoring stars into edited words
+  // client-side would attach a coach's read to a sentence they never saw.
+  // Stars come back when the next take supersedes the edit.
+  const edited = sd?.userEdited === true || dirty;
+  // A held version to re-offer: the BE's `prior_edit` when it ships, else the
+  // local buffer from the supersede we just handled.
+  const heldEdit = sd?.priorEdit?.text ?? superseded;
+  // Nothing assembled (409 NOTHING_TO_EDIT) → no edit affordances at all.
+  const canEdit = !editLocked && text.trim().length > 0;
 
   return (
     <div className="flex flex-1 flex-col gap-4">
@@ -419,30 +546,95 @@ export default function IdealTextReadout({
               <Copy className="h-4 w-4" aria-hidden />
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => setEditing((e) => !e)}
-            aria-label={editing ? "Done editing" : "Edit the text"}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
-              editing ? "text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {editing ? (
-              <Check className="h-4 w-4" aria-hidden />
-            ) : (
-              <PencilLine className="h-4 w-4" aria-hidden />
-            )}
-          </button>
+          {/* T1 · 1.2 — add / move parts. Hidden while the raw editor is open
+              (the textarea already owns the whole document) and whenever
+              there is nothing assembled to arrange. */}
+          {canEdit && !editing ? (
+            <button
+              type="button"
+              onClick={() => setArranging((a) => !a)}
+              aria-label={
+                arranging
+                  ? IDEAL_EDIT_COPY.arrangeDone
+                  : IDEAL_EDIT_COPY.arrangeOpen
+              }
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
+                arranging
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {arranging ? (
+                <Check className="h-4 w-4" aria-hidden />
+              ) : (
+                <ListPlus className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          ) : null}
+          {canEdit && !arranging ? (
+            <button
+              type="button"
+              onClick={() => setEditing((e) => !e)}
+              aria-label={editing ? "Done editing" : "Edit the text"}
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
+                editing
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {editing ? (
+                <Check className="h-4 w-4" aria-hidden />
+              ) : (
+                <PencilLine className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          ) : null}
         </div>
       </div>
+
+      {/* T1 · 1.2 — a take landed while the student was editing. The new text
+          is already on screen; their version is held and goes back with one
+          tap. Never applied for them: re-applying replaces the words the new
+          take assembled, which is their call. */}
+      {heldEdit ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3">
+          <p className="text-[13px] font-medium text-foreground">
+            {IDEAL_EDIT_COPY.supersededTitle}
+          </p>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            {IDEAL_EDIT_COPY.supersededBody}
+          </p>
+          <div className="flex items-center gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => void reapplyEdit()}
+              className="rounded-full bg-foreground px-4 py-1.5 text-[13px] font-medium text-background"
+            >
+              {IDEAL_EDIT_COPY.supersededReapply}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSuperseded(null);
+                setSd((prev) => (prev ? { ...prev, priorEdit: null } : prev));
+              }}
+              className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground hover:text-foreground"
+            >
+              {IDEAL_EDIT_COPY.supersededDismiss}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* FE-2 — one tap applies every smoother-version suggestion. Polish only:
           flow smoothing is mechanical, while acoustic and structural stars are
           judgment calls and stay strictly per-star. Each still POSTs
           individually, so every approval is separately recorded and revertible.
           Hidden while editing: folds live in the render layer, so approving
-          behind the raw textarea would look like it did nothing (R-p1). */}
-      {editing ? null : stars.bulkApplied ? (
+          behind the raw textarea would look like it did nothing (R-p1). Same
+          reason while arranging, and while the document is the student's own
+          edit (no stars are drawn there at all — T1 · 1.2). */}
+      {editing || arranging || edited ? null : stars.bulkApplied ? (
         <button
           type="button"
           onClick={() => stars.revertAllPolish(allPolish)}
@@ -461,7 +653,7 @@ export default function IdealTextReadout({
       ) : null}
 
       {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
-      {!editing && sd?.keyPoints && sd.keyPoints.length > 0 ? (
+      {!editing && !arranging && sd?.keyPoints && sd.keyPoints.length > 0 ? (
         <div className="mb-3 inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
           <button
             type="button"
@@ -510,6 +702,11 @@ export default function IdealTextReadout({
         <p className="py-10 text-center text-[13px] text-muted-foreground">
           Putting your ideal text together…
         </p>
+      ) : arranging ? (
+        // T1 · 1.2 — the parts view: tap a gap to add, drag a part to move it.
+        // Every action emits the whole joined document into the SAME save
+        // lane the textarea uses.
+        <DocumentArranger text={text} onChange={applyEdit} />
       ) : sd && presentationMode && sd.keyPoints && sd.keyPoints.length > 0 ? (
         // E-2 — key-words presentation mode: the verbatim cues, each labelled
         // by its block. Tapping one returns to the full read.
@@ -517,6 +714,13 @@ export default function IdealTextReadout({
           keyPoints={sd.keyPoints}
           onExit={() => setPresentationMode(false)}
         />
+      ) : sd && edited ? (
+        // T1 · 1.2 — the student's own document: their words, their markers,
+        // NO star layer and NO version pills. Both are anchored to machine
+        // text that this document no longer is.
+        <p className="whitespace-pre-line text-[17px] leading-relaxed text-foreground">
+          <RichText text={text} />
+        </p>
       ) : sd ? (
         // SD — the SAME star layer as the notebook: grey suggestion stars to
         // Approve, orange coach-verified stars behind the unlock.
@@ -546,7 +750,11 @@ export default function IdealTextReadout({
         </p>
       )}
 
-      {saveState === "saved" ? (
+      {tooLong ? (
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
+          {IDEAL_EDIT_COPY.tooLong}
+        </p>
+      ) : saveState === "saved" ? (
         <p className="text-[12px] text-muted-foreground">Edit saved.</p>
       ) : saveState === "failed" ? (
         <p className="text-[12px] text-muted-foreground">
@@ -594,7 +802,7 @@ export default function IdealTextReadout({
                 // The server now holds the student's newest words AND has
                 // frozen them, so the local edit lane is settled — release it
                 // or the refetch below refuses to adopt the served text.
-                dirtyRef.current = false;
+                markDirty(false);
                 savedTextRef.current = null;
                 setSdNonce((n) => n + 1);
               }}
@@ -659,7 +867,7 @@ export default function IdealTextReadout({
             // the newer intent, so release the local edit lane — otherwise a
             // dirty flag would block adoption of the accepted text and the
             // next keystroke would PUT the stale words back (review R-db6).
-            dirtyRef.current = false;
+            markDirty(false);
             savedTextRef.current = null;
             setSdNonce((n) => n + 1);
           } else {
