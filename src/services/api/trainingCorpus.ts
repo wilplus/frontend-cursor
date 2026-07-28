@@ -79,6 +79,69 @@ function count(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
 }
 
+/* ---------------------------- idempotency key ----------------------------- */
+
+/** Stable identity for ONE import attempt, so the BE can dedupe a retry.
+ *
+ *  The risk this exists for: the import runs Whisper inline for minutes, so a
+ *  proxy/gateway timeout is likely on a long talk — and a timeout is NOT a
+ *  failure. The BE very often finishes. The coach sees "failed", imports the
+ *  same file again, and the corpus gets the same talk twice: labelled twice,
+ *  training twice, with nothing on screen to say so. That is far worse than a
+ *  failed upload, because it is invisible and it poisons the corpus.
+ *
+ *  So the key is DERIVED, not generated. A fresh uuid per attempt would be
+ *  useless here — the retry is a NEW attempt by definition, and would get a
+ *  new uuid and dedupe nothing. Deriving it from the file's identity plus the
+ *  metadata it is being filed under means the same file re-picked from the
+ *  same folder produces the same key, which is exactly the case that must
+ *  collapse.
+ *
+ *  Identity is (name, size, lastModified) — not the file's CONTENT. Hashing
+ *  the bytes would be stronger, but a folder of thirty 50MB talks would have
+ *  to be read into memory twice, and name+size+mtime already identifies a
+ *  file on disk to a degree this problem does not need to exceed. A rename
+ *  therefore yields a new key; a re-import under a new topic or speaker does
+ *  too, which is right — that is a deliberate second filing, not a retry. */
+export async function importIdempotencyKey(input: {
+  file: { name: string; size: number; lastModified: number };
+  topic: string;
+  speakerLabel?: string | null;
+}): Promise<string> {
+  const seed = [
+    input.file.name,
+    String(input.file.size),
+    String(input.file.lastModified),
+    input.topic.trim(),
+    (input.speakerLabel ?? "").trim(),
+  ].join("\u0000");
+
+  // Hashed rather than sent raw so filenames do not end up in request logs.
+  const subtle =
+    typeof globalThis.crypto !== "undefined" ? globalThis.crypto.subtle : undefined;
+  if (subtle) {
+    try {
+      const digest = await subtle.digest("SHA-256", new TextEncoder().encode(seed));
+      return Array.from(new Uint8Array(digest))
+        .slice(0, 16)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    } catch {
+      // Fall through. A key we could not hash must never cost an upload.
+    }
+  }
+  // Non-secure context (no subtle crypto): a deterministic non-crypto hash.
+  // Weaker against collision, but this is a dedupe key, not a secret — and
+  // being deterministic is the only property that actually matters.
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < seed.length; i++) {
+    h1 = Math.imul(h1 ^ seed.charCodeAt(i), 0x01000193) >>> 0;
+    h2 = Math.imul(h2 + seed.charCodeAt(i), 0x85ebca6b) >>> 0;
+  }
+  return `${h1.toString(16).padStart(8, "0")}${h2.toString(16).padStart(8, "0")}`;
+}
+
 /** Import ONE file. One request per file is the contract, deliberately: a
  *  batch would block for minutes or need a job queue, while per-file requests
  *  give real progress and per-file failures. Callers fire a folder
@@ -101,6 +164,17 @@ export async function importTrainingAudio(input: {
   const form = new FormData();
   form.append("audio_file", input.file);
   form.append("topic", input.topic);
+  // Sent as a form field rather than a header: the BFF re-emits this FormData
+  // verbatim, so a field needs no proxy change, and every other import
+  // parameter already travels this way.
+  form.append(
+    "idempotency_key",
+    await importIdempotencyKey({
+      file: input.file,
+      topic: input.topic,
+      speakerLabel: input.speakerLabel,
+    })
+  );
   if (input.speakerLabel) form.append("speaker_label", input.speakerLabel);
   if (input.userId) form.append("user_id", input.userId);
   if (input.note) form.append("note", input.note);

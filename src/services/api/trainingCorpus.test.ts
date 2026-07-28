@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLabelBody,
+  importIdempotencyKey,
   mapConfidenceQueue,
   mapQueuePiece,
   mapTrainingImport,
@@ -137,6 +138,88 @@ describe("buildLabelBody (N3 lives here)", () => {
       confident: true,
       intensity: 2,
     });
+  });
+});
+
+describe("importIdempotencyKey", () => {
+  const file = { name: "board-pitch.mp3", size: 51_200_000, lastModified: 1_753_600_000_000 };
+  const base = { file, topic: "Board pitch", speakerLabel: "Jane Doe" };
+
+  it("gives the SAME key to a retry of the same file — the entire point, since a timeout is not a failure and the coach will press Import again", async () => {
+    expect(await importIdempotencyKey(base)).toBe(await importIdempotencyKey(base));
+    // A distinct object with equal values is still the same file re-picked
+    // from the same folder, which is exactly the retry that must collapse.
+    expect(await importIdempotencyKey({ ...base, file: { ...file } })).toBe(
+      await importIdempotencyKey(base)
+    );
+  });
+
+  it("separates two different files in one batch, including same-name-different-size", async () => {
+    const k = await importIdempotencyKey(base);
+    expect(await importIdempotencyKey({ ...base, file: { ...file, name: "keynote.mp3" } })).not.toBe(k);
+    expect(await importIdempotencyKey({ ...base, file: { ...file, size: 51_200_001 } })).not.toBe(k);
+    expect(await importIdempotencyKey({ ...base, file: { ...file, lastModified: 1 } })).not.toBe(k);
+  });
+
+  it("re-filing the same audio under a new topic or speaker is a deliberate second import, not a retry", async () => {
+    const k = await importIdempotencyKey(base);
+    expect(await importIdempotencyKey({ ...base, topic: "Keynote" })).not.toBe(k);
+    expect(await importIdempotencyKey({ ...base, speakerLabel: "John Roe" })).not.toBe(k);
+  });
+
+  it("ignores whitespace the coach typed around the topic — otherwise a stray space defeats the dedupe", async () => {
+    expect(await importIdempotencyKey({ ...base, topic: "  Board pitch " })).toBe(
+      await importIdempotencyKey(base)
+    );
+  });
+
+  it("treats a missing speaker and an empty speaker as the same filing", async () => {
+    const omitted = await importIdempotencyKey({ file, topic: "Board pitch" });
+    expect(await importIdempotencyKey({ file, topic: "Board pitch", speakerLabel: null })).toBe(omitted);
+    expect(await importIdempotencyKey({ file, topic: "Board pitch", speakerLabel: "  " })).toBe(omitted);
+  });
+
+  it("cannot be confused by a field boundary — the delimiter is one that cannot occur in a filename", async () => {
+    // Without a NUL delimiter, ("ab", "c") and ("a", "bc") would concatenate
+    // identically and two different files would share a key.
+    expect(
+      await importIdempotencyKey({ file: { ...file, name: "ab" }, topic: "c" })
+    ).not.toBe(
+      await importIdempotencyKey({ file: { ...file, name: "a" }, topic: "bc" })
+    );
+  });
+
+  it("is a plain hex token — safe in a form field and carries no filename into request logs", async () => {
+    const k = await importIdempotencyKey(base);
+    expect(k).toMatch(/^[0-9a-f]{16,}$/);
+    expect(k).not.toContain("board-pitch");
+  });
+
+  it("still returns a stable key with no subtle crypto — a non-secure context must not lose dedupe", async () => {
+    const real = globalThis.crypto;
+    try {
+      Object.defineProperty(globalThis, "crypto", { value: undefined, configurable: true });
+      const a = await importIdempotencyKey(base);
+      const b = await importIdempotencyKey({ ...base, file: { ...file } });
+      expect(a).toBe(b);
+      expect(a).toMatch(/^[0-9a-f]{16}$/);
+      expect(await importIdempotencyKey({ ...base, topic: "Keynote" })).not.toBe(a);
+    } finally {
+      Object.defineProperty(globalThis, "crypto", { value: real, configurable: true });
+    }
+  });
+
+  it("never throws when the hash itself fails — a key we cannot compute must not cost an upload", async () => {
+    const real = globalThis.crypto;
+    try {
+      Object.defineProperty(globalThis, "crypto", {
+        value: { subtle: { digest: () => Promise.reject(new Error("no")) } },
+        configurable: true,
+      });
+      await expect(importIdempotencyKey(base)).resolves.toMatch(/^[0-9a-f]{16}$/);
+    } finally {
+      Object.defineProperty(globalThis, "crypto", { value: real, configurable: true });
+    }
   });
 });
 
