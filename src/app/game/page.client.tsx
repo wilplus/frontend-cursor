@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Pause,
+  Play,
   Sparkles,
 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
-import MediaPlayer from "@/components/results/MediaPlayer";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import {
   fetchArcBreakthroughs,
@@ -22,33 +23,32 @@ import {
   saveGameSession,
   fetchSavedGameSessions,
   splitTintedSegments,
-  type GameRound,
   type GameSession,
   type GameVerdict,
   type SavedGameSession,
 } from "@/services/api/arcGame";
 
 /* -------------------------------------------------------------------------- */
-/*  /game — the confidence game (E5, founder 2026-07-28).                      */
+/*  /game — Voice-game (E5, founder design pass 2026-07-28).                   */
 /*                                                                            */
-/*  ONE SCREEN, NO SCROLLING: each round fills the viewport — audio, the       */
-/*  transcript, the two calls, and (after answering) the reveal BELOW, all     */
-/*  within one screen. The next round REPLACES the screen; nothing stacks.     */
-/*  Degenerately long content scrolls inside its own pane, never the page.     */
+/*  IMMERSIVE AND CENTRAL: every round is one binary dilemma — a big playback  */
+/*  hero in the middle (tapped every round, so it is large and comfortable),   */
+/*  the neutral grey call on the LEFT, the green Confident call on the RIGHT   */
+/*  (the swipe-left / swipe-right feel, as buttons), and once answered the     */
+/*  short explanation BELOW. One screen, no page scroll; Next replaces it.     */
+/*  No transcript on game rounds — the guess is by EAR (the screenshots drop   */
+/*  it deliberately).                                                          */
 /*                                                                            */
-/*  The header toggle (founder): default GAME — blind guessing, every answer   */
-/*  a peer label; the other state MY BEST VOICE — playback of the coach-       */
-/*  confirmed moments one by one with the explanation below. The game stays    */
-/*  MOUNTED (hidden) while the toggle is away: unmounting would drop the       */
-/*  verdicts and invite re-answers, which append junk labels (N3).             */
+/*  The small toggle: GAME (default) / BEST VOICES. Best voices is the same    */
+/*  design minus the dilemma: quote card, the same playback hero, ONE comment  */
+/*  below (the coach's note OVERRIDES the system's — never both) plus the      */
+/*  coach's video when attached, and neutral black Back / Next.                */
 /*                                                                            */
-/*  Truth is never in the rounds payload (N1) — key and decoy rounds render    */
-/*  through identical markup; the reveal is the only teacher. No scores, no    */
-/*  streaks, no tallies, ever (N2/AC-9). A decoy reveal reads neutral — the    */
-/*  user's own words, never a failure (N5). All copy → founder sign-off.       */
-/*                                                                            */
-/*  Deferred by the founder's own staging: the end-of-arc always-play-or-skip  */
-/*  offer comes "later, once the game is established".                         */
+/*  The game stays MOUNTED while toggled away: unmounting would drop the       */
+/*  verdicts and invite re-answers, which append junk peer labels (N3).       */
+/*  Truth is never in the rounds payload (N1) — rounds render identically.     */
+/*  No scores, no streaks, no tallies (N2); the dots are position, not a       */
+/*  tally. A decoy reveal reads neutral (N5). All copy → founder sign-off.     */
 /* -------------------------------------------------------------------------- */
 
 export default function GamePageClient({
@@ -94,30 +94,21 @@ export default function GamePageClient({
       <div className="flex shrink-0 items-center justify-between px-5 pt-4">
         <h1 className="flex items-center gap-2 text-[17px] font-semibold text-foreground">
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-          Confidence game
+          Voice-game
         </h1>
         <OverlayCloseButton onClick={() => router.push("/chat")} />
       </div>
 
-      {/* The mode toggle — Game is the default state by design. */}
-      <div className="flex shrink-0 justify-center px-5 pt-3">
-        <div className="flex rounded-full border border-border p-0.5">
-          <TabPill active={tab === "game"} onClick={() => setTab("game")}>
-            Game
-          </TabPill>
-          <TabPill active={tab === "voice"} onClick={() => setTab("voice")}>
-            My best voice
-          </TabPill>
-        </div>
+      {/* The small mode toggle — Game is the default state by design. */}
+      <div className="flex shrink-0 justify-center px-5 pt-2">
+        <ModeToggle mode={tab} setMode={setTab} />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-4">
+      <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-3">
         {/* The game keeps its state while hidden: an unmount would forget the
             answered rounds, and a re-answer is a duplicate peer label (N3). */}
         <div
-          className={
-            tab === "game" ? "flex min-h-0 flex-1 flex-col" : "hidden"
-          }
+          className={tab === "game" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
         >
           {status === "loading" ? (
             <Centered>
@@ -143,40 +134,17 @@ export default function GamePageClient({
               </p>
             </Centered>
           ) : (
-            <GameRounds arcId={arcId!} session={session} />
+            <GameView arcId={arcId!} session={session} />
           )}
         </div>
 
-        {tab === "voice" ? <BestVoice arcId={arcId} /> : null}
+        {tab === "voice" ? <BestVoices arcId={arcId} /> : null}
       </div>
     </main>
   );
 }
 
-function TabPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
-        active
-          ? "bg-foreground text-background"
-          : "text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+/* ────────────────────────────── shared chrome ────────────────────────────── */
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -184,18 +152,221 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ── the game: ONE round on screen; Next replaces it; ends on the library ── */
-
-function GameRounds({
-  arcId,
-  session,
+/** The small two-state pill with the sliding black thumb. */
+function ModeToggle({
+  mode,
+  setMode,
 }: {
-  arcId: string;
-  session: GameSession;
+  mode: "game" | "voice";
+  setMode: (m: "game" | "voice") => void;
 }) {
+  return (
+    <div className="relative grid w-[220px] grid-cols-2 rounded-full border border-border bg-card p-1 text-[12px]">
+      <span
+        aria-hidden
+        className="absolute inset-y-1 rounded-full bg-foreground transition-transform duration-300 ease-out"
+        style={{
+          left: 4,
+          width: "calc(50% - 4px)",
+          transform: mode === "game" ? "translateX(0)" : "translateX(100%)",
+        }}
+      />
+      <button
+        type="button"
+        aria-pressed={mode === "game"}
+        onClick={() => setMode("game")}
+        className={`relative z-10 rounded-full px-3 py-1.5 font-semibold transition-colors ${
+          mode === "game" ? "text-background" : "text-muted-foreground"
+        }`}
+      >
+        Game
+      </button>
+      <button
+        type="button"
+        aria-pressed={mode === "voice"}
+        onClick={() => setMode("voice")}
+        className={`relative z-10 rounded-full px-3 py-1.5 font-semibold transition-colors ${
+          mode === "voice" ? "text-background" : "text-muted-foreground"
+        }`}
+      >
+        Best voices
+      </button>
+    </div>
+  );
+}
+
+/** Position dots (position, not a tally — N2): current is the wide one. */
+function ProgressDots({ total, index }: { total: number; index: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-1.5 rounded-full transition-all duration-300 ease-out ${
+            i === index
+              ? "w-6 bg-foreground"
+              : i < index
+                ? "w-1.5 bg-foreground"
+                : "w-1.5 bg-border"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────── the playback hero ───────────────────────────── */
+
+/** Real clamped audio for the hero: plays exactly the snippet's slice of the
+ *  take's file (the same clamp MediaPlayer uses), surfaced as one big central
+ *  button — it is tapped every round, so it is large and comfortable. */
+function useClampedAudio(
+  src: string | null,
+  startOffsetMs: number,
+  durationMs: number
+) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0); // 0..1 within the slice
+  const [errored, setErrored] = useState(false);
+  const seekSec = startOffsetMs / 1000;
+  const clipSec = durationMs > 0 ? durationMs / 1000 : null;
+
+  useEffect(() => {
+    setErrored(false);
+    setPlaying(false);
+    setProgress(0);
+  }, [src, startOffsetMs, durationMs]);
+
+  const toggle = () => {
+    const el = audioRef.current;
+    if (!el || errored || !src) return;
+    if (playing) {
+      el.pause();
+      return;
+    }
+    const end = clipSec !== null ? seekSec + clipSec : null;
+    if (el.currentTime < seekSec || (end !== null && el.currentTime >= end)) {
+      el.currentTime = seekSec;
+    }
+    void el.play().catch(() => setErrored(true));
+  };
+
+  const onTimeUpdate = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    const total = clipSec ?? (el.duration || 0) - seekSec;
+    if (total <= 0) return;
+    const p = Math.min(1, Math.max(0, (el.currentTime - seekSec) / total));
+    setProgress(p);
+    if (clipSec !== null && el.currentTime >= seekSec + clipSec) {
+      el.pause();
+      el.currentTime = seekSec;
+      setProgress(0);
+    }
+  };
+
+  const element = (
+    <audio
+      ref={audioRef}
+      src={src ?? undefined}
+      preload="metadata"
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onEnded={() => {
+        setPlaying(false);
+        setProgress(0);
+      }}
+      onTimeUpdate={onTimeUpdate}
+      onLoadedMetadata={() => {
+        const el = audioRef.current;
+        if (el && seekSec > 0) el.currentTime = seekSec;
+      }}
+      onError={() => setErrored(true)}
+      className="hidden"
+    />
+  );
+
+  return { playing, progress, errored, toggle, element };
+}
+
+function Waveform({ progress, active }: { progress: number; active: boolean }) {
+  const bars = useMemo(
+    () =>
+      Array.from(
+        { length: 40 },
+        (_, i) => 0.25 + 0.75 * Math.abs(Math.sin(i * 1.3) * Math.cos(i * 0.7))
+      ),
+    []
+  );
+  return (
+    <div className="flex h-12 items-center justify-center gap-[3px]" aria-hidden>
+      {bars.map((h, i) => {
+        const on = active && i / bars.length <= progress;
+        return (
+          <span
+            key={i}
+            className={`w-[3px] rounded-full transition-colors ${
+              on ? "bg-foreground" : "bg-border"
+            }`}
+            style={{ height: `${Math.max(6, h * 40)}px` }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function PlaybackHero({
+  src,
+  startOffsetMs,
+  durationMs,
+}: {
+  src: string | null;
+  startOffsetMs: number;
+  durationMs: number;
+}) {
+  const audio = useClampedAudio(src, startOffsetMs, durationMs);
+  return (
+    <div className="shrink-0 rounded-3xl border border-border bg-card p-6">
+      {audio.element}
+      <div className="flex flex-col items-center gap-3">
+        <button
+          type="button"
+          onClick={audio.toggle}
+          disabled={!src || audio.errored}
+          aria-label={audio.playing ? "Pause" : "Play"}
+          className="grid h-20 w-20 place-items-center rounded-full bg-foreground text-background shadow-lg transition-transform active:scale-95 disabled:opacity-40"
+        >
+          {audio.playing ? (
+            <Pause className="h-8 w-8" aria-hidden />
+          ) : (
+            <Play className="ml-1 h-8 w-8" aria-hidden />
+          )}
+        </button>
+        <Waveform
+          progress={audio.progress}
+          active={audio.playing || audio.progress > 0}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────── the game ───────────────────────────────── */
+
+function GameView({ arcId, session }: { arcId: string; session: GameSession }) {
   const [verdicts, setVerdicts] = useState<Record<string, GameVerdict>>({});
+  // What the user CALLED it — drives which button tints on the reveal.
+  const [picks, setPicks] = useState<Record<string, boolean>>({});
   const [current, setCurrent] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [submitting, setSubmitting] = useState<boolean | null>(null);
+  const [failed, setFailed] = useState(false);
+  // N3 — one POST per decision, enforced SYNCHRONOUSLY. State alone is not a
+  // guard: two clicks in the same tick both read it before React commits,
+  // and each answer persists as a peer label server-side.
+  const inFlightRef = useRef(false);
 
   if (finished) {
     return <EndScreen arcId={arcId} gameSessionId={session.gameSessionId} />;
@@ -203,63 +374,8 @@ function GameRounds({
 
   const round = session.rounds[current];
   const verdict = verdicts[round.roundId] ?? null;
+  const pick = picks[round.roundId];
   const isLast = current === session.rounds.length - 1;
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <p className="shrink-0 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-        Round {current + 1} of {session.rounds.length}
-      </p>
-      {current === 0 && !verdict ? (
-        <p className="shrink-0 text-[13px] leading-snug text-muted-foreground">
-          Some of these were your key moments; some were just moments. Listen,
-          read, and call each one.
-        </p>
-      ) : null}
-
-      <RoundCard
-        key={round.roundId}
-        arcId={arcId}
-        round={round}
-        verdict={verdict}
-        onVerdict={(v) =>
-          setVerdicts((prev) => ({ ...prev, [round.roundId]: v }))
-        }
-      />
-
-      {verdict ? (
-        <button
-          type="button"
-          onClick={() => (isLast ? setFinished(true) : setCurrent((c) => c + 1))}
-          className="shrink-0 self-center rounded-full bg-foreground px-8 py-2.5 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90"
-        >
-          {isLast ? "Finish" : "Next"}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-/* ── one round, one screen: play + read → call it → reveal below ── */
-
-function RoundCard({
-  arcId,
-  round,
-  verdict,
-  onVerdict,
-}: {
-  arcId: string;
-  round: GameRound;
-  verdict: GameVerdict | null;
-  onVerdict: (v: GameVerdict) => void;
-}) {
-  const [submitting, setSubmitting] = useState<boolean | null>(null); // the answer in flight
-  // N3 — one POST per decision, enforced SYNCHRONOUSLY. The `submitting`
-  // state alone is not a guard: two clicks in the same tick both read it as
-  // null before React commits, and each answer persists as a peer label
-  // server-side — a double-click would append a duplicate into the corpus.
-  const inFlightRef = useRef(false);
-  const [failed, setFailed] = useState(false);
 
   async function answer(isKeyMoment: boolean) {
     if (inFlightRef.current || verdict) return;
@@ -268,8 +384,11 @@ function RoundCard({
     setSubmitting(isKeyMoment);
     const v = await submitGameAnswer(arcId, round.roundId, isKeyMoment);
     setSubmitting(null);
-    if (v) onVerdict(v);
-    else {
+    if (v) {
+      setPicks((p) => ({ ...p, [round.roundId]: isKeyMoment }));
+      setVerdicts((prev) => ({ ...prev, [round.roundId]: v }));
+      inFlightRef.current = false;
+    } else {
       // Only a FAILED post re-arms the buttons — a success keeps the round
       // answered forever (the label is already in the corpus).
       inFlightRef.current = false;
@@ -279,113 +398,116 @@ function RoundCard({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {round.audioRef ? (
-        <div className="shrink-0">
-          <MediaPlayer
-            src={round.audioRef}
-            startOffsetMs={round.startOffsetMs}
-            durationMs={round.durationMs}
-          />
-        </div>
-      ) : null}
-
-      {/* N1 — this container is IDENTICAL for key and decoy rounds; the only
-          teacher is the reveal. Long transcripts scroll inside this pane so
-          the screen itself never does. */}
-      <div className="max-h-[30vh] shrink-0 overflow-y-auto rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 scrollbar-none">
-        <p className="text-[15px] leading-relaxed text-foreground">
-          {round.transcript}
-        </p>
+      <div className="flex shrink-0 items-center justify-end">
+        <ProgressDots total={session.rounds.length} index={current} />
       </div>
 
-      {!verdict ? (
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => void answer(true)}
-            disabled={submitting !== null}
-            className="flex-1 rounded-full bg-primary py-2.5 text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            {submitting === true ? "Checking..." : "Key moment"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void answer(false)}
-            disabled={submitting !== null}
-            className="flex-1 rounded-full bg-muted py-2.5 text-[14px] font-medium text-foreground transition-colors hover:bg-muted/80 disabled:opacity-60"
-          >
-            {submitting === false ? "Checking..." : "Solid, not key"}
-          </button>
-        </div>
-      ) : (
-        <VerdictReveal verdict={verdict} />
-      )}
+      <h2 className="shrink-0 text-center text-[22px] font-semibold tracking-tight text-foreground">
+        Does this sound confident?
+      </h2>
+
+      <PlaybackHero
+        key={round.roundId}
+        src={round.audioRef}
+        startOffsetMs={round.startOffsetMs}
+        durationMs={round.durationMs}
+      />
+
+      {/* The binary dilemma — swipe-left / swipe-right as two big buttons:
+          neutral grey LEFT, Confident green RIGHT. After the answer the
+          picked side tints by the outcome (never red — N5: an incorrect call
+          is the user's own solid moment, not a failure). */}
+      <div className="grid shrink-0 grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => void answer(false)}
+          disabled={submitting !== null || !!verdict}
+          className={`rounded-2xl px-4 py-4 text-[14px] font-semibold ring-1 transition-all disabled:cursor-not-allowed ${
+            verdict && pick === false
+              ? verdict.correct
+                ? "bg-success text-white ring-success"
+                : "bg-amber-500/15 text-amber-700 ring-amber-500/40 dark:text-amber-300"
+              : "bg-card text-foreground ring-border hover:ring-foreground/40"
+          } ${verdict && pick !== false ? "opacity-50" : ""}`}
+        >
+          {submitting === false ? "Checking..." : "Not this one"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void answer(true)}
+          disabled={submitting !== null || !!verdict}
+          className={`rounded-2xl px-4 py-4 text-[14px] font-semibold ring-1 transition-all disabled:cursor-not-allowed ${
+            verdict && pick === true
+              ? verdict.correct
+                ? "bg-success text-white ring-success"
+                : "bg-amber-500/15 text-amber-700 ring-amber-500/40 dark:text-amber-300"
+              : "bg-success/10 text-success ring-success/40 hover:ring-success"
+          } ${verdict && pick !== true ? "opacity-50" : ""}`}
+        >
+          {submitting === true ? "Checking..." : "Confident"}
+        </button>
+      </div>
+
       {failed ? (
-        <p className="shrink-0 text-[13px] text-muted-foreground">
+        <p className="shrink-0 text-center text-[13px] text-muted-foreground">
           Couldn&apos;t check that one. Tap your answer again.
         </p>
+      ) : null}
+
+      {verdict ? (
+        <>
+          <RevealBlock verdict={verdict} />
+          <button
+            type="button"
+            onClick={() =>
+              isLast ? setFinished(true) : setCurrent((c) => c + 1)
+            }
+            className="shrink-0 self-center rounded-full bg-foreground px-8 py-2.5 text-[14px] font-medium text-background transition-colors hover:bg-foreground/90"
+          >
+            {isLast ? "Finish" : "Next"}
+          </button>
+        </>
       ) : null}
     </div>
   );
 }
 
-/* ── the reveal, BELOW the moment, inside the same screen ── */
-
-function VerdictReveal({ verdict }: { verdict: GameVerdict }) {
+/** The short explanation below the dilemma — inside the same screen. */
+function RevealBlock({ verdict }: { verdict: GameVerdict }) {
   return (
-    <div className="flex min-h-0 flex-col gap-2 overflow-y-auto scrollbar-none">
-      {/* The guess verdict — qualitative, and NEVER red: an incorrect guess
-          in this game usually means the user called their own solid moment a
-          key one, which is not a failure state (N5). Amber = informational. */}
-      <span
-        className={`shrink-0 self-start rounded-full px-3 py-1 text-[13px] font-semibold ${
-          verdict.correct
-            ? "bg-green-600/15 text-green-700 dark:text-green-400"
-            : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-        }`}
-      >
+    <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto px-1 scrollbar-none">
+      {/* Qualitative only (N2): correct/incorrect, the neutral truth, why. */}
+      <p className="shrink-0 text-[13px] font-semibold text-foreground">
         {verdict.correct ? "Correct" : "Not quite"}
-      </span>
-
-      {/* What the moment actually WAS. A decoy reads as neutral fact about
-          the user's own words — "solid" — never as criticism (N5); threat-
-          labeled decoys are indistinguishable from unmarked ones here. */}
-      {verdict.truthIsKey !== null ? (
-        <p className="shrink-0 text-[14px] text-muted-foreground">
-          {verdict.truthIsKey
-            ? "This was one of your key moments."
-            : "This one was solid — not a key moment."}
+        {verdict.truthIsKey !== null ? (
+          <span className="ml-2 font-normal text-muted-foreground">
+            {verdict.truthIsKey
+              ? "This was one of your key moments."
+              : "This one was solid — not a key moment."}
+          </span>
+        ) : null}
+      </p>
+      {verdict.why.slice(0, 3).map((p, i) => (
+        <p key={i} className="text-[14px] leading-relaxed text-foreground">
+          {splitTintedSegments(p).map((seg, j) =>
+            seg.tinted ? (
+              <span key={j} className="font-medium text-primary">
+                {seg.text}
+              </span>
+            ) : (
+              <span key={j}>{seg.text}</span>
+            )
+          )}
         </p>
-      ) : null}
-
-      {verdict.why.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3">
-          {verdict.why.slice(0, 3).map((p, i) => (
-            <p key={i} className="text-[14px] leading-relaxed text-foreground">
-              {splitTintedSegments(p).map((seg, j) =>
-                seg.tinted ? (
-                  <span key={j} className="font-medium text-primary">
-                    {seg.text}
-                  </span>
-                ) : (
-                  <span key={j}>{seg.text}</span>
-                )
-              )}
-            </p>
-          ))}
-        </div>
-      ) : null}
-
+      ))}
       {verdict.videoRef ? (
-        <div className="max-h-[26vh] w-[60%] max-w-[320px] shrink-0 overflow-hidden rounded-2xl border border-border">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video
-            src={verdict.videoRef}
-            controls
-            playsInline
-            className="max-h-[26vh] w-full bg-black"
-          />
-        </div>
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video
+          src={verdict.videoRef}
+          controls
+          playsInline
+          className="mt-1 max-h-[24vh] w-full shrink-0 rounded-2xl bg-black"
+        />
       ) : null}
     </div>
   );
@@ -421,8 +543,7 @@ function EndScreen({
       <Sparkles className="h-6 w-6 shrink-0 text-primary" aria-hidden />
       {/* The library framing, not a summary score (N2). A saved game is a
           bookmark, not a freeze — reopening re-derives the rounds from the
-          coach's current truth, so this is "practice this talk again",
-          never "resume where you left off". */}
+          coach's current truth: "practice this talk again", never "resume". */}
       <p className="max-w-sm shrink-0 text-center text-[15px] leading-relaxed text-foreground">
         These moments are yours to come back to.
       </p>
@@ -484,9 +605,9 @@ function EndScreen({
   );
 }
 
-/* ── MY BEST VOICE — the coach-confirmed moments, one by one, explained ── */
+/* ── BEST VOICES — same design, no dilemma: the explanation is already there ── */
 
-function BestVoice({ arcId }: { arcId: string | null }) {
+function BestVoices({ arcId }: { arcId: string | null }) {
   const [items, setItems] = useState<ArcBreakthrough[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">(
     "loading"
@@ -536,59 +657,70 @@ function BestVoice({ arcId }: { arcId: string | null }) {
     );
   }
 
-  const item = items[Math.min(i, items.length - 1)];
+  const idx = Math.min(i, items.length - 1);
+  const item = items[idx];
+  // ONE comment (founder): the coach's note overrides the system's.
+  const comment = item.note ?? item.systemComment;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <p className="shrink-0 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-        Moment {Math.min(i, items.length - 1) + 1} of {items.length}
-      </p>
-
-      {item.audioRef ? (
-        <div className="shrink-0">
-          <MediaPlayer
-            src={item.audioRef}
-            startOffsetMs={item.startOffsetMs}
-            durationMs={item.durationMs}
-          />
-        </div>
-      ) : null}
+      <div className="flex shrink-0 items-center justify-between">
+        <span className="text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground">
+          Your best · {idx + 1}/{items.length}
+        </span>
+        <ProgressDots total={items.length} index={idx} />
+      </div>
 
       {item.text ? (
-        <div className="max-h-[32vh] shrink-0 overflow-y-auto rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3 scrollbar-none">
-          <p className="text-[15px] leading-relaxed text-foreground">
-            {item.text}
+        <div className="max-h-[22vh] shrink-0 overflow-y-auto rounded-3xl border border-border bg-card px-5 py-4 scrollbar-none">
+          <p className="text-center text-[16px] font-medium tracking-tight text-foreground">
+            &ldquo;{item.text}&rdquo;
           </p>
         </div>
       ) : null}
 
-      {/* The explanation below — the coach's note on why this moment. */}
-      {item.note ? (
-        <div className="min-h-0 overflow-y-auto rounded-xl bg-muted px-4 py-3 scrollbar-none">
+      <PlaybackHero
+        key={item.id}
+        src={item.audioRef}
+        startOffsetMs={item.startOffsetMs}
+        durationMs={item.durationMs}
+      />
+
+      {/* The explanation is already there — the same block as the game's. */}
+      <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto px-1 scrollbar-none">
+        {comment ? (
           <p className="text-[14px] leading-relaxed text-foreground">
-            {item.note}
+            {comment}
           </p>
-        </div>
-      ) : null}
+        ) : null}
+        {item.videoRef ? (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <video
+            src={item.videoRef}
+            controls
+            playsInline
+            className="mt-1 max-h-[24vh] w-full shrink-0 rounded-2xl bg-black"
+          />
+        ) : null}
+      </div>
 
-      <div className="mt-auto flex shrink-0 justify-between pt-2">
+      {/* Neutral black steppers, centered — no dilemma here. */}
+      <div className="mt-auto flex shrink-0 items-center justify-center gap-3 pb-1 pt-2">
         <button
           type="button"
           onClick={() => setI((n) => Math.max(0, n - 1))}
-          disabled={i === 0}
-          className="flex items-center gap-1 rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          disabled={idx === 0}
+          className="inline-flex min-w-[130px] items-center justify-center gap-1.5 rounded-2xl bg-foreground/70 px-6 py-3.5 text-[14px] font-semibold text-background transition-transform active:scale-95 disabled:opacity-40"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-          Previous
+          <ChevronLeft className="h-4 w-4" aria-hidden /> Back
         </button>
         <button
           type="button"
           onClick={() => setI((n) => Math.min(items.length - 1, n + 1))}
-          disabled={i >= items.length - 1}
-          className="flex items-center gap-1 rounded-full border border-border px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          disabled={idx >= items.length - 1}
+          className="inline-flex min-w-[130px] items-center justify-center gap-1.5 rounded-2xl bg-foreground px-6 py-3.5 text-[14px] font-semibold text-background transition-transform active:scale-95 disabled:opacity-40"
         >
-          Next
-          <ChevronRight className="h-4 w-4" aria-hidden />
+          Next <ChevronRight className="h-4 w-4" aria-hidden />
         </button>
       </div>
     </div>
