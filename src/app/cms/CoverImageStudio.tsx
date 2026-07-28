@@ -313,6 +313,15 @@ export default function CoverImageStudio({
         </span>
       </div>
 
+      {/* Said out loud because the box invites the opposite reading: a big
+          empty field under a "Draw a cover" heading reads as "describe the
+          cover here", and the first thing it got was the article's own text.
+          The picture comes from the POST; this only steers it. */}
+      <p className="mb-1.5 text-[11px] text-muted-foreground">
+        Drawn from the post&rsquo;s title and body. This box is optional and
+        only steers the picture.
+      </p>
+
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
@@ -347,6 +356,17 @@ export default function CoverImageStudio({
           </span>
         ) : null}
       </div>
+
+      {/* THE reason this button looks broken. It disables on an unsaved post
+          or one with nothing written yet, and the only explanation used to be
+          a `title` tooltip — invisible until you hover, and never on touch. A
+          disabled control that will not say why is indistinguishable from a
+          dead one, which is exactly how it was read. */}
+      {disabledReason ? (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {disabledReason}
+        </p>
+      ) : null}
 
       {error ? (
         <div className="mt-3 rounded-lg bg-destructive/10 px-2.5 py-2">
