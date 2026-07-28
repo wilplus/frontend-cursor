@@ -1,6 +1,6 @@
 # BE handoff — Training corpus (FE side is live on `main`)
 
-**From:** frontend-cursor · **Date:** 2026-07-28 · **FE commit:** `9600f59`
+**From:** frontend-cursor · **Date:** 2026-07-28 · **FE commit:** `8f6e77f`
 **Status:** built against `feat/training-corpus` (`cde9abb`) exactly as specced. No
 contract changes requested. One real risk to resolve together (§1), a few things to
 confirm, and the founder's answers to the three open questions.
