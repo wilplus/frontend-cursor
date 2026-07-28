@@ -15,21 +15,24 @@ import { getBackendUrl } from "@/app/api/getAuth";
  * V2_ERROR (retryable).
  *
  * TIMEOUTS ARE THE WHOLE POINT OF THIS FILE, exactly as in the sibling
- * community/generate. Drawing takes 10-30s and the brief adds a second or two,
- * while a route handler otherwise inherits the platform default (10-15s on
- * Vercel). Left alone this would 504 on a request the backend went on to
- * complete — and unlike a text generation, that failure costs a paid image that
- * exists in storage with nobody holding its URL. So: a generous maxDuration,
- * and an abort just under it that reports the timeout honestly.
+ * community/generate. A route handler otherwise inherits the platform default
+ * (10-15s on Vercel). Left alone this would 504 on a request the backend went
+ * on to complete — and unlike a text generation, that failure costs a paid
+ * image that exists in storage with nobody holding its URL. So: a generous
+ * maxDuration, and an abort just under it that reports the timeout honestly.
  *
- * 60 is deliberate rather than higher: it is the ceiling on Vercel's Hobby
- * plan, and every other slow route in this app already sits there. The abort at
- * 55s still leaves ~23s of headroom over the worst documented draw.
+ * 180 is measured, not guessed. The original handoff said 10-30s, but a STEERED
+ * REGENERATE against the live API measured 98s — the brief writer re-reads the
+ * previous brief before the draw even starts, so the slowest path is exactly
+ * the interaction this feature exists for. 60 would 504 on it. This route
+ * therefore sits well above every other slow route in the app (all 60) and
+ * REQUIRES a Vercel plan whose ceiling exceeds 60s; on Hobby it is capped there
+ * and a long regenerate will still fail.
  *
  * The password is never logged.
  */
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 export async function POST(req: NextRequest) {
   const backend = getBackendUrl();
@@ -42,8 +45,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
 
+  // Just under maxDuration, so the abort wins the race and the founder gets the
+  // honest message below instead of an opaque platform 504.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 55_000);
+  const timeoutId = setTimeout(() => controller.abort(), 175_000);
 
   let upstream: Response;
   try {
