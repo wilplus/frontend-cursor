@@ -87,6 +87,48 @@ This is the only new field the star payload needs; the five audio fields shipped
 
 ---
 
+## 4b. `PUT /v2/coach/snippets/<id>/star-verdict` — accept `why_final` / `replacement_text_final`
+
+**This is the missing half of §7.3 — the editor now exists.** The coach can rewrite
+what a star SAYS, from the star-review row itself ("Edit what it says"), and the
+rewrite is sent **on the verdict PUT**, not on a separate endpoint:
+
+```jsonc
+{ "star_kind": "delivery", "star_device": "pace_fast", "verdict": "keep",
+  "why_final": "She always talks this fast — this is her normal.",
+  "replacement_text_final": "and that honestly floored me" }   // both optional
+```
+
+Riding the verdict write is deliberate and matches your own rule: *the edit→keep
+PAIR is what trains*. Sending them together makes the half-state — an edit with no
+verdict — unrepresentable at the wire.
+
+**Two properties worth knowing before you wire it up:**
+
+1. **Neither key is ever present unless the coach actually changed the text.** An
+   unedited row's body is byte-identical to the one that works today. So if the BE
+   rejects unknown keys, the blast radius is *edited rows only*, and the failure
+   announces itself as your 400 rendered verbatim next to that row — the working
+   verdict path that is already filling `star_verdicts` cannot regress behind it.
+2. **"Changed" is measured against the coach's own last wording**, not the machine's
+   original. Re-saving an untouched edited row sends no `why_final`; reverting an
+   edit back to the machine's wording counts as a change and sends the original text
+   as the final (read that as "the coach confirms the machine's wording"). There is
+   no way to null a `*_final` back out from the UI — say if you want one and it is a
+   small addition.
+
+**Serve them back on the GET too** (`why_final`, `replacement_text_final` per star).
+The FE already maps them: a re-opened row then shows the coach's wording rather than
+the machine's, and the editor seeds from it — the same "current state, not a locked
+answer" rule the verdict follows. Absent → the machine's wording shows, unchanged
+from today.
+
+Pairs with the `edited` flag in §4: once these columns are written, `edited` is
+presumably derivable from them server-side, so you may not need a separate column —
+the FE reads whichever you serve.
+
+---
+
 ## 5. Not blocking, but still open on your side
 
 - `migrations/add_star_verdicts.sql` — until it runs, the verdict PUT returns 500 and
@@ -141,20 +183,18 @@ Reading the three counts against what this frontend actually writes:
    still zero, it is downstream of the FE. (Note: "annotation" in this frontend's own
    code means something unrelated — the coach's own audio upload mode.)
 
-3. **`moment_suggestions.why_final` / `replacement_text_final` — no FE surface
-   writes these, and this is worth confirming before treating a zero as a bug.**
-   Grep is clean: neither column name, nor any coach-facing suggestion-text editor,
-   exists in this frontend. The coach surfaces that touch suggestions are the
-   student-lane ones (`documentDecide`, `suggestionFeedback`) and the star-verdict
-   overlay — which judges a star and takes a free-text *note*, but never edits the
-   star's `why` or `replacement_text`.
+3. **`moment_suggestions.why_final` / `replacement_text_final` — the FE now writes
+   these, via §4b.** When this handoff was first written no frontend surface existed
+   for them, so a zero was ambiguous. It no longer is: the star-review row has an
+   editor, and the rewrite rides the verdict PUT.
 
-   So either (a) the BE derives these columns from an endpoint the FE already calls
-   (e.g. the coach ideal-text save), in which case zero is a real signal; or (b) the
-   coach's "edit what a star says" gesture has no frontend yet, in which case zero is
-   expected and **an FE surface is still owed** — say the word and it is a small
-   addition to the star-verdict row (the `edited` flag in §4 already anticipates it).
-   The FE cannot tell (a) from (b) from this side.
+   Which makes the reading conditional on §4b being wired up server-side:
+   - **Before the BE accepts `why_final` / `replacement_text_final`:** zero is
+     expected. Edited rows will show your 400 verbatim; unedited rows keep saving
+     exactly as they do now.
+   - **After:** zero after a session in which the coach visibly rewrote a star means
+     the keys are being accepted and dropped — the same class of silent failure the
+     row count exists to catch.
 
 ---
 
@@ -164,7 +204,7 @@ Both surfaces have real-browser specs that run against a stub of these exact pay
 shapes — useful as executable examples of what the FE expects:
 
 - `e2e/game.spec.mjs` (24 checks) with `src/app/dev/game/page.tsx` as the payload stub
-- `e2e/star-verdicts.spec.mjs` (28 checks) with `src/app/dev/star-verdicts/page.tsx`
+- `e2e/star-verdicts.spec.mjs` (34 checks) with `src/app/dev/star-verdicts/page.tsx`
 
 Mappers and their degradation rules: `src/services/api/arcGame.ts`,
 `src/services/api/starVerdicts.ts`, `src/services/api/bestPresentation.ts`.

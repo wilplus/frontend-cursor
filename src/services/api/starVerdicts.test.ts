@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildVerdictBody,
   correctionOptions,
+  effectiveReplacement,
+  effectiveWhy,
   humanizeToken,
   mapArcStar,
   mapArcStars,
@@ -47,6 +49,8 @@ function star(over: Partial<ArcStar> = {}): ArcStar {
     transcript: null,
     takeIndex: null,
     edited: false,
+    whyFinal: null,
+    replacementTextFinal: null,
     ...over,
   };
 }
@@ -71,7 +75,22 @@ describe("mapArcStar — drop-not-repair", () => {
       transcript: null,
       takeIndex: null,
       edited: false,
+      whyFinal: null,
+      replacementTextFinal: null,
     });
+  });
+
+  it("maps the coach's rewritten wording when served back", () => {
+    const m = mapArcStar(
+      deliveryRow({
+        edited: true,
+        why_final: "She always talks this fast — this is her normal.",
+        replacement_text_final: "and that honestly floored me",
+      })
+    );
+    expect(m?.whyFinal).toBe("She always talks this fast — this is her normal.");
+    expect(m?.replacementTextFinal).toBe("and that honestly floored me");
+    expect(mapArcStar(deliveryRow())?.whyFinal).toBeNull();
   });
 
   it("maps the edited flag (aliases accepted) — the edit only trains when the star is also kept", () => {
@@ -306,9 +325,77 @@ describe("buildVerdictBody (N3 lives here)", () => {
     );
   });
 
+  it("omits the rewrite entirely when the coach changed nothing — an unedited row's body is byte-identical to the one that ships today", () => {
+    const body = buildVerdictBody(star({ why: "Machine wording." }), "keep", {
+      whyFinal: "Machine wording.",
+      replacementTextFinal: "",
+    });
+    expect(body).toEqual({
+      star_kind: "delivery",
+      star_device: "pace_fast",
+      verdict: "keep",
+    });
+  });
+
+  it("writes why_final when the coach rewrote the machine's reason", () => {
+    expect(
+      buildVerdictBody(star({ why: "Machine wording." }), "keep", {
+        whyFinal: "  She always talks this fast.  ",
+      })?.why_final
+    ).toBe("She always talks this fast.");
+  });
+
+  it("compares against the coach's OWN last wording, so re-saving an untouched edited row writes nothing new", () => {
+    const edited = star({ why: "Machine.", whyFinal: "Coach's version." });
+    expect(
+      buildVerdictBody(edited, "keep", { whyFinal: "Coach's version." })
+    ).not.toHaveProperty("why_final");
+  });
+
+  it("reverting a previous edit back to the machine's wording IS a change, and is recorded", () => {
+    const edited = star({ why: "Machine.", whyFinal: "Coach's version." });
+    expect(
+      buildVerdictBody(edited, "keep", { whyFinal: "Machine." })?.why_final
+    ).toBe("Machine.");
+  });
+
+  it("writes replacement_text_final independently of why_final", () => {
+    const body = buildVerdictBody(
+      star({ starKind: "replace", starDevice: null, replacementText: "old" }),
+      "keep",
+      { replacementTextFinal: "and that honestly floored me" }
+    );
+    expect(body?.replacement_text_final).toBe("and that honestly floored me");
+    expect(body).not.toHaveProperty("why_final");
+  });
+
+  it("still refuses a wrong_kind without a correction, rewrite or not (N3)", () => {
+    expect(
+      buildVerdictBody(star(), "wrong_kind", { whyFinal: "New wording." })
+    ).toBeNull();
+  });
+
   it("passes star_version through only when the row carried it", () => {
     expect(buildVerdictBody(star({ starVersion: 3 }), "keep")?.star_version).toBe(3);
     expect(buildVerdictBody(star(), "keep")).not.toHaveProperty("star_version");
+  });
+});
+
+describe("effective text — the coach's wording wins", () => {
+  it("falls back to the machine's wording when the coach has not rewritten it", () => {
+    expect(effectiveWhy(star({ why: "Machine." }))).toBe("Machine.");
+    expect(effectiveReplacement(star({ replacementText: "old" }))).toBe("old");
+  });
+
+  it("prefers the coach's wording once there is one", () => {
+    expect(
+      effectiveWhy(star({ why: "Machine.", whyFinal: "Coach." }))
+    ).toBe("Coach.");
+    expect(
+      effectiveReplacement(
+        star({ replacementText: "old", replacementTextFinal: "new" })
+      )
+    ).toBe("new");
   });
 });
 
