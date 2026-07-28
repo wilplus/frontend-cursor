@@ -8,8 +8,10 @@ import {
   adminListCoverImages,
   adminSelectCoverImage,
   type AdminJournalPost,
+  type AdminResult,
   type CoverImage,
   type CoverImageFlag,
+  type GenerateCoverResult,
 } from "@/services/api/journalAdmin";
 
 /* -------------------------------------------------------------------------- */
@@ -39,13 +41,46 @@ const BTN_GHOST =
 const INPUT_CLS =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition focus:border-foreground/30 focus:outline-none";
 
-/** The wait is 10-30s. A bare spinner for that long reads as broken, so the
- *  label changes once: it is a timed story, not real progress, and that is
- *  enough to make the wait legible. */
+/** The wait is 23s for a first draw and 98s for a steered one, measured against
+ *  the live API. A bare spinner over that reads as broken, so the label keeps
+ *  moving: it is a timed story, not real progress, and that is what keeps a
+ *  90-second draw from looking like a hang. */
 const DRAW_STAGES: ReadonlyArray<{ at: number; label: string }> = [
   { at: 0, label: "Writing the brief…" },
-  { at: 3000, label: "Drawing…" },
+  { at: 3_000, label: "Drawing…" },
+  { at: 35_000, label: "Still drawing…" },
+  { at: 75_000, label: "Taking a while, hold on…" },
 ];
+
+/* -- surviving a capped request ---------------------------------------------
+ *
+ * Vercel caps how long one request may run, and a steered regenerate measured
+ * 98s. On a plan we cannot raise, the connection therefore dies while the
+ * backend is still drawing — and the backend does not care: it finishes the
+ * image, stores it, inserts the attempt and attaches the cover, all
+ * server-side, with nobody holding the response.
+ *
+ * So the draw does not depend on the response arriving. It also watches the
+ * strip, and takes the new attempt whichever way it turns up first. That is
+ * what makes this work without paying for a longer request — and it is why a
+ * timed-out draw must never be reported as a failure: the image is real. */
+const POLL_AFTER_MS = 20_000; // nothing can have landed before the fastest draw
+const POLL_EVERY_MS = 6_000;
+const GIVE_UP_MS = 240_000; // ~2.5x the slowest measured draw
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A dropped connection, not a verdict. The backend may still be drawing, so
+ *  these must NOT end the draw — they only mean the answer will never come. */
+function isTransportFailure(code: string | undefined, status: number): boolean {
+  return (
+    code === "UPSTREAM_TIMEOUT" ||
+    code === "PROXY_ERROR" ||
+    status === 0 ||
+    status === 502 ||
+    status === 504
+  );
+}
 
 function useDrawStatus(active: boolean): string {
   const [label, setLabel] = useState(DRAW_STAGES[0].label);
@@ -148,7 +183,20 @@ export default function CoverImageStudio({
     setBusy("generate");
     setError(null);
     setAttachWarning(null);
-    const r = await adminGenerateCoverImage(password, {
+
+    // What the strip held BEFORE the draw. Anything new that appears while we
+    // wait is the image this draw produced.
+    const before = new Set(items.map((i) => i.id));
+    const startedAt = Date.now();
+
+    // Fired, not awaited: the outcome of the draw must not hinge on this
+    // promise, because a capped request can kill it while the image is still
+    // being made. A plain object holder rather than a `let`, so the value read
+    // inside the loop is not narrowed to its initial null.
+    const pending: { result: AdminResult<GenerateCoverResult> | null } = {
+      result: null,
+    };
+    void adminGenerateCoverImage(password, {
       postId,
       // Empty is meaningful: the backend deliberately draws a DIFFERENT scene
       // on a bare Regenerate. Never substitute a hidden "make it different".
@@ -157,24 +205,72 @@ export default function CoverImageStudio({
       // then regenerating would silently refine the newest one instead, and
       // "darker" would not mean the cover the founder is looking at.
       parentId: selected?.id,
-    });
-    setBusy(null);
-    if (!r.ok) {
-      setError({
-        text: r.message,
-        retryable: isRetryable(r.code, r.status),
-      });
-      return;
+    }).then(
+      (r) => {
+        pending.result = r;
+      },
+      () => {
+        pending.result = {
+          ok: false,
+          status: 0,
+          message: "Network error. Try again.",
+        };
+      }
+    );
+
+    const finish = () => setBusy(null);
+
+    while (Date.now() - startedAt < GIVE_UP_MS) {
+      const r = pending.result;
+      if (r) {
+        if (r.ok) {
+          // The strip comes back whole on every draw — re-render from it
+          // rather than firing a second list call.
+          setItems(r.data.items);
+          setFromFallbackBrief(r.data.briefSource === "fallback");
+          if (r.data.attachError) setAttachWarning(r.data.attachError);
+          if (r.data.post) onCoverChanged(r.data.post);
+          finish();
+          return;
+        }
+        // A refusal, a bad request or a dead switch is a real answer, and no
+        // amount of watching the strip will improve it.
+        if (!isTransportFailure(r.code, r.status)) {
+          setError({ text: r.message, retryable: isRetryable(r.code, r.status) });
+          finish();
+          return;
+        }
+        // Otherwise the connection died, not the draw. Keep watching.
+      }
+
+      if (Date.now() - startedAt > POLL_AFTER_MS) {
+        const list = await adminListCoverImages(password, postId);
+        if (list.ok) {
+          const fresh = list.data.find((i) => !before.has(i.id));
+          if (fresh) {
+            setItems(list.data);
+            // The backend already put this on the post; we simply never saw
+            // the echo. Selecting is idempotent — it re-attaches the same
+            // image and hands back the post row we are missing.
+            const attach = await adminSelectCoverImage(password, fresh.id);
+            if (attach.ok && attach.data.post) onCoverChanged(attach.data.post);
+            finish();
+            return;
+          }
+        }
+      }
+
+      await sleep(POLL_EVERY_MS);
     }
-    // The strip comes back whole on every draw — re-render from it rather than
-    // firing a second list call.
-    setItems(r.data.items);
-    setFromFallbackBrief(r.data.briefSource === "fallback");
-    if (r.data.attachError) setAttachWarning(r.data.attachError);
-    if (r.data.post) onCoverChanged(r.data.post);
+
+    setError({
+      text: "The drawing never finished. If it turns up, it will be in the strip below.",
+      retryable: true,
+    });
+    finish();
     // The note deliberately STAYS in the box: steers stack ("darker" → "darker,
     // and no hands"), and each one applies to the previous brief.
-  }, [busy, notes, onCoverChanged, password, postId, selected]);
+  }, [busy, items, notes, onCoverChanged, password, postId, selected]);
 
   async function select(item: CoverImage) {
     if (busy) return;
