@@ -38,9 +38,12 @@ Three ways out, cheapest first:
    archive material, and it makes a duplicate structurally impossible (the job id is
    the idempotency key).
 
-Either way, an **idempotency key** on the import (a client-supplied token you dedupe on)
-would remove the duplicate risk entirely and is cheap. Say the word and the FE will send
-one on every request.
+**The FE has now taken the cheap half of this unilaterally: every import carries an
+idempotency key.** It does not fix the timeout — only you can do that — but it means a
+timeout can no longer silently duplicate the corpus, *provided you dedupe on it*. See
+§3a for the exact semantics. **Until the BE honours the key, the duplicate risk is
+still live**; the FE is simply now sending everything you need to close it with a
+unique index.
 
 ---
 
@@ -71,6 +74,42 @@ Worth confirming, since the spec says only "play this".
 | `speaker_label`, `note` | when filled | the speaker nudge from the spec is on screen |
 | `user_id` | **never** | defaults to the uploading coach, as specced |
 | `queue_per_band` | **never** | your default of 5 stands. Not exposed in the UI yet — say if a coach should be able to raise it per import. |
+| `idempotency_key` | **yes, always** | new — see §3a. Lowercase hex, 16 or 32 chars, never empty. |
+
+### 3a. `idempotency_key` — what it means and what it asks of you
+
+A form field, not a header, so it needs no proxy change and travels like every other
+import parameter.
+
+**It is derived, not generated.** A fresh uuid per attempt would have been useless: a
+retry is by definition a new attempt, so it would get a new uuid and dedupe nothing.
+The key is a truncated SHA-256 of the file's identity plus the metadata it is being
+filed under: `name`, `size`, `lastModified`, trimmed `topic`, trimmed `speaker_label`,
+NUL-joined. It is hashed rather than sent raw so filenames stay out of request logs.
+
+What that buys, concretely:
+
+- **Same file re-picked and re-imported → same key.** This is the case that matters:
+  the proxy times out, the coach presses Import again, and the second request carries a
+  key you have already seen. Proven in a browser test, not asserted — `e2e/corpus.spec.mjs`
+  fails the run if a retry's key differs from the first attempt's.
+- **Two files in one batch → different keys**, including same-name-different-size.
+- **A rename, a different topic, or a different speaker → a new key.** Deliberate: that
+  is a second filing of the same audio, not a retry, and you should let it through.
+
+**What the FE cannot promise:** identity is `(name, size, mtime)`, *not* the bytes.
+Hashing content would mean reading thirty 50 MB files into memory twice for a property
+this problem does not need. So two genuinely different files that share all three
+fields would collide — vanishingly unlikely from a real folder, but it is the reason
+the key is a dedupe hint and not a content address.
+
+**The ask:** treat `(coach_id, idempotency_key)` as unique. On a repeat, return the
+**original** import's result (`200` with the same `session_id`) rather than starting a
+second Whisper run — the coach then sees the import they thought had failed, which is
+the truth. Second best is a `409` the FE can render. Ignoring the field is also safe:
+nothing breaks, you simply keep the duplicate risk in §1. Tell me which you chose,
+because "it succeeded" and "it was already done" should probably read differently on
+screen, and today they would read the same.
 
 **Label** (`PUT /v2/coach/snippets/<id>/confidence-label`):
 
@@ -140,7 +179,7 @@ these are guarantees rather than intentions:
 
 ## Where to verify
 
-`e2e/corpus.spec.mjs` (22 checks) runs against `src/app/dev/corpus/page.tsx`, which
+`e2e/corpus.spec.mjs` (26 checks) runs against `src/app/dev/corpus/page.tsx`, which
 stubs all three endpoints in the exact shapes above — useful as an executable example
 of what the FE expects and sends. Mapper and its degradation rules:
 `src/services/api/trainingCorpus.ts`.

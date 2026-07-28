@@ -87,6 +87,42 @@ check(
     (await page.locator("text=42 pieces · 15 queued to label").count()) === 1
 );
 
+/* --------------------- idempotency: the retry must collapse ---------------- */
+check(
+  "every import carries an idempotency_key, and it is an opaque token — not the filename",
+  imports.length === 2 &&
+    imports.every(
+      (c) =>
+        /^[0-9a-f]{16,}$/.test(String(c.body.idempotency_key ?? "")) &&
+        !String(c.body.idempotency_key).includes("talk")
+    ),
+  String(imports[0]?.body?.idempotency_key)
+);
+check(
+  "two different files in one batch get DIFFERENT keys — the BE must not collapse them",
+  imports[0]?.body?.idempotency_key !== imports[1]?.body?.idempotency_key
+);
+
+// The real retry: the second file failed, so pressing Import again re-sends
+// exactly that file (the loop skips the one already done). Its key must be
+// the SAME token as the first attempt — otherwise a timeout that the BE
+// actually completed would import the same talk twice.
+await page.locator("button", { hasText: "Import" }).click();
+await page.waitForTimeout(900);
+const retries = (await calls(page)).filter(
+  (c) => c.method === "POST" && c.url.includes("training-imports")
+);
+check(
+  "pressing Import again re-sends ONLY the file that failed",
+  retries.length === 3 && retries[2].body.audio_file === imports[1].body.audio_file,
+  `${retries.length} calls, last=${retries[2]?.body?.audio_file}`
+);
+check(
+  "the retry reuses the SAME idempotency_key — the whole reason the key exists",
+  retries[2]?.body?.idempotency_key === imports[1]?.body?.idempotency_key,
+  `${imports[1]?.body?.idempotency_key} → ${retries[2]?.body?.idempotency_key}`
+);
+
 /* ------------------------------ FE-2: index -------------------------------- */
 await page.locator("button", { hasText: "Board pitch" }).click();
 await page.waitForSelector("text=Confident?");
