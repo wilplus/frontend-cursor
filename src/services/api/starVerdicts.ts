@@ -96,6 +96,22 @@ export interface ArcStar {
    *  edited-but-unjudged row nudges toward a verdict. Defensive: absent →
    *  false, no nudge. */
   edited: boolean;
+  /** The coach's wording, when they have rewritten the machine's. Served back
+   *  so a re-opened row shows what the coach last wrote, not the machine's
+   *  original — the same "current state, not a locked answer" rule as the
+   *  verdict itself (N5). null = the machine's wording stands. */
+  whyFinal: string | null;
+  replacementTextFinal: string | null;
+}
+
+/** What the row actually SAYS right now: the coach's wording when there is
+ *  one, else the machine's. The one place that precedence is decided, so the
+ *  display, the editor's seed and the change-detection cannot disagree. */
+export function effectiveWhy(star: ArcStar): string | null {
+  return star.whyFinal ?? star.why;
+}
+export function effectiveReplacement(star: ArcStar): string | null {
+  return star.replacementTextFinal ?? star.replacementText;
 }
 
 export interface ArcStars {
@@ -164,6 +180,8 @@ export function mapArcStar(raw: unknown): ArcStar | null {
         : null,
     edited:
       r.edited === true || r.is_edited === true || r.coach_edited === true,
+    whyFinal: strOrNull(r.why_final),
+    replacementTextFinal: strOrNull(r.replacement_text_final),
   };
 }
 
@@ -231,6 +249,20 @@ export interface StarVerdictBody {
   corrected_device?: string;
   note?: string;
   star_version?: string | number;
+  /* --- the coach's rewrite of what the star SAYS (2026-07-28) ---
+   *
+   *  Present ONLY when the coach actually changed the text. That is not a
+   *  nicety: it means an unedited row's body is byte-identical to the one
+   *  that shipped and works today, so if the BE does not yet accept these
+   *  keys the failure is confined to edited rows — and announces itself as
+   *  the BE's own 400 next to that row — instead of silently regressing the
+   *  verdict path that is already filling the corpus.
+   *
+   *  They ride the VERDICT write on purpose: the BE's rule is that the
+   *  edit→keep PAIR is what trains, so pairing them at the wire makes the
+   *  half-state (an edit with no verdict) unrepresentable. */
+  why_final?: string;
+  replacement_text_final?: string;
 }
 
 /** Build the PUT body — the ONE constructor for a verdict write.
@@ -243,7 +275,14 @@ export interface StarVerdictBody {
 export function buildVerdictBody(
   star: ArcStar,
   verdict: StarVerdict,
-  opts?: { correctedDevice?: string | null; note?: string | null }
+  opts?: {
+    correctedDevice?: string | null;
+    note?: string | null;
+    /** The coach's draft of what the star says. Written only when it is an
+     *  actual CHANGE to the text on screen — see below. */
+    whyFinal?: string | null;
+    replacementTextFinal?: string | null;
+  }
 ): StarVerdictBody | null {
   const corrected = opts?.correctedDevice?.trim() ?? "";
   if (verdict === "wrong_kind" && !corrected) return null;
@@ -257,6 +296,18 @@ export function buildVerdictBody(
   const note = opts?.note?.trim().slice(0, NOTE_MAX_CHARS) ?? "";
   if (note) body.note = note;
   if (star.starVersion !== null) body.star_version = star.starVersion;
+
+  // A rewrite is written only when it CHANGES the text currently on screen.
+  // Compared against the effective text (the coach's own last wording when
+  // there is one), not the machine's original — so re-saving an untouched
+  // row sends nothing new, while reverting a previous edit back to the
+  // machine's wording IS a change and is recorded as such.
+  const why = opts?.whyFinal?.trim() ?? "";
+  if (why && why !== (effectiveWhy(star) ?? "")) body.why_final = why;
+  const repl = opts?.replacementTextFinal?.trim() ?? "";
+  if (repl && repl !== (effectiveReplacement(star) ?? "")) {
+    body.replacement_text_final = repl;
+  }
   return body;
 }
 

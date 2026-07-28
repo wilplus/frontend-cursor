@@ -8,6 +8,8 @@ import { useBackDismiss } from "./useBackDismiss";
 import {
   buildVerdictBody,
   correctionOptions,
+  effectiveReplacement,
+  effectiveWhy,
   fetchCoachArcStars,
   humanizeToken,
   NOTE_MAX_CHARS,
@@ -73,6 +75,12 @@ export default function CoachStarVerdictOverlay({
   const [pickerId, setPickerId] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState<Record<string, boolean>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  // The rewrite of what the star SAYS. Held as a draft and sent with the
+  // verdict, exactly like the note: the BE's rule is that the edit→keep PAIR
+  // is what trains the model, so the edit never travels on its own.
+  const [editOpen, setEditOpen] = useState<Record<string, boolean>>({});
+  const [whyDrafts, setWhyDrafts] = useState<Record<string, string>>({});
+  const [replDrafts, setReplDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -102,6 +110,8 @@ export default function CoachStarVerdictOverlay({
     const body = buildVerdictBody(star, verdict, {
       correctedDevice: correctedDevice ?? null,
       note: noteDrafts[key] ?? star.note ?? "",
+      whyFinal: whyDrafts[key],
+      replacementTextFinal: replDrafts[key],
     });
     // Unconstructable = wrong_kind without a pick; the picker is the only
     // path here with that verdict, so this is a guard, not a flow (N3).
@@ -137,6 +147,16 @@ export default function CoachStarVerdictOverlay({
                 correctedDevice:
                   verdict === "wrong_kind" ? correctedDevice ?? null : null,
                 note: body.note ?? null,
+                // A rewrite that just landed makes this row edited, and the
+                // row now says what the coach wrote — mirror both locally so
+                // the chip and the text agree without a refetch.
+                whyFinal: body.why_final ?? r.whyFinal,
+                replacementTextFinal:
+                  body.replacement_text_final ?? r.replacementTextFinal,
+                edited:
+                  r.edited ||
+                  body.why_final !== undefined ||
+                  body.replacement_text_final !== undefined,
               }
             : r
         ) ?? null
@@ -245,19 +265,21 @@ export default function CoachStarVerdictOverlay({
                   </div>
                 ) : null}
 
-                {/* The machine's stated reason and/or its replacement text —
-                    whichever is present; both may be. */}
-                {s.why ? (
+                {/* What the star SAYS — the coach's wording when they have
+                    rewritten it, else the machine's (the "Edited" chip above
+                    is what tells them which they are looking at). Both the
+                    reason and the replacement may be present. */}
+                {effectiveWhy(s) ? (
                   <p className="text-[14px] leading-relaxed text-foreground">
-                    {s.why}
+                    {effectiveWhy(s)}
                   </p>
                 ) : null}
-                {s.replacementText ? (
+                {effectiveReplacement(s) ? (
                   <p className="rounded-xl bg-muted/40 px-3 py-2 text-[14px] leading-relaxed text-foreground">
                     <span className="mr-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       Suggested
                     </span>
-                    {s.replacementText}
+                    {effectiveReplacement(s)}
                   </p>
                 ) : null}
 
@@ -328,6 +350,76 @@ export default function CoachStarVerdictOverlay({
                       ))}
                     </div>
                   </div>
+                ) : null}
+
+                {/* THE EDITOR — the coach rewrites what the star says. Only
+                    offered when there is something to rewrite. Like the note,
+                    it rides the verdict: with no verdict yet it is held and
+                    sent by the next Keep / Wrong-kind / Shouldn't-fire tap;
+                    with one already saved, "Save wording" re-sends the SAME
+                    verdict carrying the new text (the PUT is an upsert). */}
+                {editOpen[key] ? (
+                  <div className="flex flex-col gap-1.5 rounded-xl border border-border p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      What this star says
+                    </p>
+                    {s.why !== null || s.whyFinal !== null ? (
+                      <textarea
+                        aria-label="What this star says"
+                        value={whyDrafts[key] ?? effectiveWhy(s) ?? ""}
+                        onChange={(e) =>
+                          setWhyDrafts((d) => ({ ...d, [key]: e.target.value }))
+                        }
+                        rows={2}
+                        placeholder="The reason, in your words"
+                        className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                      />
+                    ) : null}
+                    {s.replacementText !== null ||
+                    s.replacementTextFinal !== null ? (
+                      <textarea
+                        aria-label="Suggested text"
+                        value={
+                          replDrafts[key] ?? effectiveReplacement(s) ?? ""
+                        }
+                        onChange={(e) =>
+                          setReplDrafts((d) => ({ ...d, [key]: e.target.value }))
+                        }
+                        rows={2}
+                        placeholder="The suggested wording"
+                        className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                      />
+                    ) : null}
+                    {s.verdict ? (
+                      <button
+                        type="button"
+                        disabled={savingKeys[key] === true}
+                        onClick={() =>
+                          void save(
+                            s,
+                            s.verdict as StarVerdict,
+                            s.correctedDevice ?? undefined
+                          )
+                        }
+                        className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
+                      >
+                        Save wording
+                      </button>
+                    ) : (
+                      <p className="text-[12px] text-muted-foreground">
+                        Saved with your verdict.
+                      </p>
+                    )}
+                  </div>
+                ) : effectiveWhy(s) !== null ||
+                  effectiveReplacement(s) !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen((n) => ({ ...n, [key]: true }))}
+                    className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
+                  >
+                    Edit what it says
+                  </button>
                 ) : null}
 
                 {noteOpen[key] ? (

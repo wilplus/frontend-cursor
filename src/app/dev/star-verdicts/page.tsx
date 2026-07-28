@@ -110,6 +110,10 @@ const ROWS = [
     note: null,
     judged: true,
     device_options: ["emphasis", "pace_fast", "pace_slow", "pause", "congruence"],
+    // Already rewritten by the coach: the row must SHOW this wording, not the
+    // machine's, and re-opening the editor must seed from it.
+    edited: true,
+    why_final: "She lands every beat here — this is her at her best.",
   },
 ];
 

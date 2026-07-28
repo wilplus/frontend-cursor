@@ -184,6 +184,60 @@ check(
   (await page.locator("text=3 of 4 reviewed").count()) === 1
 );
 
+/* ------------------- the editor: rewrite what the star says ---------------- */
+const row0 = rows.nth(0);
+check(
+  "an already-rewritten row shows the COACH's wording, not the machine's",
+  (await rows.nth(3).innerText()).includes("this is her at her best") &&
+    !(await rows.nth(3).innerText()).includes("A beat of silence here")
+);
+check(
+  "and wears the neutral Edited chip once judged",
+  (await rows.nth(3).innerText()).includes("Edited") &&
+    !(await rows.nth(3).innerText()).includes("add a verdict")
+);
+
+await row0.locator("button", { hasText: "Edit what it says" }).click();
+const whyBox = row0.locator('textarea[aria-label="What this star says"]');
+check(
+  "the editor seeds from what the row currently says",
+  (await whyBox.inputValue()) === "You moved faster here than you usually do."
+);
+const before = (await puts(page)).length;
+await whyBox.fill("She always talks this fast — this is her normal.");
+await page.waitForTimeout(150);
+check(
+  "typing alone sends nothing — the edit rides the verdict (edit → keep)",
+  (await puts(page)).length === before
+);
+// Row 0 already carries a verdict from earlier, so the editor offers an
+// explicit re-save of the SAME verdict carrying the new wording.
+await row0.locator("button", { hasText: "Save wording" }).click();
+await page.waitForTimeout(400);
+const edits = await puts(page);
+const last = edits[edits.length - 1];
+check(
+  "the rewrite rides the verdict PUT as why_final",
+  last?.body?.why_final === "She always talks this fast — this is her normal." &&
+    last?.body?.verdict === "wrong_kind" &&
+    last?.body?.star_kind === "delivery",
+  JSON.stringify(last?.body)
+);
+check(
+  "the row now shows the coach's wording and turns Edited",
+  (await row0.innerText()).includes("this is her normal") &&
+    (await row0.innerText()).includes("Edited")
+);
+const afterSave = (await puts(page)).length;
+await row0.locator("button", { hasText: "Save wording" }).click();
+await page.waitForTimeout(400);
+check(
+  "re-saving an untouched rewrite sends the verdict WITHOUT why_final — no phantom edit",
+  (await puts(page)).length === afterSave + 1 &&
+    !((await puts(page)).at(-1)?.body ?? {}).hasOwnProperty("why_final"),
+  JSON.stringify((await puts(page)).at(-1)?.body)
+);
+
 /* ------------------------------- empty state ------------------------------- */
 await page.goto(`${BASE}?arc=empty`, { waitUntil: "networkidle" });
 await page.waitForTimeout(600);
