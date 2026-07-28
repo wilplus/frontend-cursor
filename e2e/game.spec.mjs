@@ -109,11 +109,31 @@ check(
     return b?.className.includes("bg-success ") ?? false;
   })
 );
+const head = await page.evaluate(() => {
+  const p = [...document.querySelectorAll("p")].find((x) =>
+    x.textContent?.includes("The load-bearing words")
+  );
+  const strong = p?.querySelector("span.font-semibold");
+  return { text: p?.textContent ?? "", bold: strong?.textContent ?? "" };
+});
 check(
-  "the explanation lands below: correct + neutral truth + tinted keywords",
-  (await page.locator("text=Correct").count()) === 1 &&
-    (await page.locator("text=This was one of your key moments.").count()) === 1 &&
-    (await page.locator("span.text-primary", { hasText: "tripled" }).count()) === 1
+  "the verdict is the BOLD head of the comment itself, with the emoji",
+  head.bold === "Correct" &&
+    head.text.startsWith("Correct 🥳 The load-bearing words"),
+  JSON.stringify(head)
+);
+check(
+  "keywords still tint inside that same paragraph",
+  (await page.locator("span.text-primary", { hasText: "tripled" }).count()) === 1
+);
+check(
+  "no separate verdict line above the comment (ONE comment)",
+  await page.evaluate(
+    () =>
+      ![...document.querySelectorAll("p")].some(
+        (x) => x.textContent?.trim() === "Correct"
+      )
+  )
 );
 check(
   "no raw ** markers leak",
@@ -132,23 +152,41 @@ check(
   p.filter((x) => x.url.includes("/answers")).length === 2
 );
 check(
-  "a wrong call tints amber, never red, and the truth line reads neutral (N5)",
-  (await page.evaluate(() => {
+  "a wrong call tints amber, never red",
+  await page.evaluate(() => {
     const b = [...document.querySelectorAll("button")].find(
       (x) => x.textContent === "Confident"
     );
     return (b?.className.includes("amber") && !b?.className.includes("red")) ?? false;
-  })) &&
-    (await page.locator("text=This one was solid — not a key moment.").count()) === 1
+  })
+);
+const wrongHead = await page.evaluate(() => {
+  const p = [...document.querySelectorAll("p")].find((x) =>
+    x.textContent?.includes("Comfortable pace")
+  );
+  return {
+    text: p?.textContent ?? "",
+    bold: p?.querySelector("span.font-semibold")?.textContent ?? "",
+  };
+});
+check(
+  "an incorrect call uses the SAME format with NO emoji (N5 — nothing to celebrate at them)",
+  wrongHead.bold === "Not quite" &&
+    wrongHead.text.startsWith("Not quite Comfortable pace") &&
+    !/🥳/.test(await page.locator("body").innerText()),
+  JSON.stringify(wrongHead)
 );
 
 /* ------------------- toggle: Best voices, state kept ----------------------- */
 await page.locator("button", { hasText: "Best voices" }).click();
-await page.waitForSelector("text=Your best · 1/2");
+await page.waitForSelector("text=the room leaned in");
 check(
-  "the quote card renders with the playback hero",
-  (await page.locator("text=tripled revenue").count()) === 1 &&
-    (await page.locator('button[aria-label="Play"]:visible').count()) === 1
+  "no quote card and no 'Your best · N/M' label — the sound and the comment are the screen",
+  !(await page.locator("body").innerText()).includes("tripled revenue") &&
+    !/Your best/i.test(await page.locator("body").innerText()) &&
+    (await page.locator('button[aria-label="Play"]:visible').count()) === 1 &&
+    // enabled, i.e. the moment is actually playable here
+    (await page.locator('button[aria-label="Play"]:visible').isDisabled()) === false
 );
 check(
   "ONE comment: the coach's note overrides the system's",
@@ -180,7 +218,7 @@ await page.locator("button", { hasText: /^Game$/ }).click();
 await page.waitForTimeout(300);
 check(
   "toggling back keeps the game where it was (no refetch, verdicts intact)",
-  (await page.locator("text=This one was solid — not a key moment.").count()) === 1 &&
+  (await page.locator("text=Not quite Comfortable pace").count()) === 1 &&
     (await posts(page)).filter((x) => x.url.includes("/answers")).length ===
       answersBefore
 );

@@ -472,32 +472,54 @@ function GameView({ arcId, session }: { arcId: string; session: GameSession }) {
   );
 }
 
-/** The short explanation below the dilemma — inside the same screen. */
+/** The short explanation below the dilemma — inside the same screen.
+ *
+ *  Founder 2026-07-28: the verdict has NO line of its own. It is the bold
+ *  head of the comment itself — "**Correct** 🥳 The load-bearing words…" —
+ *  with the emoji ONLY on a correct call: a wrong call is usually the user
+ *  hearing their own solid moment as a key one, and celebrating that back at
+ *  them would be as wrong as scolding it (N5).
+ *
+ *  ONE comment, the same rule as Best voices: the served `why` IS the
+ *  comment, so the neutral truth line ("this one was solid…") is the head's
+ *  tail only when the BE served no why at all — never a second paragraph
+ *  saying the same thing twice. */
 function RevealBlock({ verdict }: { verdict: GameVerdict }) {
+  const paragraphs = verdict.why.slice(0, 3);
+  const truthLine =
+    verdict.truthIsKey === null
+      ? null
+      : verdict.truthIsKey
+        ? "This was one of your key moments."
+        : "This one was solid — not a key moment.";
+  // The head carries the comment's first paragraph; the truth line stands in
+  // only when there is no comment to carry.
+  const head = paragraphs[0] ?? truthLine ?? "";
+  const rest = paragraphs.slice(1);
+
+  const tinted = (text: string) =>
+    splitTintedSegments(text).map((seg, j) =>
+      seg.tinted ? (
+        <span key={j} className="font-medium text-primary">
+          {seg.text}
+        </span>
+      ) : (
+        <span key={j}>{seg.text}</span>
+      )
+    );
+
   return (
     <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto px-1 scrollbar-none">
-      {/* Qualitative only (N2): correct/incorrect, the neutral truth, why. */}
-      <p className="shrink-0 text-[13px] font-semibold text-foreground">
-        {verdict.correct ? "Correct" : "Not quite"}
-        {verdict.truthIsKey !== null ? (
-          <span className="ml-2 font-normal text-muted-foreground">
-            {verdict.truthIsKey
-              ? "This was one of your key moments."
-              : "This one was solid — not a key moment."}
-          </span>
-        ) : null}
+      {/* Qualitative only (N2) — a word and the why, never a tally. */}
+      <p className="text-[14px] leading-relaxed text-foreground">
+        <span className="font-semibold">
+          {verdict.correct ? "Correct" : "Not quite"}
+        </span>
+        {verdict.correct ? " 🥳" : ""} {tinted(head)}
       </p>
-      {verdict.why.slice(0, 3).map((p, i) => (
+      {rest.map((p, i) => (
         <p key={i} className="text-[14px] leading-relaxed text-foreground">
-          {splitTintedSegments(p).map((seg, j) =>
-            seg.tinted ? (
-              <span key={j} className="font-medium text-primary">
-                {seg.text}
-              </span>
-            ) : (
-              <span key={j}>{seg.text}</span>
-            )
-          )}
+          {tinted(p)}
         </p>
       ))}
       {verdict.videoRef ? (
@@ -664,20 +686,14 @@ function BestVoices({ arcId }: { arcId: string | null }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 items-center justify-between">
-        <span className="text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground">
-          Your best · {idx + 1}/{items.length}
-        </span>
+      {/* Founder 2026-07-28 — no quote card and no "Your best · N/M" label
+          here. The moment is the SOUND: the hero and the comment are the
+          whole screen, and the dots already say where you are. Reading the
+          line first would also pre-frame the ear, which is the one thing
+          this tab exists to train. */}
+      <div className="flex shrink-0 items-center justify-end">
         <ProgressDots total={items.length} index={idx} />
       </div>
-
-      {item.text ? (
-        <div className="max-h-[22vh] shrink-0 overflow-y-auto rounded-3xl border border-border bg-card px-5 py-4 scrollbar-none">
-          <p className="text-center text-[16px] font-medium tracking-tight text-foreground">
-            &ldquo;{item.text}&rdquo;
-          </p>
-        </div>
-      ) : null}
 
       <PlaybackHero
         key={item.id}

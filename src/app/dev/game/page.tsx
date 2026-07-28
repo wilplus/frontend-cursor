@@ -130,9 +130,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 breakthrough_note:
                   "Your voice dropped and slowed here — the room leaned in.",
                 comment: "SYSTEM COMMENT THAT MUST NOT RENDER",
-                audio_ref: null,
+                audio_ref: wavDataUri(),
                 start_offset_ms: 0,
-                duration_ms: 0,
+                duration_ms: 250,
               },
               {
                 id: "bt-2",
@@ -140,9 +140,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 // System comment only — renders as the fallback; plus video.
                 comment: "Steady pace under a hard sentence.",
                 video_ref: "https://example.test/breakthrough.mp4",
-                audio_ref: null,
+                audio_ref: wavDataUri(),
                 start_offset_ms: 0,
-                duration_ms: 0,
+                duration_ms: 250,
               },
             ],
           }),
