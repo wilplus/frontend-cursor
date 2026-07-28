@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUserProfile } from "@/components/willab/useUserProfile";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { homeworkApi } from "@/lib/api/homework-client";
@@ -24,6 +25,10 @@ export type AuthState = "unknown" | "anonymous" | "signed_in";
 
 export interface AppMenuData {
   authState: AuthState;
+  /** Drives the coach-only rows (N4). False for everyone else, including
+   *  while the profile is still loading — a row that flickers in for a
+   *  non-coach is the same leak as one that stays. */
+  isCoach: boolean;
   userEmail: string | null;
   credits: number | null;
   lifeMenu: LifeMenuEntry[];
@@ -35,6 +40,8 @@ export interface AppMenuData {
 
 export function useAppMenuData(): AppMenuData {
   const router = useRouter();
+  // Makes no request while signed out, so the blog mount pays nothing for it.
+  const { isCoach } = useUserProfile();
   const supabase = createClient();
   const [authState, setAuthState] = useState<AuthState>("unknown");
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -145,5 +152,14 @@ export function useAppMenuData(): AppMenuData {
     })();
   }, [supabase, router]);
 
-  return { authState, userEmail, credits, lifeMenu, loggingOut, logout, setCredits };
+  return {
+    authState,
+    isCoach,
+    userEmail,
+    credits,
+    lifeMenu,
+    loggingOut,
+    logout,
+    setCredits,
+  };
 }

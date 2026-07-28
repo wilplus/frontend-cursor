@@ -65,6 +65,10 @@ export interface AppMenuProps {
    *  live in the hamburger"). Signed-in only — the game plays the user's own
    *  coach-confirmed moments, which a guest does not have. */
   gameHref?: string | null;
+  /** The training-corpus workbench. COACH ONLY (N4): the host passes this
+   *  only when the signed-in user is a coach, so the row does not exist for
+   *  anyone else — not greyed out, not present. */
+  corpusHref?: string | null;
 }
 
 export default function AppMenu({
@@ -78,6 +82,7 @@ export default function AppMenu({
   loggingOut = false,
   labHref = null,
   gameHref = null,
+  corpusHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -183,6 +188,17 @@ export default function AppMenu({
               onClick={() => setOpen(false)}
             >
               Voice-game
+            </Link>
+          ) : null}
+
+          {signedIn && corpusHref ? (
+            <Link
+              ref={firstRef()}
+              href={corpusHref}
+              className={MENU_ITEM_CLASS}
+              onClick={() => setOpen(false)}
+            >
+              Training corpus
             </Link>
           ) : null}
 
