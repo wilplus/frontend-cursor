@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CommunitySection from "./CommunitySection";
+import CoverImageStudio from "./CoverImageStudio";
 import {
   ArrowDown,
   ArrowUp,
@@ -181,6 +182,31 @@ export default function JournalAdminPage() {
     setEditingStatus(post.status);
     setSavedSnapshot(JSON.stringify(next));
   }
+
+  /** Take ONLY the cover fields from a server echo, and move the clean
+   *  baseline for those two fields with them.
+   *
+   *  Deliberately not `adopt`: a draw writes the cover server-side while the
+   *  founder may have unsaved title/body edits in the editor, and adopting the
+   *  whole post would silently overwrite them with the stored version. Moving
+   *  the snapshot in step keeps `isDirty` honest — the cover genuinely IS
+   *  saved, so it must not read as an unsaved change, while any other edit
+   *  still does. */
+  const adoptCoverFields = useCallback((post: AdminJournalPost) => {
+    const cover = {
+      cover_image_url: post.coverImageUrl,
+      cover_alt: post.coverAlt,
+    };
+    setEditing((prev) => (prev ? { ...prev, ...cover } : prev));
+    setSavedSnapshot((snap) => {
+      if (!snap) return snap;
+      try {
+        return JSON.stringify({ ...(JSON.parse(snap) as Editable), ...cover });
+      } catch {
+        return snap;
+      }
+    });
+  }, []);
 
   // Restore the password for this tab only (sessionStorage, never localStorage).
   useEffect(() => {
@@ -816,6 +842,18 @@ export default function JournalAdminPage() {
                       placeholder="Alt text"
                       aria-label="Alt text"
                       className={`${INPUT_CLS} mt-2`}
+                    />
+
+                    {/* Generated covers. Fills the SAME cover_image_url the
+                        upload above fills, so the preview needs no changes and
+                        stays visible while a draw is in flight. */}
+                    <CoverImageStudio
+                      password={password}
+                      postId={editing.id}
+                      postTitle={editing.title}
+                      postBody={editing.body}
+                      currentImageUrl={editing.cover_image_url}
+                      onCoverChanged={adoptCoverFields}
                     />
                   </div>
 
