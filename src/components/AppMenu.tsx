@@ -182,7 +182,7 @@ export default function AppMenu({
               className={MENU_ITEM_CLASS}
               onClick={() => setOpen(false)}
             >
-              Confidence game
+              Voice-game
             </Link>
           ) : null}
 

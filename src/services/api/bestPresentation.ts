@@ -256,6 +256,11 @@ export interface ArcBreakthrough {
   text: string;
   /** Coach's short "why this is a breakthrough" note. Render verbatim. */
   note: string | null;
+  /** The machine's comment, when the BE serves one. Display rule (founder
+   *  2026-07-28): ONE comment only — the coach's note OVERRIDES this. */
+  systemComment: string | null;
+  /** Coach's breakthrough video for this moment, when one exists. */
+  videoRef: string | null;
   audioRef: string | null;
   startOffsetMs: number;
   durationMs: number;
@@ -306,6 +311,19 @@ function mapBreakthrough(raw: unknown, i: number): ArcBreakthrough | null {
     title: typeof r.title === "string" ? r.title : "",
     text,
     note,
+    systemComment:
+      typeof r.comment === "string" && r.comment.length > 0
+        ? r.comment
+        : typeof r.why === "string" && r.why.length > 0
+          ? r.why
+          : null,
+    videoRef:
+      typeof r.video_ref === "string" && r.video_ref.length > 0
+        ? r.video_ref
+        : typeof r.breakthrough_video_ref === "string" &&
+            r.breakthrough_video_ref.length > 0
+          ? r.breakthrough_video_ref
+          : null,
     audioRef,
     startOffsetMs: finiteNum(r.start_offset_ms),
     durationMs: finiteNum(r.duration_ms),

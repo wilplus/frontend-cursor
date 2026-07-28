@@ -21,24 +21,42 @@ declare global {
   }
 }
 
+// ~0.25s of decodable 8kHz mono silence, so the playback hero really plays.
+function wavDataUri(): string {
+  if (typeof window === "undefined") return "";
+  const samples = 2000;
+  const header = [
+    0x52, 0x49, 0x46, 0x46, (36 + samples) & 0xff, ((36 + samples) >> 8) & 0xff, 0, 0,
+    0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 16, 0, 0, 0, 1, 0, 1, 0,
+    0x40, 0x1f, 0, 0, 0x40, 0x1f, 0, 0, 1, 0, 8, 0, 0x64, 0x61, 0x74, 0x61,
+    samples & 0xff, (samples >> 8) & 0xff, 0, 0,
+  ];
+  const bytes = new Uint8Array(header.length + samples);
+  bytes.set(header);
+  bytes.fill(128, header.length);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return "data:audio/wav;base64," + btoa(bin);
+}
+
 const ROUNDS = [
   {
     round: 0,
     round_id: "snip-key",
     snippet_id: "snip-key",
     transcript: "and that quarter we tripled revenue with half the team",
-    audio_ref: null,
+    get audio_ref() { return wavDataUri(); },
     start_offset_ms: 0,
-    duration_ms: 0,
+    duration_ms: 250,
   },
   {
     round: 1,
     round_id: "snip-decoy",
     snippet_id: "snip-decoy",
     transcript: "so we moved the launch to the second week of March",
-    audio_ref: null,
+    get audio_ref() { return wavDataUri(); },
     start_offset_ms: 0,
-    duration_ms: 0,
+    duration_ms: 250,
   },
 ];
 
@@ -108,8 +126,10 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
               {
                 id: "bt-1",
                 text: "and that quarter we tripled revenue with half the team",
+                // BOTH comments served: the coach's note must OVERRIDE.
                 breakthrough_note:
                   "Your voice dropped and slowed here — the room leaned in.",
+                comment: "SYSTEM COMMENT THAT MUST NOT RENDER",
                 audio_ref: null,
                 start_offset_ms: 0,
                 duration_ms: 0,
@@ -117,7 +137,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
               {
                 id: "bt-2",
                 text: "we said no to the easy deal and it saved the company",
-                breakthrough_note: "Steady pace under a hard sentence.",
+                // System comment only — renders as the fallback; plus video.
+                comment: "Steady pace under a hard sentence.",
+                video_ref: "https://example.test/breakthrough.mp4",
                 audio_ref: null,
                 start_offset_ms: 0,
                 duration_ms: 0,
