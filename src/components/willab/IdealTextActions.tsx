@@ -5,6 +5,7 @@ import { Check, Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import IdealReadMic from "./IdealReadMic";
 import { saveIdealText } from "@/services/api/saveIdealText";
+import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealTextActions — the master document's three buttons (FE-3, founder      */
@@ -33,6 +34,7 @@ export default function IdealTextActions({
   latestTakeSessionId,
   rereadDone,
   rereadProcessing = null,
+  canRecordTake = null,
   saved,
   onBeforeSave,
   onSaved,
@@ -46,6 +48,10 @@ export default function IdealTextActions({
   rereadDone: boolean;
   /** §4 — the BE's re-read-in-flight signal, threaded to the read mic. */
   rereadProcessing?: boolean | null;
+  /** The BE's gate on recording a new OFFICIAL take (button 3). Gates ONLY on
+   *  an explicit false; null / absent leaves the button exactly as today. The
+   *  re-read (button 2) is untouched: it is not an official take. */
+  canRecordTake?: boolean | null;
   /** Whether THIS version is already saved (drives the re-read gate). */
   saved: boolean;
   /** MASTER DOCUMENT (review R-md1) — commit any pending local edit BEFORE
@@ -146,16 +152,24 @@ export default function IdealTextActions({
         />
       ) : null}
 
-      {/* 3 — The next official take, always available. */}
+      {/* 3 — The next official take. Available unless the BE explicitly
+          closes its gate; disabled rather than removed, so the entry to the
+          record loop never silently disappears from this screen. */}
       <Button
         type="button"
         onClick={onNewTake}
+        disabled={canRecordTake === false}
         variant="outline"
         className="h-11 w-full rounded-full text-[15px] font-medium"
       >
         <Mic className="mr-2 h-4 w-4" aria-hidden />
         Record the next take
       </Button>
+      {canRecordTake === false ? (
+        <p className="text-center text-[12px] text-muted-foreground">
+          {IDEAL_EDIT_COPY.recordUnavailable}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Loader2, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
+import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealReadMic — the ONE two-state mic on the ideal-text screen (FE-D)       */
@@ -32,6 +33,7 @@ export default function IdealReadMic({
   latestTakeSessionId,
   rereadDone,
   rereadProcessing = null,
+  canRecordTake = null,
   onNewTake,
   onReadUploaded,
   micOnly = false,
@@ -47,6 +49,12 @@ export default function IdealReadMic({
    *  analysed" signal. Preferred over the local latch (it survives a reload /
    *  device switch); null → the FE falls back to the latch. */
   rereadProcessing?: boolean | null;
+  /** The BE's gate on recording a new OFFICIAL take. Gates ONLY on an
+   *  explicit false: null / absent (older payload, flag off) never hides or
+   *  disables anything, because a live recording affordance must not go dark
+   *  behind a field the deploy may not send. The read mic is deliberately
+   *  untouched by this: a re-read is not an official take. */
+  canRecordTake?: boolean | null;
   /** State 2 — route into the regular recording screen (a spoken take). */
   onNewTake: () => void;
   /** Fires after a read upload is ACCEPTED — the host refetches the GET so
@@ -210,6 +218,7 @@ export default function IdealReadMic({
         <Button
           type="button"
           onClick={onNewTake}
+          disabled={canRecordTake === false}
           variant="outline"
           className="h-10 rounded-full px-5 text-[14px] font-medium"
         >
@@ -225,6 +234,11 @@ export default function IdealReadMic({
           />
           Record another take
         </Button>
+        {canRecordTake === false ? (
+          <p className="text-[12px] text-muted-foreground">
+            {IDEAL_EDIT_COPY.recordUnavailable}
+          </p>
+        ) : null}
       </div>
     );
   }

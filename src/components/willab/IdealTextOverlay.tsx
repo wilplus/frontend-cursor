@@ -124,6 +124,8 @@ export default function IdealTextOverlay({
     userEdited: boolean;
     /** T1 · 1.2 — a superseded edit offered back (pending BE → null today). */
     priorEdit: { text: string; version: number | null } | null;
+    /** The BE's gate on a new official take. null (absent) never gates. */
+    canRecordTake: boolean | null;
   } | null>(null);
   // DISCERNMENT — the pending-swap comparison sheet's open piece.
   const [swapOpen, setSwapOpen] = useState<IdealPiece | null>(null);
@@ -207,6 +209,7 @@ export default function IdealTextOverlay({
           keyPoints: r.keyPoints,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
+          canRecordTake: r.canRecordTake,
         });
         versionRef.current = r.version;
         versionArmedRef.current = true;
@@ -788,6 +791,7 @@ export default function IdealTextOverlay({
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
               rereadProcessing={sd.rereadProcessing}
+              canRecordTake={sd.canRecordTake}
               saved={sd.saved}
               onSaved={() => setRefetchNonce((n) => n + 1)}
               onNewTake={() => onReadAloud(sd.version)}
@@ -801,6 +805,7 @@ export default function IdealTextOverlay({
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
               rereadProcessing={sd.rereadProcessing}
+              canRecordTake={sd.canRecordTake}
               onNewTake={() => onReadAloud(sd.version)}
               onReadUploaded={() => setRefetchNonce((n) => n + 1)}
             />

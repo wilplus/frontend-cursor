@@ -163,6 +163,23 @@ describe("fetchIdealText — the T1 · 1.2 additive fields", () => {
     expect(r2.priorEdit).toBeNull();
   });
 
+  it("keeps can_record_take as a TRI-state: false gates, null never does", async () => {
+    // The distinction the whole gate rests on. `false` is the only value that
+    // may disable the record button; absent must stay indistinguishable from
+    // "no opinion", or an older deploy would go dark on the record loop.
+    mockFetch({ status: 200, body: { ...base, can_record_take: false } });
+    const r = await fetchIdealText("arc1");
+    if (r.kind !== "single") throw new Error("expected single");
+    expect(r.canRecordTake).toBe(false);
+
+    for (const body of [base, { ...base, can_record_take: null }, { ...base, can_record_take: "no" }]) {
+      mockFetch({ status: 200, body });
+      const rn = await fetchIdealText("arc1");
+      if (rn.kind !== "single") throw new Error("expected single");
+      expect(rn.canRecordTake).toBeNull();
+    }
+  });
+
   it("keeps a prior_edit whose version the BE omitted", async () => {
     mockFetch({
       status: 200,

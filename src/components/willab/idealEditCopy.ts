@@ -41,6 +41,11 @@ export const IDEAL_EDIT_COPY = {
   supersededReapply: "Put my version back",
   supersededDismiss: "Keep the new text",
 
+  /* --- the BE's recording gate (can_record_take === false) --------------- */
+  /* Reason-free ON PURPOSE: the BE does not tell us WHY it closed the gate,
+     so any specific line here would be a guess presented as fact. */
+  recordUnavailable: "Recording another take is not available right now.",
+
   /* --- failures ---------------------------------------------------------- */
   tooLong:
     "That is longer than this text can hold. Nothing was lost, trim it a little and it saves.",

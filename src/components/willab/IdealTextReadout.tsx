@@ -133,6 +133,8 @@ export default function IdealTextReadout({
     /** T1 · 1.2 — a superseded edit the BE offers back (pending BE; null on
      *  every payload today, and the local buffer covers it). */
     priorEdit: { text: string; version: number | null } | null;
+    /** The BE's gate on a new official take. null (absent) never gates. */
+    canRecordTake: boolean | null;
   } | null>(null);
   // Bumped after a delivery re-record lands, to re-pull the SD text + stars.
   const [sdNonce, setSdNonce] = useState(0);
@@ -226,6 +228,7 @@ export default function IdealTextReadout({
           keyPoints: r.keyPoints,
           userEdited: r.userEdited,
           priorEdit: r.priorEdit,
+          canRecordTake: r.canRecordTake,
         });
         // A document exists again → the edit affordances come back.
         if (r.ideal.text.trim()) setEditLocked(false);
@@ -795,6 +798,7 @@ export default function IdealTextReadout({
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
               rereadProcessing={sd.rereadProcessing}
+              canRecordTake={sd.canRecordTake}
               saved={sd.saved}
               // The freeze waits for the edit lane (R-md1).
               onBeforeSave={flushEdits}
@@ -817,6 +821,7 @@ export default function IdealTextReadout({
               latestTakeSessionId={sd.latestTakeSessionId}
               rereadDone={sd.rereadDone}
               rereadProcessing={sd.rereadProcessing}
+              canRecordTake={sd.canRecordTake}
               onNewTake={onReRead}
               onReadUploaded={() => setSdNonce((n) => n + 1)}
             />
