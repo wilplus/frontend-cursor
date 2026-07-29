@@ -308,7 +308,7 @@ check(
 );
 
 await page.locator("button", { hasText: "Board pitch" }).click();
-await page.waitForSelector("text=Confident?");
+await page.waitForSelector("text=Was this voice confident?");
 
 /* ------------------- FE-3: the labelling screen, blind --------------------- */
 const body = () => page.locator("body").innerText();
@@ -383,14 +383,20 @@ check(
 );
 check("the 1–5 row appears only now", (await page.locator("text=How strongly?").count()) === 1);
 check(
-  "the scale now carries its meaning as WORDS on the buttons, at the founder's explicit instruction — the endpoints are the founder's own words",
-  (await page.locator('button[aria-label="1 — Barely"]').count()) === 1 &&
-    (await page.locator('button[aria-label="5 — Extremely"]').count()) === 1 &&
-    (await page.locator("text=Barely").count()) === 1 &&
-    (await page.locator("text=Extremely").count()) === 1
+  "only the two ENDPOINTS carry a word — 2, 3 and 4 stay bare numbers, per the founder's table",
+  (await page.locator('button[aria-label="2"]').count()) === 1 &&
+    (await page.locator('button[aria-label="3"]').count()) === 1 &&
+    (await page.locator('button[aria-label="4"]').count()) === 1
+);
+check(
+  "under a YES answer, the endpoints read 'Barely confident' / 'Extremely confident' — the founder's own words",
+  (await page.locator('button[aria-label="1 — Barely confident"]').count()) === 1 &&
+    (await page.locator('button[aria-label="5 — Extremely confident"]').count()) === 1 &&
+    (await page.locator("text=Barely confident").count()) === 1 &&
+    (await page.locator("text=Extremely confident").count()) === 1
 );
 
-await page.locator('button[aria-label="4 — Strongly"]').click();
+await page.locator('button[aria-label="4"]').click();
 await page.waitForTimeout(400);
 put = await labels(page);
 check(
@@ -416,7 +422,7 @@ check(
 check(
   "its saved call renders as the active answer and grade, not a locked one",
   (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes$/ }).count()) === 1 &&
-    (await page.locator('button[aria-pressed="true"][aria-label="5 — Extremely"]').count()) === 1
+    (await page.locator('button[aria-pressed="true"][aria-label="5 — Extremely confident"]').count()) === 1
 );
 
 /* ---------------- the bubbles: every piece, reachable ---------------- */
@@ -440,9 +446,9 @@ check(
     const dot = document.querySelector('button[aria-label^="Piece "]');
     // The native <audio> element MediaPlayer renders is visually hidden (its
     // own custom UI is what's shown), so it has no box to compare against.
-    // "Confident?" is a real, visible layout anchor further down the screen.
+    // The question is a real, visible layout anchor further down the screen.
     const confident = [...document.querySelectorAll("p")].find(
-      (x) => x.textContent?.trim() === "Confident?"
+      (x) => x.textContent?.trim() === "Was this voice confident?"
     );
     if (!dot || !confident) return false;
     return dot.getBoundingClientRect().top < confident.getBoundingClientRect().top;
@@ -488,6 +494,28 @@ check(
   "the nav bar marks completion instead of just counting, once every piece is labelled",
   (await page.locator("text=All labelled").count()) === 1 &&
     (await page.locator("text=3 / 3 labelled").count()) === 0
+);
+
+/* -------- the OTHER branch: "No" gets its OWN words, not Yes mirrored -------- */
+// The harness's mock queue is stateless per fetch — reopening any import
+// hands back the SAME starting data, so this is a fresh, unlabelled piece-c
+// again, not the one just laboured over above.
+await page.locator('button[aria-label="Back to the corpus"]').click();
+await page.waitForTimeout(200);
+await page.locator("button", { hasText: "Board pitch" }).click();
+await page.waitForSelector("text=Was this voice confident?");
+await page.locator("button", { hasText: /^No$/ }).click();
+await page.waitForTimeout(400);
+check(
+  "under a NO answer the endpoints read DIFFERENT words than under Yes — 'Slightly unconfident' / 'Extremely unconfident', the founder's own asymmetric wording, not a mirror",
+  (await page.locator('button[aria-label="1 — Slightly unconfident"]').count()) === 1 &&
+    (await page.locator('button[aria-label="5 — Extremely unconfident"]').count()) === 1 &&
+    (await page.locator("text=Slightly unconfident").count()) === 1 &&
+    (await page.locator("text=Extremely unconfident").count()) === 1 &&
+    // Never "Barely unconfident" — that word only ever appears on the Yes
+    // branch's low end ("Barely confident"); the No branch's low end is a
+    // different word entirely, not a search-and-replaced mirror of it.
+    (await page.locator("text=Barely unconfident").count()) === 0
 );
 
 await browser.close();
