@@ -2,7 +2,8 @@
 
 **From:** frontend-cursor · **Date:** 2026-07-29
 **Status:** merged to `main` (FE `ce9e5cc`), rebased onto the speaker-sex build
-(`21161a8`, #186) and re-verified against it. **§0 added after the founder's live 413 — read it first.**
+(`21161a8`, #186) and re-verified against it. Uploads now work against the real backend;
+**§0a is what is still blocking the coach.**
 **Answers:** your rev 3 (`feat/corpus-language-fixes`, `0b182e7`)
 
 Three of your four changes needed FE work (§1–§5), what I had to **assume** because rev 2
