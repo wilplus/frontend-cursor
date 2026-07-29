@@ -143,6 +143,23 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
           }
           // The second file of a batch fails, so the spec can prove per-file
           // failure does not abort the run.
+          // A file named "*empty*" reproduces the real case seen on 2026-07-29:
+          // the BE reports ok with a real duration but zero pieces. It must
+          // NOT render as a success — nothing entered the corpus.
+          if (String(entries.audio_file ?? "").includes("empty")) {
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                session_id: "sess-empty",
+                arc_id: null,
+                snippet_count: 0,
+                queue_count: 0,
+                stages: ["confidence"],
+                duration_sec: 2480,
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } }
+            );
+          }
           const failing = String(entries.audio_file ?? "").includes("bad");
           if (failing) {
             return new Response(

@@ -60,16 +60,17 @@ await page.locator("input").nth(1).fill("Jane Doe");
 await page.setInputFiles('input[type="file"]', [
   { name: "first-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("a") },
   { name: "bad-clip.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("b") },
+  { name: "empty-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("c") },
 ]);
 await page.locator("button", { hasText: "Import" }).click();
 await page.waitForTimeout(1800);
 
 const imports = (await calls(page)).filter((c) => c.method === "POST" && c.url.includes("training-imports"));
-check("both files were sent — one per request", imports.length === 2, `${imports.length}`);
+check("all three files were sent — one per request", imports.length === 3, `${imports.length}`);
 check(
   "the batch ran SEQUENTIALLY (the second call waited out the first)",
-  imports.length === 2 && imports[1].t - imports[0].t >= 300,
-  imports.length === 2 ? `${Math.round(imports[1].t - imports[0].t)}ms apart` : ""
+  imports.length === 3 && imports[1].t - imports[0].t >= 300,
+  imports.length === 3 ? `${Math.round(imports[1].t - imports[0].t)}ms apart` : ""
 );
 check(
   "every request carries the confidence stage, and only it",
@@ -87,10 +88,39 @@ check(
     (await page.locator("text=42 pieces · 15 queued to label").count()) === 1
 );
 
+/* ------------- a zero-piece import must not read as a success -------------- */
+// The real case from 2026-07-29: the BE answered ok with a genuine duration
+// and snippet_count 0. Rendered as "0 pieces · 0 queued to label" in the same
+// neutral grey as a good import, it read as success and the coach waited on a
+// queue that was never coming.
+check(
+  "an ok-but-empty import says so plainly, and shows the duration that diagnoses it",
+  (await page.locator("text=Read 41 min — but 0 pieces, nothing to label").count()) === 1
+);
+check(
+  "…and is NOT styled as a success",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("empty-talk.mp3")
+    );
+    const s = row?.querySelector("span:last-child");
+    const c = s ? getComputedStyle(s).color : "";
+    // Neither the neutral grey of a good import nor the red of a rejection.
+    const good = [...document.querySelectorAll("li")]
+      .find((l) => l.textContent?.includes("first-talk.mp3"))
+      ?.querySelector("span:last-child");
+    return !!c && c !== (good ? getComputedStyle(good).color : "");
+  })
+);
+check(
+  "a real import still reports its pieces, now with the length alongside",
+  (await page.locator("text=42 pieces · 15 queued to label · 10 min").count()) === 1
+);
+
 /* --------------------- idempotency: the retry must collapse ---------------- */
 check(
   "every import carries an idempotency_key, and it is an opaque token — not the filename",
-  imports.length === 2 &&
+  imports.length === 3 &&
     imports.every(
       (c) =>
         /^[0-9a-f]{16,}$/.test(String(c.body.idempotency_key ?? "")) &&
@@ -114,13 +144,13 @@ const retries = (await calls(page)).filter(
 );
 check(
   "pressing Import again re-sends ONLY the file that failed",
-  retries.length === 3 && retries[2].body.audio_file === imports[1].body.audio_file,
-  `${retries.length} calls, last=${retries[2]?.body?.audio_file}`
+  retries.length === 4 && retries[3].body.audio_file === imports[1].body.audio_file,
+  `${retries.length} calls, last=${retries[3]?.body?.audio_file}`
 );
 check(
   "the retry reuses the SAME idempotency_key — the whole reason the key exists",
-  retries[2]?.body?.idempotency_key === imports[1]?.body?.idempotency_key,
-  `${imports[1]?.body?.idempotency_key} → ${retries[2]?.body?.idempotency_key}`
+  retries[3]?.body?.idempotency_key === imports[1]?.body?.idempotency_key,
+  `${imports[1]?.body?.idempotency_key} → ${retries[3]?.body?.idempotency_key}`
 );
 
 /* ------------------------------ FE-2: index -------------------------------- */

@@ -131,8 +131,21 @@ export default function CorpusPageClient() {
 
 interface FileState {
   file: File;
-  status: "queued" | "running" | "done" | "failed";
+  /** `empty` is a THIRD outcome, not a flavour of done: the BE accepted the
+   *  file and returned ok, but cut nothing, so the corpus gained nothing. It
+   *  is terminal like done — re-running would spend another inline Whisper
+   *  pass to reach the same answer — but it must not read as success. */
+  status: "queued" | "running" | "done" | "empty" | "failed";
   detail: string;
+}
+
+/** Compact and approximate on purpose: this is "did the BE read my file",
+ *  not a measurement anyone acts on to the second. */
+function formatLength(sec: number): string {
+  if (sec < 60) return `${Math.round(sec)}s`;
+  const m = Math.round(sec / 60);
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
 function ImportPanel({ onImported }: { onImported: () => void }) {
@@ -146,7 +159,21 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
 
   const describe = (r: ImportOutcome): string => {
     if (r.ok) {
-      return `${r.snippetCount} pieces · ${r.queueCount} queued to label`;
+      // An import that cut nothing is NOT a success, however cheerfully the BE
+      // reported one: nothing entered the corpus and no queue will ever
+      // appear. Said plainly, with the duration, because those two numbers
+      // together are the whole diagnosis — a real duration means the audio was
+      // read and the cutting or transcription found nothing (wrong language,
+      // too calm, threshold too high), while a missing one means the file was
+      // never decoded at all. Without this the coach waits on a queue that is
+      // not coming.
+      if (r.snippetCount === 0) {
+        return r.durationSec
+          ? `Read ${formatLength(r.durationSec)} — but 0 pieces, nothing to label`
+          : "No audio read — 0 pieces, nothing to label";
+      }
+      const len = r.durationSec ? ` · ${formatLength(r.durationSec)}` : "";
+      return `${r.snippetCount} pieces · ${r.queueCount} queued to label${len}`;
     }
     // The BE's reason is worth showing verbatim: it names WHICH content gate
     // rejected the file (silence, corrupt, too short), which is what tells the
@@ -160,7 +187,7 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
     // SEQUENTIAL on purpose: the analysis is CPU-heavy server-side, and firing
     // a folder in parallel mostly produces timeouts rather than speed.
     for (let i = 0; i < files.length; i++) {
-      if (files[i].status === "done") continue;
+      if (files[i].status === "done" || files[i].status === "empty") continue;
       setFiles((f) =>
         f.map((x, j) => (j === i ? { ...x, status: "running", detail: "" } : x))
       );
@@ -171,19 +198,23 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
         note: note.trim() || null,
         optionalStages: stages,
       });
+      const outcome: FileState["status"] = !r.ok
+        ? "failed"
+        : r.snippetCount === 0
+          ? "empty"
+          : "done";
       setFiles((f) =>
-        f.map((x, j) =>
-          j === i
-            ? { ...x, status: r.ok ? "done" : "failed", detail: describe(r) }
-            : x
-        )
+        f.map((x, j) => (j === i ? { ...x, status: outcome, detail: describe(r) } : x))
       );
       if (r.ok) onImported();
     }
     setRunning(false);
   }
 
-  const done = files.filter((f) => f.status === "done").length;
+  // Terminal either way — an empty import is finished, just not fruitful.
+  const done = files.filter(
+    (f) => f.status === "done" || f.status === "empty"
+  ).length;
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
@@ -330,7 +361,9 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
                 className={
                   f.status === "failed"
                     ? "shrink-0 text-destructive"
-                    : "shrink-0 text-muted-foreground"
+                    : f.status === "empty"
+                      ? "shrink-0 text-amber-600 dark:text-amber-500"
+                      : "shrink-0 text-muted-foreground"
                 }
               >
                 {f.status === "queued"
