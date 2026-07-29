@@ -1,9 +1,14 @@
 # BE handoff — Training corpus (FE side is live on `main`)
 
-**From:** frontend-cursor · **Date:** 2026-07-28 · **FE commit:** `8f6e77f`
+**From:** frontend-cursor · **Date:** 2026-07-28, **updated 2026-07-29** ·
+**FE commit:** `132b464`
 **Status:** built against `feat/training-corpus` (`cde9abb`) exactly as specced. No
-contract changes requested. One real risk to resolve together (§1), a few things to
-confirm, and the founder's answers to the three open questions.
+contract changes requested. Below: one real risk to resolve together (§1), a few things
+to confirm, and the founder's answers to the three open questions.
+
+> **Read §7 first.** The first real import ran on 2026-07-29 and came back
+> **`ok: true` with zero pieces and no session row** — a Polish talk. That is a live
+> blocker, and it may be ours: there is no `language` field anywhere in this contract.
 
 ---
 
@@ -177,9 +182,93 @@ these are guarantees rather than intentions:
 
 ---
 
+## 7. ⚠️ FIRST REAL IMPORT CAME BACK EMPTY (2026-07-29) — needs your eyes
+
+The founder ran the first real import. It reported **success and produced nothing.**
+This is the live blocker; everything above is theory next to it.
+
+**What was imported:** a conference talk, **in Polish** — file
+`Przemysław Paczek, Prezes i Założyciel Nevomo.mp3`, topic *"thank you talk at the
+conference"*, speaker *"przemysław pączek"*, stages `confidence` only.
+
+**What came back**, read off the two things the screen renders:
+
+1. `POST /v2/coach/training-imports` → **2xx with `ok: true`** and
+   **`snippet_count: 0`, `queue_count: 0`**. (That line cannot render otherwise — the
+   FE treats a missing or non-`true` `ok` as a failure and shows your error instead.)
+2. `GET /v2/coach/training-imports` — a **separate** request, made right after — came
+   back fine and listed **zero rows**. The screen said "Nothing imported yet", which is
+   the empty state; a failed load says "Couldn't load the corpus just now".
+
+So this is not one bad counter. **No session was written that the coach can open at
+all.** Whatever happened, it happened before anything durable was created.
+
+### What we think it is, most likely first
+
+1. **Language.** The talk is Polish. If Whisper is pinned to English (or defaults to
+   it), the transcript comes back empty or as garbage, and a cutter with nothing to cut
+   returns exactly this shape: accepted, `ok`, zero pieces, nothing worth persisting.
+   **See the gap below — this may be our fault, not yours.**
+2. **The cutter found no candidates.** A calm thank-you talk may simply clear no
+   threshold. That is tuning, not a bug — but it should not report as success, and
+   ideally it should say so in `reason`.
+3. **The file was never decoded.** An mp3 the decoder could not read. The duration
+   distinguishes this from 1 and 2 instantly (below).
+
+### The gap that is ours: there is no `language` field in this contract
+
+Grepped the service, the screen and this document: **nothing anywhere sends a language
+hint.** The FE sends `audio_file`, `topic`, `speaker_label`, `note`, `stages`,
+`idempotency_key` — that is the complete list, and there is no UI to give one either.
+
+If the import path needs to be told the language, **it has never been told, by anyone,
+since this shipped**, and every non-English import will behave like this one. Say the
+word and the FE adds the field and a picker on the import panel; it is small. Tell us
+whether you want an explicit code (`pl`) or auto-detect with the code as an override.
+
+### What the FE changed on its side (`132b464`)
+
+A zero-piece import no longer renders as a success. It is now its own outcome — amber,
+neither the grey of a good import nor the red of a rejection — reading
+**"Read 41 min — but 0 pieces, nothing to label"**. It is terminal: pressing Import
+again skips it rather than spending a second inline Whisper pass on the same answer.
+
+Crucially, **`duration_sec` is now shown**, and it is the whole diagnosis:
+
+| Re-import shows | Meaning |
+|---|---|
+| the real length (~41 min) | audio decoded fine → transcription or cutting is the problem (cause 1 or 2) |
+| `0` or absent | the file was never decoded (cause 3) |
+
+The FE had always received `duration_sec` and discarded it, which is why the first
+report of this could not be narrowed without DevTools. Fixed.
+
+### What we would like from you
+
+1. **Run that file yourself** and say which of the three it is. The duration on a
+   re-import narrows it to one line of your code.
+2. **Confirm whether the import path takes a language**, and if so we will send it.
+3. **Do not return `ok: true` for an import that produced nothing.** A zero-piece
+   result is a failure of the thing the coach asked for, and the FE can only be as
+   honest as the payload. Either a non-ok with a `reason` we render verbatim
+   (`NO_SPEECH_DETECTED`, `NO_CANDIDATES`, `LANGUAGE_UNSUPPORTED` — any code is fine,
+   we show your text), or keep `ok: true` and add a `reason`; we will surface it. The
+   current shape makes "worked perfectly" and "silently did nothing" identical on the
+   wire.
+4. **Say whether a zero-piece import should write a session row.** Today it seems not
+   to, so there is nothing to re-open or inspect. We think not writing one is right —
+   but then the POST response is the coach's only record, which is another reason it
+   needs to carry a reason.
+
+Reproducible without the BE: `src/app/dev/corpus/page.tsx` serves this exact payload
+(`ok: true`, `duration_sec: 2480`, zero pieces) for any file named `*empty*`, and
+`e2e/corpus.spec.mjs` fails if it ever reads as a success again.
+
+---
+
 ## Where to verify
 
-`e2e/corpus.spec.mjs` (26 checks) runs against `src/app/dev/corpus/page.tsx`, which
+`e2e/corpus.spec.mjs` (29 checks) runs against `src/app/dev/corpus/page.tsx`, which
 stubs all three endpoints in the exact shapes above — useful as an executable example
 of what the FE expects and sends. Mapper and its degradation rules:
 `src/services/api/trainingCorpus.ts`.
