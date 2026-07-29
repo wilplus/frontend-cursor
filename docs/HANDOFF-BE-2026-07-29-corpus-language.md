@@ -141,6 +141,35 @@ easy if it starts getting in the way.
 
 ---
 
+## 7. Two new asks from today's index work
+
+1. **A `labelled_count` on the index rows** (`GET /v2/coach/training-imports`). The
+   founder asked for a per-row "how much is labelled" badge computed from the database.
+   The FE builds it honestly today by fetching each done row's confidence queue and
+   counting the label objects — a fresh DB read, which is the point — but that is one
+   queue request per row. A `labelled_count` on the list row lets the badge come from
+   one request. The FE will keep the queue-read as fallback either way.
+
+2. **A real `DELETE` (or archive) for a training import.** The founder asked to remove
+   rows from the list without labelling them. There is no endpoint for that, so the FE
+   shipped **Hide** — device-local, reversible, and worded on screen as exactly that
+   ("the import and its labels stay in the database") — because a button called Delete
+   that deletes nothing would be a lie. If you ship
+   `DELETE /v2/coach/training-imports/<session_id>` (or an `archived` flag the list
+   filters on), the FE swaps Hide for the real thing. Say which semantics you prefer:
+   destroy (pieces and labels gone) or archive (kept, just out of the list). We suspect
+   archive — labelled data is training data, and a coach tidying a list should not be
+   able to delete corpus.
+
+Also for the record, because the founder asked whether labels are "sent to the database
+with a cron job": **they are not, and nothing should imply they are.** Each label is one
+synchronous PUT at the moment of the tap; the FE marks a label saved only after your 200.
+If anything BE-side DOES consume `confidence_labels` asynchronously downstream
+(a training job, an export), tell us and we will surface that stage honestly too —
+right now the FE states "there is no later send", which is true on the wire we can see.
+
+---
+
 ## Where to verify
 
 `e2e/corpus.spec.mjs` — 50 checks in a real browser, including that Import is blocked

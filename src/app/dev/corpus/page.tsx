@@ -107,6 +107,39 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
         });
       }
       if (url.includes("/confidence-queue")) {
+        // sess-full is a session whose every piece is already labelled, so
+        // the index's "All N labelled" badge — computed from this very
+        // payload, i.e. from what the database holds — is provable.
+        if (url.includes("sess-full")) {
+          return new Response(
+            JSON.stringify({
+              session_id: "sess-full",
+              count: 2,
+              labelled: 2,
+              queue: [
+                {
+                  snippet_id: "full-a",
+                  transcript: "we knew it would work",
+                  start_offset_ms: 0,
+                  duration_ms: 250,
+                  session_id: "sess-full",
+                  label: { confident: true, intensity: 4 },
+                  audio_ref: wavDataUri(),
+                },
+                {
+                  snippet_id: "full-b",
+                  transcript: "and it did",
+                  start_offset_ms: 0,
+                  duration_ms: 250,
+                  session_id: "sess-full",
+                  label: { confident: false },
+                  audio_ref: wavDataUri(),
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
         return new Response(
           JSON.stringify({
             session_id: "sess-1",
@@ -275,6 +308,17 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 status: "complete",
                 queue_count: 15,
               },
+              // A finished batch whose every piece is already labelled — its
+              // queue (sess-full above) is what proves the index badge.
+              {
+                session_id: "sess-full",
+                arc_id: "arc-full",
+                topic: "Old finished batch",
+                speaker_label: "Jane Doe",
+                created_at: "2026-07-27T10:00:00Z",
+                status: "complete",
+                queue_count: 2,
+              },
               // A failed import stays in the list: it is the evidence for why
               // a file produced nothing, and it must not be openable.
               {
@@ -288,7 +332,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 analysis_error: "the transcript was empty",
               },
             ],
-            count: 2,
+            count: 3,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
