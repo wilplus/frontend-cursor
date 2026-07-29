@@ -707,18 +707,20 @@ function IndexPanel({
   );
 }
 
-/** The founder's explicit call: name the 1–5 scale rather than leave it bare.
- *  Endpoints are the founder's own words ("barely" … "extremely"); the middle
- *  three are the standard steps between them. This overrides an earlier
- *  design choice in this file (bare numbers, so the wording wouldn't become
- *  what the coach calibrates to) — noted at the call site, not hidden. */
-const INTENSITY_WORDS: Record<number, string> = {
-  1: "Barely",
-  2: "Slightly",
-  3: "Moderately",
-  4: "Strongly",
-  5: "Extremely",
-};
+/** The founder's second pass on the 1–5 scale: only the two ENDPOINTS carry
+ *  a word, and which word depends on the Yes/No answer being graded — a 1
+ *  means something different depending on whether the coach just said the
+ *  voice was confident or wasn't. The middle three (2, 3, 4) are deliberately
+ *  bare, per the founder's own table. Not symmetric on purpose: the low end
+ *  of "No" is "Slightly unconfident", not "Barely unconfident" — the
+ *  founder's own wording, kept verbatim rather than tidied into a mirror. */
+function intensityCaption(n: number, confident: boolean): string | null {
+  if (n !== INTENSITY_MIN && n !== INTENSITY_MAX) return null;
+  if (confident) {
+    return n === INTENSITY_MIN ? "Barely confident" : "Extremely confident";
+  }
+  return n === INTENSITY_MIN ? "Slightly unconfident" : "Extremely unconfident";
+}
 
 /* ---------------------------- FE-3: the labelling -------------------------- */
 
@@ -956,7 +958,7 @@ function LabelScreen({
             </div>
 
             <p className="text-[13px] font-medium text-foreground">
-              Confident?
+              Was this voice confident?
             </p>
             <div className="flex gap-2">
               <button
@@ -989,10 +991,12 @@ function LabelScreen({
 
             {/* The 1–5 row exists ONLY once an answer is picked: it grades an
                 answer, and offering it first would invite a grade with no
-                answer behind it (N3). Words now sit under each number, at the
-                founder's explicit instruction — this overrides the previous
-                bare-numbers choice here, whose worry was that the wording
-                becomes what the coach calibrates to. Founder call stands. */}
+                answer behind it (N3). Only the two ENDPOINTS carry a word —
+                2, 3 and 4 stay bare numbers, per the founder's table — and
+                that word depends on which answer is being graded (a 1 means
+                something different under Yes than under No). No small grey
+                caption text any more: the word is the SAME colour as the
+                number beside it, not a muted aside. */}
             {answered !== null ? (
               <div className="flex flex-col gap-1.5">
                 <p className="text-[12px] text-muted-foreground">
@@ -1002,32 +1006,31 @@ function LabelScreen({
                   {Array.from(
                     { length: INTENSITY_MAX - INTENSITY_MIN + 1 },
                     (_, i) => INTENSITY_MIN + i
-                  ).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      aria-pressed={piece.label?.intensity === n}
-                      aria-label={`${n} — ${INTENSITY_WORDS[n]}`}
-                      disabled={savingId === piece.snippetId}
-                      onClick={() => void save(answered, n)}
-                      className={`flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border text-[14px] font-medium tabular-nums transition-colors disabled:opacity-60 ${
-                        piece.label?.intensity === n
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-foreground hover:border-primary/50"
-                      }`}
-                    >
-                      <span>{n}</span>
-                      <span
-                        className={`text-[10px] font-normal leading-none ${
+                  ).map((n) => {
+                    const caption = intensityCaption(n, answered);
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        aria-pressed={piece.label?.intensity === n}
+                        aria-label={caption ? `${n} — ${caption}` : `${n}`}
+                        disabled={savingId === piece.snippetId}
+                        onClick={() => void save(answered, n)}
+                        className={`flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border text-[14px] font-medium tabular-nums transition-colors disabled:opacity-60 ${
                           piece.label?.intensity === n
-                            ? "text-primary-foreground/80"
-                            : "text-muted-foreground"
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background text-foreground hover:border-primary/50"
                         }`}
                       >
-                        {INTENSITY_WORDS[n]}
-                      </span>
-                    </button>
-                  ))}
+                        <span>{n}</span>
+                        {caption ? (
+                          <span className="text-[11px] font-medium leading-tight">
+                            {caption}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
