@@ -55,8 +55,42 @@ check(
   (await page.locator("text=the only way the corpus can tell whose voice").count()) === 1
 );
 
+check(
+  "Import is BLOCKED until a language is chosen — the picker defaulting to auto-detect is what let a Polish talk come back translated into English, silently",
+  await page.evaluate(() => {
+    const sel = document.querySelector("select");
+    const btn = [...document.querySelectorAll("button")].find(
+      (b) => b.textContent?.trim() === "Import"
+    );
+    return sel?.value === "__unset" && btn?.disabled === true;
+  })
+);
+check(
+  "the picker says what going without it costs, in the words of the failure it prevents",
+  (await page.locator("text=auto-detect is a choice, not a default").count()) === 1 &&
+    (await page.locator("text=translated").first().count()) === 1
+);
+check(
+  "Polish leads the real codes — it is what this corpus is made of",
+  await page.evaluate(() => {
+    const opts = [...document.querySelector("select").options];
+    return opts[0].value === "__unset" && opts[1].value === "" && opts[2].value === "pl";
+  })
+);
+check(
+  "the speaker-sex picker is present, optional, and says it is about the analysis rather than the person",
+  await page.evaluate(() => {
+    const sel = [...document.querySelectorAll("select")].find((x) =>
+      [...x.options].some((o) => o.value === "prefer_not_to_say")
+    );
+    return sel?.value === "" && [...sel.options][0].textContent.trim() === "Not stated";
+  }) && (await page.locator("text=about the analysis rather than about the person").count()) === 1
+);
+
 await page.locator("input").first().fill("Board pitch");
 await page.locator("input").nth(1).fill("Jane Doe");
+// Auto-detect, but CHOSEN — the whole point of the gate.
+await page.selectOption("select >> nth=0", "");
 await page.setInputFiles('input[type="file"]', [
   { name: "first-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("a") },
   { name: "bad-clip.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("b") },
@@ -126,8 +160,8 @@ check(
   })
 );
 check(
-  "a real import still reports its pieces, now with the length alongside",
-  (await page.locator("text=42 pieces · 15 queued to label · 10 min").count()) === 1
+  "a real import reports what it RAN AS, not what the picker said — the first question about a transcript that reads oddly",
+  (await page.locator("text=Auto-detected · 42 pieces · 15 queued to label · 10 min").count()) === 1
 );
 
 /* --------------------- idempotency: the retry must collapse ---------------- */
@@ -167,29 +201,10 @@ check(
 );
 
 /* ------------- language: the picker, and the §7 recovery path -------------- */
-check(
-  "the picker offers auto-detect first and Polish among the codes",
-  await page.evaluate(() => {
-    const sel = document.querySelector("select");
-    if (!sel) return false;
-    const opts = [...sel.options];
-    return (
-      sel.value === "" &&
-      opts[0]?.value === "" &&
-      opts[0]?.textContent?.trim() === "Auto-detect" &&
-      opts.some((o) => o.value === "pl")
-    );
-  })
-);
-check(
-  "it says what going without it costs, in terms of the failure it prevents",
-  (await page.locator("text=Transcribed as the wrong").count()) === 1
-);
-
 // The exact recovery from §7: an import came back with nothing, so the coach
 // sets the language and imports THE SAME FILE again.
 const emptyKeyBefore = imports[2]?.body?.idempotency_key;
-await page.selectOption("select", "pl");
+await page.selectOption("select >> nth=0", "pl");
 await page.setInputFiles('input[type="file"]', [
   { name: "empty-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("c") },
 ]);
@@ -219,7 +234,7 @@ check(
 );
 
 /* --------- async (202 + poll) and the duplicate, both from rev 3 ----------- */
-await page.selectOption("select", "");
+await page.selectOption("select >> nth=0", "");
 await page.setInputFiles('input[type="file"]', [
   { name: "async-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("d") },
   { name: "dupe-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("e") },

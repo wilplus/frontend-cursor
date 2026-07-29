@@ -12,6 +12,8 @@ import {
   fetchTrainingImports,
   exceedsProxyLimit,
   IMPORT_LANGUAGES,
+  languageLabel,
+  SPEAKER_SEXES,
   importTrainingAudio,
   INTENSITY_MAX,
   INTENSITY_MIN,
@@ -179,8 +181,17 @@ function ImportPanel({
   const [topic, setTopic] = useState("");
   const [speaker, setSpeaker] = useState("");
   const [note, setNote] = useState("");
-  // "" = auto-detect. See IMPORT_LANGUAGES: the default sends no field at all.
-  const [language, setLanguage] = useState("");
+  // `null` = the coach has not chosen yet, which is NOT the same as choosing
+  // auto-detect (""). Import stays disabled until they pick.
+  //
+  // Why this is not a default any more: it shipped defaulting to auto-detect,
+  // a coach imported a Polish talk without touching it, and Whisper — primed
+  // with an English prompt — TRANSLATED the speech instead of transcribing
+  // it. The audio was fine, the words were English, and nothing on screen
+  // said so. A silent failure mode is exactly the thing a default should not
+  // sit in front of, so the choice is now recorded rather than assumed.
+  const [language, setLanguage] = useState<string | null>(null);
+  const [speakerSex, setSpeakerSex] = useState("");
   const [stages, setStages] = useState<OptionalStage[]>([]);
   const [files, setFiles] = useState<FileState[]>([]);
   const [running, setRunning] = useState(false);
@@ -193,6 +204,11 @@ function ImportPanel({
   const describe = (r: ImportOutcome): { detail: string; hint: string } => {
     if (r.ok) {
       const len = r.durationSec ? ` · ${formatLength(r.durationSec)}` : "";
+      // What it ACTUALLY ran as, echoed by the BE — not what the picker said.
+      // "which language did this run as" is the first question anyone asks
+      // about a transcript that reads oddly, and `language: null` (auto-detect)
+      // is itself the answer when the words come back in the wrong one.
+      const lang = r.language ? `${languageLabel(r.language)} · ` : "Auto-detected · ";
       // A duplicate is a success that did NO work: the BE matched the
       // idempotency key and handed back the original. Saying "42 pieces" here
       // would tell a coach re-running a folder that thirty files were just
@@ -215,7 +231,7 @@ function ImportPanel({
         };
       }
       return {
-        detail: `${r.snippetCount} pieces · ${r.queueCount} queued to label${len}`,
+        detail: `${lang}${r.snippetCount} pieces · ${r.queueCount} queued to label${len}`,
         hint: "",
       };
     }
@@ -239,7 +255,7 @@ function ImportPanel({
   };
 
   async function run() {
-    if (running || files.length === 0 || !topic.trim()) return;
+    if (running || files.length === 0 || !topic.trim() || language === null) return;
     setRunning(true);
     // SEQUENTIAL on purpose: the analysis is CPU-heavy server-side, and firing
     // a folder in parallel mostly produces timeouts rather than speed.
@@ -256,6 +272,7 @@ function ImportPanel({
         speakerLabel: speaker.trim() || null,
         note: note.trim() || null,
         language,
+        speakerSex,
         optionalStages: stages,
         // The POST returns as soon as the upload lands; the analysis runs on.
         // Saying so beats a row that reads "Analysing…" identically whether
@@ -350,19 +367,49 @@ function ImportPanel({
           What language it is in
         </span>
         <select
-          value={language}
+          value={language ?? "__unset"}
           onChange={(e) => setLanguage(e.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
         >
+          <option value="__unset" disabled>
+            Choose…
+          </option>
           {IMPORT_LANGUAGES.map((l) => (
             <option key={l.code || "auto"} value={l.code}>
               {l.label}
             </option>
           ))}
         </select>
+        <span className="text-[11px] leading-snug text-muted-foreground">
+          Required — auto-detect is a choice, not a default. Whisper is primed
+          with an English prompt, so a talk left on auto-detect can come back
+          <em> translated</em> into English rather than transcribed: the audio is
+          right, the words are not, and nothing says so.
+        </span>
+      </label>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-[12px] text-muted-foreground">
+          Speaker&apos;s sex
+        </span>
+        <select
+          value={speakerSex}
+          onChange={(e) => setSpeakerSex(e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+        >
+          {SPEAKER_SEXES.map((x) => (
+            <option key={x.value || "unset"} value={x.value}>
+              {x.label}
+            </option>
+          ))}
+        </select>
+        {/* Not a demographic tag on the corpus: one confidence cue's DIRECTION
+            is routed on it. An import is someone else's voice filed under the
+            coach's account, so leaving it blank is safe (the server falls back
+            to an acoustic route) but stating it is better. */}
         <span className="text-[11px] text-muted-foreground">
-          Worth setting if the talk is not in English. Transcribed as the wrong
-          language, a file comes back with nothing to label.
+          Optional. One voice cue reads differently by sex, so this is about
+          the analysis rather than about the person.
         </span>
       </label>
 
@@ -454,7 +501,7 @@ function ImportPanel({
         <button
           type="button"
           onClick={() => void run()}
-          disabled={running || files.length === 0 || !topic.trim()}
+          disabled={running || files.length === 0 || !topic.trim() || language === null}
           className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
         >
           {running ? (
