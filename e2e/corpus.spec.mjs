@@ -254,6 +254,14 @@ check(
   })
 );
 
+/* ------- the way in: the import row itself opens the queue (bubbles) ------- */
+// The corpus index is coming back empty from the BE, so without this a coach
+// can import 45 pieces and have no route to any of them.
+check(
+  "a successful import offers a direct way into its pieces",
+  (await page.locator("text=Label the 15 pieces from").count()) >= 1
+);
+
 /* ------------------------------ FE-2: index -------------------------------- */
 check(
   "a failed import STAYS in the list — the row is the evidence for why a file produced nothing",
@@ -367,6 +375,54 @@ check(
   "its saved call renders as the active answer and grade, not a locked one",
   (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes$/ }).count()) === 1 &&
     (await page.locator('button[aria-pressed="true"]', { hasText: /^5$/ }).count()) === 1
+);
+
+/* ---------------- the bubbles: every piece, reachable ---------------- */
+check(
+  "the bubbles show EVERY piece, in payload order, numbered from 1 (N2 — sorting them would undo the server-side band shuffle)",
+  await page.evaluate(() => {
+    const bubbles = [...document.querySelectorAll('button[aria-label^="Piece "]')];
+    // Dots, NOT numbers: the 1-5 grade row is on the same screen, and two
+    // rows of digits meaning different things is a real confusion (it also
+    // made the grade-button selectors ambiguous, which is how it was caught).
+    return (
+      bubbles.length === 3 &&
+      bubbles.every((b) => b.textContent?.trim() === "") &&
+      bubbles.map((b) => b.getAttribute("aria-label")).join("|").startsWith("Piece 1")
+    );
+  })
+);
+check(
+  "a bubble encodes ONLY whether the coach has answered — never a band, score or machine read (N1)",
+  await page.evaluate(() => {
+    const bubbles = [...document.querySelectorAll('button[aria-label^="Piece "]')];
+    const answered = bubbles.filter((b) => b.getAttribute("aria-label").includes("answered"));
+    // The harness serves band high/low/mid and scores .93/.11/.5 on these three
+    // pieces. If any of that reached the bubbles, more than the coach's own
+    // answers would vary — and none of it may appear in the markup at all.
+    const markup = bubbles.map((b) => b.outerHTML).join(" ");
+    return (
+      answered.length >= 1 &&
+      !/high|low|mid|0\.9|0\.1|band|score/i.test(markup)
+    );
+  })
+);
+check(
+  "tapping a bubble jumps straight to that piece",
+  await (async () => {
+    await page.locator('button[aria-label^="Piece 3"]').click();
+    await page.waitForTimeout(150);
+    return (await page.locator("text=I think maybe we could possibly try it that way").count()) === 1;
+  })()
+);
+check(
+  "…and jumping does NOT pre-select an answer on an unlabelled piece (N3)",
+  await page.evaluate(
+    () =>
+      [...document.querySelectorAll("button")].filter(
+        (b) => b.getAttribute("aria-pressed") === "true"
+      ).length === 0
+  )
 );
 
 await browser.close();
