@@ -44,6 +44,7 @@ import { isLabOverlay, type WillabState } from "./useWillabFlow";
 import { useUserProfile } from "./useUserProfile";
 import { useReviewQueue } from "./useReviewQueue";
 import CoachReviewGroupBubble from "./CoachReviewGroupBubble";
+import LoungeSpeakerSexPrompt from "./LoungeSpeakerSexPrompt";
 import {
   useInstallOffer,
   InstallOfferActions,
@@ -804,6 +805,13 @@ export default function Lounge({
             )
           )
         )}
+
+        {/* The speaker-sex ask, as the last item IN the thread — not a layer.
+            /chat is where both signup routes land (OAuth users never see the
+            signup field at all), so this is the only mount that reaches them.
+            In-thread means it scrolls with the conversation and cannot cover a
+            running take; the wrapper holds the stay-out-of-the-Lab rule. */}
+        <LoungeSpeakerSexPrompt state={state} threadLoading={thread.loading} />
 
         {botThinking && <TypingDots />}
       </div>
