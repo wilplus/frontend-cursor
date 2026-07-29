@@ -53,7 +53,6 @@ import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
-import KeyPointsView from "./KeyPointsView";
 import DocumentArranger from "./DocumentArranger";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
@@ -71,15 +70,10 @@ import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 
 export default function IdealTextOverlay({
   arcId,
-  version = null,
   onClose,
   onReadAloud,
 }: {
   arcId: string;
-  /** FE-3b — open an OLD version's read-only step (the GET's ?version form).
-   *  null/absent → the live notebook. If the BE has no snapshot for it
-   *  (historical_unavailable), the overlay falls back to the live view. */
-  version?: number | null;
   onClose: () => void;
   /** SD — "Read it aloud": the host closes this overlay into the record flow
    *  for this presentation (a re-read is just another recording). Receives the
@@ -90,20 +84,13 @@ export default function IdealTextOverlay({
   // D-3 invariant — the device Back gesture closes THIS overlay (LIFO with the
   // nested FeedbackOverlay, which pushes its own entry on top).
   useBackDismiss(onClose);
+  // Founder 2026-07-29 — the notebook is ALWAYS the live, editable document.
+  // The old "historical" read-only step (FE-3b, ?version) is gone: a version
+  // bubble is a history marker, not a frozen destination.
   const [status, setStatus] = useState<
-    "loading" | "ready" | "instant" | "pending" | "error" | "historical"
+    "loading" | "ready" | "instant" | "pending" | "error"
   >("loading");
   const [ideal, setIdeal] = useState<IdealText | null>(null);
-  // FE-3b — the frozen step being viewed (its version chip), and the fall-back
-  // switch: historical_unavailable clears the requested version so the effect
-  // refetches the live document, exactly the pre-FE-3b behavior.
-  const [historical, setHistorical] = useState<{ version: number | null } | null>(
-    null
-  );
-  const [requestedVersion, setRequestedVersion] = useState<number | null>(version);
-  useEffect(() => {
-    setRequestedVersion(version);
-  }, [version, arcId]);
   const [refetchNonce, setRefetchNonce] = useState(0);
   // Staleness fence for the GET (same rule as the readout, review R-db4).
   const fetchGenRef = useRef(0);
@@ -159,8 +146,6 @@ export default function IdealTextOverlay({
   const versionArmedRef = useRef(false);
   // Saves run one at a time (same rule as the readout's edit lane).
   const chainRef = useRef<Promise<void>>(Promise.resolve());
-  // E-2 — key-words presentation mode (only reachable when the BE serves cues).
-  const [presentationMode, setPresentationMode] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // The tapped key moment awaiting "Go to this moment?" confirmation.
@@ -172,24 +157,12 @@ export default function IdealTextOverlay({
   useEffect(() => {
     let active = true;
     setStatus("loading");
-    setHistorical(null);
     const gen = ++fetchGenRef.current;
-    void fetchIdealText(arcId, requestedVersion).then((r) => {
+    void fetchIdealText(arcId).then((r) => {
       if (!active || gen !== fetchGenRef.current) return;
-      if (r.kind === "historical") {
-        // FE-3b — a frozen step: that version's text + that version's
-        // reasoning, read-only. No SD chrome, no editing, no paywall.
-        setIdeal(r.ideal);
-        setNotes(null);
-        setSd(null);
-        setHistorical({ version: r.version });
-        setStatus("historical");
-        return;
-      }
-      if (r.kind === "historicalUnavailable") {
-        // No snapshot for that version (pre-history arc) — fall back to the
-        // live notebook, exactly as bubbles behaved before FE-3b.
-        setRequestedVersion(null);
+      if (r.kind === "historical" || r.kind === "historicalUnavailable") {
+        // Unreachable without a ?version request; keep the load honest.
+        setStatus("error");
         return;
       }
       if (r.kind === "single") {
@@ -237,7 +210,7 @@ export default function IdealTextOverlay({
     return () => {
       active = false;
     };
-  }, [arcId, refetchNonce, requestedVersion]);
+  }, [arcId, refetchNonce]);
 
   const displayText = notes ?? ideal?.text ?? "";
 
@@ -438,13 +411,6 @@ export default function IdealTextOverlay({
   // legacy moment with no snippet link stays inert (it has nowhere to
   // deep-link — R-sd4). Under SD every tap goes to the shared sheet.
   async function openMoment(m: IdealKeyMomentLink) {
-    // FE-3b — historical steps use the shared sheet too (read-only): a
-    // suggestion star opens its reasoning, a plain moment gets the honest
-    // no-explanation line. Never the legacy "Go to this moment?" confirm.
-    if (status === "historical") {
-      await stars.openMoment(m);
-      return;
-    }
     if (!sd) {
       if (!m.snippetId) return;
       setMomentAsk(m);
@@ -509,8 +475,7 @@ export default function IdealTextOverlay({
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
-          {(status === "ready" || status === "instant" || status === "historical") &&
-          !editing ? (
+          {(status === "ready" || status === "instant") && !editing ? (
             <button
               type="button"
               onClick={copyText}
@@ -574,29 +539,6 @@ export default function IdealTextOverlay({
               Your coach is still shaping your ideal text. It lands here the
               moment it&apos;s approved.
             </p>
-          ) : status === "historical" && ideal ? (
-            // FE-3b — the read-only step view: the frozen text with that
-            // version's stars (their reasoning opens in the read-only sheet).
-            // No editing, no bulk controls, no read-aloud, no paywall.
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                {historical?.version !== null &&
-                historical?.version !== undefined ? (
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium tabular-nums text-muted-foreground">
-                    {historical.version}.0
-                  </span>
-                ) : null}
-                <span className="rounded-full bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
-                  Earlier version, read-only
-                </span>
-              </div>
-              <MomentStarText
-                text={ideal.text}
-                ideal={ideal}
-                onMomentTap={(m) => void openMoment(m)}
-                sdStars
-              />
-            </div>
           ) : status === "error" ? (
             <p className="py-16 text-center text-[15px] leading-relaxed text-muted-foreground">
               Couldn&apos;t load your ideal text. Try again in a moment.
@@ -663,37 +605,8 @@ export default function IdealTextOverlay({
                   Approve all
                 </button>
               ) : null}
-              {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues.
-                  FE-7 — absent (flag-gated off) hides the toggle entirely;
-                  an EMPTY array keeps it, with KeyPointsView's empty state
-                  under it. FE-9 — centred at every breakpoint.
-                  T1 · 1.2 — hidden while arranging: the parts view owns it. */}
-              {!arranging && sd?.keyPoints ? (
-                <div className="inline-flex self-center rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setPresentationMode(false)}
-                    className={`rounded-full px-3 py-1 transition-colors ${
-                      presentationMode
-                        ? "text-muted-foreground"
-                        : "bg-background text-foreground shadow-sm"
-                    }`}
-                  >
-                    Full text
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPresentationMode(true)}
-                    className={`rounded-full px-3 py-1 transition-colors ${
-                      presentationMode
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    Key words
-                  </button>
-                </div>
-              ) : null}
+              {/* Founder 2026-07-29 — the Full text / Key words toggle is
+                  retired: the notebook always shows the full text. */}
               {/* T1 · 1.2 — a take landed while the student was editing. The
                   fresh text is already on screen; their version is held and
                   goes back with one tap. Never applied for them. */}
@@ -747,11 +660,6 @@ export default function IdealTextOverlay({
                   text={displayText}
                   onChange={(next) => void saveDocument(next)}
                   textSizeClass="text-[18px]"
-                />
-              ) : presentationMode && sd?.keyPoints ? (
-                <KeyPointsView
-                  keyPoints={sd.keyPoints}
-                  onExit={() => setPresentationMode(false)}
                 />
               ) : edited ? (
                 // T1 · 1.2 — the student's own document: their words and their
@@ -919,31 +827,23 @@ export default function IdealTextOverlay({
         moment={stars.momentOpen}
         momentContent={stars.momentContent}
         applied={stars.momentOpen ? stars.isApplied(stars.momentOpen) : false}
-        // FE-3b — a historical step's sheet is a record: reasoning without
-        // Approve, and no re-record mic (a mic here would record against a
-        // superseded version's snippet).
-        readOnly={status === "historical"}
         onClose={stars.closeMoment}
         onApprove={() => stars.momentOpen && stars.approveMoment(stars.momentOpen)}
         onRevert={() => stars.momentOpen && stars.revertMoment(stars.momentOpen)}
         onBuy={stars.buyMoments}
-        onReRecord={
-          status === "historical"
-            ? undefined
-            : async (snippetId, takeSessionId, audio, durationSec) => {
-                const r = await reRecordSnippet({
-                  snippetId,
-                  takeSessionId,
-                  topic: sd?.title ?? null,
-                  audio,
-                  durationSec,
-                });
-                // Re-pull the served text so the improved snippet + new version
-                // flow in; the sheet stays open on its success confirmation.
-                if (r.ok) setRefetchNonce((n) => n + 1);
-                return r.ok;
-              }
-        }
+        onReRecord={async (snippetId, takeSessionId, audio, durationSec) => {
+          const r = await reRecordSnippet({
+            snippetId,
+            takeSessionId,
+            topic: sd?.title ?? null,
+            audio,
+            durationSec,
+          });
+          // Re-pull the served text so the improved snippet + new version
+          // flow in; the sheet stays open on its success confirmation.
+          if (r.ok) setRefetchNonce((n) => n + 1);
+          return r.ok;
+        }}
       />
     </div>
   );

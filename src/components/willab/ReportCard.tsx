@@ -63,7 +63,6 @@ export default function ReportCard({
   onOpenTranscripts,
   onOpenFeedback,
   onOpenIdealText,
-  heroIdealText = false,
 }: {
   message: LoungeMessage;
   onViewInsights?: (sessionId: string) => void;
@@ -74,12 +73,9 @@ export default function ReportCard({
   /** Delivery layer — a grey feedback bubble opens its take's feedback page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
   /** Delivery layer — the purple bubble opens the ideal-text notebook.
-   *  FE-3b: an OLD version bubble passes its version so the notebook opens
-   *  that version's read-only step; the latest (hero) passes none (live). */
-  onOpenIdealText?: (arcId: string, version?: number | null) => void;
-  /** FE-C — true on the LATEST ideal_text bubble (highest version): it renders
-   *  as the large crucial card; older ones stay compact version history. */
-  heroIdealText?: boolean;
+   *  ALWAYS the live, editable document — version bubbles are history markers,
+   *  not frozen read-only destinations (founder 2026-07-29). */
+  onOpenIdealText?: (arcId: string) => void;
 }) {
   // Delivery layer — grey feedback card, one per take (1 free, 2/3 paywalled
   // behind the tap: the feedback page itself renders the unlock panel).
@@ -149,20 +145,12 @@ export default function ReportCard({
         : typeof rawV === "string" && rawV.trim() && Number.isFinite(Number(rawV))
           ? Number(rawV)
           : null;
-    // FE-3b — an old bubble opens ITS version's read-only step (the GET's
-    // ?version form); the hero card below always opens the live notebook.
+    // Every bubble opens the SAME live, editable notebook — the version on
+    // the card is a history marker, never a frozen destination.
     const open = () => {
-      if (arcId && onOpenIdealText) onOpenIdealText(arcId, version);
+      if (arcId && onOpenIdealText) onOpenIdealText(arcId);
     };
-    // FE-C — the crucial bubble: the latest version renders as a large, tall
-    // card with the live GET's title/status/version/date and one Open button.
-    if (heroIdealText && arcId && onOpenIdealText) {
-      return (
-        <CrucialIdealTextCard arcId={arcId} onOpen={() => onOpenIdealText(arcId)} />
-      );
-    }
     const verified = message.metadata?.variant === "verified";
-    const versionLabel = version === null ? null : `Ideal text ${version}.0`;
     if (message.metadata?.variant === "instant") {
       return (
         <div
@@ -197,16 +185,16 @@ export default function ReportCard({
         </div>
       );
     }
-    // FE-2 — EVERY version is its own bubble in the chat flow (nothing pinned):
-    // the same IDEAL RECORDING card as the latest, with its version + Open. The
-    // BE's own sentence rides as the meta line (the degrade path).
+    // FE-2 — EVERY version is its own bubble in the chat flow (nothing pinned),
+    // a FIXED history entry: the project's name as the title, its own version
+    // badge, the BE's sentence as the meta line. Only the STATUS pill may
+    // change after the fact (pending → reviewed once this version verifies).
     return (
-      <IdealRecordingCard
-        title={versionLabel ?? "Your ideal text"}
+      <LiveStatusIdealTextCard
+        arcId={arcId}
+        version={version}
+        frozenVerified={verified}
         meta={message.body || null}
-        badge={version !== null ? `${version}.0` : null}
-        verified={verified}
-        ctaLabel="Open this version"
         onOpen={openable ? open : null}
       />
     );
@@ -482,57 +470,76 @@ function IdealRecordingCard({
   );
 }
 
-function CrucialIdealTextCard({
+/* -------------------------------------------------------------------------- */
+/*  Founder 2026-07-29 — version bubbles are FIXED history entries. The one    */
+/*  live thing on a card is its status pill (pending → reviewed) plus the      */
+/*  project's NAME as the title (the BE stamps no name on the bubble row, so   */
+/*  it comes from the document GET). One GET per arc feeds every bubble of a   */
+/*  long version history via this small cache; a fresh mount after 60s        */
+/*  refetches so a coach verification actually shows up.                       */
+/* -------------------------------------------------------------------------- */
+
+interface LiveIdealDoc {
+  title: string | null;
+  status: "unverified" | "verified" | null;
+  version: number | null;
+}
+
+const liveDocCache = new Map<
+  string,
+  { at: number; promise: Promise<LiveIdealDoc | null> }
+>();
+
+function fetchLiveIdealDoc(arcId: string): Promise<LiveIdealDoc | null> {
+  const hit = liveDocCache.get(arcId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.promise;
+  const promise = fetchIdealText(arcId).then((r) =>
+    r.kind === "single"
+      ? { title: r.title, status: r.status, version: r.version }
+      : null
+  );
+  liveDocCache.set(arcId, { at: Date.now(), promise });
+  return promise;
+}
+
+function LiveStatusIdealTextCard({
   arcId,
+  version,
+  frozenVerified,
+  meta,
   onOpen,
 }: {
-  arcId: string;
-  onOpen: () => void;
+  arcId: string | null;
+  /** The bubble's OWN version — fixed forever, never the live document's. */
+  version: number | null;
+  /** True when the BE wrote this bubble as a verified one (variant). */
+  frozenVerified: boolean;
+  meta: string | null;
+  onOpen: (() => void) | null;
 }) {
-  const [live, setLive] = useState<{
-    title: string | null;
-    updatedAt: string | null;
-    status: "unverified" | "verified" | null;
-    version: number | null;
-    takeCount: number | null;
-  } | null>(null);
+  const [live, setLive] = useState<LiveIdealDoc | null>(null);
   useEffect(() => {
+    if (!arcId) return;
     let active = true;
-    void fetchIdealText(arcId).then((r) => {
-      if (!active || r.kind !== "single") return;
-      setLive({
-        title: r.title,
-        updatedAt: r.updatedAt,
-        status: r.status,
-        version: r.version,
-        takeCount: r.takeCount,
-      });
+    void fetchLiveIdealDoc(arcId).then((d) => {
+      if (active) setLive(d);
     });
     return () => {
       active = false;
     };
   }, [arcId]);
-
-  const verified = live?.status === "verified";
-  const dateLabel = live?.updatedAt
-    ? new Date(live.updatedAt).toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : null;
-  // MASTER DOCUMENT (founder 2026-07-23) — the badge is the project's
-  // OFFICIAL-TAKE count ("15.0"), which climbs on every take; `version` only
-  // moves when the text changes, so it under-counts under the master model.
-  // take_count is safe-ahead of BE #236 (null → version). Rendered through the
-  // shared IDEAL RECORDING card so the hero matches every other ideal-text
-  // bubble in the thread.
-  const badge = live?.takeCount ?? live?.version ?? null;
+  // The status pill is the one mutable thing: a pending bubble flips to
+  // reviewed once the live document verifies THIS version.
+  const verified =
+    frozenVerified ||
+    (live?.status === "verified" &&
+      live.version !== null &&
+      live.version === version);
   return (
     <IdealRecordingCard
-      title={live?.title ?? "Your ideal text"}
-      meta={dateLabel ? `Ideal text · Updated ${dateLabel}` : null}
-      badge={badge !== null ? `${badge}.0` : null}
+      title={live?.title?.trim() || "Your ideal text"}
+      meta={meta}
+      badge={version !== null ? `${version}.0` : null}
       verified={verified}
       ctaLabel="Open your ideal text"
       onOpen={onOpen}
