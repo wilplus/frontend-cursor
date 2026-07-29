@@ -28,7 +28,6 @@ import DocumentArranger from "./DocumentArranger";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealReadMic from "./IdealReadMic";
 import IdealTextActions from "./IdealTextActions";
-import KeyPointsView from "./KeyPointsView";
 import { MomentSheet, useMomentStars } from "./MomentStars";
 import type { ReadoutPayload } from "./readout";
 
@@ -100,10 +99,6 @@ export default function IdealTextReadout({
   // T1 · 1.2 — the add/move mode: tap a gap to add a part, drag one to move
   // it. A sibling of the textarea, never a step before recording.
   const [arranging, setArranging] = useState(false);
-  // E-2 — presentation mode: swap the full read for the key-words cues. Only
-  // reachable when the BE serves key_points (the toggle is otherwise hidden);
-  // a version without cues falls through to the full read regardless.
-  const [presentationMode, setPresentationMode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const firedRef = useRef(false);
@@ -660,40 +655,8 @@ export default function IdealTextReadout({
         </button>
       ) : null}
 
-      {/* FE-7 — ABSENT is not EMPTY. key_points missing from the payload means
-          the field is flag-gated off server-side, so there is no such mode and
-          the toggle does not exist. An EMPTY array means the mode exists and
-          has nothing in it yet, so the toggle stays and KeyPointsView carries
-          the empty state.
-          FE-9 — centred horizontally (self-center), at every breakpoint.
-          T1 · 1.2 — hidden while arranging: the parts view owns the screen. */}
-      {!editing && !arranging && sd?.keyPoints ? (
-        <div className="mb-3 inline-flex self-center rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
-          <button
-            type="button"
-            onClick={() => setPresentationMode(false)}
-            className={`rounded-full px-3 py-1 transition-colors ${
-              presentationMode
-                ? "text-muted-foreground"
-                : "bg-background text-foreground shadow-sm"
-            }`}
-          >
-            Full text
-          </button>
-          <button
-            type="button"
-            onClick={() => setPresentationMode(true)}
-            className={`rounded-full px-3 py-1 transition-colors ${
-              presentationMode
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground"
-            }`}
-          >
-            Key words
-          </button>
-        </div>
-      ) : null}
-
+      {/* Founder 2026-07-29 — the Full text / Key words toggle is retired:
+          the readout always shows the full text. */}
       {editing ? (
         // FE-1 — the editor shows STYLED text, never the marker source: a user
         // must not see "{{orange:" while editing either. Saving serializes
@@ -710,13 +673,6 @@ export default function IdealTextReadout({
         // Every action emits the whole joined document into the SAME save
         // lane the editor uses.
         <DocumentArranger text={text} onChange={applyEdit} />
-      ) : sd && presentationMode && sd.keyPoints ? (
-        // E-2 — key-words presentation mode: the verbatim cues, each labelled
-        // by its block. Tapping one returns to the full read.
-        <KeyPointsView
-          keyPoints={sd.keyPoints}
-          onExit={() => setPresentationMode(false)}
-        />
       ) : sd && edited ? (
         // T1 · 1.2 — the student's own document: their words, their markers,
         // NO star layer and NO version pills. Both are anchored to machine
