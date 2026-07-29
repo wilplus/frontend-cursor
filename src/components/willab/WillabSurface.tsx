@@ -187,7 +187,6 @@ export default function WillabSurface({
       {pickedArcId && (
         <IdealTextOverlay
           arcId={pickedArcId}
-          version={null}
           onClose={() => setPickedArcId(null)}
           // "Read it aloud" — the re-read is just the next take of THIS
           // project. The arc was seeded when it was picked, so the Lab restores

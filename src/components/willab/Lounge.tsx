@@ -316,16 +316,12 @@ export default function Lounge({
   // (exactly what the banner's "Read ›" button used to do).
   // FE-4 — the newest ideal-text version the thread has announced (the BE
   // stamps metadata.version on every version bubble). null before the first.
-  // FE-C — heroIdealTextId marks the crucial bubble: the LATEST ideal_text row
-  // (highest version; a versionless row wins only when nothing versioned
-  // exists, taking the last row in thread order).
-  const { latestIdealVersion, heroIdealTextId } = useMemo(() => {
+  // Founder 2026-07-29 — no hero bubble any more: every version bubble is the
+  // same fixed history card, so only the version number is tracked here.
+  const latestIdealVersion = useMemo(() => {
     let v: number | null = null;
-    let heroId: string | null = null;
-    let lastAnyId: string | null = null;
     for (const m of messages) {
       if (m.kind !== "ideal_text") continue;
-      lastAnyId = m.id ?? null;
       const raw = m.metadata?.version;
       const n =
         typeof raw === "number" && Number.isFinite(raw)
@@ -333,12 +329,9 @@ export default function Lounge({
           : typeof raw === "string" && raw.trim() && Number.isFinite(Number(raw))
             ? Number(raw)
             : null;
-      if (n !== null && (v === null || n >= v)) {
-        v = n;
-        heroId = m.id ?? null;
-      }
+      if (n !== null && (v === null || n >= v)) v = n;
     }
-    return { latestIdealVersion: v, heroIdealTextId: heroId ?? lastAnyId };
+    return v;
   }, [messages]);
 
 
@@ -460,9 +453,6 @@ export default function Lounge({
   const [feedbackTarget, setFeedbackTarget] =
     useState<FeedbackBubbleTarget | null>(null);
   const [idealTextArcId, setIdealTextArcId] = useState<string | null>(null);
-  // FE-3b — non-null when an OLD version bubble opened the notebook: the
-  // overlay shows that version's read-only step. Cleared on close/open-live.
-  const [idealTextVersion, setIdealTextVersion] = useState<number | null>(null);
 
   // Async analysis (delivery layer) — a take left mid-analysis keeps finishing
   // server-side; resume its persisted marker and poll until terminal. Re-runs
@@ -782,15 +772,11 @@ export default function Lounge({
               <Bubble
                 key={item.reactKey}
                 message={item.message}
-                heroIdealText={
-                  item.message.id != null && item.message.id === heroIdealTextId
-                }
                 onOpenBestPresentation={(arcId) => setBestPresentationArcId(arcId)}
                 onOpenBreakthroughs={(arcId) => setBreakthroughsArcId(arcId)}
                 onOpenTranscripts={() => setLibraryOpen(true)}
                 onOpenFeedback={setFeedbackTarget}
-                onOpenIdealText={(arcId, version) => {
-                  setIdealTextVersion(version ?? null);
+                onOpenIdealText={(arcId) => {
             // FE-5 — opening the deliverable is the "seen" signal now that the
             // legacy insight walker is gone; without this the status machine
             // would stick in insights_ready forever.
@@ -1036,10 +1022,8 @@ export default function Lounge({
       {idealTextArcId && (
         <IdealTextOverlay
           arcId={idealTextArcId}
-          version={idealTextVersion}
           onClose={() => {
             setIdealTextArcId(null);
-            setIdealTextVersion(null);
           }}
           // SD — "Read it aloud": the re-read is just another recording. Seed
           // THIS presentation (only when the cache holds a different arc; the
@@ -1058,7 +1042,6 @@ export default function Lounge({
               );
             }
             setIdealTextArcId(null);
-            setIdealTextVersion(null);
             // The arc is already seeded above — never ask WHICH project.
             (onStartInProject ?? onStart)();
           }}
@@ -1324,7 +1307,6 @@ function SequentialBotBubbles({
 
 function Bubble({
   message,
-  heroIdealText,
   onViewInsights,
   onOpenBestPresentation,
   onOpenBreakthroughs,
@@ -1337,8 +1319,6 @@ function Bubble({
   animate = false,
 }: {
   message: LoungeMessage;
-  /** FE-C — true on the LATEST ideal_text bubble (the crucial card). */
-  heroIdealText?: boolean;
   onViewInsights?: (sessionId: string) => void;
   /** C — open BestPresentationOverlay from the best_presentation_ready card. */
   onOpenBestPresentation?: (arcId: string) => void;
@@ -1348,9 +1328,8 @@ function Bubble({
   onOpenTranscripts?: () => void;
   /** Delivery layer — the grey feedback bubbles open their take's page. */
   onOpenFeedback?: (target: FeedbackBubbleTarget) => void;
-  /** Delivery layer — the purple bubble opens the ideal-text notebook.
-   *  FE-3b: old version bubbles pass their version (read-only step). */
-  onOpenIdealText?: (arcId: string, version?: number | null) => void;
+  /** Delivery layer — every ideal-text bubble opens the live notebook. */
+  onOpenIdealText?: (arcId: string) => void;
   onChip?: () => void;
   /** F1/F2/F7 — which offer's action pair is currently armed (for the ring). */
   activeOffer?: OfferType | null;
@@ -1381,7 +1360,6 @@ function Bubble({
     return (
       <ReportCard
         message={message}
-        heroIdealText={heroIdealText}
         onViewInsights={onViewInsights}
         onOpenBestPresentation={onOpenBestPresentation}
         onOpenBreakthroughs={onOpenBreakthroughs}
