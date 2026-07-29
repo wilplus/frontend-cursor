@@ -23,6 +23,16 @@ import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 /*  One title == one project == one arc == one ideal text. Picking a title     */
 /*  continues THAT arc (its setup prefills, its master document grows); the    */
 /*  new-topic path is today's blank flow, untouched.                          */
+/*                                                                            */
+/*  FE-4 (2026-07-27) — NO DEFAULTS, EVER. There is no last-used project, no   */
+/*  auto-select when the list holds exactly one entry, and no "continue where  */
+/*  you left off". Every entry into recording asks. This is not a UX           */
+/*  preference: a take submitted with the wrong continue_arc_id lands in the   */
+/*  wrong project, which splits the arc and corrupts the cross-take comparison */
+/*  the ideal text is ranked across. Silence here is a data defect.            */
+/*                                                                            */
+/*  With NO projects there is nothing to choose between, so the screen is a    */
+/*  single centred "Start your first project" — one thing, nothing competing.  */
 /* -------------------------------------------------------------------------- */
 
 export default function ProjectPicker({
@@ -72,13 +82,21 @@ export default function ProjectPicker({
   // told apart from another in a list of words.
   const titled = arcs.filter((a) => a.topic.trim().length > 0);
 
-  // Nothing to choose between → don't ask. Skipping (not "new topic") keeps
-  // any seeded arc intact.
-  const nothingToPick = status === "ready" && titled.length === 0;
+  // Arcs exist but none carry a title: there is nothing to put in a list of
+  // words, so skip the question rather than leave "Start a new topic" as the
+  // only answer — that would WIPE a seeded arc and mint a duplicate project
+  // (review R-pp7). Deliberately onSkip, not onNewTopic: this must not clear
+  // the seed. The error state is NOT this case; it keeps its retry below.
+  const untitledOnly = status === "ready" && arcs.length > 0 && titled.length === 0;
   useEffect(() => {
-    if (nothingToPick) onSkip();
-  }, [nothingToPick, onSkip]);
-  if (nothingToPick) return null;
+    if (untitledOnly) onSkip();
+  }, [untitledOnly, onSkip]);
+  if (untitledOnly) return null;
+
+  // FE-4 — a genuinely first-time user: GET /v2/user/trainings came back
+  // {trainings: []}. Gated on `arcs`, not `titled`, so an untitled-project
+  // account never lands here and loses its seed to the new-topic path.
+  const firstProject = status === "ready" && arcs.length === 0;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -86,7 +104,19 @@ export default function ProjectPicker({
         <OverlayCloseButton onClick={onClose} />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      {firstProject ? (
+        // One button, centred, and nothing else on the screen with it.
+        <div className="flex flex-1 items-center justify-center px-5 pb-16">
+          <Button
+            type="button"
+            onClick={onNewTopic}
+            className="h-12 w-full max-w-xs rounded-full bg-foreground text-[15px] font-medium text-background hover:bg-foreground/90"
+          >
+            Start your first project
+          </Button>
+        </div>
+      ) : (
+      <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-8">
           <div>
             <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -110,6 +140,9 @@ export default function ProjectPicker({
               Looking for your projects…
             </p>
           ) : status === "error" ? (
+            // Unreachable is NOT "you have no projects" — offer the retry
+            // rather than steer someone into starting a duplicate topic
+            // (review R-pp3/R-pp6).
             <div className="flex flex-col items-start gap-2 px-1">
               <p className="text-[13px] text-muted-foreground">
                 Couldn&apos;t load your projects.
@@ -143,6 +176,7 @@ export default function ProjectPicker({
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 }

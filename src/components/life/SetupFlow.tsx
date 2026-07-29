@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
-import { SETUP, STATUS, VIEWS } from "@/lib/life/copy";
+import { GripVertical, Plus, X } from "lucide-react";
+import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
 import {
   coerceSetupAnswers,
@@ -15,6 +15,10 @@ import {
 import { completeSetup, fetchSetup, putSetup } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
+import { useDragReorder } from "./useDragReorder";
+import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
+import { duePresets } from "@/lib/life/duePresets";
+import { Button } from "@/components/ui/button";
 
 /* -------------------------------------------------------------------------- */
 /*  FE-3 — setup. Once, but editable forever.                                  */
@@ -111,27 +115,47 @@ export default function SetupFlow({
     }
   }
 
-  return (
-    <div className="mx-auto max-w-xl">
-      <Eyebrow>
-        Step {index + 1} of {LIFE_SETUP_STEPS.length}
-      </Eyebrow>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-        {step.title}
-      </h1>
-      {step.hint ? (
-        <p className="mt-1 text-sm text-muted-foreground">{step.hint}</p>
-      ) : null}
-      {index === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">{VIEWS.setup.lede}</p>
-      ) : null}
+  const status = finishing
+    ? SETUP.workingLabel
+    : saveState === "saving"
+      ? STATUS.saving
+      : saveState === "saved"
+        ? SETUP.savedNote
+        : "";
 
-      <div className="mt-6">
+  // Founder 2026-07-27 — this flow now wears the recording onboarding's chrome:
+  // the dot row with Back, the eyebrow + question + helper head, and one
+  // full-width rounded CTA. Same components, so the two onboardings cannot
+  // drift apart again.
+  return (
+    <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col">
+      <WizardProgress
+        count={LIFE_SETUP_STEPS.length}
+        current={index}
+        onBack={() => setIndex((i) => Math.max(0, i - 1))}
+      />
+
+      <div className="flex-1">
+        {/* STEP n OF 9 stays — it is the one piece of chrome that tells the
+            user how much is left, and this form's completion rate is the
+            feature's adoption rate. It is the head's eyebrow now, which is
+            where the recording flow puts the same information.
+            FE-10 — the grey "Eight horizons…" paragraph is gone: it rendered on
+            screen 1 only, which is exactly what made screen 1 the odd one out.
+            With it gone all nine steps render through this one path. */}
+        {/* Founder 2026-07-27 — no grey supporting line under the question.
+            The step's `hint` is deliberately NOT passed: one goal per screen
+            means one heading and the thing you fill in, and a paragraph of
+            grey between them is what made this read as a form rather than a
+            question. (FE-10 removed the same kind of line from screen 1; this
+            finishes it on all nine.) */}
+        <StepHead
+          eyebrow={`Step ${index + 1} of ${LIFE_SETUP_STEPS.length}`}
+          question={step.title}
+        />
+
         {step.kind === "bets" ? (
-          <BetsStep
-            answers={answers}
-            onChange={(next) => setAnswers(next)}
-          />
+          <BetsStep answers={answers} onChange={(next) => setAnswers(next)} />
         ) : (
           <GoalsStep
             stepKey={step.key}
@@ -142,34 +166,20 @@ export default function SetupFlow({
         )}
       </div>
 
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <button
+      <div className="mt-8">
+        {status ? (
+          <p className="mb-2 text-center text-xs text-muted-foreground">
+            {status}
+          </p>
+        ) : null}
+        <Button
           type="button"
-          onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          disabled={index === 0}
-          className="rounded-full border border-border px-4 py-2 text-sm text-foreground disabled:opacity-40"
+          onClick={() => void goNext()}
+          disabled={finishing}
+          className="w-full rounded-full"
         >
-          {SETUP.backLabel}
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            {finishing
-              ? SETUP.workingLabel
-              : saveState === "saving"
-                ? STATUS.saving
-                : saveState === "saved"
-                  ? SETUP.savedNote
-                  : ""}
-          </span>
-          <button
-            type="button"
-            onClick={() => void goNext()}
-            disabled={finishing}
-            className="rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background disabled:opacity-40"
-          >
-            {isLast ? SETUP.completeLabel : SETUP.nextLabel}
-          </button>
-        </div>
+          {isLast ? SETUP.completeLabel : SETUP.nextLabel}
+        </Button>
       </div>
     </div>
   );
@@ -177,35 +187,52 @@ export default function SetupFlow({
 
 /* --------------------------------- steps ---------------------------------- */
 
-function BetsStep({
+export function BetsStep({
   answers,
   onChange,
 }: {
   answers: LifeSetupAnswers;
   onChange: (next: LifeSetupAnswers) => void;
 }) {
-  function move(from: number, to: number) {
-    if (to < 0 || to >= answers.bets.length) return;
-    const bets = [...answers.bets];
-    const [moved] = bets.splice(from, 1);
-    bets.splice(to, 0, moved);
-    onChange({ ...answers, bets: bets.map((b, i) => ({ ...b, rank: i + 1 })) });
-  }
+  // `useCallback` because the drag engine holds this in an effect for the life
+  // of a drag — a new function every render would tear the listeners down and
+  // put them back mid-gesture.
+  const move = useCallback(
+    (from: number, to: number) => {
+      if (to < 0 || to >= answers.bets.length) return;
+      const bets = [...answers.bets];
+      const [moved] = bets.splice(from, 1);
+      bets.splice(to, 0, moved);
+      // Rank is re-derived from position, never carried: it is load-bearing
+      // downstream (bet 3 never outranks bet 2 in a daily plan), so the list
+      // order and the stored rank cannot be allowed to disagree.
+      onChange({ ...answers, bets: bets.map((b, i) => ({ ...b, rank: i + 1 })) });
+    },
+    [answers, onChange]
+  );
+
+  const dnd = useDragReorder(answers.bets.length, move);
 
   return (
-    <ol className="space-y-3">
+    // Founder 2026-07-27 — the up/down arrows are replaced by press-hold-move.
+    // `select-none` on the list is what keeps a hold on a phone from raising
+    // the OS text-selection callout over the row being dragged; the textarea
+    // opts back in, because selecting the text you typed still has to work.
+    <ol className="select-none space-y-3">
       {answers.bets.map((bet, i) => {
         const meta = LIFE_BETS.find((b) => b.key === bet.key);
+        const label = meta?.label ?? bet.key;
+        const dragging = dnd.draggingIndex === i;
         return (
-          <li key={bet.key}>
-            <PanelCard>
+          <li key={bet.key} {...dnd.rowProps(i)}>
+            <PanelCard className={dragging ? "border-foreground/25 bg-card" : undefined}>
               <div className="flex items-start gap-3">
                 <span className="text-lg leading-none" aria-hidden>
                   {meta?.glyph}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">
-                    {i + 1}. {meta?.label ?? bet.key}
+                    {dnd.projectedIndex(i) + 1}. {label}
                   </p>
                   <textarea
                     value={bet.meaning}
@@ -216,27 +243,29 @@ function BetsStep({
                     }}
                     rows={2}
                     placeholder="What this one covers, in your words"
-                    className="mt-2 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                    /* `scrollbar-none` + `overflow-x-hidden`: same as the chat
+                       composer — a bar inside a small bordered field reads as a
+                       broken control, and a textarea soft-wraps, so it has no
+                       business scrolling sideways at all. */
+                    className="scrollbar-none mt-2 w-full select-text resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
-                  <button
-                    type="button"
-                    aria-label={`Move ${meta?.label ?? bet.key} up`}
-                    onClick={() => move(i, i - 1)}
-                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Move ${meta?.label ?? bet.key} down`}
-                    onClick={() => move(i, i + 1)}
-                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                {/* The grip. It is a real button so it takes focus and Up/Down
+                    still reorder from a keyboard — the arrows left the screen,
+                    not the product. */}
+                <button
+                  type="button"
+                  data-drag-handle
+                  aria-label={`Reorder ${label}. Position ${i + 1} of ${
+                    answers.bets.length
+                  }. Hold and move, or use the up and down arrow keys.`}
+                  className={`-mr-1 shrink-0 cursor-grab rounded-lg p-2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
+                    dragging ? "cursor-grabbing text-foreground" : ""
+                  }`}
+                  {...dnd.handleProps(i)}
+                >
+                  <GripVertical className="h-4 w-4" />
+                </button>
               </div>
             </PanelCard>
           </li>
@@ -267,6 +296,9 @@ function GoalsStep({
   onChange: (next: LifeSetupAnswers) => void;
 }) {
   const goals = answers.horizons[stepKey] ?? [];
+  // Computed once per render from today's date — "[Aug]" has to mean the month
+  // the user is actually in, not one baked in at build time.
+  const presets = duePresets(stepKey, new Date());
 
   function write(next: LifeSetupGoal[]) {
     onChange({
@@ -310,6 +342,32 @@ function GoalsStep({
                 placeholder={duePlaceholder}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
               />
+              {/* Chips, not a date picker (spec §3.2): the label is the source
+                  of truth, and a picker would normalise "[Jul '27]" into a
+                  concrete day nobody chose. Tapping writes the label VERBATIM
+                  and the field stays typeable, so the common answers cost one
+                  tap and every other answer still fits. Same affordance as the
+                  recording flow's length presets. */}
+              {presets.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {presets.map((preset) => (
+                    <WizardChip
+                      key={preset}
+                      size="sm"
+                      active={goal.dueLabel === preset}
+                      onClick={() =>
+                        update(i, {
+                          // Tapping the active chip clears it — otherwise a
+                          // mis-tap can only be undone by selecting the text.
+                          dueLabel: goal.dueLabel === preset ? "" : preset,
+                        })
+                      }
+                    >
+                      {preset}
+                    </WizardChip>
+                  ))}
+                </div>
+              ) : null}
             </Field>
             <Field label="How much">
               <input
@@ -370,17 +428,14 @@ function GoalsStep({
             },
           ])
         }
-        className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+        // Centred, like every other CTA in the flow — a left-aligned button
+        // under centred content reads as a stray element rather than the next
+        // thing to do.
+        className="mx-auto flex w-fit items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
       >
         <Plus className="h-3.5 w-3.5" />
         Add a goal
       </button>
-
-      {goals.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          You can leave a horizon empty and come back to it.
-        </p>
-      ) : null}
     </div>
   );
 }

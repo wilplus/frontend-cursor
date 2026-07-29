@@ -8,7 +8,12 @@ import PanelNotFound from "@/components/life/PanelNotFound";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import { STATUS, VIEWS } from "@/lib/life/copy";
-import { hasConsented, type LifeMenuEntry, type LifeState } from "@/lib/life/types";
+import {
+  hasConsented,
+  principlesTabView,
+  type LifeMenuEntry,
+  type LifeState,
+} from "@/lib/life/types";
 
 /* -------------------------------------------------------------------------- */
 /*  PanelShell — chrome and gate for every /panel/* view (FE-1)                */
@@ -43,9 +48,33 @@ export function useLifePanel(): LifePanelContextValue {
   return ctx;
 }
 
+/** FE-10 — is the user looking at ONBOARDING right now?
+ *
+ *  Onboarding gets the panel's chrome stripped: no nav pill row above the step
+ *  header, no "Your data" link under it. One goal per screen means one thing on
+ *  the screen, and a pill row reading "Principles" over a heading reading "Your
+ *  three bets" is a second navigation offering itself mid-form.
+ *
+ *  This asks the STATE, not the path. It used to be a route allowlist holding
+ *  only "/panel/setup", which missed the setup flow's OTHER mount: the
+ *  Principles tab renders SetupFlow itself whenever consent is given and setup
+ *  is unfinished (principlesTabView → "setup"). That is the mount most users
+ *  actually meet — it is where the resume lands — so the allowlist stripped the
+ *  chrome from the route almost nobody onboards on and left it on the one they
+ *  do. Consent and completion are the real condition, and they are the same on
+ *  every route. */
+function isOnboarding(state: LifeState, pathname: string | null): boolean {
+  if (pathname === "/panel/setup") return true;
+  // The Principles tab IS the setup form until setup is finished.
+  return (
+    pathname === "/panel/principles" && principlesTabView(state) !== "results"
+  );
+}
+
 export default function PanelShell({ children }: { children: React.ReactNode }) {
   const { state, loading, refresh } = useLifeState();
   const pathname = usePathname();
+  const onboarding = state ? isOnboarding(state, pathname) : false;
 
   if (loading) {
     return (
@@ -79,7 +108,9 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
         <DashboardHeader />
         {/* Same derivation as the hamburger, so the two can never disagree
             about which views exist. */}
-        <PanelNav menu={panelMenu(state)} pathname={pathname} />
+        {onboarding ? null : (
+          <PanelNav menu={panelMenu(state)} pathname={pathname} />
+        )}
         <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
           {children}
         </main>
@@ -87,7 +118,12 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
             has written anything, rather than being buried in account settings.
             Not a gated menu entry: a person with data must always be able to
             take it out or erase it. */}
-        {hasConsented(state) ? (
+        {/* FE-10 — not during onboarding. Export and hard delete stay two
+            clicks away for anyone who has WRITTEN anything, which is the point
+            of the link; a user still filling in the form has not written
+            anything yet, and the link is one more thing on a screen that is
+            meant to hold one. It returns the moment they are through. */}
+        {hasConsented(state) && !onboarding ? (
           <footer className="mx-auto w-full max-w-3xl px-5 pb-10">
             <Link
               href="/panel/data"

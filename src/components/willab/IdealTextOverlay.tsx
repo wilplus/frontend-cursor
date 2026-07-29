@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Check,
   Copy,
@@ -17,7 +18,9 @@ import OverlayCloseButton from "./OverlayCloseButton";
 import LoadingState from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import { useBackDismiss } from "./useBackDismiss";
-import { MarkerToolbar, RichText } from "./RichText";
+import { RichText } from "./RichText";
+import MarkedEditor from "./MarkedEditor";
+import { PENDING_SHORT, REVIEWED } from "@/lib/willab/verificationCopy";
 import {
   MomentSheet,
   MomentStarText,
@@ -106,6 +109,8 @@ export default function IdealTextOverlay({
   const fetchGenRef = useRef(0);
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the 5-credit moments unlock has run.
+  // Confidence-game entry navigates to /game (its own page, over from /chat).
+  const router = useRouter();
   const [sd, setSd] = useState<{
     status: "unverified" | "verified";
     version: number | null;
@@ -455,12 +460,54 @@ export default function IdealTextOverlay({
     });
   }
 
+  // The project's own name heads this screen; the generic label is the
+  // fallback for a document served without one.
+  const headerTitle = sd?.title?.trim() || "Your ideal text";
+  const titleOverflows = headerTitle.length > 10;
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/70 px-4 py-2.5 backdrop-blur">
-        <span className="text-[13px] font-medium text-foreground">
-          Your ideal text
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          {/* Founder 2026-07-27 — the PROJECT's title, not a fixed label: this
+              screen is a project, and which one matters more than restating
+              what the screen is.
+
+              It is capped at ~10 characters and FADES rather than being cut or
+              ellipsised. A hard clip reads as a rendering bug and an ellipsis
+              spends a character saying "there is more" — the fade says the same
+              thing without taking room, and it is a mask to transparency rather
+              than a gradient in a hard-coded colour, so it works on whatever
+              the header sits on and in either theme. The mask is applied ONLY
+              when the title actually overflows; on a short one it would fade
+              the last real letters of a title that fits. */}
+          <span
+            className={`block shrink-0 max-w-[10ch] overflow-hidden whitespace-nowrap text-[13px] font-medium text-foreground${
+              titleOverflows
+                ? " [-webkit-mask-image:linear-gradient(to_right,#000_60%,transparent_100%)] [mask-image:linear-gradient(to_right,#000_60%,transparent_100%)]"
+                : ""
+            }`}
+            title={headerTitle}
+          >
+            {headerTitle}
+          </span>
+          {/* Founder 2026-07-27 — the verification state belongs UP HERE, beside
+              the title. It used to sit on its own row under the header, which
+              spent a whole band of vertical space on a badge and pushed the
+              text itself further down the screen. It says what this document
+              is, which is what a header is for. */}
+          {sd ? (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                sd.status === "verified"
+                  ? "bg-success/10 text-success"
+                  : "bg-background text-muted-foreground"
+              }`}
+            >
+              {sd.status === "verified" ? REVIEWED : PENDING_SHORT}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-1.5">
           {(status === "ready" || status === "instant" || status === "historical") &&
           !editing ? (
@@ -518,7 +565,7 @@ export default function IdealTextOverlay({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="scrollbar-none flex-1 overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-5 py-8">
           {status === "loading" ? (
             <LoadingState />
@@ -593,22 +640,8 @@ export default function IdealTextOverlay({
             />
           ) : ideal ? (
             <div className="flex flex-col gap-4">
-              {/* SD chrome — the living document's status + the read-aloud ask. */}
-              {sd ? (
-                <div className="flex flex-col gap-3">
-                  <span
-                    className={`self-start rounded-full px-2.5 py-1 text-[12px] font-medium ${
-                      sd.status === "verified"
-                        ? "bg-success/10 text-success"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {sd.status === "verified"
-                      ? "Verified"
-                      : "Pending verification by the coach"}
-                  </span>
-                </div>
-              ) : null}
+              {/* The verification badge moved into the header (above) — a row
+                  of its own was a band of vertical space for one word. */}
               {/* FE-2 — one tap applies every smoother-version suggestion.
                   Polish only; acoustic and structural stars stay per-star.
                   Hidden while arranging and on an edited document: no stars
@@ -630,9 +663,13 @@ export default function IdealTextOverlay({
                   Approve all
                 </button>
               ) : null}
-              {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues. */}
-              {!arranging && sd?.keyPoints && sd.keyPoints.length > 0 ? (
-                <div className="inline-flex self-start rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
+              {/* E-2 — full ↔ key-words toggle. Hidden unless the BE serves cues.
+                  FE-7 — absent (flag-gated off) hides the toggle entirely;
+                  an EMPTY array keeps it, with KeyPointsView's empty state
+                  under it. FE-9 — centred at every breakpoint.
+                  T1 · 1.2 — hidden while arranging: the parts view owns it. */}
+              {!arranging && sd?.keyPoints ? (
+                <div className="inline-flex self-center rounded-full border border-border bg-muted p-0.5 text-[12px] font-medium">
                   <button
                     type="button"
                     onClick={() => setPresentationMode(false)}
@@ -711,7 +748,7 @@ export default function IdealTextOverlay({
                   onChange={(next) => void saveDocument(next)}
                   textSizeClass="text-[18px]"
                 />
-              ) : presentationMode && sd?.keyPoints && sd.keyPoints.length > 0 ? (
+              ) : presentationMode && sd?.keyPoints ? (
                 <KeyPointsView
                   keyPoints={sd.keyPoints}
                   onExit={() => setPresentationMode(false)}
@@ -782,6 +819,22 @@ export default function IdealTextOverlay({
         // FE-D — the ONE two-state mic: an in-place read of the ideal text, or
         // "Record another take" once this version has been read.
         <div className="shrink-0 bg-background px-4 pb-4">
+          {/* Confidence game (founder 2026-07-28) — the per-arc first-time
+              entry lives HERE, in the same place as the re-read, once the
+              user has collected at least three coach-confirmed confident-
+              voice moments. (The always-offered end-of-arc play/skip comes
+              later, once the game is established.) */}
+          {(ideal?.keyMoments ?? []).filter((m) => m.star === "verified")
+            .length >= 3 ? (
+            <button
+              type="button"
+              onClick={() => router.push(`/game?arc=${encodeURIComponent(arcId)}`)}
+              className="mb-2 flex h-11 w-full items-center justify-center gap-2 rounded-full border border-primary/40 bg-primary/5 text-[14px] font-medium text-foreground transition-colors hover:border-primary/70"
+            >
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+              Play the confidence game
+            </button>
+          ) : null}
           {sd.saved !== null ? (
             // MASTER DOCUMENT (FE-3) — Save → re-read (gated) → next take.
             <IdealTextActions
@@ -914,11 +967,6 @@ function NotebookEditor({
   const [draft, setDraft] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
-
   // An emptied draft can't save: the mapper reads an empty stored copy as
   // "no personal copy" on the next load, so it would silently revert to the
   // canonical — blocking it here keeps what you see and what persists aligned.
@@ -938,14 +986,13 @@ function NotebookEditor({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      {/* Bold / underline / italic / orange — the same shared toolbar the coach
-          gets; wraps the selection in the pinned marker contract. */}
-      <MarkerToolbar textareaRef={ref} value={draft} onChange={setDraft} />
-      <textarea
-        ref={ref}
+      {/* FE-1 — the SAME styled editor as the readout. Both surfaces edit one
+          document, so neither may show the marker source. */}
+      <MarkedEditor
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        className="min-h-[50vh] w-full flex-1 resize-none rounded-2xl border border-border bg-background px-4 py-4 text-[18px] leading-relaxed outline-none focus:border-primary"
+        onChange={setDraft}
+        textSizeClass="text-[18px]"
+        autoFocus
       />
       <p className="text-[12px] text-muted-foreground">
         {saveOverride

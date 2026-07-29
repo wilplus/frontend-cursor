@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Linkified from "./Linkified";
 import { postChatQuery } from "@/services/api/chatQuery";
 import { homeworkApi } from "@/lib/api/homework-client";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
@@ -35,6 +36,7 @@ import BreakthroughsOverlay from "./BreakthroughsOverlay";
 import StudentRosterOverlay from "./StudentRosterOverlay";
 import StudentDetailOverlay from "./StudentDetailOverlay";
 import CoachReviewOverlay from "./CoachReviewOverlay";
+import CoachStarVerdictOverlay from "./CoachStarVerdictOverlay";
 import ReviewGroupOverlay from "./ReviewGroupOverlay";
 import { readExploreArc, writeExploreArc } from "@/lib/willab/exploreArc";
 import { clearInsightsReady } from "./sendStatus";
@@ -140,7 +142,17 @@ export default function Lounge({
     const el = composerRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    // The BORDER has to be added back. `scrollHeight` covers content + padding
+    // and stops there, but the box is `border-box` (Tailwind's global reset),
+    // so assigning that number as the height makes the browser fit the borders
+    // INSIDE it — the content box comes out 2px short of the text it was just
+    // measured from. The result was a permanently-overflowing field: from the
+    // second line on, the textarea grew to exactly the wrong height and drew a
+    // scrollbar over a box that had just been sized to fit.
+    const cs = window.getComputedStyle(el);
+    const border =
+      parseFloat(cs.borderTopWidth || "0") + parseFloat(cs.borderBottomWidth || "0");
+    el.style.height = `${Math.min(el.scrollHeight + border, 160)}px`;
   }, [draftText]);
   // FE-5 — the Life Panel's # layer. `enabled` is false for every user who has
   // not consented AND completed setup, which is everyone until they opt in, so
@@ -153,6 +165,11 @@ export default function Lounge({
   const [libraryOpen, setLibraryOpen] = useState(false);
   // F2 — best-presentation overlay. arcId drives which arc to show.
   const [bestPresentationArcId, setBestPresentationArcId] = useState<string | null>(null);
+  // Star Verdict (2026-07-27) — the coach's star-review overlay for one arc.
+  // A SIBLING of the review overlay on purpose (N1): the verdict surface
+  // shows the machine's guesses, so it never mounts inside the blind
+  // labeling flow — the two only meet here, in the hub.
+  const [starVerdictArcId, setStarVerdictArcId] = useState<string | null>(null);
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
   const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
   // F1 — credit gate. `canStartAnalysis` is server-owned (don't hardcode >=5);
@@ -424,16 +441,10 @@ export default function Lounge({
   // whether to surface the install offer and the footer action pair.
   const install = useInstallOffer();
 
-  // #7 — practice mode: while a 3-take practice arc is active and has at least
-  // one take banked, the big record button reads "Record the next take" (the
-  // small in-card button is gone; this is the ONE record affordance). Post-mount
-  // effect (localStorage) so SSR/hydration stay clean; re-checked as the flow
-  // state / thread move (a take completing flips both).
-  const [practiceArcActive, setPracticeArcActive] = useState(false);
-  useEffect(() => {
-    const arc = readExploreArc();
-    setPracticeArcActive(!!arc && arc.nextTakeIndex >= 2);
-  }, [state, messages.length]);
+  // FE-4 — the "practice mode" state that made the record CTA read "Record the
+  // next take" and skip the project choice is gone with the shortcut it drove.
+  // A cached arc says where the LAST take went, which is not an answer to
+  // where this one should go.
 
   // When the user asks to upload a file, the footer's record button becomes a
   // file picker (deckless upload). Tracks the LATEST intent so it reverts once
@@ -748,7 +759,7 @@ export default function Lounge({
       <div
         ref={scrollRef}
         onScroll={handleThreadScroll}
-        className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
+        className="scrollbar-none flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
       >
         {thread.hasMore && (
           <button
@@ -764,7 +775,7 @@ export default function Lounge({
         {thread.loading ? (
           <LoadingState />
         ) : threadItems.length === 0 ? (
-          <LoungeEmptyState />
+          <LoungeEmptyState onStart={onStart} />
         ) : (
           threadItems.map((item, i) =>
             item.kind === "message" ? (
@@ -902,19 +913,13 @@ export default function Lounge({
             </p>
           ) : null}
         </>
-      ) : (
-        <Button
-          type="button"
-          // An active cached arc IS the known project, and the label commits
-          // to continuing it — so that CTA must not stop to ask which project
-          // (review R-pp4). A fresh start still goes through the picker.
-          onClick={practiceArcActive ? onStartInProject ?? onStart : onStart}
-          className="h-12 w-full gap-2 rounded-full bg-foreground text-background hover:bg-foreground/90"
-        >
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
-          {practiceArcActive ? "Record the next take" : "Start official recording"}
-        </Button>
-      )}
+      ) : // FE-2 (founder 2026-07-27) — the full-width "Start official
+      // recording" CTA is DELETED. The record affordance is the small control
+      // inside the composer and nothing else, so there is no second, louder
+      // button competing with it. The upload picker above keeps its own
+      // full-width button: it is a different action, and it only appears when
+      // the user has asked to upload.
+      null}
 
       {/* Wave-3 — no standing chip row above the composer; quick actions are
           single in-thread buttons (A-4 / B-1). Footer is just the CTA + input. */}
@@ -934,40 +939,82 @@ export default function Lounge({
         />
       )}
 
-      <form onSubmit={handleSend} className="relative">
-        <textarea
-          ref={composerRef}
-          rows={1}
-          value={draftText}
-          onChange={(e) => setDraftText(e.target.value)}
-          onKeyDown={(e) => {
-            // R4-12 — Enter sends; Shift+Enter inserts a newline. requestSubmit
-            // fires the form's onSubmit (handleSend) with a real submit event.
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              e.currentTarget.form?.requestSubmit();
-            }
-          }}
-          placeholder="Ask Will about how communication works…"
-          /* B9 — kill any autofill / password-manager overlay that can ghost a
-             second line of placeholder text over a chat composer. R4-12 —
-             autocorrect ON now (this is prose, not a password field). */
-          autoComplete="off"
-          autoCorrect="on"
-          autoCapitalize="sentences"
-          spellCheck
-          className="block max-h-40 min-h-[48px] w-full resize-none rounded-3xl border border-border bg-background py-3 pl-4 pr-12 text-[15px] leading-snug outline-none focus:border-primary"
-          aria-label="Message Will"
-        />
+      {/* FE-2 (founder 2026-07-27, revised) — the record control is its own
+          bordered button NEXT TO the text input, not inside it. Two controls
+          on one row, and everything fits on a single line at every width:
+          the input flexes and the button takes only what it needs.
+
+          Send lives inside the input and only exists once there is something
+          to send. That is where the input's width comes back — an empty field
+          pays nothing for a button that could not be pressed anyway, which is
+          the "measurably wider input" the original story wanted and could not
+          get by removing a "+" this composer never had. */}
+      <form onSubmit={handleSend} className="flex items-end gap-2">
+        <div className="relative flex-1">
+          <textarea
+            ref={composerRef}
+            rows={1}
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
+            onKeyDown={(e) => {
+              // R4-12 — Enter sends; Shift+Enter inserts a newline.
+              // requestSubmit fires the form's onSubmit (handleSend) with a
+              // real submit event.
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+            // Founder 2026-07-27. Short by design: it sits on one line at the
+            // narrowest supported width, where the original copy wrapped to
+            // two and made a chat field read as a text area.
+            placeholder="Type here"
+            /* B9 — kill any autofill / password-manager overlay that can ghost
+               a second line of placeholder text over a chat composer. R4-12 —
+               autocorrect ON now (this is prose, not a password field). */
+            autoComplete="off"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
+            /* `scrollbar-none` + `overflow-x-hidden`: past the 160px cap the
+               field does scroll, but a bar inside a rounded chat input reads as
+               a broken control, and a textarea has no business scrolling
+               sideways at all — it soft-wraps. */
+            className={`scrollbar-none block max-h-40 min-h-[48px] w-full resize-none overflow-x-hidden rounded-3xl border border-border bg-background py-3 pl-4 text-[15px] leading-snug outline-none focus:border-primary ${
+              draftText.trim() ? "pr-12" : "pr-4"
+            }`}
+            aria-label="Message Will"
+          />
+          {/* Only once there is text: an always-present grey Send is a button
+              that cannot be pressed, and it costs the field 32px to say so. */}
+          {draftText.trim() ? (
+            <button
+              type="submit"
+              disabled={botThinking}
+              aria-label="Send"
+              className="absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors disabled:cursor-default disabled:text-muted-foreground"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          ) : null}
+        </div>
+        {/* Its own control, with its own stroke — recording is not a thing you
+            do TO the message you are typing. The dot is the recording signal
+            (the one place red reads as "live action").
+
+            It ALWAYS opens the project choice: never a last-used default,
+            never an auto-continue, even when a cached arc exists. Founder
+            2026-07-27 — that disconnection is deliberate. A take submitted
+            with the wrong continue_arc_id lands in the wrong project, splits
+            the arc, and corrupts the cross-take comparison the ideal text is
+            ranked across. */}
         <button
-          type="submit"
-          disabled={!draftText.trim() || botThinking}
-          aria-label="Send"
-          className={`absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:cursor-default ${
-            draftText.trim() ? "text-foreground" : "text-muted-foreground"
-          }`}
+          type="button"
+          onClick={onStart}
+          className="flex h-12 shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
         >
-          <Send className="h-5 w-5" />
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+          Record
         </button>
       </form>
 
@@ -1056,6 +1103,7 @@ export default function Lounge({
           // (BestPresentationOverlay renders CoachIdealTextPanel for coaches
           // in every state, pre-3-takes included — never a dead end).
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenStarVerdicts={(arcId) => setStarVerdictArcId(arcId)}
         />
       )}
       {/* FP-4 — per-student drill-down opened from a grouped review bubble.
@@ -1071,6 +1119,7 @@ export default function Lounge({
           }}
           onOpenReview={openReview}
           onOpenArcIdeal={(arcId) => setBestPresentationArcId(arcId)}
+          onOpenStarVerdicts={(arcId) => setStarVerdictArcId(arcId)}
         />
       )}
       {/* FP-4 pre-BE-4 fallback — the local recordings list for a group with no
@@ -1098,13 +1147,15 @@ export default function Lounge({
       )}
 
       {/* Best-presentation overlay (the arc deliverable — the coach's ideal-text
-          panel lives here). Mounted LAST on purpose: every path OPENS INTO it
+          panel lives here). Mounted AFTER every overlay that opens into it
           (roster / student detail / review wrap-up all call
           setBestPresentationArcId), and nothing this mount renders opens on top
-          of it. Equal z-40 → last in DOM wins, so it paints ABOVE the overlay it
-          was opened from (that was the P0 "nothing happens" bug — it used to
+          of it. Equal z-40 → later in DOM wins, so it paints ABOVE the overlay
+          it was opened from (that was the P0 "nothing happens" bug — it used to
           render first and hide behind an opaque z-40 sibling). Mount order also
-          makes it the LIFO back-dismiss top, so Back closes it first. */}
+          puts it above those openers in the LIFO back-dismiss stack. (The star
+          verdict overlay below is a sibling, not an opener — neither ever opens
+          the other, so their relative order carries no weight.) */}
       {bestPresentationArcId && (
         <BestPresentationOverlay
           arcId={bestPresentationArcId}
@@ -1131,6 +1182,19 @@ export default function Lounge({
             // Seeded above — same rule as the library entry (review R-pp0).
             (onStartInProject ?? onStart)();
           }}
+        />
+      )}
+
+      {/* Star Verdict — the coach judges the machine's fired stars for one
+          arc. Mounted last for the same reason BestPresentationOverlay is
+          (equal z-40 → last in DOM paints on top): it opens FROM the student
+          detail overlay mounted above, so it must stack over it, and being
+          the LIFO back-dismiss top means Back returns to the detail. Never
+          opened from the review overlay (N1 — that flow labels blind). */}
+      {starVerdictArcId && (
+        <CoachStarVerdictOverlay
+          arcId={starVerdictArcId}
+          onClose={() => setStarVerdictArcId(null)}
         />
       )}
 
@@ -1249,7 +1313,8 @@ function SequentialBotBubbles({
           key={`${i}-${part.slice(0, 12)}`}
           className="whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-[15px] text-foreground"
         >
-          {part}
+          {/* FE-13 — Will's replies carry booking links; they were dead text. */}
+          <Linkified text={part} />
         </div>
       ))}
       {stillTyping ? <TypingDots /> : null}
@@ -1329,7 +1394,9 @@ function Bubble({
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-primary px-3 py-2 text-[15px] text-primary-foreground">
-        {message.body}
+        {/* FE-13 — both sides of the thread, so a link the user pasted works
+            the same as one Will sent. */}
+        <Linkified text={message.body} />
       </div>
     );
   }
@@ -1365,18 +1432,27 @@ function Bubble({
   );
 }
 
-function LoungeEmptyState() {
-  // B3 — "Will" greeting (de-dashed; §3.12 librarian behaviour unchanged).
-  // Honest positioning (founder 2026-07-17): Will states the DELIVERABLE (the
-  // ideal text + your strongest moments), never "charisma now".
+function LoungeEmptyState({ onStart }: { onStart: () => void }) {
+  // Founder 2026-07-27 — the Will greeting is replaced by the thing it was
+  // asking for. An empty thread had a paragraph explaining that recording is
+  // the point; now it IS the point: one big oval button and nothing else
+  // competing with it.
+  //
+  // Same destination as the composer's Record: ALWAYS the project choice,
+  // never a last-used default (FE-4).
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-      <p className="max-w-sm text-[15px] leading-relaxed text-foreground">
-        Hi, I am Will and I will (hehe) help you sound like you. Jump into
-        the <span className="font-medium">official recording</span>: every take
-        gives you the ideal text of your talk, in your own words, and shows you
-        which moments landed best.
-      </p>
+    <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+      <button
+        type="button"
+        onClick={onStart}
+        // ONE line, always: `whitespace-nowrap` is the guarantee, and the copy
+        // plus the padding are sized so it holds at the narrowest supported
+        // width without the label shrinking the dot or spilling the pill.
+        className="flex w-full max-w-sm items-center justify-center gap-2.5 whitespace-nowrap rounded-full bg-foreground px-5 py-4 text-[16px] font-medium text-background transition-colors hover:bg-foreground/90 active:scale-[0.99]"
+      >
+        <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" aria-hidden />
+        Start your first recording
+      </button>
     </div>
   );
 }

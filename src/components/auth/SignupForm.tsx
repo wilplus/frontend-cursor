@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import LinkedInAuthButton from "@/components/auth/LinkedInAuthButton";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import SpeakerSexQuestion from "@/components/willab/SpeakerSexQuestion";
+import type { ProfileSex } from "@/services/api/userProfile";
 
 interface SignupFormProps {
   onSuccess?: () => void;
@@ -26,6 +28,10 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  // Optional, and deliberately never validated: leaving it blank is a valid
+  // outcome. SpeakerSexPrompt asks again later, which is also the only path
+  // for LinkedIn/Google signups since those never reach this form.
+  const [sex, setSex] = useState<ProfileSex | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -69,6 +75,9 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
           password,
           name: name.trim(),
           terms_accepted: true, // validated above; always true at this point
+          // Omitted entirely when unanswered, so the BE stores NULL ("never
+          // asked") rather than a value we invented. Never inferred here.
+          ...(sex ? { sex } : {}),
         }),
       });
 
@@ -255,6 +264,17 @@ export default function SignupForm({ onSuccess, skipProviderPicker }: SignupForm
             disabled={loading}
           />
         </div>
+        {/* Optional. No `required`, and the submit button below is NOT gated
+            on it: a forced answer would be a random answer, and a wrong value
+            flips the pitch cue for that user, which is strictly worse than the
+            sex-blind fallback we ship today. */}
+        <SpeakerSexQuestion
+          value={sex}
+          onChange={setSex}
+          disabled={loading}
+          className="rounded-lg border border-border bg-muted/30 p-3"
+        />
+
         {/* Legal consent checkbox — required before account creation.
             Gating the submit button ensures the user actively ticks the box
             before any data is sent; the backend validates terms_accepted=true

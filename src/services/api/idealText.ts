@@ -453,6 +453,34 @@ export function mapKeyPoints(raw: unknown): KeyPoint[] | null {
   return out;
 }
 
+/** FE-7 — the document-absolute ranges the full-text view may tint.
+ *
+ *  VERIFY BEFORE TINTING. `start`/`end` are char offsets into the SERVED text
+ *  (markers included), exactly like a tracked change, and the same rule
+ *  applies: if the slice does not equal the cue verbatim, drop that key point
+ *  SILENTLY rather than guess a position. A stale offset that paints anyway
+ *  would accent words the coach never marked.
+ *
+ *  Deliberately returns positions only — no rank, no order index, no score.
+ *  A key point is a qualitative cue (AC-9); the array's order is the
+ *  document's order and carries no importance signal. Pure. */
+export function keyPointTintRanges(
+  text: string,
+  keyPoints: KeyPoint[] | null
+): Array<[number, number]> {
+  if (!text || !keyPoints || keyPoints.length === 0) return [];
+  const out: Array<[number, number]> = [];
+  for (const kp of keyPoints) {
+    const { start, end } = kp;
+    if (start === null || end === null) continue; // un-anchored cue: card only
+    if (!Number.isInteger(start) || !Number.isInteger(end)) continue;
+    if (start < 0 || end > text.length || end <= start) continue;
+    if (text.slice(start, end) !== kp.text) continue;
+    out.push([start, end]);
+  }
+  return out;
+}
+
 export type IdealTextResult =
   | { kind: "ready"; ideal: IdealText } // the coach-perfected text (approved)
   // The FREE machine draft (founder re-lock 2026-07-17): served the moment the

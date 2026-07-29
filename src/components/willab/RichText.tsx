@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { Bold, Italic, Star, Underline, type LucideIcon } from "lucide-react";
 import {
-  parseRichMarkers,
+  parseRichSpans,
   wrapSelection,
   type RichMark,
 } from "@/lib/willab/richMarkers";
+import { readingBlocks } from "@/lib/willab/readingBlocks";
 
 /** FE-2 (gradual refinement) — how a [[moment:…]] span should decorate in the
  *  SD star treatment. `star` picks the icon family; `quote` is the narrow
@@ -73,6 +74,8 @@ export function RichText({
   text,
   onMomentTap,
   momentDecor,
+  srcOffset = 0,
+  tint,
 }: {
   text: string;
   onMomentTap?: (moment: { snippetId: string; sessionId: string }) => void;
@@ -80,8 +83,18 @@ export function RichText({
     snippetId: string;
     sessionId: string;
   }) => MomentDecor | null;
+  /** FE-7 — where `text` begins inside the WHOLE served document. Callers that
+   *  render a slice pass its absolute start so key-point offsets (which index
+   *  the served text, markers included) can be resolved here. Omitted → 0,
+   *  which is right for a caller rendering the whole document and harmless for
+   *  one that simply doesn't tint. */
+  srcOffset?: number;
+  /** FE-7 — document-absolute [start, end) ranges to paint in the accent. The
+   *  SAME orange {{orange:…}} uses: there is one accent colour in the product,
+   *  and a key point is a qualitative cue, never a rank. */
+  tint?: Array<[number, number]>;
 }) {
-  const segments = useMemo(() => parseRichMarkers(text), [text]);
+  const segments = useMemo(() => parseRichSpans(text), [text]);
   return (
     <>
       {segments.map((seg, i) => {
@@ -160,7 +173,11 @@ export function RichText({
               {paintQuote && decor?.quote ? (
                 <QuoteUnderlined text={seg.text} quote={decor.quote} />
               ) : (
-                seg.text
+                <Spaced
+                  text={seg.text}
+                  absStart={srcOffset + seg.srcStart}
+                  tint={tint}
+                />
               )}
               {style && runEnd ? (
                 <>
@@ -177,12 +194,98 @@ export function RichText({
         }
         return (
           <span key={i} className={cls || undefined}>
-            {seg.text}
+            <Spaced
+              text={seg.text}
+              absStart={srcOffset + seg.srcStart}
+              tint={tint}
+            />
           </span>
         );
       })}
     </>
   );
+}
+
+/** Founder 2026-07-27 — draw a run as spaced reading blocks: a gap between
+ *  the document's blocks, and another wherever a block would run well past
+ *  five lines.
+ *
+ *  The gap is a "\n\n" TEXT NODE rather than a margin or a <br>, for two
+ *  reasons. The reading containers are `white-space: pre-line`, so a blank
+ *  line is exactly a blank line there. And it is inline, so it works unchanged
+ *  inside a key-moment <button> — which matters, because the backend wraps
+ *  whole paragraphs in [[moment:…]], so the blocks that most need spacing are
+ *  usually inside one.
+ *
+ *  Nothing here edits the run: each block carries its own source offset, so the
+ *  key-point tint still resolves against the served text. Inserting whitespace
+ *  into the text instead would slide every offset after it. */
+function Spaced({
+  text,
+  absStart,
+  tint,
+}: {
+  text: string;
+  absStart: number;
+  tint?: Array<[number, number]>;
+}) {
+  const blocks = readingBlocks(text);
+  if (blocks.length <= 1) {
+    return <Tinted text={text} absStart={absStart} tint={tint} />;
+  }
+  return (
+    <>
+      {blocks.map((b, i) => (
+        <Fragment key={i}>
+          {i > 0 ? "\n\n" : null}
+          <Tinted text={b.text} absStart={absStart + b.offset} tint={tint} />
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+/** FE-7 — paint the key-point ranges that fall inside this run.
+ *
+ *  The ranges are document-absolute and index the SERVED text (markers
+ *  included), which is why they are resolved against each span's source
+ *  offsets rather than against the marker-stripped string: computing them on
+ *  the stripped text would slide every cue left by the width of the markers
+ *  before it.
+ *
+ *  No tint, or nothing overlapping → the text itself, so a run pays nothing
+ *  for a document with no cues. */
+function Tinted({
+  text,
+  absStart,
+  tint,
+}: {
+  text: string;
+  absStart: number;
+  tint?: Array<[number, number]>;
+}) {
+  if (!tint || tint.length === 0) return <>{text}</>;
+  const end = absStart + text.length;
+  const hits = tint
+    .filter(([s, e]) => s < end && e > absStart)
+    .sort((a, b) => a[0] - b[0]);
+  if (hits.length === 0) return <>{text}</>;
+  const out: React.ReactNode[] = [];
+  let at = 0;
+  hits.forEach(([s, e], k) => {
+    const from = Math.max(0, s - absStart);
+    const to = Math.min(text.length, e - absStart);
+    if (to <= at) return; // fully consumed by an earlier, overlapping cue
+    if (from > at) out.push(<Fragment key={`p${k}`}>{text.slice(at, from)}</Fragment>);
+    out.push(
+      <span key={`t${k}`} className="text-primary">
+        {text.slice(Math.max(at, from), to)}
+      </span>
+    );
+    at = to;
+  });
+  if (at < text.length) out.push(<Fragment key="rest">{text.slice(at)}</Fragment>);
+  return <>{out}</>;
 }
 
 /** FE-2 — underline exactly the quote substring inside a moment segment's

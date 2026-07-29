@@ -1,56 +1,34 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useLayoutEffect } from "react";
 import Link from "next/link";
-import { Menu } from "lucide-react";
 import Logo from "@/components/Logo";
-import { createClient } from "@/lib/supabase/client";
-import { homeworkApi } from "@/lib/api/homework-client";
-import { Button } from "@/components/ui/button";
+import AppMenu from "@/components/AppMenu";
+import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
+import { useAppMenuData } from "@/hooks/useAppMenuData";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
   type CreditsCheckoutSuccessDetail,
 } from "@/lib/willabWindowEvents";
 import { pollCreditsAfterCheckout } from "@/lib/homework/pollCreditsAfterCheckout";
-import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
-import { panelMenu } from "@/lib/life/menu";
-import type { LifeMenuEntry } from "@/lib/life/types";
 
-const SUPPORT_EMAIL = "artur@willonski.com";
-/** The Skool community. Off-site, so it always opens in a new tab. */
-const COMMUNITY_URL =
-  "https://www.skool.com/willab-willpower-lab-6989/about";
-const HEADER_MENU_ID = "dashboard-header-menu";
-type AuthState = "unknown" | "anonymous" | "signed_in";
-// Shared menu-item styling so Support / Log in / Log out read identically.
-const MENU_ITEM_CLASS =
-  "block w-full px-4 py-2.5 text-left font-semibold text-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none";
+/* -------------------------------------------------------------------------- */
+/*  DashboardHeader — the lab's chrome.                                        */
+/*                                                                            */
+/*  FE-3 — the menu itself now lives in AppMenu and its data in                */
+/*  useAppMenuData, so the blog mounts the SAME component rather than a        */
+/*  lookalike. What stays here is what is genuinely lab-only: the logo, and    */
+/*  the post-Stripe-checkout credits reconciliation.                          */
+/* -------------------------------------------------------------------------- */
 
 export default function DashboardHeader() {
-  const router = useRouter();
-  const supabase = createClient();
-  const [authState, setAuthState] = useState<AuthState>("unknown");
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [credits, setCredits] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  // FE-1 — the Life Panel's entries, straight from `GET /v2/life/state`. Empty
-  // for everyone the panel is not on for, which is the normal case: that
-  // endpoint 404s unless the feature is enabled AND this user passes the gate.
-  // N1 — we render what the payload contains and nothing more. There is no
-  // local list of panel views here, so a surface the server omits cannot
-  // appear, and nothing is ever rendered greyed out as "coming soon".
-  const [lifeMenu, setLifeMenu] = useState<LifeMenuEntry[]>([]);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const firstLinkRef = useRef<HTMLAnchorElement>(null);
-  const openByKeyboardRef = useRef(false);
+  const menu = useAppMenuData();
+  const { setCredits } = menu;
 
-  /** After Stripe checkout: claim session server-side (instant), then poll if needed.
-   *  useLayoutEffect so the listener is registered before sibling CreditsCheckoutReturnToast fires the event in useEffect. */
+  /** After Stripe checkout: claim the session server-side (instant), then poll
+   *  if needed. useLayoutEffect so the listener is registered before the
+   *  sibling CreditsCheckoutReturnToast fires the event in useEffect. */
   useLayoutEffect(() => {
     const onCheckoutSuccess = (e: Event) => {
       const detail = (e as CustomEvent<CreditsCheckoutSuccessDetail>).detail;
@@ -72,151 +50,26 @@ export default function DashboardHeader() {
           return;
         }
         if (result.reason === "claim_failed") {
-          toast.error(result.message?.trim() || fallbackMsg, { id: toastId, duration: 14_000 });
+          toast.error(result.message?.trim() || fallbackMsg, {
+            id: toastId,
+            duration: 14_000,
+          });
           return;
         }
-        toast.error(result.message?.trim() || fallbackMsg, { id: toastId, duration: 12_000 });
+        toast.error(result.message?.trim() || fallbackMsg, {
+          id: toastId,
+          duration: 12_000,
+        });
       })();
     };
 
     window.addEventListener(WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT, onCheckoutSuccess);
     return () =>
-      window.removeEventListener(WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT, onCheckoutSuccess);
-  }, []);
-
-  /** Credits: single source of truth — same field as homework flow (`GET /homework/session/status`). */
-  useEffect(() => {
-    let cancelled = false;
-
-    async function refreshCreditsFromStatus() {
-      try {
-        const status = await homeworkApi.getStatus();
-        if (!cancelled) {
-          setCredits(status?.credits != null ? status.credits : null);
-        }
-      } catch {
-        if (!cancelled) setCredits(null);
-      }
-    }
-
-    async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (!user) {
-        setAuthState("anonymous");
-        setUserEmail(null);
-        setCredits(null);
-        return;
-      }
-      setAuthState("signed_in");
-      setUserEmail(user.email ?? null);
-      await refreshCreditsFromStatus();
-    }
-
-    void load();
-
-    // Only attach the credits-refresh listeners when we know the user is
-    // signed in — guests don't have credits and shouldn't trigger /status
-    // requests in the background.
-    let cleanupListeners: (() => void) | null = null;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (cancelled || !data.user) return;
-      const onVisibilityOrFocus = () => {
-        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-        void refreshCreditsFromStatus();
-      };
-      window.addEventListener("focus", onVisibilityOrFocus);
-      document.addEventListener("visibilitychange", onVisibilityOrFocus);
-      const intervalId = window.setInterval(() => {
-        void refreshCreditsFromStatus();
-      }, 60_000);
-      cleanupListeners = () => {
-        window.removeEventListener("focus", onVisibilityOrFocus);
-        document.removeEventListener("visibilitychange", onVisibilityOrFocus);
-        window.clearInterval(intervalId);
-      };
-    });
-
-    return () => {
-      cancelled = true;
-      cleanupListeners?.();
-    };
-  }, [supabase]);
-
-  /** FE-1 — one read of the panel gate per page load (the promise is cached in
-   *  `useLifeState`). A 404 resolves to null and leaves the menu byte-identical
-   *  to today: no entries, no error, no console noise. Signed-in only, because
-   *  the panel is signed-in only and a guest read would just be a wasted 401.
-   *
-   *  Principles alone until the user is through consent and setup; the other
-   *  seven the moment they are (see `panelMenu`). The subscription is what
-   *  makes "the moment" literal: finishing setup inside /panel re-reads the
-   *  gate, and this menu grows without a page reload. */
-  useEffect(() => {
-    if (authState !== "signed_in") {
-      setLifeMenu([]);
-      return;
-    }
-    let cancelled = false;
-    const apply = (state: Parameters<typeof panelMenu>[0]) => {
-      if (!cancelled) setLifeMenu(panelMenu(state));
-    };
-    void loadLifeState().then(apply);
-    const unsubscribe = subscribeLifeState(apply);
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [authState]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown);
-      if (buttonRef.current && document.contains(buttonRef.current)) {
-        buttonRef.current.focus();
-      }
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (menuOpen && openByKeyboardRef.current && firstLinkRef.current) {
-      const t = requestAnimationFrame(() => {
-        firstLinkRef.current?.focus();
-        openByKeyboardRef.current = false;
-      });
-      return () => cancelAnimationFrame(t);
-    }
-  }, [menuOpen]);
-
-  const handleLogout = async () => {
-    setMenuOpen(false);
-    setLoading(true);
-    try {
-      await supabase.auth.signOut();
-      router.push("/login");
-    } catch (err) {
-      console.error(err);
-      toast.error("Logout failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+      window.removeEventListener(
+        WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT,
+        onCheckoutSuccess
+      );
+  }, [setCredits]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -224,173 +77,34 @@ export default function DashboardHeader() {
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/"
-            className="hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+            className="rounded transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="WillpowerLab home"
           >
             <Logo size="md" />
           </Link>
         </div>
 
-        {/* Right-side: depends on auth state. While "unknown" we render an
-            invisible spacer of equivalent height so the page doesn't shift
-            when auth resolves. */}
+        {/* Credits live INSIDE the menu; the right side is just the hamburger.
+            While auth is "unknown" AppMenu renders an invisible spacer of the
+            same height, so the page does not shift when it resolves. */}
         <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
-          {authState === "unknown" && <div className="h-10" aria-hidden />}
-
-          {authState !== "unknown" && (
-            <>
-              {/* C4 — credits moved INTO the hamburger menu (name → Support →
-                  Credits → Log out); the right side is just the hamburger now. */}
-
-              {/* Unified hamburger — rendered for guests AND signed-in users.
-                  Menu (C4): signed-in → name → Support → Credits → Log out;
-                  guest → Support → Log in. */}
-              <div className="relative flex shrink-0" ref={menuRef}>
-                <Button
-                  ref={buttonRef}
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setMenuOpen((o) => !o)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") openByKeyboardRef.current = true;
-                  }}
-                  aria-label={menuOpen ? "Close menu" : "Open menu"}
-                  aria-expanded={menuOpen}
-                  aria-haspopup="true"
-                  aria-controls={menuOpen ? HEADER_MENU_ID : undefined}
-                  className="h-10 w-10"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-                {menuOpen && (
-                  <div
-                    id={HEADER_MENU_ID}
-                    className="absolute right-0 top-full z-50 mt-2 w-64 min-w-[14rem] rounded-lg border bg-card py-2 shadow-lg"
-                  >
-                    {authState === "signed_in" ? (
-                      <>
-                        {/* C4 — name. Intake captures no name, so this is the
-                            linked-account email (S.3); hidden if unavailable. */}
-                        {userEmail && (
-                          <div
-                            className="truncate border-b border-border px-4 py-2 text-[13px] text-muted-foreground"
-                            title={userEmail}
-                          >
-                            {userEmail}
-                          </div>
-                        )}
-                        {/* FE-1 — Life Panel entries. Absent for everyone the
-                            payload does not list them for, which keeps this
-                            menu byte-identical to today for every other user. */}
-                        {lifeMenu.length > 0 && (
-                          <div className="border-b border-border pb-1">
-                            {lifeMenu.map((entry, i) =>
-                              entry.external ? (
-                                // Prayer lives on its own subdomain: separate
-                                // service worker scope, separate PWA install,
-                                // works signed out and offline (spec §3.4).
-                                <a
-                                  key={entry.key}
-                                  // Opening by keyboard focuses the FIRST item,
-                                  // which is a panel entry whenever there is
-                                  // one. Leaving the ref on Support below would
-                                  // skip past them.
-                                  ref={i === 0 ? firstLinkRef : undefined}
-                                  href={entry.href}
-                                  rel="noopener"
-                                  className={MENU_ITEM_CLASS}
-                                  onClick={() => setMenuOpen(false)}
-                                >
-                                  {entry.label}
-                                </a>
-                              ) : (
-                                <Link
-                                  key={entry.key}
-                                  ref={i === 0 ? firstLinkRef : undefined}
-                                  href={entry.href}
-                                  className={MENU_ITEM_CLASS}
-                                  onClick={() => setMenuOpen(false)}
-                                >
-                                  {entry.label}
-                                </Link>
-                              )
-                            )}
-                          </div>
-                        )}
-                        <a
-                          ref={lifeMenu.length === 0 ? firstLinkRef : undefined}
-                          href={`mailto:${SUPPORT_EMAIL}`}
-                          className={MENU_ITEM_CLASS}
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Support
-                        </a>
-                        {/* The Skool community. Off-site, so a new tab with
-                            noopener/noreferrer rather than a client route. */}
-                        <a
-                          href={COMMUNITY_URL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={MENU_ITEM_CLASS}
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Community
-                        </a>
-                        {/* Credits count → checkout. Shown EVERYWHERE incl.
-                            /chat since the $25-per-analysis credit model
-                            (the old "payments-free /chat" C5 rule is retired). */}
-                        {credits !== null && (
-                          <Link
-                            href="/dashboard/pricing"
-                            className={cn(
-                              MENU_ITEM_CLASS,
-                              "flex items-center justify-between"
-                            )}
-                            onClick={() => setMenuOpen(false)}
-                          >
-                            <span>Credits</span>
-                            <span className="flex items-center gap-1 font-normal text-muted-foreground">
-                              <span className="text-base leading-none">🎓</span>
-                              {credits}
-                            </span>
-                          </Link>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleLogout}
-                          disabled={loading}
-                          className={cn(MENU_ITEM_CLASS, "disabled:opacity-50")}
-                        >
-                          {loading ? "Logging out…" : "Log out"}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <a
-                          ref={firstLinkRef}
-                          href={`mailto:${SUPPORT_EMAIL}`}
-                          className={MENU_ITEM_CLASS}
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Support
-                        </a>
-                        <Link
-                          href="/login"
-                          className={MENU_ITEM_CLASS}
-                          onClick={() => setMenuOpen(false)}
-                        >
-                          Log in
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+          <AppMenu
+            authState={menu.authState}
+            userEmail={menu.userEmail}
+            credits={menu.credits}
+            lifeMenu={menu.lifeMenu}
+            supportEmail={SUPPORT_EMAIL}
+            communityUrl={COMMUNITY_URL}
+            onLogout={menu.logout}
+            loggingOut={menu.loggingOut}
+            // Reachable from /panel/* too, which is where this header also
+            // mounts — "Lab" is a real destination there, not a self-link.
+            labHref="/chat"
+            gameHref="/game"
+            corpusHref={menu.isCoach ? "/coach/corpus" : null}
+          />
         </div>
       </div>
     </header>
   );
 }
-

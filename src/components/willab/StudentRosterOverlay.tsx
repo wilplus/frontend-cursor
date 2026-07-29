@@ -50,6 +50,7 @@ export default function StudentRosterOverlay({
   onClose,
   onOpenReview,
   onOpenArcIdeal,
+  onOpenStarVerdicts,
 }: {
   onClose: () => void;
   /** Open a session for review (threaded to the Lounge's openReview). */
@@ -57,6 +58,9 @@ export default function StudentRosterOverlay({
   /** FE-B — open an arc's ideal-text panel from the ready badge (threaded to
    *  the Lounge, which mounts the coach panel view for that arc). */
   onOpenArcIdeal?: (arcId: string) => void;
+  /** Star Verdict — open an arc's star-review overlay (threaded to the
+   *  Lounge; the entry itself renders on the student detail screen, N1). */
+  onOpenStarVerdicts?: (arcId: string) => void;
 }) {
   // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
   useBackDismiss(onClose);
@@ -91,7 +95,7 @@ export default function StudentRosterOverlay({
         <OverlayCloseButton onClick={onClose} ariaLabel="Close roster" />
       </div>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
+      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {students === null ? (
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -172,6 +176,7 @@ export default function StudentRosterOverlay({
       {selected && (
         <StudentDetailOverlay
           onOpenArcIdeal={onOpenArcIdeal}
+          onOpenStarVerdicts={onOpenStarVerdicts}
           userId={selected.id}
           fallbackPseudonym={selected.pseudonym}
           onClose={() => setSelected(null)}

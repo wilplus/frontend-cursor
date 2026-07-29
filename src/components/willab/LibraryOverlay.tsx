@@ -340,7 +340,7 @@ export default function LibraryOverlay({
         <OverlayCloseButton onClick={onClose} className="ml-3" />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      <div className="scrollbar-none flex flex-1 flex-col overflow-y-auto">
         {status === "loading" ? (
           <div className="flex flex-1 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

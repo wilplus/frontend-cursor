@@ -387,6 +387,70 @@ export async function applyStrategyDiff(
   });
 }
 
+/** FE-11 — the strategy as a real file. BE-4 serves
+ *  GET /v2/life/strategy/download?format=json|md|pdf|docx; omitting `format`
+ *  still returns today's JSON, so every existing caller is unaffected.
+ *
+ *  HONOUR THE RESPONSE Content-Type, NEVER THE REQUESTED ONE. The endpoint
+ *  DEGRADES TO MARKDOWN WITH A 200 when a renderer is unavailable, so trusting
+ *  the request would hand the user a .pdf containing markdown — a file their
+ *  reader refuses to open, with no error anywhere to explain it. The served
+ *  type and the served filename are the truth. */
+export interface StrategyDownload {
+  blob: Blob;
+  /** From Content-Disposition when the server names the file. */
+  filename: string | null;
+  /** The type the server actually produced, which may not be what was asked. */
+  contentType: string;
+}
+
+export async function downloadStrategy(
+  format: "pdf" | "docx" | "md" | "json"
+): Promise<StrategyDownload> {
+  const res = await fetch(`${BASE}/strategy/download?format=${format}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (res.status === 404 || res.status === 401) throw new LifeUnavailableError();
+  if (!res.ok) throw new LifeRequestError(res.status);
+  return {
+    blob: await res.blob(),
+    filename: filenameFromDisposition(res.headers.get("Content-Disposition")),
+    contentType: res.headers.get("Content-Type") ?? "application/octet-stream",
+  };
+}
+
+/** The server's own name for the file, or null. Handles RFC 5987 (filename*)
+ *  first, since that is the one carrying non-ASCII names correctly. */
+export function filenameFromDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const encoded = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim().replace(/^"|"$/g, "")) || null;
+    } catch {
+      // A malformed escape is not worth failing a download over.
+    }
+  }
+  const plain = /filename=("?)([^";]+)\1/i.exec(header);
+  return plain ? plain[2].trim() || null : null;
+}
+
+/** The extension that matches what the server ACTUALLY sent, for the fallback
+ *  filename when there is no Content-Disposition. Unknown → ".md", because
+ *  markdown is what this endpoint degrades to. */
+export function extensionForContentType(contentType: string): string {
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  if (type === "application/pdf") return ".pdf";
+  if (
+    type ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  )
+    return ".docx";
+  if (type === "application/json") return ".json";
+  return ".md";
+}
+
 /* ----------------------------- export / delete ---------------------------- */
 
 /** Ships in P1, not "later" (spec §2 / FE-10). Returns the raw file so the

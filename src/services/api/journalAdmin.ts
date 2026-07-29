@@ -42,7 +42,12 @@ export interface JournalPostDraft {
 
 export type AdminResult<T> =
   | { ok: true; data: T }
-  | { ok: false; status: number; message: string };
+  /** `code` is the backend's machine-readable reason, when it sent one. Added
+   *  for the cover generator, which must tell a rewordable refusal
+   *  (IMAGE_REJECTED) and a dead kill switch (DISABLED) apart from a transient
+   *  draw failure (V2_ERROR) that is worth a retry button. Optional on purpose:
+   *  every older caller reads only `message`/`status` and is unaffected. */
+  | { ok: false; status: number; message: string; code?: string };
 
 function readError(data: unknown, status: number): string {
   const d = (data && typeof data === "object" ? data : {}) as Record<
@@ -75,7 +80,15 @@ async function post<T>(
   } catch {
     return { ok: false, status: 0, message: "Network error. Try again." };
   }
-  if (!res.ok) return { ok: false, status: res.status, message: readError(data, res.status) };
+  if (!res.ok) {
+    const code = (data as Record<string, unknown> | null)?.code;
+    return {
+      ok: false,
+      status: res.status,
+      message: readError(data, res.status),
+      ...(typeof code === "string" && code ? { code } : {}),
+    };
+  }
   return { ok: true, data: pick(data) };
 }
 
@@ -325,6 +338,175 @@ export async function adminRevalidate(
   } catch {
     /* non-fatal: the page still refreshes on its own revalidate window */
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Generated cover images                                                     */
+/*                                                                            */
+/*  A second way to fill `cover_image_url`, alongside the manual presign +     */
+/*  upload path below, which stays. The model reads the post, writes a brief,  */
+/*  draws it, and the file lands in the same R2 bucket an uploaded cover uses. */
+/*                                                                            */
+/*  Every attempt is kept server-side, which is what makes Regenerate safe:    */
+/*  the strip is the undo. CMS-ONLY — no public route may read these           */
+/*  candidates; the public site sees only cover_image_url / cover_alt on the   */
+/*  post itself.                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** Why a generated attempt needs a human eye. Never a reason to hide it —
+ *  `construct` means the retired score vocabulary reached the brief or the alt
+ *  text, and the founder rewords or rerolls. Same warn-never-withhold rule as
+ *  the community drafts' flags. */
+export type CoverImageFlag = "construct";
+
+export interface CoverImage {
+  id: string;
+  journalPostId: string;
+  imageUrl: string;
+  altText: string;
+  /** The brief the model was given. Shown collapsed, so an odd cover can be
+   *  understood rather than guessed at. */
+  prompt: string;
+  /** What the image model says it actually drew. "" for most. */
+  revisedPrompt: string;
+  /** The steer that produced THIS attempt. */
+  notes: string;
+  parentImageId: string | null;
+  flags: CoverImageFlag[];
+  model: string | null;
+  size: string | null;
+  quality: string | null;
+  createdAt: string | null;
+}
+
+/** Where the brief came from. "fallback" = the text model failed and the
+ *  backend drew from a deterministic title+excerpt brief instead: a worse
+ *  image, but a working button, and worth saying so. */
+export type BriefSource = "model" | "fallback";
+
+export interface GenerateCoverResult {
+  /** The attempt just drawn. */
+  image: CoverImage | null;
+  /** The WHOLE strip, newest first. Comes back on every generate, so the
+   *  caller re-renders from this and never fires a second list call. */
+  items: CoverImage[];
+  /** The updated post, or null when `attach` was false. */
+  post: AdminJournalPost | null;
+  attached: boolean;
+  briefSource: BriefSource;
+  /** Set ONLY when the image drew and stored but could not be written onto the
+   *  post. The image is real and paid for: show it, warn, and let a click on
+   *  the thumbnail retry the attach via select. Never discard it. */
+  attachError: string | null;
+}
+
+const COVER_FLAGS: CoverImageFlag[] = ["construct"];
+
+export function mapCoverImage(raw: unknown): CoverImage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const id = typeof r.id === "string" ? r.id : String(r.id ?? "");
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const imageUrl = str(r.image_url);
+  // Without an id there is nothing to select or delete, and without a URL there
+  // is nothing to show — drop rather than render a broken thumbnail.
+  if (!id || !imageUrl) return null;
+  const nullableStr = (v: unknown) => (typeof v === "string" && v ? v : null);
+  return {
+    id,
+    journalPostId: str(r.journal_post_id),
+    imageUrl,
+    altText: str(r.alt_text),
+    prompt: str(r.prompt),
+    revisedPrompt: str(r.revised_prompt),
+    notes: str(r.notes),
+    parentImageId: nullableStr(r.parent_image_id),
+    flags: Array.isArray(r.flags)
+      ? r.flags.filter((f): f is CoverImageFlag =>
+          COVER_FLAGS.includes(f as CoverImageFlag)
+        )
+      : [],
+    model: nullableStr(r.model),
+    size: nullableStr(r.size),
+    quality: nullableStr(r.quality),
+    createdAt: nullableStr(r.created_at),
+  };
+}
+
+function mapCoverList(data: unknown): CoverImage[] {
+  const d = (data ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d.items) ? d.items : Array.isArray(data) ? data : [];
+  return (rows as unknown[])
+    .map(mapCoverImage)
+    .filter((i): i is CoverImage => i !== null);
+}
+
+/** Draw a cover for a post. SLOW (10-30s) — the caller must show progress.
+ *  `attach` defaults to true server-side, so the drawn image becomes the
+ *  post's cover and its alt text; the response carries the updated post. */
+export function adminGenerateCoverImage(
+  password: string,
+  opts: {
+    postId: string;
+    /** The steer for THIS attempt, applied to the PREVIOUS brief rather than
+     *  to the essay from scratch. Empty deliberately draws a different scene:
+     *  never substitute a hidden "make it different" note. */
+    notes?: string;
+    /** Refine a specific earlier attempt instead of the newest. */
+    parentId?: string;
+    /** Ignore history and brief from the essay alone. */
+    fresh?: boolean;
+    /** Default true — write the result onto the post's cover. */
+    attach?: boolean;
+  }
+) {
+  const payload: Record<string, unknown> = { post_id: opts.postId };
+  if (opts.notes && opts.notes.trim()) payload.notes = opts.notes.trim();
+  if (opts.parentId) payload.parent_id = opts.parentId;
+  if (opts.fresh) payload.fresh = true;
+  if (opts.attach === false) payload.attach = false;
+  return post(
+    "image/generate",
+    password,
+    payload,
+    (d): GenerateCoverResult => {
+      const r = (d ?? {}) as Record<string, unknown>;
+      return {
+        image: mapCoverImage(r.image),
+        items: mapCoverList(d),
+        post: r.post ? mapAdminPost(r.post) : null,
+        attached: r.attached !== false,
+        briefSource: r.brief_source === "fallback" ? "fallback" : "model",
+        attachError:
+          typeof r.attach_error === "string" && r.attach_error.trim()
+            ? r.attach_error
+            : null,
+      };
+    }
+  );
+}
+
+/** Every attempt for a post, newest first. */
+export function adminListCoverImages(password: string, postId: string) {
+  return post("image/list", password, { post_id: postId }, mapCoverList);
+}
+
+/** Promote an earlier attempt onto the post's cover. The undo for Regenerate,
+ *  and the retry when a draw stored its image but failed to attach it. */
+export function adminSelectCoverImage(password: string, imageId: string) {
+  return post("image/select", password, { image_id: imageId }, (d) => {
+    const r = (d ?? {}) as Record<string, unknown>;
+    return {
+      post: r.post ? mapAdminPost(r.post) : null,
+      image: mapCoverImage(r.image),
+    };
+  });
+}
+
+/** Clear a candidate from the strip. The stored file stays, so a post still
+ *  pointing at that URL does not break. */
+export function adminDeleteCoverImage(password: string, imageId: string) {
+  return post("image/delete", password, { image_id: imageId }, () => true);
 }
 
 export interface PresignResult {

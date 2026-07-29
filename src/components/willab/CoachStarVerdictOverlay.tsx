@@ -1,0 +1,512 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Star } from "lucide-react";
+import MediaPlayer from "@/components/results/MediaPlayer";
+import OverlayCloseButton from "./OverlayCloseButton";
+import { useBackDismiss } from "./useBackDismiss";
+import {
+  buildVerdictBody,
+  correctionOptions,
+  effectiveReplacement,
+  effectiveWhy,
+  fetchCoachArcStars,
+  humanizeToken,
+  NOTE_MAX_CHARS,
+  saveStarVerdict,
+  starChipLabel,
+  starRowKey,
+  type ArcStar,
+  type StarVerdict,
+} from "@/services/api/starVerdicts";
+
+/* -------------------------------------------------------------------------- */
+/*  CoachStarVerdictOverlay — the coach judges the machine's stars (2026-07-27) */
+/*                                                                            */
+/*  For every star the system fired on this arc: Keep / Wrong kind… /          */
+/*  Shouldn't fire. The verdicts are the training corpus that teaches the      */
+/*  system when to speak and when to stay quiet. This is a review, not         */
+/*  moderation — a verdict changes NOTHING the student sees (N2): the star     */
+/*  still renders for them exactly as before, including on a should_not_fire.  */
+/*                                                                            */
+/*  N1 / BLIND COACH — this surface SHOWS the machine's guess, so it must      */
+/*  never sit in or link from the blind labeling flow (CoachReviewOverlay /    */
+/*  CoachSnippetReviewCard, where the coach labels direction blind). It is a   */
+/*  separate overlay with its own entry on the student-detail screen, mounted  */
+/*  as a Lounge sibling; starVerdictSeparation.test.ts enforces the import     */
+/*  graph in both directions. Do not add an entry to the review wrap-up —      */
+/*  that page is part of the labeling flow.                                    */
+/*                                                                            */
+/*  N3 — "Wrong kind" is never submittable bare: the pill only opens the       */
+/*  picker, and the PICK is the save. N5 — a saved verdict renders as the      */
+/*  active pill, re-tappable; re-judging upserts. Rows render in payload       */
+/*  order (server-side: unjudged first, then by family) — never re-sorted.     */
+/*                                                                            */
+/*  State is keyed by this overlay instance, which is keyed by arc: closing    */
+/*  drops everything, so verdicts are never cached across arcs by snippet id   */
+/*  alone (snippet ids are global, but the review context is the arc).         */
+/*                                                                            */
+/*  Coach-only surface; BE enforces require_admin_or_coach. Copy on this       */
+/*  screen is coach-facing (LIVE LOOP: flagged for founder sign-off).          */
+/* -------------------------------------------------------------------------- */
+
+export default function CoachStarVerdictOverlay({
+  arcId,
+  onClose,
+}: {
+  arcId: string;
+  onClose: () => void;
+}) {
+  // D-3 — back-gesture / Back dismisses this overlay instead of routing away.
+  useBackDismiss(onClose);
+  const [stars, setStars] = useState<ArcStar[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading"
+  );
+  // In-flight saves PER ROW — judging star B while A settles is fine, and
+  // must actually be: a global lock with per-row disabling silently swallowed
+  // taps on other rows while one PUT was in flight (review 2026-07-28). The
+  // ref is the SYNCHRONOUS gate (state is too slow for a same-tick double
+  // tap); the state mirror drives the spinners.
+  const inFlightRef = useRef<Set<string>>(new Set());
+  const [savingKeys, setSavingKeys] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  // The wrong-kind picker open on at most one row (the gesture is per-row).
+  const [pickerId, setPickerId] = useState<string | null>(null);
+  const [noteOpen, setNoteOpen] = useState<Record<string, boolean>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  // The rewrite of what the star SAYS. Held as a draft and sent with the
+  // verdict, exactly like the note: the BE's rule is that the edit→keep PAIR
+  // is what trains the model, so the edit never travels on its own.
+  const [editOpen, setEditOpen] = useState<Record<string, boolean>>({});
+  const [whyDrafts, setWhyDrafts] = useState<Record<string, string>>({});
+  const [replDrafts, setReplDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+    setStatus("loading");
+    void fetchCoachArcStars(arcId).then((r) => {
+      if (!active) return;
+      setStars(r?.stars ?? null);
+      setStatus(r ? "ready" : "error");
+    });
+    return () => {
+      active = false;
+    };
+  }, [arcId]);
+
+  // Progress derives from the rows on screen, so it can never disagree with
+  // them; the payload's summary block is deliberately not used (and its
+  // confusions / false-negative bookkeeping is never rendered at all).
+  const reviewed = stars?.filter((s) => s.verdict !== null).length ?? 0;
+
+  async function save(
+    star: ArcStar,
+    verdict: StarVerdict,
+    correctedDevice?: string
+  ) {
+    const key = starRowKey(star);
+    if (inFlightRef.current.has(key)) return;
+    const body = buildVerdictBody(star, verdict, {
+      correctedDevice: correctedDevice ?? null,
+      note: noteDrafts[key] ?? star.note ?? "",
+      whyFinal: whyDrafts[key],
+      replacementTextFinal: replDrafts[key],
+    });
+    // Unconstructable = wrong_kind without a pick; the picker is the only
+    // path here with that verdict, so this is a guard, not a flow (N3).
+    if (!body) return;
+    inFlightRef.current.add(key);
+    setSavingKeys((k) => ({ ...k, [key]: true }));
+    setErrors((e) => {
+      const { [key]: _dropped, ...rest } = e;
+      return rest;
+    });
+    const res = await saveStarVerdict(star.snippetId, body);
+    inFlightRef.current.delete(key);
+    setSavingKeys((k) => {
+      const { [key]: _done, ...rest } = k;
+      return rest;
+    });
+    if (!res.ok) {
+      // The BE's 400 reason is verbatim-safe; the migration-gate 500 names
+      // the missing migration — show exactly what it said (degrade gracefully).
+      setErrors((e) => ({
+        ...e,
+        [key]: res.error ?? "Couldn't save this verdict. Try again.",
+      }));
+      return;
+    }
+    setStars(
+      (rows) =>
+        rows?.map((r) =>
+          starRowKey(r) === key
+            ? {
+                ...r,
+                verdict,
+                correctedDevice:
+                  verdict === "wrong_kind" ? correctedDevice ?? null : null,
+                note: body.note ?? null,
+                // A rewrite that just landed makes this row edited, and the
+                // row now says what the coach wrote — mirror both locally so
+                // the chip and the text agree without a refetch.
+                whyFinal: body.why_final ?? r.whyFinal,
+                replacementTextFinal:
+                  body.replacement_text_final ?? r.replacementTextFinal,
+                edited:
+                  r.edited ||
+                  body.why_final !== undefined ||
+                  body.replacement_text_final !== undefined,
+              }
+            : r
+        ) ?? null
+    );
+    setPickerId((id) => (id === key ? null : id));
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-background">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="truncate text-[15px] font-semibold text-foreground">
+            Star review
+          </span>
+          {/* The established audience-lane label — this judgment trains the
+              machine and is never shown to the student. */}
+          <span className="shrink-0 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+            Coach only · training
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
+          {status === "ready" && stars && stars.length > 0 ? (
+            <span className="text-[12px] tabular-nums text-muted-foreground">
+              {reviewed} of {stars.length} reviewed
+            </span>
+          ) : null}
+          <OverlayCloseButton onClick={onClose} ariaLabel="Close star review" />
+        </span>
+      </div>
+
+      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+        {status === "loading" ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : status === "error" || stars === null ? (
+          <p className="max-w-sm text-[15px] text-muted-foreground">
+            Couldn&apos;t load the stars just now. Close and reopen this view
+            to try again.
+          </p>
+        ) : stars.length === 0 ? (
+          // Nothing to review is a valid state, not an error.
+          <p className="text-[15px] text-muted-foreground">
+            No stars fired on this arc.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {stars.map((s) => {
+              const key = starRowKey(s);
+              return (
+              <li
+                key={key}
+                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4"
+              >
+                <div className="flex items-center gap-2">
+                  {/* Outline star = unverified machine suggestion, the same
+                      icon language the student text uses. */}
+                  <Star
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    fill="none"
+                    aria-hidden
+                  />
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {starChipLabel(s)}
+                  </span>
+                  {s.takeIndex !== null ? (
+                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                      Take {s.takeIndex}
+                    </span>
+                  ) : null}
+                  {/* The edit→keep pair only enters the corpus when the star
+                      is KEPT (BE 2026-07-28) — so an edited star without a
+                      verdict wears the amber nudge until it gets one. */}
+                  {s.edited ? (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        s.verdict === null
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {s.verdict === null ? "Edited — add a verdict" : "Edited"}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* PLAYBACK FIRST (founder 2026-07-27) — a verdict on a star
+                    is a verdict on a spoken moment, and the coach cannot make
+                    it from the machine's why alone. The player clamps to
+                    exactly the snippet's slice of the take's file (the same
+                    parent+offset model the labeler uses). Rendered only when
+                    the payload carries the audio — a text-only payload
+                    degrades to a text-only row, never a broken player. */}
+                {s.audioRef && s.durationMs > 0 ? (
+                  <MediaPlayer
+                    src={s.audioRef}
+                    startOffsetMs={s.startOffsetMs}
+                    durationMs={s.durationMs}
+                  />
+                ) : null}
+                {s.transcript ? (
+                  <div className="rounded-xl border border-primary/20 bg-primary/[0.07] px-4 py-3">
+                    <p className="text-[15px] leading-relaxed text-foreground">
+                      {s.transcript}
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* What the star SAYS — the coach's wording when they have
+                    rewritten it, else the machine's (the "Edited" chip above
+                    is what tells them which they are looking at). Both the
+                    reason and the replacement may be present. */}
+                {effectiveWhy(s) ? (
+                  <p className="text-[14px] leading-relaxed text-foreground">
+                    {effectiveWhy(s)}
+                  </p>
+                ) : null}
+                {effectiveReplacement(s) ? (
+                  <p className="rounded-xl bg-muted/40 px-3 py-2 text-[14px] leading-relaxed text-foreground">
+                    <span className="mr-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Suggested
+                    </span>
+                    {effectiveReplacement(s)}
+                  </p>
+                ) : null}
+
+                {/* The three-way control. Keep / Shouldn't fire save on tap;
+                    Wrong kind only OPENS the picker — the pick saves (N3).
+                    The saved verdict is the active pill, not a locked answer:
+                    tapping another replaces it (N5). */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <VerdictPill
+                    active={s.verdict === "keep"}
+                    disabled={savingKeys[key] === true}
+                    onClick={() => void save(s, "keep")}
+                  >
+                    Keep
+                  </VerdictPill>
+                  <VerdictPill
+                    active={s.verdict === "wrong_kind"}
+                    disabled={savingKeys[key] === true}
+                    onClick={() =>
+                      setPickerId((id) => (id === key ? null : key))
+                    }
+                  >
+                    Wrong kind…
+                  </VerdictPill>
+                  <VerdictPill
+                    active={s.verdict === "should_not_fire"}
+                    disabled={savingKeys[key] === true}
+                    onClick={() => void save(s, "should_not_fire")}
+                  >
+                    Shouldn&apos;t fire
+                  </VerdictPill>
+                  {savingKeys[key] === true ? (
+                    <Loader2
+                      className="h-4 w-4 animate-spin text-muted-foreground"
+                      aria-hidden
+                    />
+                  ) : null}
+                </div>
+
+                {pickerId === key ? (
+                  <div>
+                    <p className="text-[12px] text-muted-foreground">
+                      What should it have been?
+                    </p>
+                    {/* Options come from the row's device_options (N4) — or
+                        the other star families when the kind has no devices.
+                        Picking one IS the save; there is no second step. */}
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {correctionOptions(s).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          aria-pressed={
+                            s.verdict === "wrong_kind" &&
+                            s.correctedDevice === opt
+                          }
+                          disabled={savingKeys[key] === true}
+                          onClick={() => void save(s, "wrong_kind", opt)}
+                          className={`rounded-full border px-3 py-1 text-[12px] transition-colors disabled:opacity-50 ${
+                            s.verdict === "wrong_kind" &&
+                            s.correctedDevice === opt
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {humanizeToken(opt)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* THE EDITOR — the coach rewrites what the star says. Only
+                    offered when there is something to rewrite. Like the note,
+                    it rides the verdict: with no verdict yet it is held and
+                    sent by the next Keep / Wrong-kind / Shouldn't-fire tap;
+                    with one already saved, "Save wording" re-sends the SAME
+                    verdict carrying the new text (the PUT is an upsert). */}
+                {editOpen[key] ? (
+                  <div className="flex flex-col gap-1.5 rounded-xl border border-border p-3">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      What this star says
+                    </p>
+                    {s.why !== null || s.whyFinal !== null ? (
+                      <textarea
+                        aria-label="What this star says"
+                        value={whyDrafts[key] ?? effectiveWhy(s) ?? ""}
+                        onChange={(e) =>
+                          setWhyDrafts((d) => ({ ...d, [key]: e.target.value }))
+                        }
+                        rows={2}
+                        placeholder="The reason, in your words"
+                        className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                      />
+                    ) : null}
+                    {s.replacementText !== null ||
+                    s.replacementTextFinal !== null ? (
+                      <textarea
+                        aria-label="Suggested text"
+                        value={
+                          replDrafts[key] ?? effectiveReplacement(s) ?? ""
+                        }
+                        onChange={(e) =>
+                          setReplDrafts((d) => ({ ...d, [key]: e.target.value }))
+                        }
+                        rows={2}
+                        placeholder="The suggested wording"
+                        className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                      />
+                    ) : null}
+                    {s.verdict ? (
+                      <button
+                        type="button"
+                        disabled={savingKeys[key] === true}
+                        onClick={() =>
+                          void save(
+                            s,
+                            s.verdict as StarVerdict,
+                            s.correctedDevice ?? undefined
+                          )
+                        }
+                        className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
+                      >
+                        Save wording
+                      </button>
+                    ) : (
+                      <p className="text-[12px] text-muted-foreground">
+                        Saved with your verdict.
+                      </p>
+                    )}
+                  </div>
+                ) : effectiveWhy(s) !== null ||
+                  effectiveReplacement(s) !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen((n) => ({ ...n, [key]: true }))}
+                    className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
+                  >
+                    Edit what it says
+                  </button>
+                ) : null}
+
+                {noteOpen[key] ? (
+                  <div className="flex flex-col gap-1.5">
+                    <textarea
+                      value={noteDrafts[key] ?? s.note ?? ""}
+                      onChange={(e) =>
+                        setNoteDrafts((d) => ({
+                          ...d,
+                          [key]: e.target.value,
+                        }))
+                      }
+                      rows={2}
+                      maxLength={NOTE_MAX_CHARS}
+                      placeholder="Why — in your words"
+                      className="scrollbar-none w-full resize-none overflow-x-hidden rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                    />
+                    {s.verdict ? (
+                      <button
+                        type="button"
+                        disabled={savingKeys[key] === true}
+                        onClick={() =>
+                          void save(s, s.verdict as StarVerdict, s.correctedDevice ?? undefined)
+                        }
+                        className="self-start text-[12px] font-medium text-foreground underline disabled:opacity-50"
+                      >
+                        Save note
+                      </button>
+                    ) : (
+                      <p className="text-[12px] text-muted-foreground">
+                        Saved with your verdict.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNoteOpen((n) => ({ ...n, [key]: true }))
+                    }
+                    className="self-start text-[12px] text-muted-foreground underline hover:text-foreground"
+                  >
+                    {s.note ? "Edit note" : "Add note"}
+                  </button>
+                )}
+
+                {errors[key] ? (
+                  <p className="text-[12px] text-destructive">
+                    {errors[key]}
+                  </p>
+                ) : null}
+              </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** One pill of the three-way control — the coach-surface selectable pill
+ *  (CoachSnippetReviewCard's DIRECTIONS idiom, plus aria-pressed). */
+function VerdictPill({
+  active,
+  disabled,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors disabled:opacity-50 ${
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background text-foreground hover:border-primary/50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

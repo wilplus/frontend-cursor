@@ -38,9 +38,27 @@ const LIFE_OWNED = [
   join("services", "api", "life.ts"),
 ];
 
-/** The only product modules allowed to import the panel. */
+/** The only product modules allowed to import the panel.
+ *
+ *  FE-3 (2026-07-27) moved the hamburger out of DashboardHeader into AppMenu +
+ *  useAppMenuData, so the panel's menu entries are read there now. Recorded
+ *  deliberately, because it is a real widening and not just a rename: the same
+ *  menu is mounted on the BLOG as well, so a signed-in visitor to a marketing
+ *  page can now see their panel entries.
+ *
+ *  That is intended — the story asks for the lab's menu on the blog, one
+ *  component with two mounts, and the lab's menu contains Principles. The
+ *  isolation that actually matters is unchanged: entries still come only from
+ *  `GET /v2/life/state`, which 404s unless the feature is on AND this user
+ *  passes the gate, so a visitor the payload does not list sees nothing. And
+ *  the panel reads stay signed-in only, which is why a signed-out blog reader
+ *  makes no panel request at all.
+ *
+ *  SiteHeader is deliberately NOT on this list: it mounts AppMenu and never
+ *  touches the panel itself, so the dependency stays contained to these two. */
 const PERMITTED_IMPORTERS = [
-  join("components", "dashboard", "DashboardHeader.tsx"),
+  join("components", "AppMenu.tsx"),
+  join("hooks", "useAppMenuData.ts"),
   join("components", "willab", "Lounge.tsx"),
 ];
 
@@ -64,18 +82,52 @@ function isLifeOwned(relPath: string): boolean {
 
 const LIFE_IMPORT = /from\s+["']@\/(lib\/life|components\/life|services\/api\/life)/;
 
+/** Test fixtures under `app/dev/**`, which are not product modules.
+ *
+ *  The real bets screen lives behind `/panel`: signed-in only, then gated
+ *  again on the `/v2/life/state` payload. That is exactly right for a product
+ *  surface and exactly wrong for verifying a hand-rolled press-hold-move
+ *  reorder in a real browser, which is not reducible to unit tests — whether a
+ *  touch pans the page instead of dragging the row is a question only an
+ *  engine can answer.
+ *
+ *  So a dev harness may import the panel. It is not a hole in the fence,
+ *  because the fence is about what a USER can reach: the test below asserts
+ *  every one of these renders nothing in production. If that gate is ever
+ *  dropped, this stops being a fixture and the suite says so. */
+function isDevFixture(relPath: string): boolean {
+  return relPath.startsWith(join("app", "dev") + sep);
+}
+
 describe("life panel isolation", () => {
   it("is imported by exactly the two permitted product modules", () => {
     const importers: string[] = [];
     for (const file of walk(SRC)) {
       const rel = relative(SRC, file);
-      if (isLifeOwned(rel)) continue;
+      if (isLifeOwned(rel) || isDevFixture(rel)) continue;
       if (LIFE_IMPORT.test(readFileSync(file, "utf8"))) importers.push(rel);
     }
     // A new name in this list means something outside the panel started
     // depending on it. That is the drift this test exists to stop: decide
     // deliberately, do not just add the file here.
     expect(importers.sort()).toEqual(PERMITTED_IMPORTERS.sort());
+  });
+
+  it("renders nothing in production from every dev fixture that reaches the panel", () => {
+    const fixtures = walk(SRC)
+      .map((f) => relative(SRC, f))
+      .filter((rel) => isDevFixture(rel))
+      .filter((rel) => LIFE_IMPORT.test(readFileSync(join(SRC, rel), "utf8")));
+    // A fixture is only exempt from the importer list while it cannot be
+    // reached. The exemption and this gate are the same decision.
+    expect(fixtures.length).toBeGreaterThan(0);
+    for (const rel of fixtures) {
+      const src = readFileSync(join(SRC, rel), "utf8");
+      expect(
+        /process\.env\.NODE_ENV\s*===\s*["']production["'][\s\S]{0,40}return null/.test(src),
+        `${rel} imports the panel but is not gated out of production`
+      ).toBe(true);
+    }
   });
 
   it("gates the composer's tag picker on the participation flag", () => {

@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
+import AppMenu from "@/components/AppMenu";
+import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
+import { useAppMenuData } from "@/hooks/useAppMenuData";
 
 /**
  * Shared sticky header for the public marketing pages (About, Science,
- * Journal). The WillpowerLab logo links home; a small menu offers Home /
- * About / Science / Journal plus a way into the product. This is the common
- * chrome that makes those pages feel like one site.
+ * Journal/blog). The WillpowerLab logo links home.
+ *
+ * FE-3 — the menu is now the SAME AppMenu the lab renders, not a second
+ * hand-rolled one. It used to be its own list (Home / About / Science /
+ * Journal / The lab) with its own styling and its own open/close behaviour;
+ * the story asks for one component with two mounts, so the blog gets the
+ * lab's menu verbatim: Lab first behind a 1px stroke, then the account rows.
+ *
+ * Signed out — the usual case here — that means no email row and no credits
+ * row, with Lab still first, which falls out of AppMenu's own auth handling
+ * rather than being special-cased for this mount.
  */
 export default function SiteHeader() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const menu = useAppMenuData();
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur">
@@ -20,45 +29,19 @@ export default function SiteHeader() {
         <Logo />
       </Link>
 
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Menu"
-          aria-expanded={menuOpen}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-muted active:scale-95"
-        >
-          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-
-        {menuOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setMenuOpen(false)}
-              aria-hidden
-            />
-            <nav className="absolute right-0 top-11 z-20 w-40 overflow-hidden rounded-xl border border-border bg-background py-1 shadow-lg">
-              {[
-                { href: "/", label: "Home" },
-                { href: "/about", label: "About" },
-                { href: "/science", label: "Science" },
-                { href: "/blog", label: "Journal" },
-                { href: "/chat", label: "The lab" },
-              ].map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-3 py-2 text-[13px] text-foreground no-underline transition hover:bg-muted"
-                >
-                  {l.label}
-                </Link>
-              ))}
-            </nav>
-          </>
-        )}
-      </div>
+      <AppMenu
+        authState={menu.authState}
+        userEmail={menu.userEmail}
+        credits={menu.credits}
+        lifeMenu={menu.lifeMenu}
+        supportEmail={SUPPORT_EMAIL}
+        communityUrl={COMMUNITY_URL}
+        onLogout={menu.logout}
+        loggingOut={menu.loggingOut}
+        labHref="/chat"
+        gameHref="/game"
+        corpusHref={menu.isCoach ? "/coach/corpus" : null}
+      />
     </header>
   );
 }

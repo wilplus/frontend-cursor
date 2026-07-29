@@ -40,6 +40,12 @@ import { useEffect, useRef } from "react";
  *  the visually-top overlay — the only one allowed to act on a popstate. */
 const dismissStack: symbol[] = [];
 
+/** How many throwaway entries this module currently has on the history stack.
+ *  Needed because a HAND-OFF can leave more than one outstanding (see the
+ *  deferred cleanup below), and they must all come off in a single go(-n)
+ *  rather than one dead Back press per stray. */
+let outstandingEntries = 0;
+
 function removeFromStack(token: symbol): void {
   const i = dismissStack.lastIndexOf(token);
   if (i >= 0) dismissStack.splice(i, 1);
@@ -72,6 +78,7 @@ export function useBackDismiss(
     // PAST /chat (e.g. to /login, which can sit in the stack).
     let closedByPopstate = false;
     window.history.pushState({ __willabOverlay: true }, "");
+    outstandingEntries++;
     const onPop = () => {
       // Not the top overlay → not our pop. The top one closes; we stay put
       // (rule 1 — this is what stops one pop collapsing the whole stack).
@@ -83,6 +90,7 @@ export function useBackDismiss(
         return;
       }
       closedByPopstate = true;
+      outstandingEntries = Math.max(0, outstandingEntries - 1);
       removeFromStack(token);
       onCloseRef.current();
     };
@@ -98,13 +106,29 @@ export function useBackDismiss(
       // Skip after a Back-close (the browser already popped) and when
       // navigating FORWARD (the suppressor — else we'd cancel that very
       // navigation).
-      if (
-        !closedByPopstate &&
-        !navigatingAwayRef.current &&
-        dismissStack.length === 0
-      ) {
-        window.history.back();
-      }
+      if (closedByPopstate || navigatingAwayRef.current) return;
+
+      // DEFERRED ON PURPOSE. One overlay HANDING OFF to another — the project
+      // picker unmounting as the Lab mounts — is a single React commit: this
+      // cleanup runs, then the incoming overlay's effect runs. Popping here,
+      // synchronously, meant the stack looked empty (we had just left, the
+      // next one had not yet arrived), so we called back()… and the popstate
+      // landed on the INCOMING overlay's listener and closed it. From the user
+      // that reads as "I picked a project and nothing happened", which is the
+      // whole record flow.
+      //
+      // A microtask runs after React has flushed the commit's effects, so by
+      // then the incoming overlay is on the stack and we correctly leave the
+      // history alone. Its own entry is then one too many, which is what
+      // outstandingEntries tracks: whoever is genuinely last takes them all off
+      // in one go(-n), so a hand-off never strands a dead Back press either.
+      queueMicrotask(() => {
+        if (dismissStack.length > 0) return; // handed off — not our business
+        if (outstandingEntries <= 0) return;
+        const n = outstandingEntries;
+        outstandingEntries = 0;
+        window.history.go(-n);
+      });
     };
   }, []);
 

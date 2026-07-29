@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Crown, FileText, Mic, ShieldAlert, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PENDING_VERIFICATION, REVIEWED } from "@/lib/willab/verificationCopy";
 import { fetchIdealText } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { bestPresentationView, insightView, readoutView } from "./loungeReports";
@@ -452,17 +453,17 @@ function IdealRecordingCard({
           </span>
         ) : null}
       </div>
-      {/* Verified / unverified pill (amber = informational, never red). */}
+      {/* Reviewed / pending pill (amber = informational, never red). */}
       <div className="mt-4">
         {verified ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-[12px] font-medium text-success ring-1 ring-success/25">
             <Check className="h-3.5 w-3.5" aria-hidden />
-            Verified by the coach
+            {REVIEWED}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-medium text-amber-700 ring-1 ring-amber-600/20 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-400/25">
             <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
-            Not verified by the coach
+            {PENDING_VERIFICATION}
           </span>
         )}
       </div>
