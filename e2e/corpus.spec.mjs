@@ -342,8 +342,38 @@ check(
   (await page.locator('button[aria-pressed="true"]').count()) === 0
 );
 
-await page.locator("button", { hasText: /^Yes$/ }).click();
-await page.waitForTimeout(300);
+// The Yes click's PUT is deliberately delayed 300ms by the harness, so there
+// is a window to observe "pending" before it resolves.
+const yesClick = page.locator("button", { hasText: /^Yes$/ }).click();
+await page.waitForTimeout(80);
+check(
+  "while the save is in flight, the nav bar says so — literally 'Saving…', not a silent wait",
+  (await page.locator("text=Saving…").count()) === 1
+);
+check(
+  "…and the CURRENT piece's dot pulses amber — pending, not yet answered, not unanswered either",
+  await page.evaluate(() => {
+    const dots = [...document.querySelectorAll('button[aria-label^="Piece "]')];
+    const first = dots[0]?.querySelector("span");
+    return (
+      dots[0]?.getAttribute("aria-label")?.includes("saving") &&
+      first?.className.includes("animate-pulse")
+    );
+  })
+);
+check(
+  "the Yes/No buttons are disabled while their own save is in flight — a second tap must not race the first",
+  await page.evaluate(() => {
+    const yes = [...document.querySelectorAll("button")].find(
+      (b) => b.textContent?.trim() === "Yes"
+    );
+    return yes?.disabled === true;
+  })
+);
+await yesClick;
+// The harness delays the PUT 300ms; the state these next checks read
+// (`answered`, the 1–5 row) only updates once that resolves.
+await page.waitForTimeout(350);
 let put = await labels(page);
 check(
   "Yes alone is a complete label — a real boolean, no intensity",
@@ -353,18 +383,15 @@ check(
 );
 check("the 1–5 row appears only now", (await page.locator("text=How strongly?").count()) === 1);
 check(
-  "the scale carries its meaning as a tooltip, not as words on the buttons",
-  (await page.evaluate(() => {
-    const p = [...document.querySelectorAll("p")].find((x) =>
-      x.textContent?.includes("How strongly")
-    );
-    return p?.getAttribute("title") ?? "";
-  })) === "1 = barely, 5 = unmistakably" &&
-    (await page.locator("button", { hasText: /^[1-5]$/ }).count()) === 5
+  "the scale now carries its meaning as WORDS on the buttons, at the founder's explicit instruction — the endpoints are the founder's own words",
+  (await page.locator('button[aria-label="1 — Barely"]').count()) === 1 &&
+    (await page.locator('button[aria-label="5 — Extremely"]').count()) === 1 &&
+    (await page.locator("text=Barely").count()) === 1 &&
+    (await page.locator("text=Extremely").count()) === 1
 );
 
-await page.locator("button", { hasText: /^4$/ }).click();
-await page.waitForTimeout(300);
+await page.locator('button[aria-label="4 — Strongly"]').click();
+await page.waitForTimeout(400);
 put = await labels(page);
 check(
   "the grade re-sends the answer WITH the intensity — never intensity alone (N3)",
@@ -389,7 +416,7 @@ check(
 check(
   "its saved call renders as the active answer and grade, not a locked one",
   (await page.locator('button[aria-pressed="true"]', { hasText: /^Yes$/ }).count()) === 1 &&
-    (await page.locator('button[aria-pressed="true"]', { hasText: /^5$/ }).count()) === 1
+    (await page.locator('button[aria-pressed="true"][aria-label="5 — Extremely"]').count()) === 1
 );
 
 /* ---------------- the bubbles: every piece, reachable ---------------- */
@@ -405,6 +432,20 @@ check(
       bubbles.every((b) => b.textContent?.trim() === "") &&
       bubbles.map((b) => b.getAttribute("aria-label")).join("|").startsWith("Piece 1")
     );
+  })
+);
+check(
+  "the dots now live in the NAV BAR — above the fold, not scrolled away at the bottom where they used to sit",
+  await page.evaluate(() => {
+    const dot = document.querySelector('button[aria-label^="Piece "]');
+    // The native <audio> element MediaPlayer renders is visually hidden (its
+    // own custom UI is what's shown), so it has no box to compare against.
+    // "Confident?" is a real, visible layout anchor further down the screen.
+    const confident = [...document.querySelectorAll("p")].find(
+      (x) => x.textContent?.trim() === "Confident?"
+    );
+    if (!dot || !confident) return false;
+    return dot.getBoundingClientRect().top < confident.getBoundingClientRect().top;
   })
 );
 check(
@@ -438,6 +479,15 @@ check(
         (b) => b.getAttribute("aria-pressed") === "true"
       ).length === 0
   )
+);
+
+/* --------------- once every piece is labelled, the nav bar says so plainly -------------- */
+await page.locator("button", { hasText: /^Yes$/ }).click();
+await page.waitForTimeout(400);
+check(
+  "the nav bar marks completion instead of just counting, once every piece is labelled",
+  (await page.locator("text=All labelled").count()) === 1 &&
+    (await page.locator("text=3 / 3 labelled").count()) === 0
 );
 
 await browser.close();
