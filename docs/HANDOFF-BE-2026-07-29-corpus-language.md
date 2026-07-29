@@ -172,11 +172,13 @@ right now the FE states "there is no later send", which is true on the wire we c
 
 ## Where to verify
 
-`e2e/corpus.spec.mjs` — 50 checks in a real browser, including that Import is blocked
-until a language is chosen, that auto-detect omits the field entirely, that a chosen
-language reaches the wire as an ISO code, and that the same file under a different
-language gets a different key. `src/services/api/trainingCorpus.test.ts` — 58 unit tests
-covering the key derivation, the language and sex validators, and the async contract.
+`e2e/corpus.spec.mjs` — 61 checks in a real browser, including: Import blocked until a
+language is chosen; auto-detect omitting the field entirely; a chosen language reaching
+the wire as an ISO code; the same file under a different language getting a different
+key; the labelled badge coming from a fresh queue read; the word "pending" appearing
+nowhere on the page; and Hide being reversible and honestly worded.
+`src/services/api/trainingCorpus.test.ts` — 58 unit tests covering the key derivation,
+the language and sex validators, and the async contract.
 
 **Copy on every one of these screens is still unsigned by the founder** — including the
 new language nudge, which is the longest piece of copy on the panel.
