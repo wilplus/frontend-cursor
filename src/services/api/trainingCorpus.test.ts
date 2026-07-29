@@ -257,12 +257,19 @@ describe("terminalOutcome — the async import contract", () => {
     expect(terminalOutcome({ session_id: "s", status: "reticulating" })).toBeNull();
   });
 
+  it("does NOT read a bare {ok, session_id} acknowledgement as a finished import — with no counts it would render as a zero-piece result and announce a failure that never happened", () => {
+    expect(terminalOutcome({ ok: true, session_id: "s" })).toBeNull();
+    // A count is the evidence that this is a result rather than a receipt.
+    expect(terminalOutcome({ ok: true, session_id: "s", queue_count: 0 })?.ok).toBe(true);
+  });
+
   it("reads the finished shapes, in every spelling", () => {
     for (const status of ["complete", "completed", "done", "ready", "succeeded"]) {
       const r = terminalOutcome({ status, session_id: "s", arc_id: "a", snippet_count: 42 });
       expect(r?.ok).toBe(true);
     }
-    // The older synchronous BE answered ok:true with no status at all.
+    // The older synchronous BE answered ok:true with no status at all — but
+    // always with counts, which is what marks it a result.
     expect(terminalOutcome({ ok: true, session_id: "s", snippet_count: 42 })?.ok).toBe(true);
   });
 
