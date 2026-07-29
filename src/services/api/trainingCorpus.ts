@@ -1,4 +1,31 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { MAX_UPLOAD_BYTES } from "@/components/willab/audioUploadValidation";
+
+/** Browser-visible backend base, mirroring `presentationExtract`. Empty =
+ *  no public URL in this env, so everything goes through the BFF proxy. */
+const PUBLIC_BACKEND_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  ""
+).replace(/\/+$/, "");
+
+/** The reason a real talk cannot be imported through the same-origin proxy.
+ *
+ *  Vercel caps a serverless function's REQUEST BODY at ~4.5 MB and it is not
+ *  configurable below Enterprise. A 41-minute mp3 is ~40 MB, so the upload
+ *  dies at the gateway with a bare 413 before a single byte reaches the BE —
+ *  which is not a timeout, not a BE bug, and not something a retry can fix.
+ *
+ *  Exported so the message is one string rather than three that drift. */
+export const OVER_PROXY_LIMIT_MESSAGE =
+  "This file is too large to upload through the app (the limit is about 4.5 MB, and a talk of any length is far bigger). It has to reach the server directly — flagged to the backend as the blocker for real imports.";
+
+/** True when the file cannot survive the proxy hop. Only consulted AFTER the
+ *  direct-to-backend attempt has failed, because the direct path has no such
+ *  cap and is where a real talk is supposed to go. */
+export function exceedsProxyLimit(size: number): boolean {
+  return size > MAX_UPLOAD_BYTES;
+}
 
 /* -------------------------------------------------------------------------- */
 /*  trainingCorpus — the coach's corpus lane (2026-07-28)                      */
@@ -312,17 +339,57 @@ export async function importTrainingAudio(input: {
     form.append("queue_per_band", String(input.queuePerBand));
   }
 
-  let res: Response;
-  try {
-    res = await fetch("/api/v2/coach/training-imports", {
+  // DIRECT to the backend first, deliberately bypassing the same-origin proxy:
+  // that hop caps request bodies at ~4.5 MB on Vercel, which 413s every real
+  // talk before a byte reaches the BE. The same pattern the deck upload uses.
+  // A non-safelisted header forces a PREFLIGHT, so a BE without CORS fails
+  // instantly rather than uploading 40 MB and only then being blocked on the
+  // read — the difference between a fast fallback and a wasted upload.
+  const post = (url: string) =>
+    fetch(url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        "X-Requested-With": "willab",
+      },
       body: form,
       cache: "no-store",
       signal: input.signal,
     });
-  } catch {
-    return emptyFailure();
+
+  let res: Response | null = null;
+  if (PUBLIC_BACKEND_URL) {
+    try {
+      res = await post(`${PUBLIC_BACKEND_URL}/v2/coach/training-imports`);
+    } catch {
+      res = null; // CORS, DNS, offline — fall back below.
+    }
+  }
+  if (!res) {
+    // The fallback cannot carry a real talk. Saying so beats uploading 40 MB
+    // to be told 413 by a gateway, and beats "Try again" — which is a lie,
+    // because no number of retries moves a platform limit.
+    if (exceedsProxyLimit(input.file.size)) {
+      return {
+        ...emptyFailure(),
+        code: "FILE_TOO_LARGE_FOR_PROXY",
+        error: OVER_PROXY_LIMIT_MESSAGE,
+      };
+    }
+    try {
+      res = await post("/api/v2/coach/training-imports");
+    } catch {
+      return emptyFailure();
+    }
+  }
+  if (res.status === 413) {
+    // Whichever hop rejected it, a 413 is a size limit and never a transient.
+    return {
+      ...emptyFailure(),
+      code: "FILE_TOO_LARGE",
+      error: OVER_PROXY_LIMIT_MESSAGE,
+    };
   }
   const body = (await res.json().catch(() => null)) as Record<
     string,

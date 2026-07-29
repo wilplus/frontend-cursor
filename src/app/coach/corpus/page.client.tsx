@@ -10,6 +10,7 @@ import {
   buildLabelBody,
   fetchConfidenceQueue,
   fetchTrainingImports,
+  exceedsProxyLimit,
   IMPORT_LANGUAGES,
   importTrainingAudio,
   INTENSITY_MAX,
@@ -276,6 +277,7 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
 
   // Terminal either way — an empty import is finished, just not fruitful.
   const done = files.filter((f) => TERMINAL.has(f.status)).length;
+  const oversized = files.filter((f) => exceedsProxyLimit(f.file.size));
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
@@ -440,6 +442,22 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
           </span>
         ) : null}
       </div>
+
+      {/* Said BEFORE the upload, not after a 413. The same-origin hop caps a
+          request body at ~4.5 MB on Vercel, and a talk of any length is far
+          bigger — so the file has to reach the backend directly. The FE tries
+          that first; this warns that if the direct route is not open, these
+          files cannot get through at all. Retrying does not move a platform
+          limit, and a coach should not learn that from a failed 40 MB
+          upload. */}
+      {oversized.length > 0 && !running ? (
+        <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+          {oversized.length === 1 ? "This file is" : `${oversized.length} of these are`}{" "}
+          larger than the app can upload on its own (~4.5 MB). It will be sent
+          straight to the server instead — if that route is not open yet, the
+          import will say so rather than retrying.
+        </p>
+      ) : null}
 
       {files.length > 0 ? (
         <ul className="flex flex-col gap-1">

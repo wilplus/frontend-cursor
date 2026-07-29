@@ -1,14 +1,73 @@
 # BE handoff — Training corpus, FE answer to rev 3
 
 **From:** frontend-cursor · **Date:** 2026-07-29
-**Status:** merged to `main` — FE commit `f2a576d`, rebased onto the speaker-sex build
-(`21161a8`, #186) and re-verified against it.
+**Status:** merged to `main`, rebased onto the speaker-sex build (`21161a8`, #186) and
+re-verified against it. **§0 added after the founder's live 413 — read it first.**
 **Answers:** your rev 3 (`feat/corpus-language-fixes`, `0b182e7`)
 
-Three of your four changes needed FE work. One of them would have broken **silently and
-badly**, and it is worth reading first (§1). Then what the FE now sends and does (§2–§5),
-what I had to **assume** because rev 2 is not in this repo (§6), and one thing in your
-own design I think is a trap (§7).
+Three of your four changes needed FE work (§1–§5), what I had to **assume** because rev 2
+is not in this repo (§6), and one thing in your own design I think is a trap (§7).
+
+But start with §0.
+
+---
+
+## 🔴 §0 — The import cannot work at all, and it is not the language
+
+**Updated 2026-07-29, after the founder retried with the real file.**
+
+It came back **HTTP 413** from `https://www.willpowerlab.com/api/v2/coach/training-imports`.
+Not a timeout, not `NO_SPEECH_DETECTED` — **the upload never reached you.**
+
+**Vercel caps a serverless function's request body at ~4.5 MB**, and it is not
+configurable below Enterprise. `Trend Talk Warsaw Przemyslaw Paczek, Hyper Poland.mp3`
+is tens of MB. So is every real talk. The import has never been able to carry one.
+
+**This one is mine, and it was avoidable.** The repo already knew:
+`MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024` lives in `audioUploadValidation.ts` and every
+other upload picker in the app uses it, and the journal media path carries the comment
+*"NEVER routed through the BFF: Vercel's ~4.5MB serverless body limit 413s real media
+(the app already hit this on audio)."* I routed the corpus import through the proxy
+anyway. My §1 in the last handoff worried about the **duration** ceiling and never
+mentioned the **size** one.
+
+Everything in §1–§7 is real and still needed. **None of it matters until the bytes can
+reach you.**
+
+### What the FE does now
+
+1. **Tries the backend DIRECTLY first**, bypassing the proxy entirely —
+   `POST {NEXT_PUBLIC_API_URL}/v2/coach/training-imports`. There is no 4.5 MB cap on
+   that path. Same pattern the deck upload already uses. A non-safelisted header forces
+   a **preflight**, so a backend without CORS fails instantly instead of uploading 40 MB
+   and only then being blocked on the read.
+2. **Falls back to the proxy** only when the direct attempt dies at the network layer —
+   and **refuses to send** a file over 4.5 MB down that path, because uploading tens of
+   MB to be told 413 by a gateway is pure waste.
+3. **Says so honestly.** A 413 no longer reads "Import failed. Try again." — that was a
+   lie, since no number of retries moves a platform limit. Oversized files are also
+   flagged **before** the upload starts.
+
+### What you have to decide — this is the blocking question
+
+**Does `www.willpowerlab.com`'s backend send CORS headers on `/v2/coach/*`?**
+
+- **If yes** — this may already work. Confirm the origin is allowed and we are done; the
+  FE will take the direct path and the 4.5 MB cap never applies.
+- **If no** — the direct attempt preflight-fails and large imports remain impossible.
+  Two ways out, and I recommend the second:
+  1. **Add CORS** for the app origin on the coach import route. Smallest change; the FE
+     already self-heals the moment the headers appear.
+  2. **Presign + direct-to-storage**, which is what this repo already does for journal
+     media and is the sturdier answer: `POST /v2/coach/training-imports/presign` returns
+     an upload URL, the browser PUTs the file straight to R2/Supabase, then the import
+     POST carries the **storage key instead of the bytes** — a small JSON body that the
+     proxy can carry, and that composes with the 202 + poll you already built. Tell me
+     the presign shape and the field name for the key, and the FE side is short: this
+     repo has `uploadToStorage` handling both POST-policy and plain-PUT presigns already.
+
+Until one of those lands, **the corpus cannot be filled**, and §6.1 ("send `language:
+"pl"` and re-import that file") cannot be tested — the file will not get to you.
 
 ---
 
@@ -220,6 +279,8 @@ nothing imported.
 
 ## 9. What I'd like back
 
+0. **§0 first — does the backend send CORS on `/v2/coach/*`?** If not, pick CORS or
+   presign. Nothing else in this document can be tested until a real file can reach you.
 1. **Confirm or correct §6** — the five assumptions about the async contract.
 2. **§7** — is a failed import's key released? If not, how does a coach force a re-run?
 3. **Include `note` in the queue's `label` object** (§5).
