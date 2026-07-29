@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { MAX_UPLOAD_BYTES } from "@/components/willab/audioUploadValidation";
 import {
   buildLabelBody,
+  exceedsProxyLimit,
   IMPORT_LANGUAGES,
   importIdempotencyKey,
   normalizeLanguage,
@@ -356,6 +358,23 @@ describe("mapTrainingImport — the index row's state", () => {
   it("carries queue_count, and leaves it null when the BE does not send one — so an older payload says nothing rather than '0 to label'", () => {
     expect(mapTrainingImport({ session_id: "s", queue_count: 15 })?.queueCount).toBe(15);
     expect(mapTrainingImport({ session_id: "s" })?.queueCount).toBeNull();
+  });
+});
+
+describe("exceedsProxyLimit — the 413 that killed the first real import", () => {
+  it("passes anything the same-origin hop can actually carry", () => {
+    expect(exceedsProxyLimit(0)).toBe(false);
+    expect(exceedsProxyLimit(4 * 1024 * 1024)).toBe(false);
+  });
+
+  it("flags a real talk — a 41-minute mp3 is ~40 MB against a ~4.5 MB request-body cap, which is why the first import came back 413", () => {
+    expect(exceedsProxyLimit(40 * 1024 * 1024)).toBe(true);
+    expect(exceedsProxyLimit(4.5 * 1024 * 1024 + 1)).toBe(true);
+  });
+
+  it("uses the SAME constant as every other upload picker in the app, so the number cannot drift in one place", () => {
+    expect(exceedsProxyLimit(MAX_UPLOAD_BYTES)).toBe(false);
+    expect(exceedsProxyLimit(MAX_UPLOAD_BYTES + 1)).toBe(true);
   });
 });
 
