@@ -76,6 +76,22 @@ export default function IdealReadMic({
   const sentBlobRef = useRef<Blob | null>(null);
   const sendingRef = useRef(false);
   const st = mic.state;
+  // Founder 2026-07-30 (the "lag" bug) — a read attempt is LOCKED IN from the
+  // tap on "Read it aloud" until its upload settles. Background refetches keep
+  // landing while the user reads (a PREVIOUS read finishing its analysis flips
+  // reread_processing / rereadDone mid-recording), and before this latch those
+  // flips re-rendered the component into the loading line and then the
+  // next-take button WHILE THE MIC KEPT RECORDING invisibly — the orphaned
+  // stream then made the Lab's own getUserMedia hang on "Getting your mic
+  // ready…". The latch (a) keeps the live recording UI on screen no matter
+  // what the server reports about older reads, and (b) pins the pairing target
+  // + version the upload uses to the ones in force when the read STARTED, so a
+  // mid-read flip can't drop the send.
+  const [activeRead, setActiveRead] = useState(false);
+  const readTargetRef = useRef<{
+    pairSessionId: string;
+    version: number | null;
+  } | null>(null);
 
   // FE-1 (founder 2026-07-22) — a re-read this session was accepted and is
   // still being analysed until the server confirms it FINISHED (rereadDone,
@@ -141,12 +157,17 @@ export default function IdealReadMic({
   const readPossible = !rereadDone && latestTakeSessionId !== null;
 
   useEffect(() => {
-    if (!readPossible || st.status !== "stopped" || sendingRef.current) return;
+    // Gate on the LATCHED read, not the live props: the props may have flipped
+    // (an older read's analysis finishing) while this one was being recorded,
+    // and that must not drop the send.
+    const target = readTargetRef.current;
+    if (!target || st.status !== "stopped" || sendingRef.current) return;
     const blob = st.audioBlob;
     if (!blob || blob.size === 0) {
       // A local mic failure is not the previous upload's rejection reason.
       setRejected(null);
       setPhase("failed");
+      setActiveRead(false);
       return;
     }
     if (sentBlobRef.current === blob) return;
@@ -158,8 +179,9 @@ export default function IdealReadMic({
       durationSec: st.durationSec,
       topic: title ?? "Ideal text read",
       recordingKind: "read",
-      // REQUIRED — reads only ever fold under their paired spoken take.
-      pairedSessionId: latestTakeSessionId,
+      // REQUIRED — reads only ever fold under their paired spoken take,
+      // pinned at recording start.
+      pairedSessionId: target.pairSessionId,
       // A read is its own session; never overwrite the spoken take. The id is
       // REQUIRED on a read, so fall back to the repo's Date.now()+random id
       // convention when crypto.randomUUID is unavailable (older Safari).
@@ -168,10 +190,13 @@ export default function IdealReadMic({
           ? crypto.randomUUID()
           : `read-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       // What the read is OF + which version — flips the GET's reread_done.
+      // Pinned at recording start (a mid-read version bump must not relabel it).
       readTarget: "ideal_text",
-      idealVersion: version ?? undefined,
+      idealVersion: target.version ?? undefined,
     }).then((r) => {
       sendingRef.current = false;
+      setActiveRead(false);
+      readTargetRef.current = null;
       if (r.kind === "ok" || r.kind === "processing") {
         setRejected(null);
         setPhase("idle");
@@ -188,7 +213,24 @@ export default function IdealReadMic({
         setPhase("failed");
       }
     });
-  }, [st, readPossible, latestTakeSessionId, title, version, onReadUploaded]);
+  }, [st, title, onReadUploaded]);
+
+  // A mic error ends the attempt — release the latch so the server-driven
+  // branches below can take over again.
+  useEffect(() => {
+    if (st.status === "error" && activeRead) {
+      setActiveRead(false);
+      readTargetRef.current = null;
+    }
+  }, [st.status, activeRead]);
+
+  // Founder 2026-07-30 — while a read attempt is live (recording, stopped
+  // pending its send, or sending) the mic UI OWNS this slot: no background
+  // refetch may replace it with the loading line or the next-take button while
+  // the mic is hot. That swap is exactly what orphaned the stream and made the
+  // Lab's own mic hang afterwards.
+  const readingNow =
+    activeRead || st.status === "recording" || phase === "sending";
 
   // FE-1 — the button reads STRICTLY from the server (rereadDone + this local
   // submission latch); there is NO optimistic flip. While the just-submitted
@@ -196,7 +238,7 @@ export default function IdealReadMic({
   // button will be — it appears only once the analysis is genuinely finished.
   // (The BE gates rereadDone on analysis_state == ready; the LabOverlay Guard A
   // is the independent safety net against an orphaned mic.)
-  if (readProcessing) {
+  if (!readingNow && readProcessing) {
     return (
       <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
         <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -209,7 +251,7 @@ export default function IdealReadMic({
 
   // State 2 — a fresh spoken take (also the fallback when no pairing target
   // exists, since a read without a pair is invisible on every surface).
-  if (!readPossible) {
+  if (!readingNow && !readPossible) {
     // The three-button layout renders its own "next take" button; here a
     // read that cannot happen simply draws nothing.
     if (micOnly) return null;
@@ -254,9 +296,17 @@ export default function IdealReadMic({
             return;
           }
           // A fresh attempt starts clean — no stale failure line hanging over
-          // the new recording.
+          // the new recording. Pin the pairing target + version NOW: the
+          // upload must use what was true when the read started, whatever a
+          // background refetch flips mid-read.
           setRejected(null);
           setPhase("idle");
+          if (latestTakeSessionId === null) return;
+          readTargetRef.current = {
+            pairSessionId: latestTakeSessionId,
+            version,
+          };
+          setActiveRead(true);
           void mic.start().catch(() => {});
         }}
         disabled={phase === "sending"}
