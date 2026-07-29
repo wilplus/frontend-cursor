@@ -82,6 +82,11 @@ const QUEUE = [
   },
 ];
 
+/** How many times the async import has been polled — lets the harness answer
+ *  "still working" first and "finished" after, which is the shape the FE must
+ *  survive. */
+let asyncPolls = 0;
+
 if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
   if (!window.__corpusCalls) {
     window.__corpusCalls = [];
@@ -158,15 +163,46 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
           ) {
             return new Response(
               JSON.stringify({
-                ok: true,
+                ok: false,
+                reason: "NO_SPEECH_DETECTED",
+                detail:
+                  "the transcript was empty \u2014 if this audio is not in English, re-import it with a `language` code (e.g. pl)",
                 session_id: "sess-empty",
-                arc_id: null,
+                arc_id: "arc-empty",
                 snippet_count: 0,
                 queue_count: 0,
-                stages: ["confidence"],
                 duration_sec: 2480,
+                language: null,
+                filename: "empty-talk.mp3",
               }),
               { status: 200, headers: { "Content-Type": "application/json" } }
+            );
+          }
+          // A file named "*dupe*" is one the BE has seen before: it answers
+          // 200 with status "duplicate" and does no work. Must not read as a
+          // fresh success, or a coach re-running a folder would believe
+          // thirty files were just processed.
+          if (String(entries.audio_file ?? "").includes("dupe")) {
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                status: "duplicate",
+                session_id: "sess-1",
+                arc_id: "arc-1",
+                queue_count: 15,
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } }
+            );
+          }
+          // Everything else takes the ASYNC path: 202 with a session id, and
+          // the result arrives by polling. Modelled here because the FE has to
+          // survive it — a 202 read as a success would put a queue on screen
+          // that does not exist yet.
+          if (String(entries.audio_file ?? "").includes("async")) {
+            asyncPolls = 0;
+            return new Response(
+              JSON.stringify({ session_id: "sess-async", status: "processing" }),
+              { status: 202, headers: { "Content-Type": "application/json" } }
             );
           }
           const failing = String(entries.audio_file ?? "").includes("bad");
@@ -195,6 +231,30 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
             { status: 200, headers: { "Content-Type": "application/json" } }
           );
         }
+        // GET /training-imports/<id> — the poll. Answers "processing" once,
+        // then finishes, so the spec proves the FE waits rather than reading a
+        // 202 as a result.
+        if (/\/training-imports\/[^/?]+$/.test(url.split("?")[0])) {
+          asyncPolls += 1;
+          if (asyncPolls < 2) {
+            return new Response(
+              JSON.stringify({ session_id: "sess-async", status: "processing" }),
+              { status: 200, headers: { "Content-Type": "application/json" } }
+            );
+          }
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              status: "complete",
+              session_id: "sess-async",
+              arc_id: "arc-1",
+              snippet_count: 42,
+              queue_count: 15,
+              duration_sec: 612.4,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
         return new Response(
           JSON.stringify({
             imports: [
@@ -204,9 +264,23 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
                 topic: "Board pitch",
                 speaker_label: "Jane Doe",
                 created_at: "2026-07-28T10:00:00Z",
+                status: "complete",
+                queue_count: 15,
+              },
+              // A failed import stays in the list: it is the evidence for why
+              // a file produced nothing, and it must not be openable.
+              {
+                session_id: "sess-empty",
+                arc_id: "arc-empty",
+                topic: "thank you talk at the conference",
+                speaker_label: "Przemyslaw Paczek",
+                created_at: "2026-07-29T10:00:00Z",
+                status: "failed",
+                queue_count: 0,
+                analysis_error: "the transcript was empty",
               },
             ],
-            count: 1,
+            count: 2,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );

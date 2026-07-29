@@ -7,6 +7,7 @@ import {
   mapConfidenceQueue,
   mapQueuePiece,
   mapTrainingImport,
+  terminalOutcome,
 } from "./trainingCorpus";
 
 function piece(over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -43,14 +44,16 @@ describe("mapQueuePiece — drop-not-repair", () => {
   });
 
   it("keeps this coach's prior call, intensity included", () => {
-    const m = mapQueuePiece(piece({ label: { confident: true, intensity: 4 } }));
-    expect(m?.label).toEqual({ confident: true, intensity: 4 });
+    const m = mapQueuePiece(
+      piece({ label: { confident: true, intensity: 4, note: "hard to call" } })
+    );
+    expect(m?.label).toEqual({ confident: true, intensity: 4, note: "hard to call" });
   });
 
   it("keeps a yes/no call that was never graded", () => {
     expect(
       mapQueuePiece(piece({ label: { confident: false } }))?.label
-    ).toEqual({ confident: false, intensity: null });
+    ).toEqual({ confident: false, intensity: null, note: null });
   });
 
   it("treats a non-boolean confident as UNLABELLED — the piece gets asked again rather than showing a call the coach never gave", () => {
@@ -242,6 +245,113 @@ describe("importIdempotencyKey", () => {
   });
 });
 
+describe("terminalOutcome — the async import contract", () => {
+  it("treats a 202-style acceptance as STILL RUNNING, so the screen polls instead of claiming a queue", () => {
+    expect(terminalOutcome({ session_id: "s", status: "processing" })).toBeNull();
+    expect(terminalOutcome({ session_id: "s", analysis_state: "running" })).toBeNull();
+    expect(terminalOutcome({ session_id: "s" })).toBeNull();
+    expect(terminalOutcome(null)).toBeNull();
+  });
+
+  it("treats an UNKNOWN status as still running — polling a little longer costs a request, while calling an unfinished import finished shows a queue that cannot open", () => {
+    expect(terminalOutcome({ session_id: "s", status: "reticulating" })).toBeNull();
+  });
+
+  it("reads the finished shapes, in every spelling", () => {
+    for (const status of ["complete", "completed", "done", "ready", "succeeded"]) {
+      const r = terminalOutcome({ status, session_id: "s", arc_id: "a", snippet_count: 42 });
+      expect(r?.ok).toBe(true);
+    }
+    // The older synchronous BE answered ok:true with no status at all.
+    expect(terminalOutcome({ ok: true, session_id: "s", snippet_count: 42 })?.ok).toBe(true);
+  });
+
+  it("reads a zero-piece result as a FAILURE that was read, not a rejection — and keeps the duration that diagnoses it", () => {
+    const r = terminalOutcome({
+      ok: false,
+      reason: "NO_SPEECH_DETECTED",
+      detail: "the transcript was empty — if this audio is not in English, re-import it with a `language` code (e.g. pl)",
+      session_id: "sess-9",
+      duration_sec: 2480,
+      language: "pl",
+    });
+    expect(r?.ok).toBe(false);
+    if (r?.ok === false) {
+      expect(r.empty).toBe(true);
+      expect(r.durationSec).toBe(2480);
+      expect(r.language).toBe("pl");
+      expect(r.sessionId).toBe("sess-9");
+      // `detail` is the sentence; the raw enum must never be what gets shown.
+      expect(r.error).toContain("re-import it with a");
+    }
+  });
+
+  it("NO_CANDIDATES is also read-but-empty — the audio was fine, the cutter just found nothing", () => {
+    const r = terminalOutcome({ ok: false, reason: "NO_CANDIDATES", duration_sec: 300 });
+    expect(r?.ok === false && r.empty).toBe(true);
+  });
+
+  it("a real rejection is NOT empty — nothing was read, so it is red rather than amber", () => {
+    const r = terminalOutcome({ ok: false, reason: "too_short", error: "That clip is too short to analyse." });
+    expect(r?.ok === false && r.empty).toBe(false);
+    expect(r?.ok === false && r.error).toBe("That clip is too short to analyse.");
+  });
+
+  it("still reads the older `error` field when `detail` is absent, so neither side has to deploy in lockstep", () => {
+    const r = terminalOutcome({ ok: false, error: "old shape" });
+    expect(r?.ok === false && r.error).toBe("old shape");
+  });
+
+  it("a failed status is terminal even without ok:false — otherwise a dead import polls for thirty minutes", () => {
+    for (const status of ["failed", "error", "cancelled"]) {
+      expect(terminalOutcome({ status, session_id: "s" })?.ok).toBe(false);
+    }
+  });
+
+  it("flags a duplicate so 'it succeeded' and 'it was already done' can read differently", () => {
+    const r = terminalOutcome({
+      ok: true,
+      status: "duplicate",
+      session_id: "sess-1",
+      arc_id: "arc-1",
+      queue_count: 15,
+    });
+    expect(r?.ok === true && r.duplicate).toBe(true);
+    expect(r?.ok === true && r.queueCount).toBe(15);
+    // A normal success is not a duplicate.
+    expect(
+      terminalOutcome({ ok: true, session_id: "s", snippet_count: 1 })?.ok === true &&
+        (terminalOutcome({ ok: true, session_id: "s", snippet_count: 1 }) as { duplicate: boolean }).duplicate
+    ).toBe(false);
+  });
+});
+
+describe("mapTrainingImport — the index row's state", () => {
+  it("defaults to done when the BE sends no status — an older payload must keep opening, not read as an index of rows all still working", () => {
+    expect(mapTrainingImport({ session_id: "s" })?.state).toBe("done");
+  });
+
+  it("marks a running import so a finished one and an in-flight one stop looking identical", () => {
+    expect(mapTrainingImport({ session_id: "s", status: "processing" })?.state).toBe("running");
+    expect(mapTrainingImport({ session_id: "s", analysis_state: "running" })?.state).toBe("running");
+  });
+
+  it("keeps a failed row WITH its reason — the row is the evidence for why a file produced nothing", () => {
+    const r = mapTrainingImport({
+      session_id: "s",
+      analysis_state: "failed",
+      analysis_error: "the transcript was empty",
+    });
+    expect(r?.state).toBe("failed");
+    expect(r?.detail).toBe("the transcript was empty");
+  });
+
+  it("carries queue_count, and leaves it null when the BE does not send one — so an older payload says nothing rather than '0 to label'", () => {
+    expect(mapTrainingImport({ session_id: "s", queue_count: 15 })?.queueCount).toBe(15);
+    expect(mapTrainingImport({ session_id: "s" })?.queueCount).toBeNull();
+  });
+});
+
 describe("normalizeLanguage", () => {
   it("accepts a code that is actually on the menu", () => {
     expect(normalizeLanguage("pl")).toBe("pl");
@@ -284,6 +394,9 @@ describe("mapTrainingImport", () => {
       topic: "Board pitch",
       speakerLabel: "Jane Doe",
       createdAt: "2026-07-28T10:00:00Z",
+      state: "done",
+      queueCount: null,
+      detail: null,
     });
   });
 

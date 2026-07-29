@@ -132,13 +132,25 @@ export default function CorpusPageClient() {
 
 interface FileState {
   file: File;
-  /** `empty` is a THIRD outcome, not a flavour of done: the BE accepted the
-   *  file and returned ok, but cut nothing, so the corpus gained nothing. It
-   *  is terminal like done — re-running would spend another inline Whisper
-   *  pass to reach the same answer — but it must not read as success. */
-  status: "queued" | "running" | "done" | "empty" | "failed";
+  /** Five outcomes, because the BE distinguishes five things:
+   *  - `done`      pieces were cut and are waiting to be labelled
+   *  - `duplicate` the idempotency key matched; the ORIGINAL was returned and
+   *                no work was done. A success that must not read as new work.
+   *  - `empty`     the file was READ but nothing was cut (NO_SPEECH_DETECTED /
+   *                NO_CANDIDATES). Amber: nothing is wrong with the upload.
+   *  - `failed`    a real rejection or a transport failure. Red.
+   *  - `running`   uploading, or the server is still analysing. */
+  status: "queued" | "running" | "done" | "duplicate" | "empty" | "failed";
+  /** One-line summary, right-aligned on the row. */
   detail: string;
+  /** The BE's own sentence, wrapped under the row. Empty when there is none. */
+  hint: string;
 }
+
+/** Outcomes a second press of Import must NOT re-run. `failed` is absent on
+ *  purpose — a rejection or a dropped connection is exactly what a retry is
+ *  for, and the idempotency key makes re-sending safe. */
+const TERMINAL = new Set(["done", "duplicate", "empty"]);
 
 /** Compact and approximate on purpose: this is "did the BE read my file",
  *  not a measurement anyone acts on to the second. */
@@ -160,28 +172,56 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
   const [running, setRunning] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const describe = (r: ImportOutcome): string => {
+  /** The one-line summary, and the BE's own sentence when there is one worth
+   *  wrapping underneath. The two are separate because the reason a zero-piece
+   *  import happened ("if this audio is not in English, re-import it with a
+   *  language code") is a sentence, not a status. */
+  const describe = (r: ImportOutcome): { detail: string; hint: string } => {
     if (r.ok) {
-      // An import that cut nothing is NOT a success, however cheerfully the BE
-      // reported one: nothing entered the corpus and no queue will ever
-      // appear. Said plainly, with the duration, because those two numbers
-      // together are the whole diagnosis — a real duration means the audio was
-      // read and the cutting or transcription found nothing (wrong language,
-      // too calm, threshold too high), while a missing one means the file was
-      // never decoded at all. Without this the coach waits on a queue that is
-      // not coming.
-      if (r.snippetCount === 0) {
-        return r.durationSec
-          ? `Read ${formatLength(r.durationSec)} — but 0 pieces, nothing to label`
-          : "No audio read — 0 pieces, nothing to label";
-      }
       const len = r.durationSec ? ` · ${formatLength(r.durationSec)}` : "";
-      return `${r.snippetCount} pieces · ${r.queueCount} queued to label${len}`;
+      // A duplicate is a success that did NO work: the BE matched the
+      // idempotency key and handed back the original. Saying "42 pieces" here
+      // would tell a coach re-running a folder that thirty files were just
+      // processed when nothing was.
+      if (r.duplicate) {
+        return {
+          detail: `Already imported · ${r.queueCount} to label`,
+          hint: "",
+        };
+      }
+      // Kept even though the BE now reports zero pieces as a failure: an older
+      // deploy still answers ok with snippet_count 0, and that must not read
+      // as success just because the two sides are out of step.
+      if (r.snippetCount === 0) {
+        return {
+          detail: r.durationSec
+            ? `Read ${formatLength(r.durationSec)} — but 0 pieces, nothing to label`
+            : "No audio read — 0 pieces, nothing to label",
+          hint: "",
+        };
+      }
+      return {
+        detail: `${r.snippetCount} pieces · ${r.queueCount} queued to label${len}`,
+        hint: "",
+      };
     }
-    // The BE's reason is worth showing verbatim: it names WHICH content gate
-    // rejected the file (silence, corrupt, too short), which is what tells the
-    // coach whether to re-cut it or drop it.
-    return r.error ?? r.reason ?? "Import failed. Try again.";
+    // NEVER the raw reason: `NO_SPEECH_DETECTED` is a value for a switch
+    // statement, not something to put in front of a person. The BE's `detail`
+    // is a real sentence that names the fix, so it is shown verbatim, and the
+    // summary line carries the duration that says whether the file was read.
+    const hint = r.error ?? "";
+    if (r.empty) {
+      return {
+        detail: r.durationSec
+          ? `Read ${formatLength(r.durationSec)} — but 0 pieces, nothing to label`
+          : "No audio read — 0 pieces, nothing to label",
+        hint,
+      };
+    }
+    return {
+      detail: hint ? "Import failed" : "Import failed. Try again.",
+      hint,
+    };
   };
 
   async function run() {
@@ -190,9 +230,11 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
     // SEQUENTIAL on purpose: the analysis is CPU-heavy server-side, and firing
     // a folder in parallel mostly produces timeouts rather than speed.
     for (let i = 0; i < files.length; i++) {
-      if (files[i].status === "done" || files[i].status === "empty") continue;
+      if (TERMINAL.has(files[i].status)) continue;
       setFiles((f) =>
-        f.map((x, j) => (j === i ? { ...x, status: "running", detail: "" } : x))
+        f.map((x, j) =>
+          j === i ? { ...x, status: "running", detail: "", hint: "" } : x
+        )
       );
       const r = await importTrainingAudio({
         file: files[i].file,
@@ -201,24 +243,39 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
         note: note.trim() || null,
         language,
         optionalStages: stages,
+        // The POST returns as soon as the upload lands; the analysis runs on.
+        // Saying so beats a row that reads "Analysing…" identically whether
+        // the file is still uploading or the BE is minutes into Whisper.
+        onAccepted: () =>
+          setFiles((f) =>
+            f.map((x, j) =>
+              j === i ? { ...x, detail: "Analysing on the server…" } : x
+            )
+          ),
       });
       const outcome: FileState["status"] = !r.ok
-        ? "failed"
-        : r.snippetCount === 0
+        ? r.empty
           ? "empty"
-          : "done";
+          : "failed"
+        : r.duplicate
+          ? "duplicate"
+          : r.snippetCount === 0
+            ? "empty"
+            : "done";
+      const { detail, hint } = describe(r);
       setFiles((f) =>
-        f.map((x, j) => (j === i ? { ...x, status: outcome, detail: describe(r) } : x))
+        f.map((x, j) => (j === i ? { ...x, status: outcome, detail, hint } : x))
       );
-      if (r.ok) onImported();
+      // Refreshed on a zero-piece result too: the BE writes the session row
+      // either way, so the failed attempt is inspectable in the list rather
+      // than living only in a line the coach is about to scroll past.
+      if (r.ok || r.sessionId) onImported();
     }
     setRunning(false);
   }
 
   // Terminal either way — an empty import is finished, just not fruitful.
-  const done = files.filter(
-    (f) => f.status === "done" || f.status === "empty"
-  ).length;
+  const done = files.filter((f) => TERMINAL.has(f.status)).length;
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
@@ -346,7 +403,12 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
           const picked = Array.from(e.target.files ?? []);
           e.target.value = "";
           setFiles(
-            picked.map((file) => ({ file, status: "queued", detail: "" }))
+            picked.map((file) => ({
+              file,
+              status: "queued" as const,
+              detail: "",
+              hint: "",
+            }))
           );
         }}
         className="hidden"
@@ -382,28 +444,35 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
       {files.length > 0 ? (
         <ul className="flex flex-col gap-1">
           {files.map((f, i) => (
-            <li
-              key={`${f.file.name}-${i}`}
-              className="flex items-baseline justify-between gap-3 text-[12px]"
-            >
-              <span className="min-w-0 flex-1 truncate text-foreground">
-                {f.file.name}
+            <li key={`${f.file.name}-${i}`} className="flex flex-col gap-0.5 text-[12px]">
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 flex-1 truncate text-foreground">
+                  {f.file.name}
+                </span>
+                <span
+                  className={
+                    f.status === "failed"
+                      ? "shrink-0 text-destructive"
+                      : f.status === "empty"
+                        ? "shrink-0 text-amber-600 dark:text-amber-500"
+                        : "shrink-0 text-muted-foreground"
+                  }
+                >
+                  {f.status === "queued"
+                    ? "Waiting"
+                    : f.status === "running"
+                      ? f.detail || "Uploading…"
+                      : f.detail}
+                </span>
               </span>
-              <span
-                className={
-                  f.status === "failed"
-                    ? "shrink-0 text-destructive"
-                    : f.status === "empty"
-                      ? "shrink-0 text-amber-600 dark:text-amber-500"
-                      : "shrink-0 text-muted-foreground"
-                }
-              >
-                {f.status === "queued"
-                  ? "Waiting"
-                  : f.status === "running"
-                    ? "Analysing…"
-                    : f.detail}
-              </span>
+              {/* The BE's own sentence, WRAPPED rather than truncated on the
+                  status line: it is the one that names the fix ("re-import it
+                  with a language code"), and a truncated fix is no fix. */}
+              {f.hint ? (
+                <span className="text-[11px] leading-snug text-muted-foreground">
+                  {f.hint}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -442,13 +511,23 @@ function IndexPanel({
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {imports.map((i) => (
-            <li key={i.sessionId}>
-              <button
-                type="button"
-                onClick={() => onOpen(i)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
-              >
+          {/* A failed import stays in the list rather than being filtered out.
+              It is the evidence: the BE writes the row precisely so a coach can
+              see WHY a file produced nothing, instead of the attempt existing
+              only in a response they already scrolled past. It is not openable
+              — there is no queue behind it — so it renders as a plain row. */}
+          {imports.map((i) => {
+            const openable = i.state === "done";
+            const status =
+              i.state === "running"
+                ? "Analysing…"
+                : i.state === "failed"
+                  ? "Nothing to label"
+                  : i.queueCount !== null
+                    ? `${i.queueCount} to label`
+                    : "";
+            const inner = (
+              <>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-medium text-foreground">
                     {i.topic || "Untitled"}
@@ -456,14 +535,49 @@ function IndexPanel({
                   <span className="block truncate text-[12px] text-muted-foreground">
                     {i.speakerLabel ?? "No speaker label"}
                   </span>
+                  {i.state === "failed" && i.detail ? (
+                    <span className="mt-1 block text-[11px] leading-snug text-muted-foreground">
+                      {i.detail}
+                    </span>
+                  ) : null}
                 </span>
-                <ChevronRight
-                  className="h-4 w-4 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              </button>
-            </li>
-          ))}
+                {status ? (
+                  <span
+                    className={
+                      i.state === "failed"
+                        ? "shrink-0 text-[11px] text-amber-600 dark:text-amber-500"
+                        : "shrink-0 text-[11px] text-muted-foreground"
+                    }
+                  >
+                    {status}
+                  </span>
+                ) : null}
+                {openable ? (
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
+                ) : null}
+              </>
+            );
+            return (
+              <li key={i.sessionId}>
+                {openable ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpen(i)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
+                  >
+                    {inner}
+                  </button>
+                ) : (
+                  <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left opacity-70">
+                    {inner}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -486,6 +600,7 @@ function LabelScreen({
   const [at, setAt] = useState(0);
   const [pending, setPending] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const inFlightRef = useRef(false);
 
   useEffect(() => {
@@ -507,13 +622,32 @@ function LabelScreen({
   const labelled = pieces.filter((p) => p.label !== null).length;
   const piece: QueuePiece | undefined = pieces[at];
 
+  // The note belongs to the PIECE, not the screen: moving on must never carry
+  // one coach's aside about a piece onto the next one, and stepping back must
+  // show the note that was saved rather than an empty box.
+  const pieceId = piece?.snippetId;
+  useEffect(() => {
+    setNote(pieces.find((p) => p.snippetId === pieceId)?.label?.note ?? "");
+    // Re-reading the label here would fight the local write after a save, so
+    // this deliberately keys on the piece only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pieceId]);
+
   // The answer the screen is currently showing for this piece: what the coach
   // just picked, else their saved call. Never a default (N3).
   const answered = pending ?? piece?.label?.confident ?? null;
 
-  async function save(confident: boolean, intensity?: number) {
+  async function save(
+    confident: boolean,
+    intensity?: number,
+    /** Whether to move on. Defaults to "yes, if this was a grade" — a grade
+     *  finishes a piece. A note saved on blur must NOT advance, or the coach
+     *  would be thrown to the next piece by clicking away from a text box. */
+    opts?: { advance?: boolean }
+  ) {
     if (!piece || inFlightRef.current) return;
-    const body = buildLabelBody(confident, intensity);
+    const trimmed = note.trim();
+    const body = buildLabelBody(confident, intensity, trimmed);
     // Unconstructable = no real boolean; the UI cannot reach here without one,
     // so this is a guard, not a flow (N3).
     if (!body) return;
@@ -526,7 +660,11 @@ function LabelScreen({
       setError(res.error ?? "Couldn't save that label. Try again.");
       return;
     }
-    const saved = { confident, intensity: intensity ?? null };
+    const saved = {
+      confident,
+      intensity: intensity ?? null,
+      note: trimmed || null,
+    };
     setQueue((q) =>
       q
         ? {
@@ -537,7 +675,7 @@ function LabelScreen({
           }
         : q
     );
-    if (intensity !== undefined) {
+    if (opts?.advance ?? intensity !== undefined) {
       // Graded — this piece is done; move on to the next unlabelled one.
       setPending(null);
       const next = pieces.findIndex(
@@ -670,6 +808,36 @@ function LabelScreen({
                   ))}
                 </div>
               </div>
+            ) : null}
+
+            {/* Gated behind an answer for the same reason as the 1–5 row: a
+                note annotates a call, and the body builder refuses to write
+                one without a real boolean anyway (N3). It is the provenance
+                that explains an outlier label months later — "hard to call",
+                "background noise" — so it saves on its own, without needing a
+                grade the coach may not want to give. */}
+            {answered !== null ? (
+              <label className="flex flex-col gap-1">
+                <span className="text-[12px] text-muted-foreground">
+                  Anything worth remembering? Optional.
+                </span>
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onBlur={() => {
+                    const t = note.trim();
+                    // Only when it actually changed: clicking through the
+                    // screen must not fire a PUT per piece.
+                    if (t !== (piece.label?.note ?? "")) {
+                      void save(answered, piece.label?.intensity ?? undefined, {
+                        advance: false,
+                      });
+                    }
+                  }}
+                  placeholder="hard to call · background noise · not really a talk"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                />
+              </label>
             ) : null}
 
             {error ? (
