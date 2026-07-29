@@ -594,6 +594,10 @@ export interface TrainingImport {
   queueCount: number | null;
   /** Why a failed import failed, in the BE's words. */
   detail: string | null;
+  /** What the run actually used, when the list carries it. Null = auto-detect
+   *  (or an older payload that does not send it) — and on a row whose
+   *  transcript reads oddly, that null is itself the answer. */
+  language: string | null;
 }
 
 export function mapTrainingImport(raw: unknown): TrainingImport | null {
@@ -616,6 +620,7 @@ export function mapTrainingImport(raw: unknown): TrainingImport | null {
         : "running",
     queueCount: numOrNull(r.queue_count),
     detail: strOrNull(r.detail) ?? strOrNull(r.analysis_error) ?? strOrNull(r.error),
+    language: strOrNull(r.language),
   };
 }
 
