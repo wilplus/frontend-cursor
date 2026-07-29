@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, ChevronRight, Loader2, Upload } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
@@ -707,6 +707,19 @@ function IndexPanel({
   );
 }
 
+/** The founder's explicit call: name the 1–5 scale rather than leave it bare.
+ *  Endpoints are the founder's own words ("barely" … "extremely"); the middle
+ *  three are the standard steps between them. This overrides an earlier
+ *  design choice in this file (bare numbers, so the wording wouldn't become
+ *  what the coach calibrates to) — noted at the call site, not hidden. */
+const INTENSITY_WORDS: Record<number, string> = {
+  1: "Barely",
+  2: "Slightly",
+  3: "Moderately",
+  4: "Strongly",
+  5: "Extremely",
+};
+
 /* ---------------------------- FE-3: the labelling -------------------------- */
 
 function LabelScreen({
@@ -724,6 +737,13 @@ function LabelScreen({
   const [pending, setPending] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  // The snippetId currently being written to the BE, or null. Only one save
+  // can be in flight at a time (inFlightRef below), so this is a single id,
+  // not a set — but it is tracked by id rather than by "the open piece"
+  // because a coach can tap a different dot while a note-blur save from the
+  // PREVIOUS piece is still in flight, and that dot must keep pulsing until
+  // its own save lands, not whichever piece is on screen when it does.
+  const [savingId, setSavingId] = useState<string | null>(null);
   const inFlightRef = useRef(false);
 
   useEffect(() => {
@@ -769,15 +789,18 @@ function LabelScreen({
     opts?: { advance?: boolean }
   ) {
     if (!piece || inFlightRef.current) return;
+    const snippetId = piece.snippetId;
     const trimmed = note.trim();
     const body = buildLabelBody(confident, intensity, trimmed);
     // Unconstructable = no real boolean; the UI cannot reach here without one,
     // so this is a guard, not a flow (N3).
     if (!body) return;
     inFlightRef.current = true;
+    setSavingId(snippetId); // "pending" — its dot pulses until this resolves.
     setError(null);
-    const res = await saveConfidenceLabel(piece.snippetId, body);
+    const res = await saveConfidenceLabel(snippetId, body);
     inFlightRef.current = false;
+    setSavingId(null); // "sent" (success) or reverted (failure) — either way, done.
     if (!res.ok) {
       // The BE's 400 is verbatim-safe and its 500 names the migration.
       setError(res.error ?? "Couldn't save that label. Try again.");
@@ -812,28 +835,93 @@ function LabelScreen({
     }
   }
 
+  const allLabelled = pieces.length > 0 && labelled === pieces.length;
+
   return (
     <main className="mx-auto flex h-full w-full max-w-2xl flex-col bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-[15px] font-semibold text-foreground">
-            {item.topic || "Untitled"}
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-[15px] font-semibold text-foreground">
+              {item.topic || "Untitled"}
+            </span>
+            {item.speakerLabel ? (
+              <span className="shrink-0 text-[12px] text-muted-foreground">
+                · {item.speakerLabel}
+              </span>
+            ) : null}
           </span>
-          {item.speakerLabel ? (
-            <span className="shrink-0 text-[12px] text-muted-foreground">
-              · {item.speakerLabel}
-            </span>
-          ) : null}
-        </span>
-        <span className="flex shrink-0 items-center gap-3">
-          {status === "ready" && pieces.length > 0 ? (
-            // Progress, never a score (AC-9): how much is done, not how well.
-            <span className="text-[12px] tabular-nums text-muted-foreground">
-              {labelled} / {pieces.length} labelled
-            </span>
-          ) : null}
           <OverlayCloseButton onClick={onClose} ariaLabel="Back to the corpus" />
-        </span>
+        </div>
+
+        {/* The progress bar: every piece, moved into the nav bar so it is
+            always visible, never scrolled out of view like it was at the
+            bottom of the screen. Same fences it had there — payload order
+            only (N2: the queue is band-shuffled server-side so position is
+            not a tell), and fill means only "the coach answered this one",
+            never a band or a score (N1/AC-9). The status word on the right
+            is literal: "Saving…" while a write is in flight (the dot for
+            that piece pulses amber — pending), otherwise the count, or a
+            checkmark once every piece has been answered. There is no
+            separate "sent" state to show beyond that — the local answer only
+            updates after the server confirms it, in `save` above. */}
+        {status === "ready" && pieces.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 flex-wrap gap-1.5">
+              {pieces.map((p, i) => {
+                const isSaving = savingId === p.snippetId;
+                const answeredDot = p.label !== null;
+                const current = i === at;
+                return (
+                  <button
+                    key={p.snippetId}
+                    type="button"
+                    aria-label={`Piece ${i + 1}${
+                      isSaving ? ", saving" : answeredDot ? ", answered" : ""
+                    }`}
+                    aria-current={current ? "true" : undefined}
+                    onClick={() => {
+                      setPending(null);
+                      setError(null);
+                      setAt(i);
+                    }}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+                      current
+                        ? "ring-2 ring-foreground ring-offset-1 ring-offset-background"
+                        : ""
+                    }`}
+                  >
+                    <span
+                      className={`block h-2.5 w-2.5 rounded-full border transition-colors ${
+                        isSaving
+                          ? "animate-pulse border-amber-500 bg-amber-400"
+                          : answeredDot
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground/50 bg-transparent"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            {savingId ? (
+              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                Saving…
+              </span>
+            ) : allLabelled ? (
+              <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary">
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                All labelled
+              </span>
+            ) : (
+              // Progress, never a score (AC-9): how much is done, not how well.
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                {labelled} / {pieces.length} labelled
+              </span>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className="scrollbar-none flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
@@ -874,8 +962,9 @@ function LabelScreen({
               <button
                 type="button"
                 aria-pressed={answered === true}
+                disabled={savingId === piece.snippetId}
                 onClick={() => void save(true)}
-                className={`flex-1 rounded-full border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                className={`flex-1 rounded-full border px-4 py-2.5 text-[14px] font-medium transition-colors disabled:opacity-60 ${
                   answered === true
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-foreground hover:border-primary/50"
@@ -886,8 +975,9 @@ function LabelScreen({
               <button
                 type="button"
                 aria-pressed={answered === false}
+                disabled={savingId === piece.snippetId}
                 onClick={() => void save(false)}
-                className={`flex-1 rounded-full border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                className={`flex-1 rounded-full border px-4 py-2.5 text-[14px] font-medium transition-colors disabled:opacity-60 ${
                   answered === false
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-foreground hover:border-primary/50"
@@ -899,16 +989,14 @@ function LabelScreen({
 
             {/* The 1–5 row exists ONLY once an answer is picked: it grades an
                 answer, and offering it first would invite a grade with no
-                answer behind it (N3). Bare numbers, no band words on the
-                buttons — the wording would become what the coach calibrates
-                to, and the scale is anchored to published research. */}
+                answer behind it (N3). Words now sit under each number, at the
+                founder's explicit instruction — this overrides the previous
+                bare-numbers choice here, whose worry was that the wording
+                becomes what the coach calibrates to. Founder call stands. */}
             {answered !== null ? (
               <div className="flex flex-col gap-1.5">
-                <p
-                  className="text-[12px] text-muted-foreground"
-                  title="1 = barely, 5 = unmistakably"
-                >
-                  How strongly? Optional — 1 = barely, 5 = unmistakably.
+                <p className="text-[12px] text-muted-foreground">
+                  How strongly? Optional.
                 </p>
                 <div className="flex gap-2">
                   {Array.from(
@@ -919,14 +1007,25 @@ function LabelScreen({
                       key={n}
                       type="button"
                       aria-pressed={piece.label?.intensity === n}
+                      aria-label={`${n} — ${INTENSITY_WORDS[n]}`}
+                      disabled={savingId === piece.snippetId}
                       onClick={() => void save(answered, n)}
-                      className={`h-10 flex-1 rounded-full border text-[14px] font-medium tabular-nums transition-colors ${
+                      className={`flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border text-[14px] font-medium tabular-nums transition-colors disabled:opacity-60 ${
                         piece.label?.intensity === n
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border bg-background text-foreground hover:border-primary/50"
                       }`}
                     >
-                      {n}
+                      <span>{n}</span>
+                      <span
+                        className={`text-[10px] font-normal leading-none ${
+                          piece.label?.intensity === n
+                            ? "text-primary-foreground/80"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {INTENSITY_WORDS[n]}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -966,56 +1065,6 @@ function LabelScreen({
             {error ? (
               <p className="text-[12px] text-destructive">{error}</p>
             ) : null}
-
-            {/* Every piece in the session, clickable. Two reasons it is worth
-                the space: the one-at-a-time queue gave no way back to a
-                specific piece, and no sense of how much is left.
-
-                What these bubbles may NEVER encode is a machine read (N1).
-                They are in PAYLOAD ORDER (N2) — the queue is band-shuffled
-                server-side precisely so position is not a tell, and sorting
-                them would undo that. Fill means only "you have answered this
-                one", which is the coach's own work, never the model's. */}
-            <div className="flex flex-col gap-1.5 pt-1">
-              <p className="text-[11px] text-muted-foreground">
-                Every piece from this import. Tap one to hear it.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {pieces.map((p, i) => {
-                  const answered = p.label !== null;
-                  const current = i === at;
-                  return (
-                    <button
-                      key={p.snippetId}
-                      type="button"
-                      aria-label={`Piece ${i + 1}${answered ? ", answered" : ""}`}
-                      aria-current={current ? "true" : undefined}
-                      onClick={() => {
-                        setPending(null);
-                        setError(null);
-                        setAt(i);
-                      }}
-                      className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
-                        current ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : ""
-                      }`}
-                    >
-                      {/* A DOT, not a number. The 1-5 grade row sits a few
-                          pixels above; numbering these too would put two rows
-                          of digits on one screen meaning entirely different
-                          things. The hit area stays 24px — only the mark is
-                          small. */}
-                      <span
-                        className={`block h-2.5 w-2.5 rounded-full border ${
-                          answered
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground/50 bg-transparent"
-                        }`}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             <div className="mt-auto flex items-center justify-between pt-2">
               <button

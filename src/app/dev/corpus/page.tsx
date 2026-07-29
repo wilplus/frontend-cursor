@@ -120,6 +120,10 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       if (url.includes("/confidence-label")) {
         const body = JSON.parse(String(init?.body ?? "{}")) as unknown;
         window.__corpusCalls!.push({ url, method, body, t: performance.now() });
+        // Delayed on purpose: a save that resolves in the same tick gives the
+        // spec no window to observe the "pending" state (the pulsing dot,
+        // the "Saving…" nav-bar text) — only the state before and after.
+        await new Promise((r) => setTimeout(r, 300));
         return new Response(JSON.stringify({ saved: true }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
