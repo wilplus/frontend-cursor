@@ -86,18 +86,54 @@ export const STAGE_COST: Record<OptionalStage, string> = {
  *  two that matter. Anything missing is a one-line addition here. */
 export const IMPORT_LANGUAGES: { code: string; label: string }[] = [
   { code: "", label: "Auto-detect" },
-  { code: "en", label: "English" },
   { code: "pl", label: "Polish" },
+  { code: "en", label: "English" },
   { code: "de", label: "German" },
-  { code: "fr", label: "French" },
   { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "uk", label: "Ukrainian" },
   { code: "it", label: "Italian" },
   { code: "pt", label: "Portuguese" },
   { code: "nl", label: "Dutch" },
-  { code: "uk", label: "Ukrainian" },
   { code: "cs", label: "Czech" },
   { code: "sv", label: "Swedish" },
 ];
+
+/** Code → the word a person reads. Used to show what an import actually ran
+ *  as: "which language did this run as" is the first question anyone asks
+ *  about a transcript that reads oddly. */
+export function languageLabel(code: string | null): string {
+  if (!code) return "";
+  return IMPORT_LANGUAGES.find((l) => l.code === code)?.label ?? code;
+}
+
+/* ------------------------------ speaker sex ------------------------------- */
+
+/** Optional, and NOT a demographic label on the corpus: the confidence
+ *  composite routes one cue's DIRECTION on it. An imported take is someone
+ *  else's voice filed under the coach's account, so without it the BE would
+ *  otherwise inherit the coach's own declared sex — which would be wrong for
+ *  every import. Absent is safe (the BE falls back to an acoustic route);
+ *  declaring it is better. */
+export const SPEAKER_SEXES: { value: string; label: string }[] = [
+  { value: "", label: "Not stated" },
+  { value: "female", label: "Female" },
+  { value: "male", label: "Male" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
+
+const SEX_VALUES = new Set(
+  SPEAKER_SEXES.map((s) => s.value).filter((v) => v.length > 0)
+);
+
+/** Refuses anything off the list rather than forwarding it — same reasoning as
+ *  the language code: a value the BE does not know either 400s or, worse, is
+ *  accepted and routes the cue the wrong way. */
+export function normalizeSpeakerSex(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim().toLowerCase();
+  return SEX_VALUES.has(s) ? s : null;
+}
 
 const LANGUAGE_CODES = new Set(
   IMPORT_LANGUAGES.map((l) => l.code).filter((c) => c.length > 0)
@@ -122,6 +158,10 @@ export interface ImportResult {
   durationSec: number | null;
   speakerLabel: string | null;
   filename: string | null;
+  /** The language the BE actually ran Whisper with, echoed back. Null means
+   *  it auto-detected — which is itself the diagnosis when a transcript comes
+   *  back in the wrong language. */
+  language: string | null;
   /** The BE recognised the idempotency key and returned the ORIGINAL import
    *  instead of running a second analysis. A success, but not new work — and
    *  it must not read as one, or a coach re-importing a folder would believe
@@ -189,6 +229,7 @@ function mapSuccess(body: Record<string, unknown>): { ok: true } & ImportResult 
     durationSec: numOrNull(body.duration_sec),
     speakerLabel: strOrNull(body.speaker_label),
     filename: strOrNull(body.filename),
+    language: strOrNull(body.language),
     duplicate: str(body.status).toLowerCase() === "duplicate",
   };
 }
@@ -235,6 +276,7 @@ export async function importIdempotencyKey(input: {
   topic: string;
   speakerLabel?: string | null;
   language?: string | null;
+  speakerSex?: string | null;
 }): Promise<string> {
   const seed = [
     input.file.name,
@@ -249,6 +291,11 @@ export async function importIdempotencyKey(input: {
     // a BE that dedupes would hand back the empty original, and the fix would
     // look like it did nothing. A different language is a different analysis.
     normalizeLanguage(input.language) ?? "",
+    // In the key for the same reason as language: it changes the ANALYSIS, not
+    // just the filing. The composite routes a cue's direction on it, so
+    // correcting it and re-importing must produce a fresh run rather than
+    // being deduped into the one that ran with the wrong route.
+    normalizeSpeakerSex(input.speakerSex) ?? "",
   ].join("\u0000");
 
   // Hashed rather than sent raw so filenames do not end up in request logs.
@@ -289,6 +336,8 @@ export async function importTrainingAudio(input: {
   note?: string | null;
   /** ISO-639-1, or null/"" for auto-detect (the field is then omitted). */
   language?: string | null;
+  /** `female` | `male` | `prefer_not_to_say`. Omitted when not stated. */
+  speakerSex?: string | null;
   /** `confidence` is added here and cannot be omitted by a caller. */
   optionalStages?: OptionalStage[];
   queuePerBand?: number | null;
@@ -301,6 +350,7 @@ export async function importTrainingAudio(input: {
   const token = await getAuthToken();
   if (!token) return emptyFailure();
   const language = normalizeLanguage(input.language);
+  const speakerSex = normalizeSpeakerSex(input.speakerSex);
   const form = new FormData();
   form.append("audio_file", input.file);
   form.append("topic", input.topic);
@@ -309,6 +359,7 @@ export async function importTrainingAudio(input: {
   // request byte-identical to what worked before the field existed — so the
   // picker cannot break an import for a coach who never touches it.
   if (language) form.append("language", language);
+  if (speakerSex) form.append("speaker_sex", speakerSex);
   // Sent as a form field rather than a header: the BFF re-emits this FormData
   // verbatim, so a field needs no proxy change, and every other import
   // parameter already travels this way.
@@ -317,6 +368,7 @@ export async function importTrainingAudio(input: {
     topic: input.topic,
     speakerLabel: input.speakerLabel,
     language,
+    speakerSex,
   });
   // BOTH spellings, same value. The FE sent `idempotency_key` while the BE
   // read `upload_idempotency_key`, so for a stretch every key was dropped on

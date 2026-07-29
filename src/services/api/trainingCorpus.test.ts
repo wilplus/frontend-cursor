@@ -4,6 +4,9 @@ import {
   buildLabelBody,
   exceedsProxyLimit,
   IMPORT_LANGUAGES,
+  languageLabel,
+  normalizeSpeakerSex,
+  SPEAKER_SEXES,
   importIdempotencyKey,
   normalizeLanguage,
   mapConfidenceQueue,
@@ -378,6 +381,52 @@ describe("exceedsProxyLimit — the 413 that killed the first real import", () =
   });
 });
 
+describe("speaker sex — the analysis routes on it, so it is validated like the language code", () => {
+  it("accepts only the three values the BE knows", () => {
+    expect(normalizeSpeakerSex("female")).toBe("female");
+    expect(normalizeSpeakerSex("MALE")).toBe("male");
+    expect(normalizeSpeakerSex("prefer_not_to_say")).toBe("prefer_not_to_say");
+  });
+
+  it("refuses anything else rather than forwarding it — a value the BE does not know either 400s or routes the cue the wrong way", () => {
+    for (const bad of ["", "f", "m", "woman", "other", null, 1, undefined]) {
+      expect(normalizeSpeakerSex(bad)).toBeNull();
+    }
+  });
+
+  it("offers 'not stated' first and as the empty value, so the field is omitted unless the coach says something", () => {
+    expect(SPEAKER_SEXES[0].value).toBe("");
+    expect(normalizeSpeakerSex(SPEAKER_SEXES[0].value)).toBeNull();
+  });
+
+  it("CHANGES the idempotency key — it changes the analysis, so correcting it must re-run rather than dedupe into the wrong route", async () => {
+    const f = { name: "t.mp3", size: 10, lastModified: 1 };
+    const base = { file: f, topic: "T" };
+    const none = await importIdempotencyKey(base);
+    const female = await importIdempotencyKey({ ...base, speakerSex: "female" });
+    expect(female).not.toBe(none);
+    expect(await importIdempotencyKey({ ...base, speakerSex: "male" })).not.toBe(female);
+    // An unknown value is not sent, so it cannot be what distinguishes a run.
+    expect(await importIdempotencyKey({ ...base, speakerSex: "woman" })).toBe(none);
+  });
+});
+
+describe("languageLabel", () => {
+  it("turns the echoed code into the word on the row", () => {
+    expect(languageLabel("pl")).toBe("Polish");
+    expect(languageLabel("en")).toBe("English");
+  });
+
+  it("is empty for auto-detect, so the caller decides what 'no language' reads as", () => {
+    expect(languageLabel(null)).toBe("");
+    expect(languageLabel("")).toBe("");
+  });
+
+  it("passes an unknown code straight through rather than hiding it — seeing 'sw' beats seeing nothing when a transcript reads oddly", () => {
+    expect(languageLabel("sw")).toBe("sw");
+  });
+});
+
 describe("normalizeLanguage", () => {
   it("accepts a code that is actually on the menu", () => {
     expect(normalizeLanguage("pl")).toBe("pl");
@@ -391,7 +440,7 @@ describe("normalizeLanguage", () => {
     }
   });
 
-  it("offers auto-detect FIRST and as the empty code, so the default omits the field entirely", () => {
+  it("offers auto-detect FIRST and as the empty code — the panel makes choosing it deliberate, but the code still omits the field", () => {
     expect(IMPORT_LANGUAGES[0]).toEqual({ code: "", label: "Auto-detect" });
     expect(normalizeLanguage(IMPORT_LANGUAGES[0].code)).toBeNull();
   });
@@ -400,7 +449,9 @@ describe("normalizeLanguage", () => {
     for (const l of IMPORT_LANGUAGES.slice(1)) {
       expect(normalizeLanguage(l.code)).toBe(l.code);
     }
-    expect(IMPORT_LANGUAGES.map((l) => l.code)).toContain("pl");
+    // Polish leads the real codes: it is what this corpus is actually made of,
+    // and the language that was silently mistranslated.
+    expect(IMPORT_LANGUAGES[1].code).toBe("pl");
   });
 });
 

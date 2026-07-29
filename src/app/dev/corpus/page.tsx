@@ -227,6 +227,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
               duration_sec: 612.4,
               speaker_label: "Jane Doe",
               filename: "talk.mp3",
+              // Echoed back exactly as the BE does — what it RAN as, which is
+              // null when it auto-detected.
+              language: entries.language ?? null,
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
           );
@@ -251,6 +254,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
               snippet_count: 42,
               queue_count: 15,
               duration_sec: 612.4,
+              language: null,
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
           );
