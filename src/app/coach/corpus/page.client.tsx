@@ -118,7 +118,7 @@ export default function CorpusPageClient() {
       </div>
 
       <div className="scrollbar-none flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
-        <ImportPanel onImported={refresh} />
+        <ImportPanel onImported={refresh} onOpen={setOpenSession} />
         <IndexPanel
           imports={imports}
           failed={indexFailed}
@@ -146,6 +146,13 @@ interface FileState {
   detail: string;
   /** The BE's own sentence, wrapped under the row. Empty when there is none. */
   hint: string;
+  /** The session this import produced, when it produced one. Kept because the
+   *  POST response is currently the ONLY way to reach the queue: the corpus
+   *  index is coming back empty (a BE-side bug), so without this a coach can
+   *  import 45 pieces and have no route to any of them. */
+  sessionId: string;
+  /** Pieces waiting, so the row can say what is behind it. */
+  queueCount: number;
 }
 
 /** Outcomes a second press of Import must NOT re-run. `failed` is absent on
@@ -162,7 +169,13 @@ function formatLength(sec: number): string {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-function ImportPanel({ onImported }: { onImported: () => void }) {
+function ImportPanel({
+  onImported,
+  onOpen,
+}: {
+  onImported: () => void;
+  onOpen: (i: TrainingImport) => void;
+}) {
   const [topic, setTopic] = useState("");
   const [speaker, setSpeaker] = useState("");
   const [note, setNote] = useState("");
@@ -265,7 +278,18 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
             : "done";
       const { detail, hint } = describe(r);
       setFiles((f) =>
-        f.map((x, j) => (j === i ? { ...x, status: outcome, detail, hint } : x))
+        f.map((x, j) =>
+          j === i
+            ? {
+                ...x,
+                status: outcome,
+                detail,
+                hint,
+                sessionId: r.ok ? r.sessionId : (r.sessionId ?? ""),
+                queueCount: r.ok ? r.queueCount : 0,
+              }
+            : x
+        )
       );
       // Refreshed on a zero-piece result too: the BE writes the session row
       // either way, so the failed attempt is inspectable in the list rather
@@ -410,6 +434,8 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
               status: "queued" as const,
               detail: "",
               hint: "",
+              sessionId: "",
+              queueCount: 0,
             }))
           );
         }}
@@ -490,6 +516,36 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
                 <span className="text-[11px] leading-snug text-muted-foreground">
                   {f.hint}
                 </span>
+              ) : null}
+              {/* The route to the pieces. The corpus index is the intended
+                  door, but it is coming back empty from the BE — so without
+                  this a coach can import 45 pieces and have no way to reach
+                  one of them. The POST already told us the session id; using
+                  it costs nothing and does not depend on the list being
+                  fixed. */}
+              {f.sessionId && f.queueCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpen({
+                      sessionId: f.sessionId,
+                      arcId: null,
+                      topic: topic.trim() || f.file.name,
+                      speakerLabel: speaker.trim() || null,
+                      createdAt: null,
+                      state: "done",
+                      queueCount: f.queueCount,
+                      detail: null,
+                    })
+                  }
+                  className="mt-1 flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-2 text-left transition-colors hover:border-primary/60"
+                >
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
+                    Label the {f.queueCount} piece{f.queueCount === 1 ? "" : "s"} from{" "}
+                    {f.file.name}
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                </button>
               ) : null}
             </li>
           ))}
@@ -861,6 +917,56 @@ function LabelScreen({
             {error ? (
               <p className="text-[12px] text-destructive">{error}</p>
             ) : null}
+
+            {/* Every piece in the session, clickable. Two reasons it is worth
+                the space: the one-at-a-time queue gave no way back to a
+                specific piece, and no sense of how much is left.
+
+                What these bubbles may NEVER encode is a machine read (N1).
+                They are in PAYLOAD ORDER (N2) — the queue is band-shuffled
+                server-side precisely so position is not a tell, and sorting
+                them would undo that. Fill means only "you have answered this
+                one", which is the coach's own work, never the model's. */}
+            <div className="flex flex-col gap-1.5 pt-1">
+              <p className="text-[11px] text-muted-foreground">
+                Every piece from this import. Tap one to hear it.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {pieces.map((p, i) => {
+                  const answered = p.label !== null;
+                  const current = i === at;
+                  return (
+                    <button
+                      key={p.snippetId}
+                      type="button"
+                      aria-label={`Piece ${i + 1}${answered ? ", answered" : ""}`}
+                      aria-current={current ? "true" : undefined}
+                      onClick={() => {
+                        setPending(null);
+                        setError(null);
+                        setAt(i);
+                      }}
+                      className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+                        current ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : ""
+                      }`}
+                    >
+                      {/* A DOT, not a number. The 1-5 grade row sits a few
+                          pixels above; numbering these too would put two rows
+                          of digits on one screen meaning entirely different
+                          things. The hit area stays 24px — only the mark is
+                          small. */}
+                      <span
+                        className={`block h-2.5 w-2.5 rounded-full border ${
+                          answered
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground/50 bg-transparent"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className="mt-auto flex items-center justify-between pt-2">
               <button
