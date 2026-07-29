@@ -92,6 +92,14 @@ check(
   (await page.locator("text=That clip is too short to analyse.").count()) === 1 &&
     (await page.locator("text=42 pieces · 15 queued to label").count()) === 1
 );
+check(
+  "the raw machine reason NEVER reaches the screen — NO_SPEECH_DETECTED is a switch value, not something to put in front of a person",
+  !/NO_SPEECH_DETECTED|NO_CANDIDATES/.test(await page.locator("body").innerText())
+);
+check(
+  "the BE's sentence is shown instead, wrapped rather than truncated, because it names the fix",
+  (await page.locator("text=re-import it with a").count()) === 1
+);
 
 /* ------------- a zero-piece import must not read as a success -------------- */
 // The real case from 2026-07-29: the BE answered ok with a genuine duration
@@ -210,7 +218,72 @@ check(
   })
 );
 
+/* --------- async (202 + poll) and the duplicate, both from rev 3 ----------- */
+await page.selectOption("select", "");
+await page.setInputFiles('input[type="file"]', [
+  { name: "async-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("d") },
+  { name: "dupe-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("e") },
+]);
+await page.locator("button", { hasText: "Import" }).click();
+// The harness answers the first poll "processing" and the second "complete",
+// so a FE that read the 202 as a result would show a queue here that does not
+// exist yet.
+await page.waitForTimeout(600);
+check(
+  "a 202 is NOT read as a result — the row says the server is still working",
+  (await page.locator("text=Analysing on the server…").count()) === 1
+);
+await page.waitForTimeout(4500);
+check(
+  "polling carries it to the real result",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("async-talk.mp3")
+    );
+    return (row?.innerText ?? "").includes("42 pieces");
+  })
+);
+check(
+  "a duplicate reads as one — 'it succeeded' and 'it was already done' must not look identical",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("dupe-talk.mp3")
+    );
+    const t = row?.innerText ?? "";
+    return t.includes("Already imported") && !t.includes("42 pieces");
+  })
+);
+
 /* ------------------------------ FE-2: index -------------------------------- */
+check(
+  "a failed import STAYS in the list — the row is the evidence for why a file produced nothing",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("thank you talk at the conference")
+    );
+    const t = row?.innerText ?? "";
+    return t.includes("Nothing to label") && t.includes("the transcript was empty");
+  })
+);
+check(
+  "…and is NOT openable, because there is no queue behind it",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("thank you talk at the conference")
+    );
+    return !row?.querySelector("button");
+  })
+);
+check(
+  "a finished import shows how much is waiting — a running one and a done one used to look identical",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("Board pitch")
+    );
+    return (row?.innerText ?? "").includes("15 to label");
+  })
+);
+
 await page.locator("button", { hasText: "Board pitch" }).click();
 await page.waitForSelector("text=Confident?");
 
