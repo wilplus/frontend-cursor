@@ -146,7 +146,16 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
           // A file named "*empty*" reproduces the real case seen on 2026-07-29:
           // the BE reports ok with a real duration but zero pieces. It must
           // NOT render as a success — nothing entered the corpus.
-          if (String(entries.audio_file ?? "").includes("empty")) {
+          //
+          // Sent WITH a language, the same file succeeds. That encodes the
+          // leading theory from handoff §7 — a talk transcribed as the wrong
+          // language yields nothing to cut — and makes the recovery path
+          // (set the language, re-import the same file) executable rather
+          // than described.
+          if (
+            String(entries.audio_file ?? "").includes("empty") &&
+            !entries.language
+          ) {
             return new Response(
               JSON.stringify({
                 ok: true,

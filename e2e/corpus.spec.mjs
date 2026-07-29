@@ -83,6 +83,11 @@ check(
     imports[0]?.body?.speaker_label === "Jane Doe"
 );
 check(
+  "auto-detect sends NO language field at all — the default request is byte-identical to the one that shipped before the picker existed",
+  imports.every((c) => !("language" in c.body)),
+  JSON.stringify(Object.keys(imports[0]?.body ?? {}))
+);
+check(
   "a per-file rejection shows the BE's reason verbatim and does not abort the run",
   (await page.locator("text=That clip is too short to analyse.").count()) === 1 &&
     (await page.locator("text=42 pieces · 15 queued to label").count()) === 1
@@ -151,6 +156,58 @@ check(
   "the retry reuses the SAME idempotency_key — the whole reason the key exists",
   retries[3]?.body?.idempotency_key === imports[1]?.body?.idempotency_key,
   `${imports[1]?.body?.idempotency_key} → ${retries[3]?.body?.idempotency_key}`
+);
+
+/* ------------- language: the picker, and the §7 recovery path -------------- */
+check(
+  "the picker offers auto-detect first and Polish among the codes",
+  await page.evaluate(() => {
+    const sel = document.querySelector("select");
+    if (!sel) return false;
+    const opts = [...sel.options];
+    return (
+      sel.value === "" &&
+      opts[0]?.value === "" &&
+      opts[0]?.textContent?.trim() === "Auto-detect" &&
+      opts.some((o) => o.value === "pl")
+    );
+  })
+);
+check(
+  "it says what going without it costs, in terms of the failure it prevents",
+  (await page.locator("text=Transcribed as the wrong").count()) === 1
+);
+
+// The exact recovery from §7: an import came back with nothing, so the coach
+// sets the language and imports THE SAME FILE again.
+const emptyKeyBefore = imports[2]?.body?.idempotency_key;
+await page.selectOption("select", "pl");
+await page.setInputFiles('input[type="file"]', [
+  { name: "empty-talk.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("c") },
+]);
+await page.locator("button", { hasText: "Import" }).click();
+await page.waitForTimeout(900);
+const afterLang = (await calls(page)).filter(
+  (c) => c.method === "POST" && c.url.includes("training-imports")
+);
+const pl = afterLang[afterLang.length - 1];
+check("picking a language sends it as an ISO code", pl?.body?.language === "pl", String(pl?.body?.language));
+check(
+  "…and the SAME file under a new language gets a DIFFERENT key — otherwise a BE that dedupes would hand back the empty original and the fix would look like it did nothing",
+  !!emptyKeyBefore && pl?.body?.idempotency_key !== emptyKeyBefore,
+  `${emptyKeyBefore} → ${pl?.body?.idempotency_key}`
+);
+check(
+  "the file that gave nothing now reports pieces — the recovery path works end to end",
+  // Scoped to the file's own row: the picker's hint text mentions "nothing to
+  // label" too, so a page-wide match would never be a statement about the row.
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("empty-talk.mp3")
+    );
+    const t = row?.innerText ?? "";
+    return t.includes("42 pieces") && !t.includes("nothing to label");
+  })
 );
 
 /* ------------------------------ FE-2: index -------------------------------- */

@@ -45,6 +45,46 @@ export const STAGE_COST: Record<OptionalStage, string> = {
   ideal_text: "The assembled ideal text. A user deliverable, not training data.",
 };
 
+/* -------------------------------- language -------------------------------- */
+
+/** What the coach can tell the import the audio is in.
+ *
+ *  `""` is AUTO-DETECT and is the default: it sends NO language field, so the
+ *  request is byte-identical to what shipped before this existed. That matters
+ *  while the BE has not confirmed it reads the field — the picker cannot break
+ *  an import that works today, and a coach who ignores it changes nothing.
+ *
+ *  Codes are ISO-639-1, which is what Whisper takes. The list is curated, not
+ *  exhaustive: Whisper knows ~99 languages, and a 99-item menu would bury the
+ *  two that matter. Anything missing is a one-line addition here. */
+export const IMPORT_LANGUAGES: { code: string; label: string }[] = [
+  { code: "", label: "Auto-detect" },
+  { code: "en", label: "English" },
+  { code: "pl", label: "Polish" },
+  { code: "de", label: "German" },
+  { code: "fr", label: "French" },
+  { code: "es", label: "Spanish" },
+  { code: "it", label: "Italian" },
+  { code: "pt", label: "Portuguese" },
+  { code: "nl", label: "Dutch" },
+  { code: "uk", label: "Ukrainian" },
+  { code: "cs", label: "Czech" },
+  { code: "sv", label: "Swedish" },
+];
+
+const LANGUAGE_CODES = new Set(
+  IMPORT_LANGUAGES.map((l) => l.code).filter((c) => c.length > 0)
+);
+
+/** Refuses anything not on the list rather than passing it through: an
+ *  unrecognised code would either 400 upstream or, worse, be accepted and
+ *  transcribe the talk as the wrong language. Auto-detect is the safe floor. */
+export function normalizeLanguage(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const code = v.trim().toLowerCase();
+  return LANGUAGE_CODES.has(code) ? code : null;
+}
+
 export interface ImportResult {
   sessionId: string;
   arcId: string;
@@ -107,6 +147,7 @@ export async function importIdempotencyKey(input: {
   file: { name: string; size: number; lastModified: number };
   topic: string;
   speakerLabel?: string | null;
+  language?: string | null;
 }): Promise<string> {
   const seed = [
     input.file.name,
@@ -114,6 +155,13 @@ export async function importIdempotencyKey(input: {
     String(input.file.lastModified),
     input.topic.trim(),
     (input.speakerLabel ?? "").trim(),
+    // Language is PART OF THE KEY, and this is load-bearing rather than tidy.
+    // The first thing a coach does after an import comes back empty is
+    // re-import the same file with the language corrected. If the key ignored
+    // language, that retry would be byte-identical to the failed English run,
+    // a BE that dedupes would hand back the empty original, and the fix would
+    // look like it did nothing. A different language is a different analysis.
+    normalizeLanguage(input.language) ?? "",
   ].join("\u0000");
 
   // Hashed rather than sent raw so filenames do not end up in request logs.
@@ -152,6 +200,8 @@ export async function importTrainingAudio(input: {
   speakerLabel?: string | null;
   userId?: string | null;
   note?: string | null;
+  /** ISO-639-1, or null/"" for auto-detect (the field is then omitted). */
+  language?: string | null;
   /** `confidence` is added here and cannot be omitted by a caller. */
   optionalStages?: OptionalStage[];
   queuePerBand?: number | null;
@@ -161,9 +211,15 @@ export async function importTrainingAudio(input: {
   if (!token) {
     return { ok: false, code: null, reason: null, error: null };
   }
+  const language = normalizeLanguage(input.language);
   const form = new FormData();
   form.append("audio_file", input.file);
   form.append("topic", input.topic);
+  // OMITTED on auto-detect, not sent empty. Two reasons: an empty string is a
+  // value a strict parser can reject, and leaving it out keeps the default
+  // request byte-identical to what worked before the field existed — so the
+  // picker cannot break an import for a coach who never touches it.
+  if (language) form.append("language", language);
   // Sent as a form field rather than a header: the BFF re-emits this FormData
   // verbatim, so a field needs no proxy change, and every other import
   // parameter already travels this way.
@@ -173,6 +229,7 @@ export async function importTrainingAudio(input: {
       file: input.file,
       topic: input.topic,
       speakerLabel: input.speakerLabel,
+      language,
     })
   );
   if (input.speakerLabel) form.append("speaker_label", input.speakerLabel);

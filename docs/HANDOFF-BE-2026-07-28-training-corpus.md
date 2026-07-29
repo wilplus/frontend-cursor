@@ -1,14 +1,16 @@
 # BE handoff — Training corpus (FE side is live on `main`)
 
 **From:** frontend-cursor · **Date:** 2026-07-28, **updated 2026-07-29** ·
-**FE commit:** `132b464`
+**FE commit:** `132b464` + the language picker
 **Status:** built against `feat/training-corpus` (`cde9abb`) exactly as specced. No
 contract changes requested. Below: one real risk to resolve together (§1), a few things
 to confirm, and the founder's answers to the three open questions.
 
 > **Read §7 first.** The first real import ran on 2026-07-29 and came back
 > **`ok: true` with zero pieces and no session row** — a Polish talk. That is a live
-> blocker, and it may be ours: there is no `language` field anywhere in this contract.
+> blocker. Part of it was ours — nothing sent a language hint — and the FE now sends
+> `language` with a picker on the import panel. **We still need you to confirm you read
+> that field**, and to stop returning `ok: true` for an import that produced nothing.
 
 ---
 
@@ -80,6 +82,7 @@ Worth confirming, since the spec says only "play this".
 | `user_id` | **never** | defaults to the uploading coach, as specced |
 | `queue_per_band` | **never** | your default of 5 stands. Not exposed in the UI yet — say if a coach should be able to raise it per import. |
 | `idempotency_key` | **yes, always** | new — see §3a. Lowercase hex, 16 or 32 chars, never empty. |
+| `language` | **only when the coach picks one** | new — ISO-639-1 (`pl`, `en`, …). **Omitted entirely on auto-detect**, which is the default, so the request a coach who ignores the picker sends is byte-identical to what shipped before it existed. Never sent empty. See §7. |
 
 ### 3a. `idempotency_key` — what it means and what it asks of you
 
@@ -90,7 +93,14 @@ import parameter.
 retry is by definition a new attempt, so it would get a new uuid and dedupe nothing.
 The key is a truncated SHA-256 of the file's identity plus the metadata it is being
 filed under: `name`, `size`, `lastModified`, trimmed `topic`, trimmed `speaker_label`,
-NUL-joined. It is hashed rather than sent raw so filenames stay out of request logs.
+**and `language`** — NUL-joined. It is hashed rather than sent raw so filenames stay
+out of request logs.
+
+`language` is in the key deliberately, and it matters to you: the first thing a coach
+does after an empty import is re-import the same file with the language corrected. If
+language were not in the key, that retry would be byte-identical to the failed run,
+**your dedupe would hand back the empty original, and the fix would look like it did
+nothing.** A different language is a different analysis — please treat it as one.
 
 What that buys, concretely:
 
@@ -99,8 +109,9 @@ What that buys, concretely:
   key you have already seen. Proven in a browser test, not asserted — `e2e/corpus.spec.mjs`
   fails the run if a retry's key differs from the first attempt's.
 - **Two files in one batch → different keys**, including same-name-different-size.
-- **A rename, a different topic, or a different speaker → a new key.** Deliberate: that
-  is a second filing of the same audio, not a retry, and you should let it through.
+- **A rename, a different topic, a different speaker, or a different language → a new
+  key.** Deliberate: that is a second filing of the same audio, not a retry, and you
+  should let it through.
 
 **What the FE cannot promise:** identity is `(name, size, mtime)`, *not* the bytes.
 Hashing content would mean reading thirty 50 MB files into memory twice for a property
@@ -215,18 +226,31 @@ all.** Whatever happened, it happened before anything durable was created.
 3. **The file was never decoded.** An mp3 the decoder could not read. The duration
    distinguishes this from 1 and 2 instantly (below).
 
-### The gap that is ours: there is no `language` field in this contract
+### The gap that was ours: no `language` field — now closed on this side
 
-Grepped the service, the screen and this document: **nothing anywhere sends a language
-hint.** The FE sends `audio_file`, `topic`, `speaker_label`, `note`, `stages`,
-`idempotency_key` — that is the complete list, and there is no UI to give one either.
+When this import ran, **nothing anywhere sent a language hint.** The FE sent
+`audio_file`, `topic`, `speaker_label`, `note`, `stages`, `idempotency_key` — that was
+the complete list, and there was no UI to give one either. So if the import path needs
+telling, **it had never been told, by anyone, since this shipped**, and every
+non-English import would behave exactly like this one.
 
-If the import path needs to be told the language, **it has never been told, by anyone,
-since this shipped**, and every non-English import will behave like this one. Say the
-word and the FE adds the field and a picker on the import panel; it is small. Tell us
-whether you want an explicit code (`pl`) or auto-detect with the code as an override.
+**The FE now sends `language`.** There is a picker on the import panel, under the
+speaker field, and the field is ISO-639-1 (`pl`, `en`, …).
 
-### What the FE changed on its side (`132b464`)
+Two properties chosen so this cannot make anything worse while you decide:
+
+- **Auto-detect is the default and omits the field entirely** — not an empty string, no
+  field at all. A coach who never touches the picker sends a request byte-identical to
+  the one that worked before, so the picker cannot break an import for you, and it
+  cannot break one if you ignore the field.
+- **Only codes on the menu are sent.** An unrecognised code is dropped back to
+  auto-detect rather than forwarded, because an unknown code either 400s at your end
+  or — worse — transcribes the talk as the wrong language.
+
+If you want a different field name, a locale instead of a bare code, or a header, say
+so; it is a one-line change here.
+
+### What the FE changed on its side (`132b464`, then the language picker)
 
 A zero-piece import no longer renders as a success. It is now its own outcome — amber,
 neither the grey of a good import nor the red of a rejection — reading
@@ -247,7 +271,9 @@ report of this could not be narrowed without DevTools. Fixed.
 
 1. **Run that file yourself** and say which of the three it is. The duration on a
    re-import narrows it to one line of your code.
-2. **Confirm whether the import path takes a language**, and if so we will send it.
+2. **Confirm the import path reads `language`.** The FE now sends it — we need to know
+   you consume it, and whether you want an explicit code, or auto-detect with the code
+   as an override. Until you confirm, the picker is a promise the FE cannot keep.
 3. **Do not return `ok: true` for an import that produced nothing.** A zero-piece
    result is a failure of the thing the coach asked for, and the FE can only be as
    honest as the payload. Either a non-ok with a `reason` we render verbatim
@@ -268,7 +294,7 @@ Reproducible without the BE: `src/app/dev/corpus/page.tsx` serves this exact pay
 
 ## Where to verify
 
-`e2e/corpus.spec.mjs` (29 checks) runs against `src/app/dev/corpus/page.tsx`, which
+`e2e/corpus.spec.mjs` (35 checks) runs against `src/app/dev/corpus/page.tsx`, which
 stubs all three endpoints in the exact shapes above — useful as an executable example
 of what the FE expects and sends. Mapper and its degradation rules:
 `src/services/api/trainingCorpus.ts`.
