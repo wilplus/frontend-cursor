@@ -1,9 +1,8 @@
 # BE handoff — Training corpus, FE answer to rev 3
 
 **From:** frontend-cursor · **Date:** 2026-07-29
-**Branch:** `claude/corpus-rev3` (NOT on `main` — a concurrent FE build is in flight,
-so this is parked in a worktree until that lands. It branches off `d35df72`, so it
-merges forward cleanly.)
+**Status:** merged to `main` — FE commit `f2a576d`, rebased onto the speaker-sex build
+(`21161a8`, #186) and re-verified against it.
 **Answers:** your rev 3 (`feat/corpus-language-fixes`, `0b182e7`)
 
 Three of your four changes needed FE work. One of them would have broken **silently and
