@@ -1,8 +1,8 @@
 # BE handoff — Training corpus, FE answer to rev 3
 
 **From:** frontend-cursor · **Date:** 2026-07-29
-**Status:** merged to `main`, rebased onto the speaker-sex build (`21161a8`, #186) and
-re-verified against it. **§0 added after the founder's live 413 — read it first.**
+**Status:** merged to `main` (FE `8e9b582`), rebased onto the speaker-sex build
+(`21161a8`, #186) and re-verified against it. **§0 added after the founder's live 413 — read it first.**
 **Answers:** your rev 3 (`feat/corpus-language-fixes`, `0b182e7`)
 
 Three of your four changes needed FE work (§1–§5), what I had to **assume** because rev 2
@@ -301,6 +301,6 @@ is executable.
 
 Contract and its degradation rules: `src/services/api/trainingCorpus.ts`
 (`terminalOutcome` is the whole async contract in one function, and is unit-tested
-directly — 48 tests in `trainingCorpus.test.ts`).
+directly — 51 tests in `trainingCorpus.test.ts`).
 
 **Copy on every one of these screens is still unsigned by the founder.**
