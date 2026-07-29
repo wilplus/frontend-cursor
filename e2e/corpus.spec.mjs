@@ -289,22 +289,78 @@ check(
   })
 );
 check(
-  "…and is NOT openable, because there is no queue behind it",
+  "…and is NOT openable, because there is no queue behind it — its only button is the hide control",
   await page.evaluate(() => {
     const row = [...document.querySelectorAll("li")].find((l) =>
       l.textContent?.includes("thank you talk at the conference")
     );
-    return !row?.querySelector("button");
+    if (!row) return false;
+    const buttons = [...row.querySelectorAll("button")];
+    return (
+      buttons.length === 1 &&
+      (buttons[0].getAttribute("aria-label") ?? "").startsWith("Hide")
+    );
   })
 );
+// The badge is computed from a fresh read of the row's queue — the labels
+// the database actually holds — so give that fetch a beat to land.
+await page.waitForTimeout(400);
 check(
-  "a finished import shows how much is waiting — a running one and a done one used to look identical",
+  "a finished import's badge comes from a FRESH database read, not the index row — the harness queue holds 1 labelled of 3, and that is what shows",
   await page.evaluate(() => {
     const row = [...document.querySelectorAll("li")].find((l) =>
       l.textContent?.includes("Board pitch")
     );
-    return (row?.innerText ?? "").includes("15 to label");
+    return (row?.innerText ?? "").includes("1 of 3 labelled");
   })
+);
+check(
+  "the list states the real save model — no cron, no later send — and never invents a 'pending' state",
+  (await page.locator("text=there is no").count()) >= 1 &&
+    (await page.locator("text=read back from the database").count()) === 1 &&
+    !/pending/i.test(await page.locator("body").innerText())
+);
+check(
+  "a fully-labelled batch wears the green 'All N labelled' badge, computed from its own queue",
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll("li")].find((l) =>
+      l.textContent?.includes("Old finished batch")
+    );
+    const t = row?.innerText ?? "";
+    return t.includes("All 2 labelled") && !t.includes("to label");
+  })
+);
+
+/* -------- hide, honestly named: tidies this device, deletes nothing -------- */
+await page.locator('button[aria-label^="Hide Old finished batch"]').click();
+await page.waitForTimeout(150);
+check(
+  "hiding a row removes it from the list without labelling it",
+  await page.evaluate(
+    () =>
+      ![...document.querySelectorAll("li")].some((l) =>
+        l.textContent?.includes("Old finished batch")
+      )
+  )
+);
+check(
+  "…and the list SAYS what hiding really is — device-local, nothing leaves the database. There is no Delete, because the BE has no endpoint that would make one true",
+  (await page.locator("text=1 hidden on this device").count()) === 1 &&
+    (await page.locator("text=stay in the database").count()) >= 1 &&
+    !/\bDelete\b/.test(await page.locator("body").innerText())
+);
+await page.locator("text=1 hidden on this device").click();
+await page.waitForTimeout(150);
+await page.locator('button[aria-label^="Restore Old finished batch"]').click();
+await page.waitForTimeout(150);
+check(
+  "hiding is reversible — restore brings the row back and the hidden line goes away",
+  await page.evaluate(
+    () =>
+      [...document.querySelectorAll("li")].some((l) =>
+        l.textContent?.includes("Old finished batch")
+      )
+  ) && (await page.locator("text=hidden on this device").count()) === 0
 );
 
 await page.locator("button", { hasText: "Board pitch" }).click();

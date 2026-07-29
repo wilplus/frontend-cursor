@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ChevronRight, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, ChevronRight, Loader2, Undo2, Upload, X } from "lucide-react";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
@@ -614,10 +614,88 @@ function IndexPanel({
   failed: boolean;
   onOpen: (i: TrainingImport) => void;
 }) {
+  /* The labelled badge on each row is computed from a FRESH server read of
+   * that row's queue on every render of this list — the label objects the
+   * database actually holds — never from anything remembered in the browser.
+   * That is the point of it: the founder asked for a "sent to the database"
+   * status, and the truthful answer is that there is no cron and no batch —
+   * each label is one synchronous PUT at the moment of the tap, confirmed
+   * before the screen marks it saved. So the only honest DB status is to ask
+   * the DB, which is what this is. If a count here ever disagrees with what
+   * the coach believes they did, something is genuinely off and it will SHOW.
+   * (The index rows don't carry a labelled count yet — asked of the BE; until
+   * then this reads each queue, which for a coach-sized list is cheap.) */
+  const [progress, setProgress] = useState<
+    Record<string, { labelled: number; total: number }>
+  >({});
+
+  /* Hide, NOT delete — named honestly because it is honest. The BE has no
+   * endpoint that removes a training import, so a control called "Delete"
+   * would remove nothing: the session, its pieces and its labels would all
+   * still be in the database and the row would come straight back on any
+   * other device. Until the BE ships a real DELETE (asked), this tidies THIS
+   * list on THIS device, says exactly that on screen, and is reversible —
+   * nothing a coach does here can silently lose data, or silently pretend
+   * to. */
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("corpus-hidden-imports");
+      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      // Unreadable storage = nothing hidden. Never worth breaking the list.
+    }
+  }, []);
+  const persistHidden = (next: Set<string>) => {
+    setHidden(next);
+    try {
+      window.localStorage.setItem(
+        "corpus-hidden-imports",
+        JSON.stringify([...next])
+      );
+    } catch {
+      // Storage full/blocked: the hide still applies for this visit.
+    }
+  };
+  useEffect(() => {
+    let active = true;
+    for (const i of (imports ?? [])
+      .filter((x) => x.state === "done" && !hidden.has(x.sessionId))
+      .slice(0, 20)) {
+      void fetchConfidenceQueue(i.sessionId).then((q) => {
+        if (!active || !q) return;
+        setProgress((p) => ({
+          ...p,
+          [i.sessionId]: {
+            labelled: q.queue.filter((x) => x.label !== null).length,
+            total: q.queue.length,
+          },
+        }));
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [imports, hidden]);
+
+  const visible = (imports ?? []).filter(
+    (i) => showHidden || !hidden.has(i.sessionId)
+  );
+
   return (
     <section className="flex flex-col gap-2">
       <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
         Imported
+      </p>
+      {/* The real save model, stated where the coach reads status: labels are
+          not batched or cron-flushed anywhere — saying so preempts the
+          reasonable "when does this get sent?" question with the true answer,
+          "it already was, at the tap". */}
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        Labels save to the database the moment you tap them — there is no
+        later send. The counts below are read back from the database, not
+        from this browser.
       </p>
       {imports === null ? (
         failed ? (
@@ -627,9 +705,11 @@ function IndexPanel({
         ) : (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         )
-      ) : imports.length === 0 ? (
+      ) : visible.length === 0 ? (
         <p className="text-[14px] text-muted-foreground">
-          Nothing imported yet.
+          {imports.length === 0
+            ? "Nothing imported yet."
+            : "Everything here is hidden on this device."}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -638,16 +718,36 @@ function IndexPanel({
               see WHY a file produced nothing, instead of the attempt existing
               only in a response they already scrolled past. It is not openable
               — there is no queue behind it — so it renders as a plain row. */}
-          {imports.map((i) => {
-            const openable = i.state === "done";
+          {visible.map((i) => {
+            const isHidden = hidden.has(i.sessionId);
+            const openable = i.state === "done" && !isHidden;
+            const p = progress[i.sessionId];
+            // Four honest states for a done row, from the fresh DB read:
+            //   still fetching → the index row's own count ("9 to label")
+            //   none labelled → "9 to label"
+            //   some labelled → "4 of 9 labelled"
+            //   all labelled  → the green badge with the check
+            // There is deliberately NO "pending send" state — a label the DB
+            // does not hold is not counted, and nothing sits between the tap
+            // and the DB (no cron, no batch), so pending-after-save cannot
+            // exist and rendering one would be a lie.
+            const complete = !!p && p.total > 0 && p.labelled === p.total;
             const status =
               i.state === "running"
                 ? "Analysing…"
                 : i.state === "failed"
                   ? "Nothing to label"
-                  : i.queueCount !== null
-                    ? `${i.queueCount} to label`
-                    : "";
+                  : p
+                    ? complete
+                      ? `All ${p.total} labelled`
+                      : p.labelled > 0
+                        ? `${p.labelled} of ${p.total} labelled`
+                        : p.total > 0
+                          ? `${p.total} to label`
+                          : "Nothing to label"
+                    : i.queueCount !== null
+                      ? `${i.queueCount} to label`
+                      : "";
             const inner = (
               <>
                 <span className="min-w-0 flex-1">
@@ -669,9 +769,14 @@ function IndexPanel({
                     className={
                       i.state === "failed"
                         ? "shrink-0 text-[11px] text-amber-600 dark:text-amber-500"
-                        : "shrink-0 text-[11px] text-muted-foreground"
+                        : complete
+                          ? "inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-primary"
+                          : "shrink-0 text-[11px] text-muted-foreground"
                     }
                   >
+                    {complete ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                    ) : null}
                     {status}
                   </span>
                 ) : null}
@@ -684,25 +789,68 @@ function IndexPanel({
               </>
             );
             return (
-              <li key={i.sessionId}>
+              <li key={i.sessionId} className="relative">
                 {openable ? (
                   <button
                     type="button"
                     onClick={() => onOpen(i)}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
+                    className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 pr-10 text-left transition-colors hover:border-primary/50"
                   >
                     {inner}
                   </button>
                 ) : (
-                  <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left opacity-70">
+                  <div
+                    className={`flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 pr-10 text-left ${
+                      isHidden ? "opacity-40" : "opacity-70"
+                    }`}
+                  >
                     {inner}
                   </div>
                 )}
+                {/* A SIBLING of the card, not a child — a button cannot nest
+                    inside the row's own open button. */}
+                <button
+                  type="button"
+                  aria-label={
+                    isHidden
+                      ? `Restore ${i.topic || "this import"} to the list`
+                      : `Hide ${i.topic || "this import"} from this list`
+                  }
+                  title={
+                    isHidden
+                      ? "Restore to this list"
+                      : "Hide from this list on this device — the import and its labels stay in the database"
+                  }
+                  onClick={() => {
+                    const next = new Set(hidden);
+                    if (isHidden) next.delete(i.sessionId);
+                    else next.add(i.sessionId);
+                    persistHidden(next);
+                  }}
+                  className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {isHidden ? (
+                    <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                </button>
               </li>
             );
           })}
         </ul>
       )}
+      {hidden.size > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowHidden((v) => !v)}
+          className="self-start text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+        >
+          {hidden.size} hidden on this device —{" "}
+          {showHidden ? "tuck away again" : "show"}. Hiding only tidies this
+          list; the import and its labels stay in the database.
+        </button>
+      ) : null}
     </section>
   );
 }
