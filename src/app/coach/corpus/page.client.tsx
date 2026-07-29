@@ -583,6 +583,7 @@ function ImportPanel({
                       state: "done",
                       queueCount: f.queueCount,
                       detail: null,
+                      language: language || null,
                     })
                   }
                   className="mt-1 flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-2 text-left transition-colors hover:border-primary/60"
@@ -655,6 +656,7 @@ function IndexPanel({
                   </span>
                   <span className="block truncate text-[12px] text-muted-foreground">
                     {i.speakerLabel ?? "No speaker label"}
+                    {i.language ? ` · ${languageLabel(i.language)}` : ""}
                   </span>
                   {i.state === "failed" && i.detail ? (
                     <span className="mt-1 block text-[11px] leading-snug text-muted-foreground">

@@ -358,6 +358,11 @@ describe("mapTrainingImport — the index row's state", () => {
     expect(r?.detail).toBe("the transcript was empty");
   });
 
+  it("shows what an import RAN AS when the list carries it, and stays null otherwise — on a row whose transcript reads oddly, that null is the answer", () => {
+    expect(mapTrainingImport({ session_id: "s", language: "pl" })?.language).toBe("pl");
+    expect(mapTrainingImport({ session_id: "s" })?.language).toBeNull();
+  });
+
   it("carries queue_count, and leaves it null when the BE does not send one — so an older payload says nothing rather than '0 to label'", () => {
     expect(mapTrainingImport({ session_id: "s", queue_count: 15 })?.queueCount).toBe(15);
     expect(mapTrainingImport({ session_id: "s" })?.queueCount).toBeNull();
@@ -474,6 +479,7 @@ describe("mapTrainingImport", () => {
       state: "done",
       queueCount: null,
       detail: null,
+      language: null,
     });
   });
 
