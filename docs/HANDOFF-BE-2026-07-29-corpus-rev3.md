@@ -1,73 +1,69 @@
 # BE handoff — Training corpus, FE answer to rev 3
 
 **From:** frontend-cursor · **Date:** 2026-07-29
-**Status:** merged to `main` (FE `8e9b582`), rebased onto the speaker-sex build
+**Status:** merged to `main` (FE `ce9e5cc`), rebased onto the speaker-sex build
 (`21161a8`, #186) and re-verified against it. **§0 added after the founder's live 413 — read it first.**
 **Answers:** your rev 3 (`feat/corpus-language-fixes`, `0b182e7`)
 
 Three of your four changes needed FE work (§1–§5), what I had to **assume** because rev 2
 is not in this repo (§6), and one thing in your own design I think is a trap (§7).
 
-But start with §0.
+§0 is now resolved — read it for the diagnosis, then §0a, which is what is still broken.
 
 ---
 
-## 🔴 §0 — The import cannot work at all, and it is not the language
+## ✅ §0 — The 413. Fixed, and the direct path works.
 
-**Updated 2026-07-29, after the founder retried with the real file.**
+**Resolved the same day. Recorded because the diagnosis matters more than the fix.**
 
-It came back **HTTP 413** from `https://www.willpowerlab.com/api/v2/coach/training-imports`.
-Not a timeout, not `NO_SPEECH_DETECTED` — **the upload never reached you.**
+The founder's import was failing with **HTTP 413** from
+`https://www.willpowerlab.com/api/v2/coach/training-imports` — not a timeout, not
+`NO_SPEECH_DETECTED`. **Vercel caps a serverless function's request body at ~4.5 MB**
+and it is not configurable below Enterprise, so every real talk died at the gateway
+before a byte reached you.
 
-**Vercel caps a serverless function's request body at ~4.5 MB**, and it is not
-configurable below Enterprise. `Trend Talk Warsaw Przemyslaw Paczek, Hyper Poland.mp3`
-is tens of MB. So is every real talk. The import has never been able to carry one.
+**That one was mine and it was avoidable.** The repo already knew:
+`MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024` lives in `audioUploadValidation.ts`, every other
+upload picker uses it, and the journal media path carries the comment *"NEVER routed
+through the BFF: Vercel's ~4.5MB serverless body limit 413s real media (the app already
+hit this on audio)."* I routed the corpus import through the proxy anyway, and my §1 in
+the previous handoff worried at length about the **duration** ceiling while never
+mentioning the **size** one.
 
-**This one is mine, and it was avoidable.** The repo already knew:
-`MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024` lives in `audioUploadValidation.ts` and every
-other upload picker in the app uses it, and the journal media path carries the comment
-*"NEVER routed through the BFF: Vercel's ~4.5MB serverless body limit 413s real media
-(the app already hit this on audio)."* I routed the corpus import through the proxy
-anyway. My §1 in the last handoff worried about the **duration** ceiling and never
-mentioned the **size** one.
+**The fix:** the POST now goes **directly to the backend**, bypassing the proxy —
+`POST {NEXT_PUBLIC_API_URL}/v2/coach/training-imports`. No 4.5 MB cap on that path. The
+proxy is a fallback, and it now refuses an oversized file rather than uploading tens of
+MB to be told 413. A 413 also no longer reads "Import failed. Try again." — that was a
+lie, since no number of retries moves a platform limit.
 
-Everything in §1–§7 is real and still needed. **None of it matters until the bytes can
-reach you.**
+**Good news you did not have to do anything for: your CORS is already open on
+`/v2/coach/*`.** The direct path worked first try. Confirmed live —
+`Trend Talk Warsaw Przemysław Pączek, Hyper Poland.mp3` imported as
+**45 pieces · 9 queued to label · duration_sec ≈ 10 min**.
 
-### What the FE does now
+So the whole rev-3 pipeline is now exercised end to end against the real backend, and
+**§8 is the only thing standing between the coach and actually labelling.**
 
-1. **Tries the backend DIRECTLY first**, bypassing the proxy entirely —
-   `POST {NEXT_PUBLIC_API_URL}/v2/coach/training-imports`. There is no 4.5 MB cap on
-   that path. Same pattern the deck upload already uses. A non-safelisted header forces
-   a **preflight**, so a backend without CORS fails instantly instead of uploading 40 MB
-   and only then being blocked on the read.
-2. **Falls back to the proxy** only when the direct attempt dies at the network layer —
-   and **refuses to send** a file over 4.5 MB down that path, because uploading tens of
-   MB to be told 413 by a gateway is pure waste.
-3. **Says so honestly.** A 413 no longer reads "Import failed. Try again." — that was a
-   lie, since no number of retries moves a platform limit. Oversized files are also
-   flagged **before** the upload starts.
+---
 
-### What you have to decide — this is the blocking question
+## 🔴 §0a — The index is now THE blocker, and I have routed around it
 
-**Does `www.willpowerlab.com`'s backend send CORS headers on `/v2/coach/*`?**
+With uploads working, this is what is left: **the import succeeds, and the corpus index
+still says "Nothing imported yet."** Your §4 candidates are unchanged and the founder's
+SQL will settle which — the list query, or `set_session_source` failing silently so the
+row exists without the marker.
 
-- **If yes** — this may already work. Confirm the origin is allowed and we are done; the
-  FE will take the direct path and the 4.5 MB cap never applies.
-- **If no** — the direct attempt preflight-fails and large imports remain impossible.
-  Two ways out, and I recommend the second:
-  1. **Add CORS** for the app origin on the coach import route. Smallest change; the FE
-     already self-heals the moment the headers appear.
-  2. **Presign + direct-to-storage**, which is what this repo already does for journal
-     media and is the sturdier answer: `POST /v2/coach/training-imports/presign` returns
-     an upload URL, the browser PUTs the file straight to R2/Supabase, then the import
-     POST carries the **storage key instead of the bytes** — a small JSON body that the
-     proxy can carry, and that composes with the 202 + poll you already built. Tell me
-     the presign shape and the field name for the key, and the FE side is short: this
-     repo has `uploadToStorage` handling both POST-policy and plain-PUT presigns already.
+**The FE no longer depends on it.** The POST response already carries `session_id`, so a
+successful import row now offers the queue directly:
 
-Until one of those lands, **the corpus cannot be filled**, and §6.1 ("send `language:
-"pl"` and re-import that file") cannot be tested — the file will not get to you.
+> **Label the 9 pieces from Trend Talk Warsaw…** ›
+
+That is a workaround, not a fix. It only reaches sessions imported **in the current
+browser session** — reload the page and the import is unreachable again, because the
+index is the only thing that remembers. **Please still fix the list.**
+
+One consequence worth knowing while it is broken: a coach cannot see any import from
+yesterday, so the corpus looks empty even when it is not.
 
 ---
 
@@ -185,7 +181,7 @@ working. `queue_count` stays null when absent — the row then says nothing rath
 
 ---
 
-## 5. Label notes — now sent
+## 5. Label notes, and the piece dots — now on the labelling screen
 
 You said the corpus wants them, so there is a field on the labelling screen:
 *"Anything worth remembering? Optional."* with your examples as the placeholder.
@@ -204,6 +200,20 @@ You said the corpus wants them, so there is a field on the labelling screen:
 
 `queue_per_band` is still not exposed. You called it "eventually" and nothing in flight
 needs it — say the word.
+
+**New: every piece in a session is now a tappable dot** under the controls, so the coach
+can jump to any piece instead of only stepping forward. Worth stating what a dot is
+allowed to mean, because it sits one fence away from a leak:
+
+- **Payload order only (N2).** Your band shuffle is the reason position is not a tell;
+  sorting the dots would undo it. Nothing here sorts, groups or re-keys.
+- **Fill means "the coach has answered this one" — nothing else (N1).** Never a band,
+  never a score, never anything derived from the model. A browser test asserts no band
+  or score value appears in the dot markup at all, against a harness that deliberately
+  serves both on every piece.
+- **Jumping to a piece pre-selects nothing (N3).**
+
+So the queue payload can keep whatever fields you like; they still cannot reach a dot.
 
 ---
 
@@ -264,12 +274,14 @@ re-run.
 
 ---
 
-## 8. §4, the empty IMPORTED list — still yours
+## 8. §4, the empty IMPORTED list — CONFIRMED, and now the top blocker
+
+Not theoretical any more. A **successful** import — 45 pieces, 9 queued, against the
+real backend — still leaves the index empty. See §0a.
 
 I cannot run the SQL. What I can say is that the FE's GET succeeded and mapped **zero
 rows**, and the only FE-side way that happens with rows present is a missing
-`session_id`, which your payload has. So your two candidates stand, and the query will
-settle it.
+`session_id`, which your payload has. So both your candidates stand.
 
 The FE side is now less able to hide it: a failed row is rendered rather than dropped,
 and the list distinguishes running / done / failed, so "nothing imported" now means
@@ -279,20 +291,25 @@ nothing imported.
 
 ## 9. What I'd like back
 
-0. **§0 first — does the backend send CORS on `/v2/coach/*`?** If not, pick CORS or
-   presign. Nothing else in this document can be tested until a real file can reach you.
+0. **§8 / §0a — the empty index. This is the blocker now.** Uploads work; the coach
+   still cannot find an import after a page reload. Run the SQL from your §4 and fix
+   whichever it is.
 1. **Confirm or correct §6** — the five assumptions about the async contract.
 2. **§7** — is a failed import's key released? If not, how does a coach force a re-run?
 3. **Include `note` in the queue's `label` object** (§5).
 4. **Confirm language belongs in the idempotency key** (§2).
-5. Your §6.1 result — run that Polish file with `language: "pl"` and tell me what
-   `duration_sec` and `reason` come back. That closes the original §7.
+5. **The original empty import is still unexplained.** The zero-piece result was on
+   `Przemysław Paczek, Prezes i Założyciel Nevomo.mp3`, which *did* reach you (it came
+   back `ok` with a real duration — a 413 could not have). That file has not been
+   re-run since the language work landed. Worth re-importing it with `language: "pl"`
+   and telling me what `duration_sec` and `reason` come back; the newer talk succeeding
+   does not clear it.
 
 ---
 
 ## Where to verify
 
-`e2e/corpus.spec.mjs` — 35 checks in a real browser against
+`e2e/corpus.spec.mjs` — 40 checks in a real browser against
 `src/app/dev/corpus/page.tsx`, which now stubs **your rev-3 shapes**: the 202 + poll
 (answering "processing" once, then complete), the `status: "duplicate"` response, the
 `ok: false` + `NO_SPEECH_DETECTED` + `detail` + `duration_sec` failure, and an index
