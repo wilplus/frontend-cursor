@@ -10,6 +10,7 @@ import {
   buildLabelBody,
   fetchConfidenceQueue,
   fetchTrainingImports,
+  IMPORT_LANGUAGES,
   importTrainingAudio,
   INTENSITY_MAX,
   INTENSITY_MIN,
@@ -152,6 +153,8 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
   const [topic, setTopic] = useState("");
   const [speaker, setSpeaker] = useState("");
   const [note, setNote] = useState("");
+  // "" = auto-detect. See IMPORT_LANGUAGES: the default sends no field at all.
+  const [language, setLanguage] = useState("");
   const [stages, setStages] = useState<OptionalStage[]>([]);
   const [files, setFiles] = useState<FileState[]>([]);
   const [running, setRunning] = useState(false);
@@ -196,6 +199,7 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
         topic: topic.trim(),
         speakerLabel: speaker.trim() || null,
         note: note.trim() || null,
+        language,
         optionalStages: stages,
       });
       const outcome: FileState["status"] = !r.ok
@@ -248,6 +252,34 @@ function ImportPanel({ onImported }: { onImported: () => void }) {
         <span className="text-[11px] text-muted-foreground">
           Optional, but it is the only way the corpus can tell whose voice a
           piece is. Worth filling in per batch.
+        </span>
+      </label>
+
+      {/* Sits directly under the speaker on purpose: both describe the AUDIO,
+          not the filing. Auto-detect is the default and sends nothing, so a
+          coach who ignores this gets exactly the request that shipped before
+          it existed. The nudge is deliberately concrete about the failure it
+          prevents — a talk transcribed as the wrong language yields zero
+          pieces and reads like a broken import, which is what happened on the
+          first real one. */}
+      <label className="flex flex-col gap-1">
+        <span className="text-[12px] text-muted-foreground">
+          What language it is in
+        </span>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+        >
+          {IMPORT_LANGUAGES.map((l) => (
+            <option key={l.code || "auto"} value={l.code}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        <span className="text-[11px] text-muted-foreground">
+          Worth setting if the talk is not in English. Transcribed as the wrong
+          language, a file comes back with nothing to label.
         </span>
       </label>
 

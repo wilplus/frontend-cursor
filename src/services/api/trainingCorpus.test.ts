@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLabelBody,
+  IMPORT_LANGUAGES,
   importIdempotencyKey,
+  normalizeLanguage,
   mapConfidenceQueue,
   mapQueuePiece,
   mapTrainingImport,
@@ -189,6 +191,23 @@ describe("importIdempotencyKey", () => {
     );
   });
 
+  it("CHANGES with the language — otherwise re-importing with the language corrected would dedupe against the empty English run and look like it did nothing", async () => {
+    const auto = await importIdempotencyKey(base);
+    const pl = await importIdempotencyKey({ ...base, language: "pl" });
+    const en = await importIdempotencyKey({ ...base, language: "en" });
+    expect(pl).not.toBe(auto);
+    expect(pl).not.toBe(en);
+    // …but the same language is still the same attempt.
+    expect(await importIdempotencyKey({ ...base, language: "pl" })).toBe(pl);
+  });
+
+  it("treats auto-detect, absent and an unknown code as the same attempt — an unknown code is not sent, so it cannot be what distinguishes one", async () => {
+    const auto = await importIdempotencyKey(base);
+    expect(await importIdempotencyKey({ ...base, language: "" })).toBe(auto);
+    expect(await importIdempotencyKey({ ...base, language: null })).toBe(auto);
+    expect(await importIdempotencyKey({ ...base, language: "klingon" })).toBe(auto);
+  });
+
   it("is a plain hex token — safe in a form field and carries no filename into request logs", async () => {
     const k = await importIdempotencyKey(base);
     expect(k).toMatch(/^[0-9a-f]{16,}$/);
@@ -220,6 +239,32 @@ describe("importIdempotencyKey", () => {
     } finally {
       Object.defineProperty(globalThis, "crypto", { value: real, configurable: true });
     }
+  });
+});
+
+describe("normalizeLanguage", () => {
+  it("accepts a code that is actually on the menu", () => {
+    expect(normalizeLanguage("pl")).toBe("pl");
+    expect(normalizeLanguage("EN")).toBe("en");
+    expect(normalizeLanguage(" uk ")).toBe("uk");
+  });
+
+  it("refuses anything else rather than passing it through — an unrecognised code either 400s upstream or, worse, transcribes the talk as the wrong language", () => {
+    for (const bad of ["", "klingon", "pl-PL", "polish", "xx", null, 5, undefined]) {
+      expect(normalizeLanguage(bad)).toBeNull();
+    }
+  });
+
+  it("offers auto-detect FIRST and as the empty code, so the default omits the field entirely", () => {
+    expect(IMPORT_LANGUAGES[0]).toEqual({ code: "", label: "Auto-detect" });
+    expect(normalizeLanguage(IMPORT_LANGUAGES[0].code)).toBeNull();
+  });
+
+  it("every offered code is one normalizeLanguage will actually send — a menu entry that got dropped would silently do nothing", () => {
+    for (const l of IMPORT_LANGUAGES.slice(1)) {
+      expect(normalizeLanguage(l.code)).toBe(l.code);
+    }
+    expect(IMPORT_LANGUAGES.map((l) => l.code)).toContain("pl");
   });
 });
 
