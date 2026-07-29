@@ -361,10 +361,16 @@ export function terminalOutcome(
   if (body.ok === false) return mapFailure(body);
   const status = str(body.status || body.analysis_state).toLowerCase();
   if (FAILED_STATUS.has(status)) return mapFailure(body);
-  if (body.ok === true && (status === "" || status === "duplicate" || DONE_STATUS.has(status))) {
-    return mapSuccess(body);
+  if (status === "duplicate" || DONE_STATUS.has(status)) return mapSuccess(body);
+  if (body.ok === true && status === "") {
+    // `ok: true` with no status is the OLD synchronous shape, which always
+    // carried counts. Without a count this is an acknowledgement, not a
+    // result — and reading a bare `{ok, session_id}` as finished would render
+    // it as a zero-piece import, i.e. announce a failure that never happened.
+    return "snippet_count" in body || "queue_count" in body
+      ? mapSuccess(body)
+      : null;
   }
-  if (DONE_STATUS.has(status)) return mapSuccess(body);
   return null;
 }
 
