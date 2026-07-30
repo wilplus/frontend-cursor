@@ -69,6 +69,9 @@ export default function IdealTextActions({
 }) {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Reported by the read mic: a reading is recording, sending, or still being
+  // analysed. Withholds button 3 for that span (see below).
+  const [readBusy, setReadBusy] = useState(false);
   // Released only when the host's refetch reports `saved` (review R-md3):
   // dropping `saving` on the POST's resolution re-enables the button for the
   // whole refetch round trip, and a second tap re-runs accept-and-freeze.
@@ -148,28 +151,43 @@ export default function IdealTextActions({
           rereadProcessing={rereadProcessing}
           onNewTake={onNewTake}
           onReadUploaded={onReadUploaded}
+          onBusyChange={setReadBusy}
           micOnly
         />
       ) : null}
 
-      {/* 3 — The next official take. Available unless the BE explicitly
-          closes its gate; disabled rather than removed, so the entry to the
-          record loop never silently disappears from this screen. */}
-      <Button
-        type="button"
-        onClick={onNewTake}
-        disabled={canRecordTake === false}
-        variant="outline"
-        className="h-11 w-full rounded-full text-[15px] font-medium"
-      >
-        <Mic className="mr-2 h-4 w-4" aria-hidden />
-        Record the next take
-      </Button>
-      {canRecordTake === false ? (
-        <p className="text-center text-[12px] text-muted-foreground">
-          {IDEAL_EDIT_COPY.recordUnavailable}
-        </p>
-      ) : null}
+      {/* 3 — The next official take, once there is nothing else in flight.
+          Available unless the BE explicitly closes its gate; disabled rather
+          than removed in that case, so the entry to the record loop never
+          silently disappears from this screen.
+
+          Founder 2026-07-30 — WITHHELD, not disabled, while a reading is live
+          or still being analysed. The read mic already withholds its own
+          next-take button for that span and puts "Finishing up your reading…"
+          in its place; this second button sat right underneath, still
+          offering the next take over a hot mic and through the whole
+          analysis. Tapping it there leaves the reading's stream orphaned and
+          drops a take into a project mid-update. It comes back the moment the
+          reading is genuinely done. */}
+      {readBusy ? null : (
+        <>
+          <Button
+            type="button"
+            onClick={onNewTake}
+            disabled={canRecordTake === false}
+            variant="outline"
+            className="h-11 w-full rounded-full text-[15px] font-medium"
+          >
+            <Mic className="mr-2 h-4 w-4" aria-hidden />
+            Record the next take
+          </Button>
+          {canRecordTake === false ? (
+            <p className="text-center text-[12px] text-muted-foreground">
+              {IDEAL_EDIT_COPY.recordUnavailable}
+            </p>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

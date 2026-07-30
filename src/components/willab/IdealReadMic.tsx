@@ -38,6 +38,7 @@ export default function IdealReadMic({
   onNewTake,
   onReadUploaded,
   micOnly = false,
+  onBusyChange,
 }: {
   arcId: string;
   version: number | null;
@@ -65,6 +66,14 @@ export default function IdealReadMic({
    *  take" as its own button, so this component renders the READ mic only.
    *  When a read is impossible it renders nothing at all. */
   micOnly?: boolean;
+  /** Founder 2026-07-30 — true while a reading is live or still being
+   *  analysed. This component already withholds its OWN next-take button for
+   *  exactly that span; the three-button layout owns a second one and had no
+   *  way to know, so it offered "record the next take" over a hot mic and
+   *  through the whole analysis. Reported rather than recomputed: the answer
+   *  depends on local latches (the submission latch, the fail-open cap) that
+   *  only exist here, and a second derivation of it would drift. */
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const mic = useDualCaptureMic({ transcript: false });
   const [phase, setPhase] = useState<"idle" | "sending" | "failed">("idle");
@@ -232,6 +241,24 @@ export default function IdealReadMic({
   // Lab's own mic hang afterwards.
   const readingNow =
     activeRead || st.status === "recording" || phase === "sending";
+
+  // Tell the host, so a sibling next-take button can withhold itself over the
+  // same span this component withholds its own. Through a ref so an inline
+  // host callback cannot re-fire the effect every render.
+  const onBusyChangeRef = useRef(onBusyChange);
+  onBusyChangeRef.current = onBusyChange;
+  const readBusy = readingNow || readProcessing;
+  useEffect(() => {
+    onBusyChangeRef.current?.(readBusy);
+  }, [readBusy]);
+  // Unmounting mid-read (a version bump swaps the layout) must not leave the
+  // host latched busy forever with no component to clear it.
+  useEffect(
+    () => () => {
+      onBusyChangeRef.current?.(false);
+    },
+    []
+  );
 
   // FE-1 — the button reads STRICTLY from the server (rereadDone + this local
   // submission latch); there is NO optimistic flip. While the just-submitted

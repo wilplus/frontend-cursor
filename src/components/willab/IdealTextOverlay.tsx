@@ -94,6 +94,11 @@ export default function IdealTextOverlay({
   const [refetchNonce, setRefetchNonce] = useState(0);
   // Staleness fence for the GET (same rule as the readout, review R-db4).
   const fetchGenRef = useRef(0);
+  /** The arc we are currently HOLDING a document for. Distinguishes a first
+   *  load (nothing on screen — the loader is honest) from a refetch of the
+   *  document already showing (it must not blank). Keyed by arc, so opening a
+   *  different project still gets its loader. */
+  const loadedArcRef = useRef<string | null>(null);
   // SD (single-deliverable) — the living-document state: verification status,
   // version, and whether the 5-credit moments unlock has run.
   // Confidence-game entry navigates to /game (its own page, over from /chat).
@@ -156,15 +161,40 @@ export default function IdealTextOverlay({
 
   useEffect(() => {
     let active = true;
-    setStatus("loading");
+    /* Founder 2026-07-30 — THE FULL-SCREEN LOADER IS FOR THE FIRST LOAD ONLY.
+     *
+     * This effect used to `setStatus("loading")` on every run, and it runs on
+     * every `refetchNonce` bump. The read poll bumps that nonce every 3
+     * SECONDS for as long as a reading is being analysed, so the whole
+     * document was being wiped to a centred animation and restored, over and
+     * over, while the user sat on "Finishing up your reading…". The only
+     * loading state that flow is allowed is that small line at the bottom.
+     *
+     * So: the loader shows when there is genuinely nothing to show — a
+     * different document, or this one before its first payload. A refetch of
+     * the document already on screen leaves it there and swaps the text only
+     * once the new payload is fully in hand, which is also what stops the
+     * reader losing their place mid-paragraph. */
+    const firstLoad = loadedArcRef.current !== arcId;
+    if (firstLoad) setStatus("loading");
     const gen = ++fetchGenRef.current;
     void fetchIdealText(arcId).then((r) => {
       if (!active || gen !== fetchGenRef.current) return;
+      /* A REFETCH that did not come back with a document keeps the one we are
+       * already showing. Replacing a good document with "couldn't load this"
+       * because one poll tick lost the network is the same wipe as above,
+       * wearing a different word — and the next tick is three seconds away.
+       * On a first load there is nothing to protect, so the honest failure
+       * shows exactly as before. */
+      const usable =
+        r.kind === "single" || r.kind === "ready" || r.kind === "instant";
+      if (!firstLoad && !usable) return;
       if (r.kind === "historical" || r.kind === "historicalUnavailable") {
         // Unreachable without a ?version request; keep the load honest.
         setStatus("error");
         return;
       }
+      if (usable) loadedArcRef.current = arcId;
       if (r.kind === "single") {
         // SD — the ONE living text: both statuses free to read; the only paid
         // thing is opening the key moments. Renders through the ready view
