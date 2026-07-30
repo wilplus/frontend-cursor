@@ -7,6 +7,13 @@ import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
 import {
+  CoachCard,
+  CoachChip,
+  CoachErrorLine,
+  CoachEyebrow,
+  CoachMetaPill,
+} from "./coachChrome";
+import {
   buildVerdictBody,
   correctionOptions,
   effectiveReplacement,
@@ -174,9 +181,7 @@ export default function CoachStarVerdictOverlay({
           </span>
           {/* The established audience-lane label — this judgment trains the
               machine and is never shown to the student. */}
-          <span className="shrink-0 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-            Coach only · training
-          </span>
+          <CoachEyebrow className="shrink-0">Coach only · training</CoachEyebrow>
         </span>
         <span className="flex shrink-0 items-center gap-3">
           {status === "ready" && stars && stars.length > 0 ? (
@@ -208,10 +213,7 @@ export default function CoachStarVerdictOverlay({
             {stars.map((s) => {
               const key = starRowKey(s);
               return (
-              <li
-                key={key}
-                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4"
-              >
+              <CoachCard as="li" key={key}>
                 <div className="flex items-center gap-2">
                   {/* Outline star = unverified machine suggestion, the same
                       icon language the student text uses. */}
@@ -220,27 +222,19 @@ export default function CoachStarVerdictOverlay({
                     fill="none"
                     aria-hidden
                   />
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                    {starChipLabel(s)}
-                  </span>
+                  <CoachMetaPill>{starChipLabel(s)}</CoachMetaPill>
                   {s.takeIndex !== null ? (
-                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                    <CoachMetaPill tone="outline">
                       Take {s.takeIndex}
-                    </span>
+                    </CoachMetaPill>
                   ) : null}
                   {/* The edit→keep pair only enters the corpus when the star
                       is KEPT (BE 2026-07-28) — so an edited star without a
                       verdict wears the amber nudge until it gets one. */}
                   {s.edited ? (
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        s.verdict === null
-                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
+                    <CoachMetaPill tone={s.verdict === null ? "warn" : "muted"}>
                       {s.verdict === null ? "Edited — add a verdict" : "Edited"}
-                    </span>
+                    </CoachMetaPill>
                   ) : null}
                 </div>
 
@@ -277,9 +271,9 @@ export default function CoachStarVerdictOverlay({
                 ) : null}
                 {effectiveReplacement(s) ? (
                   <p className="rounded-xl bg-muted/40 px-3 py-2 text-[14px] leading-relaxed text-foreground">
-                    <span className="mr-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <CoachEyebrow strong className="mr-2">
                       Suggested
-                    </span>
+                    </CoachEyebrow>
                     {effectiveReplacement(s)}
                   </p>
                 ) : null}
@@ -289,14 +283,14 @@ export default function CoachStarVerdictOverlay({
                     The saved verdict is the active pill, not a locked answer:
                     tapping another replaces it (N5). */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <VerdictPill
+                  <CoachChip
                     active={s.verdict === "keep"}
                     disabled={savingKeys[key] === true}
                     onClick={() => void save(s, "keep")}
                   >
                     Keep
-                  </VerdictPill>
-                  <VerdictPill
+                  </CoachChip>
+                  <CoachChip
                     active={s.verdict === "wrong_kind"}
                     disabled={savingKeys[key] === true}
                     onClick={() =>
@@ -304,14 +298,14 @@ export default function CoachStarVerdictOverlay({
                     }
                   >
                     Wrong kind…
-                  </VerdictPill>
-                  <VerdictPill
+                  </CoachChip>
+                  <CoachChip
                     active={s.verdict === "should_not_fire"}
                     disabled={savingKeys[key] === true}
                     onClick={() => void save(s, "should_not_fire")}
                   >
                     Shouldn&apos;t fire
-                  </VerdictPill>
+                  </CoachChip>
                   {savingKeys[key] === true ? <VoiceMark size={20} /> : null}
                 </div>
 
@@ -325,24 +319,18 @@ export default function CoachStarVerdictOverlay({
                         Picking one IS the save; there is no second step. */}
                     <div className="mt-1.5 flex flex-wrap gap-2">
                       {correctionOptions(s).map((opt) => (
-                        <button
+                        <CoachChip
                           key={opt}
-                          type="button"
-                          aria-pressed={
+                          size="sm"
+                          active={
                             s.verdict === "wrong_kind" &&
                             s.correctedDevice === opt
                           }
                           disabled={savingKeys[key] === true}
                           onClick={() => void save(s, "wrong_kind", opt)}
-                          className={`rounded-full border px-3 py-1 text-[12px] transition-colors disabled:opacity-50 ${
-                            s.verdict === "wrong_kind" &&
-                            s.correctedDevice === opt
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-background text-foreground hover:border-primary/50"
-                          }`}
                         >
                           {humanizeToken(opt)}
-                        </button>
+                        </CoachChip>
                       ))}
                     </div>
                   </div>
@@ -463,46 +451,14 @@ export default function CoachStarVerdictOverlay({
                 )}
 
                 {errors[key] ? (
-                  <p className="text-[12px] text-destructive">
-                    {errors[key]}
-                  </p>
+                  <CoachErrorLine>{errors[key]}</CoachErrorLine>
                 ) : null}
-              </li>
+              </CoachCard>
               );
             })}
           </ul>
         )}
       </div>
     </div>
-  );
-}
-
-/** One pill of the three-way control — the coach-surface selectable pill
- *  (CoachSnippetReviewCard's DIRECTIONS idiom, plus aria-pressed). */
-function VerdictPill({
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  disabled: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors disabled:opacity-50 ${
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-background text-foreground hover:border-primary/50"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

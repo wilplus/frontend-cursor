@@ -35,6 +35,13 @@ const LABELER_FILES = [
 const OVERLAY = join("components", "willab", "CoachStarVerdictOverlay.tsx");
 const SERVICE = join("services", "api", "starVerdicts.ts");
 
+/** Shared presentational chrome, used by BOTH lanes (founder 2026-07-30:
+ *  "unify the plumbing, keep the surfaces separate"). A file both lanes import
+ *  is the obvious smuggling route for a machine guess into the blind flow, so
+ *  it is fenced from both directions too: chrome may know about pills and
+ *  cards, never about directions, star families, devices or verdicts. */
+const SHARED_CHROME = join("components", "willab", "coachChrome.tsx");
+
 /** Everything permitted to import the star-verdict lane. The Lounge is the
  *  hub that mounts every overlay as siblings — the ONE file allowed to know
  *  both flows. The detail/roster screens carry the entry callback (a plain
@@ -97,6 +104,46 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
     );
   });
 
+  it("the shared coach chrome bridges neither lane", () => {
+    const src = readFileSync(join(SRC, SHARED_CHROME), "utf8");
+    // Direction 1 — chrome must not reach into the star lane.
+    expect(
+      STAR_LANE_IMPORT.test(src),
+      "coachChrome imports the star-verdict lane — shared chrome must not bridge the lanes"
+    ).toBe(false);
+    // Direction 2 — nor into the blind flow or its label service.
+    expect(src).not.toMatch(/from\s+["']@?\/?.*coachReview["']/);
+    expect(src).not.toMatch(
+      /from\s+["'].*(?:CoachSnippetReviewCard|CoachReviewOverlay|SnippetReadoutBlock|useCoachReview)["']/
+    );
+  });
+
+  it("the shared chrome carries no lane vocabulary — only chrome", () => {
+    // The fence is about anchoring: a coach labeling direction blind must not
+    // meet the machine's vocabulary on the way. Chrome that starts naming
+    // verdicts or star families has become a lane, whatever the filename says.
+    const src = readFileSync(join(SRC, SHARED_CHROME), "utf8");
+    // Prose in the header comment explains WHY the fence exists and must stay
+    // readable, so only code is searched.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    for (const banned of [
+      "threat",
+      "ambiguous",
+      "challenge",
+      "keep",
+      "wrong_kind",
+      "should_not_fire",
+      "emphasize",
+      "structure",
+      "delivery",
+    ]) {
+      expect(
+        new RegExp(`\\b${banned}\\b`, "i").test(code),
+        `coachChrome names "${banned}" — that vocabulary belongs to a lane, not to shared chrome`
+      ).toBe(false);
+    }
+  });
+
   it("only the hub mounts the overlay, and only the overlay calls the service", () => {
     const overlayImporters: string[] = [];
     const serviceImporters: string[] = [];
@@ -148,7 +195,7 @@ describe("star-verdict ↔ blind-labeler separation (N1)", () => {
   });
 
   it("the paths this fence guards still exist (a rename must update the fence, not evade it)", () => {
-    for (const rel of [...LABELER_FILES, OVERLAY, SERVICE]) {
+    for (const rel of [...LABELER_FILES, OVERLAY, SERVICE, SHARED_CHROME]) {
       expect(
         statSync(join(SRC, rel)).isFile(),
         `${rel} is gone — update the separation fence alongside the rename`

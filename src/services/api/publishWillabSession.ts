@@ -1,4 +1,5 @@
 import type { CoachTag } from "@/components/willab/readout";
+import type { DirectionLabel } from "./coachReview";
 
 /* -------------------------------------------------------------------------- */
 /*  publishWillabSession — the coach payload TYPES (split-sink, §14 / §3.9)     */
@@ -11,7 +12,13 @@ import type { CoachTag } from "@/components/willab/readout";
 /*  notes) stay separate lanes (§2), plus the R4-8 full-snapshot `snippets`.    */
 /* -------------------------------------------------------------------------- */
 
-export type Direction = "threat" | "ambiguous" | "challenge";
+/** The private direction lane's three labels — ONE definition, owned by
+ *  coachReview.ts (the module that maps them off the wire). This was a second,
+ *  independent copy of the same union until 2026-07-30; two copies of one wire
+ *  enum is precisely how the two coach lanes drift apart. The `Direction` name
+ *  is kept as the alias because the payload contract below reads better with
+ *  it, and nothing outside this module imports the name. */
+export type Direction = DirectionLabel;
 
 export interface PublishLabel {
   snippet_id: string;
