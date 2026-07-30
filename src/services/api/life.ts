@@ -9,6 +9,11 @@
 /*    GET    /v2/life/setup                 saved answers + resume step        */
 /*    PUT    /v2/life/setup                 { step, answers }  (every step)    */
 /*    POST   /v2/life/setup/complete        generates the docs, replays notes  */
+/*    POST   /v2/life/setup/document        multipart, the optional upload     */
+/*    GET    /v2/life/setup/documents       what has been uploaded             */
+/*    POST   /v2/life/setup/prefill-from-document                              */
+/*                                          one read, bucketed per wizard step */
+/*    POST   /v2/life/setup/apply-proposed  ONLY the rows the user ticked      */
 /*    GET    /v2/life/principles            derived list                       */
 /*    GET    /v2/life/principles/:id        the five slots + application log   */
 /*    GET    /v2/life/items?kind=           wins / phrases / distractions      */
@@ -47,6 +52,7 @@ import {
   mapStrategyDiff,
   mapTimelineEvents,
 } from "@/lib/life/mappers";
+import type { LifePrefillRow } from "@/lib/life/setupSteps";
 import type {
   LifeBetKey,
   LifeDay,
@@ -82,10 +88,15 @@ export class LifeConsentRequiredError extends Error {
 
 export class LifeRequestError extends Error {
   readonly status: number;
-  constructor(status: number, message?: string) {
+  /** The backend's machine-readable reason, where it sends one (`NO_DOCUMENT`
+   *  and friends). Callers that need to tell two 400s apart read this rather
+   *  than matching on the human message, which is copy and will change. */
+  readonly code: string | null;
+  constructor(status: number, message?: string, code?: string | null) {
     super(message ?? `life request failed: HTTP ${status}`);
     this.name = "LifeRequestError";
     this.status = status;
+    this.code = code ?? null;
   }
 }
 
@@ -110,11 +121,13 @@ async function call(
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message =
-      data && typeof data === "object" && typeof (data as any).error === "string"
-        ? (data as any).error
-        : undefined;
-    throw new LifeRequestError(res.status, message);
+    const body =
+      data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+    throw new LifeRequestError(
+      res.status,
+      typeof body.error === "string" ? body.error : undefined,
+      typeof body.code === "string" ? body.code : null
+    );
   }
   return data;
 }
@@ -143,6 +156,12 @@ export interface LifeSetupDraft {
   step: string | null;
   answers: Record<string, unknown>;
   complete: boolean;
+  /** The goal steps, in wizard order, AS THE SERVER NAMES THEM. The prefill
+   *  buckets its rows under exactly these keys, so taking the mapping from
+   *  here rather than from a second list on the client is what stops the two
+   *  from drifting. Empty when the server does not send it; callers fall back
+   *  to `LIFE_SETUP_STEPS`, which is where the labels live either way. */
+  setupSections: string[];
 }
 
 export async function fetchSetup(): Promise<LifeSetupDraft> {
@@ -154,6 +173,11 @@ export async function fetchSetup(): Promise<LifeSetupDraft> {
         ? (raw.answers as Record<string, unknown>)
         : {},
     complete: raw?.complete === true,
+    setupSections: Array.isArray(raw?.setup_sections)
+      ? (raw.setup_sections as unknown[]).filter(
+          (s): s is string => typeof s === "string" && s !== ""
+        )
+      : [],
   };
 }
 
@@ -255,28 +279,92 @@ export interface LifeDraftItem {
   checked: boolean;
 }
 
-export async function proposeFromDocument(
-  documentId?: string
-): Promise<LifeDraftItem[]> {
-  const raw = (await call("/setup/propose-from-document", {
-    method: "POST",
-    body: documentId ? { document_id: documentId } : {},
-  })) as Record<string, unknown> | null;
-  const list = Array.isArray(raw?.items) ? raw.items : [];
-  return (list as unknown[]).flatMap((row) => {
+/* `proposeFromDocument` (POST /v2/life/setup/propose-from-document, the flat
+ * review list) is GONE FROM THIS CLIENT, not from the backend: the endpoint is
+ * live and unchanged, and this file will grow the caller back the day a screen
+ * renders it. It went because the wizard now renders the bucketed read below,
+ * the two share one extraction, and a client function nothing calls reads as
+ * shipped behaviour in every review it survives. Same rule copy.test.ts holds
+ * copy to, applied to the layer underneath it. */
+
+/* ------------------ setup prefill from the document (BE) ------------------ */
+/* Founder 2026-07-30: "like a CV you upload and all the forms are filled."
+ * The same single extraction as `proposeFromDocument`, handed back BUCKETED
+ * into the wizard's own steps instead of as one flat list.
+ *
+ * CALL ONE OF THE TWO, NEVER BOTH. They share one extraction on the backend,
+ * so rendering only the one you show costs one model call rather than two.
+ * This client renders the bucketed one, and gets the habits, distractions and
+ * bets out of the same payload for the tick list.
+ *
+ * `save` is left at its default of false ON PURPOSE, and that is a contract
+ * note worth keeping: `save: true` merges drafted rows into the SAVED setup
+ * answers under a per-section `{"goals": [...]}` shape, and this wizard does
+ * not store its answers that way. It PUTs one whole `{bets, horizons,
+ * unplaced}` object on every step, so a server-side merge would write a
+ * top-level key that `coerceSetupAnswers` never reads: the prefill would look
+ * saved and come back empty. Durability is not lost by declining it. The
+ * merged payload is written straight back through the ordinary PUT the moment
+ * it lands, which persists it through exactly the path the rest of the form
+ * already uses. Per the handoff: tell the backend rather than reshape the slot
+ * here. */
+
+export interface LifeSetupPrefill {
+  fileName: string;
+  /** Keyed by wizard step. Always all eight from the backend, but read
+   *  defensively: a key with no step still has to reach the user. */
+  sections: Record<string, LifePrefillRow[]>;
+  unplaced: LifePrefillRow[];
+  /** Bets, habits and distractions from the same read. These have no wizard
+   *  step of their own, so they stay on the tick list and are created through
+   *  `apply-proposed`, exactly as item 9 created them. */
+  review: LifeDraftItem[];
+  /** The server's own step order (`setup_sections`). */
+  setupSections: string[];
+  /** Goal rows in the payload, placed plus unplaced. Used only to tell "the
+   *  document said nothing" from "the document said plenty" — never rendered
+   *  as progress, completeness or a percentage (AC-9). */
+  goalCount: number;
+}
+
+function mapPrefillRow(raw: unknown): LifePrefillRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const title = typeof r.title === "string" ? r.title.trim() : "";
+  if (!title) return null;
+  const bet = r.bet ?? r.collection;
+  return {
+    title,
+    body: typeof r.body === "string" ? r.body : "",
+    // The user's own notation, verbatim. `due_at` is deliberately ignored:
+    // the label is the source of truth and a parsed date would replace
+    // "[Aug]" with a day nobody chose (spec §3.2).
+    dueLabel: typeof r.due_label === "string" ? r.due_label : null,
+    betKey:
+      bet === "life" || bet === "company" || bet === "dream" ? bet : null,
+    section: typeof r.section === "string" ? r.section : null,
+  };
+}
+
+function mapPrefillRows(raw: unknown): LifePrefillRow[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as unknown[]).flatMap((row) => {
+    const mapped = mapPrefillRow(row);
+    return mapped ? [mapped] : [];
+  });
+}
+
+function mapReviewRows(
+  raw: unknown,
+  kind: LifeDraftItem["kind"]
+): LifeDraftItem[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as unknown[]).flatMap((row) => {
     if (!row || typeof row !== "object") return [];
     const r = row as Record<string, unknown>;
-    const kind = r.kind;
-    if (
-      kind !== "bet" &&
-      kind !== "goal" &&
-      kind !== "habit" &&
-      kind !== "distraction"
-    ) {
-      return [];
-    }
     const title = typeof r.title === "string" ? r.title.trim() : "";
     if (!title) return [];
+    const bet = r.bet ?? r.collection;
     return [
       {
         kind,
@@ -284,15 +372,72 @@ export async function proposeFromDocument(
         body: typeof r.body === "string" ? r.body : "",
         horizon: typeof r.horizon === "string" ? r.horizon : null,
         dueLabel: typeof r.due_label === "string" ? r.due_label : null,
-        bet: typeof r.collection === "string" ? r.collection : null,
+        bet: typeof bet === "string" ? bet : null,
         externalId: typeof r.external_id === "string" ? r.external_id : null,
         orderKey: typeof r.order_key === "number" ? r.order_key : 0,
-        // Default-checked (founder 2026-07-30): the review UI shows every
-        // row and the user unticks. The default never bypasses the display.
+        // Default-checked, same as item 9 and for the same reason: every row
+        // is fully rendered on this screen first, so the default never
+        // bypasses the display (N5).
         checked: true,
       },
     ];
   });
+}
+
+/**
+ * Read the uploaded document and get the goals back per wizard step.
+ *
+ * Returns null when there is nothing to draft from (`400 NO_DOCUMENT`): no
+ * upload yet, or the extraction failed. That is not an error the user has to
+ * be told about, it is the ordinary state of a step they have not used, so the
+ * caller shows the upload rather than a failure.
+ */
+export async function prefillFromDocument(
+  documentId?: string
+): Promise<LifeSetupPrefill | null> {
+  let raw: Record<string, unknown> | null;
+  try {
+    raw = (await call("/setup/prefill-from-document", {
+      method: "POST",
+      body: documentId ? { document_id: documentId } : {},
+    })) as Record<string, unknown> | null;
+  } catch (err) {
+    if (err instanceof LifeRequestError && err.status === 400) return null;
+    throw err;
+  }
+
+  const sectionsRaw =
+    raw?.sections && typeof raw.sections === "object"
+      ? (raw.sections as Record<string, unknown>)
+      : {};
+  const sections: Record<string, LifePrefillRow[]> = {};
+  for (const [key, value] of Object.entries(sectionsRaw)) {
+    sections[key] = mapPrefillRows(value);
+  }
+  const unplaced = mapPrefillRows(raw?.unplaced);
+  const doc =
+    raw?.document && typeof raw.document === "object"
+      ? (raw.document as Record<string, unknown>)
+      : {};
+
+  return {
+    fileName: typeof doc.file_name === "string" ? doc.file_name : "",
+    sections,
+    unplaced,
+    review: [
+      ...mapReviewRows(raw?.bets, "bet"),
+      ...mapReviewRows(raw?.habits, "habit"),
+      ...mapReviewRows(raw?.distractions, "distraction"),
+    ],
+    setupSections: Array.isArray(raw?.setup_sections)
+      ? (raw.setup_sections as unknown[]).filter(
+          (s): s is string => typeof s === "string" && s !== ""
+        )
+      : [],
+    goalCount:
+      Object.values(sections).reduce((n, rows) => n + rows.length, 0) +
+      unplaced.length,
+  };
 }
 
 /** Send ONLY the ticked rows. The backend creates them as the user's own
