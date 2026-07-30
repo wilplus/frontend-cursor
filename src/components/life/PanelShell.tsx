@@ -139,7 +139,11 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
             headerAbove={!bare}
           />
         )}
-        <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
+        {/* A flex COLUMN, not a plain block: the setup flow pins its Back/Next
+            bar to the bottom with `mt-auto`, which needs its own height to
+            come from this column rather than from its content. Stacked
+            content in every other view renders identically either way. */}
+        <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 py-8">
           {children}
         </main>
         {/* FE-10 — export and hard delete stay two clicks away for anyone who
