@@ -72,15 +72,36 @@ function isOnboarding(state: LifeState, pathname: string | null): boolean {
   );
 }
 
+/** Founder 2026-07-30 — the Principles page carries NO app header.
+ *
+ *  The logo-and-hamburger bar comes off this one route entirely: the guide, the
+ *  consent screen, the ten setup steps and the results all render without it.
+ *  It is the same argument that already strips the pill row and the "Your data"
+ *  link during onboarding — this is the entrance, and an entrance offering a
+ *  menu is offering a way back out — extended to the route rather than to the
+ *  state, because that is what was asked for.
+ *
+ *  Deliberately a path check and not a state check, unlike `isOnboarding`: the
+ *  condition here is "which page", not "how far through the gate", so it must
+ *  hold on the loading and the 404 branch too. A header that renders for the
+ *  duration of the state fetch and then vanishes is a layout jump, not chrome.
+ *
+ *  Scoped to the index. `/panel/principles/[id]` is a leaf the user arrives at
+ *  from a list, and it keeps the header it needs to get back. */
+function hidesAppHeader(pathname: string | null): boolean {
+  return pathname === "/panel/principles";
+}
+
 export default function PanelShell({ children }: { children: React.ReactNode }) {
   const { state, loading, refresh } = useLifeState();
   const pathname = usePathname();
   const onboarding = state ? isOnboarding(state, pathname) : false;
+  const bare = hidesAppHeader(pathname);
 
   if (loading) {
     return (
       <div className="flex min-h-[100dvh] flex-col bg-background">
-        <DashboardHeader />
+        {bare ? null : <DashboardHeader />}
         <div className="flex flex-1 items-center justify-center">
           <LoadingState withTip={false} />
         </div>
@@ -97,7 +118,9 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   if (!state) {
     return (
       <div className="flex min-h-[100dvh] flex-col bg-background">
-        <DashboardHeader />
+        {bare ? null : <DashboardHeader />}
+        {/* PanelNotFound carries its own way out ("Back to the lab"), so the
+            dead end is never a dead end even with the header gone. */}
         <PanelNotFound />
       </div>
     );
@@ -106,11 +129,15 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   return (
     <LifeStateContext.Provider value={{ state, refresh }}>
       <div className="flex min-h-[100dvh] flex-col bg-background">
-        <DashboardHeader />
+        {bare ? null : <DashboardHeader />}
         {/* Same derivation as the hamburger, so the two can never disagree
             about which views exist. */}
         {onboarding ? null : (
-          <PanelNav menu={panelMenu(state)} pathname={pathname} />
+          <PanelNav
+            menu={panelMenu(state)}
+            pathname={pathname}
+            headerAbove={!bare}
+          />
         )}
         <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8">
           {children}
@@ -142,15 +169,23 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
 function PanelNav({
   menu,
   pathname,
+  headerAbove,
 }: {
   menu: LifeMenuEntry[];
   pathname: string | null;
+  /** Whether DashboardHeader is mounted above this row. 73px is that header's
+   *  height, and it is what this row sticks BELOW so the two do not overlap
+   *  when the page scrolls. With no header there is nothing to clear, and the
+   *  offset would show as a 73px band of page scrolling past above the pills. */
+  headerAbove: boolean;
 }) {
   if (menu.length === 0) return null;
   return (
     <nav
       aria-label="Panel"
-      className="sticky top-[73px] z-20 border-b border-border/70 bg-background/90 backdrop-blur"
+      className={`sticky z-20 border-b border-border/70 bg-background/90 backdrop-blur ${
+        headerAbove ? "top-[73px]" : "top-0"
+      }`}
     >
       <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2">
         {menu.map((entry) => {
