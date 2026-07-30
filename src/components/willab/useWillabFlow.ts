@@ -97,6 +97,14 @@ export function acceptConsentLocally(): void {
   writeFlag(CONSENT_KEY);
 }
 
+/** Read the consent flag from OUTSIDE the flow (client-only; false on the
+ *  server). The landing uses it as a "returning visitor" hint so people who
+ *  have already been through Welcome are not shown the entrance animation
+ *  again while auth resolves. */
+export function hasAcceptedConsentLocally(): boolean {
+  return readFlag(CONSENT_KEY);
+}
+
 export interface UseWillabFlowReturn {
   /** `null` while the initial state resolves post-mount (hydration-safe). */
   state: WillabState | null;

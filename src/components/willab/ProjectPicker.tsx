@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverlayCloseButton from "./OverlayCloseButton";
+import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
 import { fetchTrainings, type TrainingArc } from "@/services/api/trainings";
 
@@ -100,7 +101,13 @@ export default function ProjectPicker({
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
-      <div className="flex h-12 shrink-0 items-center justify-end px-4">
+      {/* Game-style header row (the design reference): title left, close
+          right, one row — the old "New recording" eyebrow is gone (founder,
+          item 6c). */}
+      <div className="flex shrink-0 items-center justify-between px-5 pt-4">
+        <h2 className="text-[17px] font-semibold text-foreground">
+          What are you recording?
+        </h2>
         <OverlayCloseButton onClick={onClose} />
       </div>
 
@@ -117,15 +124,7 @@ export default function ProjectPicker({
         </div>
       ) : (
       <div className="scrollbar-none flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-8">
-          <div>
-            <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-              New recording
-            </p>
-            <h2 className="mt-1.5 text-[22px] font-semibold leading-snug text-foreground">
-              What are you recording?
-            </h2>
-          </div>
+        <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-6">
           <Button
             type="button"
             onClick={onNewTopic}
@@ -136,9 +135,10 @@ export default function ProjectPicker({
           </Button>
 
           {status === "loading" ? (
-            <p className="px-1 text-[13px] text-muted-foreground">
+            <div className="flex items-center gap-2 px-1 text-[13px] text-muted-foreground">
+              <VoiceMark size={20} />
               Looking for your projects…
-            </p>
+            </div>
           ) : status === "error" ? (
             // Unreachable is NOT "you have no projects" — offer the retry
             // rather than steer someone into starting a duplicate topic

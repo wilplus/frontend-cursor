@@ -54,17 +54,23 @@ export function WizardProgress({
   current,
   onBack,
   trailing,
+  showBack = true,
 }: {
   count: number;
   current: number;
   /** Omitted, or on the first step → the slot renders empty, not a dead button. */
   onBack?: () => void;
   trailing?: React.ReactNode;
+  /** Founder 2026-07-30 — the panel's setup moved Back to the BOTTOM bar,
+   *  next to Next. `showBack={false}` empties this row's slot for that flow
+   *  while keeping the fixed-width spacer, so the dots stay centred and the
+   *  other consumer (RecordingSetup) is untouched by default. */
+  showBack?: boolean;
 }) {
   return (
     <div className="mb-6 flex items-center gap-3">
       <div className="w-16">
-        {onBack && current > 0 ? (
+        {showBack && onBack && current > 0 ? (
           <button
             type="button"
             onClick={onBack}

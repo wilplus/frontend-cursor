@@ -28,13 +28,15 @@ export function VoiceMark({ size }: { size: number }) {
       aria-hidden="true"
     >
       <span className="breath-ring absolute inset-0 rounded-full border border-foreground/10" />
+      {/* Ring insets scale with size (6px/12px at the default 64) so the same
+          mark works from a 18px inline wait to the 96px fullscreen one. */}
       <span
-        className="breath-ring absolute inset-[6px] rounded-full border border-foreground/15"
-        style={{ animationDelay: "0.6s" }}
+        className="breath-ring absolute rounded-full border border-foreground/15"
+        style={{ inset: Math.max(1, Math.round(size * 0.094)), animationDelay: "0.6s" }}
       />
       <span
-        className="breath-ring absolute inset-[12px] rounded-full border border-primary/30"
-        style={{ animationDelay: "1.2s" }}
+        className="breath-ring absolute rounded-full border border-primary/30"
+        style={{ inset: Math.max(2, Math.round(size * 0.1875)), animationDelay: "1.2s" }}
       />
       <svg
         width={Math.round(size * 0.42)}

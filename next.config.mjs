@@ -30,6 +30,14 @@ const nextConfig = {
         destination: "/blog/:slug",
         permanent: true,
       },
+      // /science is consolidated into the blog (founder 2026-07-30): the two
+      // papers are now Journal posts in the "Science" category. Permanent so
+      // indexed/shared links keep working and pass their ranking on.
+      {
+        source: "/science",
+        destination: "/blog",
+        permanent: true,
+      },
       // The CMS moved off /admin. Kept out of nav either way.
       {
         source: "/admin/journal",

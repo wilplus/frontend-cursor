@@ -2,7 +2,8 @@
 
 import { useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { EMPTY } from "@/lib/life/copy";
 import { mistakeCategoryLabel } from "@/lib/life/types";
 import { fetchPrinciple } from "@/services/api/life";
@@ -39,16 +40,19 @@ export default function PrincipleDetailPage({
 }) {
   const load = useCallback(() => fetchPrinciple(params.id), [params.id]);
   const resource = usePanelResource(load);
+  const router = useRouter();
 
   return (
     <>
-      <Link
-        href="/panel/principles"
-        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Principles
-      </Link>
+      {/* Game-style header row (the design reference): title left, the one
+          close control right — no back text or arrow (founder, item 6d). */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-[17px] font-semibold text-foreground">Principle</h2>
+        <OverlayCloseButton
+          onClick={() => router.push("/panel/principles")}
+          ariaLabel="Close principle"
+        />
+      </div>
 
       <Resource resource={resource}>
         {(principle) => {

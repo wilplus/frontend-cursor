@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { mergeSession } from "@/services/api/mergeSession";
 
@@ -69,7 +70,7 @@ export default function SendGate({
   if (send.kind === "sending") {
     return (
       <Centered>
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <VoiceMark size={48} />
         <p className="text-[15px] text-foreground">Sending to your coach…</p>
       </Centered>
     );

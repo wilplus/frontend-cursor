@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Square } from "lucide-react";
+import { Square } from "lucide-react";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
@@ -1053,7 +1053,7 @@ function RecordingPhase({
   if (micState.status === "idle") {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+        <VoiceMark size={48} />
         <p className="text-[15px] text-muted-foreground">
           Getting your mic ready…
         </p>

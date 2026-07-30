@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import ChatPageClient from "./page.client";
+import LoadingState from "@/components/willab/LoadingState";
 
 /** Avoid static prerender (search params + client subtree). */
 export const dynamic = "force-dynamic";
@@ -41,13 +42,7 @@ export default function ChatPage({
   const bestPresentationArcId = firstQueryValue(searchParams.arc);
 
   return (
-    <Suspense
-      fallback={
-        <div className="willab-chat flex min-h-screen items-center justify-center bg-background">
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingState fullscreen />}>
       <ChatPageClient
         sessionId={sessionId}
         reviewSessionId={reviewSessionId}

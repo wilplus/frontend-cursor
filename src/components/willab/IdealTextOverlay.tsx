@@ -448,7 +448,7 @@ export default function IdealTextOverlay({
               when the title actually overflows; on a short one it would fade
               the last real letters of a title that fits. */}
           <span
-            className={`block shrink-0 max-w-[10ch] overflow-hidden whitespace-nowrap text-[13px] font-medium text-foreground${
+            className={`block shrink-0 max-w-[10ch] overflow-hidden whitespace-nowrap text-[17px] font-semibold text-foreground${
               titleOverflows
                 ? " [-webkit-mask-image:linear-gradient(to_right,#000_60%,transparent_100%)] [mask-image:linear-gradient(to_right,#000_60%,transparent_100%)]"
                 : ""
@@ -464,7 +464,7 @@ export default function IdealTextOverlay({
               is, which is what a header is for. */}
           {sd ? (
             <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium ${
                 sd.status === "verified"
                   ? "bg-success/10 text-success"
                   : "bg-background text-muted-foreground"
@@ -474,13 +474,13 @@ export default function IdealTextOverlay({
             </span>
           ) : null}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2.5">
           {(status === "ready" || status === "instant") && !editing ? (
             <button
               type="button"
               onClick={copyText}
               aria-label={copied ? "Copied" : "Copy the text"}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               {copied ? (
                 <Check className="h-4 w-4 text-success" aria-hidden />
@@ -501,7 +501,7 @@ export default function IdealTextOverlay({
                   ? IDEAL_EDIT_COPY.arrangeDone
                   : IDEAL_EDIT_COPY.arrangeOpen
               }
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted ${
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-muted ${
                 arranging
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
@@ -521,7 +521,7 @@ export default function IdealTextOverlay({
               type="button"
               onClick={() => setEditing(true)}
               aria-label="Edit your copy"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <PencilLine className="h-4 w-4" aria-hidden />
             </button>

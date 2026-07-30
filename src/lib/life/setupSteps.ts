@@ -16,8 +16,9 @@ export interface LifeSetupStep {
   title: string;
   /** One line under the title. Plain, no exhortation. */
   hint: string;
-  /** The bets step is its own editor; the rest are goal lists. */
-  kind: "bets" | "goals";
+  /** The bets step is its own editor, the document step is the optional
+   *  strategy upload (founder 2026-07-30), the rest are goal lists. */
+  kind: "bets" | "document" | "goals";
   /** Suggested due-label form for this horizon, shown as a placeholder. The
    *  user's own notation always wins: the label is stored verbatim. */
   duePlaceholder?: string;
@@ -29,6 +30,16 @@ export const LIFE_SETUP_STEPS: readonly LifeSetupStep[] = [
     kind: "bets",
     title: "Your three bets",
     hint: "In order. The order decides what wins when two of them want the same morning.",
+  },
+  {
+    // Founder 2026-07-30 — the optional strategy upload sits EARLY, right
+    // after the bets: someone who already wrote their strategy should not
+    // type eight horizons before discovering they could have handed it over.
+    // Skippable by design: Next with nothing uploaded is a complete answer.
+    key: "document",
+    kind: "document",
+    title: "Current strategy (optional)",
+    hint: "",
   },
   {
     key: "daily",

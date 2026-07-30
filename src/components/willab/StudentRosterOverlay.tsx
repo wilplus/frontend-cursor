@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudents,
@@ -98,7 +99,7 @@ export default function StudentRosterOverlay({
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {students === null ? (
           <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <VoiceMark size={48} />
           </div>
         ) : forbidden ? (
           <p className="text-[15px] text-muted-foreground">

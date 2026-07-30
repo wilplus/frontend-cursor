@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, Loader2, FileAudio, Star } from "lucide-react";
+import { Crown, FileAudio, Star } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import OverlayCloseButton from "./OverlayCloseButton";
 import {
   fetchCoachStudentDetail,
@@ -175,7 +176,7 @@ export default function StudentDetailOverlay({
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
         {status === "loading" ? (
           <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <VoiceMark size={48} />
           </div>
         ) : status === "error" || !detail ? (
           <p className="max-w-sm text-[15px] text-muted-foreground">

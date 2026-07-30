@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText } from "lucide-react";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import { fetchUserAudits, type UserAudit } from "@/services/api/userAudits";
 
 function auditDateLabel(iso: string): string {
@@ -45,7 +46,7 @@ export default function AuditsPageClient() {
       <main className="mx-auto max-w-2xl px-4 py-8">
         {status === "loading" ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <VoiceMark size={40} />
           </div>
         ) : audits.length === 0 ? (
           <p className="text-[15px] text-muted-foreground">Nothing here yet.</p>

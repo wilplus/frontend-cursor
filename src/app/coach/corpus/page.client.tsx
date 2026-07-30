@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Loader2, Undo2, Upload, X } from "lucide-react";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { useUserProfile } from "@/components/willab/useUserProfile";
@@ -1077,7 +1078,7 @@ function LabelScreen({
       <div className="scrollbar-none flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
         {status === "loading" ? (
           <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <VoiceMark size={48} />
           </div>
         ) : status === "error" || !queue ? (
           <p className="text-[15px] text-muted-foreground">

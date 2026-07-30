@@ -1,8 +1,9 @@
 // Bumping the cache name forces every browser to drop the previous SW
 // version and reinstall fresh — that's important after the auth-bypass
 // added below, otherwise users keep running the old SW that still
-// intercepts /auth/* navigations.
-const CACHE_NAME = "willab-shell-v3";
+// intercepts /auth/* navigations. (v4: push + notificationclick handlers for
+// the opt-in Life Panel reminders, founder decision 2026-07-30.)
+const CACHE_NAME = "willab-shell-v4";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icon"];
 
 self.addEventListener("install", (event) => {
@@ -83,6 +84,52 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached || Response.error());
     })
+  );
+});
+
+// Life Panel reminders (founder decision 2026-07-30) — OPT-IN ONLY. A push
+// only ever arrives because the user enabled a reminder slot in the panel
+// settings; the backend sends nothing to anyone who did not. Payload is
+// {title, body, url}; anything malformed degrades to a plain card pointing
+// at today's check-in.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = typeof data.title === "string" && data.title ? data.title : "WillpowerLab";
+  const body = typeof data.body === "string" ? data.body : "";
+  const url = typeof data.url === "string" && data.url ? data.url : "/panel/today";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      data: { url },
+      icon: "/icon",
+      badge: "/icon",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url =
+    (event.notification.data && event.notification.data.url) || "/panel/today";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windows) => {
+        for (const client of windows) {
+          if ("focus" in client) {
+            if ("navigate" in client) {
+              client.navigate(url).catch(() => {});
+            }
+            return client.focus();
+          }
+        }
+        return self.clients.openWindow(url);
+      })
   );
 });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Square } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
@@ -242,7 +243,7 @@ export default function IdealReadMic({
     return (
       <div className="mt-1 flex flex-col items-center gap-2 border-t border-border pt-4">
         <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <VoiceMark size={20} />
           Finishing up your reading…
         </div>
       </div>

@@ -79,8 +79,21 @@ describe("panel copy", () => {
 
   it("uses no em-dashes or en-dashes", () => {
     // Founder rule, same as the Journal's. Commas or periods.
-    const offenders = ALL.filter((s) => /[—–]/.test(s.text));
+    //
+    // ONE named exemption (2026-07-30): DAY.distractionQuestion is
+    // founder-PROVIDED verbatim copy, quoted with the founder's own em dash
+    // ("Am I doing this to move the bet — or to hide?"). Quoted copy is not
+    // house copy; the exemption is by exact path so nothing else can ride
+    // in under it.
+    const FOUNDER_VERBATIM = new Set(["DAY.distractionQuestion"]);
+    const offenders = ALL.filter(
+      (s) => /[—–]/.test(s.text) && !FOUNDER_VERBATIM.has(s.path)
+    );
     expect(offenders.map((s) => s.path)).toEqual([]);
+    // The exemption may only ever cover the string it was granted for.
+    expect(copy.DAY.distractionQuestion).toBe(
+      "Am I doing this to move the bet — or to hide?"
+    );
   });
 
   it("surfaces no score, streak, percentage or consistency meter", () => {

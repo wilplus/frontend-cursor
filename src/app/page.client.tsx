@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import WelcomeConsent from "@/components/willab/WelcomeConsent";
-import { acceptConsentLocally } from "@/components/willab/useWillabFlow";
+import LoadingState from "@/components/willab/LoadingState";
+import {
+  acceptConsentLocally,
+  hasAcceptedConsentLocally,
+} from "@/components/willab/useWillabFlow";
 import { useSignedIn } from "@/components/willab/useSignedIn";
 import JournalCard from "@/components/journal/JournalCard";
 import { type JournalPostSummary } from "@/services/api/journal";
@@ -21,6 +25,27 @@ import { type JournalPostSummary } from "@/services/api/journal";
 /*  marketing must never sit in front of it.                                    */
 /* -------------------------------------------------------------------------- */
 
+/** Client-only "returning visitor" hint, read synchronously so the very first
+ *  post-mount render can already skip the entrance animation. True when the
+ *  consent flag was written before, or a Supabase auth token key is present —
+ *  either way this browser has been past Welcome, so the breathing-mark intro
+ *  should not replay while auth resolves. */
+function readReturningHint(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (hasAcceptedConsentLocally()) return true;
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith("sb-") && key.includes("auth-token")) {
+        return true;
+      }
+    }
+  } catch {
+    /* ignore — treat as first-time */
+  }
+  return false;
+}
+
 export default function LandingClient({
   posts,
 }: {
@@ -29,14 +54,26 @@ export default function LandingClient({
   const signedIn = useSignedIn();
   const router = useRouter();
 
+  // Lazy initializer: false on the server, the real flag on the client's first
+  // render. It is only ACTED on after mount (below), so SSR markup and the
+  // hydration pass stay identical — the standard two-pass pattern.
+  const [returningHint] = useState(readReturningHint);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (signedIn === true) router.replace("/chat");
   }, [signedIn, router]);
 
   // Already signed in: render nothing rather than flash marketing during the
-  // redirect. While auth is still resolving (null) the landing shows, which is
-  // the right default — anonymous visitors are who this page is for.
+  // redirect. While auth is still resolving (null) the landing shows for
+  // anonymous visitors — they are who this page is for — but a RETURNING
+  // browser (consent flag / auth token present) gets a neutral instant wait
+  // instead, so the entrance animation never flashes before the redirect.
   if (signedIn === true) return null;
+  if (mounted && returningHint && signedIn === null) {
+    return <LoadingState fullscreen withTip={false} />;
+  }
 
   return (
     <main className="bg-background text-foreground">

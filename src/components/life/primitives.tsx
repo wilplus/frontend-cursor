@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { STATUS } from "@/lib/life/copy";
+import { VoiceMark } from "@/components/willab/LoadingState";
 
 /* -------------------------------------------------------------------------- */
 /*  Shared panel primitives — heading, empty state, load state, one fetch hook */
@@ -47,7 +48,14 @@ export function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 export function LoadingLine() {
-  return <p className="py-8 text-sm text-muted-foreground">{STATUS.loading}</p>;
+  // The one circular logo loader (VoiceMark), small, beside the same status
+  // text as before — same component API, so every /panel view picks it up.
+  return (
+    <div className="flex items-center gap-2.5 py-8 text-sm text-muted-foreground">
+      <VoiceMark size={24} />
+      <span>{STATUS.loading}</span>
+    </div>
+  );
 }
 
 export function ErrorLine({ onRetry }: { onRetry?: () => void }) {

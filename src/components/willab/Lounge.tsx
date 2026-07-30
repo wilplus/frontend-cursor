@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Send, Upload, Users } from "lucide-react";
+import { Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Linkified from "./Linkified";
 import { postChatQuery } from "@/services/api/chatQuery";
@@ -27,7 +27,7 @@ import {
 import { stageLabUpload } from "./labUploadStage";
 import { validateAudioUpload } from "./audioUploadValidation";
 import ReportCard, { type FeedbackBubbleTarget } from "./ReportCard";
-import LoadingState from "./LoadingState";
+import LoadingState, { VoiceMark } from "./LoadingState";
 import FeedbackOverlay from "./FeedbackOverlay";
 import IdealTextOverlay from "./IdealTextOverlay";
 import LibraryOverlay from "./LibraryOverlay";
@@ -834,7 +834,7 @@ export default function Lounge({
           }`}
         >
           {processingResume.status === "failed" ? null : (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            <VoiceMark size={18} />
           )}
           {processingResume.status === "failed"
             ? "That take's analysis failed. Record it again when you're ready."

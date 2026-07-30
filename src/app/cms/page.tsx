@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CommunitySection from "./CommunitySection";
 import CoverImageStudio from "./CoverImageStudio";
+import BodyBlocks from "@/components/journal/BodyBlocks";
 import {
   ArrowDown,
   ArrowUp,
@@ -52,7 +53,11 @@ import {
 /*    - Published date       = the DISPLAY date (so a post can be backdated)    */
 /*                                                                            */
 /*  The body is PLAIN TEXT (blank line = new paragraph). No rich text, no       */
-/*  inline media, no HTML.                                                     */
+/*  HTML — with ONE founder-approved extension: two line-level media tokens,    */
+/*  `[image: url | alt]` and `[file: url | label]` (the BODY TOKEN SPEC in      */
+/*  services/api/journal.ts). The body textarea accepts dropped/pasted images:  */
+/*  they are downscaled client-side, uploaded via the same presign flow as      */
+/*  covers, and inserted as an [image: …] token line.                           */
 /* -------------------------------------------------------------------------- */
 
 const PW_KEY = "willpower.journal.pw";
@@ -125,6 +130,119 @@ function dateInputValue(iso: string | null): string {
   return d.toISOString().slice(0, 10);
 }
 
+/* ----------------------- body image upload helpers ------------------------ */
+
+/** Max width for an inline body image. 1200px covers the 680px content
+ *  column on a 2x display with headroom; anything larger only costs bytes. */
+const BODY_IMAGE_MAX_WIDTH = 1200;
+
+/** Alt-text guess from a filename: "breathing-drill_01.jpg" → "breathing
+ *  drill 01". Token delimiters are stripped so the guess can never break the
+ *  `[image: url | alt]` line it lands in. */
+function altFromFilename(name: string): string {
+  return name
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[[\]|]/g, " ")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Swap a filename's extension to match the re-encoded format. */
+function withExt(name: string, ext: string): string {
+  return name.replace(/\.[a-z0-9]+$/i, "") + ext;
+}
+
+/** Downscale a body image client-side: max width 1200px (aspect kept),
+ *  exported as webp q0.85 with a jpeg fallback for browsers that can't
+ *  encode webp. GIFs pass through untouched — a canvas re-encode would keep
+ *  one frame and silently kill the animation. If decoding fails (exotic
+ *  format), the original file is returned and the presign allowlist decides. */
+async function prepareBodyImage(
+  file: File
+): Promise<{ file: File; contentType: string }> {
+  if (file.type === "image/gif") {
+    return { file, contentType: "image/gif" };
+  }
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, BODY_IMAGE_MAX_WIDTH / bitmap.width);
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const encode = (type: string) =>
+      new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.85));
+    // toBlob silently falls back to PNG when it can't encode the requested
+    // type, so the REAL type of the result decides, not the request.
+    let blob = await encode("image/webp");
+    if (blob && blob.type === "image/webp") {
+      return {
+        file: new File([blob], withExt(file.name, ".webp"), {
+          type: "image/webp",
+        }),
+        contentType: "image/webp",
+      };
+    }
+    blob = await encode("image/jpeg");
+    if (blob && blob.type === "image/jpeg") {
+      return {
+        file: new File([blob], withExt(file.name, ".jpg"), {
+          type: "image/jpeg",
+        }),
+        contentType: "image/jpeg",
+      };
+    }
+    throw new Error("encode failed");
+  } catch {
+    // Undecodable/unencodable here — hand the original to the presign, whose
+    // MIME allowlist gives the author a real error instead of a silent drop.
+    return { file, contentType: file.type || "application/octet-stream" };
+  }
+}
+
+/** Insert `line` into `body` at character index `at`, on its own line (the
+ *  token spec is line-level). Adds only the newlines actually missing. */
+function insertLineIntoBody(body: string, at: number, line: string): string {
+  const i = Math.max(0, Math.min(at, body.length));
+  const before = body.slice(0, i);
+  const after = body.slice(i);
+  const prefix = before === "" || before.endsWith("\n") ? "" : "\n";
+  const suffix = after === "" || after.startsWith("\n") ? "" : "\n";
+  return before + prefix + line + suffix + after;
+}
+
+/** Remove a placeholder line again (failed upload), healing the newlines the
+ *  insert added so the author isn't left with stray blank lines. */
+function removeLineFromBody(body: string, line: string): string {
+  return body
+    .replace(line + "\n", "")
+    .replace(line, "")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+/** Map a drop point to a caret index in the textarea where the browser can
+ *  (Firefox reports the textarea itself as the offset node). Null = unknown;
+ *  the caller falls back to the current caret. */
+function dropCaretIndex(
+  e: React.DragEvent,
+  textarea: HTMLTextAreaElement
+): number | null {
+  const doc = document as Document & {
+    caretPositionFromPoint?: (
+      x: number,
+      y: number
+    ) => { offsetNode: Node; offset: number } | null;
+  };
+  const pos = doc.caretPositionFromPoint?.(e.clientX, e.clientY);
+  return pos && pos.offsetNode === textarea ? pos.offset : null;
+}
+
 function StatusPill({ status }: { status: "draft" | "published" }) {
   // Semantic emerald/amber: these signal state in an internal tool, not brand.
   return (
@@ -152,6 +270,14 @@ export default function JournalAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  // Body image uploads: a sequence for unique placeholders, a counter for the
+  // spinner (several drops can be in flight at once), drag highlight, and the
+  // collapsible preview.
+  const bodyUploadSeq = useRef(0);
+  const [bodyUploads, setBodyUploads] = useState(0);
+  const [bodyDragOver, setBodyDragOver] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   // Snapshot of the editor as last loaded/saved. Anything different is unsaved
   // work, so leaving the editor has to ask first (losing a written post to a
   // stray click is the worst thing this tool could do).
@@ -447,6 +573,79 @@ export default function JournalAdminPage() {
         ? "Uploaded."
         : "Upload finished, but the editor had moved on. Paste the URL if you still want it."
     );
+  }
+
+  /** Upload ONE dropped/pasted image and insert its `[image: …]` token line.
+   *
+   *  A unique `[image: uploading-N | alt]` placeholder goes in immediately at
+   *  the drop/caret position and is swapped for the real token when the
+   *  upload lands (or removed again on failure, with the error surfaced in
+   *  the same red box every other CMS failure uses). Deliberately NOT gated
+   *  on the global `busy`: the author keeps typing while the bytes move, and
+   *  the placeholder swap is a string replace, so concurrent edits are safe. */
+  async function addBodyImage(file: File, at: number | null) {
+    if (!editing) return;
+    const alt = altFromFilename(file.name);
+    const placeholder = `[image: uploading-${++bodyUploadSeq.current} | ${alt}]`;
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const idx = at ?? bodyRef.current?.selectionEnd ?? prev.body.length;
+      return { ...prev, body: insertLineIntoBody(prev.body, idx, placeholder) };
+    });
+    setBodyUploads((n) => n + 1);
+    const fail = (msg: string) => {
+      setEditing((prev) =>
+        prev ? { ...prev, body: removeLineFromBody(prev.body, placeholder) } : prev
+      );
+      setError(msg);
+    };
+    try {
+      const prepared = await prepareBodyImage(file);
+      const signed = await adminPresign(password, {
+        filename: prepared.file.name,
+        contentType: prepared.contentType,
+        kind: "image",
+      });
+      if (!signed.ok || !signed.data) {
+        fail(
+          signed.ok ? "Image upload could not be prepared." : signed.message
+        );
+        return;
+      }
+      const uploaded = await uploadToStorage(signed.data, prepared.file);
+      if (!uploaded) {
+        fail(
+          "Image upload failed. Try again, or type an [image: url | alt] line with a hosted URL."
+        );
+        return;
+      }
+      const token = `[image: ${signed.data.publicUrl} | ${alt}]`;
+      let swapped = false;
+      setEditing((prev) => {
+        if (!prev || !prev.body.includes(placeholder)) return prev;
+        swapped = true;
+        return { ...prev, body: prev.body.replace(placeholder, token) };
+      });
+      flash(
+        swapped
+          ? "Image added to the body."
+          : "Upload finished, but the editor had moved on."
+      );
+    } finally {
+      setBodyUploads((n) => Math.max(0, n - 1));
+    }
+  }
+
+  /** Fan a dropped/pasted file list into sequential uploads. Only the first
+   *  insert uses the drop point — the following ones land at the caret the
+   *  previous insert left, which keeps a multi-file drop in order. */
+  async function addBodyImages(files: File[], at: number | null) {
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0 || !editing) return;
+    for (const file of images) {
+      await addBodyImage(file, at);
+      at = null;
+    }
   }
 
   /* -------------------------------- render ------------------------------- */
@@ -992,18 +1191,85 @@ export default function JournalAdminPage() {
                     />
                   </div>
 
-                  {/* 7 — body (plain text) */}
+                  {/* 7 — body (plain text + media token lines) */}
                   <div>
                     <label className={LABEL_CLS} htmlFor="j-body">
-                      Body, separate paragraphs with a blank line
+                      <span className="inline-flex items-center gap-1.5">
+                        Body, separate paragraphs with a blank line
+                        {bodyUploads > 0 ? (
+                          <Loader2
+                            className="h-3 w-3 animate-spin"
+                            aria-label="Uploading image"
+                          />
+                        ) : null}
+                      </span>
                     </label>
                     <textarea
                       id="j-body"
+                      ref={bodyRef}
                       value={editing.body}
                       onChange={(e) => patch({ body: e.target.value })}
+                      // Drag/drop + paste of image files. dragover MUST
+                      // preventDefault or the browser navigates to the file;
+                      // the highlight tells the author the drop will land.
+                      onDragOver={(e) => {
+                        if (e.dataTransfer.types.includes("Files")) {
+                          e.preventDefault();
+                          setBodyDragOver(true);
+                        }
+                      }}
+                      onDragLeave={() => setBodyDragOver(false)}
+                      onDrop={(e) => {
+                        if (!e.dataTransfer.types.includes("Files")) return;
+                        e.preventDefault();
+                        setBodyDragOver(false);
+                        const at = dropCaretIndex(e, e.currentTarget);
+                        void addBodyImages(Array.from(e.dataTransfer.files), at);
+                      }}
+                      onPaste={(e) => {
+                        const files = Array.from(
+                          e.clipboardData?.files ?? []
+                        ).filter((f) => f.type.startsWith("image/"));
+                        if (files.length === 0) return; // plain text pastes as usual
+                        e.preventDefault();
+                        void addBodyImages(files, e.currentTarget.selectionEnd);
+                      }}
                       rows={18}
-                      className={`${INPUT_CLS} resize-y text-[15px] leading-[1.75]`}
+                      className={`${INPUT_CLS} resize-y text-[15px] leading-[1.75] ${
+                        bodyDragOver
+                          ? "border-foreground/60 ring-2 ring-foreground/10"
+                          : ""
+                      }`}
                     />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Drop or paste an image to upload and insert it. On its
+                      own line, <code>[image: url | alt text]</code> renders a
+                      centered image and <code>[file: url | label]</code> a
+                      download row; anything else stays plain text.
+                    </p>
+
+                    {/* Live preview — the SAME BodyBlocks the public post
+                        renders, so what the founder sees here is what ships. */}
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen((o) => !o)}
+                      aria-expanded={previewOpen}
+                      className={`${BTN_GHOST} mt-2`}
+                    >
+                      <Eye className="h-3.5 w-3.5" aria-hidden />
+                      {previewOpen ? "Hide preview" : "Preview"}
+                    </button>
+                    {previewOpen ? (
+                      <div className="mt-2 space-y-6 rounded-xl border border-border bg-background p-4">
+                        {editing.body.trim() ? (
+                          <BodyBlocks body={editing.body} />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Nothing to preview yet.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* 8 — community drafts derived from this post. Sits under
