@@ -47,6 +47,7 @@ import {
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
 import { restoredSetupFor } from "./restoredSetup";
+import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -756,7 +757,9 @@ export default function LabOverlay({
         </header>
       )}
 
-      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
+      <div
+        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+      >
         {state === "lab_feelings" && (
           <FeelingsCheckIn onReady={startAfterCheckIn} />
         )}

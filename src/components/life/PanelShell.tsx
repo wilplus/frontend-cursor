@@ -8,6 +8,7 @@ import PanelNotFound from "@/components/life/PanelNotFound";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
+import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import { VIEWS } from "@/lib/life/copy";
 import {
   hasConsented,
@@ -100,7 +101,7 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
 
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] flex-col bg-background">
+      <div className="flex min-h-full flex-col bg-background">
         {bare ? null : <DashboardHeader />}
         <div className="flex flex-1 items-center justify-center">
           <LoadingState withTip={false} />
@@ -117,7 +118,7 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   // this way it does not depend on where Next places the boundary.
   if (!state) {
     return (
-      <div className="flex min-h-[100dvh] flex-col bg-background">
+      <div className="flex min-h-full flex-col bg-background">
         {bare ? null : <DashboardHeader />}
         {/* PanelNotFound carries its own way out ("Back to the lab"), so the
             dead end is never a dead end even with the header gone. */}
@@ -128,7 +129,7 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
 
   return (
     <LifeStateContext.Provider value={{ state, refresh }}>
-      <div className="flex min-h-[100dvh] flex-col bg-background">
+      <div className="flex min-h-full flex-col bg-background">
         {bare ? null : <DashboardHeader />}
         {/* Same derivation as the hamburger, so the two can never disagree
             about which views exist. */}
@@ -143,7 +144,9 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
             bar to the bottom with `mt-auto`, which needs its own height to
             come from this column rather than from its content. Stacked
             content in every other view renders identically either way. */}
-        <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 py-8">
+        <main
+          className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pt-8 ${SCREEN_BOTTOM_GAP}`}
+        >
           {children}
         </main>
         {/* FE-10 — export and hard delete stay two clicks away for anyone who

@@ -15,6 +15,7 @@ import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import ModeToggle from "@/components/willab/ModeToggle";
 import { VoiceMark } from "@/components/willab/LoadingState";
 import { readExploreArc } from "@/lib/willab/exploreArc";
+import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 import {
   fetchArcBreakthroughs,
   type ArcBreakthrough,
@@ -113,7 +114,9 @@ export default function GamePageClient({
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-3">
+      <div
+        className={`flex min-h-0 flex-1 flex-col px-5 pt-3 ${SCREEN_BOTTOM_GAP}`}
+      >
         {/* The game keeps its state while hidden: an unmount would forget the
             answered rounds, and a re-answer is a duplicate peer label (N3). */}
         <div
@@ -691,7 +694,7 @@ function BestVoices({ arcId }: { arcId: string | null }) {
       </div>
 
       {/* Neutral black steppers, centered — no dilemma here. */}
-      <div className="mt-auto flex shrink-0 items-center justify-center gap-3 pb-1 pt-2">
+      <div className="mt-auto flex shrink-0 items-center justify-center gap-3 pt-2">
         <button
           type="button"
           onClick={() => setI((n) => Math.max(0, n - 1))}
