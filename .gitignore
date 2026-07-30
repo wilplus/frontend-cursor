@@ -66,3 +66,9 @@ backend/*.pyc
 backend/**/*.pyc
 backend/.env
 backend/instance/
+
+# Claude Code worktrees. `.claude/worktrees/<name>/` is a git worktree — a
+# second working copy of THIS repo — created by the agent tooling. Committing
+# one would nest a checkout inside its own history. Ignored, not deleted: the
+# work in it is pushed from its own branch like any other.
+.claude/worktrees/
