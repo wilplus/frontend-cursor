@@ -258,9 +258,14 @@ export const SETUP = {
   doneLabel: "Open the panel",
 
   /** The optional strategy upload step (founder 2026-07-30). Optional means
-   *  optional: nothing here pressures, and skipping it costs nothing. */
+   *  optional: nothing here pressures, and skipping it costs nothing.
+   *
+   *  It fills the screens AFTER it in (founder, same day: "it works like a CV
+   *  generator that fills the goals from the docs"), so the copy has to say so
+   *  before the upload, not after. Someone who hands over a document and then
+   *  finds their answers already typed has been surprised by their own form. */
   documentHint:
-    "If you already keep a strategy document, you can hand it over here. The text is read out of it and stored, the file itself is not kept. You can also just skip this.",
+    "If you already keep a strategy document, hand it over here and the screens after this one come filled in from it. You can change or delete anything it puts there. The text is read out of the file and stored, the file itself is not kept. Skipping this is fine too.",
   documentBrowseLabel: "Choose a file",
   documentDropNote: "PDF, Word, markdown or plain text, up to 15MB.",
   documentUploading: "Reading it",
@@ -269,18 +274,44 @@ export const SETUP = {
   documentUploadError: "That upload did not go through. Try again.",
   documentCharsSuffix: "characters read",
 
-  /** Drafting goals from the uploaded document. Offered, never automatic:
-   *  the button asks, the checkboxes decide, and only ticked rows are ever
+  /** What the upload does to the rest of setup. Drafting runs on upload
+   *  because drafting CREATES nothing: it fills screens the user has not
+   *  reached yet, and they walk through every one of them before any of it is
+   *  saved as an answer. */
+  documentFillWorking: "Reading your document and filling in your goals",
+  documentFillDone:
+    "Your goals are filled in from your document. They are on the screens after this one, where you can change or delete any of them.",
+  documentFillNone:
+    "Nothing that reads as a goal came out of that document. The next screens are yours to fill in.",
+  documentFillFailed:
+    "Your document could not be read into goals. The next screens are yours to fill in, or you can try another file.",
+
+  /** The same upload, still open after setup, on the Goals view. Setup runs
+   *  once and a strategy does not, so the door stays open. */
+  documentPanelTitle: "Your strategy document",
+  documentPanelLede:
+    "Hand over a document and draft new rows from it. You can do this whenever, as many times as you want.",
+  draftPanelNote:
+    "Only the ticked rows are created when you press Add, exactly as written here.",
+  draftApplyLabel: "Add the ticked rows",
+  draftApplyWorking: "Adding them",
+  draftApplied: "Added. They are in your panel now.",
+  draftApplyFailed: "That did not go through. Nothing was created, try again.",
+  draftNothingTicked: "Nothing is ticked, so there is nothing to add.",
+
+  /** Drafting rows the fill could not place on a screen. Offered, never
+   *  automatic: the checkboxes decide, and only ticked rows are ever
    *  created. */
   draftButton: "✨ Draft from my document",
   draftWorking: "Reading your document",
-  draftHint:
-    "Reads your uploaded document and lists what it found. Tick what should be created, edit the wording, untick the rest. Nothing is created until you finish setup.",
   draftEmpty: "Nothing usable was found in the document.",
   draftFailed: "That did not work. Your document is unchanged, try again.",
   draftReviewTitle: "From your document",
+  /** In setup this list is the REMAINDER: habits, distractions and anything
+   *  else the fill had no screen to put on. Saying so is what stops it reading
+   *  as a second, contradictory copy of the goals already filled in. */
   draftReviewNote:
-    "Only the ticked rows are created when you finish, exactly as written here.",
+    "Your document also mentioned these, and there was no screen to put them on. Only the ticked rows are created when you finish, exactly as written here.",
   draftKindLabels: {
     bet: "Bets",
     goal: "Goals",
