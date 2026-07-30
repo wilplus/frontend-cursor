@@ -23,7 +23,8 @@ import { PieceBadgeText, PieceSwapSheet } from "./PieceBadges";
 import { stripRichMarkers } from "@/lib/willab/richMarkers";
 import MarkedEditor from "./MarkedEditor";
 import MarkedParagraphs from "./MarkedParagraphs";
-import { PENDING_VERIFICATION } from "@/lib/willab/verificationCopy";
+import IdealTextHeading from "./IdealTextHeading";
+import OverlayCloseButton from "./OverlayCloseButton";
 import DocumentArranger from "./DocumentArranger";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
 import IdealReadMic from "./IdealReadMic";
@@ -77,6 +78,7 @@ export default function IdealTextReadout({
   onAutoSent,
   onSignUp,
   onReRead,
+  onClose,
 }: {
   payload: ReadoutPayload;
   sessionId: string | null;
@@ -92,6 +94,11 @@ export default function IdealTextReadout({
    *  drops us back into the record flow for this presentation, and the reading
    *  sharpens the text. Absent → the re-read block hides. */
   onReRead?: () => void;
+  /** Founder 2026-07-30 — the host's way out, drawn in THIS screen's head
+   *  beside the title, the way the ideal-text overlay draws its own. The host
+   *  stops drawing its bare header when it passes this, so the ✕ moves rather
+   *  than duplicating. Absent → no ✕ (a host with its own exit). */
+  onClose?: () => void;
 }) {
   const composed = useMemo(() => composeIdealText(payload), [payload]);
   const [text, setText] = useState(composed);
@@ -525,12 +532,15 @@ export default function IdealTextReadout({
 
   return (
     <div className="flex flex-1 flex-col gap-4">
+      {/* Founder 2026-07-30 — this screen is an ideal text, so it is headed
+          like one: the project's name with its verification state beside it,
+          the actions and the way out on the same row. It used to spend this
+          band on a lone badge under an EMPTY overlay header — the one thing
+          the ideal-text overlay had already been fixed not to do. The host
+          hands its ✕ down here rather than drawing a second one above (the
+          same "it moves, it does not duplicate" rule as the setup flow). */}
       <div className="flex items-center justify-between gap-2">
-        {/* The one status: grey now; flips to green on the ideal-text page
-            once the coach verifies. */}
-        <span className="rounded-lg bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
-          {PENDING_VERIFICATION}
-        </span>
+        <IdealTextHeading title={sd?.title} status={sd ? sd.status : null} />
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -591,6 +601,9 @@ export default function IdealTextReadout({
                 <PencilLine className="h-4 w-4" aria-hidden />
               )}
             </button>
+          ) : null}
+          {onClose ? (
+            <OverlayCloseButton onClick={onClose} className="ml-1" />
           ) : null}
         </div>
       </div>
