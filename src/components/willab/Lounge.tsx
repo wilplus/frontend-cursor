@@ -314,26 +314,6 @@ export default function Lounge({
   // that the top banner is gone: open the overlay, and if we were in the unread
   // insights_ready state, clear the flag + return the status machine to idle
   // (exactly what the banner's "Read ›" button used to do).
-  // FE-4 — the newest ideal-text version the thread has announced (the BE
-  // stamps metadata.version on every version bubble). null before the first.
-  // Founder 2026-07-29 — no hero bubble any more: every version bubble is the
-  // same fixed history card, so only the version number is tracked here.
-  const latestIdealVersion = useMemo(() => {
-    let v: number | null = null;
-    for (const m of messages) {
-      if (m.kind !== "ideal_text") continue;
-      const raw = m.metadata?.version;
-      const n =
-        typeof raw === "number" && Number.isFinite(raw)
-          ? raw
-          : typeof raw === "string" && raw.trim() && Number.isFinite(Number(raw))
-            ? Number(raw)
-            : null;
-      if (n !== null && (v === null || n >= v)) v = n;
-    }
-    return v;
-  }, [messages]);
-
 
   // C8 — every quick-action CTA lands in ONE place: the Trainings library
   // (trainings / audit). audit previously routed to /audits; it now opens the
@@ -744,8 +724,13 @@ export default function Lounge({
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-      <StatusRegion state={state} goTo={goTo} idealVersion={latestIdealVersion} />
-
+      {/* Founder 2026-07-30 — the status region above the thread is GONE, and
+          with it the last top banner. U5 moved the sent confirmation into the
+          thread and U6 did the same for insights ready; the parked card was
+          the one left, and it announced "Ideal text N.0 is waiting for you"
+          directly above the thread's own ideal-text card, which says the same
+          thing about the same document and opens it. Two banners for one
+          document, one of them outside the conversation the product is. */}
       <div
         ref={scrollRef}
         onScroll={handleThreadScroll}
@@ -1433,66 +1418,4 @@ function LoungeEmptyState({ onStart }: { onStart: () => void }) {
       </button>
     </div>
   );
-}
-
-/* ----------------------------- status region (§6a) ------------------------ */
-/*  Single-active by construction: these states are mutually exclusive in the
- *  §8 machine, so at most one card renders. */
-function StatusRegion({
-  state,
-  goTo,
-  idealVersion,
-}: {
-  state: WillabState;
-  goTo: (s: WillabState) => void;
-  /** FE-4 — the live version announced in the thread, so the parked card names
-   *  the deliverable ("Ideal text 3.0") instead of an unfinished "training". */
-  idealVersion: number | null;
-}) {
-  if (state === "parked") {
-    return (
-      <StatusCard tone="hold">
-        <p className="text-[15px] text-foreground">
-          {idealVersion === null
-            ? "Your ideal text is waiting for you."
-            : `Ideal text ${idealVersion}.0 is waiting for you.`}
-        </p>
-        {/* TODO(slice: Readout): restore the held Readout data on resume. */}
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => goTo("readout")}
-          className="mt-2 rounded-full"
-        >
-          Review
-        </Button>
-      </StatusCard>
-    );
-  }
-  // U5 — the review_pending confirmation moved OUT of the status region into an
-  // in-thread bubble (<SentConfirmationBubble>) at the bottom of the thread, so
-  // the "sent" acknowledgement reads as part of the conversation rather than a
-  // top banner. StatusRegion renders nothing for review_pending now.
-  // U6 — the "insights ready" top banner is REMOVED. The coach's insight is
-  // delivered as an in-thread card (BE-appends it on publish, idempotent), which
-  // is now the sole surface + "mark read" path (handleViewInsights). The
-  // insights_ready state still drives the one-shot thread reload; StatusRegion
-  // renders no card for it.
-  return null;
-}
-
-function StatusCard({
-  tone,
-  children,
-}: {
-  tone: "hold" | "info" | "ready";
-  children: React.ReactNode;
-}) {
-  const toneClass =
-    tone === "ready"
-      ? "border-primary/30 bg-primary/5"
-      : tone === "hold"
-        ? "border-border bg-muted/30"
-        : "border-border bg-muted/20";
-  return <div className={`rounded-2xl border p-3 ${toneClass}`}>{children}</div>;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FileText, GripVertical, Plus, Target, X } from "lucide-react";
 import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
@@ -27,6 +28,7 @@ import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
 import { useDragReorder } from "./useDragReorder";
 import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
+import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
 import { duePresets } from "@/lib/life/duePresets";
 import { Button } from "@/components/ui/button";
 
@@ -58,6 +60,7 @@ export default function SetupFlow({
   resumeStep: string | null;
   onComplete: () => void;
 }) {
+  const router = useRouter();
   const [answers, setAnswers] = useState<LifeSetupAnswers | null>(null);
   const [index, setIndex] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -160,7 +163,12 @@ export default function SetupFlow({
   // full-width rounded CTA. Same components, so the two onboardings cannot
   // drift apart again.
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col">
+    // Founder 2026-07-30 — fills its column so the bottom bar is AT the
+    // bottom, the way the recording onboarding's is. It used to be
+    // `min-h-[60vh]`, which put Next directly under the last card with the
+    // rest of the screen empty below it: the button moved up and down as the
+    // steps changed length, and on the short steps it sat mid-screen.
+    <div className="mx-auto flex w-full max-w-xl flex-1 flex-col">
       {/* Founder 2026-07-30 — Back moved to the BOTTOM bar next to Next,
           never the top. The dot row keeps its fixed side slots (showBack
           only empties the leading one), so the dots stay centred and the
@@ -169,13 +177,28 @@ export default function SetupFlow({
         count={LIFE_SETUP_STEPS.length}
         current={index}
         showBack={false}
+        trailing={
+          // Founder 2026-07-30 — the way out, top-right, as the voice-game
+          // has. This screen took the app header off, which took the
+          // hamburger with it, so until now a user part-way through ten
+          // steps had no exit at all. /chat is where the consent screen's
+          // "Not now" already goes, so leaving lands in the same place
+          // whichever door you use. Nothing is discarded: every step has
+          // already been written, and the resume step brings you back here.
+          <OverlayCloseButton
+            onClick={() => router.push("/chat")}
+            ariaLabel="Close setup"
+          />
+        }
       />
 
       <div className="flex-1">
-        {/* STEP n OF 10 stays — it is the one piece of chrome that tells the
-            user how much is left, and this form's completion rate is the
-            feature's adoption rate. It is the head's eyebrow now, which is
-            where the recording flow puts the same information.
+        {/* Founder 2026-07-30 — "STEP n OF 10" is DELETED. It had been kept as
+            the one thing telling a user how much was left, but the dot row is
+            directly above it doing exactly that, in the same glance and
+            without words: ten dots, the current one long. The counter was the
+            sentence version of the picture, and the recording onboarding has
+            never had one.
             FE-10 — the grey "Eight horizons…" paragraph is gone: it rendered on
             screen 1 only, which is exactly what made screen 1 the odd one out.
             With it gone all the steps render through this one path. */}
@@ -188,12 +211,8 @@ export default function SetupFlow({
         {/* Founder 2026-07-30 — the question wears the voice-game head, and
             the target is this flow's mark: every step of it is the user
             setting their strategy, so the mark is the flow's, not the step's.
-            The step counter stays as the eyebrow for the reason above it. */}
-        <StepHead
-          icon={Target}
-          eyebrow={`Step ${index + 1} of ${LIFE_SETUP_STEPS.length}`}
-          question={step.title}
-        />
+            No eyebrow: the dots above are the position indicator now. */}
+        <StepHead icon={Target} question={step.title} />
 
         {step.kind === "bets" ? (
           <BetsStep answers={answers} onChange={(next) => setAnswers(next)} />
@@ -225,7 +244,9 @@ export default function SetupFlow({
         )}
       </div>
 
-      <div className="mt-8">
+      {/* `mt-auto` is what pins this to the bottom of the column — the same
+          bar the recording onboarding draws, in the same place. */}
+      <div className="mt-auto pt-8">
         {status ? (
           <p className="mb-2 text-center text-xs text-muted-foreground">
             {status}
