@@ -1,14 +1,28 @@
 /* -------------------------------------------------------------------------- */
 /*  life/setupSteps — the shape of the setup form (FE-3)                       */
 /*                                                                            */
-/*  Eight horizons plus the bets step. The horizon keys are the wire keys the  */
-/*  backend stores and the resume step is named with, so they are here rather  */
-/*  than inline in the component: `resume_step` from `/v2/life/state` has to   */
-/*  resolve against exactly this list.                                        */
+/*  Eight horizons, the bets step, and the document step. The horizon keys are */
+/*  the wire keys the backend stores and the resume step is named with, so     */
+/*  they are here rather than inline in the component: `resume_step` from      */
+/*  `/v2/life/state` has to resolve against exactly this list.                 */
 /*                                                                            */
-/*  Ordering is deliberate: the bets come FIRST. Every goal hangs off a bet    */
-/*  (spec §3.2), so asking for goals before the bets exist produces goals with */
-/*  nothing to hang from.                                                     */
+/*  Ordering is deliberate, and both of the first two steps are load-bearing   */
+/*  where they are:                                                           */
+/*                                                                            */
+/*    · The BETS come first. Every goal hangs off a bet (spec §3.2), so asking */
+/*      for goals before the bets exist produces goals with nothing to hang    */
+/*      from.                                                                 */
+/*    · The DOCUMENT comes second, before every horizon. It is not a side      */
+/*      question: uploading fills the eight horizon screens in from what the   */
+/*      document says (see documentFold), so it has to be answered while       */
+/*      those screens are still ahead of the user. Asked any later it would    */
+/*      be offering to fill in answers they had already typed by hand.        */
+/*                                                                            */
+/*  INSERTING A STEP IS NOT FREE, and this list is why. Setup resumes at the   */
+/*  saved `resume_step`, so anyone partway through when the document step was  */
+/*  added on 2026-07-30 resumed at a later horizon and jumped clean over it.   */
+/*  That is what put the same upload on /panel/goals: a step added mid-flight  */
+/*  needs a door that does not depend on walking past it.                     */
 /* -------------------------------------------------------------------------- */
 
 export interface LifeSetupStep {
@@ -33,8 +47,9 @@ export const LIFE_SETUP_STEPS: readonly LifeSetupStep[] = [
   },
   {
     // Founder 2026-07-30 — the optional strategy upload sits EARLY, right
-    // after the bets: someone who already wrote their strategy should not
-    // type eight horizons before discovering they could have handed it over.
+    // after the bets, and it is what fills the eight horizons in. Someone who
+    // already wrote their strategy should not type eight screens before
+    // discovering they could have handed it over.
     // Skippable by design: Next with nothing uploaded is a complete answer.
     key: "document",
     kind: "document",
