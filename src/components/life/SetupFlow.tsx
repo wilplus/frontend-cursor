@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, GripVertical, Plus, X } from "lucide-react";
+import { FileText, GripVertical, Plus, Target, X } from "lucide-react";
 import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
 import {
@@ -185,7 +185,12 @@ export default function SetupFlow({
             grey between them is what made this read as a form rather than a
             question. (FE-10 removed the same kind of line from screen 1; this
             finishes it on all of them.) */}
+        {/* Founder 2026-07-30 — the question wears the voice-game head, and
+            the target is this flow's mark: every step of it is the user
+            setting their strategy, so the mark is the flow's, not the step's.
+            The step counter stays as the eyebrow for the reason above it. */}
         <StepHead
+          icon={Target}
           eyebrow={`Step ${index + 1} of ${LIFE_SETUP_STEPS.length}`}
           question={step.title}
         />

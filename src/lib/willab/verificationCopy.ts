@@ -19,13 +19,19 @@
 /** Awaiting the coach. The short form, on every surface. */
 export const PENDING_VERIFICATION = "Pending verification";
 
-/** The ideal-text overlay's HEADER badge only (founder 2026-07-27).
+/** An ideal text's HEADER badge only (founder 2026-07-27).
  *
  *  A deliberate exception to the one-wording rule above, and the only one. In
  *  the header the badge sits directly beside the project's title, where the
  *  surrounding context already says what is being verified — "verification"
  *  there is a word doing no work in a bar that has none to spare. Everywhere
  *  else the state stands alone and needs the full phrase.
+ *
+ *  The condition is the POSITION, not the screen. It read "the ideal-text
+ *  overlay's header only" while the overlay was the one screen with a head;
+ *  since 2026-07-30 the post-recording readout is headed the same way, by the
+ *  same shared component, so it earns the same short form for the same
+ *  reason. Both mount IdealTextHeading, which is the only caller.
  *
  *  It lives here rather than as a literal in the component for the same reason
  *  the constant above exists: a second wording invented at the call site is
