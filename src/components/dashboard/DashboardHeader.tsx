@@ -4,6 +4,7 @@ import { useLayoutEffect } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
+import TokenBalanceChip from "@/components/tokens/TokenBalanceChip";
 import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
 import { toast } from "sonner";
@@ -86,12 +87,20 @@ export default function DashboardHeader() {
 
         {/* Credits live INSIDE the menu; the right side is just the hamburger.
             While auth is "unknown" AppMenu renders an invisible spacer of the
-            same height, so the page does not shift when it resolves. */}
+            same height, so the page does not shift when it resolves.
+
+            The token balance is the ONE exception to that rule, and it is the
+            handoff's explicit call: the wallet is persistent and in the header,
+            not a row you have to open a menu to find. Price-before-the-action
+            only works if the balance is already on screen when you decide.
+            It renders nothing at all unless token pricing is live. */}
         <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
+          <TokenBalanceChip wallet={menu.wallet} />
           <AppMenu
             authState={menu.authState}
             userEmail={menu.userEmail}
             credits={menu.credits}
+            tokensEnabled={menu.wallet.enabled === true}
             lifeMenu={menu.lifeMenu}
             supportEmail={SUPPORT_EMAIL}
             communityUrl={COMMUNITY_URL}
@@ -101,6 +110,7 @@ export default function DashboardHeader() {
             // mounts — "Lab" is a real destination there, not a self-link.
             labHref="/chat"
             gameHref="/game"
+            gamePriceLabel={menu.gamePriceLabel}
             corpusHref={menu.isCoach ? "/coach/corpus" : null}
           />
         </div>

@@ -49,6 +49,14 @@ export interface AppMenuProps {
   userEmail?: string | null;
   /** Credits → checkout. null hides the row (guests, or not yet loaded). */
   credits?: number | null;
+  /** Token pricing is live for this user → the legacy credits row is RETIRED.
+   *
+   *  Not a cosmetic choice. When the flag is on, the one thing credits ever
+   *  bought (the key-moments unlock) is charged in TOKENS instead — the 402
+   *  comes back as INSUFFICIENT_TOKENS with a token price. A credits row would
+   *  then be a balance that buys nothing, sitting next to a wallet that buys
+   *  everything, and linking to a Stripe page that tops up the wrong currency. */
+  tokensEnabled?: boolean;
   /** Life Panel entries, straight from the gate payload. Absent for everyone
    *  the payload does not list them for, which is the normal case. */
   lifeMenu?: LifeMenuEntry[];
@@ -65,6 +73,11 @@ export interface AppMenuProps {
    *  live in the hamburger"). Signed-in only — the game plays the user's own
    *  coach-confirmed moments, which a guest does not have. */
   gameHref?: string | null;
+  /** Pre-formatted token price for the game row, or null when pricing is off.
+   *  A LABEL, not a number: the host owns the wallet read and the formatting,
+   *  this owns the chrome — the same split that keeps the blog mount from
+   *  needing to know anything about pricing. */
+  gamePriceLabel?: string | null;
   /** The training-corpus workbench. COACH ONLY (N4): the host passes this
    *  only when the signed-in user is a coach, so the row does not exist for
    *  anyone else — not greyed out, not present. */
@@ -75,6 +88,7 @@ export default function AppMenu({
   authState,
   userEmail = null,
   credits = null,
+  tokensEnabled = false,
   lifeMenu = [],
   supportEmail,
   communityUrl,
@@ -82,6 +96,7 @@ export default function AppMenu({
   loggingOut = false,
   labHref = null,
   gameHref = null,
+  gamePriceLabel = null,
   corpusHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
@@ -184,10 +199,18 @@ export default function AppMenu({
             <Link
               ref={firstRef()}
               href={gameHref}
-              className={MENU_ITEM_CLASS}
+              className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}
               onClick={() => setOpen(false)}
             >
-              Voice-game
+              <span>Voice-game</span>
+              {/* The game is metered, and this row is the control that starts
+                  it — so the price belongs here, before the tap, not on a
+                  screen you reach by paying. Absent unless pricing is live. */}
+              {gamePriceLabel ? (
+                <span className="font-normal text-muted-foreground">
+                  {gamePriceLabel}
+                </span>
+              ) : null}
             </Link>
           ) : null}
 
@@ -252,7 +275,7 @@ export default function AppMenu({
             Community
           </a>
 
-          {signedIn && credits !== null ? (
+          {signedIn && credits !== null && !tokensEnabled ? (
             <Link
               href="/dashboard/pricing"
               className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}
