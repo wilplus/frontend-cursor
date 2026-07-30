@@ -5,6 +5,7 @@ import { Check, Lock, Mic, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
+import { VoiceMark } from "./LoadingState";
 import { useBackDismiss } from "./useBackDismiss";
 import { RichText, type MomentDecor } from "./RichText";
 import { markerTokenSpans } from "@/lib/willab/richMarkers";
@@ -175,9 +176,9 @@ function MomentSheetBody({
           />
         )
       ) : momentContent === null ? (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">
-          Loading…
-        </p>
+        <div className="flex justify-center py-6">
+          <VoiceMark size={40} />
+        </div>
       ) : momentContent.kind === "unavailable" ? (
         // FE-1 — no coach explanation exists yet: the free playback above is
         // the whole sheet. No unlock CTA, no price, no locks — there is

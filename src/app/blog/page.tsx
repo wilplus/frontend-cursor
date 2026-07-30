@@ -10,7 +10,7 @@ import JournalIndex from "./page.client";
 /*  the authed BFF, which 401s for logged-out visitors) and hands them to a     */
 /*  client child that owns search / category / sort entirely in memory.        */
 /*                                                                            */
-/*  Chrome note: pages compose SiteHeader themselves (same as /science); the    */
+/*  Chrome note: pages compose SiteHeader themselves (same as /about); the     */
 /*  Footer is rendered globally by the root layout, so this page must NOT       */
 /*  render one or the site gets two.                                          */
 /* -------------------------------------------------------------------------- */

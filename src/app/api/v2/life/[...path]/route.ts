@@ -77,14 +77,26 @@ async function forward(
     Accept: "application/json",
   };
 
-  let body: string | undefined;
+  let body: string | ArrayBuffer | undefined;
   if (method !== "GET") {
-    // Read as text and forward verbatim. We never parse, inspect or log it.
-    const raw = await req.text();
-    if (raw) {
-      body = raw;
-      headers["Content-Type"] =
-        req.headers.get("Content-Type") || "application/json";
+    const requestType = req.headers.get("Content-Type") || "";
+    if (requestType.toLowerCase().includes("multipart/form-data")) {
+      // The setup document upload (item 9). Multipart is BINARY — a PDF or
+      // docx read as text is corrupted before it leaves this process — so
+      // the bytes are forwarded untouched, boundary header and all. Still
+      // never parsed, inspected or logged.
+      const raw = await req.arrayBuffer();
+      if (raw.byteLength > 0) {
+        body = raw;
+        headers["Content-Type"] = requestType;
+      }
+    } else {
+      // Read as text and forward verbatim. We never parse, inspect or log it.
+      const raw = await req.text();
+      if (raw) {
+        body = raw;
+        headers["Content-Type"] = requestType || "application/json";
+      }
     }
   }
 

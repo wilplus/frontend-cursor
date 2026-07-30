@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import { Button } from "@/components/ui/button";
 import { SlideRender } from "./pdfSlides";
 import { MarkerToolbar, RichText } from "./RichText";
@@ -161,7 +162,7 @@ export default function CoachIdealTextPanel({
     return (
       <PanelShell>
         <div className="flex items-center justify-center gap-2 py-16 text-[13px] text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <VoiceMark size={20} />
           Loading the ideal text…
         </div>
       </PanelShell>

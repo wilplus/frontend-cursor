@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { fetchSignedAudioUrl } from "@/lib/api/client";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import { useSessionStore } from "@/store/session-store";
 import { toast } from "sonner";
 import type { GetRecordingResponse } from "@/lib/api/types";
@@ -176,7 +177,10 @@ export default function CompletedCard({ recording }: CompletedCardProps) {
       )}
 
       {loadingAudio && (
-        <div className="text-sm text-muted-foreground">Loading audio...</div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <VoiceMark size={20} />
+          Loading audio...
+        </div>
       )}
 
       {audioError && !playbackError && (

@@ -8,8 +8,9 @@ import Link from "next/link";
  * by the user's request — no ©/™, no dynamic stamp.
  *
  * Founder 2026-07-27: Science is out of the footer, Journal reads Blog, and
- * Terms & Policy reads Privacy. /science still exists and is still linked from
- * the site menu — only the footer entry is gone.
+ * Terms & Policy reads Privacy. (2026-07-30: /science was then consolidated
+ * into the blog entirely — the page is deleted and redirects to /blog, where
+ * the papers live as "Science"-category posts.)
  */
 export default function Footer() {
   return (

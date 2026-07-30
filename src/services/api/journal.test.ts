@@ -4,8 +4,11 @@ import {
   filterJournalPosts,
   formatDuration,
   formatJournalDate,
+  isSafeBodyUrl,
+  JOURNAL_CATEGORIES,
   mapJournalPost,
   mapJournalSummary,
+  parseBodyBlocks,
   slugify,
   sortJournalPosts,
   splitParagraphs,
@@ -227,6 +230,115 @@ describe("categoryLabel", () => {
   it("labels known keys and falls back to Others", () => {
     expect(categoryLabel("physical_exercise")).toBe("Physical Exercise");
     expect(categoryLabel("bogus")).toBe("Others");
+  });
+
+  it("knows the science category (the /science consolidation)", () => {
+    expect(categoryLabel("science")).toBe("Science");
+    expect(JOURNAL_CATEGORIES.map((c) => c.key)).toContain("science");
+    // Posts seeded/saved as science must survive mapping, not fall to others.
+    expect(mapJournalSummary(row({ category: "science" }))?.category).toBe(
+      "science"
+    );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Body token parsing — the BODY TOKEN SPEC in journal.ts                     */
+/* -------------------------------------------------------------------------- */
+
+describe("isSafeBodyUrl", () => {
+  it("allows http(s) and site-relative URLs", () => {
+    expect(isSafeBodyUrl("https://cdn.test/a.webp")).toBe(true);
+    expect(isSafeBodyUrl("http://cdn.test/a.webp")).toBe(true);
+    expect(isSafeBodyUrl("/papers/EBCP.pdf")).toBe(true);
+  });
+
+  it("rejects script schemes and protocol-relative URLs", () => {
+    expect(isSafeBodyUrl("javascript:alert(1)")).toBe(false);
+    expect(isSafeBodyUrl("data:text/html,x")).toBe(false);
+    expect(isSafeBodyUrl("vbscript:x")).toBe(false);
+    expect(isSafeBodyUrl("//evil.test/a.png")).toBe(false);
+    expect(isSafeBodyUrl("ftp://x/y")).toBe(false);
+  });
+});
+
+describe("parseBodyBlocks", () => {
+  it("renders a plain body as p blocks (paragraph semantics unchanged)", () => {
+    expect(parseBodyBlocks("one\n\ntwo")).toEqual([
+      { type: "p", text: "one" },
+      { type: "p", text: "two" },
+    ]);
+  });
+
+  it("parses an image token line into an image block", () => {
+    expect(
+      parseBodyBlocks("intro\n\n[image: https://cdn.test/a.webp | A drill]\n\noutro")
+    ).toEqual([
+      { type: "p", text: "intro" },
+      { type: "image", url: "https://cdn.test/a.webp", alt: "A drill" },
+      { type: "p", text: "outro" },
+    ]);
+  });
+
+  it("parses a file token line into a file block", () => {
+    expect(parseBodyBlocks("[file: /papers/EBCP.pdf | Read the paper (PDF)]")).toEqual([
+      { type: "file", url: "/papers/EBCP.pdf", label: "Read the paper (PDF)" },
+    ]);
+  });
+
+  it("splits a token out of the middle of a paragraph", () => {
+    expect(
+      parseBodyBlocks("line one\n[image: https://x.test/i.png | pic]\nline two")
+    ).toEqual([
+      { type: "p", text: "line one" },
+      { type: "image", url: "https://x.test/i.png", alt: "pic" },
+      { type: "p", text: "line two" },
+    ]);
+  });
+
+  it("allows an empty alt and falls back to the url for an empty file label", () => {
+    expect(parseBodyBlocks("[image: https://x.test/i.png |]")).toEqual([
+      { type: "image", url: "https://x.test/i.png", alt: "" },
+    ]);
+    expect(parseBodyBlocks("[file: https://x.test/d.pdf | ]")).toEqual([
+      { type: "file", url: "https://x.test/d.pdf", label: "https://x.test/d.pdf" },
+    ]);
+  });
+
+  it("escape hatch: malformed tokens render as plain text", () => {
+    // No closing bracket / not the whole line / unknown token name.
+    expect(parseBodyBlocks("[image: https://x.test/i.png | pic")).toEqual([
+      { type: "p", text: "[image: https://x.test/i.png | pic" },
+    ]);
+    expect(parseBodyBlocks("see [image: https://x.test/i.png | pic] here")).toEqual([
+      { type: "p", text: "see [image: https://x.test/i.png | pic] here" },
+    ]);
+    expect(parseBodyBlocks("[video: https://x.test/v.mp4 | clip]")).toEqual([
+      { type: "p", text: "[video: https://x.test/v.mp4 | clip]" },
+    ]);
+    // No pipe at all.
+    expect(parseBodyBlocks("[image: https://x.test/i.png]")).toEqual([
+      { type: "p", text: "[image: https://x.test/i.png]" },
+    ]);
+  });
+
+  it("refuses unsafe URLs and renders the line as text instead", () => {
+    expect(parseBodyBlocks("[image: javascript:alert(1) | x]")).toEqual([
+      { type: "p", text: "[image: javascript:alert(1) | x]" },
+    ]);
+    expect(parseBodyBlocks("[file: //evil.test/x.pdf | x]")).toEqual([
+      { type: "p", text: "[file: //evil.test/x.pdf | x]" },
+    ]);
+  });
+
+  it("tolerates surrounding whitespace around a token line", () => {
+    expect(parseBodyBlocks("  [image: https://x.test/i.png | pic]  ")).toEqual([
+      { type: "image", url: "https://x.test/i.png", alt: "pic" },
+    ]);
+  });
+
+  it("returns [] for an empty body", () => {
+    expect(parseBodyBlocks("")).toEqual([]);
   });
 });
 

@@ -12,6 +12,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
+import ModeToggle from "@/components/willab/ModeToggle";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import { readExploreArc } from "@/lib/willab/exploreArc";
 import {
   fetchArcBreakthroughs,
@@ -101,7 +103,14 @@ export default function GamePageClient({
 
       {/* The small mode toggle — Game is the default state by design. */}
       <div className="flex shrink-0 justify-center px-5 pt-2">
-        <ModeToggle mode={tab} setMode={setTab} />
+        <ModeToggle
+          value={tab}
+          options={[
+            { value: "game", label: "Game" },
+            { value: "voice", label: "Best voices" },
+          ]}
+          onChange={setTab}
+        />
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-3">
@@ -112,7 +121,7 @@ export default function GamePageClient({
         >
           {status === "loading" ? (
             <Centered>
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <VoiceMark size={48} />
             </Centered>
           ) : status === "not_labeled" ? (
             <Centered>
@@ -152,48 +161,9 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The small two-state pill with the sliding black thumb. */
-function ModeToggle({
-  mode,
-  setMode,
-}: {
-  mode: "game" | "voice";
-  setMode: (m: "game" | "voice") => void;
-}) {
-  return (
-    <div className="relative grid w-[220px] grid-cols-2 rounded-full border border-border bg-card p-1 text-[12px]">
-      <span
-        aria-hidden
-        className="absolute inset-y-1 rounded-full bg-foreground transition-transform duration-300 ease-out"
-        style={{
-          left: 4,
-          width: "calc(50% - 4px)",
-          transform: mode === "game" ? "translateX(0)" : "translateX(100%)",
-        }}
-      />
-      <button
-        type="button"
-        aria-pressed={mode === "game"}
-        onClick={() => setMode("game")}
-        className={`relative z-10 rounded-full px-3 py-1.5 font-semibold transition-colors ${
-          mode === "game" ? "text-background" : "text-muted-foreground"
-        }`}
-      >
-        Game
-      </button>
-      <button
-        type="button"
-        aria-pressed={mode === "voice"}
-        onClick={() => setMode("voice")}
-        className={`relative z-10 rounded-full px-3 py-1.5 font-semibold transition-colors ${
-          mode === "voice" ? "text-background" : "text-muted-foreground"
-        }`}
-      >
-        Best voices
-      </button>
-    </div>
-  );
-}
+/* The small two-state pill with the sliding black thumb now lives in
+   src/components/willab/ModeToggle.tsx (shared — founder rule: one toggle
+   style everywhere, this screen is the reference). */
 
 /** Position dots (position, not a tally — N2): current is the wide one. */
 function ProgressDots({ total, index }: { total: number; index: number }) {
@@ -656,7 +626,7 @@ function BestVoices({ arcId }: { arcId: string | null }) {
   if (status === "loading") {
     return (
       <Centered>
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <VoiceMark size={48} />
       </Centered>
     );
   }

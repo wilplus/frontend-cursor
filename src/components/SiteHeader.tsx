@@ -7,8 +7,9 @@ import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
 
 /**
- * Shared sticky header for the public marketing pages (About, Science,
- * Journal/blog). The WillpowerLab logo links home.
+ * Shared sticky header for the public marketing pages (About, Journal/blog —
+ * /science was folded into the blog 2026-07-30). The WillpowerLab logo links
+ * home.
  *
  * FE-3 — the menu is now the SAME AppMenu the lab renders, not a second
  * hand-rolled one. It used to be its own list (Home / About / Science /

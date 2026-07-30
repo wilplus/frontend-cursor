@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Volume2 } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
+import BodyBlocks from "@/components/journal/BodyBlocks";
 import JournalCard from "@/components/journal/JournalCard";
 import {
   fetchJournalPost,
@@ -12,7 +13,6 @@ import {
   categoryLabel,
   formatDuration,
   formatJournalDate,
-  splitParagraphs,
 } from "@/services/api/journal";
 
 /* -------------------------------------------------------------------------- */
@@ -22,8 +22,12 @@ import {
 /*  only serves published posts, so a null read IS the 404).                    */
 /*                                                                            */
 /*  The body is PLAIN TEXT: paragraphs split on blank lines and render as <p>   */
-/*  elements. There is no HTML in the body and dangerouslySetInnerHTML is never */
-/*  used, so the post surface carries no XSS surface at all.                    */
+/*  elements, plus the two line-level media tokens ([image: url | alt] and      */
+/*  [file: url | label] — the BODY TOKEN SPEC in services/api/journal.ts)       */
+/*  which render via BodyBlocks as a <figure> and a download row. Token URLs    */
+/*  are allowlisted to http(s)/site-relative by the parser; there is no HTML    */
+/*  in the body and dangerouslySetInnerHTML is never used, so the post          */
+/*  surface still carries no XSS surface at all.                                */
 /* -------------------------------------------------------------------------- */
 
 export const revalidate = 300;
@@ -71,7 +75,6 @@ export default async function JournalPostPage({
   const post = await fetchJournalPost(params.slug);
   if (!post) notFound();
 
-  const paragraphs = splitParagraphs(post.body);
   const date = formatJournalDate(post.publishedAt);
   const duration = formatDuration(post.mediaDurationSec);
   const meta = [
@@ -176,19 +179,11 @@ export default async function JournalPostPage({
           </div>
         ) : null}
 
-        {/* Body — plain text, one <p> per blank-line-separated block. */}
+        {/* Body — plain text paragraphs plus the two media tokens, rendered
+            by the shared BodyBlocks (the same component the CMS preview
+            uses, so the founder previews exactly what ships). */}
         <article className="mx-auto mt-12 max-w-2xl space-y-6 px-6">
-          {paragraphs.map((p, i) => (
-            <p
-              key={i}
-              // whitespace-pre-line: when a body mixes blank-line paragraphs
-              // with single newlines inside one (a list, an address), those
-              // breaks must survive instead of collapsing into spaces.
-              className="whitespace-pre-line text-[17px] leading-[1.75] text-foreground/90"
-            >
-              {p}
-            </p>
-          ))}
+          <BodyBlocks body={post.body} />
         </article>
 
         <div className="mx-auto max-w-2xl px-6">
