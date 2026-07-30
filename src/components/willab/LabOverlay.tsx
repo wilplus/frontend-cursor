@@ -46,6 +46,8 @@ import {
   clearProcessingTake,
 } from "@/lib/willab/processingTake";
 import { type PresentationSlide } from "./presentation";
+import { restoredSetupFor } from "./restoredSetup";
+import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
 
 /* -------------------------------------------------------------------------- */
 /*  LabOverlay — the official-recording training zone (§4)                     */
@@ -672,6 +674,44 @@ export default function LabOverlay({
     });
   }
 
+  /** Founder 2026-07-30 — after the check-in, a KNOWN project goes straight to
+   *  the mic.
+   *
+   *  "Record another take" from an ideal text is a take of a project whose
+   *  setup already exists and has already been restored into `preloadDeck` —
+   *  topic, audience, target length, slides, the served deck PDF. Walking the
+   *  user through five screens to re-confirm what the app just handed itself,
+   *  pre-filled, is five screens of nothing. The check-in stays: it is asked
+   *  fresh per take and it is the thing that takes the edge off the mic.
+   *
+   *  IT FALLS BACK RATHER THAN GUESSING. No restored deck (a brand-new topic,
+   *  a staged file upload that still needs its topic, or the arc-setup fetch
+   *  simply not back yet) → the form, exactly as before. Recording against a
+   *  context we invented would file the take under the wrong project, and a
+   *  take is not a thing you can quietly redo.
+   *
+   *  ON THE USER GESTURE. getUserMedia wants one, and the check-in advances on
+   *  a ~1s timer after the feeling is tapped — inside the browser's transient
+   *  activation window, so the tap still counts. If a browser refuses anyway,
+   *  RecordingPhase's mic-error branch says so and its "Try again" is a direct
+   *  tap. Silence is the one outcome that cannot happen. */
+  function startAfterCheckIn() {
+    const restored = restoredSetupFor(preloadDeck, stagedUploadRef.current !== null);
+    if (!restored) {
+      goTo("lab_session_context");
+      return;
+    }
+    lastWasUploadRef.current = false;
+    setExploreEnabled(true);
+    setContext(restored);
+    setRejectedMsg(null);
+    uploadSeqRef.current += 1; // drop any stale upload-duration read
+    primingRef.current = null;
+    startPendingRef.current = true;
+    goTo("lab_recording");
+    void mic.start();
+  }
+
   function handleClose() {
     if (mic.state.status === "recording") {
       if (!window.confirm("Discard this recording? It hasn't been sent.")) return;
@@ -717,9 +757,11 @@ export default function LabOverlay({
         </header>
       )}
 
-      <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
+      <div
+        className={`scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pt-6 ${SCREEN_BOTTOM_GAP}`}
+      >
         {state === "lab_feelings" && (
-          <FeelingsCheckIn onReady={() => goTo("lab_session_context")} />
+          <FeelingsCheckIn onReady={startAfterCheckIn} />
         )}
 
         {state === "lab_session_context" && (
