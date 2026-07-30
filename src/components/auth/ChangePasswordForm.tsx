@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import { toast } from "sonner";
 
 export default function ChangePasswordForm() {
@@ -114,7 +115,10 @@ export default function ChangePasswordForm() {
   if (!sessionReady) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-sm text-muted-foreground">Checking session...</p>
+        <div className="flex flex-col items-center gap-3">
+          <VoiceMark size={48} />
+          <p className="text-sm text-muted-foreground">Checking session...</p>
+        </div>
       </Card>
     );
   }

@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -28,7 +29,7 @@ import { Button } from "@/components/ui/button";
  */
 export default function UnsubscribePage() {
   return (
-    <Suspense fallback={<UnsubscribeShell><LoadingState /></UnsubscribeShell>}>
+    <Suspense fallback={<UnsubscribeShell><UpdatingState /></UnsubscribeShell>}>
       <UnsubscribeInner />
     </Suspense>
   );
@@ -98,7 +99,7 @@ function UnsubscribeInner() {
 
   return (
     <UnsubscribeShell>
-      {phase.kind === "loading" && <LoadingState />}
+      {phase.kind === "loading" && <UpdatingState />}
       {phase.kind === "missing-token" && <MissingTokenState />}
       {phase.kind === "success" && (
         <SuccessState
@@ -130,10 +131,12 @@ function UnsubscribeShell({ children }: { children: React.ReactNode }) {
 /* States                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function LoadingState() {
+/* Renamed from a local `LoadingState` to avoid colliding with the shared
+   willab LoadingState (the one circular logo loader). */
+function UpdatingState() {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+      <VoiceMark size={48} />
       <p className="text-sm text-muted-foreground">
         Updating your email preferences…
       </p>

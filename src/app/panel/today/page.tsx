@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { DAY, EMPTY, VIEWS } from "@/lib/life/copy";
+import { useCallback, useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
+import { DAY, EMPTY, STATUS, VIEWS } from "@/lib/life/copy";
 import {
   betByKey,
   type LifeBetKey,
@@ -10,7 +11,14 @@ import {
   type LifeDayEvening,
   type LifeDayMorning,
 } from "@/lib/life/types";
-import { fetchDay, saveDayEvening, setDayCheck } from "@/services/api/life";
+import {
+  fetchDay,
+  fetchUserCopy,
+  saveDayEvening,
+  saveUserCopy,
+  setDayCheck,
+  type LifeUserCopy,
+} from "@/services/api/life";
 import ProposalDeck from "@/components/life/ProposalCards";
 import {
   EmptyState,
@@ -46,6 +54,23 @@ export default function TodayPage() {
   const load = useCallback(() => fetchDay(), []);
   const resource = usePanelResource(load);
 
+  // The user's rewording of the mantra lines (founder 2026-07-30, "my copy
+  // as default, editable"). Fetched alongside the day card and NEVER
+  // load-bearing: while loading or on failure the founder's defaults render,
+  // which is also exactly what null fields mean.
+  const [overrides, setOverrides] = useState<LifeUserCopy | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchUserCopy()
+      .then((value) => {
+        if (!cancelled) setOverrides(value);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <PanelHeading title={VIEWS.today.title} />
@@ -55,7 +80,11 @@ export default function TodayPage() {
           day === null ? (
             <EmptyState>{EMPTY.today}</EmptyState>
           ) : (
-            <DayCards day={day} />
+            <DayCards
+              day={day}
+              overrides={overrides}
+              onOverrides={setOverrides}
+            />
           )
         }
       </Resource>
@@ -63,21 +92,202 @@ export default function TodayPage() {
   );
 }
 
-function DayCards({ day }: { day: LifeDay }) {
+function DayCards({
+  day,
+  overrides,
+  onOverrides,
+}: {
+  day: LifeDay;
+  overrides: LifeUserCopy | null;
+  onOverrides: (next: LifeUserCopy) => void;
+}) {
   return (
     <div className="space-y-10">
       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
         {formatDate(day.date)}
       </p>
-      <MorningCard morning={day.morning} />
+      <MantraHeader overrides={overrides} onOverrides={onOverrides} />
+      <MorningCard
+        morning={day.morning}
+        distractionQuestion={
+          overrides?.distractionQuestion ?? DAY.distractionQuestion
+        }
+      />
       <EveningCard evening={day.evening} />
     </div>
   );
 }
 
+/** Founder 2026-07-30 — the mantra opens the day card. The founder's copy is
+ *  the DEFAULT, set between two quiet rules; the type ramp matches the panel
+ *  (eyebrow track for the title, the italic 15px the evening question
+ *  already uses).
+ *
+ *  EDITABLE, same day's second decision: the pencil opens inline inputs for
+ *  the three lines (the distraction question is edited here too — one
+ *  editor for one set of lines, rather than a second affordance buried in
+ *  settings). An emptied field goes back to the founder's line; the copy
+ *  says so. The system never suggests a rewording — these inputs take the
+ *  user's own words and nothing else (the same rule as the evening answer). */
+function MantraHeader({
+  overrides,
+  onOverrides,
+}: {
+  overrides: LifeUserCopy | null;
+  onOverrides: (next: LifeUserCopy) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState("");
+  const [question, setQuestion] = useState("");
+  const [distraction, setDistraction] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const effectiveTitle = overrides?.mantraTitle ?? DAY.mantraTitle;
+  const effectiveQuestion = overrides?.mantraQuestion ?? DAY.mantraQuestion;
+
+  function open() {
+    setTitle(overrides?.mantraTitle ?? "");
+    setQuestion(overrides?.mantraQuestion ?? "");
+    setDistraction(overrides?.distractionQuestion ?? "");
+    setFailed(false);
+    setEditing(true);
+  }
+
+  async function save() {
+    setBusy(true);
+    setFailed(false);
+    try {
+      // Empty ⇒ null ⇒ the founder's line. What the user typed is sent
+      // verbatim; nothing drafts or completes it.
+      const saved = await saveUserCopy({
+        mantraTitle: title.trim() || null,
+        mantraQuestion: question.trim() || null,
+        distractionQuestion: distraction.trim() || null,
+      });
+      onOverrides(saved);
+      setEditing(false);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="relative border-y border-border py-5 text-center">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          {effectiveTitle}
+        </p>
+        <p className="mt-1.5 text-[15px] italic leading-relaxed text-foreground/80">
+          {effectiveQuestion}
+        </p>
+        <button
+          type="button"
+          aria-label={DAY.copyEditLabel}
+          onClick={open}
+          className="absolute right-0 top-2 rounded-lg p-2 text-muted-foreground/60 hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-y border-border py-5">
+      <div className="space-y-3">
+        <CopyField
+          label={DAY.copyMantraTitleLabel}
+          value={title}
+          placeholder={DAY.mantraTitle}
+          disabled={busy}
+          onChange={setTitle}
+        />
+        <CopyField
+          label={DAY.copyMantraQuestionLabel}
+          value={question}
+          placeholder={DAY.mantraQuestion}
+          disabled={busy}
+          onChange={setQuestion}
+        />
+        <CopyField
+          label={DAY.copyDistractionQuestionLabel}
+          value={distraction}
+          placeholder={DAY.distractionQuestion}
+          disabled={busy}
+          onChange={setDistraction}
+        />
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">{DAY.copyClearNote}</p>
+      {failed ? (
+        <p className="mt-2 text-sm text-muted-foreground">{STATUS.error}</p>
+      ) : null}
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={busy}
+          className="rounded-full bg-foreground px-4 py-1.5 text-xs font-medium text-background disabled:opacity-40"
+        >
+          {DAY.copySaveLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          disabled={busy}
+          className="rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground disabled:opacity-40"
+        >
+          {DAY.copyCancelLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CopyField({
+  label,
+  value,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  /** The founder's default line — shown as the placeholder so the user can
+   *  see what an emptied field falls back to. */
+  placeholder: string;
+  disabled: boolean;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+      />
+    </label>
+  );
+}
+
 /* --------------------------------- 05:00 ---------------------------------- */
 
-function MorningCard({ morning }: { morning: LifeDayMorning }) {
+function MorningCard({
+  morning,
+  distractionQuestion,
+}: {
+  morning: LifeDayMorning;
+  /** The founder's default, or the user's own rewording (edited from the
+   *  mantra block's pencil). */
+  distractionQuestion: string;
+}) {
   const empty =
     !morning.oneThing &&
     morning.checks.length === 0 &&
@@ -141,13 +351,20 @@ function MorningCard({ morning }: { morning: LifeDayMorning }) {
             </Block>
           ) : null}
 
-          {morning.distractionFlagged ? (
-            <Block label={`🔴 ${DAY.distractionLabel}`}>
-              <p className="text-[15px] text-foreground">
+          {/* Founder 2026-07-30 — the block now always renders, opening with
+              the distraction question (verbatim copy) above whatever was
+              flagged. The question is the check; the flagged text is the
+              user's own answer to it when one exists. */}
+          <Block label={`🔴 ${DAY.distractionLabel}`}>
+            <p className="text-[15px] italic leading-relaxed text-foreground/80">
+              {distractionQuestion}
+            </p>
+            {morning.distractionFlagged ? (
+              <p className="mt-2 text-[15px] text-foreground">
                 {morning.distractionFlagged}
               </p>
-            </Block>
-          ) : null}
+            ) : null}
+          </Block>
 
           {morning.bets.length > 0 ? (
             <Block label={DAY.betsLabel}>

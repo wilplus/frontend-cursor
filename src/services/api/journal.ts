@@ -7,8 +7,10 @@
 /*  module) — importing that here would break the client bundle.                */
 /*                                                                            */
 /*  The post body is PLAIN TEXT with blank-line-separated paragraphs — never    */
-/*  HTML, never Markdown. `splitParagraphs` is the only renderer; nothing here  */
-/*  is ever passed to dangerouslySetInnerHTML.                                  */
+/*  HTML, never Markdown — with ONE minimal, founder-approved extension: two    */
+/*  line-level media tokens (see the BODY TOKEN SPEC above `parseBodyBlocks`).  */
+/*  `parseBodyBlocks` is the only renderer; nothing here is ever passed to      */
+/*  dangerouslySetInnerHTML.                                                    */
 /* -------------------------------------------------------------------------- */
 
 export type JournalCategory =
@@ -17,6 +19,7 @@ export type JournalCategory =
   | "philosophy"
   | "voice"
   | "language"
+  | "science"
   | "others";
 
 export type JournalCoverKind = "image" | "video" | "audio";
@@ -33,6 +36,7 @@ export const JOURNAL_CATEGORIES: ReadonlyArray<{
   { key: "philosophy", label: "Philosophy" },
   { key: "voice", label: "Voice" },
   { key: "language", label: "Language" },
+  { key: "science", label: "Science" },
   { key: "others", label: "Others" },
 ];
 
@@ -125,9 +129,10 @@ export function mapJournalPost(raw: unknown): JournalPost | null {
 
 /* ------------------------------- helpers --------------------------------- */
 
-/** The body is plain text: paragraphs are separated by blank lines. This is
- *  the ONLY body renderer — the result is rendered as <p> elements, so no
- *  HTML ever reaches the DOM. */
+/** The body is plain text: paragraphs are separated by blank lines. The
+ *  low-level split — `parseBodyBlocks` (the actual renderer's input) builds
+ *  on it and additionally recognises the two media tokens. The result is
+ *  rendered as <p>/<figure>/<a> elements, so no HTML ever reaches the DOM. */
 export function splitParagraphs(body: string): string[] {
   // Normalize Windows / pasted line endings first, or "\r\n\r\n" would not
   // match a blank-line split and the whole post would collapse into one block.
@@ -147,6 +152,82 @@ export function splitParagraphs(body: string): string[] {
     .split("\n")
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  BODY TOKEN SPEC (founder-approved minimal extension, 2026-07-30)           */
+/*                                                                            */
+/*  The body stays PLAIN TEXT — no HTML, no Markdown, and the backend keeps    */
+/*  treating it as opaque text. Exactly TWO line-level tokens are recognised:  */
+/*                                                                            */
+/*    [image: <url> | <alt text>]   → a centered image at the standard         */
+/*                                    content width (<figure><img/></figure>)  */
+/*    [file: <url> | <label>]      → a bordered download/link row              */
+/*                                                                            */
+/*  Rules:                                                                    */
+/*    * The token must be the ENTIRE line (surrounding whitespace ignored).    */
+/*    * <url> may not contain whitespace and must be http(s):// or             */
+/*      site-relative ("/papers/x.pdf"). javascript:, data:, protocol-        */
+/*      relative "//" etc. are rejected — the line then renders as text.      */
+/*    * Escape hatch: any line that does not match EXACTLY renders as plain    */
+/*      text inside its paragraph. A malformed token can never break a post.   */
+/*                                                                            */
+/*  This spec is mirrored in the contract comments in cms/page.tsx,           */
+/*  blog/[slug]/page.tsx and the backend's services/journal.py docstring —    */
+/*  keep them in step.                                                        */
+/* -------------------------------------------------------------------------- */
+
+export type BodyBlock =
+  | { type: "p"; text: string }
+  | { type: "image"; url: string; alt: string }
+  | { type: "file"; url: string; label: string };
+
+/** ^[image|file: url | text]$ — url is whitespace-free, text may be empty. */
+const BODY_TOKEN_RE = /^\[(image|file):\s*(\S+)\s*\|([^\]]*)\]$/;
+
+/** Only http(s) and site-relative URLs may render as src/href. Anything else
+ *  (javascript:, data:, vbscript:, protocol-relative //evil.com) is refused
+ *  and the token line falls back to plain text. */
+export function isSafeBodyUrl(url: string): boolean {
+  if (url.startsWith("/")) return !url.startsWith("//");
+  return /^https?:\/\//i.test(url);
+}
+
+/** Parse the body into renderable blocks. Paragraph semantics are exactly
+ *  `splitParagraphs`; within a paragraph, each LINE that is exactly a media
+ *  token becomes its own image/file block, and the surrounding lines regroup
+ *  into `p` blocks (joined with \n so whitespace-pre-line keeps the breaks).
+ *  Isomorphic and pure — used by the public post page AND the CMS preview. */
+export function parseBodyBlocks(body: string): BodyBlock[] {
+  const blocks: BodyBlock[] = [];
+  for (const para of splitParagraphs(body)) {
+    let text: string[] = [];
+    const flush = () => {
+      if (text.length > 0) {
+        blocks.push({ type: "p", text: text.join("\n") });
+        text = [];
+      }
+    };
+    for (const rawLine of para.split("\n")) {
+      const line = rawLine.trim();
+      const m = BODY_TOKEN_RE.exec(line);
+      if (m && isSafeBodyUrl(m[2])) {
+        flush();
+        const url = m[2];
+        const label = m[3].trim();
+        if (m[1] === "image") {
+          blocks.push({ type: "image", url, alt: label });
+        } else {
+          // A file row with no label still needs a visible name to click.
+          blocks.push({ type: "file", url, label: label || url });
+        }
+      } else if (line.length > 0) {
+        text.push(rawLine);
+      }
+    }
+    flush();
+  }
+  return blocks;
 }
 
 /** 192 -> "3:12". Null/negative -> null (the badge is then omitted). */

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import GamePageClient from "./page.client";
+import LoadingState from "@/components/willab/LoadingState";
 
 /** Avoid static prerender (search params + client subtree). */
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default function GamePage({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<LoadingState fullscreen />}>
       <GamePageClient
         initialArcId={firstQueryValue(searchParams.arc)}
         initialSnippetId={firstQueryValue(searchParams.snippet)}

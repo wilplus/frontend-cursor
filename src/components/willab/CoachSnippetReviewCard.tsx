@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Eye, EyeOff, Video } from "lucide-react";
 import SnippetReadoutBlock from "./SnippetReadoutBlock";
+import { VoiceMark } from "./LoadingState";
 import { SlideRender } from "./pdfSlides";
 import {
   saveCoachSnippet,
@@ -301,7 +302,11 @@ export default function CoachSnippetReviewCard({
             ) : (
               <div className="mt-2 space-y-2">
                 <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center">
-                  <Video className="h-5 w-5 text-primary" aria-hidden />
+                  {videoCap.uploading ? (
+                    <VoiceMark size={20} />
+                  ) : (
+                    <Video className="h-5 w-5 text-primary" aria-hidden />
+                  )}
                   <span className="text-[13px] font-medium text-primary">
                     {videoCap.uploading ? "Uploading…" : "Add a video"}
                   </span>

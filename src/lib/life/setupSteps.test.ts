@@ -14,14 +14,18 @@ import {
 describe("LIFE_SETUP_STEPS", () => {
   it("asks for the bets before any goals", () => {
     // Every goal hangs off a bet, so goals first would produce goals with
-    // nothing to hang from.
+    // nothing to hang from. The optional document step (founder 2026-07-30)
+    // sits between them: it is not a goals editor, so the ordering rule it
+    // must respect is only "after the bets, before the horizons".
     expect(LIFE_SETUP_STEPS[0].kind).toBe("bets");
-    expect(LIFE_SETUP_STEPS.slice(1).every((s) => s.kind === "goals")).toBe(true);
+    expect(LIFE_SETUP_STEPS[1].kind).toBe("document");
+    expect(LIFE_SETUP_STEPS.slice(2).every((s) => s.kind === "goals")).toBe(true);
   });
 
-  it("covers the eight horizons the spec names", () => {
+  it("covers the eight horizons the spec names, plus the optional upload", () => {
     expect(LIFE_SETUP_STEPS.map((s) => s.key)).toEqual([
       "bets",
+      "document",
       "daily",
       "weekly",
       "monthly",
@@ -41,7 +45,8 @@ describe("LIFE_SETUP_STEPS", () => {
 
 describe("stepIndex", () => {
   it("resumes on the saved step", () => {
-    expect(stepIndex("quarterly")).toBe(4);
+    expect(stepIndex("quarterly")).toBe(5);
+    expect(stepIndex("document")).toBe(1);
   });
 
   it("starts at the beginning for a missing or unknown step", () => {

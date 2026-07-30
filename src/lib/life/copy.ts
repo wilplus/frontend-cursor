@@ -43,7 +43,7 @@ export const CONSENT = {
   points: [
     {
       heading: "What is stored",
-      body: "The notes you send with a hashtag, the cases and principles they produce, your wins, your phrases, the goals and strategy you write in setup, and your daily cards. Whatever you type is kept as you typed it.",
+      body: "The notes you send with a hashtag, the cases and principles they produce, your wins, your phrases, the goals and strategy you write in setup, and your daily cards. If you upload a strategy document during setup, the text read out of it is stored too, not the file itself. Whatever you type is kept as you typed it.",
     },
     {
       heading: "Where it is stored",
@@ -183,6 +183,26 @@ export const CARDS = {
  *  The day is two cards: the plan, written at five, and the summary, written at
  *  eleven. Neither is announced. Both simply wait. */
 export const DAY = {
+  /** Founder-provided verbatim (2026-07-30): the mantra header on the daily
+   *  check-in, and the distraction question inside "Before you start". These
+   *  three are quoted copy, not house copy — the em dash in the distraction
+   *  question is the founder's own punctuation and is exempted by name in
+   *  copy.test.ts. */
+  mantraTitle: "SIA FATTA LA TUA VOLONTÀ",
+  mantraQuestion: "Am I a clear filter for your will?",
+  distractionQuestion: "Am I doing this to move the bet — or to hide?",
+
+  /** The three lines above are per-user EDITABLE with the founder's strings
+   *  as defaults (founder 2026-07-30, "my copy as default, editable"). These
+   *  are the editor's chrome; an empty field falls back to the default. */
+  copyEditLabel: "Edit these lines",
+  copyMantraTitleLabel: "Mantra title",
+  copyMantraQuestionLabel: "Mantra question",
+  copyDistractionQuestionLabel: "Distraction question",
+  copyClearNote: "Leave a field empty to use the original line.",
+  copySaveLabel: "Save",
+  copyCancelLabel: "Cancel",
+
   oneThingLabel: "Today's one thing",
   focusLabel: "Focus blocks",
   distractionLabel: "Before you start",
@@ -236,6 +256,37 @@ export const SETUP = {
   backLabel: "Back",
   doneTitle: "Setup is done",
   doneLabel: "Open the panel",
+
+  /** The optional strategy upload step (founder 2026-07-30). Optional means
+   *  optional: nothing here pressures, and skipping it costs nothing. */
+  documentHint:
+    "If you already keep a strategy document, you can hand it over here. The text is read out of it and stored, the file itself is not kept. You can also just skip this.",
+  documentBrowseLabel: "Choose a file",
+  documentDropNote: "PDF, Word, markdown or plain text, up to 15MB.",
+  documentUploading: "Reading it",
+  documentFailedNote:
+    "Nothing readable came out of that file. You can try another format, or skip this.",
+  documentUploadError: "That upload did not go through. Try again.",
+  documentCharsSuffix: "characters read",
+
+  /** Drafting goals from the uploaded document. Offered, never automatic:
+   *  the button asks, the checkboxes decide, and only ticked rows are ever
+   *  created. */
+  draftButton: "✨ Draft from my document",
+  draftWorking: "Reading your document",
+  draftHint:
+    "Reads your uploaded document and lists what it found. Tick what should be created, edit the wording, untick the rest. Nothing is created until you finish setup.",
+  draftEmpty: "Nothing usable was found in the document.",
+  draftFailed: "That did not work. Your document is unchanged, try again.",
+  draftReviewTitle: "From your document",
+  draftReviewNote:
+    "Only the ticked rows are created when you finish, exactly as written here.",
+  draftKindLabels: {
+    bet: "Bets",
+    goal: "Goals",
+    habit: "Habits",
+    distraction: "Distractions",
+  },
 } as const;
 
 export const STRATEGY = {
@@ -251,6 +302,41 @@ export const STRATEGY = {
     "These sections are edited by hand only, so changes to them were left out:",
   applyLabel: "Apply the approved changes",
   cancelLabel: "Cancel",
+} as const;
+
+/** OPT-IN reminders (founder decision 2026-07-30). The one sanctioned
+ *  exception to "nothing pings": a web push the user turned on themselves,
+ *  per slot. Everything here states that plainly, and nothing here counts
+ *  absence or asks anyone to come back. */
+export const REMINDERS = {
+  title: "Reminders",
+  offNote: "Reminders are off unless you turn them on.",
+  intro:
+    "A notification on this device for the slots you choose. Turning one on asks the browser for permission once.",
+  morningLabel: "Daily morning",
+  morningHint: "When the day's card is ready.",
+  eveningLabel: "Daily evening",
+  eveningHint: "When the evening review opens.",
+  weeklyLabel: "Weekly",
+  weeklyHint: "When the Sunday review is ready to close.",
+  /** The checkout ladder (founder, extended 2026-07-30). Longer cadences,
+   *  same rule: off until turned on, and each one lands on a surface that
+   *  already exists. */
+  checkoutsLabel: "Checkouts",
+  monthlyLabel: "Monthly",
+  monthlyHint: "When the month closes.",
+  quarterlyLabel: "Quarterly",
+  quarterlyHint: "When the quarter closes.",
+  yearlyLabel: "Yearly",
+  yearlyHint: "When the year closes.",
+  fiveyearLabel: "Five years",
+  fiveyearHint: "At the five-year mark.",
+  tenyearLabel: "Ten years",
+  tenyearHint: "At the ten-year mark.",
+  permissionDenied:
+    "Notifications are blocked for this site in the browser. Allow them there first, then turn a slot on.",
+  unsupported: "This browser cannot receive them.",
+  unavailable: "Not available here yet.",
 } as const;
 
 /** Generic states. Nothing here reads as an accusation. */

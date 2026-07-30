@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, Plus, X } from "lucide-react";
+import { FileText, GripVertical, Plus, X } from "lucide-react";
 import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
 import {
@@ -12,7 +12,17 @@ import {
   type LifeSetupAnswers,
   type LifeSetupGoal,
 } from "@/lib/life/setupSteps";
-import { completeSetup, fetchSetup, putSetup } from "@/services/api/life";
+import {
+  applyConfirmedItems,
+  completeSetup,
+  fetchSetup,
+  fetchSetupDocuments,
+  proposeFromDocument,
+  putSetup,
+  uploadSetupDocument,
+  type LifeDraftItem,
+  type LifeSetupDocument,
+} from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
 import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
 import { useDragReorder } from "./useDragReorder";
@@ -56,6 +66,13 @@ export default function SetupFlow({
   const [done, setDone] = useState(false);
   const resumedRef = useRef(false);
 
+  // Item 9 (founder 2026-07-30) — the optional strategy upload and what was
+  // drafted from it. Both live HERE rather than in their steps because the
+  // draft is reviewed on the last screen and applied on Finish: a step-local
+  // state would be lost the moment the user pressed Next.
+  const [docs, setDocs] = useState<LifeSetupDocument[]>([]);
+  const [draft, setDraft] = useState<LifeDraftItem[] | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     void fetchSetup()
@@ -70,6 +87,14 @@ export default function SetupFlow({
       .catch(() => {
         if (!cancelled) setLoadFailed(true);
       });
+    // A previously uploaded document survives an interruption exactly like
+    // the answers do; failure here degrades to "no document yet", never an
+    // error screen — the upload is optional.
+    void fetchSetupDocuments()
+      .then((list) => {
+        if (!cancelled) setDocs(list);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -106,6 +131,13 @@ export default function SetupFlow({
     }
     setFinishing(true);
     try {
+      // The ticked draft rows land FIRST, then the documents are written, so
+      // a failure here stops the finish visibly instead of completing setup
+      // with half the review applied. Only checked rows are ever sent (N5):
+      // the tick is the approve, an unticked row is simply never created.
+      if (draft && draft.some((d) => d.checked)) {
+        await applyConfirmedItems(draft);
+      }
       await completeSetup();
       invalidateLifeState();
       setDone(true);
@@ -129,26 +161,30 @@ export default function SetupFlow({
   // drift apart again.
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col">
+      {/* Founder 2026-07-30 — Back moved to the BOTTOM bar next to Next,
+          never the top. The dot row keeps its fixed side slots (showBack
+          only empties the leading one), so the dots stay centred and the
+          recording flow, which keeps its top Back, is untouched. */}
       <WizardProgress
         count={LIFE_SETUP_STEPS.length}
         current={index}
-        onBack={() => setIndex((i) => Math.max(0, i - 1))}
+        showBack={false}
       />
 
       <div className="flex-1">
-        {/* STEP n OF 9 stays — it is the one piece of chrome that tells the
+        {/* STEP n OF 10 stays — it is the one piece of chrome that tells the
             user how much is left, and this form's completion rate is the
             feature's adoption rate. It is the head's eyebrow now, which is
             where the recording flow puts the same information.
             FE-10 — the grey "Eight horizons…" paragraph is gone: it rendered on
             screen 1 only, which is exactly what made screen 1 the odd one out.
-            With it gone all nine steps render through this one path. */}
+            With it gone all the steps render through this one path. */}
         {/* Founder 2026-07-27 — no grey supporting line under the question.
             The step's `hint` is deliberately NOT passed: one goal per screen
             means one heading and the thing you fill in, and a paragraph of
             grey between them is what made this read as a form rather than a
             question. (FE-10 removed the same kind of line from screen 1; this
-            finishes it on all nine.) */}
+            finishes it on all of them.) */}
         <StepHead
           eyebrow={`Step ${index + 1} of ${LIFE_SETUP_STEPS.length}`}
           question={step.title}
@@ -156,13 +192,31 @@ export default function SetupFlow({
 
         {step.kind === "bets" ? (
           <BetsStep answers={answers} onChange={(next) => setAnswers(next)} />
-        ) : (
-          <GoalsStep
-            stepKey={step.key}
-            duePlaceholder={step.duePlaceholder ?? ""}
-            answers={answers}
-            onChange={(next) => setAnswers(next)}
+        ) : step.kind === "document" ? (
+          <DocumentStep
+            docs={docs}
+            onUploaded={(doc) => setDocs((prev) => [doc, ...prev])}
           />
+        ) : (
+          <>
+            <GoalsStep
+              stepKey={step.key}
+              duePlaceholder={step.duePlaceholder ?? ""}
+              answers={answers}
+              onChange={(next) => setAnswers(next)}
+            />
+            {/* The draft review lives on the LAST step, right above Finish —
+                the step definitions have no separate review screen, and the
+                honest place to show "these rows get created" is next to the
+                button that creates them (N5: nothing lands without display). */}
+            {isLast && docs.some((d) => d.status === "processed") ? (
+              <DraftSection
+                draft={draft}
+                onDraft={setDraft}
+                disabled={finishing}
+              />
+            ) : null}
+          </>
         )}
       </div>
 
@@ -172,20 +226,275 @@ export default function SetupFlow({
             {status}
           </p>
         ) : null}
-        <Button
-          type="button"
-          onClick={() => void goNext()}
-          disabled={finishing}
-          className="w-full rounded-full"
-        >
-          {isLast ? SETUP.completeLabel : SETUP.nextLabel}
-        </Button>
+        {/* Founder 2026-07-30 — [Back, compact] [Next/Finish, full] side by
+            side at the bottom. Back is hidden on step 0 rather than
+            disabled: a dead button on the first screen is a question. */}
+        <div className="flex items-center gap-3">
+          {index > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIndex((i) => Math.max(0, i - 1))}
+              disabled={finishing}
+              className="w-24 shrink-0 rounded-full"
+            >
+              {SETUP.backLabel}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            onClick={() => void goNext()}
+            disabled={finishing}
+            className="flex-1 rounded-full"
+          >
+            {isLast ? SETUP.completeLabel : SETUP.nextLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
 
 /* --------------------------------- steps ---------------------------------- */
+
+/** Item 9 (founder 2026-07-30) — the optional strategy upload.
+ *
+ *  OPTIONAL IS THE DESIGN: pressing Next with nothing here is a complete
+ *  answer, the copy says so, and nothing later refers back to this screen
+ *  with a should-have. Only the EXTRACTED TEXT is stored, never the file;
+ *  an unreadable file is kept as `extraction_failed` and said plainly, so
+ *  the user knows drafting has nothing to read rather than wondering. */
+function DocumentStep({
+  docs,
+  onUploaded,
+}: {
+  docs: LifeSetupDocument[];
+  onUploaded: (doc: LifeSetupDocument) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  async function onFile(file: File) {
+    setBusy(true);
+    setFailed(false);
+    try {
+      onUploaded(await uploadSetupDocument(file));
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {SETUP.documentHint}
+      </p>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file && !busy) void onFile(file);
+        }}
+        className={`rounded-2xl border border-dashed px-4 py-8 text-center transition ${
+          dragOver ? "border-foreground/40 bg-muted/40" : "border-border"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="mx-auto flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-40"
+        >
+          <FileText className="h-4 w-4" />
+          {busy ? SETUP.documentUploading : SETUP.documentBrowseLabel}
+        </button>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {SETUP.documentDropNote}
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void onFile(file);
+          }}
+        />
+      </div>
+
+      {failed ? (
+        <p className="text-sm text-muted-foreground">
+          {SETUP.documentUploadError}
+        </p>
+      ) : null}
+
+      {docs.map((doc) => (
+        <PanelCard key={doc.id}>
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">
+                {doc.fileName}
+              </p>
+              {doc.status === "processed" ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {doc.charCount.toLocaleString("en-GB")}{" "}
+                  {SETUP.documentCharsSuffix}
+                </p>
+              ) : (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {SETUP.documentFailedNote}
+                </p>
+              )}
+            </div>
+          </div>
+        </PanelCard>
+      ))}
+    </div>
+  );
+}
+
+/** The draft-from-document review, on the last step above Finish.
+ *
+ *  NEVER AUTOMATIC (founder 2026-07-30): the button asks, every returned row
+ *  renders as a checkable line the user can edit or untick, and Finish sends
+ *  ONLY the ticked rows. Default-checked is allowed precisely because every
+ *  row is fully displayed here first — the default never bypasses the
+ *  display (N5). */
+function DraftSection({
+  draft,
+  onDraft,
+  disabled,
+}: {
+  draft: LifeDraftItem[] | null;
+  onDraft: (items: LifeDraftItem[] | null) => void;
+  disabled: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function run() {
+    setLoading(true);
+    setFailed(false);
+    try {
+      onDraft(await proposeFromDocument());
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (draft === null) {
+    return (
+      <div className="mt-8 border-t border-border pt-6 text-center">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={loading || disabled}
+          className="mx-auto rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-40"
+        >
+          {loading ? SETUP.draftWorking : SETUP.draftButton}
+        </button>
+        <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
+          {SETUP.draftHint}
+        </p>
+        {failed ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            {SETUP.draftFailed}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  const kinds: Array<LifeDraftItem["kind"]> = [
+    "bet",
+    "goal",
+    "habit",
+    "distraction",
+  ];
+
+  function update(item: LifeDraftItem, patch: Partial<LifeDraftItem>) {
+    onDraft(
+      (draft ?? []).map((d) => (d === item ? { ...d, ...patch } : d))
+    );
+  }
+
+  return (
+    <div className="mt-8 border-t border-border pt-6">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        {SETUP.draftReviewTitle}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {SETUP.draftReviewNote}
+      </p>
+
+      {draft.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          {SETUP.draftEmpty}
+        </p>
+      ) : (
+        kinds.map((kind) => {
+          const rows = draft.filter((d) => d.kind === kind);
+          if (rows.length === 0) return null;
+          return (
+            <div key={kind} className="mt-4">
+              <p className="text-xs font-medium text-foreground">
+                {SETUP.draftKindLabels[kind]}
+              </p>
+              <ul className="mt-2 space-y-2">
+                {rows.map((item, i) => (
+                  <li
+                    key={`${kind}-${item.externalId ?? i}`}
+                    className="flex items-center gap-2.5"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        update(item, { checked: e.target.checked })
+                      }
+                      className="h-4 w-4 shrink-0 accent-foreground"
+                      aria-label={`Create ${item.title}`}
+                    />
+                    <input
+                      value={item.title}
+                      disabled={disabled}
+                      onChange={(e) => update(item, { title: e.target.value })}
+                      className={`min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-foreground/30 ${
+                        item.checked ? "" : "text-muted-foreground"
+                      }`}
+                    />
+                    {item.dueLabel ? (
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {item.dueLabel}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
 
 export function BetsStep({
   answers,

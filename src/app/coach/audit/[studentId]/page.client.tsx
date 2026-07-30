@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { VoiceMark } from "@/components/willab/LoadingState";
 import {
   fetchCoachAuditData,
   type CoachAuditData,
@@ -88,7 +89,7 @@ export default function CoachAuditPageClient({
       <main className="mx-auto max-w-2xl px-4 py-8">
         {status === "loading" ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <VoiceMark size={40} />
           </div>
         ) : status === "error" ? (
           <p className="text-[15px] text-muted-foreground">

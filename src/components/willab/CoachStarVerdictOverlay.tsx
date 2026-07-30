@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Star } from "lucide-react";
+import { Star } from "lucide-react";
+import { VoiceMark } from "./LoadingState";
 import MediaPlayer from "@/components/results/MediaPlayer";
 import OverlayCloseButton from "./OverlayCloseButton";
 import { useBackDismiss } from "./useBackDismiss";
@@ -190,7 +191,7 @@ export default function CoachStarVerdictOverlay({
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
         {status === "loading" ? (
           <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <VoiceMark size={48} />
           </div>
         ) : status === "error" || stars === null ? (
           <p className="max-w-sm text-[15px] text-muted-foreground">
@@ -311,12 +312,7 @@ export default function CoachStarVerdictOverlay({
                   >
                     Shouldn&apos;t fire
                   </VerdictPill>
-                  {savingKeys[key] === true ? (
-                    <Loader2
-                      className="h-4 w-4 animate-spin text-muted-foreground"
-                      aria-hidden
-                    />
-                  ) : null}
+                  {savingKeys[key] === true ? <VoiceMark size={20} /> : null}
                 </div>
 
                 {pickerId === key ? (

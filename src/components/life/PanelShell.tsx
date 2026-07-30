@@ -5,9 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import PanelNotFound from "@/components/life/PanelNotFound";
+import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
-import { STATUS, VIEWS } from "@/lib/life/copy";
+import { VIEWS } from "@/lib/life/copy";
 import {
   hasConsented,
   principlesTabView,
@@ -81,7 +82,7 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
       <div className="flex min-h-[100dvh] flex-col bg-background">
         <DashboardHeader />
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-sm text-muted-foreground">{STATUS.loading}</p>
+          <LoadingState withTip={false} />
         </div>
       </div>
     );

@@ -180,6 +180,147 @@ export async function completeSetup(): Promise<void> {
   await call("/setup/complete", { method: "POST", body: {} });
 }
 
+/* -------------------- setup strategy document (item 9) -------------------- */
+/* Founder 2026-07-30: an OPTIONAL upload in setup, plus OPTIONAL drafting
+ * from it. Nothing here is automatic: the upload stores extracted text and
+ * stops, the draft returns rows and stops, and only rows the user TICKED are
+ * ever sent to apply. */
+
+export interface LifeSetupDocument {
+  id: string;
+  fileName: string;
+  status: "processed" | "extraction_failed";
+  charCount: number;
+}
+
+function mapSetupDocument(raw: unknown): LifeSetupDocument | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  return {
+    id: typeof r.id === "string" ? r.id : "",
+    fileName: typeof r.file_name === "string" ? r.file_name : "",
+    status: r.status === "processed" ? "processed" : "extraction_failed",
+    charCount: typeof r.char_count === "number" ? r.char_count : 0,
+  };
+}
+
+export async function fetchSetupDocuments(): Promise<LifeSetupDocument[]> {
+  const raw = (await call("/setup/documents")) as Record<string, unknown> | null;
+  const list = Array.isArray(raw?.documents) ? raw.documents : [];
+  return (list as unknown[]).flatMap((row) => {
+    const doc = mapSetupDocument(row);
+    return doc ? [doc] : [];
+  });
+}
+
+/** Multipart, not JSON — the one call in this file that cannot go through
+ *  `call`. The BFF forwards multipart bodies byte-for-byte. */
+export async function uploadSetupDocument(
+  file: File
+): Promise<LifeSetupDocument> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const res = await fetch(`${BASE}/setup/document`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+    cache: "no-store",
+  });
+  if (res.status === 404 || res.status === 401) throw new LifeUnavailableError();
+  if (res.status === 409) throw new LifeConsentRequiredError();
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new LifeRequestError(
+      res.status,
+      typeof data.error === "string" ? data.error : undefined
+    );
+  }
+  const doc = mapSetupDocument(data.document);
+  if (!doc) throw new LifeRequestError(res.status);
+  return doc;
+}
+
+/** One drafted row from the uploaded document. `checked` is FE state: the
+ *  tick IS the approve (N5) — only checked rows are ever sent to apply, and
+ *  an unchecked row is simply never created. */
+export interface LifeDraftItem {
+  kind: "bet" | "goal" | "habit" | "distraction";
+  title: string;
+  body: string;
+  horizon: string | null;
+  dueLabel: string | null;
+  bet: string | null;
+  externalId: string | null;
+  orderKey: number;
+  checked: boolean;
+}
+
+export async function proposeFromDocument(
+  documentId?: string
+): Promise<LifeDraftItem[]> {
+  const raw = (await call("/setup/propose-from-document", {
+    method: "POST",
+    body: documentId ? { document_id: documentId } : {},
+  })) as Record<string, unknown> | null;
+  const list = Array.isArray(raw?.items) ? raw.items : [];
+  return (list as unknown[]).flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const r = row as Record<string, unknown>;
+    const kind = r.kind;
+    if (
+      kind !== "bet" &&
+      kind !== "goal" &&
+      kind !== "habit" &&
+      kind !== "distraction"
+    ) {
+      return [];
+    }
+    const title = typeof r.title === "string" ? r.title.trim() : "";
+    if (!title) return [];
+    return [
+      {
+        kind,
+        title,
+        body: typeof r.body === "string" ? r.body : "",
+        horizon: typeof r.horizon === "string" ? r.horizon : null,
+        dueLabel: typeof r.due_label === "string" ? r.due_label : null,
+        bet: typeof r.collection === "string" ? r.collection : null,
+        externalId: typeof r.external_id === "string" ? r.external_id : null,
+        orderKey: typeof r.order_key === "number" ? r.order_key : 0,
+        // Default-checked (founder 2026-07-30): the review UI shows every
+        // row and the user unticks. The default never bypasses the display.
+        checked: true,
+      },
+    ];
+  });
+}
+
+/** Send ONLY the ticked rows. The backend creates them as the user's own
+ *  active items — the tick, made on a fully displayed row, is the explicit
+ *  approve (N5). */
+export async function applyConfirmedItems(
+  items: LifeDraftItem[]
+): Promise<number> {
+  const ticked = items.filter((i) => i.checked && i.title.trim() !== "");
+  if (ticked.length === 0) return 0;
+  const raw = (await call("/setup/apply-proposed", {
+    method: "POST",
+    body: {
+      items: ticked.map((i) => ({
+        kind: i.kind,
+        title: i.title.trim(),
+        body: i.body,
+        horizon: i.horizon,
+        due_label: i.dueLabel,
+        bet: i.bet,
+        external_id: i.externalId,
+        order_key: i.orderKey,
+      })),
+    },
+  })) as Record<string, unknown> | null;
+  return typeof raw?.count === "number" ? raw.count : ticked.length;
+}
+
 /* ------------------------------ principles -------------------------------- */
 
 export async function fetchPrinciples(): Promise<LifePrinciple[]> {
@@ -449,6 +590,162 @@ export function extensionForContentType(contentType: string): string {
     return ".docx";
   if (type === "application/json") return ".json";
   return ".md";
+}
+
+/* ----------------------- opt-in reminders (item 12) ----------------------- */
+/* Founder decision 2026-07-30: web-push reminders exist ONLY behind explicit
+ * per-user opt-in. Every default is off; these calls are the user flipping
+ * their own switches and registering their own browser. */
+
+export interface LifeReminderSettings {
+  morningEnabled: boolean;
+  eveningEnabled: boolean;
+  /** The checkout ladder (founder, extended 2026-07-30): weekly through
+   *  ten-year. Longer cadences deep-link to existing surfaces; there are no
+   *  checkout views. */
+  weeklyEnabled: boolean;
+  monthlyEnabled: boolean;
+  quarterlyEnabled: boolean;
+  yearlyEnabled: boolean;
+  fiveyearEnabled: boolean;
+  tenyearEnabled: boolean;
+  tzOffsetMinutes: number;
+}
+
+export interface LifeReminderState {
+  settings: LifeReminderSettings;
+  /** null ⇒ the server has no VAPID keys; the FE hides the section behind a
+   *  hint rather than offering switches that cannot work. */
+  publicKey: string | null;
+  subscribed: boolean;
+}
+
+function mapReminderSettings(raw: unknown): LifeReminderSettings {
+  const r =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    morningEnabled: r.morning_enabled === true,
+    eveningEnabled: r.evening_enabled === true,
+    weeklyEnabled: r.weekly_enabled === true,
+    monthlyEnabled: r.monthly_enabled === true,
+    quarterlyEnabled: r.quarterly_enabled === true,
+    yearlyEnabled: r.yearly_enabled === true,
+    fiveyearEnabled: r.fiveyear_enabled === true,
+    tenyearEnabled: r.tenyear_enabled === true,
+    tzOffsetMinutes:
+      typeof r.tz_offset_minutes === "number" ? r.tz_offset_minutes : 0,
+  };
+}
+
+export async function fetchReminders(): Promise<LifeReminderState> {
+  const raw = (await call("/reminders")) as Record<string, unknown> | null;
+  return {
+    settings: mapReminderSettings(raw?.settings),
+    publicKey: typeof raw?.public_key === "string" ? raw.public_key : null,
+    subscribed: raw?.subscribed === true,
+  };
+}
+
+export async function saveReminderSettings(patch: {
+  morningEnabled?: boolean;
+  eveningEnabled?: boolean;
+  weeklyEnabled?: boolean;
+  monthlyEnabled?: boolean;
+  quarterlyEnabled?: boolean;
+  yearlyEnabled?: boolean;
+  fiveyearEnabled?: boolean;
+  tenyearEnabled?: boolean;
+  tzOffsetMinutes?: number;
+}): Promise<LifeReminderSettings> {
+  const body: Record<string, unknown> = {};
+  const slots: Array<[keyof typeof patch, string]> = [
+    ["morningEnabled", "morning_enabled"],
+    ["eveningEnabled", "evening_enabled"],
+    ["weeklyEnabled", "weekly_enabled"],
+    ["monthlyEnabled", "monthly_enabled"],
+    ["quarterlyEnabled", "quarterly_enabled"],
+    ["yearlyEnabled", "yearly_enabled"],
+    ["fiveyearEnabled", "fiveyear_enabled"],
+    ["tenyearEnabled", "tenyear_enabled"],
+  ];
+  for (const [camel, snake] of slots) {
+    if (patch[camel] !== undefined) body[snake] = patch[camel];
+  }
+  if (patch.tzOffsetMinutes !== undefined)
+    body.tz_offset_minutes = patch.tzOffsetMinutes;
+  const raw = (await call("/reminders", {
+    method: "PUT",
+    body,
+  })) as Record<string, unknown> | null;
+  return mapReminderSettings(raw?.settings);
+}
+
+/** Store this browser's push subscription (the serialized PushSubscription). */
+export async function saveReminderSubscription(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}): Promise<void> {
+  await call("/reminders/subscription", {
+    method: "POST",
+    body: subscription,
+  });
+}
+
+export async function deleteReminderSubscription(
+  endpoint?: string
+): Promise<void> {
+  await call("/reminders/subscription", {
+    method: "DELETE",
+    body: endpoint ? { endpoint } : {},
+  });
+}
+
+/* ------------------------- editable check-in copy ------------------------- */
+/* Founder decision 2026-07-30, "my copy as default, editable": the mantra
+ * header and the distraction question ship with the founder's strings (the
+ * DAY block in lib/life/copy.ts) and a user may reword them. null means "use
+ * the default", so clearing a field restores the original line. */
+
+export interface LifeUserCopy {
+  mantraTitle: string | null;
+  mantraQuestion: string | null;
+  distractionQuestion: string | null;
+}
+
+function mapUserCopy(raw: unknown): LifeUserCopy {
+  const r =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const text = (v: unknown): string | null =>
+    typeof v === "string" && v.trim() !== "" ? v : null;
+  return {
+    mantraTitle: text(r.mantra_title),
+    mantraQuestion: text(r.mantra_question),
+    distractionQuestion: text(r.distraction_question),
+  };
+}
+
+export async function fetchUserCopy(): Promise<LifeUserCopy> {
+  const raw = (await call("/copy")) as Record<string, unknown> | null;
+  return mapUserCopy(raw?.copy);
+}
+
+/** Empty string or null in a field ⇒ back to the founder's line. */
+export async function saveUserCopy(patch: {
+  mantraTitle?: string | null;
+  mantraQuestion?: string | null;
+  distractionQuestion?: string | null;
+}): Promise<LifeUserCopy> {
+  const body: Record<string, unknown> = {};
+  if (patch.mantraTitle !== undefined) body.mantra_title = patch.mantraTitle;
+  if (patch.mantraQuestion !== undefined)
+    body.mantra_question = patch.mantraQuestion;
+  if (patch.distractionQuestion !== undefined)
+    body.distraction_question = patch.distractionQuestion;
+  const raw = (await call("/copy", {
+    method: "PUT",
+    body,
+  })) as Record<string, unknown> | null;
+  return mapUserCopy(raw?.copy);
 }
 
 /* ----------------------------- export / delete ---------------------------- */
