@@ -384,10 +384,15 @@ export function IdealTextHeroCard({
 
 /* -------------------------------------------------------------------------- */
 /*  FE-C — the crucial bubble: the app's ONE deliverable, a tall grey card.    */
-/*  Pulls the live SD GET on mount (free for the owner, never 402s) so the     */
-/*  title / status / version / date reflect the document as it is NOW, not as  */
-/*  it was when the bubble row was written. Falls back gracefully while the    */
-/*  fetch is in flight or when the BE's additive fields are not deployed yet.  */
+/*  Pulls the live SD GET on mount (free for the owner, never 402s). Exactly   */
+/*  TWO things on the card are live: the STATUS pill (pending → reviewed) and  */
+/*  the TITLE (founder 2026-07-29 — the BE stamps no name on the bubble row,   */
+/*  so the project name can only come from the document GET). The VERSION      */
+/*  badge is frozen forever to the bubble's own version, and the meta line is  */
+/*  the BE's sentence as written. This block used to claim version and date    */
+/*  were live too, which was never true of version — corrected 2026-07-30.     */
+/*  Falls back gracefully while the fetch is in flight or when the BE's        */
+/*  additive fields are not deployed yet.                                      */
 /* -------------------------------------------------------------------------- */
 /** IDEAL RECORDING card (token-mapped restyle) — the ideal-text bubble as a
  *  coach attachment. Bottom-left tail so it reads as a coach message; a distinct
