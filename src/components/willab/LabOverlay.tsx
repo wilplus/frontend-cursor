@@ -697,17 +697,25 @@ export default function LabOverlay({
           rather than opposite an empty slot.
 
           FE-6 — during SETUP the ✕ moves down onto the step indicator row,
-          where the story puts it, and this header renders an empty bar. It
-          moves rather than duplicating: two crosses stacked ~48px apart on one
-          screen is worse than either position, and the ✕ must stay the single
-          visible way out of the recording overlay. The one on the indicator
-          row confirms before discarding a half-filled setup; this one, on
-          every other step, has nothing to discard. */}
-      <header className="flex h-12 shrink-0 items-center justify-end px-4">
-        {state === "lab_session_context" ? null : (
+          where the story puts it. It moves rather than duplicating: two
+          crosses stacked ~48px apart on one screen is worse than either
+          position, and the ✕ must stay the single visible way out of the
+          recording overlay. The one on the indicator row confirms before
+          discarding a half-filled setup; this one, on every other step, has
+          nothing to discard. The READOUT does the same, into its own head.
+
+          Founder 2026-07-30 — where the ✕ has moved away, the header is not
+          rendered AT ALL. It used to stay as an empty 48px bar, which is
+          h-12 of nothing between the top of the screen and the first thing on
+          it: the setup's dots sat a band lower than they should, and the
+          ideal text was headed by a gap with a ✕ floating in it. A slot with
+          nothing in it is not neutral — it is the dead space the founder
+          circled on both screens. */}
+      {state === "lab_session_context" || state === "readout" ? null : (
+        <header className="flex h-12 shrink-0 items-center justify-end px-4">
           <OverlayCloseButton onClick={handleClose} />
-        )}
-      </header>
+        </header>
+      )}
 
       <div className="scrollbar-none mx-auto flex w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 py-6">
         {state === "lab_feelings" && (
@@ -876,6 +884,10 @@ export default function LabOverlay({
             sessionId={labSessionId}
             arcId={arcId}
             signedIn={signedIn}
+            // The ✕ this screen draws in its own head. Same handler the bare
+            // header used, so closing a readout still PARKS it (§4) — it is
+            // the exit that moved, not what it does.
+            onClose={handleClose}
             onAutoSent={() => {
               // Mirrors the old SendGate.onSent bookkeeping, minus the screen
               // change: the user stays on their ideal text.

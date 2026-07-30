@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText, X } from "lucide-react";
+import { FileText, Mic, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
 import PresentationInput from "./PresentationInput";
@@ -263,7 +263,7 @@ export default function RecordingSetup({
       <div className="flex-1">
         {current === "topic" && (
           <div>
-            <StepHead eyebrow="Topic" question="What are you speaking on?" />
+            <StepHead icon={Mic} question="What are you speaking on?" />
             <input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
@@ -278,7 +278,7 @@ export default function RecordingSetup({
         {current === "audience" && (
           <div>
             <StepHead
-              eyebrow="Audience"
+              icon={Mic}
               question="Who's the audience?"
               helper="Naming the audience anchors the tone: leadership team, students, investors, a single person."
             />
@@ -295,7 +295,7 @@ export default function RecordingSetup({
 
         {current === "length" && (
           <div>
-            <StepHead eyebrow="Length" question="How long should it run?" />
+            <StepHead icon={Mic} question="How long should it run?" />
             <div className="flex flex-wrap gap-2">
               {/* The chip WizardChip was extracted from — the Life Panel's due
                   presets are the same control, so both render this one. */}
@@ -322,7 +322,7 @@ export default function RecordingSetup({
         {current === "slides" && (
           <div>
             <StepHead
-              eyebrow="Slides"
+              icon={Mic}
               question="Have slides to go with it?"
               helper="Adding slides makes the ideal text dramatically better. It grounds the coach in exactly what your audience sees."
             />
@@ -340,7 +340,7 @@ export default function RecordingSetup({
         {current === "context" && (
           <div>
             <StepHead
-              eyebrow="Context"
+              icon={Mic}
               question="Anything your coach should know?"
               helper="A line on the stakes, the setting, or what you want to nail. Your coach uses it to sharpen the ideal text."
             />

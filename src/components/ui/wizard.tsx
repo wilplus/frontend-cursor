@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -17,22 +18,46 @@ import { cn } from "@/lib/utils";
 /*  here; they have nothing in common and should not.                          */
 /* -------------------------------------------------------------------------- */
 
-/** One question per screen: a small eyebrow, the question, an optional helper. */
+/** One question per screen: the question with the flow's mark beside it, an
+ *  optional eyebrow above, an optional helper below.
+ *
+ *  FOUNDER 2026-07-30 — the question now wears the VOICE-GAME head: icon and
+ *  words on one line, 17px semibold, the mark in the primary tint
+ *  (`/game`'s `<h1>`). It was a 22px heading under an uppercase eyebrow, which
+ *  is a fourth heading treatment in a product that already had one for this
+ *  job. Matching /game rather than inventing a fifth is the whole point, and
+ *  the icon is what makes the line say WHICH flow you are in without spending
+ *  a row of chrome on it.
+ *
+ *  The eyebrow is optional now. The recording setup drops it (its five labels
+ *  restated the question one line above it); the panel's setup keeps it,
+ *  because there it carries "step n of 10", which is the only thing telling a
+ *  user mid-form how much is left. */
 export function StepHead({
+  icon: Icon,
   eyebrow,
   question,
   helper,
 }: {
-  eyebrow: string;
+  /** The flow's mark, the same on every step of it — a flow identifier, not a
+   *  per-step decoration. Mic for the recording setup, the target for the
+   *  panel's strategy setup, as Sparkles is for the voice-game. */
+  icon?: LucideIcon;
+  eyebrow?: string;
   question: string;
   helper?: string;
 }) {
   return (
     <div className="mb-5">
-      <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-        {eyebrow}
-      </p>
-      <h2 className="mt-1.5 text-[22px] font-semibold leading-snug text-foreground">
+      {eyebrow ? (
+        <p className="mb-1.5 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="flex items-center gap-2 text-[17px] font-semibold leading-snug text-foreground">
+        {Icon ? (
+          <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+        ) : null}
         {question}
       </h2>
       {helper ? (
