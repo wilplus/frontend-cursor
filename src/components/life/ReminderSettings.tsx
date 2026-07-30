@@ -16,8 +16,13 @@ import { PanelCard, Resource, usePanelResource } from "./primitives";
 /*  ReminderSettings — the OPT-IN reminders (founder decision 2026-07-30)      */
 /*                                                                            */
 /*  THE ONE SANCTIONED EXCEPTION to "nothing pings" (L-4 / N3), and exactly    */
-/*  as wide as the founder drew it: three slots, every default OFF, and the    */
-/*  user flips each switch themselves. Turning the first slot on is what asks  */
+/*  as wide as the founder drew it: EIGHT slots — the three daily/weekly ones  */
+/*  (SLOTS) plus the five-strong checkout ladder (CHECKOUT_SLOTS: monthly,     */
+/*  quarterly, yearly, fiveyear, tenyear) — every default OFF, and the         */
+/*  user flips each switch themselves. (This header said "three slots" until   */
+/*  2026-07-30; the ladder was added before ship and the count was never       */
+/*  updated. The migration carries all eight *_enabled columns and the cron    */
+/*  accepts all eight slot values.) Turning the first slot on is what asks     */
 /*  the browser for notification permission and registers the push            */
 /*  subscription; turning the last one off removes the subscription again, so  */
 /*  a fully-off account holds no push capability anywhere.                     */
