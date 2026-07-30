@@ -14,6 +14,13 @@ import {
 } from "@/services/api/coachReview";
 import { useCoachVideoCapture } from "./useCoachVideoCapture";
 import CoachVideoRecorder from "./CoachVideoRecorder";
+import {
+  CoachCard,
+  CoachChip,
+  CoachErrorLine,
+  CoachEyebrow,
+  CoachMetaPill,
+} from "./coachChrome";
 
 /* -------------------------------------------------------------------------- */
 /*  CoachSnippetReviewCard — one snippet's full coach view (§F.3 + §F.4)       */
@@ -27,12 +34,20 @@ import CoachVideoRecorder from "./CoachVideoRecorder";
 /*    Tag (user-facing)                                                         */
 /*    Surface toggle (whether the user sees this snippet)                       */
 /*                                                                            */
-/*  Per-snippet immediate save (§F.4):                                         */
-/*    - Direction / tag / surfaced toggles save on click.                      */
-/*    - Note is debounced 500 ms after the last keystroke.                     */
-/*    - Every save round-trips to BE and echoes back the persisted state;      */
-/*      we trust the echo (no optimistic-on-error path — if save fails the     */
-/*      local state stays as-is and we surface the failure quietly).           */
+/*  SAVE TIMING — batched, NOT per click (R4-8). The §F.4 immediate save this  */
+/*  header used to describe is RETIRED and was left here stale: note /         */
+/*  direction / tag / surfaced live in LOCAL state only, mirror to the overlay */
+/*  through onStateChange (which also feeds a localStorage crash cache), and   */
+/*  persist in ONE shot from the overlay's Save. The breakthrough-video ref is */
+/*  the single exception — a server-side asset, saved live.                    */
+/*                                                                            */
+/*  The batching is an audience rule, not a preference: note / tag / surfaced  */
+/*  are USER-FACING, so a half-written note must not be able to reach the      */
+/*  student before the coach commits. The star-verdict lane saves immediately   */
+/*  for the mirror-image reason — a verdict is never user-facing, so it has    */
+/*  nothing to gate. Do NOT "unify" the two save models: the difference IS the */
+/*  audience rule (checked 2026-07-30, when the plumbing was unified and this  */
+/*  deliberately was not).                                                     */
 /*                                                                            */
 /*  Label hygiene (§S.3): no best/worst pre-fill, no AI direction guess in     */
 /*  the UI. The coach labels blind, in the chronological order BE returns.    */
@@ -194,22 +209,18 @@ export default function CoachSnippetReviewCard({
     : "text-muted-foreground";
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4">
+    <CoachCard gap="lg">
       <div className="flex items-center gap-2">
         <span className="text-[12px] text-muted-foreground">
           Snippet {index + 1} of {total}
         </span>
         {/* #191 — spoken take vs a re-read of a corrected piece. */}
         {snippet.recordingKind ? (
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-              snippet.recordingKind === "read"
-                ? "bg-primary/10 text-primary"
-                : "bg-muted text-muted-foreground"
-            }`}
+          <CoachMetaPill
+            tone={snippet.recordingKind === "read" ? "accent" : "muted"}
           >
             {snippet.recordingKind === "read" ? "Read" : "Spoken"}
-          </span>
+          </CoachMetaPill>
         ) : null}
       </div>
 
@@ -241,28 +252,18 @@ export default function CoachSnippetReviewCard({
         <div>
           <p className="text-sm font-semibold text-foreground">
             Direction
-            <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-              Private · training
-            </span>
+            <CoachEyebrow className="ml-2">Private · training</CoachEyebrow>
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {DIRECTIONS.map((d) => {
-              const active = coachState.directionLabel === d.value;
-              return (
-                <button
-                  key={d.value}
-                  type="button"
-                  onClick={() => pickDirection(d.value)}
-                  className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-foreground hover:border-primary/50"
-                  } disabled:opacity-50`}
-                >
-                  {d.label}
-                </button>
-              );
-            })}
+            {DIRECTIONS.map((d) => (
+              <CoachChip
+                key={d.value}
+                active={coachState.directionLabel === d.value}
+                onClick={() => pickDirection(d.value)}
+              >
+                {d.label}
+              </CoachChip>
+            ))}
           </div>
         </div>
 
@@ -275,9 +276,7 @@ export default function CoachSnippetReviewCard({
           <div className="mt-4">
             <p className="text-sm font-semibold text-foreground">
               Video
-              <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-                Shown to user
-              </span>
+              <CoachEyebrow className="ml-2">Shown to user</CoachEyebrow>
             </p>
             {coachState.breakthroughVideoRef ? (
               <div className="mt-2 flex flex-col gap-2">
@@ -357,9 +356,7 @@ export default function CoachSnippetReviewCard({
         <div className="mt-4">
           <p className="text-sm font-semibold text-foreground">
             Coach note
-            <span className="ml-2 text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
-              Shown to user
-            </span>
+            <CoachEyebrow className="ml-2">Shown to user</CoachEyebrow>
           </p>
           {/* #190 — a big, comfortable editor (founder ask): tall min height,
               full width, auto-grows with content up to 70vh. */}
@@ -418,12 +415,12 @@ export default function CoachSnippetReviewCard({
           )}
           <span className={`text-[12px] ${statusTone}`}>{statusLabel}</span>
           {saveError ? (
-            <span className="ml-2 text-[12px] text-destructive">
+            <CoachErrorLine inline className="ml-2">
               · {saveError}
-            </span>
+            </CoachErrorLine>
           ) : null}
         </div>
       </div>
-    </div>
+    </CoachCard>
   );
 }
