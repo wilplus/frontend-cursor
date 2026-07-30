@@ -282,3 +282,70 @@ approved.** Review that one file before the flag is flipped.
   explanation") is enforced backend-side; the FE renders whatever reply comes
   back. The refusal line is product copy and needs sign-off wherever it is
   written.
+
+## 8. The setup wizard fills itself from the document (2026-07-30)
+
+Handoff: `docs/FE-HANDOFF-life-setup-prefill.md`, which carries the FE's answers
+inline. Founder ask: *"like a CV you upload and all the forms are filled."*
+
+`FILTER: JUSTIFIED-SCAFFOLDING — cat {SCAFFOLDING} — fences {clear} — locks {clear} — redirect: tighten word→slide bucketing at the two-clocks boundary`
+
+**What it does.** An upload on the setup document step now calls
+`POST /v2/life/setup/prefill-from-document` once, and the goals come back
+bucketed per wizard step rather than as one flat list. Weekly opens with the
+weekly goals in it. Habits, distractions and any wording the document had for a
+bet come back in the same payload and stay on the tick list above Finish, because
+they have no step of their own and are created through `apply-proposed`.
+
+**One extraction, one call.** `proposeFromDocument` is gone from
+`services/api/life.ts`. The endpoint is live and unchanged backend-side; the
+client function went because nothing renders it any more, and an uncalled client
+function reads as shipped behaviour. Same rule §6's copy fence holds copy to.
+
+**What this FE assumes on top of the contract**
+
+- `GET /v2/life/setup` may return `setup_sections`. When it does, the section
+  keys come from there; when it does not, `LIFE_SETUP_STEPS` is the fallback.
+  Either way the *labels* stay in `copy.ts` and `setupSteps.ts` — the payload
+  carries keys only, deliberately, and no section name on that screen came off
+  the wire.
+- `400` on the prefill is treated as "nothing readable to draft from" and
+  degrades to the upload step with no error. The `code` field (`NO_DOCUMENT`) is
+  now readable off `LifeRequestError` for callers that need to tell two 400s
+  apart.
+- A prefill section key with no step in this build is parked in `unplaced`
+  rather than dropped, so a ninth horizon added backend-side first still reaches
+  the user.
+
+**`save: true` IS NOT CALLED, and this is the one thing the backend has to
+decide.** The handoff asks that a wizard storing a different shape says so rather
+than reshaping the slot client-side, so: this wizard holds ONE object,
+`{bets, horizons: {<section>: [...]}, unplaced}`, and PUTs all of it on every
+step. A server-side merge would write top-level `answers["weekly"]` while
+`coerceSetupAnswers` reads `answers.horizons.weekly`, so the prefill would report
+itself saved and come back empty. Durability is not lost by declining it: the
+merged payload is written straight back through the ordinary PUT the moment it
+lands. **The ask is to widen `merge_prefill_answers` to write into
+`answers["horizons"][<section>]` when the saved answers carry a `horizons` map,
+and to leave `unplaced` alone as a passthrough key.** The FE switches to
+`save: true` the day that lands.
+
+**N5, rendered.** A drafted row is dashed, tinted, badged `From your document`,
+and says in words that it was not written by the user. Editing any field counts
+as keeping it. The state survives save and resume; rows written before this
+feature existed default to the user's own, so no old draft gets marked. Nothing
+is created by any of it — goals become items through the ordinary Finish, the
+tick list through `apply-proposed`, and both only after the user has walked
+every step.
+
+**AC-9.** `counts` renders as a plain count of rows next to the upload and
+nowhere else. No bar, no ring, no proportion, no percentage.
+
+**L-2a.** The prefill never touches `answers.bets`. A document may put words to a
+bet; the ranks stay where they are, and reordering stays in the user's own hands
+on the bets step.
+
+**Still open here:** none of it has been exercised against a live backend. Every
+shape is read defensively, but the first real payload is still the first real
+payload. And the strings added to `SETUP` in `copy.ts` are written, not approved
+— §6 applies to them exactly as it does to the rest.

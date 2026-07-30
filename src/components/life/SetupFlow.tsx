@@ -8,6 +8,9 @@ import { LIFE_BETS } from "@/lib/life/types";
 import {
   coerceSetupAnswers,
   LIFE_SETUP_STEPS,
+  mergePrefill,
+  nextGoalId,
+  placeUnplacedGoal,
   pruneAnswers,
   stepIndex,
   type LifeSetupAnswers,
@@ -18,7 +21,7 @@ import {
   completeSetup,
   fetchSetup,
   fetchSetupDocuments,
-  proposeFromDocument,
+  prefillFromDocument,
   putSetup,
   uploadSetupDocument,
   type LifeDraftItem,
@@ -53,6 +56,11 @@ import { Button } from "@/components/ui/button";
 /*  step, because nothing was held back to replay.                             */
 /* -------------------------------------------------------------------------- */
 
+/** The goal steps, in order. The fallback for the server's `setup_sections`,
+ *  and the list the unplaced picker offers. */
+const GOAL_STEPS = LIFE_SETUP_STEPS.filter((s) => s.kind === "goals");
+const GOAL_STEP_KEYS = GOAL_STEPS.map((s) => s.key);
+
 export default function SetupFlow({
   resumeStep,
   onComplete,
@@ -76,12 +84,24 @@ export default function SetupFlow({
   const [docs, setDocs] = useState<LifeSetupDocument[]>([]);
   const [draft, setDraft] = useState<LifeDraftItem[] | null>(null);
 
+  // The prefill (founder 2026-07-30). `added` doubles as "a prefill has run
+  // this sitting": null hides the count line and keeps the manual button
+  // available, 0 means the document was read and said nothing usable.
+  const [prefillBusy, setPrefillBusy] = useState(false);
+  const [prefillFailed, setPrefillFailed] = useState(false);
+  const [prefillAdded, setPrefillAdded] = useState<number | null>(null);
+  // The server's own step order. The KEYS come from it so the two lists
+  // cannot drift; the LABELS stay in `LIFE_SETUP_STEPS`, because they are
+  // founder copy and the payload deliberately carries none.
+  const [sections, setSections] = useState<string[]>(GOAL_STEP_KEYS);
+
   useEffect(() => {
     let cancelled = false;
     void fetchSetup()
       .then((draft) => {
         if (cancelled) return;
         setAnswers(coerceSetupAnswers(draft.answers));
+        if (draft.setupSections.length > 0) setSections(draft.setupSections);
         if (!resumedRef.current) {
           resumedRef.current = true;
           setIndex(stepIndex(draft.step ?? resumeStep));
@@ -125,6 +145,53 @@ export default function SetupFlow({
 
   const step = LIFE_SETUP_STEPS[index];
   const isLast = index === LIFE_SETUP_STEPS.length - 1;
+
+  /**
+   * Read the uploaded document and let it fill the steps.
+   *
+   * ONE CALL, ONE EXTRACTION. The goals come back bucketed per step and are
+   * merged into the form; the habits, distractions and any bet wording come
+   * back in the same payload and go to the tick list on the last screen.
+   * Calling the flat `propose-from-document` as well would buy a second model
+   * call and nothing else.
+   *
+   * NOTHING IS CREATED HERE. The merged rows are form state carrying
+   * `source: "document"` and `confirmed: false`, rendered as not-yours-yet
+   * wherever they land (N5). They become real items at the end, through the
+   * ordinary Finish, after the user has walked every step they now sit on.
+   */
+  async function runPrefill(documentId?: string) {
+    if (!answers || prefillBusy) return;
+    setPrefillBusy(true);
+    setPrefillFailed(false);
+    try {
+      const prefill = await prefillFromDocument(documentId);
+      if (!prefill) {
+        // 400 NO_DOCUMENT. Nothing readable to draft from, which is the
+        // ordinary state of a step nobody has used. The upload is the answer,
+        // and it is already on screen, so this says nothing louder than 0.
+        setPrefillAdded(0);
+        return;
+      }
+      const merged = mergePrefill(
+        answers,
+        prefill,
+        prefill.setupSections.length > 0 ? prefill.setupSections : sections
+      );
+      setAnswers(merged.answers);
+      setDraft(prefill.review);
+      setPrefillAdded(merged.added);
+      // Written back through the ordinary PUT straight away. The status line
+      // on this screen promises "Saved. You can close this and come back to
+      // it.", and a prefill living only in component state would break that
+      // promise for the eight steps the user has not reached yet.
+      await save(step.key, merged.answers);
+    } catch {
+      setPrefillFailed(true);
+    } finally {
+      setPrefillBusy(false);
+    }
+  }
 
   async function goNext() {
     await save(step.key, answers!);
@@ -219,7 +286,21 @@ export default function SetupFlow({
         ) : step.kind === "document" ? (
           <DocumentStep
             docs={docs}
-            onUploaded={(doc) => setDocs((prev) => [doc, ...prev])}
+            onUploaded={(doc) => {
+              setDocs((prev) => [doc, ...prev]);
+              // Founder 2026-07-30 — "like a CV you upload and all the forms
+              // are filled". Filling IS the point of the upload, so it runs on
+              // its own the moment there is something readable. Automatic is
+              // safe here for one reason only: nothing is created. Every row
+              // it puts on a step lands marked and unconfirmed (N5), and the
+              // steps are all still ahead of the user.
+              if (doc.status === "processed") void runPrefill(doc.id);
+            }}
+            canDraft={docs.some((d) => d.status === "processed")}
+            added={prefillAdded}
+            busy={prefillBusy}
+            failed={prefillFailed}
+            onDraft={() => void runPrefill()}
           />
         ) : (
           <>
@@ -229,15 +310,36 @@ export default function SetupFlow({
               answers={answers}
               onChange={(next) => setAnswers(next)}
             />
+            {/* The unplaced sit on the FIRST goal step, which is the screen
+                straight after the upload, and again on the LAST one if any
+                are still unfiled. Twice on purpose: they are goals the user
+                actually wrote, they are the one thing this feature cannot
+                afford to drop, and a row still sitting here when Finish is
+                pressed is a row that never becomes anything. Nobody should
+                reach that button without having seen them. */}
+            {(step.key === GOAL_STEP_KEYS[0] || isLast) &&
+            answers.unplaced.length > 0 ? (
+              <UnplacedSection
+                answers={answers}
+                onChange={(next) => setAnswers(next)}
+                disabled={finishing}
+              />
+            ) : null}
             {/* The draft review lives on the LAST step, right above Finish —
                 the step definitions have no separate review screen, and the
                 honest place to show "these rows get created" is next to the
-                button that creates them (N5: nothing lands without display). */}
+                button that creates them (N5: nothing lands without display).
+                Goals are NOT in here any more: they went into the steps
+                above, and they are created by Finish itself. What is left is
+                the rows with no step of their own. */}
             {isLast && docs.some((d) => d.status === "processed") ? (
               <DraftSection
                 draft={draft}
                 onDraft={setDraft}
                 disabled={finishing}
+                busy={prefillBusy}
+                failed={prefillFailed}
+                onRun={() => void runPrefill()}
               />
             ) : null}
           </>
@@ -293,9 +395,21 @@ export default function SetupFlow({
 function DocumentStep({
   docs,
   onUploaded,
+  canDraft,
+  added,
+  busy: drafting,
+  failed: draftFailed,
+  onDraft,
 }: {
   docs: LifeSetupDocument[];
   onUploaded: (doc: LifeSetupDocument) => void;
+  /** Something processed is on file, so there is text to read. */
+  canDraft: boolean;
+  /** Rows put into the steps by the last run. null ⇒ no run this sitting. */
+  added: number | null;
+  busy: boolean;
+  failed: boolean;
+  onDraft: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -389,51 +503,97 @@ function DocumentStep({
           </div>
         </PanelCard>
       ))}
+
+      {/* The fill. It runs on its own after an upload, so this button is for
+          the other door: somebody who uploaded in an earlier sitting and came
+          back. It is NOT offered once a run has happened, because a second
+          press would only re-read the same document. */}
+      {canDraft && added === null ? (
+        <div className="border-t border-border pt-4 text-center">
+          <button
+            type="button"
+            onClick={onDraft}
+            disabled={drafting}
+            className="mx-auto rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-40"
+          >
+            {drafting ? SETUP.draftWorking : SETUP.draftButton}
+          </button>
+          <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
+            {SETUP.draftHint}
+          </p>
+        </div>
+      ) : null}
+
+      {drafting && added === null ? (
+        <p className="text-center text-sm text-muted-foreground">
+          {SETUP.draftWorking}
+        </p>
+      ) : null}
+
+      {/* A count of ROWS, never a measure of how far through the form anyone
+          is. No bar, no ring, no proportion (AC-9 / N4). */}
+      {added !== null && added > 0 ? (
+        <p className="text-center text-sm text-foreground">
+          {added} {SETUP.prefillCountSuffix}
+        </p>
+      ) : null}
+      {added === 0 ? (
+        <p className="text-center text-sm text-muted-foreground">
+          {SETUP.draftEmpty}
+        </p>
+      ) : null}
+      {draftFailed ? (
+        <p className="text-center text-sm text-muted-foreground">
+          {SETUP.draftFailed}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 /** The draft-from-document review, on the last step above Finish.
  *
- *  NEVER AUTOMATIC (founder 2026-07-30): the button asks, every returned row
- *  renders as a checkable line the user can edit or untick, and Finish sends
- *  ONLY the ticked rows. Default-checked is allowed precisely because every
- *  row is fully displayed here first — the default never bypasses the
- *  display (N5). */
+ *  WHAT IS LEFT IN HERE, since the prefill took the goals: habits,
+ *  distractions and any wording the document had for a bet. They stay on a
+ *  tick list because they have no step of their own, and because they are
+ *  created by `apply-proposed` rather than by the setup answers.
+ *
+ *  THE BETS CANNOT BE REORDERED FROM HERE (L-2a). Rank 1 The Life, 2 The
+ *  Company, 3 The Dream is fixed; a document may put words to a bet and can
+ *  never move it, so these rows carry wording and nothing else. Reordering
+ *  stays where it has always been: the user's own hands, on the bets step.
+ *
+ *  Every returned row renders as a checkable line the user can edit or untick,
+ *  and Finish sends ONLY the ticked rows. Default-checked is allowed precisely
+ *  because every row is fully displayed here first — the default never
+ *  bypasses the display (N5). */
 function DraftSection({
   draft,
   onDraft,
   disabled,
+  busy,
+  failed,
+  onRun,
 }: {
   draft: LifeDraftItem[] | null;
   onDraft: (items: LifeDraftItem[] | null) => void;
   disabled: boolean;
+  busy: boolean;
+  failed: boolean;
+  onRun: () => void;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  async function run() {
-    setLoading(true);
-    setFailed(false);
-    try {
-      onDraft(await proposeFromDocument());
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   if (draft === null) {
+    // The user skipped past the document step without drafting, and a
+    // processed upload is on file. Same one call as the step behind them.
     return (
       <div className="mt-8 border-t border-border pt-6 text-center">
         <button
           type="button"
-          onClick={() => void run()}
-          disabled={loading || disabled}
+          onClick={onRun}
+          disabled={busy || disabled}
           className="mx-auto rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-40"
         >
-          {loading ? SETUP.draftWorking : SETUP.draftButton}
+          {busy ? SETUP.draftWorking : SETUP.draftButton}
         </button>
         <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
           {SETUP.draftHint}
@@ -610,13 +770,23 @@ export function BetsStep({
   );
 }
 
-/** Row ids only have to be unique within one draft, and stable across renders
- *  so React does not remount an input the user is typing into. A counter is
- *  enough; these are never persisted as identity. */
-let goalIdSeq = 0;
-function nextGoalId(stepKey: string): string {
-  goalIdSeq += 1;
-  return `${stepKey}-${goalIdSeq}`;
+/** N5 made visible. A row the document wrote and the user has not touched
+ *  must not look like a row the user typed: dashed, tinted, and named. It
+ *  keeps a quiet mark afterwards, because where it came from stays true after
+ *  they have approved it. */
+function goalCardClass(goal: LifeSetupGoal): string | undefined {
+  if (goal.source !== "document") return undefined;
+  return goal.confirmed
+    ? undefined
+    : "border-dashed border-foreground/25 bg-muted/30";
+}
+
+function FromDocumentBadge() {
+  return (
+    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+      {SETUP.prefillBadge}
+    </span>
+  );
 }
 
 function GoalsStep({
@@ -644,109 +814,146 @@ function GoalsStep({
 
   function update(i: number, patch: Partial<LifeSetupGoal>) {
     const next = [...goals];
-    next[i] = { ...next[i], ...patch };
+    // Touching a drafted row IS keeping it. N5 asks for the row to look
+    // different until the user keeps or edits it, and either verb settles it:
+    // making somebody press Keep on a line they have just rewritten would be
+    // asking the same question twice.
+    next[i] = { ...next[i], ...patch, confirmed: true };
     write(next);
   }
 
   return (
     <div className="space-y-3">
-      {goals.map((goal, i) => (
-        <PanelCard key={goal.id}>
-          <div className="flex items-start justify-between gap-3">
-            <input
-              value={goal.title}
-              onChange={(e) => update(i, { title: e.target.value })}
-              placeholder="The goal, in one line"
-              className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-            />
-            <button
-              type="button"
-              aria-label="Remove this goal"
-              onClick={() => write(goals.filter((_, j) => j !== i))}
-              className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
+      {goals.map((goal, i) => {
+        const unconfirmed = goal.source === "document" && !goal.confirmed;
+        return (
+          <PanelCard key={goal.id} className={goalCardClass(goal)}>
+            {goal.source === "document" ? (
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <FromDocumentBadge />
+                {unconfirmed ? (
+                  <button
+                    type="button"
+                    onClick={() => update(i, {})}
+                    className="shrink-0 rounded-full border border-border px-3 py-1 text-xs text-foreground hover:bg-muted"
+                  >
+                    {SETUP.prefillKeepLabel}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
 
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Due, as you write it">
-              <input
-                value={goal.dueLabel}
-                onChange={(e) => update(i, { dueLabel: e.target.value })}
-                placeholder={duePlaceholder}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-              />
-              {/* Chips, not a date picker (spec §3.2): the label is the source
-                  of truth, and a picker would normalise "[Jul '27]" into a
-                  concrete day nobody chose. Tapping writes the label VERBATIM
-                  and the field stays typeable, so the common answers cost one
-                  tap and every other answer still fits. Same affordance as the
-                  recording flow's length presets. */}
-              {presets.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {presets.map((preset) => (
-                    <WizardChip
-                      key={preset}
-                      size="sm"
-                      active={goal.dueLabel === preset}
-                      onClick={() =>
-                        update(i, {
-                          // Tapping the active chip clears it — otherwise a
-                          // mis-tap can only be undone by selecting the text.
-                          dueLabel: goal.dueLabel === preset ? "" : preset,
-                        })
-                      }
-                    >
-                      {preset}
-                    </WizardChip>
-                  ))}
-                </div>
-              ) : null}
-            </Field>
-            <Field label="How much">
-              <input
-                value={goal.quantity}
-                onChange={(e) => update(i, { quantity: e.target.value })}
-                placeholder="3 talks, 10kg, one draft"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
-              />
-            </Field>
-          </div>
+            {unconfirmed ? (
+              <p className="mb-3 text-xs text-muted-foreground">
+                {SETUP.prefillRowNote}
+              </p>
+            ) : null}
 
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="How you will know it happened">
+            <div className="flex items-start justify-between gap-3">
               <input
-                value={goal.measure}
-                onChange={(e) => update(i, { measure: e.target.value })}
-                placeholder="What you would point at"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                value={goal.title}
+                onChange={(e) => update(i, { title: e.target.value })}
+                placeholder="The goal, in one line"
+                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
               />
-            </Field>
-            <Field label="Which bet it serves">
-              <select
-                value={goal.betKey ?? ""}
-                onChange={(e) =>
-                  update(i, {
-                    betKey: (e.target.value || null) as LifeSetupGoal["betKey"],
-                  })
-                }
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+              <button
+                type="button"
+                aria-label="Remove this goal"
+                onClick={() => write(goals.filter((_, j) => j !== i))}
+                className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground"
               >
-                <option value="">Pick one</option>
-                {answers.bets.map((b) => {
-                  const meta = LIFE_BETS.find((x) => x.key === b.key);
-                  return (
-                    <option key={b.key} value={b.key}>
-                      {meta?.glyph} {meta?.label}
-                    </option>
-                  );
-                })}
-              </select>
-            </Field>
-          </div>
-        </PanelCard>
-      ))}
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {/* Whatever the document said about this goal past its one line.
+                Almost always empty. Rendered when it is not, because the only
+                other option is throwing away words the user wrote. */}
+            {goal.note ? (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {goal.note}
+              </p>
+            ) : null}
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Due, as you write it">
+                <input
+                  value={goal.dueLabel}
+                  onChange={(e) => update(i, { dueLabel: e.target.value })}
+                  placeholder={duePlaceholder}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                />
+                {/* Chips, not a date picker (spec §3.2): the label is the source
+                    of truth, and a picker would normalise "[Jul '27]" into a
+                    concrete day nobody chose. Tapping writes the label VERBATIM
+                    and the field stays typeable, so the common answers cost one
+                    tap and every other answer still fits. Same affordance as the
+                    recording flow's length presets. */}
+                {presets.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {presets.map((preset) => (
+                      <WizardChip
+                        key={preset}
+                        size="sm"
+                        active={goal.dueLabel === preset}
+                        onClick={() =>
+                          update(i, {
+                            // Tapping the active chip clears it — otherwise a
+                            // mis-tap can only be undone by selecting the text.
+                            dueLabel: goal.dueLabel === preset ? "" : preset,
+                          })
+                        }
+                      >
+                        {preset}
+                      </WizardChip>
+                    ))}
+                  </div>
+                ) : null}
+              </Field>
+              <Field label="How much">
+                <input
+                  value={goal.quantity}
+                  onChange={(e) => update(i, { quantity: e.target.value })}
+                  placeholder="3 talks, 10kg, one draft"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                />
+              </Field>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="How you will know it happened">
+                <input
+                  value={goal.measure}
+                  onChange={(e) => update(i, { measure: e.target.value })}
+                  placeholder="What you would point at"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                />
+              </Field>
+              <Field label="Which bet it serves">
+                <select
+                  value={goal.betKey ?? ""}
+                  onChange={(e) =>
+                    update(i, {
+                      betKey: (e.target.value || null) as LifeSetupGoal["betKey"],
+                    })
+                  }
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                >
+                  <option value="">Pick one</option>
+                  {answers.bets.map((b) => {
+                    const meta = LIFE_BETS.find((x) => x.key === b.key);
+                    return (
+                      <option key={b.key} value={b.key}>
+                        {meta?.glyph} {meta?.label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </Field>
+            </div>
+          </PanelCard>
+        );
+      })}
 
       <button
         type="button"
@@ -760,6 +967,11 @@ function GoalsStep({
               quantity: "",
               measure: "",
               betKey: null,
+              note: "",
+              // Typed here, by them, so there is nothing to mark and nothing
+              // to confirm.
+              source: "user",
+              confirmed: true,
             },
           ])
         }
@@ -771,6 +983,103 @@ function GoalsStep({
         <Plus className="h-3.5 w-3.5" />
         Add a goal
       </button>
+    </div>
+  );
+}
+
+/**
+ * The goals the document wrote but filed under nothing.
+ *
+ * THE BACKEND DOES NOT GUESS, and neither does this. A "[NOW]" goal is
+ * unplaced on purpose: daily against weekly is exactly what the document did
+ * not say, and filling it in for the user would be inventing the one part
+ * they left out. So they are shown, and the user places them.
+ *
+ * They must not leave this screen quietly. A row still sitting here at Finish
+ * becomes nothing, so this renders on the first goal step, where the user
+ * lands straight after the upload, and again above Finish while any remain.
+ */
+function UnplacedSection({
+  answers,
+  onChange,
+  disabled,
+}: {
+  answers: LifeSetupAnswers;
+  onChange: (next: LifeSetupAnswers) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="mt-8 border-t border-border pt-6">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        {SETUP.unplacedTitle}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {SETUP.unplacedNote}
+      </p>
+
+      <div className="mt-4 space-y-3">
+        {answers.unplaced.map((goal) => (
+          <PanelCard
+            key={goal.id}
+            className="border-dashed border-foreground/25 bg-muted/30"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <FromDocumentBadge />
+              <button
+                type="button"
+                aria-label={`Remove ${goal.title}`}
+                disabled={disabled}
+                onClick={() =>
+                  onChange({
+                    ...answers,
+                    unplaced: answers.unplaced.filter((g) => g.id !== goal.id),
+                  })
+                }
+                className="rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground disabled:opacity-40"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <p className="mt-2 text-sm text-foreground">{goal.title}</p>
+            {goal.note ? (
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {goal.note}
+              </p>
+            ) : null}
+            {goal.dueLabel ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {goal.dueLabel}
+              </p>
+            ) : null}
+
+            <div className="mt-3">
+              <Field label={SETUP.unplacedMoveLabel}>
+                {/* One tap moves one row into a step. The labels are ours,
+                    from LIFE_SETUP_STEPS: the payload carries keys only, on
+                    purpose, so no section name on this screen came off the
+                    wire. */}
+                <select
+                  value=""
+                  disabled={disabled}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    onChange(placeUnplacedGoal(answers, goal.id, e.target.value));
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/30"
+                >
+                  <option value="">{SETUP.unplacedMovePlaceholder}</option>
+                  {GOAL_STEPS.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </PanelCard>
+        ))}
+      </div>
     </div>
   );
 }

@@ -269,13 +269,14 @@ export const SETUP = {
   documentUploadError: "That upload did not go through. Try again.",
   documentCharsSuffix: "characters read",
 
-  /** Drafting goals from the uploaded document. Offered, never automatic:
-   *  the button asks, the checkboxes decide, and only ticked rows are ever
-   *  created. */
+  /** Drafting from the uploaded document. The goals go into the steps
+   *  themselves (see the prefill block below); habits, distractions and any
+   *  wording for a bet stay on the tick list, because they have no step of
+   *  their own. Only ticked rows are ever created. */
   draftButton: "✨ Draft from my document",
   draftWorking: "Reading your document",
   draftHint:
-    "Reads your uploaded document and lists what it found. Tick what should be created, edit the wording, untick the rest. Nothing is created until you finish setup.",
+    "Reads your document and puts the goals it found into the steps, where you can change them. Habits and distractions are listed at the end to tick. Nothing is created until you finish setup.",
   draftEmpty: "Nothing usable was found in the document.",
   draftFailed: "That did not work. Your document is unchanged, try again.",
   draftReviewTitle: "From your document",
@@ -287,6 +288,26 @@ export const SETUP = {
     habit: "Habits",
     distraction: "Distractions",
   },
+
+  /** SIGN-OFF — the wizard filling itself from the document (founder
+   *  2026-07-30, "like a CV you upload and all the forms are filled").
+   *
+   *  N5 governs every line here: none of it says a drafted goal is yours,
+   *  none of it says it is done, and the count is a count of rows, never a
+   *  measure of how complete the form is. */
+  prefillCountSuffix: "goals read from your document, waiting in the steps",
+  prefillBadge: "From your document",
+  prefillRowNote: "Read from your document, not written by you. Change it, keep it, or remove it.",
+  prefillKeepLabel: "Keep",
+
+  /** The goals the document wrote but filed under no horizon. They are shown
+   *  rather than guessed at: daily against weekly is exactly what the
+   *  document did not say, so the user says it. */
+  unplacedTitle: "Not filed under a horizon",
+  unplacedNote:
+    "Your document did not say when these belong. Put each one where it goes, or remove it.",
+  unplacedMoveLabel: "Put it in",
+  unplacedMovePlaceholder: "Pick a step",
 } as const;
 
 export const STRATEGY = {
