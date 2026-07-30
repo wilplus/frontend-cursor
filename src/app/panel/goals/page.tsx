@@ -10,6 +10,7 @@ import {
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
+import StrategyDocumentPanel from "@/components/life/StrategyDocument";
 
 /* -------------------------------------------------------------------------- */
 /*  FE-9 — Goals. Bets in rank order, goals beneath.                           */
@@ -21,6 +22,16 @@ import {
 /*    · The DUE LABEL, rendered verbatim: "[NOW]", "[Aug]", "[Jul '27]",       */
 /*      "2035". The label is the source of truth, not the parsed date, so it   */
 /*      is never reformatted into a tidier form the user did not write.        */
+/*                                                                            */
+/*  THE STRATEGY UPLOAD LIVES AT THE FOOT OF THIS VIEW (founder 2026-07-30).   */
+/*  It is the same upload setup opens with, kept open afterwards, because      */
+/*  setup runs once and a strategy does not. Here rather than on the Strategy  */
+/*  view on purpose: that screen already has an Upload button meaning          */
+/*  something else entirely (a revised copy of the GENERATED document, parsed  */
+/*  into a diff to approve). Two Uploads side by side doing different things   */
+/*  to the same word is how a user loses a document. And this is where they    */
+/*  will look for it: the founder's own question was where to add the file the */
+/*  goals get set from, and Goals is the first place that reads as.            */
 /* -------------------------------------------------------------------------- */
 
 export default function GoalsPage() {
@@ -93,6 +104,9 @@ export default function GoalsPage() {
           )
         }
       </Resource>
+      {/* Rows created from a document are goals, habits, distractions and
+          bets, so the list above is out of date the moment they land. */}
+      <StrategyDocumentPanel onApplied={resource.reload} />
     </>
   );
 }

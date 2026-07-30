@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, GripVertical, Plus, Target, X } from "lucide-react";
+import { GripVertical, Plus, Target, X } from "lucide-react";
 import { SETUP, STATUS } from "@/lib/life/copy";
 import { LIFE_BETS } from "@/lib/life/types";
 import {
@@ -13,6 +13,7 @@ import {
   type LifeSetupAnswers,
   type LifeSetupGoal,
 } from "@/lib/life/setupSteps";
+import { foldDraftIntoAnswers } from "@/lib/life/documentFold";
 import {
   applyConfirmedItems,
   completeSetup,
@@ -20,12 +21,12 @@ import {
   fetchSetupDocuments,
   proposeFromDocument,
   putSetup,
-  uploadSetupDocument,
   type LifeDraftItem,
   type LifeSetupDocument,
 } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
-import { Eyebrow, ErrorLine, LoadingLine, PanelCard } from "./primitives";
+import { ErrorLine, LoadingLine, PanelCard } from "./primitives";
+import { DocumentUpload, DraftList } from "./StrategyDocument";
 import { useDragReorder } from "./useDragReorder";
 import { StepHead, WizardChip, WizardProgress } from "@/components/ui/wizard";
 import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
@@ -69,12 +70,27 @@ export default function SetupFlow({
   const [done, setDone] = useState(false);
   const resumedRef = useRef(false);
 
-  // Item 9 (founder 2026-07-30) — the optional strategy upload and what was
-  // drafted from it. Both live HERE rather than in their steps because the
-  // draft is reviewed on the last screen and applied on Finish: a step-local
-  // state would be lost the moment the user pressed Next.
+  // Item 9 (founder 2026-07-30) — the optional strategy upload and what came
+  // out of it. All of this lives HERE rather than in the step, because the
+  // whole point is that it outlives the step: the goals land in `answers` and
+  // the leftovers are reviewed on the last screen. Step-local state would be
+  // gone the moment the user pressed Next.
   const [docs, setDocs] = useState<LifeSetupDocument[]>([]);
+  /** The REMAINDER of the draft: rows the fill had no screen to put on. The
+   *  goals are not here, they are in `answers`. */
   const [draft, setDraft] = useState<LifeDraftItem[] | null>(null);
+  // "none" is its own outcome, not a flavour of "done": a document that
+  // yielded nothing must say so, or the user walks into eight empty screens
+  // believing they were filled.
+  const [fill, setFill] = useState<
+    "idle" | "working" | "done" | "none" | "failed"
+  >("idle");
+  // The fill is an await on a model call, so it can be slow, and `answers` can
+  // move under it: Back to the bets step and a word typed into a meaning is
+  // enough. Folding against a snapshot taken before the await would hand that
+  // stale copy back to setAnswers and silently delete what was typed during
+  // it. The fold reads THIS instead, which is always the latest.
+  const answersRef = useRef<LifeSetupAnswers | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +134,8 @@ export default function SetupFlow({
     []
   );
 
+  answersRef.current = answers;
+
   if (loadFailed) return <ErrorLine />;
   if (!answers) return <LoadingLine />;
 
@@ -147,6 +165,31 @@ export default function SetupFlow({
     } catch {
       setFinishing(false);
       setSaveState("idle");
+    }
+  }
+
+  /** The CV-generator step (founder 2026-07-30). Runs on upload, because it
+   *  creates nothing: goals fold FORWARD into horizon screens the user has
+   *  not reached yet, so every one of them is seen, editable and deletable
+   *  before Next ever saves it as an answer. Rows with no screen to land on
+   *  (habits, distractions, bets) come back as the remainder and are reviewed
+   *  on the last screen instead. */
+  async function fillFromDocument() {
+    setFill("working");
+    try {
+      const items = await proposeFromDocument();
+      // answersRef, never the captured `answers`: see the ref's declaration.
+      const result = foldDraftIntoAnswers(items, answersRef.current!);
+      setAnswers(result.answers);
+      setDraft(result.remainder.length > 0 ? result.remainder : null);
+      setFill(result.filledGoals > 0 ? "done" : "none");
+      // Persist straight away rather than waiting for Next. The fill IS this
+      // screen's answer, and save-and-resume is the only door back into an
+      // interrupted setup: losing it would send the user to re-upload a
+      // document the server already has.
+      await save("document", result.answers);
+    } catch {
+      setFill("failed");
     }
   }
 
@@ -217,10 +260,35 @@ export default function SetupFlow({
         {step.kind === "bets" ? (
           <BetsStep answers={answers} onChange={(next) => setAnswers(next)} />
         ) : step.kind === "document" ? (
-          <DocumentStep
+          <DocumentUpload
             docs={docs}
-            onUploaded={(doc) => setDocs((prev) => [doc, ...prev])}
-          />
+            onUploaded={(doc) => {
+              setDocs((prev) => [doc, ...prev]);
+              // An unreadable file has nothing to fill from, and its own card
+              // already says so. A second failure line under it would just be
+              // the same sentence twice.
+              if (doc.status === "processed") void fillFromDocument();
+            }}
+          >
+            {fill === "working" ? (
+              <p className="text-sm text-muted-foreground">
+                {SETUP.documentFillWorking}
+              </p>
+            ) : null}
+            {fill === "done" ? (
+              <p className="text-sm text-foreground">{SETUP.documentFillDone}</p>
+            ) : null}
+            {fill === "none" ? (
+              <p className="text-sm text-muted-foreground">
+                {SETUP.documentFillNone}
+              </p>
+            ) : null}
+            {fill === "failed" ? (
+              <p className="text-sm text-muted-foreground">
+                {SETUP.documentFillFailed}
+              </p>
+            ) : null}
+          </DocumentUpload>
         ) : (
           <>
             <GoalsStep
@@ -229,15 +297,18 @@ export default function SetupFlow({
               answers={answers}
               onChange={(next) => setAnswers(next)}
             />
-            {/* The draft review lives on the LAST step, right above Finish —
-                the step definitions have no separate review screen, and the
-                honest place to show "these rows get created" is next to the
-                button that creates them (N5: nothing lands without display). */}
-            {isLast && docs.some((d) => d.status === "processed") ? (
-              <DraftSection
+            {/* What the fill could not place. The goals are already on the
+                screens the user just walked through; these are the habits,
+                distractions and bets that have no screen of their own. They
+                live on the LAST step, right above Finish, because the honest
+                place to show "these rows get created" is next to the button
+                that creates them (N5: nothing lands without display). */}
+            {isLast && draft !== null && draft.length > 0 ? (
+              <DraftList
                 draft={draft}
                 onDraft={setDraft}
                 disabled={finishing}
+                note={SETUP.draftReviewNote}
               />
             ) : null}
           </>
@@ -254,14 +325,18 @@ export default function SetupFlow({
         ) : null}
         {/* Founder 2026-07-30 — [Back, compact] [Next/Finish, full] side by
             side at the bottom. Back is hidden on step 0 rather than
-            disabled: a dead button on the first screen is a question. */}
+            disabled: a dead button on the first screen is a question.
+            Both are held while the document is being read: the fill is about
+            to write goals onto the screens either direction leads to, and
+            watching them appear under your cursor on a screen you are already
+            editing is not the same experience as arriving to them. */}
         <div className="flex items-center gap-3">
           {index > 0 ? (
             <Button
               type="button"
               variant="outline"
               onClick={() => setIndex((i) => Math.max(0, i - 1))}
-              disabled={finishing}
+              disabled={finishing || fill === "working"}
               className="w-24 shrink-0 rounded-full"
             >
               {SETUP.backLabel}
@@ -270,7 +345,7 @@ export default function SetupFlow({
           <Button
             type="button"
             onClick={() => void goNext()}
-            disabled={finishing}
+            disabled={finishing || fill === "working"}
             className="flex-1 rounded-full"
           >
             {isLast ? SETUP.completeLabel : SETUP.nextLabel}
@@ -282,245 +357,6 @@ export default function SetupFlow({
 }
 
 /* --------------------------------- steps ---------------------------------- */
-
-/** Item 9 (founder 2026-07-30) — the optional strategy upload.
- *
- *  OPTIONAL IS THE DESIGN: pressing Next with nothing here is a complete
- *  answer, the copy says so, and nothing later refers back to this screen
- *  with a should-have. Only the EXTRACTED TEXT is stored, never the file;
- *  an unreadable file is kept as `extraction_failed` and said plainly, so
- *  the user knows drafting has nothing to read rather than wondering. */
-function DocumentStep({
-  docs,
-  onUploaded,
-}: {
-  docs: LifeSetupDocument[];
-  onUploaded: (doc: LifeSetupDocument) => void;
-}) {
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-
-  async function onFile(file: File) {
-    setBusy(true);
-    setFailed(false);
-    try {
-      onUploaded(await uploadSetupDocument(file));
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {SETUP.documentHint}
-      </p>
-
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file && !busy) void onFile(file);
-        }}
-        className={`rounded-2xl border border-dashed px-4 py-8 text-center transition ${
-          dragOver ? "border-foreground/40 bg-muted/40" : "border-border"
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={busy}
-          className="mx-auto flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-40"
-        >
-          <FileText className="h-4 w-4" />
-          {busy ? SETUP.documentUploading : SETUP.documentBrowseLabel}
-        </button>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {SETUP.documentDropNote}
-        </p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void onFile(file);
-          }}
-        />
-      </div>
-
-      {failed ? (
-        <p className="text-sm text-muted-foreground">
-          {SETUP.documentUploadError}
-        </p>
-      ) : null}
-
-      {docs.map((doc) => (
-        <PanelCard key={doc.id}>
-          <div className="flex items-start gap-3">
-            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
-                {doc.fileName}
-              </p>
-              {doc.status === "processed" ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {doc.charCount.toLocaleString("en-GB")}{" "}
-                  {SETUP.documentCharsSuffix}
-                </p>
-              ) : (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {SETUP.documentFailedNote}
-                </p>
-              )}
-            </div>
-          </div>
-        </PanelCard>
-      ))}
-    </div>
-  );
-}
-
-/** The draft-from-document review, on the last step above Finish.
- *
- *  NEVER AUTOMATIC (founder 2026-07-30): the button asks, every returned row
- *  renders as a checkable line the user can edit or untick, and Finish sends
- *  ONLY the ticked rows. Default-checked is allowed precisely because every
- *  row is fully displayed here first — the default never bypasses the
- *  display (N5). */
-function DraftSection({
-  draft,
-  onDraft,
-  disabled,
-}: {
-  draft: LifeDraftItem[] | null;
-  onDraft: (items: LifeDraftItem[] | null) => void;
-  disabled: boolean;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  async function run() {
-    setLoading(true);
-    setFailed(false);
-    try {
-      onDraft(await proposeFromDocument());
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (draft === null) {
-    return (
-      <div className="mt-8 border-t border-border pt-6 text-center">
-        <button
-          type="button"
-          onClick={() => void run()}
-          disabled={loading || disabled}
-          className="mx-auto rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-40"
-        >
-          {loading ? SETUP.draftWorking : SETUP.draftButton}
-        </button>
-        <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground">
-          {SETUP.draftHint}
-        </p>
-        {failed ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {SETUP.draftFailed}
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-
-  const kinds: Array<LifeDraftItem["kind"]> = [
-    "bet",
-    "goal",
-    "habit",
-    "distraction",
-  ];
-
-  function update(item: LifeDraftItem, patch: Partial<LifeDraftItem>) {
-    onDraft(
-      (draft ?? []).map((d) => (d === item ? { ...d, ...patch } : d))
-    );
-  }
-
-  return (
-    <div className="mt-8 border-t border-border pt-6">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-        {SETUP.draftReviewTitle}
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {SETUP.draftReviewNote}
-      </p>
-
-      {draft.length === 0 ? (
-        <p className="mt-3 text-sm text-muted-foreground">
-          {SETUP.draftEmpty}
-        </p>
-      ) : (
-        kinds.map((kind) => {
-          const rows = draft.filter((d) => d.kind === kind);
-          if (rows.length === 0) return null;
-          return (
-            <div key={kind} className="mt-4">
-              <p className="text-xs font-medium text-foreground">
-                {SETUP.draftKindLabels[kind]}
-              </p>
-              <ul className="mt-2 space-y-2">
-                {rows.map((item, i) => (
-                  <li
-                    key={`${kind}-${item.externalId ?? i}`}
-                    className="flex items-center gap-2.5"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.checked}
-                      disabled={disabled}
-                      onChange={(e) =>
-                        update(item, { checked: e.target.checked })
-                      }
-                      className="h-4 w-4 shrink-0 accent-foreground"
-                      aria-label={`Create ${item.title}`}
-                    />
-                    <input
-                      value={item.title}
-                      disabled={disabled}
-                      onChange={(e) => update(item, { title: e.target.value })}
-                      className={`min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-foreground/30 ${
-                        item.checked ? "" : "text-muted-foreground"
-                      }`}
-                    />
-                    {item.dueLabel ? (
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {item.dueLabel}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-}
 
 export function BetsStep({
   answers,
