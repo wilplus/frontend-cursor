@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchTokenHistory, type TokenLedgerEntry } from "@/services/api/tokens";
+import { fetchPurchasableTiers, startPlanCheckout } from "@/services/api/subscribe";
 import type { TokenWallet } from "@/hooks/useTokenWallet";
 import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy";
 
@@ -26,10 +27,12 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*     detail. The allowance is shown because it is real and it resets; a      */
 /*     button would 404.                                                       */
 /*                                                                            */
-/*  2. A working upgrade button. The tiers are real and published, but the     */
-/*     backend has no subscription checkout — see                              */
-/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md. The plans are listed */
-/*     with an honest note until one exists.                                   */
+/*  2. A way to CHANGE or CANCEL an existing plan. Buying a first plan works    */
+/*     (the Choose buttons below), but switching or stopping needs Stripe's      */
+/*     billing portal, which the backend has no route for — see                 */
+/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md. So checkout is offered */
+/*     only to a user on free: offering it to a subscriber would create a        */
+/*     SECOND subscription and charge them twice.                               */
 /*                                                                            */
 /*  No streaks, no "you've used X% of your month", no comparison, no praise    */
 /*  for spending little (AC-9). The ledger is a receipt, not a report card.    */
@@ -65,6 +68,41 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   const ready = wallet.balance.kind === "ready" ? wallet.balance : null;
   const renewsOn = formatShortDate(ready?.periodEndsAt ?? null);
   const prices = wallet.prices;
+
+  /* ------------------------------ plan buying ----------------------------- */
+  const [purchasable, setPurchasable] = useState<string[]>([]);
+  const [busyTier, setBusyTier] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPurchasableTiers().then((t) => {
+      if (!cancelled) setPurchasable(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Only a free user is offered checkout — see the note on the button. An
+  // UNKNOWN tier counts as not-free: better to withhold a buy button than to
+  // risk a second subscription on someone who already pays.
+  const onFree = ready?.tier === "free" || ready?.tier === null;
+
+  const buy = async (tier: string) => {
+    if (busyTier) return;
+    setBusyTier(tier);
+    setCheckoutError(null);
+    const r = await startPlanCheckout(tier);
+    if (r.ok) {
+      // Hard navigation to Stripe's hosted page; nothing is charged until the
+      // user completes it there, and we never see card details.
+      window.location.assign(r.url);
+      return;
+    }
+    setBusyTier(null);
+    setCheckoutError(r.message);
+  };
 
   return (
     <div className="w-full">
@@ -143,25 +181,64 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
                   first reset feel like theft. */}
               {Object.entries(prices.tiers)
                 .sort((a, b) => a[1].usdPerMonth - b[1].usdPerMonth)
-                .map(([name, tier]) => (
-                  <li key={name} className="text-[13px]">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <span className="font-medium capitalize">{name}</span>
-                      <span className="text-muted-foreground">
-                        {TOKENS_COPY.walletPerMonth(tier.usdPerMonth)}
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground">
-                      {TOKENS_COPY.walletTierTokens(formatTokens(tier.tokensPerMonth))}
-                      {" · "}
-                      {TOKENS_COPY.walletTierReviews(tier.coachReviewsPerMonth)}
-                    </div>
-                  </li>
-                ))}
+                .map(([name, tier]) => {
+                  const isCurrent = ready?.tier === name;
+                  // Buyable only when the server can actually sell it AND the
+                  // user is on free. Offering checkout to someone already
+                  // subscribed would create a SECOND subscription and charge
+                  // them twice; switching needs the billing portal, which the
+                  // BE has no route for yet.
+                  const canBuy =
+                    purchasable.includes(name) && onFree && !isCurrent;
+                  return (
+                    <li key={name} className="text-[13px]">
+                      <div className="flex items-baseline justify-between gap-4">
+                        <span className="font-medium capitalize">{name}</span>
+                        <span className="text-muted-foreground">
+                          {TOKENS_COPY.walletPerMonth(tier.usdPerMonth)}
+                        </span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {TOKENS_COPY.walletTierTokens(formatTokens(tier.tokensPerMonth))}
+                        {" · "}
+                        {TOKENS_COPY.walletTierReviews(tier.coachReviewsPerMonth)}
+                      </div>
+                      {isCurrent ? (
+                        <p className="mt-1 text-[12px] text-muted-foreground">
+                          {TOKENS_COPY.walletCurrentPlan}
+                        </p>
+                      ) : canBuy ? (
+                        <button
+                          type="button"
+                          disabled={busyTier !== null}
+                          onClick={() => void buy(name)}
+                          className="mt-1.5 rounded-full border border-foreground bg-foreground px-4 py-1.5 text-[13px] font-medium text-background transition hover:bg-foreground/90 disabled:opacity-50"
+                        >
+                          {busyTier === name
+                            ? TOKENS_COPY.walletChoosePlanBusy
+                            : TOKENS_COPY.walletChoosePlan}
+                        </button>
+                      ) : null}
+                    </li>
+                  );
+                })}
             </ul>
-            <p className="mt-3 text-[12px] text-muted-foreground">
-              {TOKENS_COPY.walletUpgradeUnavailable}
-            </p>
+            {/* One line, and only when it is actually true. Nothing for sale →
+                say so. On a paid plan → changing it needs the billing portal
+                the BE has no route for, so point at a human rather than a
+                button that would double-charge. */}
+            {purchasable.length === 0 ? (
+              <p className="mt-3 text-[12px] text-muted-foreground">
+                {TOKENS_COPY.walletUpgradeUnavailable}
+              </p>
+            ) : !onFree ? (
+              <p className="mt-3 text-[12px] text-muted-foreground">
+                {TOKENS_COPY.walletManageUnavailable}
+              </p>
+            ) : null}
+            {checkoutError ? (
+              <p className="mt-2 text-[12px] text-destructive">{checkoutError}</p>
+            ) : null}
           </section>
         ) : null}
 
