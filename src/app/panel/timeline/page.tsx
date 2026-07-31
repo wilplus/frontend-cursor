@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
-import { EMPTY, VIEWS } from "@/lib/life/copy";
+import { EMPTY } from "@/lib/life/copy";
 import { fetchTimeline } from "@/services/api/life";
 import TimelineCanvas from "@/components/life/TimelineCanvas";
 import {
   EmptyState,
-  PanelHeading,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -19,7 +18,6 @@ export default function TimelinePage() {
 
   return (
     <>
-      <PanelHeading title={VIEWS.timeline.title} lede={VIEWS.timeline.lede} />
       <Resource resource={resource}>
         {(events) =>
           events.length === 0 ? (

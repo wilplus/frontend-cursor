@@ -8,7 +8,7 @@ import { ProposalItems } from "@/components/life/ProposalCards";
 import {
   EmptyState,
   Eyebrow,
-  PanelHeading,
+  PanelLede,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -42,7 +42,7 @@ export default function WeekPage() {
 
   return (
     <>
-      <PanelHeading title={VIEWS.week.title} lede={VIEWS.week.lede} />
+      <PanelLede lede={VIEWS.week.lede} />
       <Resource resource={resource}>
         {(week) =>
           week === null ? (
