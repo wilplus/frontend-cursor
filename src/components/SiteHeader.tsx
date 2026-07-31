@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import AppMenu from "@/components/AppMenu";
-import TokenBalanceChip from "@/components/tokens/TokenBalanceChip";
 import { COMMUNITY_URL, SUPPORT_EMAIL } from "@/lib/appMenuLinks";
 import { useAppMenuData } from "@/hooks/useAppMenuData";
 
@@ -31,26 +30,21 @@ export default function SiteHeader() {
         <Logo />
       </Link>
 
-      {/* Same wallet, same placement as the lab header. A balance that appears
-          on one surface and vanishes on the next reads as a bug; guests (the
-          usual case here) render nothing either way. */}
-      <div className="flex items-center gap-2">
-        <TokenBalanceChip wallet={menu.wallet} />
-        <AppMenu
-          authState={menu.authState}
-          userEmail={menu.userEmail}
-          credits={menu.credits}
-          tokensEnabled={menu.wallet.enabled === true}
-          lifeMenu={menu.lifeMenu}
-          supportEmail={SUPPORT_EMAIL}
-          communityUrl={COMMUNITY_URL}
-          onLogout={menu.logout}
-          loggingOut={menu.loggingOut}
-          labHref="/chat"
-          gameHref="/game"
-          corpusHref={menu.isCoach ? "/coach/corpus" : null}
-        />
-      </div>
+      <AppMenu
+        authState={menu.authState}
+        userEmail={menu.userEmail}
+        credits={menu.credits}
+        tokensEnabled={menu.wallet.enabled === true}
+        tokensLabel={menu.tokensLabel}
+        lifeMenu={menu.lifeMenu}
+        supportEmail={SUPPORT_EMAIL}
+        communityUrl={COMMUNITY_URL}
+        onLogout={menu.logout}
+        loggingOut={menu.loggingOut}
+        labHref="/chat"
+        gameHref="/game"
+        corpusHref={menu.isCoach ? "/coach/corpus" : null}
+      />
     </header>
   );
 }
