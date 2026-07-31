@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { notifyTokensSpent } from "@/lib/willabWindowEvents";
 
 /* -------------------------------------------------------------------------- */
 /*  arcGame — the key-moment game (E5)                                          */
@@ -96,6 +97,17 @@ export async function fetchArcGame(
     return null;
   }
   if (!res.ok) return null; // incl. 404 = not the arc's owner
+  // TOKEN PRICING — metered, like the feedback read: the BE charges the `game`
+  // price here, once per arc (`ref_id` is the arc id), silently and fail-open.
+  //
+  // Re-read the balance so the drop is tied to starting the game rather than
+  // appearing unexplained at the next poll. Keyed on the response, not on a
+  // usable body: the charge belongs to the request the BE served.
+  //
+  // Not priced up front anywhere. The menu row that opens this has no arc to
+  // ask about (the training is resolved here, from `?arc=` or localStorage),
+  // and by the time this page can resolve one the charge has already happened.
+  notifyTokensSpent();
   const body = (await res.json().catch(() => null)) as Record<
     string,
     unknown

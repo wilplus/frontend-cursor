@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 import { submitLabRecording } from "@/services/api/labRecording";
 import { IDEAL_EDIT_COPY } from "./idealEditCopy";
+import ActionPriceNote from "@/components/tokens/ActionPriceNote";
 
 /* -------------------------------------------------------------------------- */
 /*  IdealReadMic — the ONE two-state mic on the ideal-text screen (FE-D)       */
@@ -376,7 +377,12 @@ export default function IdealReadMic({
         <p className="text-[12px] text-muted-foreground">
           Recording. Read the text above, then tap to send.
         </p>
-      ) : null}
+      ) : (
+        // Price BEFORE the read, on the idle button only. Never while the mic
+        // is hot: a running cost beside a live recording is a meter, and it
+        // would push people to cut a read short.
+        <ActionPriceNote action="reread" />
+      )}
     </div>
   );
 }

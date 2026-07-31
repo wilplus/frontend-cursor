@@ -15,6 +15,7 @@ import {
   type PresentationSlide,
 } from "./presentation";
 import { fetchRecordingConfig } from "@/services/api/recordingConfig";
+import RecordPriceNote from "@/components/tokens/RecordPriceNote";
 
 /* -------------------------------------------------------------------------- */
 /*  RecordingSetup (④) — the recording setup as a one-question-per-screen flow  */
@@ -387,9 +388,16 @@ export default function RecordingSetup({
           {primaryLabel}
         </Button>
         {isLast ? (
-          <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
-            {THREE_TAKE_NUDGE}
-          </p>
+          <>
+            <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
+              {THREE_TAKE_NUDGE}
+            </p>
+            {/* Price BEFORE the take, on the last step only — the same place
+                and for the same reason as the nudge: said once, immediately
+                before the thing it describes. Renders nothing unless token
+                pricing is live, and never disables the CTA above it. */}
+            <RecordPriceNote />
+          </>
         ) : null}
       </div>
     </div>

@@ -9,6 +9,7 @@ import { homeworkApi } from "@/lib/api/homework-client";
 import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
+import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -31,6 +32,14 @@ export interface AppMenuData {
   isCoach: boolean;
   userEmail: string | null;
   credits: number | null;
+  /** The token wallet (token pricing, Phase 1). Lives here for the same reason
+   *  credits do: BOTH headers mount the same AppMenu, and a second copy of
+   *  this effect in SiteHeader is exactly the duplication that let the two
+   *  menus drift apart the first time.
+   *
+   *  `wallet.enabled === true` also RETIRES the legacy credits row — see the
+   *  note on AppMenu's `tokensEnabled`. */
+  wallet: TokenWallet;
   lifeMenu: LifeMenuEntry[];
   loggingOut: boolean;
   logout: () => void;
@@ -152,11 +161,15 @@ export function useAppMenuData(): AppMenuData {
     })();
   }, [supabase, router]);
 
+  // Signed-in only: a guest has no wallet, and the probe is skipped entirely
+  // rather than fired and thrown away.
+  const wallet = useTokenWallet(authState === "signed_in");
   return {
     authState,
     isCoach,
     userEmail,
     credits,
+    wallet,
     lifeMenu,
     loggingOut,
     logout,
