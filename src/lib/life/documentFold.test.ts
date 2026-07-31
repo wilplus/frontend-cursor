@@ -13,6 +13,7 @@ function row(patch: Partial<LifeDraftItem>): LifeDraftItem {
     kind: "goal",
     title: "A goal",
     body: "",
+    titleCut: null,
     horizon: "weekly",
     dueLabel: null,
     bet: null,
