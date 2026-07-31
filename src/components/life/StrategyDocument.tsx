@@ -192,6 +192,25 @@ export function DraftList({
     onDraft(draft.map((d) => (d === item ? { ...d, ...patch } : d)));
   }
 
+  /** Edit a TRUNCATION PAIR as the one text it actually is, and keep the two
+   *  fields consistent afterwards.
+   *
+   *  Re-applying the backend's own split (cut at `titleCut`) rather than
+   *  sending the edited text as a bare title is what makes an UNTOUCHED row
+   *  round-trip byte-identically: title back to exactly the opening the server
+   *  sent, body back to exactly the line. And an edit that brings the text
+   *  under the cut collapses the pair, because a short line has no second half
+   *  to carry. */
+  function updateText(item: LifeDraftItem, text: string) {
+    const cut = item.titleCut ?? text.length;
+    update(
+      item,
+      text.length > cut
+        ? { title: text.slice(0, cut), body: text }
+        : { title: text, body: "" }
+    );
+  }
+
   return (
     <div className="mt-8 border-t border-border pt-6">
       <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -211,36 +230,65 @@ export function DraftList({
                 {SETUP.draftKindLabels[kind] ?? kind}
               </p>
               <ul className="mt-2 space-y-2">
-                {rows.map((item, i) => (
-                  <li
-                    key={`${kind}-${item.externalId ?? i}`}
-                    className="flex items-center gap-2.5"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.checked}
-                      disabled={disabled}
-                      onChange={(e) =>
-                        update(item, { checked: e.target.checked })
-                      }
-                      className="h-4 w-4 shrink-0 accent-foreground"
-                      aria-label={`Create ${item.title}`}
-                    />
-                    <input
-                      value={item.title}
-                      disabled={disabled}
-                      onChange={(e) => update(item, { title: e.target.value })}
-                      className={`min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-foreground/30 ${
-                        item.checked ? "" : "text-muted-foreground"
-                      }`}
-                    />
-                    {item.dueLabel ? (
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {item.dueLabel}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
+                {rows.map((item, i) => {
+                  // A pair edits as one long text; anything else keeps the
+                  // single-line field it has always had.
+                  const paired = item.titleCut !== null;
+                  const fieldClass = `min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-foreground/30 ${
+                    item.checked ? "" : "text-muted-foreground"
+                  }`;
+                  return (
+                    <li
+                      key={`${kind}-${item.externalId ?? i}`}
+                      className="flex items-start gap-2.5"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        disabled={disabled}
+                        onChange={(e) =>
+                          update(item, { checked: e.target.checked })
+                        }
+                        className="mt-2 h-4 w-4 shrink-0 accent-foreground"
+                        aria-label={`Create ${item.title}`}
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        {paired ? (
+                          <textarea
+                            value={item.body}
+                            rows={3}
+                            disabled={disabled}
+                            onChange={(e) => updateText(item, e.target.value)}
+                            className={`${fieldClass} resize-y leading-relaxed`}
+                          />
+                        ) : (
+                          <input
+                            value={item.title}
+                            disabled={disabled}
+                            onChange={(e) =>
+                              update(item, { title: e.target.value })
+                            }
+                            className={fieldClass}
+                          />
+                        )}
+                        {/* An ordinary row's body is a DESCRIPTION, and it is
+                            created with the row, so it is shown. Read-only:
+                            the document wrote it, and the title is the line
+                            the user came here to correct. */}
+                        {!paired && item.body ? (
+                          <p className="px-3 text-xs leading-relaxed text-muted-foreground">
+                            {item.body}
+                          </p>
+                        ) : null}
+                      </div>
+                      {item.dueLabel ? (
+                        <span className="mt-2 shrink-0 text-xs text-muted-foreground">
+                          {item.dueLabel}
+                        </span>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );

@@ -77,7 +77,7 @@ src/app/panel/{principles,principles/[id],wins,phrases,today,goals,timeline,dist
 ```
 
 Tests: `hashtags.test.ts`, `mappers.test.ts`, `timelineScale.test.ts`,
-`uploadKind.test.ts`, `isolation.test.ts`.
+`uploadKind.test.ts`, `lifeDraft.test.ts`, `isolation.test.ts`.
 
 ## 3. The isolation fence
 
@@ -124,6 +124,8 @@ against the backend prompt.
 | `GET /v2/life/proposals`, `POST /v2/life/proposals/:id/decide` | FE-7 |
 | `GET /v2/life/strategy`, `POST /v2/life/strategy/upload`, `POST /v2/life/strategy/apply` | FE-9 strategy |
 | `POST /v2/life/export`, `DELETE /v2/life/data` | FE-10 |
+| `POST /v2/life/setup/document`, `GET /v2/life/setup/documents` | the document dock + setup step 2 |
+| `POST /v2/life/setup/propose-from-document`, `POST /v2/life/setup/apply-proposed` | the dock's draft and tick-and-Add |
 
 ### Status codes the FE depends on
 
@@ -322,15 +324,11 @@ leave open.
   sentence overstates what is on the screen. Either re-hang the link (a tenth
   pill in the menu is one line in `LIFE_VIEWS`) or change that consent bullet.
   **Founder decision, not an FE one.**
-- **The kind hint needs a backend that honours it.** `propose-from-document`
-  returns `bet`, `goal`, `habit` and `distraction` today, so the dock produces
-  rows on Goals, Distractions and Timeline and comes back empty on Phrases,
-  Principles and Wins. The FE is finished for all of them: `LifeDraftItem.kind`
-  is the full `LifeItemKind`, `applyConfirmedItems` sends whatever it is given,
-  and `SETUP.draftKindLabels` has a label per kind with a fall-back to the raw
-  name. What is missing is the backend emitting `phrase` / `principle` / `win`
-  when asked. A backend that rejects the unknown field is retried once without
-  it, so shipping this ahead of that work cannot break the upload that already
-  works. Written up for them in
-  `backend-handoff-life-panel-document-dock.md`, which carries the wire shapes,
-  the acceptance walk-through and the provenance question this raises.
+- ~~**The kind hint needs a backend that honours it.**~~ — **answered** (BE,
+  2026-07-31). `propose-from-document` honours `kind` and emits `phrase`,
+  `principle` and `win`; `apply-proposed` creates them. The dock produces rows
+  on all six kind-holding views now. Two follow-ups landed on this side with
+  it: `apply` stamps `origin_document_id` so a principle read out of a file is
+  distinguishable from one the engine derived, and the review row renders a
+  long line in full instead of the first 500 characters of it. The ANSWERED box
+  at the top of `backend-handoff-life-panel-document-dock.md` has the mapping.

@@ -79,6 +79,10 @@ export default function SetupFlow({
   /** The REMAINDER of the draft: rows the fill had no screen to put on. The
    *  goals are not here, they are in `answers`. */
   const [draft, setDraft] = useState<LifeDraftItem[] | null>(null);
+  // Which document the draft was read out of, so Finish can stamp the rows it
+  // creates with their provenance (BE 2026-07-31). Null when setup uploaded
+  // nothing, which is the ordinary case and creates rows exactly as before.
+  const [draftDocumentId, setDraftDocumentId] = useState<string | null>(null);
   // "none" is its own outcome, not a flavour of "done": a document that
   // yielded nothing must say so, or the user walks into eight empty screens
   // believing they were filled.
@@ -157,7 +161,10 @@ export default function SetupFlow({
       // with half the review applied. Only checked rows are ever sent (N5):
       // the tick is the approve, an unticked row is simply never created.
       if (draft && draft.some((d) => d.checked)) {
-        await applyConfirmedItems(draft);
+        // Stamped with the document they were read out of, when there was one
+        // (BE 2026-07-31). A setup that never uploaded anything sends null and
+        // the rows are created exactly as before.
+        await applyConfirmedItems(draft, draftDocumentId);
       }
       await completeSetup();
       invalidateLifeState();
@@ -177,7 +184,8 @@ export default function SetupFlow({
   async function fillFromDocument() {
     setFill("working");
     try {
-      const items = await proposeFromDocument();
+      const { documentId, items } = await proposeFromDocument();
+      setDraftDocumentId(documentId);
       // answersRef, never the captured `answers`: see the ref's declaration.
       const result = foldDraftIntoAnswers(items, answersRef.current!);
       setAnswers(result.answers);

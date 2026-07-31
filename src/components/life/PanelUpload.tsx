@@ -29,9 +29,18 @@ import { DraftList } from "./StrategyDocument";
 /*  IT POINTS AT THE VIEW YOU ARE STANDING ON. `uploadKindForPath` turns the   */
 /*  route into the item kind that view holds and passes it as a HINT, so a     */
 /*  document opened from Phrases is read for phrases and one opened from       */
-/*  Principles for principles. It is a hint on purpose: the FE does not decide */
-/*  what a document can yield, so a backend that ignores the field answers     */
-/*  exactly as it does today and the dock renders whatever comes back.         */
+/*  Principles for principles. The backend honours it (BE 2026-07-31): it      */
+/*  leads its answer with the hinted rows and still returns everything else    */
+/*  the document holds, so the dock renders whatever comes back and filters    */
+/*  nothing. A strategy document opened from Phrases still offers its goals.   */
+/*                                                                            */
+/*  WHAT LANDS IS STAMPED WITH WHERE IT CAME FROM. `apply` sends the document  */
+/*  the rows were read out of, and the backend records it as the created       */
+/*  items' `origin_document_id` — so a principle read out of a file is         */
+/*  distinguishable from one the engine derived from a written case. The id    */
+/*  comes off the draft RESPONSE, because the un-hinted "draft from my         */
+/*  document" press names no document and only the answer knows which one the  */
+/*  backend read.                                                              */
 /*                                                                            */
 /*  NOTHING LANDS WITHOUT BEING SHOWN FIRST (N5). Upload stores extracted text */
 /*  and stops. Drafting returns rows and stops. Only rows the user has SEEN    */
@@ -58,6 +67,12 @@ export default function PanelUpload({
    *  just choose above rows they are about to tick. */
   const [uploaded, setUploaded] = useState<LifeSetupDocument | null>(null);
   const [draft, setDraft] = useState<LifeDraftItem[] | null>(null);
+  /** Which document the rows on screen were read out of, so Add can stamp
+   *  their provenance (`origin_document_id`, BE 2026-07-31). Read off the
+   *  RESPONSE rather than taken from `uploaded`, because the un-hinted "draft
+   *  from my document" press names no document: the backend picks the newest
+   *  readable one, and its answer is the only place that says which. */
+  const [draftDocumentId, setDraftDocumentId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadFailed, setUploadFailed] = useState(false);
   const [drafting, setDrafting] = useState(false);
@@ -88,12 +103,12 @@ export default function PanelUpload({
       setDraftFailed(false);
       setApplied(false);
       try {
-        setDraft(
-          await proposeFromDocument({
-            documentId,
-            kind: uploadKindForPath(pathname) ?? undefined,
-          })
-        );
+        const result = await proposeFromDocument({
+          documentId,
+          kind: uploadKindForPath(pathname) ?? undefined,
+        });
+        setDraftDocumentId(result.documentId ?? documentId ?? null);
+        setDraft(result.items);
       } catch {
         setDraftFailed(true);
       } finally {
@@ -114,8 +129,9 @@ export default function PanelUpload({
         setUploaded(doc);
         // A new document invalidates the previous draft: those rows were read
         // out of a different file, and leaving them under a fresh upload would
-        // attribute them to it.
+        // attribute them to it. That is now literal: the stamp would be wrong.
         setDraft(null);
+        setDraftDocumentId(null);
         if (doc.status === "processed") await runDraft(doc.id);
       } catch {
         setUploadFailed(true);
@@ -135,11 +151,15 @@ export default function PanelUpload({
     setApplying(true);
     setApplyFailed(false);
     try {
-      await applyConfirmedItems(draft);
+      await applyConfirmedItems(draft, draftDocumentId);
       setApplied(true);
       // Drop the reviewed rows rather than leave them on screen: they exist
       // now, and a second press of the same list would create them twice.
+      // (The backend dedups by content hash, so it would not actually double
+      // them, but a list that looks unpressed after a successful press is its
+      // own bug.)
       setDraft(null);
+      setDraftDocumentId(null);
       invalidateLifeState();
       onApplied();
     } catch {
@@ -147,7 +167,7 @@ export default function PanelUpload({
     } finally {
       setApplying(false);
     }
-  }, [draft, onApplied]);
+  }, [draft, draftDocumentId, onApplied]);
 
   const hasReadable = docs.some((d) => d.status === "processed");
   const busy = uploading || drafting || applying;

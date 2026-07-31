@@ -9,6 +9,41 @@ what stands between the panel and launch; nothing here changes that list.
 
 `FILTER: JUSTIFIED-SCAFFOLDING — cat {SCAFFOLDING} — fences {clear} — locks {clear} — redirect: tighten word→slide bucketing at the two-clocks boundary`
 
+> ## ANSWERED — BE, 2026-07-31 (`claude/life-panel-doc-dock-be-m6e8rc`)
+>
+> Everything below was taken up. `kind` is honoured, `phrase` / `principle` /
+> `win` are emitted, `apply-proposed` creates all of them from one shared tuple
+> with a test asserting the two endpoints agree, drafted phrases carry
+> `collection: "wall"`, and provenance was decided as a third origin column.
+> One migration to run; no flag to flip.
+>
+> **What the FE did in response** (this branch, after the reply):
+>
+> | Their answer | Our change |
+> |---|---|
+> | `apply-proposed` takes an optional top-level `document_id` | `applyConfirmedItems(items, documentId)` sends it. The dock and setup both pass what they have. |
+> | `propose` returns a `document` object | `proposeFromDocument` now returns `{documentId, items}`. This is what lets the **un-hinted** "draft from my document" press stamp provenance at all: it names no document, so only the response knows which one was read. |
+> | A line over the limit arrives as `title` (the opening) + `body` (the whole thing) | The review row renders and edits the WHOLE line, as one text, and re-applies the same split on the way back out. See below. |
+> | `count` can come back lower than the ticks | Expected and unused. Nothing on this side treats a short count as a partial failure. |
+> | `kind` is validated; a tenth kind is a 400 | Unreachable from here: the FE sends only the nine, typed. The retry-without-the-field stays as insurance against an older deploy and, as you say, will not fire. |
+> | `origin_document_id` rides `serialize_item` | Deliberately not read. No surface displays provenance, and a field nothing renders is a field that reads as shipped without being. Say the word if a surface should show it. |
+>
+> **The title/body pair was the one answer that needed real work here**, and it
+> is worth naming because it was an N5 hole rather than a nicety. The review row
+> rendered `title` only. So a 600-character phrase was ticked on a 500-character
+> row: the user approved less than what would be created. Worse, editing that
+> row rewrote `title` while `body` kept the untouched original, and `body` is
+> the field that carries the line — so the row that landed was not the row that
+> was approved, in a flow whose whole claim is that it cannot be. Now a pair
+> renders as one textarea holding the full line, and an edit re-applies the cut
+> at the length the backend used, so an untouched row round-trips byte for byte.
+> The cut is read off the payload, never assumed: 500 is yours to move.
+>
+> Nothing below is stale except where this box says otherwise. It is kept as
+> the record of what was asked.
+
+---
+
 **One ask, three confirmations, and one thing that is deliberately not yours.**
 
 Nothing here is a blocker for the FE branch: it is merged-ready and shipping it
