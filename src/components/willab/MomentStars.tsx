@@ -195,7 +195,6 @@ function MomentSheetBody({
         )
       ) : momentContent.kind === "locked" ? (
         <MomentUnlockPrompt
-          priceCredits={momentContent.priceCredits}
           hasVideo={moment.coach?.hasVideo ?? false}
           onBuy={onBuy}
         />
@@ -495,25 +494,22 @@ function DeliveryStarCard({
 /** SD — the unlock prompt inside the moment sheet: one price, one button. A
  *  verified moment with a coach video shows a blurred teaser above it. */
 function MomentUnlockPrompt({
-  priceCredits,
   hasVideo,
   onBuy,
 }: {
-  priceCredits: number | null;
   hasVideo?: boolean;
   onBuy: () => Promise<string | null>;
 }) {
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const price = priceCredits ?? 5;
-  // Token pricing charges this unlock in tokens instead, at the published
-  // price. Present → quote tokens; absent → the legacy credits label, which is
-  // the live behaviour while the flag is off.
+  // The published token price. Credits are retired (founder 2026-07-31), so
+  // there is no second currency to fall back to: an unavailable price means the
+  // button says "Unlock" and quotes nothing, which is better than a guess.
   const tokenPrice = useActionPrice("moment_explanation");
   const buyLabel =
     tokenPrice !== null
       ? `Unlock for ${TOKENS_COPY.unlockPrice(formatTokens(tokenPrice))}`
-      : `Unlock for ${price} credits`;
+      : "Unlock";
   return (
     <div className="flex flex-col items-center gap-3 py-2 text-center">
       {hasVideo ? (
@@ -931,18 +927,16 @@ export function MomentSheet({
 
 /** The star layer's state machine: which sheet is open, its fetched content,
  *  and the optimistic fold map. Assumes the SD lane (the caller decides when
- *  stars are live); `momentsUnlocked` / `priceCredits` come from the host's
+ *  stars are live); `momentsUnlocked` comes from the host's
  *  SD state, and `onUnlocked` lets the host flip its own copy after a buy. */
 export function useMomentStars({
   arcId,
   momentsUnlocked,
-  priceCredits,
   explanationsAvailable,
   onUnlocked,
 }: {
   arcId: string;
   momentsUnlocked: boolean;
-  priceCredits: number | null;
   /** FE-1 — true only when coach explanations actually exist behind the
    *  unlock. false → a locked moment shows NO paywall (kind "unavailable"):
    *  nothing is for sale yet. */
@@ -991,14 +985,14 @@ export function useMomentStars({
         momentReqRef.current++;
         setMomentContent(
           explanationsAvailable
-            ? { kind: "locked", priceCredits }
+            ? { kind: "locked" }
             : { kind: "unavailable" }
         );
         return;
       }
       await loadMomentContent(m);
     },
-    [momentsUnlocked, explanationsAvailable, priceCredits, loadMomentContent]
+    [momentsUnlocked, explanationsAvailable, loadMomentContent]
   );
 
   const closeMoment = useCallback(() => setMomentOpen(null), []);
@@ -1061,17 +1055,11 @@ export function useMomentStars({
       if (momentOpen) await loadMomentContent(momentOpen);
       return null;
     }
-    if (r.reason === "insufficient_credits") {
-      // Top-ups live on the pricing page (hard navigation — the documented
-      // forward-nav trap with stacked overlays' back-dismiss cleanup).
-      window.location.assign("/dashboard/pricing");
-      return null;
-    }
     if (r.reason === "insufficient_tokens") {
-      // Deliberately NOT the pricing page: it sells one-time credit packs,
-      // which do not add tokens. Sending someone there would charge them for
-      // a currency that cannot unlock this. Until a subscription checkout
-      // exists, the honest and actionable thing is the renewal date.
+      // No purchase path to offer: there is no subscription checkout in the
+      // backend yet (see docs/HANDOFF-BE-2026-07-31-token-subscriptions.md), and
+      // credits are retired. The honest and actionable thing is the renewal
+      // date, which is a real answer rather than a dead button.
       const b = await fetchTokenBalance();
       return TOKENS_COPY.unlockInsufficient(
         formatShortDate(b.kind === "ready" ? b.periodEndsAt : null)

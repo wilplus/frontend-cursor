@@ -2,7 +2,7 @@
 
 /**
  * SymmetricPair — the two-button choice row used across the Lounge's post-send
- * beats (credit gate F1, joke offer F7, install prompt F2). Equal-width pills
+ * beats (legacy joke offer F7, install prompt F2). Equal-width pills
  * that mirror the overlay Back | Next nav (see SnippetScreenShell): a grey
  * outline pill on the left (the "Back"/close affordance) and the solid orange
  * primary pill on the right (the forward action). Same h-11 rounded-full pill at

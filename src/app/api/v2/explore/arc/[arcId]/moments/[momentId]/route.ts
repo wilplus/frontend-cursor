@@ -8,8 +8,9 @@ export const runtime = "nodejs";
  *
  * BFF proxy — a key moment's coach explanation (note and/or video), the
  * single-deliverable model's ONLY paid item. Relays the BE's 402 (not
- * entitled, body carries price_credits) verbatim so the FE renders the
- * 5-credit unlock prompt. Soft-fails to 502 on transport failures.
+ * entitled) verbatim so the FE renders the unlock prompt. The BE still echoes
+ * a legacy `price_credits` on that 402; the FE ignores it and quotes the
+ * published TOKEN price instead. Soft-fails to 502 on transport failures.
  */
 export async function GET(
   req: NextRequest,

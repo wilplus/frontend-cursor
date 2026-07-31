@@ -6,10 +6,11 @@ export const runtime = "nodejs";
 /**
  * POST /api/v2/arc/[arcId]/unlock-moments
  *
- * BFF proxy — the 5-credit key-moments unlock (the single-deliverable model's
- * one price). Debits 5 credits and entitles this presentation's moment
- * explanations forever; idempotent BE-side (already_entitled → 200). Status +
- * body relay verbatim (402/INSUFFICIENT_CREDITS drives the top-up path).
+ * BFF proxy — the key-moments unlock (the single-deliverable model's one
+ * price). Charges the `moment_explanation` token price and entitles this
+ * presentation's moment explanations forever; idempotent BE-side
+ * (already_entitled → 200). Status + body relay verbatim, so the FE can branch
+ * the 402 on `reason` (shortfall vs the coach cap).
  */
 export async function POST(
   req: NextRequest,

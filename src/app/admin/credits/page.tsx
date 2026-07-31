@@ -3,7 +3,24 @@
 import { useState } from "react";
 
 /* -------------------------------------------------------------------------- */
-/*  /admin/credits — internal credits testing tool (FE-6)                      */
+/*  /admin/credits — internal credits tool (FE-6)                              */
+/*                                                                            */
+/*  ⚠️  THE LAST CREDITS SURVIVOR, AND IT SURVIVES ON PURPOSE.                  */
+/*                                                                            */
+/*  Credits were removed from the product on 2026-07-31 (founder: "all should  */
+/*  be tokens, no credits anywhere"). Every user-facing trace is gone: the      */
+/*  menu row, the top-up page, the Stripe pack checkout, the post-checkout      */
+/*  reconciliation, the Lounge credit gate, the credits 402 branch.            */
+/*                                                                            */
+/*  This back-office form is kept because REAL USERS STILL HOLD REAL BALANCES  */
+/*  (the founder's own account had 455) and what happens to them is an OPEN     */
+/*  decision — honour, convert, or write off — logged in                        */
+/*  docs/HANDOFF-BE-2026-07-31-token-subscriptions.md. Deleting the only tool   */
+/*  that can read or adjust those balances BEFORE that decision lands would     */
+/*  remove the ability to settle a debt the product still owes.                 */
+/*                                                                            */
+/*  DELETE THIS PAGE (and the two student-credits proxies) once the legacy      */
+/*  balances are resolved. It is the cleanup task, not a surface to build on.   */
 /*                                                                            */
 /*  NOT linked in nav. A password-gated form to look up and set a student's    */
 /*  credit balance during testing. The password is checked on the BE (it       */

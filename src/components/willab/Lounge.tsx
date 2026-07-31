@@ -56,8 +56,6 @@ import {
   offerDraft,
   readOfferType,
   hasOffer,
-  readCreditOfferLive,
-  writeCreditOfferLive,
   type OfferType,
 } from "./loungeOffers";
 import {
@@ -173,10 +171,7 @@ export default function Lounge({
   const [starVerdictArcId, setStarVerdictArcId] = useState<string | null>(null);
   // #5 — arc's coach-confirmed breakthrough moments overlay (sibling of best-pres).
   const [breakthroughsArcId, setBreakthroughsArcId] = useState<string | null>(null);
-  // F1 — credit gate. `canStartAnalysis` is server-owned (don't hardcode >=5);
-  // null until /status loads. Drives the "credit" thread offer.
-  const [canStartAnalysis, setCanStartAnalysis] = useState<boolean | null>(null);
-  // F1/F2/F7 — the offer (install / joke / credit) whose action pair is open in
+  // F2/F7 — the offer (install / legacy joke) whose action pair is open in
   // the footer (replacing the record button). null → the record button shows.
   // The offers themselves persist as thread bubbles (loungeOffers); this only
   // tracks which one is currently "armed".
@@ -384,32 +379,6 @@ export default function Lounge({
     return () => clearTimeout(t);
   }, [thread.loading, messages.length]);
 
-  // F1 — load the credit gate (signed-in only). `can_start_analysis` is
-  // server-owned; default to "can start" until it explicitly says false, so the
-  // gate never appears spuriously. Refetch on focus so a top-up / a feedback
-  // charge flips it without a reload.
-  useEffect(() => {
-    if (!thread.signedIn) return;
-    let active = true;
-    const load = () => {
-      homeworkApi
-        .getStatus()
-        .then((s) => {
-          if (active && s) setCanStartAnalysis(s.can_start_analysis !== false);
-        })
-        .catch(() => {
-          // Status fetch failed (expired token / 5xx / offline) — leave the gate
-          // in its default "can record" state; never block on a status error.
-        });
-    };
-    load();
-    const onFocus = () => load();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      active = false;
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [thread.signedIn]);
 
   // F2 — install affordance primitives (platform + dismiss state). Drives both
   // whether to surface the install offer and the footer action pair.
@@ -520,7 +489,7 @@ export default function Lounge({
     // SD/FE-4 — the joke onboarding is deleted; a legacy joke bubble in an old
     // thread stays visible but inert.
     if (type === "joke") return;
-    const rank: Record<OfferType, number> = { credit: 3, joke: 2, install: 1 };
+    const rank: Record<OfferType, number> = { joke: 2, install: 1 };
     setActiveOffer((prev) => (prev && rank[prev] >= rank[type] ? prev : type));
   }, []);
 
@@ -577,27 +546,6 @@ export default function Lounge({
     openOffer("install");
   }, [state, install.canOffer, thread.loading, messages, thread.append, openOffer]);
 
-  // F1 — surface the credit offer when the server says the user can't start the
-  // next analysis. A localStorage marker (cleared once they can record again)
-  // dedups across reloads + history paging, where hasOffer only sees the loaded
-  // window. We AUTO-OPEN only on a genuine in-session depletion (true → false);
-  // a reload that simply loads an already-depleted status surfaces the saved
-  // bubble without popping the action pair over the record button.
-  const prevCanStartRef = useRef<boolean | null>(null);
-  useEffect(() => {
-    if (thread.loading) return;
-    const prev = prevCanStartRef.current;
-    prevCanStartRef.current = canStartAnalysis;
-    if (canStartAnalysis === false) {
-      if (!readCreditOfferLive() && !hasOffer(messages, "credit")) {
-        writeCreditOfferLive(true);
-        void thread.append(offerDraft("credit"));
-      }
-      if (prev === true) openOffer("credit"); // in-session depletion only
-    } else if (canStartAnalysis === true) {
-      writeCreditOfferLive(false);
-    }
-  }, [canStartAnalysis, thread.loading, messages, thread.append, openOffer]);
 
   useEffect(() => {
     // Stick to bottom only if the user hasn't scrolled up. Scroll the container
@@ -847,7 +795,6 @@ export default function Lounge({
         <OfferActions
           type={activeOffer}
           install={install}
-          onGetCredits={() => router.push("/dashboard/pricing")}
           onResolve={() => setActiveOffer(null)}
         />
       ) : uploadAskActive ? (
@@ -1202,27 +1149,24 @@ function ActionButton({ action, onClick }: { action: ChipAction; onClick: () => 
 function OfferActions({
   type,
   install,
-  onGetCredits,
   onResolve,
 }: {
   type: OfferType;
   install: InstallOffer;
-  onGetCredits: () => void;
   onResolve: () => void;
 }) {
   if (type === "install") {
     return <InstallOfferActions offer={install} onResolve={onResolve} />;
   }
-  // credit
+  // The legacy joke offer is the only other type. Its onboarding was deleted
+  // (SD/FE-4) and openOffer already refuses to arm it, so this is a dismiss-only
+  // fallback for an old thread bubble rather than a live action pair.
   return (
     <SymmetricPair
       closeLabel="Close"
       onClose={onResolve}
-      actionLabel="Unlock the full audit"
-      onAction={() => {
-        onGetCredits();
-        onResolve();
-      }}
+      actionLabel="Close"
+      onAction={onResolve}
     />
   );
 }
