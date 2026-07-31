@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchTokenHistory, type TokenLedgerEntry } from "@/services/api/tokens";
-import { fetchPurchasableTiers, startPlanCheckout } from "@/services/api/subscribe";
 import type { TokenWallet } from "@/hooks/useTokenWallet";
+import TokenPlanCards from "./TokenPlanCards";
 import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy";
 
 /* -------------------------------------------------------------------------- */
@@ -28,11 +28,9 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*     button would 404.                                                       */
 /*                                                                            */
 /*  2. A way to CHANGE or CANCEL an existing plan. Buying a first plan works    */
-/*     (the Choose buttons below), but switching or stopping needs Stripe's      */
-/*     billing portal, which the backend has no route for — see                 */
-/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md. So checkout is offered */
-/*     only to a user on free: offering it to a subscriber would create a        */
-/*     SECOND subscription and charge them twice.                               */
+/*     (TokenPlanCards), but switching or stopping needs Stripe's billing        */
+/*     portal, which the backend has no route for — see                         */
+/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md.                       */
 /*                                                                            */
 /*  No streaks, no "you've used X% of your month", no comparison, no praise    */
 /*  for spending little (AC-9). The ledger is a receipt, not a report card.    */
@@ -69,40 +67,6 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   const renewsOn = formatShortDate(ready?.periodEndsAt ?? null);
   const prices = wallet.prices;
 
-  /* ------------------------------ plan buying ----------------------------- */
-  const [purchasable, setPurchasable] = useState<string[]>([]);
-  const [busyTier, setBusyTier] = useState<string | null>(null);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchPurchasableTiers().then((t) => {
-      if (!cancelled) setPurchasable(t);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Only a free user is offered checkout — see the note on the button. An
-  // UNKNOWN tier counts as not-free: better to withhold a buy button than to
-  // risk a second subscription on someone who already pays.
-  const onFree = ready?.tier === "free" || ready?.tier === null;
-
-  const buy = async (tier: string) => {
-    if (busyTier) return;
-    setBusyTier(tier);
-    setCheckoutError(null);
-    const r = await startPlanCheckout(tier);
-    if (r.ok) {
-      // Hard navigation to Stripe's hosted page; nothing is charged until the
-      // user completes it there, and we never see card details.
-      window.location.assign(r.url);
-      return;
-    }
-    setBusyTier(null);
-    setCheckoutError(r.message);
-  };
 
   return (
     <div className="w-full">
@@ -141,8 +105,14 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
               )}
             </p>
             {/* The one place two limits legitimately disagree: a full balance
-                and no reviews left. Said plainly, or it reads as a bug. */}
-            {ready.coachReviews.remaining <= 0 ? (
+                and no reviews left. Said plainly, or it reads as a bug.
+
+                GATED ON allowed > 0. On free the allowance IS zero, so a bare
+                `remaining <= 0` told those users they had "used your coach
+                reviews for this month" directly under "0 of 0 used" — claiming
+                they spent something they never had. Exhausted means they had
+                some and spent them; having none is a property of the plan. */}
+            {ready.coachReviews.allowed > 0 && ready.coachReviews.remaining <= 0 ? (
               <p className="mt-1 text-[13px] text-muted-foreground">
                 {TOKENS_COPY.coachReviewsExhausted(renewsOn)}
               </p>
@@ -174,71 +144,14 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
         {prices && Object.keys(prices.tiers).length > 0 ? (
           <section className="mt-7">
             <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletPlansTitle}</h3>
-            <ul className="mt-2 space-y-2.5">
-              {/* Ascending by price so the list reads as a ladder. Presented as
-                  MONTHLY PLANS, never as packs or credits: the allowance
-                  resets, and copy that implies a one-time purchase makes the
-                  first reset feel like theft. */}
-              {Object.entries(prices.tiers)
-                .sort((a, b) => a[1].usdPerMonth - b[1].usdPerMonth)
-                .map(([name, tier]) => {
-                  const isCurrent = ready?.tier === name;
-                  // Buyable only when the server can actually sell it AND the
-                  // user is on free. Offering checkout to someone already
-                  // subscribed would create a SECOND subscription and charge
-                  // them twice; switching needs the billing portal, which the
-                  // BE has no route for yet.
-                  const canBuy =
-                    purchasable.includes(name) && onFree && !isCurrent;
-                  return (
-                    <li key={name} className="text-[13px]">
-                      <div className="flex items-baseline justify-between gap-4">
-                        <span className="font-medium capitalize">{name}</span>
-                        <span className="text-muted-foreground">
-                          {TOKENS_COPY.walletPerMonth(tier.usdPerMonth)}
-                        </span>
-                      </div>
-                      <div className="text-muted-foreground">
-                        {TOKENS_COPY.walletTierTokens(formatTokens(tier.tokensPerMonth))}
-                        {" · "}
-                        {TOKENS_COPY.walletTierReviews(tier.coachReviewsPerMonth)}
-                      </div>
-                      {isCurrent ? (
-                        <p className="mt-1 text-[12px] text-muted-foreground">
-                          {TOKENS_COPY.walletCurrentPlan}
-                        </p>
-                      ) : canBuy ? (
-                        <button
-                          type="button"
-                          disabled={busyTier !== null}
-                          onClick={() => void buy(name)}
-                          className="mt-1.5 rounded-full border border-foreground bg-foreground px-4 py-1.5 text-[13px] font-medium text-background transition hover:bg-foreground/90 disabled:opacity-50"
-                        >
-                          {busyTier === name
-                            ? TOKENS_COPY.walletChoosePlanBusy
-                            : TOKENS_COPY.walletChoosePlan}
-                        </button>
-                      ) : null}
-                    </li>
-                  );
-                })}
-            </ul>
-            {/* One line, and only when it is actually true. Nothing for sale →
-                say so. On a paid plan → changing it needs the billing portal
-                the BE has no route for, so point at a human rather than a
-                button that would double-charge. */}
-            {purchasable.length === 0 ? (
-              <p className="mt-3 text-[12px] text-muted-foreground">
-                {TOKENS_COPY.walletUpgradeUnavailable}
-              </p>
-            ) : !onFree ? (
-              <p className="mt-3 text-[12px] text-muted-foreground">
-                {TOKENS_COPY.walletManageUnavailable}
-              </p>
-            ) : null}
-            {checkoutError ? (
-              <p className="mt-2 text-[12px] text-destructive">{checkoutError}</p>
-            ) : null}
+            <div className="mt-3">
+              {/* Three prices, three CTAs (founder 2026-07-31). The cards own
+                  the buying flow; this panel just says where they go. */}
+              <TokenPlanCards
+                tiers={prices.tiers}
+                currentTier={ready?.tier ?? null}
+              />
+            </div>
           </section>
         ) : null}
 

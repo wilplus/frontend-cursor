@@ -67,6 +67,24 @@ export const TOKENS_COPY = {
   walletHistoryEmpty: "Nothing spent yet.",
   walletHistoryMore: "Show more",
   walletPlansTitle: "Plans",
+  /** Per-card lines. Factual, from the served tier payload — no invented
+   *  marketing claims, and deliberately NO "most popular" badge: that is a
+   *  claim about other users' behaviour and there is no data behind it. If the
+   *  founder wants one, it should be a deliberate choice, not my default. */
+  planCardTokens: (tokens: string) => `${tokens} tokens`,
+  planCardPerMonth: "per month",
+  planCardReviews: (n: number) =>
+    n === 0
+      ? "No coach reviews"
+      : n === 1
+        ? "1 coach review"
+        : `${n} coach reviews`,
+  planCardCta: (tier: string) => `Choose ${tier}`,
+  /** You are on this one already. */
+  planCardCurrent: "Your plan",
+  /** The free tier is never a card with a CTA — you do not check out to pay
+   *  nothing. It is stated as a line so the ladder still starts somewhere. */
+  planFreeLine: (tokens: string) => `Free plan: ${tokens} tokens a month, no coach reviews.`,
   walletPerMonth: (usd: number) => (usd === 0 ? "Free" : `$${usd} / month`),
   walletTierTokens: (tokens: string) => `${tokens} tokens a month`,
   walletTierReviews: (n: number) =>
@@ -97,7 +115,12 @@ export const TOKENS_COPY = {
    *  calendar and cannot be bought past, so there is no "buy more" here at
    *  any balance. */
   coachReviewsTitle: "Coach reviews",
-  coachReviewsUsed: (used: number, allowed: number) => `${used} of ${allowed} used this month`,
+  coachReviewsUsed: (used: number, allowed: number) =>
+    // A zero allowance is a property of the PLAN, not a tally. "0 of 0 used
+    // this month" reads as a broken counter, so say what is actually true.
+    allowed === 0
+      ? "Not included on your plan"
+      : `${used} of ${allowed} used this month`,
   /** The one place two limits can disagree: plenty of tokens AND no reviews
    *  left. Say why plainly or it reads as a bug. */
   coachReviewsExhausted: (renewsOn: string | null) =>
