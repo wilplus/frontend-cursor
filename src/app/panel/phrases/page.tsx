@@ -7,7 +7,7 @@ import type { LifeItem } from "@/lib/life/types";
 import {
   EmptyState,
   Eyebrow,
-  PanelHeading,
+  PanelLede,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -47,7 +47,7 @@ export default function PhrasesPage() {
 
   return (
     <>
-      <PanelHeading title={VIEWS.phrases.title} lede={VIEWS.phrases.lede} />
+      <PanelLede lede={VIEWS.phrases.lede} />
       <Resource resource={resource}>
         {(phrases) =>
           phrases.length === 0 ? (

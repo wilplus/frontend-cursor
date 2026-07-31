@@ -6,7 +6,7 @@ import { fetchItems, updateItem } from "@/services/api/life";
 import type { LifeItem } from "@/lib/life/types";
 import {
   EmptyState,
-  PanelHeading,
+  PanelLede,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -19,7 +19,7 @@ export default function WinsPage() {
 
   return (
     <>
-      <PanelHeading title={VIEWS.wins.title} lede={VIEWS.wins.lede} />
+      <PanelLede lede={VIEWS.wins.lede} />
       <Resource resource={resource}>
         {(wins) =>
           wins.length === 0 ? (

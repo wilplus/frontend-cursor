@@ -157,6 +157,27 @@ export const VIEWS = {
   },
 } as const;
 
+/** The panel's own chrome (founder 2026-07-31).
+ *
+ *  What is LEFT after that pass, and why each piece is here:
+ *    · the pill row names the view, so no screen repeats its name as a
+ *      heading. `VIEWS.*.title` is now the pill's word only.
+ *    · the pill row also carries the way OUT, because the app header that
+ *      used to carry it is gone from every panel screen. A surface with no
+ *      exit is a trap, and the X is the whole of the exit now.
+ *    · the document dock sits under every view, so handing over a file is
+ *      never further away than the screen you are already on.
+ *
+ *  The dock says what it does BEFORE it does it: an upload drafts rows and
+ *  stops. Nothing it reads becomes yours until a tick and a press (N5). */
+export const PANEL = {
+  closeLabel: "Close the panel",
+  uploadLabel: "Add a document",
+  uploadOpenLabel: "Add another",
+  uploadHint:
+    "Hand over a file and what it holds comes back as rows you tick. Nothing is created until you press Add.",
+} as const;
+
 /** Card copy for the three proposal types (N5). "Proposed" is never softened
  *  into something that reads as already done. */
 export const CARDS = {
@@ -312,12 +333,22 @@ export const SETUP = {
    *  as a second, contradictory copy of the goals already filled in. */
   draftReviewNote:
     "Your document also mentioned these, and there was no screen to put them on. Only the ticked rows are created when you finish, exactly as written here.",
+  /** One label per kind the drafter can hand back. The four the setup fold
+   *  knows about, plus the five the panel dock can be pointed at from a view
+   *  that holds them. A kind with no label here renders under its own name
+   *  rather than vanishing, so a kind the backend adds tomorrow is visible
+   *  the day it arrives instead of being silently dropped. */
   draftKindLabels: {
     bet: "Bets",
     goal: "Goals",
     habit: "Habits",
     distraction: "Distractions",
-  },
+    principle: "Principles",
+    phrase: "Phrases",
+    win: "Wins",
+    task: "Tasks",
+    event: "Events",
+  } as Record<string, string>,
 } as const;
 
 export const STRATEGY = {

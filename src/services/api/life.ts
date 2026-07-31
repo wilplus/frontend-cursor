@@ -242,9 +242,14 @@ export async function uploadSetupDocument(
 
 /** One drafted row from the uploaded document. `checked` is FE state: the
  *  tick IS the approve (N5) — only checked rows are ever sent to apply, and
- *  an unchecked row is simply never created. */
+ *  an unchecked row is simply never created.
+ *
+ *  `kind` is the ITEM kind, widened from the original four (2026-07-31) so a
+ *  drafter pointed at the Phrases or Principles view can hand those back. The
+ *  FE renders whatever kind it is given; it does not decide which kinds a
+ *  document can produce. */
 export interface LifeDraftItem {
-  kind: "bet" | "goal" | "habit" | "distraction";
+  kind: LifeItemKind;
   title: string;
   body: string;
   horizon: string | null;
@@ -255,26 +260,67 @@ export interface LifeDraftItem {
   checked: boolean;
 }
 
+const DRAFT_KINDS: ReadonlySet<string> = new Set<LifeItemKind>([
+  "principle",
+  "win",
+  "phrase",
+  "bet",
+  "goal",
+  "task",
+  "habit",
+  "distraction",
+  "event",
+]);
+
+function isDraftKind(value: unknown): value is LifeItemKind {
+  return typeof value === "string" && DRAFT_KINDS.has(value);
+}
+
+/**
+ * Draft rows out of the stored document text.
+ *
+ * `kind` is a HINT, not an instruction: the panel dock passes the kind the
+ * view the user is standing on holds, so a document opened from Phrases is
+ * read for phrases. A backend that does not know the field yet answers
+ * exactly as it does today, and a backend that REFUSES the field is retried
+ * once without it rather than being allowed to break the upload that already
+ * works. The FE never depends on the hint being honoured.
+ */
 export async function proposeFromDocument(
-  documentId?: string
+  options: { documentId?: string; kind?: LifeItemKind } = {}
 ): Promise<LifeDraftItem[]> {
-  const raw = (await call("/setup/propose-from-document", {
-    method: "POST",
-    body: documentId ? { document_id: documentId } : {},
-  })) as Record<string, unknown> | null;
+  const body: Record<string, unknown> = {};
+  if (options.documentId) body.document_id = options.documentId;
+  if (options.kind) body.kind = options.kind;
+
+  let raw: Record<string, unknown> | null;
+  try {
+    raw = (await call("/setup/propose-from-document", {
+      method: "POST",
+      body,
+    })) as Record<string, unknown> | null;
+  } catch (err) {
+    // Only the hint is retried away, and only on a rejection that is ABOUT
+    // the request (422 from a schema that forbids unknown fields is the one
+    // this exists for). 401/404/409 are the load-bearing statuses and are
+    // rethrown untouched by `call`, so they never reach here.
+    if (
+      options.kind &&
+      err instanceof LifeRequestError &&
+      err.status >= 400 &&
+      err.status < 500
+    ) {
+      return proposeFromDocument({ documentId: options.documentId });
+    }
+    throw err;
+  }
+
   const list = Array.isArray(raw?.items) ? raw.items : [];
   return (list as unknown[]).flatMap((row) => {
     if (!row || typeof row !== "object") return [];
     const r = row as Record<string, unknown>;
     const kind = r.kind;
-    if (
-      kind !== "bet" &&
-      kind !== "goal" &&
-      kind !== "habit" &&
-      kind !== "distraction"
-    ) {
-      return [];
-    }
+    if (!isDraftKind(kind)) return [];
     const title = typeof r.title === "string" ? r.title.trim() : "";
     if (!title) return [];
     return [
