@@ -22,8 +22,21 @@ import {
 /*    1. The take's coach-verified full text — all together, NO playback.      */
 /*    2. Key moments, grouped per slide (one group when ≤1 slide): each is a   */
 /*       playback of that snippet + the coach's comment (text and/or video).   */
-/*  No suggestions, no scores (AC-9). Feedback is free (the only paid thing is  */
-/*  the 5-credit moments unlock on the ideal text).                            */
+/*  No suggestions, no scores (AC-9).                                          */
+/*                                                                            */
+/*  METERED, AND DELIBERATELY NOT PRICED ON THE TRIGGER.                       */
+/*  Under token pricing the BE charges the `insights` price when this overlay's */
+/*  GET runs (1,000 today), ONCE PER ARC — `ref_id` is the arc id, so every     */
+/*  re-open of the same arc is free. That idempotency is exactly why there is   */
+/*  no price on the bubble that opens this: a static label would be right the   */
+/*  first time and wrong every time after, and a stale price on a control is    */
+/*  worse than none, because people act on it. It would also discourage         */
+/*  re-reading feedback they have already paid for.                             */
+/*                                                                            */
+/*  Pricing it honestly needs an "already charged for this arc" flag on the     */
+/*  payload; until then `fetchArcFeedback` re-reads the balance after the       */
+/*  charge so the drop is never unexplained. The 5-credit / token moments       */
+/*  unlock on the ideal text remains the only thing that is priced up front.    */
 /*                                                                            */
 /*  Each key moment is anchor-addressable (`moment-<snippetId>`) so the ideal  */
 /*  text's underlined moments can deep-link here.                              */

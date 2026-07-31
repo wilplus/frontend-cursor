@@ -49,6 +49,14 @@ export interface AppMenuProps {
   userEmail?: string | null;
   /** Credits → checkout. null hides the row (guests, or not yet loaded). */
   credits?: number | null;
+  /** Token pricing is live for this user → the legacy credits row is RETIRED.
+   *
+   *  Not a cosmetic choice. When the flag is on, the one thing credits ever
+   *  bought (the key-moments unlock) is charged in TOKENS instead — the 402
+   *  comes back as INSUFFICIENT_TOKENS with a token price. A credits row would
+   *  then be a balance that buys nothing, sitting next to a wallet that buys
+   *  everything, and linking to a Stripe page that tops up the wrong currency. */
+  tokensEnabled?: boolean;
   /** Life Panel entries, straight from the gate payload. Absent for everyone
    *  the payload does not list them for, which is the normal case. */
   lifeMenu?: LifeMenuEntry[];
@@ -75,6 +83,7 @@ export default function AppMenu({
   authState,
   userEmail = null,
   credits = null,
+  tokensEnabled = false,
   lifeMenu = [],
   supportEmail,
   communityUrl,
@@ -187,6 +196,13 @@ export default function AppMenu({
               className={MENU_ITEM_CLASS}
               onClick={() => setOpen(false)}
             >
+              {/* NO PRICE HERE, deliberately. The game is metered, but it is
+                  charged ONCE PER ARC (`ref_id` is the arc id) and this row
+                  links to /game with no arc — the training is resolved on the
+                  page, from `?arc=` or localStorage. So at this point there is
+                  no arc to ask about, and a static label would be wrong for
+                  anyone who has already played the arc they land on. The price
+                  lives on the game screen, where the arc is known. */}
               Voice-game
             </Link>
           ) : null}
@@ -252,7 +268,7 @@ export default function AppMenu({
             Community
           </a>
 
-          {signedIn && credits !== null ? (
+          {signedIn && credits !== null && !tokensEnabled ? (
             <Link
               href="/dashboard/pricing"
               className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}

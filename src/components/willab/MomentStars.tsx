@@ -23,6 +23,10 @@ import {
   type MomentExplanationResult,
 } from "@/services/api/momentExplanation";
 import { sendSuggestionFeedback } from "@/services/api/suggestionFeedback";
+import { fetchTokenBalance } from "@/services/api/tokens";
+import { TOKENS_COPY, formatShortDate, formatTokens } from "@/components/tokens/copy";
+import { useActionPrice } from "@/components/tokens/useActionPrice";
+import { notifyTokensSpent } from "@/lib/willabWindowEvents";
 import { useDualCaptureMic } from "@/hooks/useDualCaptureMic";
 
 /* -------------------------------------------------------------------------- */
@@ -502,6 +506,14 @@ function MomentUnlockPrompt({
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const price = priceCredits ?? 5;
+  // Token pricing charges this unlock in tokens instead, at the published
+  // price. Present → quote tokens; absent → the legacy credits label, which is
+  // the live behaviour while the flag is off.
+  const tokenPrice = useActionPrice("moment_explanation");
+  const buyLabel =
+    tokenPrice !== null
+      ? `Unlock for ${TOKENS_COPY.unlockPrice(formatTokens(tokenPrice))}`
+      : `Unlock for ${price} credits`;
   return (
     <div className="flex flex-col items-center gap-3 py-2 text-center">
       {hasVideo ? (
@@ -530,7 +542,7 @@ function MomentUnlockPrompt({
         disabled={buying}
         className="h-10 rounded-full bg-foreground px-6 text-[14px] text-background hover:bg-foreground/90"
       >
-        {buying ? "Unlocking…" : `Unlock for ${price} credits`}
+        {buying ? "Unlocking…" : buyLabel}
       </Button>
       <p className="text-[12px] text-muted-foreground">
         One unlock opens every key moment in this presentation, now and later.
@@ -1041,15 +1053,37 @@ export function useMomentStars({
   const buyMoments = useCallback(async (): Promise<string | null> => {
     const r = await unlockMoments(arcId);
     if (r.ok) {
+      // The header chip is nowhere near this overlay in the tree, so tell it
+      // to re-read: showing the pre-purchase balance straight after a paid
+      // unlock reads as "it didn't go through".
+      notifyTokensSpent();
       onUnlocked?.();
       if (momentOpen) await loadMomentContent(momentOpen);
       return null;
     }
-    if (r.reason === "insufficient") {
+    if (r.reason === "insufficient_credits") {
       // Top-ups live on the pricing page (hard navigation — the documented
       // forward-nav trap with stacked overlays' back-dismiss cleanup).
       window.location.assign("/dashboard/pricing");
       return null;
+    }
+    if (r.reason === "insufficient_tokens") {
+      // Deliberately NOT the pricing page: it sells one-time credit packs,
+      // which do not add tokens. Sending someone there would charge them for
+      // a currency that cannot unlock this. Until a subscription checkout
+      // exists, the honest and actionable thing is the renewal date.
+      const b = await fetchTokenBalance();
+      return TOKENS_COPY.unlockInsufficient(
+        formatShortDate(b.kind === "ready" ? b.periodEndsAt : null)
+      );
+    }
+    if (r.reason === "coach_cap_reached") {
+      // A cap, not a balance. No top-up and no upgrade nudge can lift it
+      // mid-month, so say when it comes back and nothing else.
+      const b = await fetchTokenBalance();
+      return TOKENS_COPY.unlockCoachCap(
+        formatShortDate(b.kind === "ready" ? b.periodEndsAt : null)
+      );
     }
     return r.message;
   }, [arcId, onUnlocked, momentOpen, loadMomentContent]);

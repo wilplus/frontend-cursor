@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/api/auth-client";
+import { notifyTokensSpent } from "@/lib/willabWindowEvents";
 
 /* -------------------------------------------------------------------------- */
 /*  arcFeedback — the per-take feedback packet (delivery layer)                */
@@ -155,5 +156,23 @@ export async function fetchArcFeedback(
     return null;
   }
   if (!res.ok) return null;
+  // TOKEN PRICING — this read is metered. The BE charges the `insights` price
+  // here (1,000 today), once per arc, keyed on the arc id: re-opening the same
+  // arc's feedback is free, and the charge is fail-open, so it never blocks or
+  // alters what comes back.
+  //
+  // Nothing about that is visible on the way in, which is the problem this
+  // line solves: without it the header balance would simply be lower the next
+  // time it polled, and an unexplained drop reads as either a bug or a charge
+  // the user did not make. Re-reading the balance now ties the change to the
+  // action that caused it. Balance reads are free, so this costs nothing.
+  //
+  // Keyed on the RESPONSE, not on whether the body parsed: the charge belongs
+  // to the request the BE served, and a shape this mapper cannot read does not
+  // un-charge it. Gating on a successful parse would drop the refresh in
+  // exactly the case where the user paid and got nothing back.
+  //
+  // NOT priced on the trigger, deliberately — see the note in FeedbackOverlay.
+  notifyTokensSpent();
   return mapArcFeedback(await res.json().catch(() => null));
 }

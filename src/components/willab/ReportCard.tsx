@@ -7,6 +7,7 @@ import { PENDING_VERIFICATION, REVIEWED } from "@/lib/willab/verificationCopy";
 import { fetchIdealText } from "@/services/api/idealText";
 import type { LoungeMessage } from "@/services/api/loungeMessages";
 import { bestPresentationView, insightView, readoutView } from "./loungeReports";
+import ArcActionPrice from "@/components/tokens/ArcActionPrice";
 
 /* -------------------------------------------------------------------------- */
 /*  ReportCard — persisted Readout / Insight / Ideal-Text cards (C2 taxonomy)   */
@@ -112,10 +113,15 @@ export default function ReportCard({
         }
         className={`my-1 mr-auto max-w-[85%] rounded-2xl bg-chat-bot px-4 py-3 ${openable ? "cursor-pointer" : ""}`}
       >
-        <p className="text-[15px] leading-relaxed text-foreground">
+        <p className="flex items-baseline justify-between gap-3 text-[15px] leading-relaxed text-foreground">
           <span className="font-semibold">
             Feedback{takeIndex != null ? ` · Take ${takeIndex}` : ""}
           </span>
+          {/* Price BEFORE opening — this bubble is the trigger, and the overlay
+              it opens is what gets charged. Shown only while this arc still
+              owes the `insights` charge; once paid it is free forever and the
+              price disappears rather than lingering as a wrong label. */}
+          {arcId ? <ArcActionPrice arcId={arcId} action="insights" /> : null}
         </p>
         {message.body ? (
           <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
