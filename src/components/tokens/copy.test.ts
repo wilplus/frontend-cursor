@@ -29,15 +29,15 @@ describe("formatShortDate", () => {
   });
 });
 
-describe("the chip", () => {
+describe("the menu row", () => {
   it("carries the renewal date with the balance", () => {
-    // Load-bearing: without it a falling balance reads as a countdown to
-    // being locked out rather than "wait or top up".
-    expect(TOKENS_COPY.chip("41,500", "28 Aug")).toBe("41,500 · renews 28 Aug");
+    // Load-bearing: without it a falling balance reads as a countdown to being
+    // locked out rather than "wait for the reset".
+    expect(TOKENS_COPY.menuRowValue("41,500", "28 Aug")).toBe("41,500 · 28 Aug");
   });
 
   it("shows the bare balance when the renewal date is unknown", () => {
-    expect(TOKENS_COPY.chip("41,500", null)).toBe("41,500");
+    expect(TOKENS_COPY.menuRowValue("41,500", null)).toBe("41,500");
   });
 });
 
