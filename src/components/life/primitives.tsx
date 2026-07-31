@@ -15,25 +15,32 @@ import { VoiceMark } from "@/components/willab/LoadingState";
 /*  into it, and stops (N3 / N4).                                              */
 /* -------------------------------------------------------------------------- */
 
-export function PanelHeading({
-  title,
+/** The line above a view's content, and nothing above that.
+ *
+ *  THE PAGE TITLE IS GONE (founder 2026-07-31). Every panel view used to open
+ *  with its own name as an `h1` — "Today" over the Today pill, "Phrases" over
+ *  the Phrases pill — which is the same word twice, 40px apart, and it cost
+ *  the whole first screenful on a phone. The pill row names the view now, and
+ *  it is the only thing that does.
+ *
+ *  The LEDE stays where a view has one: it says something the pill does not.
+ *  A view whose lede is empty renders nothing at all here, which is why four
+ *  of them no longer mount this component. */
+export function PanelLede({
   lede,
   action,
 }: {
-  title: string;
   lede?: string;
   action?: React.ReactNode;
 }) {
+  if (!lede && !action) return null;
   return (
-    <header className="mb-6 flex items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h1>
-        {lede ? (
-          <p className="mt-1 text-sm text-muted-foreground">{lede}</p>
-        ) : null}
-      </div>
+    <header className="mb-5 flex items-start justify-between gap-4">
+      {lede ? (
+        <p className="text-sm text-muted-foreground">{lede}</p>
+      ) : (
+        <span />
+      )}
       {action}
     </header>
   );

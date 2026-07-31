@@ -7,7 +7,7 @@ import type { LifeItem } from "@/lib/life/types";
 import {
   EmptyState,
   Eyebrow,
-  PanelHeading,
+  PanelLede,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -28,10 +28,7 @@ export default function DistractionsPage() {
 
   return (
     <>
-      <PanelHeading
-        title={VIEWS.distractions.title}
-        lede={VIEWS.distractions.lede}
-      />
+      <PanelLede lede={VIEWS.distractions.lede} />
       <Resource resource={resource}>
         {(items) =>
           items.length === 0 ? (

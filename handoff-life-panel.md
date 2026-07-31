@@ -8,6 +8,11 @@ anything until the backend exists and `LIFE_PANEL_ENABLED=1`.
 `docs/life-panel-fe-status.md` (what shipped, the assumed contract, deviations).
 This file is what to *do* next; that one is the reference.
 
+**One open FE→BE ask**, added after the 2026-07-31 chrome pass:
+`backend-handoff-life-panel-document-dock.md`. Not a launch blocker — the panel
+ships without it — but until it lands, the document dock returns rows on three
+views and nothing on three others.
+
 `FILTER: JUSTIFIED-SCAFFOLDING — cat {SCAFFOLDING} — fences {clear} — locks {clear} — redirect: tighten word→slide bucketing at the two-clocks boundary`
 
 ---

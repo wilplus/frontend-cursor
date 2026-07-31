@@ -242,11 +242,30 @@ export async function uploadSetupDocument(
 
 /** One drafted row from the uploaded document. `checked` is FE state: the
  *  tick IS the approve (N5) — only checked rows are ever sent to apply, and
- *  an unchecked row is simply never created. */
+ *  an unchecked row is simply never created.
+ *
+ *  `kind` is the ITEM kind, widened from the original four (2026-07-31) so a
+ *  drafter pointed at the Phrases or Principles view can hand those back. The
+ *  FE renders whatever kind it is given; it does not decide which kinds a
+ *  document can produce. */
 export interface LifeDraftItem {
-  kind: "bet" | "goal" | "habit" | "distraction";
+  kind: LifeItemKind;
   title: string;
   body: string;
+  /** FE-only. Set when this row arrived as a TRUNCATION PAIR: the backend cuts
+   *  a line longer than its limit into `title` (the first N characters) and
+   *  `body` (the whole thing), so a 600-character phrase keeps every character
+   *  and a normal row does not render twice.
+   *
+   *  It holds N, and it exists because the review row must edit ONE text. Show
+   *  only `title` and the user ticks a row they cannot fully read; let them
+   *  edit `title` while `body` still carries the original, and the row that
+   *  lands is not the row they approved. Neither is N5.
+   *
+   *  null for every ordinary row, where `body` is a genuine description rather
+   *  than a longer copy of the title. The cut is READ from the payload, never
+   *  assumed: the limit is the backend's to move. */
+  titleCut: number | null;
   horizon: string | null;
   dueLabel: string | null;
   bet: string | null;
@@ -255,33 +274,102 @@ export interface LifeDraftItem {
   checked: boolean;
 }
 
+const DRAFT_KINDS: ReadonlySet<string> = new Set<LifeItemKind>([
+  "principle",
+  "win",
+  "phrase",
+  "bet",
+  "goal",
+  "task",
+  "habit",
+  "distraction",
+  "event",
+]);
+
+function isDraftKind(value: unknown): value is LifeItemKind {
+  return typeof value === "string" && DRAFT_KINDS.has(value);
+}
+
+/** A drafting pass: the rows, and WHICH document they were read out of.
+ *
+ *  The id is carried because `apply` stamps it as the created rows'
+ *  provenance (BE 2026-07-31), and the un-hinted "draft from my document"
+ *  call does not name a document — the backend picks the newest readable one.
+ *  Reading the id back off the response is the only way that path can say
+ *  where its rows came from. */
+export interface LifeDraft {
+  /** null when the backend served no document object (an older deploy). The
+   *  rows are still created; they are simply created unstamped. */
+  documentId: string | null;
+  items: LifeDraftItem[];
+}
+
+/**
+ * Draft rows out of the stored document text.
+ *
+ * `kind` is a HINT, not an instruction: the panel dock passes the kind the
+ * view the user is standing on holds, so a document opened from Phrases is
+ * read for phrases, and the backend leads its answer with those rows without
+ * dropping everything else the document holds.
+ *
+ * The retry-without-the-field below is now belt and braces: the backend
+ * honours `kind` and 400s only on a kind outside the nine, which this module
+ * cannot produce (`LifeItemKind` is the same closed set on both sides). It
+ * stays because an older deploy is a thing that exists, and losing an upload
+ * to a field a server has not heard of would be the worst kind of avoidable.
+ */
 export async function proposeFromDocument(
-  documentId?: string
-): Promise<LifeDraftItem[]> {
-  const raw = (await call("/setup/propose-from-document", {
-    method: "POST",
-    body: documentId ? { document_id: documentId } : {},
-  })) as Record<string, unknown> | null;
+  options: { documentId?: string; kind?: LifeItemKind } = {}
+): Promise<LifeDraft> {
+  const body: Record<string, unknown> = {};
+  if (options.documentId) body.document_id = options.documentId;
+  if (options.kind) body.kind = options.kind;
+
+  let raw: Record<string, unknown> | null;
+  try {
+    raw = (await call("/setup/propose-from-document", {
+      method: "POST",
+      body,
+    })) as Record<string, unknown> | null;
+  } catch (err) {
+    // Only the hint is retried away, and only on a rejection that is ABOUT
+    // the request (422 from a schema that forbids unknown fields is the one
+    // this exists for). 401/404/409 are the load-bearing statuses and are
+    // rethrown untouched by `call`, so they never reach here.
+    if (
+      options.kind &&
+      err instanceof LifeRequestError &&
+      err.status >= 400 &&
+      err.status < 500
+    ) {
+      return proposeFromDocument({ documentId: options.documentId });
+    }
+    throw err;
+  }
+
+  const doc = raw?.document as Record<string, unknown> | undefined;
+  const documentId =
+    doc && typeof doc.id === "string" && doc.id.length > 0 ? doc.id : null;
+
   const list = Array.isArray(raw?.items) ? raw.items : [];
-  return (list as unknown[]).flatMap((row) => {
+  const items = (list as unknown[]).flatMap((row) => {
     if (!row || typeof row !== "object") return [];
     const r = row as Record<string, unknown>;
     const kind = r.kind;
-    if (
-      kind !== "bet" &&
-      kind !== "goal" &&
-      kind !== "habit" &&
-      kind !== "distraction"
-    ) {
-      return [];
-    }
+    if (!isDraftKind(kind)) return [];
     const title = typeof r.title === "string" ? r.title.trim() : "";
     if (!title) return [];
+    const body = typeof r.body === "string" ? r.body : "";
+    // A pair, not a description: `body` is the whole line and `title` is its
+    // opening. Anything else (a goal with a real description, an empty body)
+    // is left alone and edits as it always did.
+    const truncated = body.length > title.length && body.startsWith(title);
     return [
       {
         kind,
         title,
-        body: typeof r.body === "string" ? r.body : "",
+        body,
+        titleCut: truncated ? title.length : null,
         horizon: typeof r.horizon === "string" ? r.horizon : null,
         dueLabel: typeof r.due_label === "string" ? r.due_label : null,
         bet: typeof r.collection === "string" ? r.collection : null,
@@ -293,19 +381,34 @@ export async function proposeFromDocument(
       },
     ];
   });
+
+  return { documentId, items };
 }
 
 /** Send ONLY the ticked rows. The backend creates them as the user's own
  *  active items — the tick, made on a fully displayed row, is the explicit
- *  approve (N5). */
+ *  approve (N5).
+ *
+ *  `documentId` stamps every row created by this call with the file it was
+ *  read out of (`origin_document_id`, BE 2026-07-31). Optional on both sides
+ *  and deliberately not load-bearing: an id the backend cannot resolve to one
+ *  of this user's own documents is skipped, and the rows are created anyway.
+ *  Provenance is a nicety; the rows the user ticked are the job.
+ *
+ *  THE RETURNED COUNT CAN BE LOWER THAN THE NUMBER OF TICKS, and that is
+ *  correct. `external_id` is a content hash with a unique index behind it, so
+ *  a ticked line the user already has is not duplicated. The screen still ends
+ *  up right, because the row is already in the list the caller reloads. */
 export async function applyConfirmedItems(
-  items: LifeDraftItem[]
+  items: LifeDraftItem[],
+  documentId?: string | null
 ): Promise<number> {
   const ticked = items.filter((i) => i.checked && i.title.trim() !== "");
   if (ticked.length === 0) return 0;
   const raw = (await call("/setup/apply-proposed", {
     method: "POST",
     body: {
+      ...(documentId ? { document_id: documentId } : {}),
       items: ticked.map((i) => ({
         kind: i.kind,
         title: i.title.trim(),

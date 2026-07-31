@@ -14,7 +14,7 @@ import ProposalDeck from "@/components/life/ProposalCards";
 import {
   EmptyState,
   Eyebrow,
-  PanelHeading,
+  PanelLede,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -67,10 +67,7 @@ function PrinciplesResults() {
 
   return (
     <>
-      <PanelHeading
-        title={VIEWS.principles.title}
-        lede={VIEWS.principles.lede}
-      />
+      <PanelLede lede={VIEWS.principles.lede} />
 
       {/* Pull, never push (L-4): the conflict and retire questions wait here
           until the panel is opened. Nothing notified anyone. */}
