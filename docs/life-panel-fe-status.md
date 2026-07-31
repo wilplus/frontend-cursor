@@ -56,12 +56,15 @@ src/lib/life/setupSteps.ts      the nine setup steps and the draft shape
 src/lib/life/timelineScale.ts   zoom tiers, ticks, time↔pixel maths
 src/lib/life/useLifeState.ts    one cached read of the gate, shared app-wide
 src/lib/life/useLifeTags.ts     the gate on the chat # layer
+src/lib/life/uploadKind.ts      which item kind the document dock is pointed at
 
 src/services/api/life.ts        the client, with the full assumed contract in its header
 src/app/api/v2/life/[...path]/route.ts   BFF passthrough, fixed /v2/life prefix
 
-src/components/life/PanelShell.tsx       chrome + gate + nav (N1)
-src/components/life/primitives.tsx       heading, empty, loading, one fetch hook
+src/components/life/PanelShell.tsx       chrome + gate + nav + the way out (N1)
+src/components/life/PanelUpload.tsx      the document dock under every view
+src/components/life/StrategyDocument.tsx the shared upload + tick-and-Add review
+src/components/life/primitives.tsx       lede, empty, loading, one fetch hook
 src/components/life/FirstRun.tsx         FE-2 guide + consent
 src/components/life/SetupFlow.tsx        FE-3 setup, save-and-resume
 src/components/life/ProposalCards.tsx    FE-7 proposal / conflict / retire
@@ -74,7 +77,7 @@ src/app/panel/{principles,principles/[id],wins,phrases,today,goals,timeline,dist
 ```
 
 Tests: `hashtags.test.ts`, `mappers.test.ts`, `timelineScale.test.ts`,
-`isolation.test.ts`.
+`uploadKind.test.ts`, `isolation.test.ts`.
 
 ## 3. The isolation fence
 
@@ -249,10 +252,8 @@ read-only in one commit each.
   anchored under the cursor, tap for detail, per-bet hide, three tiers, bets as
   bands, goals as markers. **Diff against the original before ship** if its
   interaction details matter.
-- **A "Your data" link in the panel footer**, not a menu entry. FE-10 wants
-  export and delete two clicks away; N1 governs *gated* surfaces, and a person
-  with data must always be able to take it out or erase it, so this one is not
-  gated on the menu payload. It appears once the user has consented.
+- ~~**A "Your data" link in the panel footer**~~ — **removed** (founder
+  2026-07-31), along with the app header and the per-view page title. See §8.
 - **Strategy re-upload accepts markdown or plain text, not `.docx`.** A `.docx`
   is a zip archive; reading it in the browser yields mojibake, not a document.
   This is the open question in the spec, answered the safe way, and the diff
@@ -282,3 +283,52 @@ approved.** Review that one file before the flag is flipped.
   explanation") is enforced backend-side; the FE renders whatever reply comes
   back. The refusal line is product copy and needs sign-off wherever it is
   written.
+
+## 8. The chrome pass (founder 2026-07-31)
+
+Four changes to what the panel puts on the screen, and the two things they
+leave open.
+
+**What changed**
+
+1. **The app header is off every panel screen.** `DashboardHeader` used to
+   render above the pill row on all but `/panel/principles`; it now renders on
+   none of them, in the loading, 404 and loaded states alike. The logo, the
+   wallet chip and the hamburger were three exits stacked above a row that
+   already navigates.
+2. **No page title.** Every view opened with its own name as an `h1` directly
+   under the pill bearing the same word. `PanelHeading` is now `PanelLede`: it
+   renders a view's lede, if it has one, and nothing else. Today, Timeline,
+   Strategy and the data screen have empty ledes, so they mount nothing at all.
+3. **The pill row carries the way out.** An `X` sits at its right end, on the
+   same line, and the scrolling strip is shortened by exactly that width rather
+   than scrolling under it. It lands on `/chat`, the same place the panel's 404
+   already sends people, so leaving the panel means one destination.
+4. **A document dock under every view.** `PanelUpload` is the upload that used
+   to live only at the foot of Goals (`StrategyDocumentPanel`, now deleted),
+   docked under all of them: upload, draft, tick, Add. It passes the kind the
+   current view holds (`lib/life/uploadKind.ts`) as a hint on
+   `POST /setup/propose-from-document`, so a document handed over on Phrases is
+   read for phrases. `SetupFlow` keeps its own step-2 upload; the Strategy
+   view's "Upload a revised copy" is a different operation on a different
+   document and is untouched.
+
+**Two things this leaves open**
+
+- **`/panel/data` has no link anywhere.** Removing the footer link was the
+  request; the route, the export and the typed-confirmation delete are all
+  unchanged and still serve. But the consent screen promises "Both live in the
+  panel, two clicks away, not buried in settings", and with no link that
+  sentence overstates what is on the screen. Either re-hang the link (a tenth
+  pill in the menu is one line in `LIFE_VIEWS`) or change that consent bullet.
+  **Founder decision, not an FE one.**
+- **The kind hint needs a backend that honours it.** `propose-from-document`
+  returns `bet`, `goal`, `habit` and `distraction` today, so the dock produces
+  rows on Goals, Distractions and Timeline and comes back empty on Phrases,
+  Principles and Wins. The FE is finished for all of them: `LifeDraftItem.kind`
+  is the full `LifeItemKind`, `applyConfirmedItems` sends whatever it is given,
+  and `SETUP.draftKindLabels` has a label per kind with a fall-back to the raw
+  name. What is missing is the backend emitting `phrase` / `principle` / `win`
+  when asked. A backend that rejects the unknown field is retried once without
+  it, so shipping this ahead of that work cannot break the upload that already
+  works.

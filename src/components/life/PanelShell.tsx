@@ -1,15 +1,16 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { X } from "lucide-react";
 import PanelNotFound from "@/components/life/PanelNotFound";
+import PanelUpload from "@/components/life/PanelUpload";
 import LoadingState from "@/components/willab/LoadingState";
 import { useLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import { SCREEN_BOTTOM_GAP } from "@/lib/screenChrome";
-import { VIEWS } from "@/lib/life/copy";
+import { PANEL } from "@/lib/life/copy";
 import {
   hasConsented,
   principlesTabView,
@@ -27,8 +28,20 @@ import {
 /*    · no state at all (flag off, or this user is on no allowlist) → 404.     */
 /*      Not a message, not an empty shell. Nothing to discover.                */
 /*                                                                            */
-/*  The app header is reused rather than rebuilt so the panel is visibly the   */
-/*  same product, same session, one deploy (spec §1.1).                        */
+/*  THE APP HEADER IS GONE FROM THE WHOLE PANEL (founder 2026-07-31). It came  */
+/*  off the Principles route first, on the argument that an entrance offering  */
+/*  a menu is offering a way back out; that argument was never specific to     */
+/*  Principles. The panel is the one surface in the product a person is        */
+/*  supposed to sit inside, and the logo, the wallet chip and the hamburger    */
+/*  were three ways out stacked above a row that already navigates.            */
+/*                                                                            */
+/*  So the pill row is now the panel's ONLY chrome, and it carries the one     */
+/*  exit itself: the X at its right end. That is deliberate rather than        */
+/*  minimal. A surface with no header and no X is a trap, and the way out has  */
+/*  to be somewhere a thumb already is.                                       */
+/*                                                                            */
+/*  Under every view is the document dock (`PanelUpload`), which is the same   */
+/*  upload setup opens with, on every screen instead of one.                   */
 /* -------------------------------------------------------------------------- */
 
 interface LifePanelContextValue {
@@ -52,10 +65,12 @@ export function useLifePanel(): LifePanelContextValue {
 
 /** FE-10 — is the user looking at ONBOARDING right now?
  *
- *  Onboarding gets the panel's chrome stripped: no nav pill row above the step
- *  header, no "Your data" link under it. One goal per screen means one thing on
- *  the screen, and a pill row reading "Principles" over a heading reading "Your
- *  three bets" is a second navigation offering itself mid-form.
+ *  Onboarding gets what chrome is left stripped: no nav pill row above the
+ *  step header, and no document dock beneath it. One goal per screen means one
+ *  thing on the screen, and a pill row reading "Principles" over a heading
+ *  reading "Your three bets" is a second navigation offering itself mid-form.
+ *  Setup carries its own way out and its own document step, so it loses
+ *  nothing by losing both.
  *
  *  This asks the STATE, not the path. It used to be a route allowlist holding
  *  only "/panel/setup", which missed the setup flow's OTHER mount: the
@@ -73,36 +88,22 @@ function isOnboarding(state: LifeState, pathname: string | null): boolean {
   );
 }
 
-/** Founder 2026-07-30 — the Principles page carries NO app header.
- *
- *  The logo-and-hamburger bar comes off this one route entirely: the guide, the
- *  consent screen, the ten setup steps and the results all render without it.
- *  It is the same argument that already strips the pill row and the "Your data"
- *  link during onboarding — this is the entrance, and an entrance offering a
- *  menu is offering a way back out — extended to the route rather than to the
- *  state, because that is what was asked for.
- *
- *  Deliberately a path check and not a state check, unlike `isOnboarding`: the
- *  condition here is "which page", not "how far through the gate", so it must
- *  hold on the loading and the 404 branch too. A header that renders for the
- *  duration of the state fetch and then vanishes is a layout jump, not chrome.
- *
- *  Scoped to the index. `/panel/principles/[id]` is a leaf the user arrives at
- *  from a list, and it keeps the header it needs to get back. */
-function hidesAppHeader(pathname: string | null): boolean {
-  return pathname === "/panel/principles";
-}
-
 export default function PanelShell({ children }: { children: React.ReactNode }) {
   const { state, loading, refresh } = useLifeState();
   const pathname = usePathname();
   const onboarding = state ? isOnboarding(state, pathname) : false;
-  const bare = hidesAppHeader(pathname);
+
+  /* Rows created from the dock are the surrounding view's own content, and the
+   * views hold their reads in their own hooks, out of reach from here. Bumping
+   * this remounts the view, which refetches it. A remount rather than a
+   * plumbed-through reload because it is one line and it cannot miss a view:
+   * the next screen someone docks an upload under gets it for free. */
+  const [contentNonce, setContentNonce] = useState(0);
+  const reloadContent = useCallback(() => setContentNonce((n) => n + 1), []);
 
   if (loading) {
     return (
       <div className="flex min-h-full flex-col bg-background">
-        {bare ? null : <DashboardHeader />}
         <div className="flex flex-1 items-center justify-center">
           <LoadingState withTip={false} />
         </div>
@@ -119,9 +120,8 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   if (!state) {
     return (
       <div className="flex min-h-full flex-col bg-background">
-        {bare ? null : <DashboardHeader />}
         {/* PanelNotFound carries its own way out ("Back to the lab"), so the
-            dead end is never a dead end even with the header gone. */}
+            dead end is never a dead end with no header above it. */}
         <PanelNotFound />
       </div>
     );
@@ -130,43 +130,32 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
   return (
     <LifeStateContext.Provider value={{ state, refresh }}>
       <div className="flex min-h-full flex-col bg-background">
-        {bare ? null : <DashboardHeader />}
         {/* Same derivation as the hamburger, so the two can never disagree
             about which views exist. */}
         {onboarding ? null : (
-          <PanelNav
-            menu={panelMenu(state)}
-            pathname={pathname}
-            headerAbove={!bare}
-          />
+          <PanelNav menu={panelMenu(state)} pathname={pathname} />
         )}
         {/* A flex COLUMN, not a plain block: the setup flow pins its Back/Next
             bar to the bottom with `mt-auto`, which needs its own height to
             come from this column rather than from its content. Stacked
-            content in every other view renders identically either way. */}
+            content in every other view renders identically either way.
+            No page heading sits above this any more, so the top padding is
+            the whole of the gap between the pill row and the first row of
+            content. */}
         <main
-          className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pt-8 ${SCREEN_BOTTOM_GAP}`}
+          key={contentNonce}
+          className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pt-6 ${SCREEN_BOTTOM_GAP}`}
         >
           {children}
         </main>
-        {/* FE-10 — export and hard delete stay two clicks away for anyone who
-            has written anything, rather than being buried in account settings.
-            Not a gated menu entry: a person with data must always be able to
-            take it out or erase it. */}
-        {/* FE-10 — not during onboarding. Export and hard delete stay two
-            clicks away for anyone who has WRITTEN anything, which is the point
-            of the link; a user still filling in the form has not written
-            anything yet, and the link is one more thing on a screen that is
-            meant to hold one. It returns the moment they are through. */}
+        {/* FE-10's standing "Your data" link is gone from here (founder
+            2026-07-31). `/panel/data` still serves the export and the hard
+            delete, unchanged, and the consent screen still promises both:
+            what changed is that this footer is no longer the thing carrying
+            the promise, so the link has to be re-hung somewhere before that
+            copy is true again. Flagged, not silently dropped. */}
         {hasConsented(state) && !onboarding ? (
-          <footer className="mx-auto w-full max-w-3xl px-5 pb-10">
-            <Link
-              href="/panel/data"
-              className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-            >
-              {VIEWS.data.title}
-            </Link>
-          </footer>
+          <PanelUpload onApplied={reloadContent} />
         ) : null}
       </div>
     </LifeStateContext.Provider>
@@ -176,52 +165,61 @@ export default function PanelShell({ children }: { children: React.ReactNode }) 
 function PanelNav({
   menu,
   pathname,
-  headerAbove,
 }: {
   menu: LifeMenuEntry[];
   pathname: string | null;
-  /** Whether DashboardHeader is mounted above this row. 73px is that header's
-   *  height, and it is what this row sticks BELOW so the two do not overlap
-   *  when the page scrolls. With no header there is nothing to clear, and the
-   *  offset would show as a 73px band of page scrolling past above the pills. */
-  headerAbove: boolean;
 }) {
   if (menu.length === 0) return null;
   return (
     <nav
       aria-label="Panel"
-      className={`sticky z-20 border-b border-border/70 bg-background/90 backdrop-blur ${
-        headerAbove ? "top-[73px]" : "top-0"
-      }`}
+      className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur"
     >
-      <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2">
-        {menu.map((entry) => {
-          const active =
-            !entry.external &&
-            pathname != null &&
-            (pathname === entry.href || pathname.startsWith(`${entry.href}/`));
-          const className = `whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] transition-colors ${
-            active
-              ? "bg-foreground text-background"
-              : "text-muted-foreground hover:text-foreground"
-          }`;
-          // Prayer leaves the app entirely: its own subdomain, its own service
-          // worker scope, its own PWA install (spec §3.4).
-          return entry.external ? (
-            <a
-              key={entry.key}
-              href={entry.href}
-              className={className}
-              rel="noopener"
-            >
-              {entry.label}
-            </a>
-          ) : (
-            <Link key={entry.key} href={entry.href} className={className}>
-              {entry.label}
-            </Link>
-          );
-        })}
+      <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-2">
+        {/* The scrolling strip is shortened by exactly the X, rather than
+            scrolling under it: a pill half-hidden behind a button reads as a
+            rendering fault, and the last pill is the one people reach for. */}
+        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+          {menu.map((entry) => {
+            const active =
+              !entry.external &&
+              pathname != null &&
+              (pathname === entry.href || pathname.startsWith(`${entry.href}/`));
+            const className = `whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] transition-colors ${
+              active
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground"
+            }`;
+            // Prayer leaves the app entirely: its own subdomain, its own service
+            // worker scope, its own PWA install (spec §3.4).
+            return entry.external ? (
+              <a
+                key={entry.key}
+                href={entry.href}
+                className={className}
+                rel="noopener"
+              >
+                {entry.label}
+              </a>
+            ) : (
+              <Link key={entry.key} href={entry.href} className={className}>
+                {entry.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* The panel's only exit, now that the header carrying the logo is
+            off every one of these screens. It lands where the 404's own way
+            out lands, so leaving the panel means one place, not two. */}
+        <Link
+          href="/chat"
+          aria-label={PANEL.closeLabel}
+          title={PANEL.closeLabel}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </Link>
       </div>
     </nav>
   );

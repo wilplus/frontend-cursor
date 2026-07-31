@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { DELETE, EXPORT, STATUS, VIEWS } from "@/lib/life/copy";
+import { DELETE, EXPORT, STATUS } from "@/lib/life/copy";
 import { deleteLifeData, exportLifeData } from "@/services/api/life";
 import { invalidateLifeState } from "@/lib/life/useLifeState";
-import { PanelCard, PanelHeading } from "@/components/life/primitives";
+import { PanelCard } from "@/components/life/primitives";
 import ReminderSettings from "@/components/life/ReminderSettings";
 
 /* -------------------------------------------------------------------------- */
@@ -26,7 +26,6 @@ import ReminderSettings from "@/components/life/ReminderSettings";
 export default function DataPage() {
   return (
     <>
-      <PanelHeading title={VIEWS.data.title} lede={VIEWS.data.lede} />
       <div className="space-y-6">
         {/* Opt-in reminders (founder 2026-07-30). This page is the panel's
             settings surface — the same place the export and the delete live,

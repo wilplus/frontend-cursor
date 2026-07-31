@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Pencil } from "lucide-react";
-import { DAY, EMPTY, STATUS, VIEWS } from "@/lib/life/copy";
+import { DAY, EMPTY, STATUS } from "@/lib/life/copy";
 import {
   betByKey,
   type LifeBetKey,
@@ -23,7 +23,6 @@ import ProposalDeck from "@/components/life/ProposalCards";
 import {
   EmptyState,
   Eyebrow,
-  PanelHeading,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
@@ -73,7 +72,6 @@ export default function TodayPage() {
 
   return (
     <>
-      <PanelHeading title={VIEWS.today.title} />
       <ProposalDeck title="Waiting for you" />
       <Resource resource={resource}>
         {(day) =>

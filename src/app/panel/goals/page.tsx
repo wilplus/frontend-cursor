@@ -6,11 +6,10 @@ import { betByKey } from "@/lib/life/types";
 import { fetchGoals } from "@/services/api/life";
 import {
   EmptyState,
-  PanelHeading,
+  PanelLede,
   Resource,
   usePanelResource,
 } from "@/components/life/primitives";
-import StrategyDocumentPanel from "@/components/life/StrategyDocument";
 
 /* -------------------------------------------------------------------------- */
 /*  FE-9 — Goals. Bets in rank order, goals beneath.                           */
@@ -23,15 +22,13 @@ import StrategyDocumentPanel from "@/components/life/StrategyDocument";
 /*      "2035". The label is the source of truth, not the parsed date, so it   */
 /*      is never reformatted into a tidier form the user did not write.        */
 /*                                                                            */
-/*  THE STRATEGY UPLOAD LIVES AT THE FOOT OF THIS VIEW (founder 2026-07-30).   */
-/*  It is the same upload setup opens with, kept open afterwards, because      */
-/*  setup runs once and a strategy does not. Here rather than on the Strategy  */
-/*  view on purpose: that screen already has an Upload button meaning          */
-/*  something else entirely (a revised copy of the GENERATED document, parsed  */
-/*  into a diff to approve). Two Uploads side by side doing different things   */
-/*  to the same word is how a user loses a document. And this is where they    */
-/*  will look for it: the founder's own question was where to add the file the */
-/*  goals get set from, and Goals is the first place that reads as.            */
+/*  THE STRATEGY UPLOAD IS NO LONGER THIS VIEW'S ALONE (founder 2026-07-31).   */
+/*  It sat at the foot of Goals because that is where someone looks for the    */
+/*  file their goals get set from. It now sits at the foot of EVERY view, in   */
+/*  the shell's document dock, so this page carries no upload of its own: two  */
+/*  of them on one screen, doing the same thing, is worse than the one door    */
+/*  the dock replaced. Rows the dock creates land in this list, and the shell  */
+/*  remounts the view so they show without a manual refresh.                   */
 /* -------------------------------------------------------------------------- */
 
 export default function GoalsPage() {
@@ -40,7 +37,7 @@ export default function GoalsPage() {
 
   return (
     <>
-      <PanelHeading title={VIEWS.goals.title} lede={VIEWS.goals.lede} />
+      <PanelLede lede={VIEWS.goals.lede} />
       <Resource resource={resource}>
         {(bets) =>
           bets.length === 0 ? (
@@ -104,9 +101,6 @@ export default function GoalsPage() {
           )
         }
       </Resource>
-      {/* Rows created from a document are goals, habits, distractions and
-          bets, so the list above is out of date the moment they land. */}
-      <StrategyDocumentPanel onApplied={resource.reload} />
     </>
   );
 }
