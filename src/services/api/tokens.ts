@@ -257,6 +257,99 @@ export async function fetchRecordingBand(): Promise<RecordingBandState> {
   return getJson("/api/v2/tokens/recording-band", mapRecordingBand, { kind: "unknown" });
 }
 
+/* ------------------------------ per-arc state ----------------------------- */
+
+/** Per-arc charge state for the actions charged ONCE PER ARC (`ref_id` is the
+ *  arc id): insights, game, moment_explanation, coach_review.
+ *
+ *  WHY THIS EXISTS. Those charges are idempotent, so the first use costs and
+ *  every repeat is free. A static price on such a trigger is right once and
+ *  wrong forever after, and a stale price on a control is worse than no price
+ *  because people act on it — it would also discourage re-opening something
+ *  already paid for. `priceForArcAction` is the only honest way to label them.
+ *
+ *  NOT FOR `chat`, which has no `ref_id`, is charged every turn, and is
+ *  deliberately never surfaced per message. Per-arc and per-turn are different
+ *  shapes; do not route chat through here. */
+export type ArcCharges =
+  | { kind: "off" }
+  /** Unreadable, or an older BE without the endpoint. Unknown → no price. */
+  | { kind: "unknown" }
+  | {
+      kind: "ready";
+      /** action → has this arc already been charged for it. */
+      charged: Record<string, boolean>;
+      /** action → price, so pricing a trigger needs no second lookup. */
+      prices: Record<string, number>;
+    };
+
+export function mapArcCharges(raw: unknown): ArcCharges {
+  if (!isEnabled(raw)) return { kind: "off" };
+
+  const charged: Record<string, boolean> = {};
+  if (raw.charged && typeof raw.charged === "object") {
+    for (const [k, v] of Object.entries(raw.charged as Record<string, unknown>)) {
+      if (typeof v === "boolean") charged[k] = v;
+    }
+  }
+
+  const prices: Record<string, number> = {};
+  if (raw.prices && typeof raw.prices === "object") {
+    for (const [k, v] of Object.entries(raw.prices as Record<string, unknown>)) {
+      const n = num(v);
+      if (n !== null) prices[k] = n;
+    }
+  }
+
+  // Neither half present is not a readable answer — treat it as unknown so no
+  // price is shown, rather than as "nothing has been charged yet".
+  if (Object.keys(charged).length === 0 && Object.keys(prices).length === 0) {
+    return { kind: "unknown" };
+  }
+  return { kind: "ready", charged, prices };
+}
+
+/** The price to SHOW for a per-arc action, or null to show nothing.
+ *
+ *  Null covers every case where a label would be a guess: pricing off, the arc
+ *  unreadable, an action the BE didn't publish, and — the case this function
+ *  exists for — an action THIS ARC HAS ALREADY PAID FOR, which is now free. */
+export function priceForArcAction(arc: ArcCharges, action: string): number | null {
+  if (arc.kind !== "ready") return null;
+  // Missing charged flag → unknown for this action → no price. Never assume
+  // "not yet charged": that is the assumption that produces a wrong label.
+  if (arc.charged[action] !== false) return null;
+  const p = arc.prices[action];
+  return typeof p === "number" ? p : null;
+}
+
+/** Deduped per arc: a thread can show three feedback bubbles for one arc, and
+ *  they would otherwise each ask the same question. The lookup never writes, so
+ *  sharing an answer is free of side effects.
+ *
+ *  MUST be cleared when something is charged — a cached `charged:false` outlives
+ *  the charge that made it false, and a price that lingers after payment is the
+ *  exact stale label this whole endpoint exists to prevent. `resetArcCharges`
+ *  is wired to the balance-refresh event for that reason. */
+const arcChargesCache = new Map<string, Promise<ArcCharges>>();
+
+export async function fetchArcCharges(arcId: string): Promise<ArcCharges> {
+  const hit = arcChargesCache.get(arcId);
+  if (hit) return hit;
+  const p = getJson(
+    `/api/v2/tokens/arc/${encodeURIComponent(arcId)}`,
+    mapArcCharges,
+    { kind: "unknown" as const }
+  );
+  arcChargesCache.set(arcId, p);
+  return p;
+}
+
+/** Drop the memoised per-arc answers (after a spend, and in tests). */
+export function resetArcCharges(): void {
+  arcChargesCache.clear();
+}
+
 /* -------------------------------- history -------------------------------- */
 
 export interface TokenLedgerEntry {

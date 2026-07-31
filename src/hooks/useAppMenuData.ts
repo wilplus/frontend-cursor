@@ -10,8 +10,6 @@ import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
-import { priceOf } from "@/services/api/tokens";
-import { TOKENS_COPY, formatTokens } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -42,10 +40,6 @@ export interface AppMenuData {
    *  `wallet.enabled === true` also RETIRES the legacy credits row — see the
    *  note on AppMenu's `tokensEnabled`. */
   wallet: TokenWallet;
-  /** The game row's price, formatted, or null when pricing is off. Derived
-   *  here so both header mounts show the same label without either of them
-   *  learning how a price is looked up or formatted. */
-  gamePriceLabel: string | null;
   lifeMenu: LifeMenuEntry[];
   loggingOut: boolean;
   logout: () => void;
@@ -170,19 +164,12 @@ export function useAppMenuData(): AppMenuData {
   // Signed-in only: a guest has no wallet, and the probe is skipped entirely
   // rather than fired and thrown away.
   const wallet = useTokenWallet(authState === "signed_in");
-  const gameTokenPrice = priceOf(wallet.prices, "game");
-  const gamePriceLabel =
-    gameTokenPrice !== null
-      ? TOKENS_COPY.actionPrice(formatTokens(gameTokenPrice))
-      : null;
-
   return {
     authState,
     isCoach,
     userEmail,
     credits,
     wallet,
-    gamePriceLabel,
     lifeMenu,
     loggingOut,
     logout,

@@ -48,7 +48,6 @@ export default function SiteHeader() {
           loggingOut={menu.loggingOut}
           labHref="/chat"
           gameHref="/game"
-          gamePriceLabel={menu.gamePriceLabel}
           corpusHref={menu.isCoach ? "/coach/corpus" : null}
         />
       </div>

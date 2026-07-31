@@ -110,7 +110,6 @@ export default function DashboardHeader() {
             // mounts — "Lab" is a real destination there, not a self-link.
             labHref="/chat"
             gameHref="/game"
-            gamePriceLabel={menu.gamePriceLabel}
             corpusHref={menu.isCoach ? "/coach/corpus" : null}
           />
         </div>

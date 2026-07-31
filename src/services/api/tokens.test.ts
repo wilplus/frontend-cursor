@@ -4,8 +4,10 @@ import {
   mapRecordingBand,
   mapTokenBalance,
   mapTokenHistory,
+  mapArcCharges,
   mapTokenPrices,
   nextBalance,
+  priceForArcAction,
   priceOf,
   type TokenBalance,
 } from "./tokens";
@@ -207,6 +209,56 @@ describe("mapRecordingBand", () => {
     expect(
       mapRecordingBand({ enabled: true, can_record: true, balance: 100 }).kind
     ).toBe("unknown");
+  });
+});
+
+describe("mapArcCharges / priceForArcAction", () => {
+  const PAYLOAD = {
+    enabled: true,
+    arc_id: "arc_1",
+    charged: { insights: true, game: false, moment_explanation: false },
+    prices: { insights: 1000, game: 1500, moment_explanation: 2500 },
+  };
+
+  it("prices an action this arc has NOT paid for", () => {
+    expect(priceForArcAction(mapArcCharges(PAYLOAD), "game")).toBe(1500);
+  });
+
+  it("shows NOTHING for an action already paid for on this arc", () => {
+    // The whole reason the endpoint exists. These charges are idempotent, so
+    // once paid the action is free, and a lingering price would ask for money
+    // that is not owed and discourage re-opening what was bought.
+    expect(priceForArcAction(mapArcCharges(PAYLOAD), "insights")).toBeNull();
+  });
+
+  it("shows nothing when the charge state is unknown, never assuming unpaid", () => {
+    // Assuming "not yet charged" is exactly what produces a wrong label.
+    expect(priceForArcAction(mapArcCharges(PAYLOAD), "coach_review")).toBeNull();
+    expect(priceForArcAction({ kind: "unknown" }, "game")).toBeNull();
+    expect(priceForArcAction({ kind: "off" }, "game")).toBeNull();
+  });
+
+  it("shows nothing when charged is false but no price was published", () => {
+    const arc = mapArcCharges({ enabled: true, charged: { game: false }, prices: {} });
+    expect(priceForArcAction(arc, "game")).toBeNull();
+  });
+
+  it("reads flag-off as off, and an empty payload as unknown", () => {
+    expect(mapArcCharges({ enabled: false })).toEqual({ kind: "off" });
+    // Neither half present is not "nothing has been charged yet".
+    expect(mapArcCharges({ enabled: true }).kind).toBe("unknown");
+    expect(mapArcCharges({ enabled: true, charged: {}, prices: {} }).kind).toBe("unknown");
+  });
+
+  it("ignores non-boolean charged flags rather than coercing them", () => {
+    const arc = mapArcCharges({
+      enabled: true,
+      charged: { game: "false", insights: false },
+      prices: { game: 1500, insights: 1000 },
+    });
+    // "false" is not false. Coercing it would price an action already paid for.
+    expect(priceForArcAction(arc, "game")).toBeNull();
+    expect(priceForArcAction(arc, "insights")).toBe(1000);
   });
 });
 
