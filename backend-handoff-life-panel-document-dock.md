@@ -28,6 +28,16 @@ what stands between the panel and launch; nothing here changes that list.
 > | `kind` is validated; a tenth kind is a 400 | Unreachable from here: the FE sends only the nine, typed. The retry-without-the-field stays as insurance against an older deploy and, as you say, will not fire. |
 > | `origin_document_id` rides `serialize_item` | Deliberately not read. No surface displays provenance, and a field nothing renders is a field that reads as shipped without being. Say the word if a surface should show it. |
 >
+> **A second read of this reply caught one more**, after the first pass shipped:
+> `DraftList` was re-sorting the response. It led with a fixed
+> `["bet", "goal", "habit", "distraction"]`, which was harmless while those were
+> the only kinds a document could yield and wrong the moment there were more —
+> a document opened from Phrases that also held goals rendered its GOALS first,
+> **on the Phrases screen**, burying the rows you had deliberately put at the
+> top. Groups are now ordered by first appearance, so the server's order is the
+> order, and the rule lives in `lib/life/draftGroups.ts` with a test rather than
+> in a list inside a component that the next kind would have to know to edit.
+>
 > **The title/body pair was the one answer that needed real work here**, and it
 > is worth naming because it was an N5 hole rather than a nicety. The review row
 > rendered `title` only. So a 600-character phrase was ticked on a 500-character

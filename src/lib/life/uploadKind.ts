@@ -15,6 +15,15 @@
 /*  map to null, which sends no hint at all. That is exactly the request every */
 /*  one of these made before the dock existed, so a null is not a degraded     */
 /*  case; it is the original one.                                             */
+/*                                                                            */
+/*  TIMELINE'S `event` IS A NO-OP TODAY, and deliberately so on their side     */
+/*  (BE 2026-07-31): the backend accepts it and runs only the base pass,       */
+/*  because Timeline already renders dated goals as markers and an `event`     */
+/*  pass would draft a second, separately tickable copy of every one of them.  */
+/*  Two tickable rows for one written line is worse than an honest empty       */
+/*  answer. The hint is still sent: it is correct about what the view holds,   */
+/*  it costs nothing, and the day that decision is revisited this file needs   */
+/*  no edit.                                                                   */
 /* -------------------------------------------------------------------------- */
 
 import type { LifeItemKind } from "./types";
