@@ -41,16 +41,6 @@ export function formatShortDate(iso: string | null): string | null {
 }
 
 export const TOKENS_COPY = {
-  /* ------------------------------- the chip ------------------------------ */
-
-  /** The renewal date is load-bearing, not decoration: without it a user who
-   *  watches the number fall has no idea it comes back, and a falling balance
-   *  reads as a countdown to being locked out. With it, low is "wait or top
-   *  up". Never drop the clause to save space. */
-  chip: (balance: string, renewsOn: string | null) =>
-    renewsOn ? `${balance} · renews ${renewsOn}` : balance,
-  chipLabel: "Your token balance",
-
   /* ------------------------------- the row ------------------------------- */
 
   /** The hamburger row that replaces the legacy Credits row when pricing is
@@ -83,7 +73,23 @@ export const TOKENS_COPY = {
     n === 0 ? "No coach reviews" : n === 1 ? "1 coach review a month" : `${n} coach reviews a month`,
   /** Shown against the plan list because there is no subscription checkout in
    *  the product yet. Honest beats a button that goes nowhere. */
+  /** The CTA on a plan you can actually buy. */
+  walletChoosePlan: "Choose",
+  walletChoosePlanBusy: "Opening Stripe…",
+  /** Shown against the plan list when NOTHING is purchasable (Stripe or the
+   *  price map unconfigured). Honest beats a button that cannot work. */
   walletUpgradeUnavailable: "Changing plan isn't available here yet.",
+  /** You are already paying for this one. */
+  walletCurrentPlan: "Current plan",
+  /** On a paid plan already: switching and cancelling both need the billing
+   *  portal, which the backend has no route for yet, so say so rather than
+   *  offering a second checkout that would charge twice. */
+  walletManageUnavailable:
+    "To change or cancel your plan, email support and we'll sort it.",
+  /** Back from Stripe. The tier arrives by webhook a moment later, so this
+   *  promises an update rather than asserting a balance we cannot see yet. */
+  walletPlanSuccess: "Payment received. Your new plan is being applied.",
+  walletPlanCancelled: "No change made.",
 
   /* --------------------------- coach reviews ----------------------------- */
 
