@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LifeMenuEntry } from "@/lib/life/types";
+import { TOKENS_COPY } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  AppMenu (FE-3) — ONE hamburger, mounted twice                              */
@@ -57,6 +58,11 @@ export interface AppMenuProps {
    *  then be a balance that buys nothing, sitting next to a wallet that buys
    *  everything, and linking to a Stripe page that tops up the wrong currency. */
   tokensEnabled?: boolean;
+  /** Pre-formatted token balance for the menu row (e.g. "12,000 · 30 Aug"), or
+   *  null when pricing is off / the balance is unreadable. A LABEL, not a
+   *  number: the host owns the wallet read and the formatting, this owns the
+   *  chrome — the split that keeps the blog mount ignorant of pricing. */
+  tokensLabel?: string | null;
   /** Life Panel entries, straight from the gate payload. Absent for everyone
    *  the payload does not list them for, which is the normal case. */
   lifeMenu?: LifeMenuEntry[];
@@ -84,6 +90,7 @@ export default function AppMenu({
   userEmail = null,
   credits = null,
   tokensEnabled = false,
+  tokensLabel = null,
   lifeMenu = [],
   supportEmail,
   communityUrl,
@@ -267,6 +274,23 @@ export default function AppMenu({
           >
             Community
           </a>
+
+          {/* Tokens take the credits row's place when pricing is live, in the
+              SAME shape and the SAME slot. Founder 2026-07-31: the balance
+              belongs in the menu, not the navbar — which restores this file's
+              original rule that the right side of the header is just the
+              hamburger. The renewal date rides along, because a falling number
+              without one reads as a countdown to being locked out. */}
+          {signedIn && tokensLabel ? (
+            <Link
+              href="/dashboard/pricing"
+              className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}
+              onClick={() => setOpen(false)}
+            >
+              <span>{TOKENS_COPY.menuRowLabel}</span>
+              <span className="font-normal text-muted-foreground">{tokensLabel}</span>
+            </Link>
+          ) : null}
 
           {signedIn && credits !== null && !tokensEnabled ? (
             <Link

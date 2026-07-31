@@ -10,6 +10,7 @@ import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
 import { useTokenWallet, type TokenWallet } from "@/hooks/useTokenWallet";
+import { TOKENS_COPY, formatShortDate, formatTokens } from "@/components/tokens/copy";
 
 /* -------------------------------------------------------------------------- */
 /*  useAppMenuData (FE-3) — everything AppMenu renders, loaded once            */
@@ -40,6 +41,10 @@ export interface AppMenuData {
    *  `wallet.enabled === true` also RETIRES the legacy credits row — see the
    *  note on AppMenu's `tokensEnabled`. */
   wallet: TokenWallet;
+  /** The token balance formatted for the menu row, or null when pricing is off
+   *  or the balance is unreadable. Derived here so both header mounts show the
+   *  same label without either learning how a balance is read or formatted. */
+  tokensLabel: string | null;
   lifeMenu: LifeMenuEntry[];
   loggingOut: boolean;
   logout: () => void;
@@ -164,12 +169,23 @@ export function useAppMenuData(): AppMenuData {
   // Signed-in only: a guest has no wallet, and the probe is skipped entirely
   // rather than fired and thrown away.
   const wallet = useTokenWallet(authState === "signed_in");
+  // Unreadable balance → NO row rather than a zero: a zero is indistinguishable
+  // from being out of tokens, and this row is the only place the balance now
+  // appears.
+  const tokensLabel =
+    wallet.enabled === true && wallet.balance.kind === "ready"
+      ? TOKENS_COPY.menuRowValue(
+          formatTokens(wallet.balance.balance),
+          formatShortDate(wallet.balance.periodEndsAt)
+        )
+      : null;
   return {
     authState,
     isCoach,
     userEmail,
     credits,
     wallet,
+    tokensLabel,
     lifeMenu,
     loggingOut,
     logout,
