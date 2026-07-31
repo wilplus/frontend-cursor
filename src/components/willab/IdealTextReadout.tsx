@@ -121,7 +121,6 @@ export default function IdealTextReadout({
     status: "unverified" | "verified";
     version: number | null;
     momentsUnlocked: boolean;
-    priceCredits: number | null;
     explanationsAvailable: boolean;
     title: string | null;
     latestTakeSessionId: string | null;
@@ -220,7 +219,6 @@ export default function IdealTextReadout({
           status: r.status,
           version: r.version,
           momentsUnlocked: r.momentsUnlocked,
-          priceCredits: r.priceCredits,
           explanationsAvailable: r.explanationsAvailable,
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
@@ -471,11 +469,10 @@ export default function IdealTextReadout({
     [arcId, markDirty]
   );
 
-  // SD — the shared star layer (sheet, Approve/Revert folds, 5-credit unlock).
+  // SD — the shared star layer (sheet, Approve/Revert folds, moments unlock).
   const stars = useMomentStars({
     arcId: arcId ?? "",
     momentsUnlocked: sd?.momentsUnlocked ?? false,
-    priceCredits: sd?.priceCredits ?? null,
     explanationsAvailable: sd?.explanationsAvailable ?? false,
     onUnlocked: () =>
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),

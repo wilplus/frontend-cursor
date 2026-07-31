@@ -4,14 +4,11 @@ import { unlockMoments } from "./momentExplanation";
 vi.mock("@/lib/api/auth-client", () => ({ getAuthToken: async () => "tok" }));
 
 /* -------------------------------------------------------------------------- */
-/*  The unlock 402 is the one place the FE can charge someone for the wrong    */
-/*  thing. Credits and tokens are DIFFERENT CURRENCIES: the credit-pack        */
-/*  checkout does not add tokens, so routing a token-poor user there takes     */
-/*  their money for something that cannot unlock anything. And the coach cap   */
-/*  is not a balance at all — no purchase lifts it, so an upgrade nudge there  */
-/*  is a sale that cannot deliver.                                             */
-/*                                                                            */
-/*  Each test below is one of those mis-sales.                                 */
+/*  Tokens are the only currency (credits retired, founder 2026-07-31), so the */
+/*  wrong-currency mis-sale is gone. What remains is the split that still       */
+/*  matters: a SHORTFALL is fixed by the monthly renewal or a plan change,      */
+/*  while the COACH CAP is not a balance at all and no purchase lifts it — an   */
+/*  upgrade nudge there is a sale that cannot deliver.                          */
 /* -------------------------------------------------------------------------- */
 
 function reply(status: number, body: unknown) {
@@ -70,22 +67,23 @@ describe("unlockMoments", () => {
     });
   });
 
-  it("keeps the legacy credits 402 on the credits path", async () => {
-    // The live behaviour while the flag is off. A credit top-up genuinely
-    // fixes this one, so it is the only 402 allowed to reach the pack page.
+  it("reads a legacy INSUFFICIENT_CREDITS 402 as a token shortfall", async () => {
+    // Credits are retired (founder 2026-07-31). If an older backend or a
+    // cached deploy still answers in the old code, the remedy the user needs is
+    // the token one — there is no credits path left to send them down.
     reply(402, { code: "INSUFFICIENT_CREDITS" });
     await expect(unlockMoments("a1")).resolves.toMatchObject({
       ok: false,
-      reason: "insufficient_credits",
+      reason: "insufficient_tokens",
     });
   });
 
-  it("treats an unlabelled 402 as credits, not tokens", async () => {
-    // Ambiguous payloads stay on today's path. Guessing "tokens" would strand
-    // a credits user with a renewal date that has nothing to do with them.
+  it("treats an unlabelled 402 as a token shortfall", async () => {
+    // Tokens are the only currency, so an ambiguous 402 has exactly one
+    // sensible reading and no ambiguity left to preserve.
     reply(402, {});
     await expect(unlockMoments("a1")).resolves.toMatchObject({
-      reason: "insufficient_credits",
+      reason: "insufficient_tokens",
     });
   });
 

@@ -27,11 +27,9 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*     button would 404.                                                       */
 /*                                                                            */
 /*  2. A working upgrade button. The tiers are real and published, but the     */
-/*     only checkout this product has is Stripe `mode: "payment"` for one-time */
-/*     credit packs. There is no subscription checkout to send anyone to, and  */
-/*     the credit-pack page sells something that does NOT add tokens, so       */
-/*     linking there would take payment for the wrong thing. The plans are     */
-/*     listed with an honest note until a subscription path exists.            */
+/*     backend has no subscription checkout — see                              */
+/*     docs/HANDOFF-BE-2026-07-31-token-subscriptions.md. The plans are listed */
+/*     with an honest note until one exists.                                   */
 /*                                                                            */
 /*  No streaks, no "you've used X% of your month", no comparison, no praise    */
 /*  for spending little (AC-9). The ledger is a receipt, not a report card.    */

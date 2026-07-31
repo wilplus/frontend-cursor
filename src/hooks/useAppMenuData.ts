@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/components/willab/useUserProfile";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { homeworkApi } from "@/lib/api/homework-client";
 import { loadLifeState, subscribeLifeState } from "@/lib/life/useLifeState";
 import { panelMenu } from "@/lib/life/menu";
 import type { LifeMenuEntry } from "@/lib/life/types";
@@ -32,7 +31,6 @@ export interface AppMenuData {
    *  non-coach is the same leak as one that stays. */
   isCoach: boolean;
   userEmail: string | null;
-  credits: number | null;
   /** The token wallet (token pricing, Phase 1). Lives here for the same reason
    *  credits do: BOTH headers mount the same AppMenu, and a second copy of
    *  this effect in SiteHeader is exactly the duplication that let the two
@@ -48,8 +46,6 @@ export interface AppMenuData {
   lifeMenu: LifeMenuEntry[];
   loggingOut: boolean;
   logout: () => void;
-  /** DashboardHeader's post-checkout toast writes the fresh balance back. */
-  setCredits: (n: number | null) => void;
 }
 
 export function useAppMenuData(): AppMenuData {
@@ -59,7 +55,6 @@ export function useAppMenuData(): AppMenuData {
   const supabase = createClient();
   const [authState, setAuthState] = useState<AuthState>("unknown");
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [credits, setCredits] = useState<number | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   // The Life Panel's entries, straight from `GET /v2/life/state`. Empty for
   // everyone the panel is not on for, which is the normal case: that endpoint
@@ -68,18 +63,11 @@ export function useAppMenuData(): AppMenuData {
   // omits cannot appear, and nothing is rendered greyed out as "coming soon".
   const [lifeMenu, setLifeMenu] = useState<LifeMenuEntry[]>([]);
 
-  /** Credits: single source of truth — the same field the homework flow reads. */
+  /** Auth identity for the menu. No balance polling lives here any more: the
+   *  token wallet owns its own read (useTokenWallet), and the legacy credits
+   *  poll against /status is gone with the credits system. */
   useEffect(() => {
     let cancelled = false;
-
-    async function refreshCreditsFromStatus() {
-      try {
-        const status = await homeworkApi.getStatus();
-        if (!cancelled) setCredits(status?.credits != null ? status.credits : null);
-      } catch {
-        if (!cancelled) setCredits(null);
-      }
-    }
 
     async function load() {
       const {
@@ -89,41 +77,16 @@ export function useAppMenuData(): AppMenuData {
       if (!user) {
         setAuthState("anonymous");
         setUserEmail(null);
-        setCredits(null);
         return;
       }
       setAuthState("signed_in");
       setUserEmail(user.email ?? null);
-      await refreshCreditsFromStatus();
     }
 
     void load();
 
-    // Only attach the refresh listeners once we know the user is signed in —
-    // guests have no credits and shouldn't trigger /status in the background.
-    let cleanupListeners: (() => void) | null = null;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (cancelled || !data.user) return;
-      const onVisibilityOrFocus = () => {
-        if (typeof document !== "undefined" && document.visibilityState !== "visible")
-          return;
-        void refreshCreditsFromStatus();
-      };
-      window.addEventListener("focus", onVisibilityOrFocus);
-      document.addEventListener("visibilitychange", onVisibilityOrFocus);
-      const intervalId = window.setInterval(() => {
-        void refreshCreditsFromStatus();
-      }, 60_000);
-      cleanupListeners = () => {
-        window.removeEventListener("focus", onVisibilityOrFocus);
-        document.removeEventListener("visibilitychange", onVisibilityOrFocus);
-        window.clearInterval(intervalId);
-      };
-    });
-
     return () => {
       cancelled = true;
-      cleanupListeners?.();
     };
   }, [supabase]);
 
@@ -183,12 +146,10 @@ export function useAppMenuData(): AppMenuData {
     authState,
     isCoach,
     userEmail,
-    credits,
     wallet,
     tokensLabel,
     lifeMenu,
     loggingOut,
     logout,
-    setCredits,
   };
 }
