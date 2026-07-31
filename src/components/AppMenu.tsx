@@ -73,11 +73,6 @@ export interface AppMenuProps {
    *  live in the hamburger"). Signed-in only — the game plays the user's own
    *  coach-confirmed moments, which a guest does not have. */
   gameHref?: string | null;
-  /** Pre-formatted token price for the game row, or null when pricing is off.
-   *  A LABEL, not a number: the host owns the wallet read and the formatting,
-   *  this owns the chrome — the same split that keeps the blog mount from
-   *  needing to know anything about pricing. */
-  gamePriceLabel?: string | null;
   /** The training-corpus workbench. COACH ONLY (N4): the host passes this
    *  only when the signed-in user is a coach, so the row does not exist for
    *  anyone else — not greyed out, not present. */
@@ -96,7 +91,6 @@ export default function AppMenu({
   loggingOut = false,
   labHref = null,
   gameHref = null,
-  gamePriceLabel = null,
   corpusHref = null,
 }: AppMenuProps) {
   const [open, setOpen] = useState(false);
@@ -199,18 +193,17 @@ export default function AppMenu({
             <Link
               ref={firstRef()}
               href={gameHref}
-              className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}
+              className={MENU_ITEM_CLASS}
               onClick={() => setOpen(false)}
             >
-              <span>Voice-game</span>
-              {/* The game is metered, and this row is the control that starts
-                  it — so the price belongs here, before the tap, not on a
-                  screen you reach by paying. Absent unless pricing is live. */}
-              {gamePriceLabel ? (
-                <span className="font-normal text-muted-foreground">
-                  {gamePriceLabel}
-                </span>
-              ) : null}
+              {/* NO PRICE HERE, deliberately. The game is metered, but it is
+                  charged ONCE PER ARC (`ref_id` is the arc id) and this row
+                  links to /game with no arc — the training is resolved on the
+                  page, from `?arc=` or localStorage. So at this point there is
+                  no arc to ask about, and a static label would be wrong for
+                  anyone who has already played the arc they land on. The price
+                  lives on the game screen, where the arc is known. */}
+              Voice-game
             </Link>
           ) : null}
 
