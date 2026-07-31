@@ -193,7 +193,7 @@ export function PieceBadgeText({
   //
   //  1. The tracked lane may never DELETE the star layer. key_moments carries
   //     the moment stars, approve folds, the moment sheet (the only entry to
-  //     the 5-credit unlock) and the delivery re-record. Under BE-C those
+  //     the moments unlock) and the delivery re-record. Under BE-C those
   //     lanes MERGE into `suggestions`, so the BE stops sending key_moments —
   //     which is exactly when this flips on. While both are served, today's
   //     view wins and the new lane simply is not drawn yet.

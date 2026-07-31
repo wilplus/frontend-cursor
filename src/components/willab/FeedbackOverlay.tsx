@@ -35,7 +35,7 @@ import {
 /*                                                                            */
 /*  Pricing it honestly needs an "already charged for this arc" flag on the     */
 /*  payload; until then `fetchArcFeedback` re-reads the balance after the       */
-/*  charge so the drop is never unexplained. The 5-credit / token moments       */
+/*  charge so the drop is never unexplained. The token moments                  */
 /*  unlock on the ideal text remains the only thing that is priced up front.    */
 /*                                                                            */
 /*  Each key moment is anchor-addressable (`moment-<snippetId>`) so the ideal  */

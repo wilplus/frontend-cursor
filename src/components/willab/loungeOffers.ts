@@ -3,7 +3,7 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
 /* -------------------------------------------------------------------------- */
 /*  loungeOffers — the Lounge's actionable "offers" as durable thread entries  */
 /*                                                                            */
-/*  Install (F2), the bad-joke offer (F7) and the credit gate (F1) are no       */
+/*  Install (F2) and the legacy bad-joke offer (F7) are no                      */
 /*  longer transient footer popups: each is appended to the Lounge thread as a  */
 /*  real, persisted bubble (kind "text" + a metadata discriminator, so it rides */
 /*  the existing lounge_messages contract with no new BE kind). The bubble is   */
@@ -15,9 +15,14 @@ import type { LoungeMessage, LoungeMessageDraft } from "@/services/api/loungeMes
 /*  vary by platform. Here we own only the persisted shape + the prompt copy.   */
 /* -------------------------------------------------------------------------- */
 
-export type OfferType = "install" | "joke" | "credit";
+/** The credit gate ("credit") is GONE with the credits system (founder
+ *  2026-07-31). It was already unreachable: the BE hardcodes
+ *  `can_start_analysis: True` ("every arc records/analyzes/sends free"), so the
+ *  gate could not fire. Legacy `offer: "credit"` bubbles in old threads still
+ *  render as ordinary bot text, which is exactly what the fallback was for. */
+export type OfferType = "install" | "joke";
 
-const OFFER_TYPES: readonly OfferType[] = ["install", "joke", "credit"];
+const OFFER_TYPES: readonly OfferType[] = ["install", "joke"];
 
 /** The bubble prompt persisted as the message body. No em-dashes (house style). */
 export const OFFER_PROMPT: Record<OfferType, string> = {
@@ -25,8 +30,6 @@ export const OFFER_PROMPT: Record<OfferType, string> = {
     "Keep WillpowerLab one tap away. Add it to your home screen so your coach's insights are always with you.",
   joke:
     "I'm just a simple system, but I noticed you weren't feeling great before this presentation. Want me to crack a joke?",
-  credit:
-    "Unlock the full audit for $25: your coach-corrected ideal text and every breakthrough moment. Your automatic overview stays free on every take. Money-back guaranteed.",
 };
 
 /** Build the persisted offer message. role "bot" so a fallback render (if the
@@ -58,32 +61,4 @@ export function hasOffer(
   type: OfferType
 ): boolean {
   return messages.some((m) => readOfferType(m.metadata) === type);
-}
-
-/* ----------------------------- credit episode ----------------------------- */
-/*  hasOffer only sees the currently-loaded message window (newest page), so it  */
-/*  can't dedup a credit offer that has scrolled out of view. A localStorage     */
-/*  marker — set when we offer, cleared when the user can record again — dedups   */
-/*  one credit offer per depletion episode across reloads + history paging.      */
-
-const CREDIT_OFFER_LIVE_KEY = "willab:credit-offer-live";
-
-/** Whether a credit offer is already live for the current depletion episode. */
-export function readCreditOfferLive(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(CREDIT_OFFER_LIVE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function writeCreditOfferLive(live: boolean): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (live) window.localStorage.setItem(CREDIT_OFFER_LIVE_KEY, "1");
-    else window.localStorage.removeItem(CREDIT_OFFER_LIVE_KEY);
-  } catch {
-    /* swallow */
-  }
 }

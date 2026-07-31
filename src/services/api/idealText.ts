@@ -90,7 +90,7 @@ export interface IdealKeyMomentLink {
   /** Whether the user already approved this suggestion. The BE folds the served
    *  text for an applied one and drops its star; this is informational. */
   applied?: boolean;
-  /** Verified-star flags — what sits behind the 5-credit paywall. The content
+  /** Verified-star flags — what sits behind the moments paywall. The content
    *  itself (coach note + video) is served only by the paid moments GET. */
   coach?: {
     hasMessage: boolean;
@@ -98,7 +98,7 @@ export interface IdealKeyMomentLink {
     /** A blog post the coach attached to this verified moment. Absent when
      *  there is none, and absent for an unpublished or deleted post, so this
      *  can never render a dead link. NOT paywalled: unlike the coach's note,
-     *  a public post sits outside the 5-credit gate. */
+     *  a public post sits outside the moments gate. */
     reference?: { slug: string; title: string; url: string } | null;
   } | null;
   /** The student's own recording of this snippet — free playback in the modal
@@ -487,20 +487,19 @@ export type IdealTextResult =
   // eager assembler has output, before the coach-perfected version is approved.
   // Text + key moments only — no notes (the personal notebook copy stays a
   // perfected-lane feature). The BE flags this with variant:"instant". Reading
-  // it is free; the only paid thing in the app is the 5-credit moments unlock.
+  // it is free; the only explicitly-purchased thing is the moments unlock.
   | { kind: "instant"; ideal: IdealText }
   // Single-deliverable (SINGLE_DELIVERABLE_ENABLED): the ONE living ideal text.
   // Both statuses are FREE to read; the only paid thing in the app is opening
-  // the key-moment explanations (momentsUnlocked + priceCredits drive that).
+  // the key-moment explanations (momentsUnlocked drives that).
   | {
       kind: "single";
       ideal: IdealText;
       status: "unverified" | "verified";
       version: number | null;
       momentsUnlocked: boolean;
-      priceCredits: number | null;
       /** FE-1 (gradual refinement) — true only when at least one coach
-       *  explanation actually exists behind the 5-credit unlock. false (or
+       *  explanation actually exists behind the moments unlock. false (or
        *  absent, older BE) → NO paywall surface renders anywhere: there is
        *  nothing to sell yet. Automatic moments stay free regardless. */
       explanationsAvailable: boolean;
@@ -832,11 +831,6 @@ export async function fetchIdealText(
           : null,
       momentsUnlocked: body.moments_unlocked === true,
       explanationsAvailable: body.explanations_available === true,
-      priceCredits:
-        typeof body.price_credits === "number" &&
-        Number.isFinite(body.price_credits)
-          ? body.price_credits
-          : null,
       userEdited: body.user_edited === true,
       // T1 · 1.2 — feature-detected: shape-checked, never assumed. A prior
       // edit with no words is no offer at all.
