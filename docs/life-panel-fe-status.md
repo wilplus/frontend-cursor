@@ -331,4 +331,6 @@ leave open.
   name. What is missing is the backend emitting `phrase` / `principle` / `win`
   when asked. A backend that rejects the unknown field is retried once without
   it, so shipping this ahead of that work cannot break the upload that already
-  works.
+  works. Written up for them in
+  `backend-handoff-life-panel-document-dock.md`, which carries the wire shapes,
+  the acceptance walk-through and the provenance question this raises.
