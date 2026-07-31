@@ -100,14 +100,13 @@ export default function IdealTextOverlay({
    *  different project still gets its loader. */
   const loadedArcRef = useRef<string | null>(null);
   // SD (single-deliverable) — the living-document state: verification status,
-  // version, and whether the 5-credit moments unlock has run.
+  // version, and whether the moments unlock has run.
   // Confidence-game entry navigates to /game (its own page, over from /chat).
   const router = useRouter();
   const [sd, setSd] = useState<{
     status: "unverified" | "verified";
     version: number | null;
     momentsUnlocked: boolean;
-    priceCredits: number | null;
     explanationsAvailable: boolean;
     title: string | null;
     latestTakeSessionId: string | null;
@@ -205,7 +204,6 @@ export default function IdealTextOverlay({
           status: r.status,
           version: r.version,
           momentsUnlocked: r.momentsUnlocked,
-          priceCredits: r.priceCredits,
           explanationsAvailable: r.explanationsAvailable,
           title: r.title,
           latestTakeSessionId: r.latestTakeSessionId,
@@ -416,11 +414,10 @@ export default function IdealTextOverlay({
   };
 
   // SD — the shared star layer owns the sheet, the Approve/Revert folds and
-  // the 5-credit unlock. The notebook keeps only its legacy wrapper below.
+  // the moments unlock. The notebook keeps only its legacy wrapper below.
   const stars = useMomentStars({
     arcId,
     momentsUnlocked: sd?.momentsUnlocked ?? false,
-    priceCredits: sd?.priceCredits ?? null,
     explanationsAvailable: sd?.explanationsAvailable ?? false,
     onUnlocked: () =>
       setSd((prev) => (prev ? { ...prev, momentsUnlocked: true } : prev)),
@@ -811,7 +808,7 @@ export default function IdealTextOverlay({
         }}
       />
       {/* SD — the shared key-moment sheet (free playback → the suggestion to
-          Approve, or the coach's message behind the 5-credit unlock). */}
+          Approve, or the coach's message behind the moments unlock). */}
       <MomentSheet
         moment={stars.momentOpen}
         momentContent={stars.momentContent}

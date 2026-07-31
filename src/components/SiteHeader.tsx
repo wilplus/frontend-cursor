@@ -33,8 +33,6 @@ export default function SiteHeader() {
       <AppMenu
         authState={menu.authState}
         userEmail={menu.userEmail}
-        credits={menu.credits}
-        tokensEnabled={menu.wallet.enabled === true}
         tokensLabel={menu.tokensLabel}
         lifeMenu={menu.lifeMenu}
         supportEmail={SUPPORT_EMAIL}

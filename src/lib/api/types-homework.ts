@@ -187,8 +187,6 @@ export interface HomeworkResponse {
   last_report_delivered?: boolean | null;
   session?: unknown;
   has_active_session?: boolean;
-  /** Remaining homework credits (from GET status). Charged −5 on completion+report on backend, not on start. Included for step 0 and when has_active_session is true. */
-  credits?: number | null;
 }
 
 /** Normalize raw API status string to PublicHomeworkStatus. Use when building HomeworkResponse from GET. */
@@ -286,11 +284,14 @@ export interface HomeworkSessionStatus {
   recording_1_processing_status?: string | null;
   /** Backend: when true, show the current 1–5 self-rating step and allow POST self-rating. */
   ready_for_self_rating?: boolean | null;
-  /** Remaining homework credits (from GET status). Charged −5 on completion+report on backend, not on start. Included when has_active_session is true or false. */
-  credits?: number | null;
-  /** Willab credit gate (F1): false once the user can't afford the next analysis
-   *  (server-owned; the FE must NOT hardcode the `credits >= 5` threshold). */
-  can_start_analysis?: boolean | null;
+  /** RETIRED with credits (founder 2026-07-31): the BE hardcodes
+   *  `can_start_analysis: True` ("every arc records/analyzes/sends free"), so
+   *  the gate it drove could never fire. Metering is per-action in tokens now,
+   *  and it never blocks a recording. Both fields are still echoed by the BE
+   *  and deliberately not mapped.
+   *
+   *  Do not reintroduce a `credits` field here: a second balance next to the
+   *  token wallet is what the founder removed. */
   /** Pricing: true once the $25 full audit is purchased for the active arc
    *  (per-arc entitlement). Gates the ideal-text / breakthroughs deliverables.
    *  Absent / null on an older payload → treated as paid (no spurious lock). */
@@ -363,7 +364,6 @@ export function getStatusToHomeworkResponse(raw: HomeworkSessionStatus): Homewor
     realtime_level: raw.realtime_level ?? raw.sniper_profile?.realtime_level ?? null,
     realtime_step: raw.realtime_step ?? raw.sniper_profile?.realtime_step ?? null,
     last_report_delivered: raw.last_report_delivered ?? null,
-    credits: raw.credits ?? null,
   };
 }
 

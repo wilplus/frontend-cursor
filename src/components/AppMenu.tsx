@@ -22,9 +22,9 @@ import { TOKENS_COPY } from "@/components/tokens/copy";
 /*  credits row, Lab still first — the way into the product is never behind    */
 /*  the sign-in.                                                               */
 /*                                                                            */
-/*  The host owns the DATA (auth state, email, credits, panel entries, log     */
-/*  out); this owns the CHROME. That split is what keeps the blog mount from   */
-/*  having to know anything about credits or the Life Panel gate.              */
+/*  The host owns the DATA (auth state, email, token balance, panel entries,   */
+/*  log out); this owns the CHROME. That split is what keeps the blog mount     */
+/*  from having to know anything about pricing or the Life Panel gate.          */
 /* -------------------------------------------------------------------------- */
 
 /** Shared item styling, so every row reads identically on both mounts.
@@ -48,16 +48,6 @@ export interface AppMenuProps {
   /** Shown as the first row when signed in. Intake captures no name, so this
    *  is the linked-account email; hidden when unavailable. */
   userEmail?: string | null;
-  /** Credits → checkout. null hides the row (guests, or not yet loaded). */
-  credits?: number | null;
-  /** Token pricing is live for this user → the legacy credits row is RETIRED.
-   *
-   *  Not a cosmetic choice. When the flag is on, the one thing credits ever
-   *  bought (the key-moments unlock) is charged in TOKENS instead — the 402
-   *  comes back as INSUFFICIENT_TOKENS with a token price. A credits row would
-   *  then be a balance that buys nothing, sitting next to a wallet that buys
-   *  everything, and linking to a Stripe page that tops up the wrong currency. */
-  tokensEnabled?: boolean;
   /** Pre-formatted token balance for the menu row (e.g. "12,000 · 30 Aug"), or
    *  null when pricing is off / the balance is unreadable. A LABEL, not a
    *  number: the host owns the wallet read and the formatting, this owns the
@@ -88,8 +78,6 @@ export interface AppMenuProps {
 export default function AppMenu({
   authState,
   userEmail = null,
-  credits = null,
-  tokensEnabled = false,
   tokensLabel = null,
   lifeMenu = [],
   supportEmail,
@@ -292,19 +280,6 @@ export default function AppMenu({
             </Link>
           ) : null}
 
-          {signedIn && credits !== null && !tokensEnabled ? (
-            <Link
-              href="/dashboard/pricing"
-              className={cn(MENU_ITEM_CLASS, "flex items-center justify-between")}
-              onClick={() => setOpen(false)}
-            >
-              <span>Credits</span>
-              <span className="flex items-center gap-1 font-normal text-muted-foreground">
-                <span className="text-base leading-none">🎓</span>
-                {credits}
-              </span>
-            </Link>
-          ) : null}
 
           {signedIn ? (
             <button

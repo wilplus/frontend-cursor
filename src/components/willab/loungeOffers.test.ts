@@ -3,9 +3,7 @@ import {
   OFFER_PROMPT,
   hasOffer,
   offerDraft,
-  readCreditOfferLive,
   readOfferType,
-  writeCreditOfferLive,
   type OfferType,
 } from "./loungeOffers";
 
@@ -13,7 +11,7 @@ type WinShim = {
   window?: { localStorage: Pick<Storage, "getItem" | "setItem" | "removeItem"> };
 };
 
-const TYPES: OfferType[] = ["install", "joke", "credit"];
+const TYPES: OfferType[] = ["install", "joke"];
 
 describe("offerDraft", () => {
   it("builds a persisted text bubble with the offer discriminator", () => {
@@ -37,7 +35,10 @@ describe("readOfferType", () => {
   it("reads a valid offer type back", () => {
     expect(readOfferType({ offer: "install" })).toBe("install");
     expect(readOfferType({ offer: "joke" })).toBe("joke");
-    expect(readOfferType({ offer: "credit" })).toBe("credit");
+    // "credit" is retired (founder 2026-07-31). A legacy bubble carrying it
+    // must read as null so it renders as ordinary bot text rather than
+    // resurrecting an offer whose action pair no longer exists.
+    expect(readOfferType({ offer: "credit" })).toBeNull();
   });
 
   it("returns null for ordinary / malformed metadata", () => {
@@ -59,35 +60,8 @@ describe("hasOffer", () => {
     ];
     expect(hasOffer(messages, "joke")).toBe(true);
     expect(hasOffer(messages, "install")).toBe(false);
-    expect(hasOffer(messages, "credit")).toBe(false);
+
     expect(hasOffer([], "joke")).toBe(false);
   });
 });
 
-describe("credit-offer-live marker", () => {
-  beforeEach(() => {
-    const store = new Map<string, string>();
-    (globalThis as unknown as WinShim).window = {
-      localStorage: {
-        getItem: (k: string) => store.get(k) ?? null,
-        setItem: (k: string, v: string) => {
-          store.set(k, v);
-        },
-        removeItem: (k: string) => {
-          store.delete(k);
-        },
-      },
-    };
-  });
-  afterEach(() => {
-    delete (globalThis as unknown as WinShim).window;
-  });
-
-  it("round-trips: false → set → true → clear → false (dedups across reload)", () => {
-    expect(readCreditOfferLive()).toBe(false);
-    writeCreditOfferLive(true);
-    expect(readCreditOfferLive()).toBe(true);
-    writeCreditOfferLive(false);
-    expect(readCreditOfferLive()).toBe(false);
-  });
-});

@@ -3,7 +3,7 @@
 import { OFFER_PROMPT, type OfferType } from "./loungeOffers";
 
 /* -------------------------------------------------------------------------- */
-/*  OfferBubble — a persisted offer (install / joke / credit) rendered in the   */
+/*  OfferBubble — a persisted offer (install / legacy joke) rendered in the     */
 /*  thread as a clickable bot bubble. Tapping it re-opens its action pair in     */
 /*  the footer (the parent owns which offer is "active"); the bubble itself      */
 /*  stays in the conversation as the durable record of the offer. Body comes     */

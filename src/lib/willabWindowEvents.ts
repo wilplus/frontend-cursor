@@ -1,10 +1,3 @@
-/** Dispatched on `window` when Stripe returns to `/dashboard?credits=success`. */
-export const WILLAB_CREDITS_CHECKOUT_SUCCESS_EVENT = "willab:credits-checkout-success";
-
-export type CreditsCheckoutSuccessDetail = {
-  checkoutSessionId: string | null;
-};
-
 /** Dispatched on `window` when something has just SPENT tokens, so the header
  *  chip re-reads instead of sitting on a stale number until its next poll.
  *
