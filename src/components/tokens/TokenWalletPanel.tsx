@@ -1,18 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import OverlayCloseButton from "@/components/willab/OverlayCloseButton";
-import { useBackDismiss } from "@/components/willab/useBackDismiss";
 import { fetchTokenHistory, type TokenLedgerEntry } from "@/services/api/tokens";
 import type { TokenWallet } from "@/hooks/useTokenWallet";
 import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy";
 
 /* -------------------------------------------------------------------------- */
-/*  TokenWalletSheet — balance, plan, coach reviews, prices, ledger            */
+/*  TokenWalletPanel — balance, plan, coach reviews, prices, ledger            */
 /*                                                                            */
 /*  The whole wallet in one place, so nothing about what things cost has to be */
 /*  discovered by spending. Every price here comes from the BE's published     */
 /*  list; not one is written in the FE.                                        */
+/*                                                                            */
+/*  A PANEL, not an overlay. Founder 2026-07-31 moved the balance out of the   */
+/*  navbar and into the hamburger, which left this content with no chip to     */
+/*  open it — so it lives on the page the menu row links to (the old credits   */
+/*  top-up page) instead of in a sheet over whatever you were doing.           */
 /*                                                                            */
 /*  TWO THINGS THIS SHEET DELIBERATELY DOES NOT HAVE:                          */
 /*                                                                            */
@@ -36,15 +39,7 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 
 const HISTORY_PAGE = 50;
 
-export default function TokenWalletSheet({
-  wallet,
-  onClose,
-}: {
-  wallet: TokenWallet;
-  onClose: () => void;
-}) {
-  useBackDismiss(onClose);
-
+export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
   const [entries, setEntries] = useState<TokenLedgerEntry[]>([]);
   const [nextBeforeId, setNextBeforeId] = useState<number | null>(null);
   const [historyState, setHistoryState] = useState<"loading" | "ready" | "unavailable">(
@@ -74,13 +69,8 @@ export default function TokenWalletSheet({
   const prices = wallet.prices;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-base font-semibold">{TOKENS_COPY.walletTitle}</h2>
-        <OverlayCloseButton onClick={onClose} />
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 py-5">
+    <div className="w-full">
+      <div>
         {/* ---------------------------- balance ---------------------------- */}
         <section>
           {ready ? (

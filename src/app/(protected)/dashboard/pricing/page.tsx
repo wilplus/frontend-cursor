@@ -1,28 +1,23 @@
 import type { Metadata } from "next";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import CreditPricingCards from "@/components/credits/CreditPricingCards";
+import PricingView from "@/components/credits/PricingView";
 import { getCheckoutCreditPackDisplay } from "@/lib/stripe/checkoutCreditPacks.server";
 
+/** Neutral on purpose: this page is the credit top-up while token pricing is
+ *  off and the token wallet once it is on, and a tab title cannot read a
+ *  per-user runtime flag. "Plans" is true of both. */
 export const metadata: Metadata = {
-  title: "Credits & pricing | WillpowerLab",
+  title: "Plans & usage | WillpowerLab",
 };
 
 export default function PricingPage() {
+  // Read server-side either way: the packs are the flag-off branch, and one env
+  // read costs less than a round trip for the users who still need them.
+  // PricingView decides which currency this page is about.
   const packs = getCheckoutCreditPackDisplay();
   return (
     <DashboardShell>
-      <div className="w-full max-w-3xl space-y-2 pb-8 text-center sm:space-y-3">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Top up credits</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          Choose a pack. You&apos;ll complete payment securely on Stripe, then return to your dashboard.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Money-back guarantee on your first audit.
-        </p>
-      </div>
-      <div className="w-full max-w-4xl">
-        <CreditPricingCards packs={packs} />
-      </div>
+      <PricingView packs={packs} />
     </DashboardShell>
   );
 }

@@ -51,9 +51,23 @@ export const TOKENS_COPY = {
     renewsOn ? `${balance} · renews ${renewsOn}` : balance,
   chipLabel: "Your token balance",
 
+  /* ------------------------------- the row ------------------------------- */
+
+  /** The hamburger row that replaces the legacy Credits row when pricing is
+   *  live. Founder 2026-07-31: the balance belongs in the menu, not the navbar
+   *  — the same rule the credits row has always followed. */
+  menuRowLabel: "Tokens",
+  /** Value shown on the right of that row. The renewal date rides along here
+   *  too: it is the difference between "running out" and "wait or top up". */
+  menuRowValue: (balance: string, renewsOn: string | null) =>
+    renewsOn ? `${balance} · ${renewsOn}` : balance,
+
   /* ------------------------------ the wallet ----------------------------- */
 
-  walletTitle: "Tokens",
+  /** The wallet page (the old credits/top-up page). */
+  walletPageTitle: "Tokens and plans",
+  walletPageIntro:
+    "What you have left this month, what things cost, and where it went.",
   walletTier: (tier: string) => `${tier} plan`,
   walletRenews: (on: string) => `Renews ${on}`,
   walletRenewsUnknown: "Renews monthly",
