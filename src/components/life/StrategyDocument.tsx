@@ -8,6 +8,7 @@ import {
   type LifeDraftItem,
   type LifeSetupDocument,
 } from "@/services/api/life";
+import { draftKindsInOrder } from "@/lib/life/draftGroups";
 import { PanelCard } from "./primitives";
 
 /* -------------------------------------------------------------------------- */
@@ -178,15 +179,8 @@ export function DraftList({
   disabled: boolean;
   note: string;
 }) {
-  // The four the setup fold knows about lead, in that order, because that is
-  // the order the screens after the upload ask for them in. Anything else the
-  // drafter hands back (a phrase, a principle) follows in the order it
-  // arrived, rather than being dropped by a hardcoded list that predates it.
-  const leading: string[] = ["bet", "goal", "habit", "distraction"];
-  const kinds = [
-    ...leading.filter((k) => draft.some((d) => d.kind === k)),
-    ...draft.map((d) => d.kind).filter((k) => !leading.includes(k)),
-  ].filter((k, i, all) => all.indexOf(k) === i);
+  // THE SERVER'S ORDER IS THE ORDER (BE 2026-07-31) — see draftGroups.
+  const kinds = draftKindsInOrder(draft);
 
   function update(item: LifeDraftItem, patch: Partial<LifeDraftItem>) {
     onDraft(draft.map((d) => (d === item ? { ...d, ...patch } : d)));
