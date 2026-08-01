@@ -266,7 +266,23 @@ export interface LifeDraftItem {
    *  than a longer copy of the title. The cut is READ from the payload, never
    *  assumed: the limit is the backend's to move. */
   titleCut: number | null;
+  /** The ITEM horizon: now | week | month | quarter | year | five_year |
+   *  ten_year | twenty_year. This is what /setup/apply-proposed validates a
+   *  created row against, so it is the value that must be sent BACK — never
+   *  `strategyHorizon`, which that endpoint would reject. */
   horizon: string | null;
+  /** The SETUP SCREEN this row folds onto: daily | weekly | monthly |
+   *  quarterly | yearly | five_year | ten_year | twenty_year.
+   *
+   *  A separate field because it is a separate vocabulary. `horizon` says when
+   *  a goal is due; this says which of the eight documents it belongs to. They
+   *  coincide only on the long end, which is why folding on `horizon` filled
+   *  Five/Ten/Twenty years and left Daily through This year empty.
+   *
+   *  null when the backend has no mapping (the row is remainder), and absent
+   *  entirely from a backend older than the field — hence `?? horizon` at the
+   *  fold, which keeps the old three-screen behaviour rather than none. */
+  strategyHorizon: string | null;
   dueLabel: string | null;
   bet: string | null;
   externalId: string | null;
@@ -371,6 +387,8 @@ export async function proposeFromDocument(
         body,
         titleCut: truncated ? title.length : null,
         horizon: typeof r.horizon === "string" ? r.horizon : null,
+        strategyHorizon:
+          typeof r.strategy_horizon === "string" ? r.strategy_horizon : null,
         dueLabel: typeof r.due_label === "string" ? r.due_label : null,
         bet: typeof r.collection === "string" ? r.collection : null,
         externalId: typeof r.external_id === "string" ? r.external_id : null,

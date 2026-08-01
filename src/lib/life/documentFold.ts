@@ -35,10 +35,30 @@ import {
 } from "./setupSteps";
 
 /** The horizon keys a goal row is allowed to fold into: the goals steps, which
- *  are all after the document step. */
+ *  are all after the document step. These are STRATEGY horizons — daily,
+ *  weekly, monthly, quarterly, yearly, five_year, ten_year, twenty_year. */
 const GOAL_HORIZONS: ReadonlySet<string> = new Set(
   LIFE_SETUP_STEPS.filter((s) => s.kind === "goals").map((s) => s.key)
 );
+
+/** WHICH SCREEN a drafted row belongs on.
+ *
+ *  This used to read `item.horizon`, and that was the bug: `horizon` is the
+ *  ITEM vocabulary (now / week / month / quarter / year / five_year /
+ *  ten_year / twenty_year) while the step keys above are the STRATEGY
+ *  vocabulary (daily / weekly / monthly / quarterly / yearly / ...). The two
+ *  overlap on exactly three values — five_year, ten_year, twenty_year — so a
+ *  document filled those three screens and left Daily, Weekly, Monthly,
+ *  Quarterly and This year empty, with every one of those goals pushed into
+ *  the remainder. The backend sends `strategy_horizon` precisely so this side
+ *  does not have to translate.
+ *
+ *  The `?? horizon` fallback is for a backend that predates the field: it
+ *  keeps the old long-end fold rather than folding nothing at all, so this
+ *  change is safe to ship before the backend that feeds it. */
+function screenFor(item: LifeDraftItem): string | null {
+  return item.strategyHorizon ?? item.horizon;
+}
 
 export interface DocumentFoldResult {
   /** The answers with the drafted goals filled in. A NEW object; the input is
@@ -79,7 +99,7 @@ export function foldDraftIntoAnswers(
   let seq = 0;
 
   for (const item of items) {
-    const horizon = item.horizon;
+    const horizon = screenFor(item);
     const title = item.title.trim();
 
     if (item.kind !== "goal" || !horizon || !GOAL_HORIZONS.has(horizon)) {
