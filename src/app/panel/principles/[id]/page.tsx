@@ -39,7 +39,7 @@ export default function PrincipleDetailPage({
   params: { id: string };
 }) {
   const load = useCallback(() => fetchPrinciple(params.id), [params.id]);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource(`principle:${params.id}`, load);
   const router = useRouter();
 
   return (

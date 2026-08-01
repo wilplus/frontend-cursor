@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  fetchPanelResource,
+  readPanelCache,
+} from "@/lib/life/panelCache";
 import { STATUS } from "@/lib/life/copy";
 import { VoiceMark } from "@/components/willab/LoadingState";
 
@@ -124,21 +128,49 @@ export interface PanelResource<T> {
 /**
  * One read, with the three states every view needs and nothing more.
  *
+ * `key` names the read so it can be cached and prefetched (see
+ * `lib/life/panelCache`). It must identify the DATA, not the component: two
+ * mounts of the same list share a key, and `/panel/principles/:id` carries the
+ * id or two principles would show each other's detail.
+ *
  * `load` must be stable (wrap it in useCallback at the call site) or this
  * refetches on every render.
+ *
+ * A CACHED READ RENDERS WITHOUT A SPINNER and refreshes behind the screen.
+ * `loading` therefore means "we have nothing to show yet", not "a request is
+ * in flight" — the two used to be the same thing and are not any more. Every
+ * view keys its spinner off `loading`, so a revisit paints instantly and a
+ * first visit is unchanged.
  */
-export function usePanelResource<T>(load: () => Promise<T>): PanelResource<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
+export function usePanelResource<T>(
+  key: string,
+  load: () => Promise<T>
+): PanelResource<T> {
+  const cached = readPanelCache<T>(key);
+  const [data, setData] = useState<T | null>(cached ?? null);
+  const [loaded, setLoaded] = useState(cached !== undefined);
+  const [loading, setLoading] = useState(cached === undefined);
   const [failed, setFailed] = useState(false);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    // Re-read the cache HERE as well as at first render: the key can change
+    // under a mounted component (principle A → principle B), and a prefetch
+    // may have landed between render and effect.
+    const warm = readPanelCache<T>(key);
+    if (warm !== undefined) {
+      setData(warm);
+      setLoaded(true);
+      setLoading(false);
+    } else {
+      setData(null);
+      setLoaded(false);
+      setLoading(true);
+    }
     setFailed(false);
-    void load()
+
+    void fetchPanelResource(key, load)
       .then((value) => {
         if (cancelled) return;
         setData(value);
@@ -147,13 +179,19 @@ export function usePanelResource<T>(load: () => Promise<T>): PanelResource<T> {
       })
       .catch(() => {
         if (cancelled) return;
-        setFailed(true);
+        // A failed REVALIDATION keeps what is on screen: the rows are still
+        // the last thing the server told us, and blanking them because a
+        // background refresh timed out is a worse answer than showing them.
+        // Only a read with nothing behind it becomes the error state.
+        if (readPanelCache<T>(key) === undefined && warm === undefined) {
+          setFailed(true);
+        }
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [load, nonce]);
+  }, [key, load, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return { data, loaded, loading, failed, reload };

@@ -33,7 +33,7 @@ import { EmptyState, Eyebrow, PanelCard, Resource, usePanelResource } from "./pr
 
 export default function StrategyPanel({ compact = false }: { compact?: boolean }) {
   const load = useCallback(() => fetchStrategy(), []);
-  const resource = usePanelResource(load);
+  const resource = usePanelResource("strategy", load);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [diff, setDiff] = useState<LifeStrategyDiff | null>(null);
   const [busy, setBusy] = useState(false);
