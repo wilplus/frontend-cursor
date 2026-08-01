@@ -34,8 +34,22 @@ export const dynamic = "force-dynamic";
 /*  It never charges anything itself — Stripe collects, the webhook grants.     */
 /* -------------------------------------------------------------------------- */
 
+/** Where Stripe sends the user back to.
+ *
+ *  NEXT_PUBLIC_APP_URL first, because that is the one that actually exists in
+ *  this project's environment. The retired credit-pack route read
+ *  NEXT_PUBLIC_SITE_URL, which is set nowhere — so it always fell through to the
+ *  request host. That happens to work behind Vercel, but a return URL on a
+ *  PAYMENT flow is the wrong place to depend on a proxy header being
+ *  well-formed: get it wrong and someone who has just been charged lands
+ *  somewhere unexpected. SITE_URL is still honoured second in case it is ever
+ *  introduced, and the header remains the last resort (and the local default). */
 function appOrigin(req: NextRequest): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
+  const fromEnv = (
+    process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL
+  )
+    ?.trim()
+    .replace(/\/+$/, "");
   if (fromEnv) return fromEnv;
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
   const proto =
