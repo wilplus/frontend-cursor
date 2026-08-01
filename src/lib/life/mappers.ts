@@ -15,6 +15,7 @@
 /*      compliant form.                                                        */
 /* -------------------------------------------------------------------------- */
 
+import { resolveMenuEntry } from "./menu";
 import {
   isMistakeCategory,
   type LifeApplication,
@@ -94,19 +95,14 @@ export function mapLifeState(raw: unknown): LifeState | null {
   const requiredVersion = strOrNull(consent?.required_version);
   if (!requiredVersion) return null;
 
+  // resolveMenuEntry, not a local object reader: the backend sends `menu` as
+  // bare KEYS and this used to require {key, href}, so every entry was
+  // dropped and state.menu was permanently empty. See the block above
+  // RESOLVABLE_VIEWS for what that silently cost.
   const menu: LifeMenuEntry[] = [];
   for (const item of arr(r.menu)) {
-    const m = rec(item);
-    if (!m) continue;
-    const key = strOrNull(m.key);
-    const href = strOrNull(m.href);
-    if (!key || !href) continue;
-    menu.push({
-      key,
-      label: strOrNull(m.label) ?? key,
-      href,
-      external: bool(m.external),
-    });
+    const entry = resolveMenuEntry(item);
+    if (entry) menu.push(entry);
   }
 
   let tags: LifeTagDescriptor[] | undefined;
@@ -157,7 +153,12 @@ export function mapLifeItem(raw: unknown): LifeItem | null {
     horizon: HORIZONS.has(horizon) ? (horizon as LifeHorizon) : null,
     dueLabel: strOrNull(r.due_label),
     dueAt: strOrNull(r.due_at),
-    betKey: betKey(r.bet_key ?? r.bet_id),
+    // `collection` FIRST, because it is the field that actually carries the
+    // bet. serialize_item emits neither `bet_key` nor a bet-shaped `bet_id` —
+    // bet_id is a uuid, which betKey() rejects — so this resolved to null for
+    // every row the backend has ever sent. Both old names are kept behind it:
+    // they cost nothing, and this mapper is fed more than one shape of row.
+    betKey: betKey(r.collection ?? r.bet_key ?? r.bet_id),
     parentId: strOrNull(r.parent_id),
     collection: strOrNull(r.collection),
     originCaseId: strOrNull(r.origin_case_id),

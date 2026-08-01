@@ -318,6 +318,16 @@ export interface LifeDraft {
    *  rows are still created; they are simply created unstamped. */
   documentId: string | null;
   items: LifeDraftItem[];
+  /** Whether the READ worked — NOT whether the document held anything.
+   *
+   *  False means we fell over: ran out of room, could not reach the model,
+   *  could not parse the answer. A short `items` list is then OUR failure and
+   *  not a fact about what the person wrote, and saying "nothing that reads
+   *  as a goal came out of that document" would be untrue.
+   *
+   *  Defaults to TRUE when the field is absent, so a backend older than it
+   *  behaves exactly as it did rather than reporting every read as broken. */
+  extractionOk: boolean;
 }
 
 /**
@@ -400,7 +410,11 @@ export async function proposeFromDocument(
     ];
   });
 
-  return { documentId, items };
+  return {
+    documentId,
+    items,
+    extractionOk: raw?.extraction_ok !== false,
+  };
 }
 
 /** Send ONLY the ticked rows. The backend creates them as the user's own

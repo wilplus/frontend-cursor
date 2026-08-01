@@ -54,10 +54,24 @@ import { PanelCard } from "./primitives";
 export function DocumentUpload({
   docs,
   onUploaded,
+  onReuse,
+  busy: busyOutside = false,
   children,
 }: {
   docs: LifeSetupDocument[];
   onUploaded: (doc: LifeSetupDocument) => void;
+  /** Run the fill again against a document ALREADY uploaded (founder
+   *  2026-08-01). Omitted by hosts that have nothing to re-run.
+   *
+   *  It exists because the fill used to happen once, on upload, and nowhere
+   *  else: a read that failed, or a document handed over before a fix
+   *  shipped, left no way to try again short of uploading the same file a
+   *  second time — which is what three identical cards on one screen looks
+   *  like when someone does. */
+  onReuse?: (doc: LifeSetupDocument) => void;
+  /** The host is mid-fill. Keeps a second run from being started on top of
+   *  one already in flight, which would race two folds into the same answers. */
+  busy?: boolean;
   /** What happened after the upload, rendered under the document card. The
    *  hosts say different things: setup reports what it filled in, the panel
    *  reports what is waiting to be ticked. */
@@ -152,6 +166,19 @@ export function DocumentUpload({
                 </p>
               )}
             </div>
+            {/* Only for a document there is something to read. An unreadable
+                upload has no text to fill from, and its card already says
+                so. */}
+            {onReuse && doc.status === "processed" ? (
+              <button
+                type="button"
+                onClick={() => onReuse(doc)}
+                disabled={busyOutside}
+                className="ml-auto shrink-0 whitespace-nowrap rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                {SETUP.documentReuseLabel}
+              </button>
+            ) : null}
           </div>
         </PanelCard>
       ))}
