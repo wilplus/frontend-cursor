@@ -18,6 +18,13 @@ import { TOKENS_COPY, actionLabel, formatShortDate, formatTokens } from "./copy"
 /*  open it — so it lives on the page the menu row links to (the old credits   */
 /*  top-up page) instead of in a sheet over whatever you were doing.           */
 /*                                                                            */
+/*  ONE VIEW, PLANS IN THE CENTRE (founder 2026-08-01). The balance is a single */
+/*  centred line, the three plans are the body of the screen, and everything    */
+/*  that explains the MECHANICS — what each action costs, the coach-review      */
+/*  counter, the ledger — sits behind one "Show more". Those are reference      */
+/*  material you go looking for once; the plans are why the page exists, and    */
+/*  they were previously below a fold of price tables.                          */
+/*                                                                            */
 /*  TWO THINGS THIS SHEET DELIBERATELY DOES NOT HAVE:                          */
 /*                                                                            */
 /*  1. A "Request coach review" button. The BE has the price and the per-tier  */
@@ -63,6 +70,9 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
     void loadPage(null);
   }, [loadPage]);
 
+  // Collapsed by default: the plans are the screen, the mechanics are reference.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   const ready = wallet.balance.kind === "ready" ? wallet.balance : null;
   const renewsOn = formatShortDate(ready?.periodEndsAt ?? null);
   const prices = wallet.prices;
@@ -70,12 +80,14 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
 
   return (
     <div className="w-full">
-      <div>
+      <div className="flex flex-col items-center">
         {/* ---------------------------- balance ---------------------------- */}
-        <section>
+        {/* One centred line. The renewal date stays HERE in full, which is what
+            lets the hamburger row be the bare number. */}
+        <section className="text-center">
           {ready ? (
             <>
-              <div className="text-3xl font-semibold tabular-nums">
+              <div className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
                 {formatTokens(ready.balance)}
               </div>
               <div className="mt-1 text-[13px] text-muted-foreground">
@@ -94,57 +106,12 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
           )}
         </section>
 
-        {/* ------------------------- coach reviews ------------------------- */}
-        {ready?.coachReviews ? (
-          <section className="mt-7">
-            <h3 className="text-[13px] font-semibold">{TOKENS_COPY.coachReviewsTitle}</h3>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {TOKENS_COPY.coachReviewsUsed(
-                ready.coachReviews.used,
-                ready.coachReviews.allowed
-              )}
-            </p>
-            {/* The one place two limits legitimately disagree: a full balance
-                and no reviews left. Said plainly, or it reads as a bug.
 
-                GATED ON allowed > 0. On free the allowance IS zero, so a bare
-                `remaining <= 0` told those users they had "used your coach
-                reviews for this month" directly under "0 of 0 used" — claiming
-                they spent something they never had. Exhausted means they had
-                some and spent them; having none is a property of the plan. */}
-            {ready.coachReviews.allowed > 0 && ready.coachReviews.remaining <= 0 ? (
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                {TOKENS_COPY.coachReviewsExhausted(renewsOn)}
-              </p>
-            ) : null}
-          </section>
-        ) : null}
-
-        {/* ----------------------------- prices ---------------------------- */}
-        {prices && Object.keys(prices.actions).length > 0 ? (
-          <section className="mt-7">
-            <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletPricesTitle}</h3>
-            <ul className="mt-2 space-y-1.5">
-              {Object.entries(prices.actions).map(([action, price]) => (
-                <li
-                  key={action}
-                  className="flex items-baseline justify-between gap-4 text-[13px]"
-                >
-                  <span>{actionLabel(action)}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {formatTokens(price)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
 
         {/* ----------------------------- plans ----------------------------- */}
         {prices && Object.keys(prices.tiers).length > 0 ? (
-          <section className="mt-7">
-            <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletPlansTitle}</h3>
-            <div className="mt-3">
+          <section className="mt-8 w-full">
+            <div>
               {/* Three prices, three CTAs (founder 2026-07-31). The cards own
                   the buying flow; this panel just says where they go. */}
               <TokenPlanCards
@@ -155,48 +122,112 @@ export default function TokenWalletPanel({ wallet }: { wallet: TokenWallet }) {
           </section>
         ) : null}
 
-        {/* ---------------------------- history ---------------------------- */}
-        <section className="mt-7 pb-8">
-          <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletHistoryTitle}</h3>
-          {historyState === "ready" && entries.length === 0 ? (
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {TOKENS_COPY.walletHistoryEmpty}
-            </p>
+
+        {/* --------------------------- show more --------------------------- */}
+        {/* One toggle for all the mechanics. Collapsed by default so the screen
+            is the plans; expanded it is the reference material. */}
+        <div className="mt-8 w-full border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((o) => !o)}
+            aria-expanded={detailsOpen}
+            className="mx-auto block text-[13px] text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+          >
+            {detailsOpen ? TOKENS_COPY.walletShowLess : TOKENS_COPY.walletShowMore}
+          </button>
+
+          {detailsOpen ? (
+            <div className="mt-2 text-left">
+
+          {/* ------------------------- coach reviews ------------------------- */}
+          {ready?.coachReviews ? (
+            <section className="mt-7">
+              <h3 className="text-[13px] font-semibold">{TOKENS_COPY.coachReviewsTitle}</h3>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {TOKENS_COPY.coachReviewsUsed(
+                  ready.coachReviews.used,
+                  ready.coachReviews.allowed
+                )}
+              </p>
+              {/* The one place two limits legitimately disagree: a full balance
+                  and no reviews left. Said plainly, or it reads as a bug.
+
+                  GATED ON allowed > 0. On free the allowance IS zero, so a bare
+                  `remaining <= 0` told those users they had "used your coach
+                  reviews for this month" directly under "0 of 0 used" — claiming
+                  they spent something they never had. Exhausted means they had
+                  some and spent them; having none is a property of the plan. */}
+              {ready.coachReviews.allowed > 0 && ready.coachReviews.remaining <= 0 ? (
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  {TOKENS_COPY.coachReviewsExhausted(renewsOn)}
+                </p>
+              ) : null}
+            </section>
           ) : null}
-          <ul className="mt-2 space-y-1.5">
-            {entries.map((e) => (
-              <li
-                key={e.id}
-                className="flex items-baseline justify-between gap-4 text-[13px]"
-              >
-                <span>
-                  {actionLabel(e.action)}
-                  {e.createdAt ? (
-                    <span className="text-muted-foreground">
-                      {" · "}
-                      {formatShortDate(e.createdAt)}
+          {/* ----------------------------- prices ---------------------------- */}
+          {prices && Object.keys(prices.actions).length > 0 ? (
+            <section className="mt-7">
+              <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletPricesTitle}</h3>
+              <ul className="mt-2 space-y-1.5">
+                {Object.entries(prices.actions).map(([action, price]) => (
+                  <li
+                    key={action}
+                    className="flex items-baseline justify-between gap-4 text-[13px]"
+                  >
+                    <span>{actionLabel(action)}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {formatTokens(price)}
                     </span>
-                  ) : null}
-                </span>
-                <span className="tabular-nums text-muted-foreground">
-                  {/* Signed as the BE reports it. A refill is a plus, a spend
-                      is a minus; neither is editorialised. */}
-                  {e.delta > 0 ? "+" : "-"}
-                  {formatTokens(Math.abs(e.delta))}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {nextBeforeId != null ? (
-            <button
-              type="button"
-              onClick={() => void loadPage(nextBeforeId)}
-              className="mt-3 text-[13px] text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
-            >
-              {TOKENS_COPY.walletHistoryMore}
-            </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
-        </section>
+          {/* ---------------------------- history ---------------------------- */}
+          <section className="mt-7 pb-8">
+            <h3 className="text-[13px] font-semibold">{TOKENS_COPY.walletHistoryTitle}</h3>
+            {historyState === "ready" && entries.length === 0 ? (
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {TOKENS_COPY.walletHistoryEmpty}
+              </p>
+            ) : null}
+            <ul className="mt-2 space-y-1.5">
+              {entries.map((e) => (
+                <li
+                  key={e.id}
+                  className="flex items-baseline justify-between gap-4 text-[13px]"
+                >
+                  <span>
+                    {actionLabel(e.action)}
+                    {e.createdAt ? (
+                      <span className="text-muted-foreground">
+                        {" · "}
+                        {formatShortDate(e.createdAt)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {/* Signed as the BE reports it. A refill is a plus, a spend
+                        is a minus; neither is editorialised. */}
+                    {e.delta > 0 ? "+" : "-"}
+                    {formatTokens(Math.abs(e.delta))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {nextBeforeId != null ? (
+              <button
+                type="button"
+                onClick={() => void loadPage(nextBeforeId)}
+                className="mt-3 text-[13px] text-muted-foreground underline underline-offset-2 transition hover:text-foreground"
+              >
+                {TOKENS_COPY.walletHistoryMore}
+              </button>
+            ) : null}
+          </section>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
